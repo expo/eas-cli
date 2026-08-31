@@ -83,6 +83,8 @@ export type Account = {
   accountFeatureGates: Scalars['JSONObject']['output'];
   /** Coalesced project activity for all apps belonging to this account. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
+  /** AI provider connections available to agent sandbox sessions. */
+  agentProviderConnections: Array<AgentProviderConnection>;
   aiChatEnabled: Scalars['Boolean']['output'];
   appCount: Scalars['Int']['output'];
   /** @deprecated Use appStoreConnectApiKeysPaginated */
@@ -1078,6 +1080,80 @@ export type AgentDeviceRunSessionRemoteConfig = {
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
 
+export enum AgentProvider {
+  Anthropic = 'ANTHROPIC',
+  Openai = 'OPENAI'
+}
+
+export type AgentProviderConnection = {
+  __typename?: 'AgentProviderConnection';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  createdByActor?: Maybe<Actor>;
+  expiresAt?: Maybe<Scalars['DateTime']['output']>;
+  id: Scalars['ID']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+  provider: AgentProvider;
+  providerAccountEmail?: Maybe<Scalars['String']['output']>;
+  providerAccountId?: Maybe<Scalars['String']['output']>;
+  providerPlan?: Maybe<Scalars['String']['output']>;
+  status: AgentProviderConnectionStatus;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export enum AgentProviderConnectionAuthorizationStatus {
+  Expired = 'EXPIRED',
+  Pending = 'PENDING',
+  Succeeded = 'SUCCEEDED'
+}
+
+export type AgentProviderConnectionMutation = {
+  __typename?: 'AgentProviderConnectionMutation';
+  completeClaudeConnection: AgentProviderConnection;
+  deleteAgentProviderConnection: AgentProviderConnection;
+  pollCodexConnection: CodexConnectionPollResult;
+  startClaudeConnection: ClaudeAuthorization;
+  startCodexConnection: CodexDeviceAuthorization;
+  updateAgentProviderConnection: AgentProviderConnection;
+};
+
+
+export type AgentProviderConnectionMutationCompleteClaudeConnectionArgs = {
+  input: CompleteClaudeConnectionInput;
+};
+
+
+export type AgentProviderConnectionMutationDeleteAgentProviderConnectionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type AgentProviderConnectionMutationPollCodexConnectionArgs = {
+  requestId: Scalars['ID']['input'];
+};
+
+
+export type AgentProviderConnectionMutationStartClaudeConnectionArgs = {
+  input: StartClaudeConnectionInput;
+};
+
+
+export type AgentProviderConnectionMutationStartCodexConnectionArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
+export type AgentProviderConnectionMutationUpdateAgentProviderConnectionArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateAgentProviderConnectionInput;
+};
+
+export enum AgentProviderConnectionStatus {
+  Invalid = 'INVALID',
+  UnableToVerify = 'UNABLE_TO_VERIFY',
+  Valid = 'VALID'
+}
+
 export type AndroidAppBuildCredentials = {
   __typename?: 'AndroidAppBuildCredentials';
   androidKeystore?: Maybe<AndroidKeystore>;
@@ -1472,6 +1548,8 @@ export type App = Project & {
   internalDistributionBuildPrivacy: AppInternalDistributionBuildPrivacy;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
+  /** Whether this app qualifies for the observe-notification-lapsed-paid experiment */
+  isEligibleForObserveLapsedPaidNotification: Scalars['Boolean']['output'];
   /**
    * Tells you if the project can show the Observe promotional notification. This field is part of
    * the observe-notification experiment.
@@ -5087,6 +5165,13 @@ export type ChatTokenUsage = {
   usedTokens: Scalars['Int']['output'];
 };
 
+export type ClaudeAuthorization = {
+  __typename?: 'ClaudeAuthorization';
+  authorizationUrl: Scalars['String']['output'];
+  expiresAt: Scalars['DateTime']['output'];
+  requestId: Scalars['ID']['output'];
+};
+
 export type CodeSigningInfo = {
   __typename?: 'CodeSigningInfo';
   alg: Scalars['String']['output'];
@@ -5098,6 +5183,26 @@ export type CodeSigningInfoInput = {
   alg: Scalars['String']['input'];
   keyid: Scalars['String']['input'];
   sig: Scalars['String']['input'];
+};
+
+export type CodexConnectionPollResult = {
+  __typename?: 'CodexConnectionPollResult';
+  connection?: Maybe<AgentProviderConnection>;
+  status: AgentProviderConnectionAuthorizationStatus;
+};
+
+export type CodexDeviceAuthorization = {
+  __typename?: 'CodexDeviceAuthorization';
+  expiresAt: Scalars['DateTime']['output'];
+  pollingIntervalSeconds: Scalars['Int']['output'];
+  requestId: Scalars['ID']['output'];
+  userCode: Scalars['String']['output'];
+  verificationUrl: Scalars['String']['output'];
+};
+
+export type CompleteClaudeConnectionInput = {
+  authorizationCode: Scalars['String']['input'];
+  requestId: Scalars['ID']['input'];
 };
 
 export type CompletePostHogConnectionInput = {
@@ -5321,7 +5426,7 @@ export type CreateDeviceRunSessionInput = {
   /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
-   * duration (2 hours, or maxRunTimeMinutes when set). Only supported for
+   * duration (maxRunTimeMinutes when set). Only supported for
    * agent-device, argent, and Appium sessions. If omitted, the session has no idle
    * timeout.
    */
@@ -6241,7 +6346,7 @@ export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
 
 export enum DeviceRunSessionResourceClass {
   Large = 'LARGE',
@@ -6259,7 +6364,10 @@ export enum DeviceRunSessionType {
   AgentDevice = 'AGENT_DEVICE',
   Appium = 'APPIUM',
   Argent = 'ARGENT',
-  ServeSim = 'SERVE_SIM'
+  /** @deprecated Use WEB_PREVIEW_ONLY instead. */
+  ServeSim = 'SERVE_SIM',
+  /** A session accessed only through its web preview. Currently supported on iOS. */
+  WebPreviewOnly = 'WEB_PREVIEW_ONLY'
 }
 
 export type DiscordUser = {
@@ -7126,6 +7234,7 @@ export type EmbeddedUpdateQueryByIdArgs = {
 export enum EntityTypeName {
   AccountEntity = 'AccountEntity',
   AccountSsoConfigurationEntity = 'AccountSSOConfigurationEntity',
+  AgentProviderConnectionEntity = 'AgentProviderConnectionEntity',
   AndroidAppCredentialsEntity = 'AndroidAppCredentialsEntity',
   AndroidKeystoreEntity = 'AndroidKeystoreEntity',
   AppEntity = 'AppEntity',
@@ -9509,6 +9618,7 @@ export type RootMutation = {
   accountSSOConfiguration: AccountSsoConfigurationMutation;
   /** Mutations for Actor experiments */
   actorExperiment: ActorExperimentMutation;
+  agentProviderConnection: AgentProviderConnectionMutation;
   /** Mutations that modify the build credentials for an Android app */
   androidAppBuildCredentials: AndroidAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an Android app */
@@ -10111,6 +10221,10 @@ export type SentryProjectMutationDeleteSentryProjectArgs = {
   sentryProjectId: Scalars['ID']['input'];
 };
 
+/**
+ * Legacy remote config for SERVE_SIM sessions. Use WEB_PREVIEW_ONLY sessions and
+ * WebPreviewOnlyRunSessionRemoteConfig instead.
+ */
 export type ServeSimRunSessionRemoteConfig = {
   __typename?: 'ServeSimRunSessionRemoteConfig';
   previewUrl: Scalars['String']['output'];
@@ -10200,6 +10314,10 @@ export enum StandardOffer {
   /** $348 USD per year, 30 day trial */
   YearlySub = 'YEARLY_SUB'
 }
+
+export type StartClaudeConnectionInput = {
+  accountId: Scalars['ID']['input'];
+};
 
 export type StartPostHogConnectionResult = PostHogOrganizationConnection | PostHogPendingConnection;
 
@@ -10807,6 +10925,10 @@ export type UpdateDiffReceiptsArgs = {
   filter?: InputMaybe<UpdateDiffReceiptFilterInput>;
   first: Scalars['Int']['input'];
   orderBy?: InputMaybe<Array<UpdateDiffReceiptOrderByClause>>;
+};
+
+export type UpdateAgentProviderConnectionInput = {
+  name?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateBranch = {
@@ -12132,6 +12254,11 @@ export type VexoIntegrationQuery = {
 export type WebNotificationUpdateReadStateInput = {
   id: Scalars['ID']['input'];
   isRead: Scalars['Boolean']['input'];
+};
+
+export type WebPreviewOnlyRunSessionRemoteConfig = {
+  __typename?: 'WebPreviewOnlyRunSessionRemoteConfig';
+  webPreviewUrl: Scalars['String']['output'];
 };
 
 export type Webhook = {
@@ -13506,6 +13633,9 @@ export enum WorkflowRunTriggerEventType {
   EasSubmit = 'EAS_SUBMIT',
   ExpoLaunch = 'EXPO_LAUNCH',
   GithubPullRequestBaseRefChanged = 'GITHUB_PULL_REQUEST_BASE_REF_CHANGED',
+  GithubPullRequestCommentCreated = 'GITHUB_PULL_REQUEST_COMMENT_CREATED',
+  GithubPullRequestCommentDeleted = 'GITHUB_PULL_REQUEST_COMMENT_DELETED',
+  GithubPullRequestCommentEdited = 'GITHUB_PULL_REQUEST_COMMENT_EDITED',
   GithubPullRequestEdited = 'GITHUB_PULL_REQUEST_EDITED',
   GithubPullRequestLabeled = 'GITHUB_PULL_REQUEST_LABELED',
   GithubPullRequestOpened = 'GITHUB_PULL_REQUEST_OPENED',
@@ -15131,6 +15261,7 @@ export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSes
         | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string }
+        | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', previewUrl: string }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{

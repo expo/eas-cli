@@ -181,7 +181,7 @@ describe(SimulatorList, () => {
       after: 'page-cursor',
       filter: {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Appium, DeviceRunSessionType.ServeSim],
+        types: [DeviceRunSessionType.Appium, DeviceRunSessionType.WebPreviewOnly],
         platforms: [AppPlatform.Ios],
         name: 'checkout',
       },
