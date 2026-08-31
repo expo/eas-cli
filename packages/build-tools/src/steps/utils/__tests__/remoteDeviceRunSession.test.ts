@@ -360,6 +360,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
   });
 
   it('starts expo-device-hub for Linux and cleans up the preview resources', async () => {
+    const packageVersion = '1.2.3';
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -372,13 +373,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
+      packageVersion,
     });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs }));
+    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://android-preview.example.test');
 
@@ -387,6 +389,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
   });
 
   it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
+    const packageVersion = '4.5.6';
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -399,13 +402,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
+      packageVersion,
     });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs }));
+    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
 

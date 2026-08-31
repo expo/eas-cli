@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Update workflow run logs in real time, instead of every 10 seconds. ([#4228](https://github.com/expo/eas-cli/pull/4228) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
-- [build-tools] Add `expo-device-hub` web previews to Android Agent Device, Argent, and Appium remote sessions. ([#4270](https://github.com/expo/eas-cli/pull/4270) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Add `expo-device-hub` web previews to Android web-preview-only, Agent Device, Argent, and Appium remote sessions. ([#4304](https://github.com/expo/eas-cli/pull/4304) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 
 ### 🐛 Bug fixes
 

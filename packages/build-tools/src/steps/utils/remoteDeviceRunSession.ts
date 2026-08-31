@@ -873,6 +873,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
+    packageVersion?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
