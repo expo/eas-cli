@@ -18,6 +18,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Warn when starting Android EAS Simulator sessions that support is still in development and iOS parity is coming soon. ([#4320](https://github.com/expo/eas-cli/pull/4320) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [23.1.0](https://github.com/expo/eas-cli/releases/tag/v23.1.0) - 2026-08-31
 
 ### 🎉 New features
