@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas simulator:profiles` to list available EAS Simulator device and system image profiles. ([#4323](https://github.com/expo/eas-cli/pull/4323) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
