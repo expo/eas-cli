@@ -53,6 +53,10 @@ jobs:
         run: yarn install --immutable
       - name: Resolve version
         run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+      - name: Configure git
+        run: |
+          git config user.email "support+ci@expo.io"
+          git config user.name "Expo CI"
       - name: Update changelog
         working-directory: ./scripts
         run: yarn release-changelog "$EAS_CLI_VERSION" > /tmp/current-changelog
@@ -60,20 +64,51 @@ jobs:
         run: gh release edit "v$EAS_CLI_VERSION" --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Commit and push
+      - name: Commit and push changelog
         run: |
           git fetch
           git checkout main
+          git add CHANGELOG.md
+          git commit --allow-empty -m "update CHANGELOG.md for v$EAS_CLI_VERSION"
+          git push
+      - name: Verify eas-cli is available on npm
+        run: |
+          availability_deadline_epoch=$(( $(date +%s) + 600 ))
+
+          while true; do
+            published="$(npm view "eas-cli@$EAS_CLI_VERSION" version --prefer-online 2>/dev/null || true)"
+            if [ "$published" = "$EAS_CLI_VERSION" ]; then
+              echo "Verified eas-cli@$EAS_CLI_VERSION is available on npm."
+              exit 0
+            fi
+
+            current_epoch=$(date +%s)
+            if [ "$current_epoch" -ge "$availability_deadline_epoch" ]; then
+              break
+            fi
+
+            retry_delay=$((availability_deadline_epoch - current_epoch))
+            if [ "$retry_delay" -gt 10 ]; then
+              retry_delay=10
+            fi
+            echo "eas-cli@$EAS_CLI_VERSION is not available on npm yet. Retrying in ${retry_delay}s."
+            sleep "$retry_delay"
+          done
+
+          echo "eas-cli@$EAS_CLI_VERSION was not available on npm after 10 minutes." >&2
+          exit 1
+      - name: Bump STAGING and PRODUCTION
+        run: |
           jq --arg version "$EAS_CLI_VERSION" '.STAGING = $version' \
             cli-versions.json > cli-versions.json.tmp
           mv cli-versions.json.tmp cli-versions.json
           jq --arg version "$EAS_CLI_VERSION" '.PRODUCTION = $version' \
             cli-versions.json > cli-versions.json.tmp
           mv cli-versions.json.tmp cli-versions.json
-          git config --global user.email "support+ci@expo.io"
-          git config --global user.name "Expo CI"
-          git add cli-versions.json CHANGELOG.md
-          git commit --allow-empty -m "update CHANGELOG.md and bump STAGING and PRODUCTION in cli-versions.json"
+      - name: Commit and push version update
+        run: |
+          git add cli-versions.json
+          git commit --allow-empty -m "bump STAGING and PRODUCTION to $EAS_CLI_VERSION in cli-versions.json"
           git push
       - name: Prepare changelog for Slack
         run: |
