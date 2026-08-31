@@ -24,7 +24,8 @@ export type AndroidDeviceSerialId = string & z.BRAND<'AndroidDeviceSerialId'>;
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
 
-  export const defaultSystemImagePackage = `system-images;android-30;default;${
+  export const defaultDeviceIdentifier = 'pixel_9' as AndroidDeviceName;
+  export const defaultSystemImagePackage = `system-images;android-36;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
   }`;
 

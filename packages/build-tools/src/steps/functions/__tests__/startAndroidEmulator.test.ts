@@ -21,7 +21,8 @@ jest.mock('../../../utils/retry', () => ({
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
-    defaultSystemImagePackage: 'system-images;android-30;default;x86_64',
+    defaultDeviceIdentifier: 'pixel_9',
+    defaultSystemImagePackage: 'system-images;android-36;default;x86_64',
     getAvailableDevicesAsync: jest.fn(),
     createAsync: jest.fn(),
     cloneAsync: jest.fn(),
@@ -255,6 +256,25 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',
+      })
+    );
+  });
+
+  it('creates a Pixel 9 emulator with the Android 36 system image by default', async () => {
+    await createStep().executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'sdkmanager',
+      ['system-images;android-36;default;x86_64'],
+      expect.objectContaining({
+        env: expect.any(Object),
+      })
+    );
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceIdentifier: 'pixel_9',
+        deviceName: 'EasAndroidDevice01',
+        systemImagePackage: 'system-images;android-36;default;x86_64',
       })
     );
   });
