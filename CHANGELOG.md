@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [23.1.0](https://github.com/expo/eas-cli/releases/tag/v23.1.0) - 2026-08-31
+
+### 🎉 New features
+
 - [eas-cli] Prompt for the Expo SDK version in `eas new` and add a `--sdk-version` flag. The template now downloads from npm instead of GitHub to support SDK-specific versions. ([#4301](https://github.com/expo/eas-cli/pull/4301) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Clean up template metadata in projects created with `eas new`: remove the template LICENSE file and reset the package.json name, version, and license fields. ([#4301](https://github.com/expo/eas-cli/pull/4301) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Support `EAS_PNPM_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `pnpm install --filter`. ([#4302](https://github.com/expo/eas-cli/pull/4302) by [@robingullo](https://github.com/robingullo))
