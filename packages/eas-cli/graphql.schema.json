@@ -6531,6 +6531,18 @@
             "deprecationReason": null
           },
           {
+            "name": "webPreviewToken",
+            "description": "Session token gating the web preview. Null when the preview runs ungated.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewUrl",
             "description": "URL of the web preview surface for the session. Null when web previews are\nnot available for the platform (e.g. Android).",
             "args": [],
@@ -10348,6 +10360,30 @@
               "kind": "OBJECT",
               "name": "AppDevDomainName",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deviceRunSessionTags",
+            "description": "Every tag used by this app's device run sessions, sorted alphabetically.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                }
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -26682,6 +26718,18 @@
             "deprecationReason": null
           },
           {
+            "name": "webPreviewToken",
+            "description": "Session token gating the web preview. Null when the preview runs ungated.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewUrl",
             "description": "URL of the web preview surface for the session. Null when web previews are\nnot available for the platform (e.g. Android).",
             "args": [],
@@ -29506,6 +29554,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "webPreviewToken",
+            "description": "Session token gating the web preview. Null when the preview runs ungated.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -38491,6 +38551,26 @@
             "deprecationReason": null
           },
           {
+            "name": "tags",
+            "description": "Free-form labels for grouping sessions, for example one per app variant.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "type",
             "description": null,
             "type": {
@@ -44167,6 +44247,30 @@
             "deprecationReason": null
           },
           {
+            "name": "tags",
+            "description": "Free-form labels for grouping sessions, for example one per app variant.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "turtleJobRun",
             "description": null,
             "args": [],
@@ -44555,6 +44659,26 @@
                 "ofType": {
                   "kind": "ENUM",
                   "name": "DeviceRunSessionStatus",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tags",
+            "description": "Matches sessions carrying every listed tag. Case-insensitive.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
                   "ofType": null
                 }
               }
@@ -72172,6 +72296,18 @@
         "name": "ServeSimRunSessionRemoteConfig",
         "description": "Legacy remote config for SERVE_SIM sessions. Use WEB_PREVIEW_ONLY sessions and\nWebPreviewOnlyRunSessionRemoteConfig instead.",
         "fields": [
+          {
+            "name": "previewToken",
+            "description": "Session token gating the preview. Null when the preview runs ungated.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "previewUrl",
             "description": null,

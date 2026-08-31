@@ -110,6 +110,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
   return {
     id: 'session-123',
     name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -693,6 +694,36 @@ describe(Simulator, () => {
         launchArgs: ['--uitesting', 'true'],
         openUrl: 'exp://example.test',
       })
+    );
+  });
+
+  it('forwards repeated tags', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--tag',
+      'variant:pro',
+      '--tag',
+      '  nightly  ',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ tags: ['variant:pro', 'nightly'] })
+    );
+  });
+
+  it('omits tags when every tag is blank', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--tag', '   ']);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ tags: expect.anything() })
     );
   });
 

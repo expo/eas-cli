@@ -55,6 +55,7 @@ export const DeviceRunSessionQuery = {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
                   name
+                  tags
                   status
                   type
                   platform
@@ -152,6 +153,7 @@ export const DeviceRunSessionQuery = {
                       node {
                         id
                         name
+                        tags
                         status
                         type
                         platform
