@@ -2556,10 +2556,11 @@ _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/exp
 
 ```
 USAGE
-  $ eas sim [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
-    --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
-    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+  $ eas sim [-p android|ios] [--name <value>] [--device <value>] [--system-image-package <value>]
+    [--build-id <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
+    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only]
+    [--package-version <value>] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--force]
+    [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2569,7 +2570,7 @@ FLAGS
       --build-id=<value>                 EAS Build to install and launch before the simulator session is ready.
       --device=<value>                   Virtual device to start for the session. On iOS, a Simulator device name or
                                          UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g.
-                                         "pixel_7"). Defaults to a device chosen by the runner.
+                                         "pixel_9"). Defaults to a device chosen by the runner.
       --expo-go                          Install and launch Expo Go matching the current project's Expo SDK before the
                                          simulator session is ready.
       --[no-]force                       [default: true] Create a new simulator session even when an existing simulator
@@ -2596,6 +2597,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
+      --system-image-package=<value>     Android SDK system image package to use for the emulator (e.g.
+                                         "system-images;android-36;google_apis_playstore;x86_64"). Only supported for
+                                         Android and must use the x86_64 architecture required by EAS
+                                         nested-virtualization runners.
       --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
                                          include a web preview. agent-device, appium, and argent also include an
                                          automation interface; web-preview-only includes no automation interface.
@@ -2723,10 +2728,11 @@ ALIASES
 
 ```
 USAGE
-  $ eas sim:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
-    --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
-    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+  $ eas sim:start [-p android|ios] [--name <value>] [--device <value>] [--system-image-package <value>]
+    [--build-id <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
+    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only]
+    [--package-version <value>] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--force]
+    [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2736,7 +2742,7 @@ FLAGS
       --build-id=<value>                 EAS Build to install and launch before the simulator session is ready.
       --device=<value>                   Virtual device to start for the session. On iOS, a Simulator device name or
                                          UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g.
-                                         "pixel_7"). Defaults to a device chosen by the runner.
+                                         "pixel_9"). Defaults to a device chosen by the runner.
       --expo-go                          Install and launch Expo Go matching the current project's Expo SDK before the
                                          simulator session is ready.
       --[no-]force                       [default: true] Create a new simulator session even when an existing simulator
@@ -2763,6 +2769,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
+      --system-image-package=<value>     Android SDK system image package to use for the emulator (e.g.
+                                         "system-images;android-36;google_apis_playstore;x86_64"). Only supported for
+                                         Android and must use the x86_64 architecture required by EAS
+                                         nested-virtualization runners.
       --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
                                          include a web preview. agent-device, appium, and argent also include an
                                          automation interface; web-preview-only includes no automation interface.
@@ -2803,10 +2813,11 @@ ALIASES
 
 ```
 USAGE
-  $ eas simulator:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
-    --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
-    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+  $ eas simulator:start [-p android|ios] [--name <value>] [--device <value>] [--system-image-package <value>]
+    [--build-id <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
+    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only]
+    [--package-version <value>] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--force]
+    [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2816,7 +2827,7 @@ FLAGS
       --build-id=<value>                 EAS Build to install and launch before the simulator session is ready.
       --device=<value>                   Virtual device to start for the session. On iOS, a Simulator device name or
                                          UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g.
-                                         "pixel_7"). Defaults to a device chosen by the runner.
+                                         "pixel_9"). Defaults to a device chosen by the runner.
       --expo-go                          Install and launch Expo Go matching the current project's Expo SDK before the
                                          simulator session is ready.
       --[no-]force                       [default: true] Create a new simulator session even when an existing simulator
@@ -2843,6 +2854,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
+      --system-image-package=<value>     Android SDK system image package to use for the emulator (e.g.
+                                         "system-images;android-36;google_apis_playstore;x86_64"). Only supported for
+                                         Android and must use the x86_64 architecture required by EAS
+                                         nested-virtualization runners.
       --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
                                          include a web preview. agent-device, appium, and argent also include an
                                          automation interface; web-preview-only includes no automation interface.

@@ -508,7 +508,7 @@ describe(Simulator, () => {
     );
   });
 
-  it('forwards --device to the create mutation as deviceIdentifier', async () => {
+  it('forwards an iOS --device through the iOS-specific input', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
@@ -520,7 +520,7 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
     );
   });
 
@@ -536,7 +536,7 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
     );
   });
 
@@ -544,10 +544,118 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--device', '  ']);
     await command.runAsync();
 
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('android');
+  });
+
+  it('forwards Android device and system image options through the Android-specific input', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      '  pixel_8  ',
+      '--system-image-package',
+      '  system-images;android-36;google_apis_playstore;x86_64  ',
+    ]);
+    await command.runAsync();
+
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: undefined })
+      expect.objectContaining({
+        android: {
+          deviceIdentifier: 'pixel_8',
+          systemImagePackage: 'system-images;android-36;google_apis_playstore;x86_64',
+        },
+      })
     );
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('deviceIdentifier');
+  });
+
+  it('forwards --system-image-package without requiring --device', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image-package',
+      'system-images;android-36-ext1;google_apis_ps16k;x86_64',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          systemImagePackage: 'system-images;android-36-ext1;google_apis_ps16k;x86_64',
+        },
+      })
+    );
+  });
+
+  it('rejects --system-image-package for iOS', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--system-image-package',
+      'system-images;android-36;google_apis_playstore;x86_64',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --system-image-package flag is only supported for Android simulator sessions.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a blank --system-image-package', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image-package',
+      '   ',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --system-image-package value cannot be blank.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'system-images;android-36;google_apis_playstore',
+    'platforms;android-36;google_apis_playstore;x86_64',
+    'system-images;36;google_apis_playstore;x86_64',
+    'system-images;android-36;google apis;x86_64',
+    'system-images;android-36;google_apis_playstore;x86_64;extra',
+  ])('rejects malformed --system-image-package %s', async systemImagePackage => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image-package',
+      systemImagePackage,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'Expected an Android SDK package coordinate in the form'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-x86_64 Android system image', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image-package',
+      'system-images;android-36;google_apis_playstore;arm64-v8a',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'must be x86_64 because EAS Android simulator sessions use x86_64 nested-virtualization runners'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
   it('omits resourceClass when --resource-class is not set', async () => {

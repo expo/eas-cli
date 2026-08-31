@@ -54,6 +54,8 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
 };
+const ANDROID_SYSTEM_IMAGE_PACKAGE_EXAMPLE =
+  'system-images;android-36;google_apis_playstore;x86_64';
 
 export default class Simulator extends EasCommand {
   static override hidden = true;
@@ -73,7 +75,12 @@ export default class Simulator extends EasCommand {
     }),
     device: Flags.string({
       description:
-        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner.',
+    }),
+    'system-image-package': Flags.string({
+      description:
+        `Android SDK system image package to use for the emulator (e.g. "${ANDROID_SYSTEM_IMAGE_PACKAGE_EXAMPLE}"). ` +
+        'Only supported for Android and must use the x86_64 architecture required by EAS nested-virtualization runners.',
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
@@ -212,6 +219,10 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const androidSystemImagePackage = resolveAndroidSystemImagePackage(
+      flags['system-image-package'],
+      platform
+    );
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
@@ -236,7 +247,17 @@ export default class Simulator extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
-        deviceIdentifier,
+        ...(platform === AppPlatform.Android && (deviceIdentifier || androidSystemImagePackage)
+          ? {
+              android: {
+                ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                ...(androidSystemImagePackage
+                  ? { systemImagePackage: androidSystemImagePackage }
+                  : {}),
+              },
+            }
+          : {}),
+        ...(platform === AppPlatform.Ios && deviceIdentifier ? { ios: { deviceIdentifier } } : {}),
         ...(buildId ? { buildId } : {}),
         ...(applicationArchiveUrlFromFlag
           ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
@@ -393,6 +414,48 @@ export default class Simulator extends EasCommand {
       sessionInterrupt,
     });
   }
+}
+
+function resolveAndroidSystemImagePackage(
+  rawSystemImagePackage: string | undefined,
+  platform: AppPlatform
+): string | undefined {
+  if (rawSystemImagePackage === undefined) {
+    return undefined;
+  }
+
+  const systemImagePackage = rawSystemImagePackage.trim();
+  if (!systemImagePackage) {
+    throw new EasCommandError(
+      `The --system-image-package value cannot be blank. Pass a package such as "${ANDROID_SYSTEM_IMAGE_PACKAGE_EXAMPLE}", or omit the flag to use the default.`
+    );
+  }
+  if (platform !== AppPlatform.Android) {
+    throw new EasCommandError(
+      'The --system-image-package flag is only supported for Android simulator sessions. Use --platform android or omit the flag.'
+    );
+  }
+
+  const [namespace, androidVersion, imageFlavor, architecture, ...extraSegments] =
+    systemImagePackage.split(';');
+  const isValidCoordinate =
+    namespace === 'system-images' &&
+    /^android-[A-Za-z0-9_.-]+$/.test(androidVersion ?? '') &&
+    /^[A-Za-z0-9_.-]+$/.test(imageFlavor ?? '') &&
+    architecture !== undefined &&
+    extraSegments.length === 0;
+  if (!isValidCoordinate) {
+    throw new EasCommandError(
+      `Invalid --system-image-package "${systemImagePackage}". Expected an Android SDK package coordinate in the form "system-images;android-<API>;image-flavor;x86_64", for example "${ANDROID_SYSTEM_IMAGE_PACKAGE_EXAMPLE}".`
+    );
+  }
+  if (architecture !== 'x86_64') {
+    throw new EasCommandError(
+      `The --system-image-package architecture must be x86_64 because EAS Android simulator sessions use x86_64 nested-virtualization runners; received "${architecture}".`
+    );
+  }
+
+  return systemImagePackage;
 }
 
 async function resolvePlatformAsync(
