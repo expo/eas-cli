@@ -13,9 +13,9 @@ const POLL_INTERVAL_MS = 2_000;
 const MAX_CONSECUTIVE_STREAM_FAILURES_PER_DEVICE = 10;
 const END_STREAM_TIMEOUT_MS = 2_000;
 // serve-sim's own per-device registry while serving: `${tmpdir}/serve-sim/server-<udid>.json`.
-const SERVE_SIM_STATE_DIR = path.join(os.tmpdir(), 'serve-sim');
+export const SERVE_SIM_STATE_DIR = path.join(os.tmpdir(), 'serve-sim');
 
-type ServeSimServer = { udid: string; url: string };
+type ServeSimServer = { udid: string; url: string; token?: string };
 
 type ServeSimMetricsSession = {
   logger: bunyan;
@@ -130,6 +130,7 @@ async function pollServeSimMetricsAsync(session: ServeSimMetricsSession): Promis
       logger.info(`Collecting serve-sim metrics for ${server.udid}.`);
       const donePromise = streamServeSimMetricsToFileAsync({
         serveSimUrl: server.url,
+        serveSimToken: server.token,
         filePath,
         signal: streamSignal,
         logger,
@@ -172,9 +173,14 @@ export async function readServeSimServersAsync(stateDir: string): Promise<ServeS
       const state = JSON.parse(await readFile(path.join(stateDir, entry), 'utf-8')) as {
         device?: unknown;
         url?: unknown;
+        token?: unknown;
       };
       if (typeof state.device === 'string' && typeof state.url === 'string') {
-        servers.push({ udid: state.device, url: state.url });
+        servers.push({
+          udid: state.device,
+          url: state.url,
+          ...(typeof state.token === 'string' ? { token: state.token } : {}),
+        });
       }
     } catch {
       continue;
@@ -185,11 +191,13 @@ export async function readServeSimServersAsync(stateDir: string): Promise<ServeS
 
 export async function streamServeSimMetricsToFileAsync({
   serveSimUrl,
+  serveSimToken,
   filePath,
   signal,
   logger,
 }: {
   serveSimUrl: string;
+  serveSimToken?: string;
   filePath: string;
   signal: AbortSignal;
   logger: bunyan;
@@ -201,7 +209,10 @@ export async function streamServeSimMetricsToFileAsync({
   let receivedData = false;
   let metadata: Record<string, unknown> | undefined;
   try {
-    const response = await fetch(new URL('/metrics', serveSimUrl).toString(), { signal });
+    const response = await fetch(new URL('/metrics', serveSimUrl).toString(), {
+      signal,
+      ...(serveSimToken ? { headers: { Authorization: `Bearer ${serveSimToken}` } } : {}),
+    });
     if (!response.ok || !response.body) {
       logger.warn(`serve-sim /metrics responded ${response.status} for ${serveSimUrl}.`);
       return { receivedData, metadata };

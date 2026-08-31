@@ -52,6 +52,25 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     stopAsync.mockResolvedValue(undefined);
   });
 
+  it('reports the session token when serve-sim minted one', async () => {
+    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
+      previewUrl: 'https://web-preview.example.test',
+      previewToken: 'tok-1',
+      stopAsync,
+    });
+
+    await runAsync(BuildRuntimePlatform.DARWIN);
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: {
+          previewUrl: 'https://web-preview.example.test',
+          previewToken: 'tok-1',
+        },
+      })
+    );
+  });
+
   it.each([
     [BuildRuntimePlatform.DARWIN, true],
     [BuildRuntimePlatform.LINUX, false],

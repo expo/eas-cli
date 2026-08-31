@@ -101,6 +101,14 @@ describe(readServeSimServersAsync, () => {
     ]);
   });
 
+  it('includes the session token when the state file carries one', async () => {
+    await writeServerStateAsync('E', { device: 'E', url: 'http://127.0.0.1:5', token: 'tok-abc' });
+
+    expect(await readServeSimServersAsync(stateDir)).toEqual([
+      { udid: 'E', url: 'http://127.0.0.1:5', token: 'tok-abc' },
+    ]);
+  });
+
   it('returns [] when the state dir does not exist', async () => {
     expect(await readServeSimServersAsync(path.join(workDir, 'nope'))).toEqual([]);
   });
@@ -118,6 +126,20 @@ describe(streamServeSimMetricsToFileAsync, () => {
     });
     expect(await readFile(filePath, 'utf-8')).toBe(EXPECTED_NDJSON);
     expect(String(jest.mocked(fetch).mock.calls[0][0])).toBe('https://sim.example/metrics');
+  });
+
+  it('sends the session token as a bearer header when given one', async () => {
+    jest.mocked(fetch).mockResolvedValue(sseResponse());
+    await streamServeSimMetricsToFileAsync({
+      serveSimUrl: 'https://sim.example',
+      serveSimToken: 'tok-abc',
+      filePath: path.join(workDir, 'auth.ndjson'),
+      signal: new AbortController().signal,
+      logger: createLoggerMock(),
+    });
+    expect(jest.mocked(fetch).mock.calls[0][1]?.headers).toMatchObject({
+      Authorization: 'Bearer tok-abc',
+    });
   });
 
   it('writes nothing on a non-ok response', async () => {

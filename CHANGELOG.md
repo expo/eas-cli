@@ -38,6 +38,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Normalize extracted project permissions so source archives cannot leave files unreadable by EAS workers. ([#4287](https://github.com/expo/eas-cli/pull/4287) by [@AbbanMustafa](https://github.com/AbbanMustafa))
 - [eas-cli] Add dynamic retries to deploy command that scale up more generously, depending on deployment size ([#4299](https://github.com/expo/eas-cli/pull/4299) by [@kitten](https://github.com/kitten))
+- [build-tools] Require the serve-sim session token for device run session previews, so the tunnel no longer exposes the shell-exec route. ([#4306](https://github.com/expo/eas-cli/pull/4306) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Print the session token in simulator preview links, so they still open once the preview is gated. ([#4312](https://github.com/expo/eas-cli/pull/4312) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores

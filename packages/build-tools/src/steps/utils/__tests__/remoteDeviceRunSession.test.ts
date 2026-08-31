@@ -11,6 +11,7 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import {
   createExpoDeviceHubArgs,
@@ -32,6 +33,11 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
+// Spyable so a test can stand in for the serve-sim state directory, which a local serve-sim owns.
+jest.mock('../serveSimMetricsRecorder', () => {
+  const actual = jest.requireActual('../serveSimMetricsRecorder');
+  return { ...actual, readServeSimServersAsync: jest.fn(actual.readServeSimServersAsync) };
+});
 
 function createLoggerMock(): bunyan {
   return {
@@ -129,6 +135,7 @@ describe(createServeSimArgs, () => {
       '4321',
       '--host',
       '127.0.0.1',
+      '--require-token',
       '--transport',
       'webrtc',
       '--webrtc-codec',
@@ -328,6 +335,9 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     jest.mocked(spawn).mockReset();
     jest.mocked(ngrok.forward).mockReset();
     jest.mocked(turtleFetch).mockReset();
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1', token: 'tok-1' }]);
 
     const spawnPromise = Object.assign(Promise.resolve(undefined), {
       child: {
@@ -386,6 +396,63 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries the serve-sim session token for Darwin', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewToken).toBe('tok-1');
+    expect(preview.previewUrl).toBe('https://preview.example.test');
+  });
+
+  // serve-sim is always launched with --require-token, so a missing token means it is running
+  // ungated on a public tunnel. Failing beats handing out a preview that is dead or unprotected.
+  it('fails for Darwin when serve-sim reports no token', async () => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1' }]);
+
+    await expect(
+      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        baseDomain,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+      })
+    ).rejects.toThrow(/started without a session token/);
+  });
+
+  // expo-device-hub mints no token, so the Android preview must not require one.
+  it('starts for Linux without a token, and does not gate expo-device-hub', async () => {
+    jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewToken).toBeUndefined();
+    const [, args] = jest.mocked(spawn).mock.calls[0];
+    expect(args).not.toContain('--require-token');
   });
 
   it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
