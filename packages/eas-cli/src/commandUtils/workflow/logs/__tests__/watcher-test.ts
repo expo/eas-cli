@@ -199,13 +199,14 @@ describe(WorkflowRunLogsWatcher, () => {
   });
 });
 
-function fileLine(logId: string, msg: string): WorkflowRawLogLine {
-  return { logId, buildStepId: 'install', msg };
+function fileLine(logId: string, msg: string, buildStepId = 'install'): WorkflowRawLogLine {
+  return { logId, buildStepId, msg };
 }
 
-function stepMessages(logsState: WorkflowJobLogsState, isCompleted = false): string[] {
-  const logs = logsState.getLogs({ isCompleted });
-  return Array.from(logs.values()).flatMap(group => group.logLines.map(line => line.msg));
+function stepMessages(logsState: WorkflowJobLogsState): string[] {
+  return Array.from(logsState.getLogs().values()).flatMap(group =>
+    group.logLines.map(logLine => logLine.msg)
+  );
 }
 
 describe(WorkflowJobLogsState, () => {
@@ -227,7 +228,7 @@ describe(WorkflowJobLogsState, () => {
     expect(stepMessages(logsState)).toEqual(['first', 'pushed', 'newer']);
   });
 
-  it('opens the gate when a publication repeats a logId already in the file', () => {
+  it('shows realtime logs when a publication repeats a logId already in the file', () => {
     const logsState = new WorkflowJobLogsState();
     logsState.ingestFileLogLines([fileLine('1', 'first')]);
     logsState.ingestRealtimeLogLines([fileLine('1', 'first'), fileLine('2', 'pushed')]);
@@ -235,12 +236,26 @@ describe(WorkflowJobLogsState, () => {
     expect(stepMessages(logsState)).toEqual(['first', 'pushed']);
   });
 
-  it('shows buffered realtime lines once the job is completed even without catch-up', () => {
+  it('shows buffered realtime lines once the job is completed', () => {
     const logsState = new WorkflowJobLogsState();
     logsState.ingestFileLogLines([fileLine('1', 'first')]);
     logsState.ingestRealtimeLogLines([fileLine('9', 'pushed')]);
 
-    expect(stepMessages(logsState, true)).toEqual(['first', 'pushed']);
+    logsState.markCompleted();
+    logsState.markCompleted();
+
+    expect(stepMessages(logsState)).toEqual(['first', 'pushed']);
+  });
+
+  it('folds later publications once completion showed them', () => {
+    const logsState = new WorkflowJobLogsState();
+    logsState.ingestFileLogLines([fileLine('1', 'first')]);
+    logsState.ingestRealtimeLogLines([fileLine('9', 'buffered')]);
+    logsState.markCompleted();
+
+    logsState.ingestRealtimeLogLines([fileLine('10', 'pushed')]);
+
+    expect(stepMessages(logsState)).toEqual(['first', 'buffered', 'pushed']);
   });
 
   it('replaces the file snapshot instead of accumulating it', () => {
@@ -279,5 +294,15 @@ describe(WorkflowJobLogsState, () => {
     logsState.ingestRealtimeLogLines([fileLine('2', 'pushed')]);
 
     expect(stepMessages(logsState)).toEqual(['first', 'pushed']);
+  });
+
+  it('deduplicates a line republished later', () => {
+    const logsState = new WorkflowJobLogsState();
+    logsState.ingestFileLogLines([fileLine('1', 'first')]);
+    logsState.ingestRealtimeLogLines([fileLine('1', 'first'), fileLine('2', 'pushed')]);
+    logsState.ingestRealtimeLogLines([fileLine('3', 'newer')]);
+    logsState.ingestRealtimeLogLines([fileLine('2', 'pushed')]);
+
+    expect(stepMessages(logsState)).toEqual(['first', 'pushed', 'newer']);
   });
 });

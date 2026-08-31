@@ -87,19 +87,13 @@ export function choicesFromWorkflowLogs(
   logs: WorkflowLogs
 ): (Choice & { name: string; status: string; logLines: WorkflowLogLine[] | undefined })[] {
   return Array.from(logs.values())
-    .map(({ key, label, logLines }) => {
-      const stepStatus =
-        logLines?.filter(
-          (line: WorkflowLogLine) => line.marker === 'end-step' || line.marker === 'END_PHASE'
-        )[0]?.result ?? '';
-      return {
-        title: `${label} - ${stepStatus}`,
-        name: label,
-        status: stepStatus,
-        value: key,
-        logLines,
-      };
-    })
+    .map(({ key, label, result, logLines }) => ({
+      title: `${label} - ${result ?? ''}`,
+      name: label,
+      status: result ?? '',
+      value: key,
+      logLines,
+    }))
     .filter(step => step.status !== 'skipped');
 }
 
@@ -144,6 +138,21 @@ function descriptionForJobStatus(status: WorkflowJobStatus): string {
   }
 }
 
+function isJobCompleted(status: WorkflowJobStatus): boolean {
+  switch (status) {
+    case WorkflowJobStatus.Success:
+    case WorkflowJobStatus.Failure:
+    case WorkflowJobStatus.Canceled:
+    case WorkflowJobStatus.Skipped:
+      return true;
+    case WorkflowJobStatus.New:
+    case WorkflowJobStatus.InProgress:
+    case WorkflowJobStatus.ActionRequired:
+    case WorkflowJobStatus.PendingCancel:
+      return false;
+  }
+}
+
 type WorkflowRunWithJobs = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'];
 
 type JobWithLogs = {
@@ -155,8 +164,9 @@ function stepLogTail(
   step: { logLines?: WorkflowLogLine[] },
   maxLogLines: number // -1 means no limit
 ): string[] {
-  const messages = step.logLines?.map(line => line.msg) ?? [];
-  return maxLogLines === -1 ? messages : messages.slice(-maxLogLines);
+  const logLines = step.logLines ?? [];
+  const tail = maxLogLines === -1 ? logLines : logLines.slice(-maxLogLines);
+  return tail.map(line => line.msg);
 }
 
 export async function logsForFailedWorkflowRunAsync(
@@ -307,6 +317,14 @@ export async function showWorkflowStatusAsync(
               prefixText: chalk`{bold.green Workflow run is in progress:}`,
             });
             const logsStates = await watcher.syncJobsAsync(workflowRun.jobs);
+            for (const job of workflowRun.jobs) {
+              if (isJobCompleted(job.status)) {
+                nullthrows(
+                  logsStates.get(job.id),
+                  'syncJobsAsync must have been called before markCompleted'
+                ).markCompleted();
+              }
+            }
             renderActiveWorkflowRun = () => {
               const text = formatActiveWorkflowRun(
                 workflowRun.jobs.map(job => ({
@@ -314,11 +332,8 @@ export async function showWorkflowStatusAsync(
                   logs: nullthrows(
                     logsStates.get(job.id),
                     'syncJobsAsync must have been called before getLogs'
-                  ).getLogs({
-                    isCompleted: job.status !== WorkflowJobStatus.InProgress,
-                  }),
-                })),
-                5
+                  ).getLogs(),
+                }))
               );
               updateSpinnerText(spinner, { text });
             };

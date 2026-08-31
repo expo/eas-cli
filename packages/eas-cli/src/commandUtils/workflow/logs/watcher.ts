@@ -21,15 +21,14 @@ function isRealtimeLogLine(entry: unknown): entry is RealtimeLogLine {
 }
 
 export class WorkflowJobLogsState {
-  private fileLogLines: WorkflowRawLogLine[] = [];
   private fileLogIds = new Set<string>();
   private realtimeLogLines: RealtimeLogLine[] = [];
+  private realtimeLogIds = new Set<string>();
   private haveFileLogsCaughtUp = false;
-  private cachedLogs: WorkflowLogs | null = null;
-  private cachedLogsIsCompleted = false;
+  private realtimeLogsRevealed = false;
+  private groupedLogs: WorkflowLogs = new Map();
 
   public ingestFileLogLines(logLines: WorkflowRawLogLine[]): void {
-    this.fileLogLines = logLines;
     this.fileLogIds = new Set(logLines.flatMap(logLine => (logLine.logId ? [logLine.logId] : [])));
 
     if (
@@ -41,7 +40,14 @@ export class WorkflowJobLogsState {
     this.realtimeLogLines = this.realtimeLogLines.filter(
       logLine => !this.fileLogIds.has(logLine.logId)
     );
-    this.cachedLogs = null;
+    this.realtimeLogIds = new Set(this.realtimeLogLines.map(logLine => logLine.logId));
+
+    if (this.haveFileLogsCaughtUp) {
+      this.realtimeLogsRevealed = true;
+    }
+    this.groupedLogs = groupLogLinesIntoSteps(
+      mergeLogLines(logLines, this.realtimeLogsRevealed ? this.realtimeLogLines : [])
+    );
   }
 
   public ingestRealtimeLogLines(data: unknown): boolean {
@@ -59,23 +65,40 @@ export class WorkflowJobLogsState {
     ) {
       this.haveFileLogsCaughtUp = true;
     }
-    this.realtimeLogLines = mergeLogLines(
-      this.realtimeLogLines,
-      publishedLogLines.filter(logLine => !this.fileLogIds.has(logLine.logId))
+
+    const newLogLines = publishedLogLines.filter(
+      logLine => !this.fileLogIds.has(logLine.logId) && !this.realtimeLogIds.has(logLine.logId)
     );
-    this.cachedLogs = null;
+    for (const logLine of newLogLines) {
+      this.realtimeLogLines.push(logLine);
+      this.realtimeLogIds.add(logLine.logId);
+    }
+
+    if (!this.realtimeLogsRevealed) {
+      if (this.haveFileLogsCaughtUp) {
+        this.revealRealtimeLogs();
+      }
+    } else if (newLogLines.length > 0) {
+      groupLogLinesIntoSteps(newLogLines, this.groupedLogs);
+    }
 
     return true;
   }
 
-  public getLogs({ isCompleted = false }: { isCompleted?: boolean } = {}): WorkflowLogs {
-    if (this.cachedLogs && this.cachedLogsIsCompleted === isCompleted) {
-      return this.cachedLogs;
+  public markCompleted(): void {
+    this.revealRealtimeLogs();
+  }
+
+  public getLogs(): WorkflowLogs {
+    return this.groupedLogs;
+  }
+
+  private revealRealtimeLogs(): void {
+    if (this.realtimeLogsRevealed) {
+      return;
     }
-    const realtimeLogLines = this.haveFileLogsCaughtUp || isCompleted ? this.realtimeLogLines : [];
-    this.cachedLogs = groupLogLinesIntoSteps(mergeLogLines(this.fileLogLines, realtimeLogLines));
-    this.cachedLogsIsCompleted = isCompleted;
-    return this.cachedLogs;
+    this.realtimeLogsRevealed = true;
+    groupLogLinesIntoSteps(this.realtimeLogLines, this.groupedLogs);
   }
 }
 

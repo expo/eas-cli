@@ -29,9 +29,10 @@ export function mergeLogLines<T extends WorkflowRawLogLine>(...logLineGroups: T[
   return uniqBy(logLineGroups.flat().reverse(), logLine => logLine.logId ?? Symbol()).reverse();
 }
 
-export function groupLogLinesIntoSteps(logLines: WorkflowRawLogLine[]): WorkflowLogs {
-  const logs: WorkflowLogs = new Map();
-
+export function groupLogLinesIntoSteps(
+  logLines: WorkflowRawLogLine[],
+  accumulator: WorkflowLogs = new Map()
+): WorkflowLogs {
   for (const logLine of logLines) {
     const { buildStepDisplayName, buildStepId, phase, time, msg, result, marker, err } = logLine;
     const stepKey = buildStepId ?? buildStepDisplayName ?? phase;
@@ -40,18 +41,21 @@ export function groupLogLinesIntoSteps(logLines: WorkflowRawLogLine[]): Workflow
       continue;
     }
 
-    let logGroup = logs.get(stepKey);
+    let logGroup = accumulator.get(stepKey);
     if (!logGroup) {
       logGroup = { key: stepKey, label: stepLabel, logLines: [] };
-      logs.set(stepKey, logGroup);
+      accumulator.set(stepKey, logGroup);
     }
     if (buildStepDisplayName) {
       logGroup.label = buildStepDisplayName;
     }
+    if (logGroup.result === undefined && (marker === 'end-step' || marker === 'END_PHASE')) {
+      logGroup.result = result ?? '';
+    }
     logGroup.logLines.push({ time, msg, result, marker, err });
   }
 
-  return logs;
+  return accumulator;
 }
 
 export async function fetchAndParseLogsFromJobAsync(
