@@ -759,7 +759,6 @@ async function startWebPreviewWithTunnelAsync(
     timeoutMs,
     serverName,
     packageSpec,
-    command,
     createArgs,
   }: {
     baseDomain: string;
@@ -768,7 +767,6 @@ async function startWebPreviewWithTunnelAsync(
     timeoutMs: number;
     serverName: string;
     packageSpec: string;
-    command: 'npx' | 'bunx';
     createArgs: (port: number, turnArgs: string[]) => string[];
   }
 ): Promise<DeviceWebPreviewHandle> {
@@ -776,7 +774,7 @@ async function startWebPreviewWithTunnelAsync(
   logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
   const previewServer = spawnDetached({
-    command,
+    command: 'npx',
     args: createArgs(port, turnArgs),
     env,
   });
@@ -832,7 +830,6 @@ export async function startServeSimWithTunnelAsync(
     timeoutMs,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
-    command: 'npx',
     createArgs: (port, turnArgs) =>
       createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
   });
@@ -861,7 +858,6 @@ export async function startExpoDeviceHubWithTunnelAsync(
     timeoutMs,
     serverName: 'expo-device-hub',
     packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
-    command: 'npx',
     createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
   });
 }
