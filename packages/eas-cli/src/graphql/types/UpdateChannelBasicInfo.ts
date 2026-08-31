@@ -5,5 +5,6 @@ export const UpdateChannelBasicInfoFragmentNode = gql`
     id
     name
     branchMapping
+    isProtected
   }
 `;

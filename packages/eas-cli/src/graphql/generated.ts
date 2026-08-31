@@ -13835,6 +13835,20 @@ export type ScheduleChannelDeletionMutationVariables = Exact<{
 
 export type ScheduleChannelDeletionMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', scheduleUpdateChannelDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
 
+export type ProtectUpdateChannelMutationVariables = Exact<{
+  channelId: Scalars['ID']['input'];
+}>;
+
+
+export type ProtectUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', protectUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
+
+export type UnprotectUpdateChannelMutationVariables = Exact<{
+  channelId: Scalars['ID']['input'];
+}>;
+
+
+export type UnprotectUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', unprotectUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
+
 export type CreateUpdateChannelOnAppMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   name: Scalars['String']['input'];
@@ -13842,7 +13856,7 @@ export type CreateUpdateChannelOnAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
 
 export type GetBranchInfoQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -13879,21 +13893,21 @@ export type UpdateChannelBranchMappingMutationVariables = Exact<{
 }>;
 
 
-export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', editUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', editUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
 
 export type PauseUpdateChannelMutationVariables = Exact<{
   channelId: Scalars['ID']['input'];
 }>;
 
 
-export type PauseUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', pauseUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+export type PauseUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', pauseUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
 
 export type ResumeUpdateChannelMutationVariables = Exact<{
   channelId: Scalars['ID']['input'];
 }>;
 
 
-export type ResumeUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', resumeUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+export type ResumeUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', resumeUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
 
 export type AppInfoQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -15241,7 +15255,7 @@ export type ViewUpdateChannelBasicInfoOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelBasicInfoOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } | null } } };
+export type ViewUpdateChannelBasicInfoOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } | null } } };
 
 export type ViewUpdateChannelOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -15250,7 +15264,7 @@ export type ViewUpdateChannelOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, isPaused: boolean, isProtected: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
               | { __typename: 'PartnerActor', username: string, id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -15264,7 +15278,7 @@ export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, isPaused: boolean, isProtected: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
               | { __typename: 'PartnerActor', username: string, id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -15280,7 +15294,7 @@ export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', cursor: string, node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', cursor: string, node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type ConvexTeamConnectionsByAccountIdQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -15918,7 +15932,7 @@ export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, na
 
 export type UpdateBranchBasicInfoFragment = { __typename?: 'UpdateBranch', id: string, name: string };
 
-export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string };
+export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean };
 
 export type WebhookFragment = { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any };
 
