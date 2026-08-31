@@ -1,9 +1,9 @@
-import { getMockWorkflowCustomJobFragment } from '../../../../__tests__/commands/utils';
-import { BuildQuery } from '../../../../graphql/queries/BuildQuery';
-import { ExpoGraphqlClient } from '../../../context/contextUtils/createGraphqlClient';
+import { getMockWorkflowCustomJobFragment } from '../../../__tests__/commands/utils';
+import { BuildQuery } from '../../../graphql/queries/BuildQuery';
+import { ExpoGraphqlClient } from '../../context/contextUtils/createGraphqlClient';
 import { fetchRawLogsForJobAsync } from '../fetchLogs';
 
-jest.mock('../../../../graphql/queries/BuildQuery');
+jest.mock('../../../graphql/queries/BuildQuery');
 
 describe(fetchRawLogsForJobAsync, () => {
   afterEach(() => {

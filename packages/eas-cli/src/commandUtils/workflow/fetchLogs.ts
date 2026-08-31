@@ -1,6 +1,6 @@
-import { WorkflowJobResult } from '../types';
-import { BuildQuery } from '../../../graphql/queries/BuildQuery';
-import { ExpoGraphqlClient } from '../../context/contextUtils/createGraphqlClient';
+import { WorkflowJobResult } from './types';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 export async function fetchRawLogsForJobAsync(
   state: { graphqlClient: ExpoGraphqlClient },

@@ -1,13 +1,10 @@
 import { Choice } from 'prompts';
 
-import { WorkflowJobResult, WorkflowLogs } from './types';
-import { fetchAndProcessLogsFromJobAsync } from './logs/parseLogs';
-import {
-  choiceFromWorkflowJob,
-  choiceFromWorkflowRun,
-  choicesFromWorkflowLogs,
-  processWorkflowRuns,
-} from './utils';
+import { WorkflowJobResult } from './types';
+import { fetchAndProcessLogsFromJobAsync } from './logs';
+import { choicesFromJobLogs } from '../logs/format';
+import { JobLogs } from '../logs/types';
+import { choiceFromWorkflowJob, choiceFromWorkflowRun, processWorkflowRuns } from './utils';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowJobQuery } from '../../graphql/queries/WorkflowJobQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
@@ -58,7 +55,7 @@ export type WorkflowCommandSelectionState = {
   jobId?: string;
   step?: string;
   job?: WorkflowJobResult;
-  logs?: WorkflowLogs | null;
+  logs?: JobLogs | null;
   message?: string;
 };
 
@@ -140,7 +137,7 @@ export function moveToWorkflowSelectionFinishedState(
   previousState: WorkflowCommandSelectionState,
   params: {
     step: string;
-    logs: WorkflowLogs;
+    logs: JobLogs;
   }
 ): WorkflowCommandSelectionState {
   return moveToNewWorkflowCommandSelectionState(
@@ -276,7 +273,7 @@ export const workflowStepSelectionAction: WorkflowCommandSelectionAction = async
     return moveToWorkflowSelectionFinishedState(prevState, { step: '', logs });
   }
   const choices: Choice[] = [
-    ...choicesFromWorkflowLogs(logs),
+    ...choicesFromJobLogs(logs),
     {
       title: 'Go back and select a different workflow job',
       value: 'go-back',
