@@ -16,6 +16,9 @@ const RECORD_SIM_FINISH_TIMEOUT_MS = 70_000;
 const RECORD_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
 const RECORD_SIM_MAX_ATTEMPTS_PER_BOOT = 3;
 const RECORD_SIM_COMMAND = 'record-sim';
+// A two-hour recording at this target is about 4.5 GB, leaving room below R2's
+// single-part upload limit for MP4 container overhead.
+const RECORD_SIM_BITRATE = '5000000';
 
 type IosSimulatorRecording = {
   id: string;
@@ -241,7 +244,7 @@ async function startIosSimulatorRecordingAsync(
   session.logger.info(`Starting screen recording for ${deviceName}.`);
   const recordingSpawn = spawn(
     session.recordSimCommand,
-    ['--udid', udid, '--output', outputDirectory, '--segment-duration', '0'],
+    createRecordSimArgs({ udid, outputDirectory }),
     {
       env: session.env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -283,6 +286,25 @@ async function startIosSimulatorRecordingAsync(
     startedAt,
     getOutput,
   });
+}
+
+export function createRecordSimArgs({
+  udid,
+  outputDirectory,
+}: {
+  udid: IosSimulatorUuid;
+  outputDirectory: string;
+}): string[] {
+  return [
+    '--udid',
+    udid,
+    '--output',
+    outputDirectory,
+    '--segment-duration',
+    '0',
+    '--bitrate',
+    RECORD_SIM_BITRATE,
+  ];
 }
 
 async function resolveRecordSimCommandAsync({ env }: { env: Env }): Promise<string | null> {
