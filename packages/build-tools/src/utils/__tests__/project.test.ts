@@ -83,6 +83,24 @@ describe(runExpoCliCommand, () => {
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
       expect(spawn).toHaveBeenCalledWith('bun', ['expo', 'doctor'], expect.any(Object));
     });
+
+    it('spawns expo via "deno" when package manager is deno', () => {
+      const mockExpoConfig = mock<ExpoConfig>();
+      when(mockExpoConfig.sdkVersion).thenReturn('46.0.0');
+      const expoConfig = instance(mockExpoConfig);
+
+      const mockCtx = mock<BuildContext<Android.Job>>();
+      when(mockCtx.packageManager).thenReturn(PackageManager.DENO);
+      when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
+      const ctx = instance(mockCtx);
+
+      void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
+      expect(spawn).toHaveBeenCalledWith(
+        'deno',
+        ['run', '-A', 'npm:expo', 'doctor'],
+        expect.any(Object)
+      );
+    });
   });
 });
 
