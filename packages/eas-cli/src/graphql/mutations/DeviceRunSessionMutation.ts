@@ -3,12 +3,25 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  CreateDeviceRunSessionInput,
   CreateDeviceRunSessionMutation,
   CreateDeviceRunSessionMutationVariables,
   EnsureDeviceRunSessionStoppedMutation,
   EnsureDeviceRunSessionStoppedMutationVariables,
+  CreateDeviceRunSessionInput as GeneratedCreateDeviceRunSessionInput,
 } from '../generated';
+
+export type CreateDeviceRunSessionInput = Omit<
+  GeneratedCreateDeviceRunSessionInput,
+  'deviceIdentifier'
+> & {
+  android?: {
+    deviceIdentifier?: string;
+    systemImagePackage?: string;
+  };
+  ios?: {
+    deviceIdentifier?: string;
+  };
+};
 
 export const DeviceRunSessionMutation = {
   async createDeviceRunSessionAsync(
