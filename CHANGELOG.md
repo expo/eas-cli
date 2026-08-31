@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--system-image-package` to `eas simulator` for selecting a validated x86_64 Android emulator system image. ([#4317](https://github.com/expo/eas-cli/pull/4317) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Update workflow run logs in real time, instead of every 10 seconds. ([#4228](https://github.com/expo/eas-cli/pull/4228) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [build-tools] Add `expo-device-hub` web previews to Android web-preview-only, Agent Device, Argent, and Appium remote sessions. ([#4304](https://github.com/expo/eas-cli/pull/4304) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 - [eas-cli] Add `eas workflow:ssh <workflow-job-id> [command...]` to open an ssh session on the worker running a workflow job. ([#4032](https://github.com/expo/eas-cli/pull/4032) by [@gwdp](https://github.com/gwdp))
