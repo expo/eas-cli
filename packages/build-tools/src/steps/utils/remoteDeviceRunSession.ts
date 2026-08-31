@@ -675,6 +675,7 @@ export function createExpoDeviceHubArgs({
     '--video-fps',
     EXPO_DEVICE_HUB_VIDEO_FPS,
     '--hide-sidebar',
+    '--hide-boot-device',
     ...turnArgs,
   ];
 }

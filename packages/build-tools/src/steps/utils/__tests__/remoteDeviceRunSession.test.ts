@@ -203,15 +203,16 @@ describe(createExpoDeviceHubArgs, () => {
       '--video-fps',
       '30',
       '--hide-sidebar',
+      '--hide-boot-device',
       '--turn-url',
       'turns:turn.example.test:443',
     ]);
   });
 
   it('pins the requested package version', () => {
-    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.6.0' }).slice(0, 2)).toEqual([
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' }).slice(0, 2)).toEqual([
       '--yes',
-      'expo-device-hub@0.6.0',
+      'expo-device-hub@0.7.0',
     ]);
   });
 });
