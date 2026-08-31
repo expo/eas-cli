@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Require the serve-sim session token for device run session previews, so the tunnel no longer exposes the shell-exec route. ([#4306](https://github.com/expo/eas-cli/pull/4306) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

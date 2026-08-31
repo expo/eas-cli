@@ -17,6 +17,7 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -652,6 +653,7 @@ export function createServeSimArgs({
     String(port),
     '--host',
     WEB_PREVIEW_HOST,
+    '--require-token',
     '--transport',
     'webrtc',
     '--webrtc-codec',
@@ -737,7 +739,7 @@ export async function waitForWebPreviewReadyAsync({
   serverName: string;
   port: number;
   timeoutMs: number;
-}): Promise<void> {
+}): Promise<string> {
   const readyUrl = `http://${WEB_PREVIEW_HOST}:${port}/readyz`;
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
@@ -754,8 +756,8 @@ export async function waitForWebPreviewReadyAsync({
         retries: 0,
         timeout: 2_000,
       });
-      WebPreviewReadyResponseSchema.parse(await response.json());
-      return;
+      const ready = WebPreviewReadyResponseSchema.parse(await response.json());
+      return ready.device;
     } catch (error) {
       lastError = error;
     }
@@ -770,6 +772,8 @@ export async function waitForWebPreviewReadyAsync({
 
 export type DeviceWebPreviewHandle = {
   previewUrl: string;
+  /** Session token gating the preview. Only serve-sim mints one. */
+  previewToken?: string;
   stopAsync: () => Promise<void>;
 };
 
@@ -785,6 +789,7 @@ async function startWebPreviewWithTunnelAsync(
     serverName,
     packageSpec,
     createArgs,
+    readPreviewTokenAsync,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -793,6 +798,7 @@ async function startWebPreviewWithTunnelAsync(
     serverName: string;
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[]) => string[];
+    readPreviewTokenAsync?: (device: string) => Promise<string>;
   }
 ): Promise<DeviceWebPreviewHandle> {
   const port = await findAvailablePortAsync();
@@ -806,7 +812,13 @@ async function startWebPreviewWithTunnelAsync(
 
   try {
     logger.info(`Waiting for ${serverName} to become ready.`);
-    await waitForWebPreviewReadyAsync({ previewServer, serverName, port, timeoutMs });
+    const device = await waitForWebPreviewReadyAsync({
+      previewServer,
+      serverName,
+      port,
+      timeoutMs,
+    });
+    const previewToken = await readPreviewTokenAsync?.(device);
     const tunnel = await startNgrokTunnelAsync({
       port,
       subdomainPrefix: 'web-preview',
@@ -816,6 +828,7 @@ async function startWebPreviewWithTunnelAsync(
     });
     return {
       previewUrl: tunnel.url,
+      previewToken,
       stopAsync: async () => {
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
@@ -829,6 +842,14 @@ async function startWebPreviewWithTunnelAsync(
     await previewServer.stopAsync();
     throw error;
   }
+}
+
+export async function readServeSimPreviewTokenAsync(
+  udid: string,
+  stateDir: string = SERVE_SIM_STATE_DIR
+): Promise<string | undefined> {
+  const servers = await readServeSimServersAsync(stateDir);
+  return servers.find(server => server.udid === udid)?.token;
 }
 
 export async function startServeSimWithTunnelAsync(
@@ -857,6 +878,18 @@ export async function startServeSimWithTunnelAsync(
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
       createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+    readPreviewTokenAsync: async device => {
+      const previewToken = await readServeSimPreviewTokenAsync(device);
+      if (!previewToken) {
+        throw new SystemError(
+          `serve-sim started without a session token for device ${device}. It is always launched ` +
+            'with --require-token, so this usually means the pinned @expo/serve-sim predates that ' +
+            'flag and ignored it, leaving the preview ungated on a public tunnel. Pin a serve-sim ' +
+            'version that supports --require-token.'
+        );
+      }
+      return previewToken;
+    },
   });
 }
 

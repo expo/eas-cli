@@ -149,6 +149,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
               'appium:udid': device.udid,
             },
             webPreviewUrl: webPreview.previewUrl,
+            ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
           logger,
         });

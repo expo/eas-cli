@@ -222,6 +222,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             toolsUrl: publicToolsUrl,
             ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
             webPreviewUrl: webPreview.previewUrl,
+            ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
           logger,
         });
