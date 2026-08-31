@@ -10,7 +10,7 @@ import {
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
-import { createStartServeSimRemoteSessionBuildFunction } from '../startServeSimRemoteSession';
+import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
 jest.mock('../../utils/remoteDeviceRunSession');
 
@@ -20,7 +20,7 @@ const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const stopAsync = jest.fn();
 
 async function runAsync(runtimePlatform: BuildRuntimePlatform): Promise<void> {
-  const buildFunction = createStartServeSimRemoteSessionBuildFunction(ctx);
+  const buildFunction = createStartWebPreviewRemoteSessionBuildFunction(ctx);
   await buildFunction.fn!(
     {
       logger,
@@ -37,7 +37,7 @@ async function runAsync(runtimePlatform: BuildRuntimePlatform): Promise<void> {
   );
 }
 
-describe(createStartServeSimRemoteSessionBuildFunction, () => {
+describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(getDeviceRunSessionIdOrThrow).mockReturnValue('device-run-session-id');

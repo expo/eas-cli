@@ -17,7 +17,7 @@ import {
 
 const STARTUP_TIMEOUT_MS = 60_000;
 
-export function createStartServeSimRemoteSessionBuildFunction(
+export function createStartWebPreviewRemoteSessionBuildFunction(
   ctx: CustomBuildContext
 ): BuildFunction {
   return new BuildFunction({
