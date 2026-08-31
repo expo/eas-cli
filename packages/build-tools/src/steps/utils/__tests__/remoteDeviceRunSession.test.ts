@@ -309,6 +309,15 @@ describe(startNgrokTunnelAsync, () => {
 
 describe(startDeviceWebPreviewWithTunnelAsync, () => {
   const baseDomain = 'eas-simulator.ngrok.dev';
+  const turnArgs = [
+    '--turn-url',
+    'turns:turn.example.test:443',
+    '--turn-username',
+    'turn-user',
+    '--turn-credential',
+    'turn-credential',
+  ];
+  const metricsCorsArgs = ['--metrics-cors-origin', 'https://metrics.expo.test'];
   const env = {
     DEVICE_RUN_SESSION_ID: 'drs-id',
     EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
@@ -369,36 +378,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual([
-      '--yes',
-      'expo-device-hub@latest',
-      '--port',
-      String(port),
-      '--host',
-      '127.0.0.1',
-      '--platform',
-      'android',
-      '--transport',
-      'webrtc',
-      '--webrtc-codec',
-      'h264',
-      '--webrtc-ice-policy',
-      'all',
-      '--max-dimension',
-      '1280',
-      '--video-bitrate',
-      '3000000',
-      '--video-fps',
-      '30',
-      '--hide-sidebar',
-      '--hide-boot-device',
-      '--turn-url',
-      'turns:turn.example.test:443',
-      '--turn-username',
-      'turn-user',
-      '--turn-credential',
-      'turn-credential',
-    ]);
+    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://android-preview.example.test');
 
@@ -425,34 +405,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual([
-      '--yes',
-      '@expo/serve-sim@latest',
-      '--port',
-      String(port),
-      '--host',
-      '127.0.0.1',
-      '--transport',
-      'webrtc',
-      '--webrtc-codec',
-      'vp8',
-      '--max-dimension',
-      '960',
-      '--mjpeg-quality',
-      '0.55',
-      '--video-bitrate',
-      '6000000',
-      '--video-fps',
-      '60',
-      '--turn-url',
-      'turns:turn.example.test:443',
-      '--turn-username',
-      'turn-user',
-      '--turn-credential',
-      'turn-credential',
-      '--metrics-cors-origin',
-      'https://metrics.expo.test',
-    ]);
+    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
 
