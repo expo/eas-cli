@@ -1,6 +1,6 @@
 {
   "name": "eas-cli-local-build-plugin",
-  "version": "23.1.0",
+  "version": "23.2.0",
   "description": "Tool for running EAS compatible builds on a local machine.",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
@@ -26,7 +26,7 @@
     "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/build-tools": "23.1.0",
+    "@expo/build-tools": "23.2.0",
     "@expo/bunyan": "^4.0.1",
     "@expo/eas-build-job": "23.1.0",
     "@expo/logger": "23.1.0",
