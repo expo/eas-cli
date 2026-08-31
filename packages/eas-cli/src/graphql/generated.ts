@@ -1073,6 +1073,8 @@ export type AgentDeviceRunSessionRemoteConfig = {
   __typename?: 'AgentDeviceRunSessionRemoteConfig';
   agentDeviceRemoteSessionToken: Scalars['String']['output'];
   agentDeviceRemoteSessionUrl: Scalars['String']['output'];
+  /** Session token gating the web preview. Null when the preview runs ungated. */
+  webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when web previews are
    * not available for the platform (e.g. Android).
@@ -1520,6 +1522,8 @@ export type App = Project & {
   /** @deprecated Classic updates have been deprecated. */
   description: Scalars['String']['output'];
   devDomainName?: Maybe<AppDevDomainName>;
+  /** Every tag used by this app's device run sessions, sorted alphabetically. */
+  deviceRunSessionTags: Array<Scalars['String']['output']>;
   deviceRunSessionsPaginated: AppDeviceRunSessionsConnection;
   embeddedUpdatesPaginated: AppEmbeddedUpdatesConnection;
   /** Environment secrets for an app */
@@ -3808,6 +3812,8 @@ export type AppiumRunSessionRemoteConfig = {
   appiumUrl: Scalars['String']['output'];
   /** W3C capabilities for the device that backs this session. */
   capabilities: Scalars['JSONObject']['output'];
+  /** Session token gating the web preview. Null when the preview runs ungated. */
+  webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when web previews are
    * not available for the platform (e.g. Android).
@@ -4216,6 +4222,8 @@ export type ArgentRunSessionRemoteConfig = {
   __typename?: 'ArgentRunSessionRemoteConfig';
   toolsAuthToken?: Maybe<Scalars['String']['output']>;
   toolsUrl: Scalars['String']['output'];
+  /** Session token gating the web preview. Null when the preview runs ungated. */
+  webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when web previews are
    * not available for the platform (e.g. Android).
@@ -5460,6 +5468,8 @@ export type CreateDeviceRunSessionInput = {
    * true. If omitted, the current Expo Go archive for the platform is used.
    */
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
+  /** Free-form labels for grouping sessions, for example one per app variant. */
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
   type: DeviceRunSessionType;
 };
 
@@ -6239,6 +6249,8 @@ export type DeviceRunSession = {
   remoteConfig?: Maybe<DeviceRunSessionRemoteConfig>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: DeviceRunSessionStatus;
+  /** Free-form labels for grouping sessions, for example one per app variant. */
+  tags: Array<Scalars['String']['output']>;
   turtleJobRun?: Maybe<JobRun>;
   type: DeviceRunSessionType;
   updatedAt: Scalars['DateTime']['output'];
@@ -6285,6 +6297,8 @@ export type DeviceRunSessionFilterInput = {
   name?: InputMaybe<Scalars['String']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
+  /** Matches sessions carrying every listed tag. Case-insensitive. */
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
   types?: InputMaybe<Array<DeviceRunSessionType>>;
 };
 
@@ -10227,6 +10241,8 @@ export type SentryProjectMutationDeleteSentryProjectArgs = {
  */
 export type ServeSimRunSessionRemoteConfig = {
   __typename?: 'ServeSimRunSessionRemoteConfig';
+  /** Session token gating the preview. Null when the preview runs ungated. */
+  previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
   /** @deprecated Use previewUrl instead. */
   streamUrl?: Maybe<Scalars['String']['output']>;
@@ -15281,7 +15297,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null }
         | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
@@ -15297,7 +15313,7 @@ export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type ViewEmbeddedUpdateByIdQueryVariables = Exact<{
   embeddedUpdateId: Scalars['ID']['input'];

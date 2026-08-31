@@ -71,6 +71,11 @@ export default class Simulator extends EasCommand {
       description:
         'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
     }),
+    tag: Flags.string({
+      description:
+        'Label used to group simulator sessions, for example one per app variant. Repeat for multiple tags. Stored lowercased.',
+      multiple: true,
+    }),
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
@@ -179,6 +184,7 @@ export default class Simulator extends EasCommand {
     // The server rejects blank names, so trim here and treat a whitespace-only
     // --name as if it had been omitted rather than surfacing a validation error.
     const name = flags.name?.trim() || undefined;
+    const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -233,6 +239,7 @@ export default class Simulator extends EasCommand {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
         name,
+        ...(tags?.length ? { tags } : {}),
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],

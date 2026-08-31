@@ -48,6 +48,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
   return {
     id: 'session-123',
     name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -143,6 +144,7 @@ describe(SimulatorGet, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
       name: undefined,
+      tags: [],
       type: 'web-preview-only',
       status: DeviceRunSessionStatus.InProgress,
       platform: AppPlatform.Ios,
