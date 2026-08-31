@@ -14,6 +14,7 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -46,8 +47,8 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   spawnDetached: jest.fn(),
+  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
-  startServeSimWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
@@ -58,6 +59,7 @@ const EXPECTED_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, 'tool-server-events.
 
 const mockStopAsync = jest.fn();
 const mockTunnelStopAsync = jest.fn();
+const mockPreviewStopAsync = jest.fn();
 
 describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
   beforeEach(async () => {
@@ -68,6 +70,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(pollArgentArtifactsForUploadAsync).mockResolvedValue(undefined);
     mockStopAsync.mockResolvedValue(undefined);
     mockTunnelStopAsync.mockResolvedValue(undefined);
+    mockPreviewStopAsync.mockResolvedValue(undefined);
     jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({
       stopAsync: mockStopAsync,
       getLastEventObservedAt: () => undefined,
@@ -85,6 +88,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://argent-abc.tunnel.example.com',
       stopAsync: mockTunnelStopAsync,
+    });
+    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
+      previewUrl: 'https://web-preview.tunnel.example.com',
+      stopAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -151,5 +158,17 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
     );
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
+    );
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: 'https://web-preview.tunnel.example.com',
+        }),
+      })
+    );
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 });

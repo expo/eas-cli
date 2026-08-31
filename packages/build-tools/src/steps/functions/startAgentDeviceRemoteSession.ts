@@ -23,8 +23,8 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
@@ -107,22 +107,19 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
       try {
-        // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
-        // on Darwin. Android sessions go without a preview URL.
-        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          serveSim = await startServeSimWithTunnelAsync(ctx, {
-            baseDomain: ngrokTunnelDomain,
-            env,
-            logger,
-            timeoutMs: STARTUP_TIMEOUT_MS,
-          });
-          logger.info(`Web preview URL: ${serveSim.previewUrl}`);
-        }
+        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+          runtimePlatform,
+          baseDomain: ngrokTunnelDomain,
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+        });
+        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
         await uploadRemoteSessionConfigAsync({
           ctx,
@@ -130,7 +127,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           remoteConfig: {
             agentDeviceRemoteSessionUrl,
             agentDeviceRemoteSessionToken: daemonToken,
-            ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
+            webPreviewUrl: webPreview.previewUrl,
           },
           logger,
         });
@@ -163,8 +160,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
+        if (webPreview) {
+          await webPreview.stopAsync();
         }
         await agentDeviceTunnel.stopAsync();
         if (eventCollection) {

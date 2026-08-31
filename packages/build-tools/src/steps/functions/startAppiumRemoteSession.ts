@@ -26,8 +26,8 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -118,7 +118,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -128,18 +128,15 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
-        switch (runtimePlatform) {
-          case BuildRuntimePlatform.DARWIN:
-            serveSim = await startServeSimWithTunnelAsync(ctx, {
-              baseDomain: ngrokTunnelDomain,
-              env,
-              logger,
-              timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
-            });
-            break;
-          case BuildRuntimePlatform.LINUX:
-            break;
-        }
+        // expo-device-hub has no serial-selection flag. Device run session workflows must expose
+        // a single booted Android emulator so the Hub and Appium resolve the same device.
+        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+          runtimePlatform,
+          baseDomain: ngrokTunnelDomain,
+          env,
+          logger,
+          timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+        });
 
         await uploadRemoteSessionConfigAsync({
           ctx,
@@ -151,7 +148,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
               'appium:automationName': device.automationName,
               'appium:udid': device.udid,
             },
-            ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
+            webPreviewUrl: webPreview.previewUrl,
           },
           logger,
         });
@@ -170,8 +167,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
+        if (webPreview) {
+          await webPreview.stopAsync();
         }
         if (appiumTunnel) {
           await appiumTunnel.stopAsync();

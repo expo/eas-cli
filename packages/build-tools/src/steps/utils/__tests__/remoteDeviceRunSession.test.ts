@@ -13,14 +13,16 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { sleepAsync } from '../../../utils/retry';
 import {
+  createExpoDeviceHubArgs,
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
-  fetchServeSimTurnArgsAsync,
+  fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  turnIceServersToServeSimArgs,
+  turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
-  waitForServeSimReadyAsync,
+  waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
@@ -173,6 +175,49 @@ describe(createServeSimArgs, () => {
   });
 });
 
+describe(createExpoDeviceHubArgs, () => {
+  it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
+    expect(
+      createExpoDeviceHubArgs({
+        port: 4321,
+        turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      })
+    ).toEqual([
+      '--yes',
+      'expo-device-hub@latest',
+      '--port',
+      '4321',
+      '--host',
+      '127.0.0.1',
+      '--platform',
+      'android',
+      '--transport',
+      'webrtc',
+      '--webrtc-codec',
+      'h264',
+      '--webrtc-ice-policy',
+      'all',
+      '--max-dimension',
+      '1280',
+      '--video-bitrate',
+      '6000000',
+      '--video-fps',
+      '60',
+      '--hide-sidebar',
+      '--hide-boot-device',
+      '--turn-url',
+      'turns:turn.example.test:443',
+    ]);
+  });
+
+  it('pins the requested package version', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' }).slice(0, 2)).toEqual([
+      '--yes',
+      'expo-device-hub@0.7.0',
+    ]);
+  });
+});
+
 describe(metricsCorsOriginToServeSimArgs, () => {
   it('returns no args when the origin is unset or empty', () => {
     expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
@@ -200,7 +245,7 @@ describe(metricsCorsOriginToServeSimArgs, () => {
   });
 });
 
-describe(waitForServeSimReadyAsync, () => {
+describe(waitForWebPreviewReadyAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
     jest.mocked(sleepAsync).mockReset();
@@ -215,8 +260,9 @@ describe(waitForServeSimReadyAsync, () => {
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    await waitForServeSimReadyAsync({
-      serveSim: { pid: undefined, getOutput: () => '' },
+    await waitForWebPreviewReadyAsync({
+      previewServer: { pid: undefined, getOutput: () => '' },
+      serverName: 'expo-device-hub',
       port: 4321,
       timeoutMs: 10_000,
     });
@@ -261,14 +307,125 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
-describe(turnIceServersToServeSimArgs, () => {
+describe(startDeviceWebPreviewWithTunnelAsync, () => {
+  const baseDomain = 'eas-simulator.ngrok.dev';
+  const turnArgs = [
+    '--turn-url',
+    'turns:turn.example.test:443',
+    '--turn-username',
+    'turn-user',
+    '--turn-credential',
+    'turn-credential',
+  ];
+  const metricsCorsArgs = ['--metrics-cors-origin', 'https://metrics.expo.test'];
+  const env = {
+    DEVICE_RUN_SESSION_ID: 'drs-id',
+    EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
+    NGROK_AUTHTOKEN: 'ngrok-token',
+  } as unknown as BuildStepEnv;
+
+  beforeEach(() => {
+    jest.mocked(spawn).mockReset();
+    jest.mocked(ngrok.forward).mockReset();
+    jest.mocked(turtleFetch).mockReset();
+
+    const spawnPromise = Object.assign(Promise.resolve(undefined), {
+      child: {
+        pid: undefined,
+        unref: jest.fn(),
+      },
+    });
+    jest.mocked(spawn).mockReturnValue(spawnPromise as never);
+
+    jest.mocked(turtleFetch).mockImplementation(async url => {
+      if (url.endsWith('/turn-ice-servers')) {
+        return {
+          json: async () => ({
+            data: {
+              iceServers: [
+                {
+                  urls: ['turns:turn.example.test:443'],
+                  username: 'turn-user',
+                  credential: 'turn-credential',
+                },
+              ],
+            },
+          }),
+        } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+      }
+      return {
+        json: async () => ({ status: 'ready', device: 'device-id' }),
+      } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+    });
+  });
+
+  it('starts expo-device-hub for Linux and cleans up the preview resources', async () => {
+    const packageVersion = '1.2.3';
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      packageVersion,
+    });
+
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(port).toBeGreaterThan(0);
+    expect(command).toBe('npx');
+    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs, packageVersion }));
+    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(preview.previewUrl).toBe('https://android-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
+    const packageVersion = '4.5.6';
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      packageVersion,
+    });
+
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(port).toBeGreaterThan(0);
+    expect(command).toBe('npx');
+    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
+    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe(turnIceServersToWebPreviewArgs, () => {
   it('returns no args for an empty ICE server list', () => {
-    expect(turnIceServersToServeSimArgs([])).toEqual([]);
+    expect(turnIceServersToWebPreviewArgs([])).toEqual([]);
   });
 
   it('builds --stun-url and --turn-url flags from Cloudflare ICE servers', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
         {
           urls: [
@@ -293,7 +450,7 @@ describe(turnIceServersToServeSimArgs, () => {
 
   it('emits only --turn-url flags when no credential-less (STUN) entry is present', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         {
           urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
           username: 'u',
@@ -311,19 +468,19 @@ describe(turnIceServersToServeSimArgs, () => {
   });
 
   it('emits only --stun-url when there is no credentialed TURN entry', () => {
-    expect(turnIceServersToServeSimArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
+    expect(turnIceServersToWebPreviewArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
       '--stun-url',
       'stun:stun.cloudflare.com:3478',
     ]);
   });
 });
 
-describe(fetchServeSimTurnArgsAsync, () => {
+describe(fetchWebPreviewTurnArgsAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns serve-sim args', async () => {
+  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
     jest.mocked(turtleFetch).mockResolvedValue({
       json: async () => ({
         data: {
@@ -339,7 +496,7 @@ describe(fetchServeSimTurnArgsAsync, () => {
       }),
     } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger: createLoggerMock(),
     });
@@ -363,11 +520,11 @@ describe(fetchServeSimTurnArgsAsync, () => {
     );
   });
 
-  it('returns [] and warns when the request fails so serve-sim falls back to P2P/STUN', async () => {
+  it('returns [] and warns when the request fails so the web preview falls back to P2P/STUN', async () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger,
     });
