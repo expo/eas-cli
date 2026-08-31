@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [23.2.0](https://github.com/expo/eas-cli/releases/tag/v23.2.0) - 2026-08-31
+
+### 🎉 New features
+
 - [eas-cli] Add `--tag` to `eas simulator` and `eas simulator:list` to group and filter simulator sessions by app variant. ([#4318](https://github.com/expo/eas-cli/pull/4318) by [@tchayen](https://github.com/tchayen))
 - [eas-cli] Update workflow run logs in real time, instead of every 10 seconds. ([#4228](https://github.com/expo/eas-cli/pull/4228) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [build-tools] Add `expo-device-hub` web previews to Android web-preview-only, Agent Device, Argent, and Appium remote sessions. ([#4304](https://github.com/expo/eas-cli/pull/4304) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 - [eas-cli] Add `eas workflow:ssh <workflow-job-id> [command...]` to open an ssh session on the worker running a workflow job. ([#4032](https://github.com/expo/eas-cli/pull/4032) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `--ssh` (and `--ssh-idle-timeout`) to `eas workflow:run` to enable ssh on the run's VM jobs. ([#4033](https://github.com/expo/eas-cli/pull/4033) by [@gwdp](https://github.com/gwdp))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
