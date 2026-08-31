@@ -18,7 +18,7 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
-  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   deviceRunSessionTypeToFlagValue,
 } from '../../simulator/utils';
 import { fromNow } from '../../utils/date';
@@ -63,7 +63,7 @@ export default class SimulatorList extends EasCommand {
     type: Flags.option({
       description:
         'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       multiple: true,
     })(),
     platform: Flags.option({
