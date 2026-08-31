@@ -15671,6 +15671,20 @@ export type WorkflowJobByIdQuery = { __typename?: 'RootQuery', workflowJobs: { _
           | { __typename: 'User', id: string, displayName: string }
          | null, app: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, updateChannel?: { __typename?: 'UpdateChannel', id: string, name: string } | null, runtime?: { __typename?: 'Runtime', id: string, version: string } | null, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> } } };
 
+export type WorkflowJobSshPollQueryVariables = Exact<{
+  workflowJobId: Scalars['ID']['input'];
+}>;
+
+
+export type WorkflowJobSshPollQuery = { __typename?: 'RootQuery', workflowJobs: { __typename?: 'WorkflowJobQuery', byId: { __typename?: 'WorkflowJob', id: string, status: WorkflowJobStatus, workflowRun: { __typename?: 'WorkflowRun', id: string, sshSettings?: { __typename?: 'WorkflowRunSshSettings', idleTimeoutSeconds: number } | null }, turtleJobRun?: { __typename?: 'JobRun', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null, turtleBuild?: { __typename?: 'Build', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null } } };
+
+export type JobRunSshPollQueryVariables = Exact<{
+  jobRunId: Scalars['ID']['input'];
+}>;
+
+
+export type JobRunSshPollQuery = { __typename?: 'RootQuery', jobRun: { __typename?: 'JobRunQuery', byId: { __typename?: 'JobRun', id: string, status: JobRunStatus, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } } };
+
 export type ExpoGoSupportedSdkVersionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
