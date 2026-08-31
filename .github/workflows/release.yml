@@ -99,6 +99,7 @@ jobs:
           exit 1
       - name: Bump STAGING and PRODUCTION
         run: |
+          git pull --rebase --autostash origin main
           jq --arg version "$EAS_CLI_VERSION" '.STAGING = $version' \
             cli-versions.json > cli-versions.json.tmp
           mv cli-versions.json.tmp cli-versions.json
