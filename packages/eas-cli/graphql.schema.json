@@ -36050,6 +36050,16 @@
         "possibleTypes": null
       },
       {
+        "kind": "SCALAR",
+        "name": "ByteSize",
+        "description": "A non-negative integer number of bytes.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "UNION",
         "name": "ChannelBuildOrEmbeddedUpdate",
         "description": null,
@@ -37886,6 +37896,41 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "CreateAndroidDeviceRunSessionInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "deviceIdentifier",
+            "description": "AVD hardware profile id to use for the emulator (e.g. \"pixel_9\").",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "systemImagePackage",
+            "description": "Android SDK system image package to use for the emulator (e.g.\n\"system-images;android-35-ext15;google_apis_playstore;x86_64\").",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "CreateAndroidSubmissionInput",
         "description": null,
         "fields": null,
@@ -38293,7 +38338,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "Int",
+                "name": "ByteSize",
                 "ofType": null
               }
             },
@@ -38367,6 +38412,18 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "android",
+            "description": "Android emulator options. Only supported when platform is ANDROID.",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "CreateAndroidDeviceRunSessionInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appId",
             "description": null,
             "type": {
@@ -38384,7 +38441,19 @@
           },
           {
             "name": "applicationArchiveUrl",
-            "description": "Application archive URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId and expoGo.",
+            "description": "Application archive URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId, buildFingerprint, and expoGo.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildFingerprint",
+            "description": "Fingerprint hash of an EAS Build to install and launch before the simulator session becomes\navailable; the server resolves it to the most recent installable build with this fingerprint.\nMutually exclusive with buildId, applicationArchiveUrl, and expoGo.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -38396,7 +38465,7 @@
           },
           {
             "name": "buildId",
-            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with applicationArchiveUrl and expoGo.",
+            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with buildFingerprint, applicationArchiveUrl, and expoGo.",
             "type": {
               "kind": "SCALAR",
               "name": "ID",
@@ -38407,11 +38476,11 @@
             "deprecationReason": null
           },
           {
-            "name": "deviceIdentifier",
-            "description": "Identifier of the virtual device to start for the session. On iOS this is a\nSimulator device name or UDID (e.g. \"iPhone 16 Pro\"). On Android this is an\nAVD hardware profile id (e.g. \"pixel_7\"). If omitted, the runner picks a\ndefault device.",
+            "name": "expoGo",
+            "description": "Install and launch Expo Go before the simulator session becomes available. The server resolves\nthe platform-specific application archive. Mutually exclusive with buildId, buildFingerprint,\nand applicationArchiveUrl.",
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -38419,11 +38488,11 @@
             "deprecationReason": null
           },
           {
-            "name": "expoGo",
-            "description": "Install and launch Expo Go before the simulator session becomes available. The server resolves\nthe platform-specific application archive. Mutually exclusive with buildId and\napplicationArchiveUrl.",
+            "name": "ios",
+            "description": "iOS Simulator options. Only supported when platform is IOS.",
             "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
+              "kind": "INPUT_OBJECT",
+              "name": "CreateIosDeviceRunSessionInput",
               "ofType": null
             },
             "defaultValue": null,
@@ -40034,6 +40103,29 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "CreateIosDeviceRunSessionInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "deviceIdentifier",
+            "description": "Simulator device name or UDID to use for the session (e.g. \"iPhone 16 Pro\").",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,

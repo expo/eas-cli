@@ -19,6 +19,7 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  ByteSize: { input: any; output: any; }
   DateTime: { input: any; output: any; }
   DevDomainName: { input: any; output: any; }
   EnvironmentVariableEnvironment: { input: any; output: any; }
@@ -5341,6 +5342,16 @@ export type CreateAndConfigureRepositoryInput = {
   installationIdentifier: Scalars['Int']['input'];
 };
 
+export type CreateAndroidDeviceRunSessionInput = {
+  /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). */
+  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Android SDK system image package to use for the emulator (e.g.
+   * "system-images;android-35-ext15;google_apis_playstore;x86_64").
+   */
+  systemImagePackage?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateAndroidSubmissionInput = {
   appId: Scalars['ID']['input'];
   archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
@@ -5388,7 +5399,7 @@ export type CreateDeviceRunSessionArtifactUploadSessionInput = {
   kind?: InputMaybe<Scalars['String']['input']>;
   metadata?: InputMaybe<Scalars['JSONObject']['input']>;
   name: Scalars['String']['input'];
-  size: Scalars['Int']['input'];
+  size: Scalars['ByteSize']['input'];
 };
 
 export type CreateDeviceRunSessionArtifactUploadSessionResult = {
@@ -5402,30 +5413,33 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 };
 
 export type CreateDeviceRunSessionInput = {
+  /** Android emulator options. Only supported when platform is ANDROID. */
+  android?: InputMaybe<CreateAndroidDeviceRunSessionInput>;
   appId: Scalars['ID']['input'];
   /**
    * Application archive URL to download, install, and launch before the simulator session
-   * becomes available. Mutually exclusive with buildId and expoGo.
+   * becomes available. Mutually exclusive with buildId, buildFingerprint, and expoGo.
    */
   applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Fingerprint hash of an EAS Build to install and launch before the simulator session becomes
+   * available; the server resolves it to the most recent installable build with this fingerprint.
+   * Mutually exclusive with buildId, applicationArchiveUrl, and expoGo.
+   */
+  buildFingerprint?: InputMaybe<Scalars['String']['input']>;
+  /**
    * EAS Build to install and launch before the simulator session becomes available.
-   * Mutually exclusive with applicationArchiveUrl and expoGo.
+   * Mutually exclusive with buildFingerprint, applicationArchiveUrl, and expoGo.
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
-   * Identifier of the virtual device to start for the session. On iOS this is a
-   * Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android this is an
-   * AVD hardware profile id (e.g. "pixel_7"). If omitted, the runner picks a
-   * default device.
-   */
-  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
-  /**
    * Install and launch Expo Go before the simulator session becomes available. The server resolves
-   * the platform-specific application archive. Mutually exclusive with buildId and
-   * applicationArchiveUrl.
+   * the platform-specific application archive. Mutually exclusive with buildId, buildFingerprint,
+   * and applicationArchiveUrl.
    */
   expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /** iOS Simulator options. Only supported when platform is IOS. */
+  ios?: InputMaybe<CreateIosDeviceRunSessionInput>;
   /**
    * Arguments passed to the installed application when it is launched. Requires buildId,
    * applicationArchiveUrl, or expoGo.
@@ -5621,6 +5635,11 @@ export type CreateGitHubRepositorySettingsInput = {
   appId: Scalars['ID']['input'];
   /** The base directory is the directory to change to before starting a build. This string should be a properly formatted POSIX path starting with '/', './', or the name of the directory relative to the root of the repository. Valid examples include: '/apps/expo-app', './apps/expo-app', and 'apps/expo-app'. This is intended for monorepos or apps that live in a subdirectory of a repository. */
   baseDirectory: Scalars['String']['input'];
+};
+
+export type CreateIosDeviceRunSessionInput = {
+  /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
+  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateIosSubmissionInput = {
