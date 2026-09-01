@@ -27,7 +27,7 @@ import {
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { appObservePlatformFromFlag } from '../../observe/platforms';
+import { observePlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -102,7 +102,7 @@ export default class ObserveEvents extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platform = appObservePlatformFromFlag(flags.platform);
+    const platforms = observePlatformsFromFlag(flags.platform);
 
     // A session ID narrows to a single session, so show that session's events
     // (like --all-events) instead of the account-wide name+count summary, which
@@ -113,7 +113,7 @@ export default class ObserveEvents extends EasCommand {
           appId: projectId,
           startTime,
           endTime,
-          platform,
+          platforms,
           environment: flags.environment,
         })
       );
@@ -141,7 +141,7 @@ export default class ObserveEvents extends EasCommand {
         ...(flags.after && { after: flags.after }),
         startTime,
         endTime,
-        platform,
+        platforms,
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
         sessionId: flags['session-id'],
@@ -154,7 +154,7 @@ export default class ObserveEvents extends EasCommand {
         appId: projectId,
         startTime,
         endTime,
-        platform,
+        platforms,
         environment: flags.environment,
       });
 

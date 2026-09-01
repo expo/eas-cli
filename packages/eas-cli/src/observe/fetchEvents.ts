@@ -6,11 +6,11 @@ import {
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
   AppObservePlatform,
-  AppPlatform,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import { isObservePlanGateError } from './planGating';
+import { ObservePlatformTarget } from './platforms';
 
 export enum EventsOrderPreset {
   Slowest = 'SLOWEST',
@@ -52,7 +52,7 @@ interface FetchObserveEventsOptions {
   after?: string;
   startTime?: string;
   endTime?: string;
-  platform?: AppObservePlatform;
+  platforms?: AppObservePlatform[];
   appVersion?: string;
   updateId?: string;
   sessionId?: string;
@@ -73,7 +73,7 @@ export async function fetchObserveEventsAsync(
     ...(options.startTime && { startTime: options.startTime }),
     ...(options.endTime && { endTime: options.endTime }),
     ...(options.metricName && { metricName: options.metricName }),
-    ...(options.platform && { platform: options.platform }),
+    ...(options.platforms?.length && { platforms: options.platforms }),
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
@@ -89,25 +89,20 @@ export async function fetchObserveEventsAsync(
   });
 }
 
-const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};
-
 export async function fetchTotalEventCountAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   metricName: string,
-  platforms: AppPlatform[],
+  targets: ObservePlatformTarget[],
   startTime: string,
   endTime: string,
   environment?: string
 ): Promise<number> {
-  const queries = platforms.map(async appPlatform => {
+  const queries = targets.map(async target => {
     try {
       const versions = await ObserveQuery.appVersionsAsync(graphqlClient, {
         appId,
-        platform: appPlatformToObservePlatform[appPlatform],
+        platforms: target.platforms,
         startTime,
         endTime,
         metricNames: [metricName],

@@ -3,7 +3,7 @@ import { GraphQLError } from 'graphql';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppPlatform } from '../../../graphql/generated';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveNavigationRoutesAsync } from '../../../observe/fetchNavigationRoutes';
 import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import {
@@ -11,6 +11,7 @@ import {
   buildObserveNavigationRoutesTable,
 } from '../../../observe/formatNavigationRoutes';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
 import ObserveRoutes from '../routes';
 
 jest.mock('../../../observe/fetchNavigationRoutes');
@@ -30,6 +31,10 @@ const mockBuildObserveNavigationRoutesTable = jest.mocked(buildObserveNavigation
 const mockBuildObserveNavigationRoutesJson = jest.mocked(buildObserveNavigationRoutesJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(ObserveRoutes, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -78,7 +83,10 @@ describe(ObserveRoutes, () => {
 
     expect(mockFetchObserveNavigationRoutesAsync).toHaveBeenCalledTimes(1);
     const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
-    expect(options.platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
+    expect(options.targets).toEqual([
+      target(AppObservePlatform.Android),
+      target(AppObservePlatform.Ios),
+    ]);
     expect(options.limit).toBe(50);
 
     const tableCall = mockBuildObserveNavigationRoutesTable.mock.calls[0];
@@ -95,7 +103,7 @@ describe(ObserveRoutes, () => {
     await command.runAsync();
 
     const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
-    expect(options.platforms).toEqual([AppPlatform.Ios]);
+    expect(options.targets).toEqual([target(AppObservePlatform.Ios)]);
   });
 
   it('resolves --metric short aliases to navigation metric full names and deduplicates', async () => {

@@ -1,12 +1,13 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppPlatform } from '../../../graphql/generated';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveVersionsAsync } from '../../../observe/fetchVersions';
 import {
   buildObserveVersionsJson,
   buildObserveVersionsTable,
 } from '../../../observe/formatVersions';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
 import ObserveVersions from '../versions';
 
 jest.mock('../../../observe/fetchVersions');
@@ -22,6 +23,10 @@ const mockBuildObserveVersionsTable = jest.mocked(buildObserveVersionsTable);
 const mockBuildObserveVersionsJson = jest.mocked(buildObserveVersionsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(ObserveVersions, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -52,7 +57,7 @@ describe(ObserveVersions, () => {
 
     expect(mockFetchObserveVersionsAsync).toHaveBeenCalledTimes(1);
     const platforms = mockFetchObserveVersionsAsync.mock.calls[0][2];
-    expect(platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android), target(AppObservePlatform.Ios)]);
 
     jest.useRealTimers();
   });
@@ -62,7 +67,7 @@ describe(ObserveVersions, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveVersionsAsync.mock.calls[0][2];
-    expect(platforms).toEqual([AppPlatform.Android]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android)]);
   });
 
   it('queries only iOS when --platform ios is passed', async () => {
@@ -70,7 +75,7 @@ describe(ObserveVersions, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveVersionsAsync.mock.calls[0][2];
-    expect(platforms).toEqual([AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Ios)]);
   });
 
   it('passes --environment through to fetchObserveVersionsAsync', async () => {
@@ -171,7 +176,7 @@ describe(ObserveVersions, () => {
   it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
     mockFetchObserveVersionsAsync.mockResolvedValue([
       {
-        platform: AppPlatform.Ios,
+        platform: AppObservePlatform.Ios,
         appVersions: [
           {
             appVersion: '1.0.0',

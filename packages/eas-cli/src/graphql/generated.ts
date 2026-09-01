@@ -15467,7 +15467,7 @@ export type AppObserveCustomEventNamesQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   startTime: Scalars['DateTime']['input'];
   endTime: Scalars['DateTime']['input'];
-  platform?: InputMaybe<AppObservePlatform>;
+  platforms?: InputMaybe<Array<AppObservePlatform> | AppObservePlatform>;
   environment?: InputMaybe<Scalars['String']['input']>;
 }>;
 
