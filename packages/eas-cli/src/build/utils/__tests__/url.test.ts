@@ -1,4 +1,4 @@
-import { getProjectDashboardUrl, getProjectPageUrl } from '../url';
+import { getProjectDashboardUrl, getProjectPageUrl, getSubmissionUrl } from '../url';
 
 describe(getProjectPageUrl, () => {
   it('builds the project dashboard URL when no page is provided', () => {
@@ -30,6 +30,14 @@ describe(getProjectDashboardUrl, () => {
   it('matches the page URL with no page', () => {
     expect(getProjectDashboardUrl('testuser', 'testapp')).toBe(
       getProjectPageUrl('testuser', 'testapp')
+    );
+  });
+});
+
+describe(getSubmissionUrl, () => {
+  it('builds an encoded submission URL', () => {
+    expect(getSubmissionUrl('my org', 'my app', 'submission/id')).toBe(
+      'https://expo.dev/accounts/my%20org/projects/my%20app/submissions/submission%2Fid'
     );
   });
 });
