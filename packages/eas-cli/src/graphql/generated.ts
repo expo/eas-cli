@@ -6367,11 +6367,6 @@ export enum DeviceRunSessionResourceClass {
   Medium = 'MEDIUM'
 }
 
-export enum DeviceRunSessionResourceClass {
-  Large = 'LARGE',
-  Medium = 'MEDIUM'
-}
-
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
   InProgress = 'IN_PROGRESS',
