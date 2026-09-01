@@ -249,7 +249,11 @@ export default class Simulator extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
-        deviceIdentifier,
+        ...(deviceIdentifier
+          ? platform === AppPlatform.Ios
+            ? { ios: { deviceIdentifier } }
+            : { android: { deviceIdentifier } }
+          : {}),
         ...(buildId ? { buildId } : {}),
         ...(applicationArchiveUrlFromFlag
           ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }

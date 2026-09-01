@@ -509,7 +509,7 @@ describe(Simulator, () => {
     );
   });
 
-  it('forwards --device to the create mutation as deviceIdentifier', async () => {
+  it('forwards --device in the iOS create options', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
@@ -521,7 +521,23 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
+    );
+  });
+
+  it('forwards --device in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ android: { deviceIdentifier: 'pixel_9' } })
     );
   });
 
@@ -537,7 +553,7 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
     );
   });
 
@@ -545,10 +561,7 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--device', '  ']);
     await command.runAsync();
 
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({ deviceIdentifier: undefined })
-    );
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
   });
 
   it('omits resourceClass when --resource-class is not set', async () => {
