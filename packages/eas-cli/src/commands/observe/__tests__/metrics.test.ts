@@ -135,6 +135,14 @@ describe(ObserveMetrics, () => {
     expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
   });
 
+  it('passes --environment to the events filter', async () => {
+    const command = createCommand(['tti', '--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
+  });
+
   it('defaults endTime to now when only --start is provided', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });

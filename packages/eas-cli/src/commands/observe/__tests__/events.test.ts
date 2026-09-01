@@ -115,6 +115,25 @@ describe(ObserveEvents, () => {
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
   });
 
+  it('passes --environment to the custom events filter', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [{ id: 'evt-1' } as any],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+    const command = createCommand(['my_event', '--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
+  });
+
+  it('passes --environment to customEventNamesAsync when listing event names', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync.mock.calls[0][1].environment).toBe('production');
+  });
+
   it('routes to customEventNamesAsync when no positional arg is provided', async () => {
     const command = createCommand([]);
     await command.runAsync();

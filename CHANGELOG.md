@@ -103,6 +103,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Support an optional `package_version` input on `eas/start_serve_sim_remote_session`, so a simulator session can pin the `@expo/serve-sim` version instead of always running `latest`. ([#4253](https://github.com/expo/eas-cli/pull/4253) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add composable custom build functions for downloading, installing, and launching application archives in simulator sessions. ([#4222](https://github.com/expo/eas-cli/pull/4222) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add `--build-id`, `--application-archive-url`, and `--expo-go` to `eas simulator` to install and launch an application before the session is ready. ([#4223](https://github.com/expo/eas-cli/pull/4223) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add `--environment` flag to the `eas observe:*` commands. ([#4275](https://github.com/expo/eas-cli/pull/4275) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🐛 Bug fixes
 

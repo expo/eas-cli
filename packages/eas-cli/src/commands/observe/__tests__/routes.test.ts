@@ -174,6 +174,14 @@ describe(ObserveRoutes, () => {
     expect(options.buildNumber).toBe('42');
   });
 
+  it('passes --environment through to the fetcher', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
+  });
+
   it('passes --route-name flags through as routeNames array', async () => {
     const command = createCommand(['--route-name', '/home', '--route-name', '/profile']);
     await command.runAsync();

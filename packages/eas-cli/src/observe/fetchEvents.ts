@@ -56,6 +56,7 @@ interface FetchObserveEventsOptions {
   appVersion?: string;
   updateId?: string;
   sessionId?: string;
+  environment?: string;
 }
 
 interface FetchObserveEventsResult {
@@ -76,6 +77,7 @@ export async function fetchObserveEventsAsync(
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
+    ...(options.environment && { environment: options.environment }),
   };
 
   return await ObserveQuery.eventsAsync(graphqlClient, {
@@ -98,7 +100,8 @@ export async function fetchTotalEventCountAsync(
   metricName: string,
   platforms: AppPlatform[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<number> {
   const queries = platforms.map(async appPlatform => {
     try {
@@ -108,6 +111,7 @@ export async function fetchTotalEventCountAsync(
         startTime,
         endTime,
         metricNames: [metricName],
+        environment,
       });
       return versions.reduce((sum, v) => {
         const metric = v.metrics.find(m => m.metricName === metricName);

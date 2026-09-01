@@ -18,7 +18,8 @@ export async function fetchObserveVersionsAsync(
   appId: string,
   platforms: AppPlatform[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<AppVersionsResult[]> {
   const queries = platforms.map(async (appPlatform): Promise<AppVersionsResult | null> => {
     const observePlatform = appPlatformToObservePlatform[appPlatform];
@@ -28,6 +29,7 @@ export async function fetchObserveVersionsAsync(
         platform: observePlatform,
         startTime,
         endTime,
+        environment,
       });
       return { platform: appPlatform, appVersions };
     } catch (error: any) {

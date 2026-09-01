@@ -17,6 +17,7 @@ import {
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -60,6 +61,7 @@ export default class ObserveMetrics extends EasCommand {
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
     ...ObserveUpdateIdFlag,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -123,6 +125,7 @@ export default class ObserveMetrics extends EasCommand {
           platform,
           appVersion: flags['app-version'],
           updateId: flags['update-id'],
+          environment: flags.environment,
         }),
         fetchTotalEventCountAsync(
           graphqlClient,
@@ -130,7 +133,8 @@ export default class ObserveMetrics extends EasCommand {
           metricName,
           platforms,
           startTime,
-          endTime
+          endTime,
+          flags.environment
         ),
       ])
     );
