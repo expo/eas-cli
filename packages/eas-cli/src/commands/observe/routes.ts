@@ -11,6 +11,7 @@ import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigation
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
@@ -62,10 +63,8 @@ export default class ObserveRoutes extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
-    'build-number': Flags.string({
-      description: 'Filter by app build number',
-    }),
     'route-name': Flags.string({
       description:
         'Filter by route name (can be specified multiple times to include several routes)',

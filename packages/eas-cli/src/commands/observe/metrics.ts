@@ -17,6 +17,7 @@ import {
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
@@ -60,6 +61,7 @@ export default class ObserveMetrics extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
     ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
@@ -124,6 +126,7 @@ export default class ObserveMetrics extends EasCommand {
           endTime,
           platforms,
           appVersion: flags['app-version'],
+          buildNumber: flags['build-number'],
           updateId: flags['update-id'],
           environment: flags.environment,
         }),

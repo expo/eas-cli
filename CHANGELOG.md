@@ -105,6 +105,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `--build-id`, `--application-archive-url`, and `--expo-go` to `eas simulator` to install and launch an application before the session is ready. ([#4223](https://github.com/expo/eas-cli/pull/4223) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add `--environment` flag to the `eas observe:*` commands. ([#4275](https://github.com/expo/eas-cli/pull/4275) by [@kadikraman](https://github.com/kadikraman))
 - [eas-cli] Add `apple` value to the `--platform` flag of the `eas observe:*` commands. ([#4276](https://github.com/expo/eas-cli/pull/4276) by [@kadikraman](https://github.com/kadikraman))
+- [eas-cli] Add `--build-number` flag to `eas observe:metrics` and `eas observe:events`. ([#4278](https://github.com/expo/eas-cli/pull/4278) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🐛 Bug fixes
 

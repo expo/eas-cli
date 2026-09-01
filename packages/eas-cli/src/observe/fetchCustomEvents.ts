@@ -16,6 +16,7 @@ interface FetchCustomEventsOptions {
   endTime?: string;
   platforms?: AppObservePlatform[];
   appVersion?: string;
+  buildNumber?: string;
   updateId?: string;
   sessionId?: string;
   environment?: string;
@@ -38,6 +39,7 @@ export async function fetchObserveCustomEventsAsync(
     ...(options.eventName && { eventName: options.eventName }),
     ...(options.platforms?.length && { platforms: options.platforms }),
     ...(options.appVersion && { appVersion: options.appVersion }),
+    ...(options.buildNumber && { appBuildNumber: options.buildNumber }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
     ...(options.environment && { environment: options.environment }),

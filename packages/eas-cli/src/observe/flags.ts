@@ -55,3 +55,9 @@ export const ObserveUpdateIdFlag = {
     description: 'Filter by EAS update ID',
   }),
 };
+
+export const ObserveBuildNumberFlag = {
+  'build-number': Flags.string({
+    description: 'Filter by app build number',
+  }),
+};

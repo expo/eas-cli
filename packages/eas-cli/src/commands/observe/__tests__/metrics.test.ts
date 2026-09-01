@@ -217,6 +217,14 @@ describe(ObserveMetrics, () => {
     expect(options.appVersion).toBe('2.1.0');
   });
 
+  it('passes --build-number to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['tti', '--build-number', '42']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.buildNumber).toBe('42');
+  });
+
   it('passes --update-id to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--update-id', 'update-xyz']);
     await command.runAsync();
