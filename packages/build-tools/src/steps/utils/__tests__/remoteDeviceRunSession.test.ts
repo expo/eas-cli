@@ -198,7 +198,7 @@ describe(createExpoDeviceHubArgs, () => {
       '--webrtc-ice-policy',
       'all',
       '--max-dimension',
-      '1280',
+      '960',
       '--video-bitrate',
       '6000000',
       '--video-fps',
