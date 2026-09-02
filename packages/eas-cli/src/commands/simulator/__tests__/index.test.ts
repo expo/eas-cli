@@ -25,6 +25,7 @@ import {
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -35,6 +36,7 @@ jest.mock('../../../log', () => ({
   __esModule: true,
   default: {
     debug: jest.fn(),
+    error: jest.fn(),
     log: jest.fn(),
     newLine: jest.fn(),
     warn: jest.fn(),
@@ -48,6 +50,11 @@ jest.mock('../../../simulator/env', () => ({
   resetSimulatorEnvAsync: jest.fn(),
 }));
 jest.mock('../../../simulator/expoGo');
+jest.mock('../../../utils/json');
+jest.mock('../../../utils/promise', () => ({
+  ...jest.requireActual('../../../utils/promise'),
+  sleepAsync: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../../prompts');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
@@ -84,6 +91,8 @@ const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -442,6 +451,37 @@ describe(Simulator, () => {
       type: DeviceRunSessionType.AgentDevice,
       maxIdleTimeMinutes: 30,
     });
+  });
+
+  it('passes --network-capture to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: 'project-123',
+      name: undefined,
+      networkCapture: true,
+      packageVersion: undefined,
+      platform: AppPlatform.Ios,
+      type: DeviceRunSessionType.AgentDevice,
+    });
+  });
+
+  it('rejects --network-capture on android', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(/only supported on iOS/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
   it(`throws when ${EAS_SIMULATOR_SESSION_ID} is already present with --no-force`, async () => {
@@ -842,5 +882,278 @@ describe(Simulator, () => {
 
     expect(mockPromptAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('fails the create spinner and rethrows when session creation fails', async () => {
+    mockCreateDeviceRunSessionAsync.mockRejectedValue(new Error('create boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('create boom');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+  });
+
+  it('throws when the session errors before it becomes ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/errored before the .* session was ready/);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+  });
+
+  it('throws when the turtle job run finishes before the session is ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        remoteConfig: null,
+        turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored },
+      })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Turtle job run for simulator session .* errored before/
+    );
+  });
+
+  it('keeps polling until the remote config appears', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession({ remoteConfig: null }))
+      .mockResolvedValueOnce(makeDeviceRunSession());
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockByIdAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops the session and rethrows when polling for readiness fails', async () => {
+    mockByIdAsync.mockRejectedValue(new Error('poll boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('poll boom');
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+  });
+
+  it('times out when the session never becomes ready', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ remoteConfig: null }));
+    const realNow = Date.now();
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(realNow)
+      .mockReturnValue(realNow + 60 * 60 * 1000);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/Timed out after \d+s waiting for/);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    jest.mocked(Date.now).mockRestore();
+  });
+
+  it('prints JSON only and skips the human-readable output with --json', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--json']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
+    );
+  });
+
+  it('warns but continues when the dotenv file cannot be written', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}`
+      )
+    );
+  });
+
+  it('retries after a transient poll failure while the session is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to poll simulator session')
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('throws when the session errors while it is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow('Simulator session session-123 errored.');
+  });
+
+  it('keeps waiting while the session is still in progress', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(
+        makeDeviceRunSession({ turtleJobRun: { id: 'job-123', status: JobRunStatus.Finished } })
+      );
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockByIdAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('rethrows when clearing the dotenv file fails after the session ends', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+    mockResetSimulatorEnvAsync.mockRejectedValue(new Error('unlink failed'));
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow('unlink failed');
+    expect(Log.error).toHaveBeenCalledWith(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}`);
+  });
+
+  it('warns and reports failure when the session cannot be stopped', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Failed to stop simulator session session-123: stop boom'
+    );
+  });
+
+  it('stops the session when interrupted while it is running', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session and reports when the stop cannot be confirmed after an interrupt before ready', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    mockByIdAsync.mockImplementation(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(exitSpy).toHaveBeenCalledWith(130);
+    exitSpy.mockRestore();
+  });
+
+  it('stops the session when interrupted after it is ready', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    jest
+      .mocked(fs.writeFile)
+      .mockImplementationOnce((async () => undefined) as never)
+      .mockImplementationOnce((async () => {
+        process.emit('SIGINT');
+      }) as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    exitSpy.mockRestore();
+  });
+
+  it('force exits when a second interrupt arrives', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Aborted before the simulator session could be stopped. Run `eas simulator:stop --id session-123` to terminate it and avoid unexpected charges.'
+    );
+    expect(exitSpy).toHaveBeenCalledWith(130);
+    exitSpy.mockRestore();
+  });
+
+  it('stringifies a non-Error dotenv write failure', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue('disk full' as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('disk full'));
+  });
+
+  it('stringifies a non-Error poll failure while the session is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockRejectedValueOnce('network down')
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.debug).toHaveBeenCalledWith(expect.stringContaining('network down'));
+  });
+
+  it('stringifies a non-Error stop failure', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    mockByIdAsync.mockImplementation(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue('gateway timeout');
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Failed to stop simulator session session-123: gateway timeout'
+    );
+    exitSpy.mockRestore();
   });
 });
