@@ -13,6 +13,7 @@ const config: CodegenConfig = {
     'src/graphql/generated.ts': {
       plugins: ['typescript', 'typescript-operations'],
       config: {
+        addUnderscoreToArgsType: true,
         dedupeOperationSuffix: true,
       },
       hooks: {
