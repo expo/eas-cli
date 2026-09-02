@@ -9,7 +9,7 @@ import {
   GenerateRealtimeLogsCentrifugoSubscriptionTokenMutationVariables,
   RealtimeLogsCentrifugoConnectionToken,
   RealtimeLogsCentrifugoSubscriptionToken,
-  RealtimeLogsMutationGenerateCentrifugoSubscriptionTokenArgs,
+  RealtimeLogsMutation_GenerateCentrifugoSubscriptionTokenArgs,
 } from '../generated';
 
 export const RealtimeLogsMutation = {
@@ -39,7 +39,7 @@ export const RealtimeLogsMutation = {
   },
   async generateCentrifugoSubscriptionTokenAsync(
     graphqlClient: ExpoGraphqlClient,
-    { target, thread }: RealtimeLogsMutationGenerateCentrifugoSubscriptionTokenArgs
+    { target, thread }: RealtimeLogsMutation_GenerateCentrifugoSubscriptionTokenArgs
   ): Promise<RealtimeLogsCentrifugoSubscriptionToken> {
     const data = await withErrorHandlingAsync(
       graphqlClient
