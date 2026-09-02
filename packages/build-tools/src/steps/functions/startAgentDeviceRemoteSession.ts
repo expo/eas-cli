@@ -18,9 +18,12 @@ import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArti
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
   type DetachedProcessHandle,
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
@@ -50,6 +53,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
     name: 'Start agent device remote session',
     __metricsId: 'eas/start_agent_device_remote_session',
     inputProviders: [
+      ...createServeSimLaunchInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -80,6 +84,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const { runtimePlatform } = global;
+      const launch = parseServeSimLaunchInputs(inputs, { runtimePlatform });
       logger.info(
         `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
       );
@@ -118,7 +123,14 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          launchAppIdentifier: launch.launchAppIdentifier,
+          launchArgs: launch.launchArgs,
+          openUrl: launch.openUrl,
         });
+        const launchDescription = describeServeSimLaunch(launch);
+        if (launchDescription) {
+          logger.info(launchDescription);
+        }
         logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
         await uploadRemoteSessionConfigAsync({

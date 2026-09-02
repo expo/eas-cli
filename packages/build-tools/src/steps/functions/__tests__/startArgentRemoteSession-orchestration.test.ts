@@ -42,6 +42,7 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
+  ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
@@ -181,5 +182,44 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       })
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          max_duration_seconds: { value: undefined },
+          launch_app_identifier: { value: 'host.exp.Exponent' },
+          launch_args: { value: ['-EXDevMenuIsOnboardingFinished', '1'] },
+          open_url: { value: 'exp://127.0.0.1:8081' },
+        },
+        outputs: {},
+        env: { EXISTING: 'value' },
+      } as never
+    );
+
+    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        launchAppIdentifier: 'host.exp.Exponent',
+        launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+        openUrl: 'exp://127.0.0.1:8081',
+      })
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      'serve-sim will launch host.exp.Exponent with arguments ' +
+        '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import {
@@ -8,6 +8,7 @@ import {
 } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
@@ -15,9 +16,12 @@ import { sleepAsync } from '../../../utils/retry';
 import {
   createExpoDeviceHubArgs,
   createServeSimArgs,
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  parseServeSimLaunchInputs,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
@@ -116,6 +120,137 @@ function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
 
+describe(createServeSimLaunchInputProviders, () => {
+  it('declares the launch inputs as optional', () => {
+    const globalCtx = createGlobalContextMock();
+    const inputs = createServeSimLaunchInputProviders().map(provider =>
+      provider(globalCtx, 'Test step')
+    );
+
+    expect(
+      inputs.map(({ id, required, allowedValueTypeName }) => ({
+        id,
+        required,
+        allowedValueTypeName,
+      }))
+    ).toEqual([
+      {
+        id: 'launch_app_identifier',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+      {
+        id: 'launch_args',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      },
+      {
+        id: 'open_url',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+    ]);
+  });
+});
+
+describe(parseServeSimLaunchInputs, () => {
+  const darwin = { runtimePlatform: BuildRuntimePlatform.DARWIN };
+
+  it('reads the launch identifier, arguments and URL', () => {
+    expect(
+      parseServeSimLaunchInputs(
+        {
+          launch_app_identifier: { value: 'host.exp.Exponent' },
+          launch_args: { value: ['-EXDevMenuIsOnboardingFinished', '1'] },
+          open_url: { value: 'exp://127.0.0.1:8081' },
+        },
+        darwin
+      )
+    ).toEqual({
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+  });
+
+  it('defaults to no launch when the step declares nothing', () => {
+    expect(parseServeSimLaunchInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
+      launchAppIdentifier: undefined,
+      launchArgs: [],
+      openUrl: undefined,
+    });
+  });
+
+  it('rejects launch arguments that are not a list', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        {
+          launch_app_identifier: { value: 'host.exp.Exponent' },
+          launch_args: { value: 'oops' },
+        },
+        darwin
+      )
+    ).toThrow('must be an array of strings');
+  });
+
+  it('rejects launch arguments that are not all strings', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        {
+          launch_app_identifier: { value: 'host.exp.Exponent' },
+          launch_args: { value: ['-flag', 1] },
+        },
+        darwin
+      )
+    ).toThrow('must be an array of strings');
+  });
+
+  it('rejects launch arguments with no application to launch', () => {
+    expect(() => parseServeSimLaunchInputs({ launch_args: { value: ['-flag'] } }, darwin)).toThrow(
+      'Pass "launch_app_identifier"'
+    );
+  });
+
+  it('rejects a URL with no application to open it in', () => {
+    expect(() =>
+      parseServeSimLaunchInputs({ open_url: { value: 'exp://127.0.0.1:8081' } }, darwin)
+    ).toThrow('Pass "launch_app_identifier"');
+  });
+
+  it('rejects a launch on a session that does not run an iOS simulator', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        { launch_app_identifier: { value: 'host.exp.Exponent' } },
+        { runtimePlatform: BuildRuntimePlatform.LINUX }
+      )
+    ).toThrow('runs on linux');
+  });
+});
+
+describe(describeServeSimLaunch, () => {
+  it('says nothing when there is no application to launch', () => {
+    expect(describeServeSimLaunch({ launchArgs: [] })).toBeNull();
+  });
+
+  it('names only the application when there are no arguments or URL', () => {
+    expect(describeServeSimLaunch({ launchAppIdentifier: 'host.exp.Exponent' })).toBe(
+      'serve-sim will launch host.exp.Exponent.'
+    );
+  });
+
+  it('names the application, its arguments and the URL', () => {
+    expect(
+      describeServeSimLaunch({
+        launchAppIdentifier: 'host.exp.Exponent',
+        launchArgs: ['-flag', '1'],
+        openUrl: 'exp://127.0.0.1:8081',
+      })
+    ).toBe(
+      'serve-sim will launch host.exp.Exponent with arguments ["-flag","1"], then open exp://127.0.0.1:8081.'
+    );
+  });
+});
+
 describe(createServeSimArgs, () => {
   it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
@@ -173,6 +308,31 @@ describe(createServeSimArgs, () => {
       '--yes',
       '@expo/serve-sim@next',
     ]);
+  });
+
+  it('appends the launch flags after the streaming policy', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+    expect(args.slice(-8)).toEqual([
+      '--launch-app-identifier',
+      'host.exp.Exponent',
+      '--launch-arg',
+      '-EXDevMenuIsOnboardingFinished',
+      '--launch-arg',
+      '1',
+      '--open-url',
+      'exp://127.0.0.1:8081',
+    ]);
+  });
+
+  it('omits the launch flags when there is no application to launch', () => {
+    const args = createServeSimArgs({ port: 4321 });
+    expect(args.some(argument => argument.startsWith('--launch'))).toBe(false);
+    expect(args).not.toContain('--open-url');
   });
 });
 
@@ -470,6 +630,50 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the launch options to serve-sim on Darwin', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+
+    const [, args] = jest.mocked(spawn).mock.calls[0];
+    expect(args.slice(-8)).toEqual([
+      '--launch-app-identifier',
+      'host.exp.Exponent',
+      '--launch-arg',
+      '-EXDevMenuIsOnboardingFinished',
+      '--launch-arg',
+      '1',
+      '--open-url',
+      'exp://127.0.0.1:8081',
+    ]);
+  });
+
+  it('refuses to launch an application on Linux, where expo-device-hub cannot', async () => {
+    await expect(
+      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        baseDomain,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        launchAppIdentifier: 'host.exp.Exponent',
+      })
+    ).rejects.toThrow('Cannot launch host.exp.Exponent');
+    expect(spawn).not.toHaveBeenCalled();
   });
 });
 
