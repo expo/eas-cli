@@ -1077,8 +1077,8 @@ export type AgentDeviceRunSessionRemoteConfig = {
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
-   * URL of the web preview surface for the session. Null when web previews are
-   * not available for the platform (e.g. Android).
+   * URL of the web preview surface for the session. Null when a web preview is
+   * not available for the session.
    */
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -2259,40 +2259,86 @@ export type AppObserve = {
   /**
    * A single custom event by the `id` of an `AppObserveCustomEvent`. Null when the app has no
    * such event, including when it has aged out of retention.
+   * @deprecated Use userEvents.event, errors.error, or log instead.
    */
   customEvent?: Maybe<AppObserveCustomEvent>;
+  /** @deprecated Unused; no replacement planned. */
   customEventCounts: AppObserveCustomEventCounts;
+  /** @deprecated Use userEvents.list (or errors.occurrences for exceptions) instead. */
   customEventList: AppObserveCustomEventListConnection;
+  /** @deprecated Use userEvents.names instead. */
   customEventNames: AppObserveCustomEventNames;
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `updates` field. */
+  easUpdates: AppObserveEasUpdates;
   environments: Array<Scalars['String']['output']>;
-  /** Breaks a single error group down by app version, OS, device, or country (detail page bars). */
+  /**
+   * Breaks a single error group down by app version, OS, device, or country (detail page bars).
+   * @deprecated Use errors.breakdown instead.
+   */
   errorGroupBreakdown: AppObserveErrorGroupBreakdown;
-  /** Distinct unhandled-JS-error groups (the issues list), grouped by fingerprint. */
+  /**
+   * Distinct unhandled-JS-error groups (the issues list), grouped by fingerprint.
+   * @deprecated Use errors.groups instead.
+   */
   errorGroups: AppObserveErrorGroups;
-  /** Headline error stats for the overview: crash-free rates and error/affected counts. */
+  /**
+   * Headline error stats for the overview: crash-free rates and error/affected counts.
+   * @deprecated Use errors.stats instead.
+   */
   errorStats: AppObserveErrorStats;
-  /** Time-bucketed exception counts split into fatal vs non-fatal, for the stacked-bar chart. */
+  /**
+   * Time-bucketed exception counts split into fatal vs non-fatal, for the stacked-bar chart.
+   * @deprecated Use errors.timeSeries instead.
+   */
   errorTimeSeries: AppObserveErrorTimeSeries;
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `errorGroups`/`errorStats`/`errorTimeSeries`/`errorGroupBreakdown` fields. */
+  errors: AppObserveErrors;
   /**
    * A single metric event by the `id` of an `AppObserveEvent`. Null when the app has no such
    * event, including when it has aged out of retention or the id is not one this API issued.
    *
    * `sessionEventCount` and `userEventCount` are always null here: they are aggregates over a
    * time range, and a single event does not supply one.
+   * @deprecated Use metrics.metric instead.
    */
   event?: Maybe<AppObserveEvent>;
+  /** @deprecated Use metrics.list instead. */
   events: AppObserveEventsConnection;
   /** Highest Expo SDK version seen in telemetry over the trailing 30 days; null when none was reported. */
   latestExpoSdkVersion?: Maybe<Scalars['String']['output']>;
+  /** A single log (user-defined event or error) by `event_id`. Null when missing or aged out of retention. */
+  log?: Maybe<AppObserveLog>;
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `timeSeries`/`events`/`event` fields. */
+  metrics: AppObserveMetrics;
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `navigationRoutes` field. */
+  navigation: AppObserveNavigation;
+  /** @deprecated Use navigation.routes instead. */
   navigationRoutes: AppObserveNavigationRoutesConnection;
-  /** Active users and sessions for the Overview engagement band, across all versions. */
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `overview*` fields. */
+  overview: AppObserveOverview;
+  /**
+   * Active users and sessions for the Overview engagement band, across all versions.
+   * @deprecated Use overview.engagement instead.
+   */
   overviewEngagement: AppObserveOverviewEngagement;
-  /** Crash-free rates with previous-period comparison for the Overview stability tiles. */
+  /**
+   * Crash-free rates with previous-period comparison for the Overview stability tiles.
+   * @deprecated Use overview.stability instead.
+   */
   overviewStability: AppObserveOverviewStability;
-  /** Per-update comparison within one app version: the embedded bundle plus each OTA update. */
+  /**
+   * Per-update comparison within one app version: the embedded bundle plus each OTA update.
+   * @deprecated Use overview.updateComparison instead.
+   */
   overviewUpdateComparison: AppObserveOverviewUpdateComparison;
-  /** Per-version, per-platform metric summaries for the Overview version-comparison matrix. */
+  /**
+   * Per-version, per-platform metric summaries for the Overview version-comparison matrix.
+   * @deprecated Use overview.versionComparison instead.
+   */
   overviewVersionComparison: AppObserveOverviewVersionComparison;
+  /** One session's metrics and logs for the timeline (ENG-26160). Unknown session ids yield empty lists. */
+  session: AppObserveSession;
+  /** @deprecated Use metrics.timeSeries instead. */
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
   /**
@@ -2304,8 +2350,13 @@ export type AppObserve = {
    * universe used by `appVersions` headline counts.
    */
   uniqueActiveUserCount: Scalars['Int']['output'];
-  /** Update download activity (the Recent updates list). Not available on the free tier or legacy plans. */
+  /**
+   * Update download activity (the Recent updates list). Not available on the free tier or legacy plans.
+   * @deprecated Use easUpdates.list instead.
+   */
   updates: AppObserveUpdatesConnection;
+  /** Namespaced successor API (ENG-26160). Prefer over the flat `customEventNames`/`customEventList`/`customEvent` fields. */
+  userEvents: AppObserveUserEvents;
 };
 
 
@@ -2392,6 +2443,11 @@ export type AppObserve_EventsArgs = {
 };
 
 
+export type AppObserve_LogArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type AppObserve_NavigationRoutesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
@@ -2419,6 +2475,11 @@ export type AppObserve_OverviewUpdateComparisonArgs = {
 
 export type AppObserve_OverviewVersionComparisonArgs = {
   input: AppObserveOverviewVersionComparisonInput;
+};
+
+
+export type AppObserve_SessionArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2667,6 +2728,86 @@ export type AppObserveCustomEventPropertyFilter = {
   value: Scalars['String']['input'];
 };
 
+/** EAS Update download activity (app_metrics download samples plus update metadata). */
+export type AppObserveEasUpdates = {
+  __typename?: 'AppObserveEasUpdates';
+  /** Updates with download statistics. Forward pagination only. Defaults to newest first. */
+  list: AppObserveUpdatesConnection;
+};
+
+
+/** EAS Update download activity (app_metrics download samples plus update metadata). */
+export type AppObserveEasUpdates_ListArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter: AppObserveEasUpdatesFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveEasUpdatesOrderBy>;
+};
+
+export type AppObserveEasUpdatesFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveEasUpdatesOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveUpdatesOrderByField;
+};
+
+export type AppObserveEngagementInput = {
+  /** Series bucket size. Defaults to one day. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+/** One unhandled JS error (an app_events exception row). */
+export type AppObserveError = AppObserveLog & {
+  __typename?: 'AppObserveError';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  body?: Maybe<Scalars['String']['output']>;
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  easClientId: Scalars['String']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  fingerprint?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  isFatal?: Maybe<Scalars['Boolean']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+  properties: Array<AppObserveEventProperty>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  severityNumber?: Maybe<Scalars['Int']['output']>;
+  severityText?: Maybe<Scalars['String']['output']>;
+  source?: Maybe<Scalars['String']['output']>;
+  /** Symbolicated when a build with a matching source map exists; otherwise as reported. */
+  stacktrace?: Maybe<Scalars['String']['output']>;
+  /** Build whose uploaded source map symbolicated stacktrace; null when the stack trace is shown as reported. */
+  symbolicationBuild?: Maybe<Build>;
+  timestamp: Scalars['DateTime']['output'];
+  type?: Maybe<Scalars['String']['output']>;
+};
+
 export type AppObserveErrorBreakdownBucket = {
   __typename?: 'AppObserveErrorBreakdownBucket';
   count: Scalars['Int']['output'];
@@ -2681,6 +2822,18 @@ export enum AppObserveErrorBreakdownDimension {
   Device = 'DEVICE',
   Os = 'OS'
 }
+
+export type AppObserveErrorConnection = {
+  __typename?: 'AppObserveErrorConnection';
+  edges: Array<AppObserveErrorEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveErrorEdge = {
+  __typename?: 'AppObserveErrorEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveError;
+};
 
 export type AppObserveErrorGroup = {
   __typename?: 'AppObserveErrorGroup';
@@ -2778,6 +2931,32 @@ export enum AppObserveErrorGroupsOrderBy {
   MostUsers = 'MOST_USERS'
 }
 
+export type AppObserveErrorOccurrencesFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime?: InputMaybe<Scalars['DateTime']['input']>;
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to one error group. */
+  fingerprint?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+export type AppObserveErrorOccurrencesOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveErrorOccurrencesOrderByField;
+};
+
+export enum AppObserveErrorOccurrencesOrderByField {
+  Timestamp = 'TIMESTAMP'
+}
+
 /** AppObserveErrorStats for one platform; iOS includes iPadOS and tvOS. */
 export type AppObserveErrorPlatformStats = {
   __typename?: 'AppObserveErrorPlatformStats';
@@ -2866,6 +3045,128 @@ export type AppObserveErrorTimeSeriesInput = {
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
   /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors = {
+  __typename?: 'AppObserveErrors';
+  /** Breaks one error group down by app version, OS, device, or country. */
+  breakdown: AppObserveErrorGroupBreakdown;
+  /** A single error by id. Null when missing, aged out, or the id belongs to a user-defined event. */
+  error?: Maybe<AppObserveError>;
+  /** Distinct error groups (the issues list), grouped by fingerprint. */
+  groups: AppObserveErrorGroups;
+  /** Individual error occurrences. Defaults to newest first. */
+  occurrences: AppObserveErrorConnection;
+  /** Headline error stats: crash-free rates and error/affected counts. */
+  stats: AppObserveErrorStats;
+  /** Time-bucketed exception counts split into fatal vs non-fatal. */
+  timeSeries: AppObserveErrorTimeSeries;
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_BreakdownArgs = {
+  input: AppObserveErrorsBreakdownInput;
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_ErrorArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_GroupsArgs = {
+  input: AppObserveErrorsGroupsInput;
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_OccurrencesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveErrorOccurrencesFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveErrorOccurrencesOrderBy>;
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_StatsArgs = {
+  input: AppObserveErrorsStatsInput;
+};
+
+
+/** Unhandled JS errors: app_events exception rows. */
+export type AppObserveErrors_TimeSeriesArgs = {
+  input: AppObserveErrorsTimeSeriesInput;
+};
+
+export type AppObserveErrorsBreakdownInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  dimension: AppObserveErrorBreakdownDimension;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  fingerprint: Scalars['String']['input'];
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveErrorsGroupsInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  /** Bucket size for each group's timeSeries. Defaults to daily. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to one error group. */
+  fingerprint?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  orderBy?: InputMaybe<AppObserveErrorGroupsOrderBy>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  severity?: InputMaybe<AppObserveErrorSeverity>;
+  source?: InputMaybe<Scalars['String']['input']>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveErrorsStatsInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveErrorsTimeSeriesInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to one error group. */
+  fingerprint?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
@@ -2960,6 +3261,221 @@ export enum AppObserveEventsOrderByField {
   Timestamp = 'TIMESTAMP'
 }
 
+/** Any app_events log row: a user-defined event or an error. */
+export type AppObserveLog = {
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  body?: Maybe<Scalars['String']['output']>;
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  easClientId: Scalars['String']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  properties: Array<AppObserveEventProperty>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  severityNumber?: Maybe<Scalars['Int']['output']>;
+  severityText?: Maybe<Scalars['String']['output']>;
+  timestamp: Scalars['DateTime']['output'];
+};
+
+export type AppObserveLogConnection = {
+  __typename?: 'AppObserveLogConnection';
+  edges: Array<AppObserveLogEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveLogEdge = {
+  __typename?: 'AppObserveLogEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveLog;
+};
+
+export type AppObserveLogsOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveLogsOrderByField;
+};
+
+export enum AppObserveLogsOrderByField {
+  Timestamp = 'TIMESTAMP'
+}
+
+/** One performance-metric sample (a row in app_metrics). */
+export type AppObserveMetric = {
+  __typename?: 'AppObserveMetric';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appName: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  customParams?: Maybe<Scalars['JSON']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceName?: Maybe<Scalars['String']['output']>;
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  easClientId: Scalars['String']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  eventBatchId: Scalars['ID']['output'];
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  name: Scalars['String']['output'];
+  parentSessionId?: Maybe<Scalars['String']['output']>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  routeName?: Maybe<Scalars['String']['output']>;
+  sessionEventCount?: Maybe<Scalars['Int']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  tags: Scalars['JSON']['output'];
+  timestamp: Scalars['DateTime']['output'];
+  userEventCount?: Maybe<Scalars['Int']['output']>;
+  value: Scalars['Float']['output'];
+};
+
+export type AppObserveMetricConnection = {
+  __typename?: 'AppObserveMetricConnection';
+  edges: Array<AppObserveMetricEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveMetricEdge = {
+  __typename?: 'AppObserveMetricEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveMetric;
+};
+
+export type AppObserveMetricTimeSeriesInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Metric name, e.g. `expo.app_startup.tti`. */
+  name: Scalars['String']['input'];
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  routeName?: InputMaybe<Scalars['String']['input']>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+/** Performance metrics (the app_metrics table): startup, navigation, and update-download samples. */
+export type AppObserveMetrics = {
+  __typename?: 'AppObserveMetrics';
+  /** Individual metric samples. Defaults to newest first. */
+  list: AppObserveMetricConnection;
+  /** A single metric sample by id. Null when missing or aged out; sessionEventCount/userEventCount are always null here. */
+  metric?: Maybe<AppObserveMetric>;
+  /** Time-bucketed aggregates for one metric, with app-version markers. */
+  timeSeries: AppObserveTimeSeries;
+};
+
+
+/** Performance metrics (the app_metrics table): startup, navigation, and update-download samples. */
+export type AppObserveMetrics_ListArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveMetricsListFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
+};
+
+
+/** Performance metrics (the app_metrics table): startup, navigation, and update-download samples. */
+export type AppObserveMetrics_MetricArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/** Performance metrics (the app_metrics table): startup, navigation, and update-download samples. */
+export type AppObserveMetrics_TimeSeriesArgs = {
+  input: AppObserveMetricTimeSeriesInput;
+};
+
+export type AppObserveMetricsListFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  /** Filter by the update the device was *running* at sample time (the app_update_id column). */
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  /** Filter by the update that was *downloaded* (the expo.update_id tag). Distinct from appUpdateId (running update); the two are not interchangeable. */
+  downloadedUpdateId?: InputMaybe<Scalars['String']['input']>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime?: InputMaybe<Scalars['DateTime']['input']>;
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Metric name, e.g. `expo.app_startup.tti`. */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  routeName?: InputMaybe<Scalars['String']['input']>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+export type AppObserveMetricsListOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveMetricsListOrderByField;
+};
+
+export enum AppObserveMetricsListOrderByField {
+  Timestamp = 'TIMESTAMP',
+  Value = 'VALUE'
+}
+
+/** Navigation performance per route (app_metrics navigation samples). */
+export type AppObserveNavigation = {
+  __typename?: 'AppObserveNavigation';
+  /** Per-route navigation summaries. */
+  routes: AppObserveNavigationRoutesConnection;
+};
+
+
+/** Navigation performance per route (app_metrics navigation samples). */
+export type AppObserveNavigation_RoutesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter: AppObserveNavigationFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveNavigationOrderBy>;
+};
+
+export type AppObserveNavigationFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  routeNames?: InputMaybe<Array<Scalars['String']['input']>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveNavigationOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveNavigationRoutesOrderByField;
+};
+
 /**
  * Per-route navigation timing breakdown. The "Navigations" count shown in the
  * dashboard is `coldTtr.count` (one cold-TTR event per user navigation).
@@ -3021,6 +3537,48 @@ export type AppObserveNavigationStat = {
   count: Scalars['Int']['output'];
   median?: Maybe<Scalars['Float']['output']>;
   p90?: Maybe<Scalars['Float']['output']>;
+};
+
+export enum AppObserveOrderDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
+/** Overview-tab aggregates, across all versions unless a comparison narrows them. */
+export type AppObserveOverview = {
+  __typename?: 'AppObserveOverview';
+  /** Active users and sessions for the engagement band. */
+  engagement: AppObserveOverviewEngagement;
+  /** Crash-free rates with previous-period comparison for the stability tiles. */
+  stability: AppObserveOverviewStability;
+  /** Per-update comparison within one app version: the embedded bundle plus each OTA update. */
+  updateComparison: AppObserveOverviewUpdateComparison;
+  /** Per-version, per-platform metric summaries for the version-comparison matrix. */
+  versionComparison: AppObserveOverviewVersionComparison;
+};
+
+
+/** Overview-tab aggregates, across all versions unless a comparison narrows them. */
+export type AppObserveOverview_EngagementArgs = {
+  input: AppObserveEngagementInput;
+};
+
+
+/** Overview-tab aggregates, across all versions unless a comparison narrows them. */
+export type AppObserveOverview_StabilityArgs = {
+  input: AppObserveStabilityInput;
+};
+
+
+/** Overview-tab aggregates, across all versions unless a comparison narrows them. */
+export type AppObserveOverview_UpdateComparisonArgs = {
+  input: AppObserveOverviewUpdateComparisonInput;
+};
+
+
+/** Overview-tab aggregates, across all versions unless a comparison narrows them. */
+export type AppObserveOverview_VersionComparisonArgs = {
+  input: AppObserveOverviewVersionComparisonInput;
 };
 
 export type AppObserveOverviewAllReleases = {
@@ -3230,6 +3788,44 @@ export type AppObserveReleasesInput = {
   startTime: Scalars['DateTime']['input'];
 };
 
+export type AppObserveSession = {
+  __typename?: 'AppObserveSession';
+  id: Scalars['ID']['output'];
+  /** Logs in the session: user-defined events and errors interleaved. */
+  logs: AppObserveLogConnection;
+  /** Metric samples in the session. */
+  metrics: AppObserveMetricConnection;
+};
+
+
+export type AppObserveSession_LogsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveLogsOrderBy>;
+};
+
+
+export type AppObserveSession_MetricsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
+};
+
+/** Stability-tile filters. No release filters: the tiles always span all versions. */
+export type AppObserveStabilityInput = {
+  /** Series bucket size. Defaults to one day. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
 export type AppObserveTimeSeries = {
   __typename?: 'AppObserveTimeSeries';
   appVersionMarkers: Array<AppObserveAppVersion>;
@@ -3338,6 +3934,152 @@ export enum AppObserveUpdatesOrderByField {
   MedianDownloadTime = 'MEDIAN_DOWNLOAD_TIME',
   P90DownloadTime = 'P90_DOWNLOAD_TIME'
 }
+
+/** One user-defined event (an app_events row that is not an exception). */
+export type AppObserveUserEvent = AppObserveLog & {
+  __typename?: 'AppObserveUserEvent';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  body?: Maybe<Scalars['String']['output']>;
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  /** Human-friendly label from the expo.log.display_name attribute; null when the event was logged without one. */
+  displayName?: Maybe<Scalars['String']['output']>;
+  easClientId: Scalars['String']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  name: Scalars['String']['output'];
+  properties: Array<AppObserveEventProperty>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  severityNumber?: Maybe<Scalars['Int']['output']>;
+  severityText?: Maybe<Scalars['String']['output']>;
+  timestamp: Scalars['DateTime']['output'];
+};
+
+export type AppObserveUserEventConnection = {
+  __typename?: 'AppObserveUserEventConnection';
+  edges: Array<AppObserveUserEventEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveUserEventEdge = {
+  __typename?: 'AppObserveUserEventEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveUserEvent;
+};
+
+export type AppObserveUserEventListFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime?: InputMaybe<Scalars['DateTime']['input']>;
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Event name. The reserved `exception` name is rejected; errors live in the errors namespace. */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  propertyFilters?: InputMaybe<Array<AppObserveUserEventPropertyFilter>>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+export type AppObserveUserEventListOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveUserEventListOrderByField;
+};
+
+export enum AppObserveUserEventListOrderByField {
+  Timestamp = 'TIMESTAMP'
+}
+
+export type AppObserveUserEventName = {
+  __typename?: 'AppObserveUserEventName';
+  count: Scalars['Int']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type AppObserveUserEventNames = {
+  __typename?: 'AppObserveUserEventNames';
+  isTruncated: Scalars['Boolean']['output'];
+  names: Array<AppObserveUserEventName>;
+};
+
+export type AppObserveUserEventNamesInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  orderBy?: InputMaybe<AppObserveUserEventNamesOrderBy>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveUserEventNamesOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveUserEventNamesOrderByField;
+};
+
+export enum AppObserveUserEventNamesOrderByField {
+  Count = 'COUNT',
+  Name = 'NAME'
+}
+
+export type AppObserveUserEventPropertyFilter = {
+  key: Scalars['String']['input'];
+  value: Scalars['String']['input'];
+};
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents = {
+  __typename?: 'AppObserveUserEvents';
+  /** A single user-defined event by id. Null when missing, aged out, or the id belongs to an error. */
+  event?: Maybe<AppObserveUserEvent>;
+  /** Individual user-defined events. Defaults to newest first. */
+  list: AppObserveUserEventConnection;
+  /** Distinct event names with counts over the time range. */
+  names: AppObserveUserEventNames;
+};
+
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents_EventArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents_ListArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveUserEventListFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveUserEventListOrderBy>;
+};
+
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents_NamesArgs = {
+  input: AppObserveUserEventNamesInput;
+};
 
 export type AppObserveVersionMarkerStatistics = {
   __typename?: 'AppObserveVersionMarkerStatistics';
@@ -3816,8 +4558,8 @@ export type AppiumRunSessionRemoteConfig = {
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
-   * URL of the web preview surface for the session. Null when web previews are
-   * not available for the platform (e.g. Android).
+   * URL of the web preview surface for the session. Null when a web preview is
+   * not available for the session.
    */
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -4226,8 +4968,8 @@ export type ArgentRunSessionRemoteConfig = {
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
-   * URL of the web preview surface for the session. Null when web previews are
-   * not available for the platform (e.g. Android).
+   * URL of the web preview surface for the session. Null when a web preview is
+   * not available for the session.
    */
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -6399,7 +7141,7 @@ export enum DeviceRunSessionType {
   Argent = 'ARGENT',
   /** @deprecated Use WEB_PREVIEW_ONLY instead. */
   ServeSim = 'SERVE_SIM',
-  /** A session accessed only through its web preview. Currently supported on iOS. */
+  /** A session accessed only through its web preview. */
   WebPreviewOnly = 'WEB_PREVIEW_ONLY'
 }
 
@@ -7736,6 +8478,11 @@ export enum Feature {
   Teams = 'TEAMS'
 }
 
+export type FinalizeGitHubAppRegistrationInput = {
+  code: Scalars['String']['input'];
+  state: Scalars['String']['input'];
+};
+
 export type Fingerprint = {
   __typename?: 'Fingerprint';
   app: App;
@@ -7953,6 +8700,54 @@ export type GitHubAppQuery = {
 
 export type GitHubAppQuery_InstallationArgs = {
   id: Scalars['ID']['input'];
+};
+
+/** A GitHub Enterprise app. */
+export type GitHubAppRegistration = {
+  __typename?: 'GitHubAppRegistration';
+  /** The Expo account that owns this registration. */
+  account: Account;
+  /** URL of the app's page on its GitHub instance, e.g. https://github.example.com/github-apps/expo. */
+  githubAppUrl: Scalars['String']['output'];
+  /** Public OAuth client id of the GHE app. */
+  githubClientIdentifier: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  /** Origin of the GitHub Enterprise instance, e.g. https://github.example.com or https://example.ghe.com. No trailing slash. */
+  origin: Scalars['String']['output'];
+  /** The GHE app slug. */
+  slug: Scalars['String']['output'];
+};
+
+/** Registration data for the GitHub App manifest flow. */
+export type GitHubAppRegistrationManifest = {
+  __typename?: 'GitHubAppRegistrationManifest';
+  githubManifestCreateUrl: Scalars['String']['output'];
+  manifestJson: Scalars['String']['output'];
+  state: Scalars['String']['output'];
+};
+
+export type GitHubAppRegistrationMutation = {
+  __typename?: 'GitHubAppRegistrationMutation';
+  /**
+   * Finalizes a GitHub App registration after the GHE instance redirects back with a temporary
+   * code. Exchanges the code for the app's credentials and stores the registration.
+   */
+  finalizeGitHubAppRegistration: GitHubAppRegistration;
+  /**
+   * Starts a GitHub App registration on a GHE instance via the app manifest flow. Returns the
+   * manifest for the browser to submit.
+   */
+  startGitHubAppRegistration: GitHubAppRegistrationManifest;
+};
+
+
+export type GitHubAppRegistrationMutation_FinalizeGitHubAppRegistrationArgs = {
+  input: FinalizeGitHubAppRegistrationInput;
+};
+
+
+export type GitHubAppRegistrationMutation_StartGitHubAppRegistrationArgs = {
+  input: StartGitHubAppRegistrationInput;
 };
 
 export type GitHubBuildInput = {
@@ -9729,6 +10524,7 @@ export type RootMutation = {
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
   githubAppInstallation: GitHubAppInstallationMutation;
+  githubAppRegistration: GitHubAppRegistrationMutation;
   /** Mutations for GitHub build triggers */
   githubBuildTrigger: GitHubBuildTriggerMutation;
   githubJobRunTrigger: GitHubJobRunTriggerMutation;
@@ -10352,6 +11148,14 @@ export enum StandardOffer {
 
 export type StartClaudeConnectionInput = {
   accountId: Scalars['ID']['input'];
+};
+
+export type StartGitHubAppRegistrationInput = {
+  accountId: Scalars['ID']['input'];
+  /** Organization to register the app under; omit to register under the signed-in user's account. */
+  org?: InputMaybe<Scalars['String']['input']>;
+  /** URL of the GitHub Enterprise instance, e.g. https://github.example.com or https://example.ghe.com. */
+  origin: Scalars['String']['input'];
 };
 
 export type StartPostHogConnectionResult = PostHogOrganizationConnection | PostHogPendingConnection;
@@ -13526,6 +14330,8 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
    */
   cancelReason?: Maybe<WorkflowRunCancelReason>;
   createdAt: Scalars['DateTime']['output'];
+  /** Rendered run_name template. Null falls back to name. */
+  displayTitle?: Maybe<Scalars['String']['output']>;
   durationSeconds?: Maybe<Scalars['Int']['output']>;
   errors: Array<WorkflowRunError>;
   finalizedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -13535,6 +14341,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   id: Scalars['ID']['output'];
   inputs?: Maybe<Scalars['JSONObject']['output']>;
   jobs: Array<WorkflowJob>;
+  /** Snapshot of the workflow's name at run creation. */
   name: Scalars['String']['output'];
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
   requestedGitRef?: Maybe<Scalars['String']['output']>;
