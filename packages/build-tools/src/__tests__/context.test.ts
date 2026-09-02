@@ -31,6 +31,23 @@ describe('BuildContext', () => {
     (fs.readdir as unknown as jest.Mock).mockResolvedValue([]);
   });
 
+  it('exposes cancellation to a running agent process', () => {
+    const ctx = createTestBuildContext({});
+
+    expect(ctx.cancellationSignal.aborted).toBe(false);
+    ctx.cancel();
+    expect(ctx.cancellationSignal.aborted).toBe(true);
+  });
+
+  it('registers a provider token with the worker log filter', () => {
+    const registerSecret = jest.fn();
+    const ctx = createTestBuildContext({}, { registerSecret });
+
+    ctx.registerSecret('provider-access-token');
+
+    expect(registerSecret).toHaveBeenCalledWith('provider-access-token');
+  });
+
   it('should merge secrets', async () => {
     const robotAccessToken = randomUUID();
     await vol.promises.mkdir('/workingdir/eas-environment-secrets/', { recursive: true });
@@ -216,7 +233,10 @@ describe('BuildContext', () => {
   });
 });
 
-function createTestBuildContext({ platform }: { platform?: Platform }): BuildContext {
+function createTestBuildContext(
+  { platform }: { platform?: Platform },
+  { registerSecret }: { registerSecret?: (value: string) => void } = {}
+): BuildContext {
   vol.mkdirSync('/workingdir/env', { recursive: true });
 
   return new BuildContext(
@@ -232,6 +252,7 @@ function createTestBuildContext({ platform }: { platform?: Platform }): BuildCon
       logger: createMockLogger(),
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
       uploadArtifact: jest.fn(),
+      registerSecret,
     }
   );
 }

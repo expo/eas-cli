@@ -68,6 +68,7 @@ export interface BuildContextOptions {
   skipNativeBuild?: boolean;
   metadata?: Metadata;
   expoApiV2BaseUrl?: string;
+  registerSecret?: (value: string) => void;
 }
 
 export class SkipNativeBuildError extends Error {}
@@ -87,6 +88,8 @@ export class BuildContext<TJob extends Job = Job> {
   public artifacts: Artifacts = {};
 
   private readonly _isLocal: boolean;
+  private readonly cancellationController = new AbortController();
+  private readonly registerSecretCallback?: (value: string) => void;
 
   private _env: Env;
   private _job: TJob;
@@ -112,6 +115,7 @@ export class BuildContext<TJob extends Job = Job> {
     this._metadata = options.metadata;
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
+    this.registerSecretCallback = options.registerSecret;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {
@@ -156,6 +160,17 @@ export class BuildContext<TJob extends Job = Job> {
   }
   public get isLocal(): boolean {
     return this._isLocal;
+  }
+  public get cancellationSignal(): AbortSignal {
+    return this.cancellationController.signal;
+  }
+
+  public cancel(): void {
+    this.cancellationController.abort();
+  }
+
+  public registerSecret(value: string): void {
+    this.registerSecretCallback?.(value);
   }
   /**
    * Directory used to store executables used during regular (non-custom) builds.

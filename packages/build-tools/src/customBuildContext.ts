@@ -68,9 +68,11 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
 
   private _env: Env;
   private readonly expoApiV2BaseUrl?: string;
+  private readonly buildContext: BuildContext<TJob>;
   private readonly pendingMetricUploads: Promise<void>[] = [];
 
   constructor(buildCtx: BuildContext<TJob>) {
+    this.buildContext = buildCtx;
     this._env = buildCtx.env;
     this.job = buildCtx.job;
     this.metadata = buildCtx.metadata;
@@ -110,6 +112,18 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
 
   public get env(): Env {
     return this._env;
+  }
+
+  public get apiV2BaseUrl(): string | undefined {
+    return this.expoApiV2BaseUrl;
+  }
+
+  public get cancellationSignal(): AbortSignal {
+    return this.buildContext.cancellationSignal;
+  }
+
+  public registerSecret(value: string): void {
+    this.buildContext.registerSecret(value);
   }
 
   // We omit steps, because CustomBuildContext does not have steps.
