@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 
 import { getEASLogsWebsocketUrl } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { RealtimeLogsMutationGenerateCentrifugoSubscriptionTokenArgs } from '../graphql/generated';
+import { RealtimeLogsMutation_GenerateCentrifugoSubscriptionTokenArgs } from '../graphql/generated';
 import { RealtimeLogsMutation } from '../graphql/mutations/RealtimeLogsMutation';
 import { httpsProxyAgent } from '../fetch';
 import Log from '../log';
@@ -15,7 +15,7 @@ export type RealtimeLogsSubscription = {
 
 export type RealtimeLogsClient = {
   subscribeAsync: (
-    args: RealtimeLogsMutationGenerateCentrifugoSubscriptionTokenArgs,
+    args: RealtimeLogsMutation_GenerateCentrifugoSubscriptionTokenArgs,
     onPublication: (data: unknown) => void
   ) => Promise<RealtimeLogsSubscription | null>;
   close: () => void;

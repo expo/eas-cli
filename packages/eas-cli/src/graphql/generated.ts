@@ -59,17 +59,17 @@ export type AccessTokenMutation = {
 };
 
 
-export type AccessTokenMutationCreateAccessTokenArgs = {
+export type AccessTokenMutation_CreateAccessTokenArgs = {
   createAccessTokenData: CreateAccessTokenInput;
 };
 
 
-export type AccessTokenMutationDeleteAccessTokenArgs = {
+export type AccessTokenMutation_DeleteAccessTokenArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AccessTokenMutationSetAccessTokenRevokedArgs = {
+export type AccessTokenMutation_SetAccessTokenRevokedArgs = {
   id: Scalars['ID']['input'];
   revoked?: InputMaybe<Scalars['Boolean']['input']>;
 };
@@ -218,7 +218,7 @@ export type Account = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAccountFeatureGatesArgs = {
+export type Account_AccountFeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -227,7 +227,7 @@ export type AccountAccountFeatureGatesArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountActivityTimelineProjectActivitiesArgs = {
+export type Account_ActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
@@ -238,7 +238,7 @@ export type AccountActivityTimelineProjectActivitiesArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppStoreConnectApiKeysPaginatedArgs = {
+export type Account_AppStoreConnectApiKeysPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -250,7 +250,7 @@ export type AccountAppStoreConnectApiKeysPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleAppIdentifiersArgs = {
+export type Account_AppleAppIdentifiersArgs = {
   bundleIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -259,7 +259,7 @@ export type AccountAppleAppIdentifiersArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleDevicesPaginatedArgs = {
+export type Account_AppleDevicesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AppleDeviceFilterInput>;
@@ -272,7 +272,7 @@ export type AccountAppleDevicesPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleDistributionCertificatesPaginatedArgs = {
+export type Account_AppleDistributionCertificatesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -284,7 +284,7 @@ export type AccountAppleDistributionCertificatesPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleProvisioningProfilesArgs = {
+export type Account_AppleProvisioningProfilesArgs = {
   appleAppIdentifierId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -293,7 +293,7 @@ export type AccountAppleProvisioningProfilesArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleProvisioningProfilesPaginatedArgs = {
+export type Account_AppleProvisioningProfilesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -305,7 +305,7 @@ export type AccountAppleProvisioningProfilesPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountApplePushKeysPaginatedArgs = {
+export type Account_ApplePushKeysPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -317,7 +317,7 @@ export type AccountApplePushKeysPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleTeamsArgs = {
+export type Account_AppleTeamsArgs = {
   appleTeamIdentifier?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
@@ -328,7 +328,7 @@ export type AccountAppleTeamsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppleTeamsPaginatedArgs = {
+export type Account_AppleTeamsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AppleTeamFilterInput>;
@@ -341,7 +341,7 @@ export type AccountAppleTeamsPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppsArgs = {
+export type Account_AppsArgs = {
   includeUnpublished?: InputMaybe<Scalars['Boolean']['input']>;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
@@ -352,7 +352,7 @@ export type AccountAppsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAppsPaginatedArgs = {
+export type Account_AppsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AccountAppsFilterInput>;
@@ -365,7 +365,7 @@ export type AccountAppsPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountAuditLogsPaginatedArgs = {
+export type Account_AuditLogsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AuditLogFilterInput>;
@@ -378,7 +378,7 @@ export type AccountAuditLogsPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountBillingPeriodArgs = {
+export type Account_BillingPeriodArgs = {
   date: Scalars['DateTime']['input'];
 };
 
@@ -387,7 +387,7 @@ export type AccountBillingPeriodArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountConcurrencyConsumersArgs = {
+export type Account_ConcurrencyConsumersArgs = {
   limit?: Scalars['Int']['input'];
 };
 
@@ -396,7 +396,7 @@ export type AccountConcurrencyConsumersArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountEchoProjectsArgs = {
+export type Account_EchoProjectsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -406,7 +406,7 @@ export type AccountEchoProjectsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountEnvironmentSecretsArgs = {
+export type Account_EnvironmentSecretsArgs = {
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -415,7 +415,7 @@ export type AccountEnvironmentSecretsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountEnvironmentVariablesArgs = {
+export type Account_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -425,7 +425,7 @@ export type AccountEnvironmentVariablesArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountEnvironmentVariablesIncludingSensitiveArgs = {
+export type Account_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -435,7 +435,7 @@ export type AccountEnvironmentVariablesIncludingSensitiveArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountGoogleServiceAccountKeysPaginatedArgs = {
+export type Account_GoogleServiceAccountKeysPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -447,7 +447,7 @@ export type AccountGoogleServiceAccountKeysPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountMembersPaginatedArgs = {
+export type Account_MembersPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AccountMembersFilterInput>;
@@ -461,7 +461,7 @@ export type AccountMembersPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountSnacksArgs = {
+export type Account_SnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
@@ -471,7 +471,7 @@ export type AccountSnacksArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountSnacksPaginatedArgs = {
+export type Account_SnacksPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -483,7 +483,7 @@ export type AccountSnacksPaginatedArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountTimelineActivityArgs = {
+export type Account_TimelineActivityArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<TimelineActivityFilterInput>;
@@ -496,7 +496,7 @@ export type AccountTimelineActivityArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
-export type AccountViewerDashboardChatsArgs = {
+export type Account_ViewerDashboardChatsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -717,54 +717,54 @@ export type AccountMutation = {
 };
 
 
-export type AccountMutationCancelAllSubscriptionsImmediatelyArgs = {
+export type AccountMutation_CancelAllSubscriptionsImmediatelyArgs = {
   accountID: Scalars['ID']['input'];
 };
 
 
-export type AccountMutationCancelScheduledSubscriptionChangeArgs = {
+export type AccountMutation_CancelScheduledSubscriptionChangeArgs = {
   accountID: Scalars['ID']['input'];
 };
 
 
-export type AccountMutationChangeAdditionalAgentCreditsCountArgs = {
+export type AccountMutation_ChangeAdditionalAgentCreditsCountArgs = {
   accountID: Scalars['ID']['input'];
   newAdditionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
-export type AccountMutationChangeAdditionalConcurrenciesCountArgs = {
+export type AccountMutation_ChangeAdditionalConcurrenciesCountArgs = {
   accountID: Scalars['ID']['input'];
   newAdditionalConcurrenciesCount: Scalars['Int']['input'];
 };
 
 
-export type AccountMutationChangePlanArgs = {
+export type AccountMutation_ChangePlanArgs = {
   accountID: Scalars['ID']['input'];
   couponCode?: InputMaybe<Scalars['String']['input']>;
   newPlanIdentifier: Scalars['String']['input'];
 };
 
 
-export type AccountMutationGrantActorPermissionsArgs = {
+export type AccountMutation_GrantActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
 };
 
 
-export type AccountMutationRemoveProfileImageArgs = {
+export type AccountMutation_RemoveProfileImageArgs = {
   accountID: Scalars['ID']['input'];
 };
 
 
-export type AccountMutationRenameArgs = {
+export type AccountMutation_RenameArgs = {
   accountID: Scalars['ID']['input'];
   newName: Scalars['String']['input'];
 };
 
 
-export type AccountMutationRequestRefundArgs = {
+export type AccountMutation_RequestRefundArgs = {
   accountID: Scalars['ID']['input'];
   chargeID: Scalars['ID']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
@@ -772,44 +772,44 @@ export type AccountMutationRequestRefundArgs = {
 };
 
 
-export type AccountMutationRevokeActorPermissionsArgs = {
+export type AccountMutation_RevokeActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
 };
 
 
-export type AccountMutationSetAiChatEnabledArgs = {
+export type AccountMutation_SetAiChatEnabledArgs = {
   accountID: Scalars['ID']['input'];
   aiChatEnabled: Scalars['Boolean']['input'];
 };
 
 
-export type AccountMutationSetDisplayNameArgs = {
+export type AccountMutation_SetDisplayNameArgs = {
   accountID: Scalars['ID']['input'];
   displayName?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type AccountMutationSetObserveIngestionPausedArgs = {
+export type AccountMutation_SetObserveIngestionPausedArgs = {
   accountID: Scalars['ID']['input'];
   paused: Scalars['Boolean']['input'];
 };
 
 
-export type AccountMutationSetPushSecurityEnabledArgs = {
+export type AccountMutation_SetPushSecurityEnabledArgs = {
   accountID: Scalars['ID']['input'];
   pushSecurityEnabled: Scalars['Boolean']['input'];
 };
 
 
-export type AccountMutationSetRequireTwoFactorArgs = {
+export type AccountMutation_SetRequireTwoFactorArgs = {
   accountID: Scalars['ID']['input'];
   requireTwoFactor: Scalars['Boolean']['input'];
 };
 
 
-export type AccountMutationSetUserSpecifiedAccountUsageArgs = {
+export type AccountMutation_SetUserSpecifiedAccountUsageArgs = {
   accountID: Scalars['ID']['input'];
   userSpecifiedAccountUsage: UserSpecifiedAccountUsage;
 };
@@ -853,12 +853,12 @@ export type AccountQuery = {
 };
 
 
-export type AccountQueryByIdArgs = {
+export type AccountQuery_ByIdArgs = {
   accountId: Scalars['String']['input'];
 };
 
 
-export type AccountQueryByNameArgs = {
+export type AccountQuery_ByNameArgs = {
   accountName: Scalars['String']['input'];
 };
 
@@ -896,24 +896,24 @@ export type AccountSsoConfigurationMutation = {
 };
 
 
-export type AccountSsoConfigurationMutationCreateAccountSsoConfigurationArgs = {
+export type AccountSsoConfigurationMutation_CreateAccountSsoConfigurationArgs = {
   accountId: Scalars['ID']['input'];
   accountSSOConfigurationData: AccountSsoConfigurationData;
 };
 
 
-export type AccountSsoConfigurationMutationDeleteAccountSsoConfigurationArgs = {
+export type AccountSsoConfigurationMutation_DeleteAccountSsoConfigurationArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationArgs = {
+export type AccountSsoConfigurationMutation_UpdateAccountSsoConfigurationArgs = {
   accountSSOConfigurationData: AccountSsoConfigurationData;
   id: Scalars['ID']['input'];
 };
 
 
-export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationClientSecretArgs = {
+export type AccountSsoConfigurationMutation_UpdateAccountSsoConfigurationClientSecretArgs = {
   clientSecret: Scalars['String']['input'];
   id: Scalars['ID']['input'];
 };
@@ -935,7 +935,7 @@ export type AccountSsoConfigurationPublicDataQuery = {
 };
 
 
-export type AccountSsoConfigurationPublicDataQueryPublicDataByAccountNameArgs = {
+export type AccountSsoConfigurationPublicDataQuery_PublicDataByAccountNameArgs = {
   accountName: Scalars['String']['input'];
 };
 
@@ -981,13 +981,13 @@ export type AccountUsageMetrics = {
 };
 
 
-export type AccountUsageMetricsByBillingPeriodArgs = {
+export type AccountUsageMetrics_ByBillingPeriodArgs = {
   date: Scalars['DateTime']['input'];
   service?: InputMaybe<EasService>;
 };
 
 
-export type AccountUsageMetricsMetricsForServiceMetricArgs = {
+export type AccountUsageMetrics_MetricsForServiceMetricArgs = {
   filterParams?: InputMaybe<Scalars['JSONObject']['input']>;
   granularity: UsageMetricsGranularity;
   serviceMetric: EasServiceMetric;
@@ -1035,7 +1035,7 @@ export type Actor = {
 
 
 /** A regular user, SSO user, or robot that can authenticate with Expo services and be a member of accounts. */
-export type ActorFeatureGatesArgs = {
+export type Actor_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1055,7 +1055,7 @@ export type ActorExperimentMutation = {
 };
 
 
-export type ActorExperimentMutationCreateOrUpdateActorExperimentArgs = {
+export type ActorExperimentMutation_CreateOrUpdateActorExperimentArgs = {
   enabled: Scalars['Boolean']['input'];
   experiment: Experiment;
 };
@@ -1121,32 +1121,32 @@ export type AgentProviderConnectionMutation = {
 };
 
 
-export type AgentProviderConnectionMutationCompleteClaudeConnectionArgs = {
+export type AgentProviderConnectionMutation_CompleteClaudeConnectionArgs = {
   input: CompleteClaudeConnectionInput;
 };
 
 
-export type AgentProviderConnectionMutationDeleteAgentProviderConnectionArgs = {
+export type AgentProviderConnectionMutation_DeleteAgentProviderConnectionArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AgentProviderConnectionMutationPollCodexConnectionArgs = {
+export type AgentProviderConnectionMutation_PollCodexConnectionArgs = {
   requestId: Scalars['ID']['input'];
 };
 
 
-export type AgentProviderConnectionMutationStartClaudeConnectionArgs = {
+export type AgentProviderConnectionMutation_StartClaudeConnectionArgs = {
   input: StartClaudeConnectionInput;
 };
 
 
-export type AgentProviderConnectionMutationStartCodexConnectionArgs = {
+export type AgentProviderConnectionMutation_StartCodexConnectionArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type AgentProviderConnectionMutationUpdateAgentProviderConnectionArgs = {
+export type AgentProviderConnectionMutation_UpdateAgentProviderConnectionArgs = {
   id: Scalars['ID']['input'];
   input: UpdateAgentProviderConnectionInput;
 };
@@ -1188,30 +1188,30 @@ export type AndroidAppBuildCredentialsMutation = {
 };
 
 
-export type AndroidAppBuildCredentialsMutationCreateAndroidAppBuildCredentialsArgs = {
+export type AndroidAppBuildCredentialsMutation_CreateAndroidAppBuildCredentialsArgs = {
   androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
   androidAppCredentialsId: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppBuildCredentialsMutationDeleteAndroidAppBuildCredentialsArgs = {
+export type AndroidAppBuildCredentialsMutation_DeleteAndroidAppBuildCredentialsArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppBuildCredentialsMutationSetDefaultArgs = {
+export type AndroidAppBuildCredentialsMutation_SetDefaultArgs = {
   id: Scalars['ID']['input'];
   isDefault: Scalars['Boolean']['input'];
 };
 
 
-export type AndroidAppBuildCredentialsMutationSetKeystoreArgs = {
+export type AndroidAppBuildCredentialsMutation_SetKeystoreArgs = {
   id: Scalars['ID']['input'];
   keystoreId: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppBuildCredentialsMutationSetNameArgs = {
+export type AndroidAppBuildCredentialsMutation_SetNameArgs = {
   id: Scalars['ID']['input'];
   name: Scalars['String']['input'];
 };
@@ -1261,37 +1261,37 @@ export type AndroidAppCredentialsMutation = {
 };
 
 
-export type AndroidAppCredentialsMutationCreateAndroidAppCredentialsArgs = {
+export type AndroidAppCredentialsMutation_CreateAndroidAppCredentialsArgs = {
   androidAppCredentialsInput: AndroidAppCredentialsInput;
   appId: Scalars['ID']['input'];
   applicationIdentifier: Scalars['String']['input'];
 };
 
 
-export type AndroidAppCredentialsMutationCreateFcmV1CredentialArgs = {
+export type AndroidAppCredentialsMutation_CreateFcmV1CredentialArgs = {
   androidAppCredentialsId: Scalars['String']['input'];
   credential: Scalars['String']['input'];
 };
 
 
-export type AndroidAppCredentialsMutationDeleteAndroidAppCredentialsArgs = {
+export type AndroidAppCredentialsMutation_DeleteAndroidAppCredentialsArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppCredentialsMutationSetFcmArgs = {
+export type AndroidAppCredentialsMutation_SetFcmArgs = {
   fcmId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppCredentialsMutationSetGoogleServiceAccountKeyForFcmV1Args = {
+export type AndroidAppCredentialsMutation_SetGoogleServiceAccountKeyForFcmV1Args = {
   googleServiceAccountKeyId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
 
 
-export type AndroidAppCredentialsMutationSetGoogleServiceAccountKeyForSubmissionsArgs = {
+export type AndroidAppCredentialsMutation_SetGoogleServiceAccountKeyForSubmissionsArgs = {
   googleServiceAccountKeyId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
@@ -1347,13 +1347,13 @@ export type AndroidFcmMutation = {
 };
 
 
-export type AndroidFcmMutationCreateAndroidFcmArgs = {
+export type AndroidFcmMutation_CreateAndroidFcmArgs = {
   accountId: Scalars['ID']['input'];
   androidFcmInput: AndroidFcmInput;
 };
 
 
-export type AndroidFcmMutationDeleteAndroidFcmArgs = {
+export type AndroidFcmMutation_DeleteAndroidFcmArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -1462,13 +1462,13 @@ export type AndroidKeystoreMutation = {
 };
 
 
-export type AndroidKeystoreMutationCreateAndroidKeystoreArgs = {
+export type AndroidKeystoreMutation_CreateAndroidKeystoreArgs = {
   accountId: Scalars['ID']['input'];
   androidKeystoreInput: AndroidKeystoreInput;
 };
 
 
-export type AndroidKeystoreMutationDeleteAndroidKeystoreArgs = {
+export type AndroidKeystoreMutation_DeleteAndroidKeystoreArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -1658,7 +1658,7 @@ export type App = Project & {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppActivityTimelineProjectActivitiesArgs = {
+export type App_ActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterChannels?: InputMaybe<Array<Scalars['String']['input']>>;
   filterPlatforms?: InputMaybe<Array<AppPlatform>>;
@@ -1668,13 +1668,13 @@ export type AppActivityTimelineProjectActivitiesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppAndroidAppCredentialsArgs = {
+export type App_AndroidAppCredentialsArgs = {
   filter?: InputMaybe<AndroidAppCredentialsFilter>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppBranchesPaginatedArgs = {
+export type App_BranchesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<BranchFilterInput>;
@@ -1684,7 +1684,7 @@ export type AppBranchesPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppBuildsArgs = {
+export type App_BuildsArgs = {
   filter?: InputMaybe<BuildFilter>;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
@@ -1694,7 +1694,7 @@ export type AppBuildsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppBuildsPaginatedArgs = {
+export type App_BuildsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<BuildFilterInput>;
@@ -1704,7 +1704,7 @@ export type AppBuildsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppChannelsPaginatedArgs = {
+export type App_ChannelsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ChannelFilterInput>;
@@ -1714,14 +1714,14 @@ export type AppChannelsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppDeploymentArgs = {
+export type App_DeploymentArgs = {
   channel: Scalars['String']['input'];
   runtimeVersion: Scalars['String']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppDeploymentsArgs = {
+export type App_DeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeploymentFilterInput>;
@@ -1731,7 +1731,7 @@ export type AppDeploymentsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppDeviceRunSessionsPaginatedArgs = {
+export type App_DeviceRunSessionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeviceRunSessionFilterInput>;
@@ -1741,7 +1741,7 @@ export type AppDeviceRunSessionsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppEmbeddedUpdatesPaginatedArgs = {
+export type App_EmbeddedUpdatesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<EmbeddedUpdateFilterInput>;
@@ -1751,27 +1751,27 @@ export type AppEmbeddedUpdatesPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppEnvironmentSecretsArgs = {
+export type App_EnvironmentSecretsArgs = {
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppEnvironmentVariablesArgs = {
+export type App_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppEnvironmentVariablesIncludingSensitiveArgs = {
+export type App_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppFingerprintsPaginatedArgs = {
+export type App_FingerprintsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<FingerprintFilterInput>;
@@ -1781,26 +1781,26 @@ export type AppFingerprintsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppIosAppCredentialsArgs = {
+export type App_IosAppCredentialsArgs = {
   filter?: InputMaybe<IosAppCredentialsFilter>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppLatestAppVersionByPlatformAndApplicationIdentifierArgs = {
+export type App_LatestAppVersionByPlatformAndApplicationIdentifierArgs = {
   applicationIdentifier: Scalars['String']['input'];
   platform: AppPlatform;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppProfileImageUrlArgs = {
+export type App_ProfileImageUrlArgs = {
   width?: InputMaybe<AppProfileImageWidth>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppRuntimesArgs = {
+export type App_RuntimesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<RuntimeFilterInput>;
@@ -1810,7 +1810,7 @@ export type AppRuntimesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppSubmissionsArgs = {
+export type App_SubmissionsArgs = {
   filter: SubmissionFilter;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
@@ -1818,7 +1818,7 @@ export type AppSubmissionsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppSubmissionsPaginatedArgs = {
+export type App_SubmissionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1827,7 +1827,7 @@ export type AppSubmissionsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppTimelineActivityArgs = {
+export type App_TimelineActivityArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<TimelineActivityFilterInput>;
@@ -1837,7 +1837,7 @@ export type AppTimelineActivityArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppTurtleBrownfieldArtifactsPaginatedArgs = {
+export type App_TurtleBrownfieldArtifactsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<BrownfieldArtifactFilterInput>;
@@ -1847,33 +1847,33 @@ export type AppTurtleBrownfieldArtifactsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateBranchByNameArgs = {
+export type App_UpdateBranchByNameArgs = {
   name: Scalars['String']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateBranchesArgs = {
+export type App_UpdateBranchesArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateChannelByNameArgs = {
+export type App_UpdateChannelByNameArgs = {
   name: Scalars['String']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateChannelsArgs = {
+export type App_UpdateChannelsArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdateGroupsArgs = {
+export type App_UpdateGroupsArgs = {
   filter?: InputMaybe<UpdatesFilter>;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
@@ -1881,14 +1881,14 @@ export type AppUpdateGroupsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdatesArgs = {
+export type App_UpdatesArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdatesPaginatedArgs = {
+export type App_UpdatesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<UpdateFilterInput>;
@@ -1898,7 +1898,7 @@ export type AppUpdatesPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppUpdatesTimelineArgs = {
+export type App_UpdatesTimelineArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<UpdatesTimelineFilter>;
@@ -1908,25 +1908,25 @@ export type AppUpdatesTimelineArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWebhooksArgs = {
+export type App_WebhooksArgs = {
   filter?: InputMaybe<WebhookFilter>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentArgs = {
+export type App_WorkerDeploymentArgs = {
   deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentAliasArgs = {
+export type App_WorkerDeploymentAliasArgs = {
   aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentAliasesArgs = {
+export type App_WorkerDeploymentAliasesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1935,7 +1935,7 @@ export type AppWorkerDeploymentAliasesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsArgs = {
+export type App_WorkerDeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1944,34 +1944,34 @@ export type AppWorkerDeploymentsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsCrashArgs = {
+export type App_WorkerDeploymentsCrashArgs = {
   crashKey: Scalars['ID']['input'];
   sampleFor?: InputMaybe<CrashSampleFor>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsCrashesArgs = {
+export type App_WorkerDeploymentsCrashesArgs = {
   filters?: InputMaybe<CrashesFilters>;
   timespan: DatasetTimespan;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsRequestArgs = {
+export type App_WorkerDeploymentsRequestArgs = {
   requestKey: Scalars['ID']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsRequestsArgs = {
+export type App_WorkerDeploymentsRequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
   timespan: DatasetTimespan;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowCachesPaginatedArgs = {
+export type App_WorkflowCachesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1980,7 +1980,7 @@ export type AppWorkflowCachesPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowDeviceTestCaseHistoryArgs = {
+export type App_WorkflowDeviceTestCaseHistoryArgs = {
   filters?: InputMaybe<WorkflowDeviceTestCaseHistoryFiltersInput>;
   path: Scalars['String']['input'];
   timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
@@ -1988,14 +1988,14 @@ export type AppWorkflowDeviceTestCaseHistoryArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowDeviceTestCaseInsightsArgs = {
+export type App_WorkflowDeviceTestCaseInsightsArgs = {
   filters?: InputMaybe<WorkflowDeviceTestCaseInsightsFiltersInput>;
   timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowRunGitBranchesPaginatedArgs = {
+export type App_WorkflowRunGitBranchesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<WorkflowRunGitBranchFilterInput>;
@@ -2005,7 +2005,7 @@ export type AppWorkflowRunGitBranchesPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowRunsPaginatedArgs = {
+export type App_WorkflowRunsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AppWorkflowRunFilterInput>;
@@ -2015,7 +2015,7 @@ export type AppWorkflowRunsPaginatedArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkflowsArgs = {
+export type App_WorkflowsArgs = {
   filter?: InputMaybe<AppWorkflowFilterInput>;
 };
 
@@ -2077,13 +2077,13 @@ export type AppDevDomainNameMutation = {
 };
 
 
-export type AppDevDomainNameMutationAssignDevDomainNameArgs = {
+export type AppDevDomainNameMutation_AssignDevDomainNameArgs = {
   appId: Scalars['ID']['input'];
   name: Scalars['DevDomainName']['input'];
 };
 
 
-export type AppDevDomainNameMutationChangeDevDomainNameArgs = {
+export type AppDevDomainNameMutation_ChangeDevDomainNameArgs = {
   appId: Scalars['ID']['input'];
   name: Scalars['DevDomainName']['input'];
 };
@@ -2150,17 +2150,17 @@ export type AppInsights = {
 };
 
 
-export type AppInsightsTotalUniqueUsersArgs = {
+export type AppInsights_TotalUniqueUsersArgs = {
   timespan: InsightsTimespan;
 };
 
 
-export type AppInsightsUniqueUsersByAppVersionOverTimeArgs = {
+export type AppInsights_UniqueUsersByAppVersionOverTimeArgs = {
   timespan: InsightsTimespan;
 };
 
 
-export type AppInsightsUniqueUsersByPlatformOverTimeArgs = {
+export type AppInsights_UniqueUsersByPlatformOverTimeArgs = {
   timespan: InsightsTimespan;
 };
 
@@ -2193,46 +2193,46 @@ export type AppMutation = {
 };
 
 
-export type AppMutationCreateAppArgs = {
+export type AppMutation_CreateAppArgs = {
   appInput: AppInput;
 };
 
 
-export type AppMutationRemoveProfileImageArgs = {
+export type AppMutation_RemoveProfileImageArgs = {
   appId: Scalars['ID']['input'];
 };
 
 
-export type AppMutationScheduleAppDeletionArgs = {
+export type AppMutation_ScheduleAppDeletionArgs = {
   appId: Scalars['ID']['input'];
 };
 
 
-export type AppMutationSetAppInfoArgs = {
+export type AppMutation_SetAppInfoArgs = {
   appId: Scalars['ID']['input'];
   appInfo: AppInfoInput;
 };
 
 
-export type AppMutationSetObserveIngestionPausedArgs = {
+export type AppMutation_SetObserveIngestionPausedArgs = {
   appId: Scalars['ID']['input'];
   paused: Scalars['Boolean']['input'];
 };
 
 
-export type AppMutationSetPushSecurityEnabledArgs = {
+export type AppMutation_SetPushSecurityEnabledArgs = {
   appId: Scalars['ID']['input'];
   pushSecurityEnabled: Scalars['Boolean']['input'];
 };
 
 
-export type AppMutationSetResourceClassExperimentArgs = {
+export type AppMutation_SetResourceClassExperimentArgs = {
   appId: Scalars['ID']['input'];
   resourceClassExperiment?: InputMaybe<ResourceClassExperiment>;
 };
 
 
-export type AppMutationSetWorkflowCachingConfigArgs = {
+export type AppMutation_SetWorkflowCachingConfigArgs = {
   appId: Scalars['ID']['input'];
   config: WorkflowCachingConfigInput;
 };
@@ -2309,22 +2309,22 @@ export type AppObserve = {
 };
 
 
-export type AppObserveAppVersionsArgs = {
+export type AppObserve_AppVersionsArgs = {
   input: AppObserveReleasesInput;
 };
 
 
-export type AppObserveCustomEventArgs = {
+export type AppObserve_CustomEventArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppObserveCustomEventCountsArgs = {
+export type AppObserve_CustomEventCountsArgs = {
   input: AppObserveCustomEventCountsInput;
 };
 
 
-export type AppObserveCustomEventListArgs = {
+export type AppObserve_CustomEventListArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AppObserveCustomEventListFilter>;
@@ -2334,7 +2334,7 @@ export type AppObserveCustomEventListArgs = {
 };
 
 
-export type AppObserveCustomEventNamesArgs = {
+export type AppObserve_CustomEventNamesArgs = {
   appBuildNumber?: InputMaybe<Scalars['String']['input']>;
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
@@ -2349,7 +2349,7 @@ export type AppObserveCustomEventNamesArgs = {
 };
 
 
-export type AppObserveEnvironmentsArgs = {
+export type AppObserve_EnvironmentsArgs = {
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
   platforms?: InputMaybe<Array<AppObservePlatform>>;
@@ -2357,32 +2357,32 @@ export type AppObserveEnvironmentsArgs = {
 };
 
 
-export type AppObserveErrorGroupBreakdownArgs = {
+export type AppObserve_ErrorGroupBreakdownArgs = {
   input: AppObserveErrorGroupBreakdownInput;
 };
 
 
-export type AppObserveErrorGroupsArgs = {
+export type AppObserve_ErrorGroupsArgs = {
   input: AppObserveErrorGroupsInput;
 };
 
 
-export type AppObserveErrorStatsArgs = {
+export type AppObserve_ErrorStatsArgs = {
   input: AppObserveErrorStatsInput;
 };
 
 
-export type AppObserveErrorTimeSeriesArgs = {
+export type AppObserve_ErrorTimeSeriesArgs = {
   input: AppObserveErrorTimeSeriesInput;
 };
 
 
-export type AppObserveEventArgs = {
+export type AppObserve_EventArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppObserveEventsArgs = {
+export type AppObserve_EventsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AppObserveEventsFilter>;
@@ -2392,7 +2392,7 @@ export type AppObserveEventsArgs = {
 };
 
 
-export type AppObserveNavigationRoutesArgs = {
+export type AppObserve_NavigationRoutesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter: AppObserveNavigationRoutesFilter;
@@ -2402,37 +2402,37 @@ export type AppObserveNavigationRoutesArgs = {
 };
 
 
-export type AppObserveOverviewEngagementArgs = {
+export type AppObserve_OverviewEngagementArgs = {
   input: AppObserveOverviewEngagementInput;
 };
 
 
-export type AppObserveOverviewStabilityArgs = {
+export type AppObserve_OverviewStabilityArgs = {
   input: AppObserveOverviewStabilityInput;
 };
 
 
-export type AppObserveOverviewUpdateComparisonArgs = {
+export type AppObserve_OverviewUpdateComparisonArgs = {
   input: AppObserveOverviewUpdateComparisonInput;
 };
 
 
-export type AppObserveOverviewVersionComparisonArgs = {
+export type AppObserve_OverviewVersionComparisonArgs = {
   input: AppObserveOverviewVersionComparisonInput;
 };
 
 
-export type AppObserveTimeSeriesArgs = {
+export type AppObserve_TimeSeriesArgs = {
   input: AppObserveTimeSeriesInput;
 };
 
 
-export type AppObserveUniqueActiveUserCountArgs = {
+export type AppObserve_UniqueActiveUserCountArgs = {
   input: AppObserveReleasesInput;
 };
 
 
-export type AppObserveUpdatesArgs = {
+export type AppObserve_UpdatesArgs = {
   input: AppObserveUpdatesInput;
 };
 
@@ -3389,17 +3389,17 @@ export type AppPushNotificationsInsights = {
 };
 
 
-export type AppPushNotificationsInsightsNotificationsSentOverTimeArgs = {
+export type AppPushNotificationsInsights_NotificationsSentOverTimeArgs = {
   timespan: InsightsTimespan;
 };
 
 
-export type AppPushNotificationsInsightsSuccessFailureOverTimeArgs = {
+export type AppPushNotificationsInsights_SuccessFailureOverTimeArgs = {
   timespan: InsightsTimespan;
 };
 
 
-export type AppPushNotificationsInsightsTotalNotificationsSentArgs = {
+export type AppPushNotificationsInsights_TotalNotificationsSentArgs = {
   filters?: InputMaybe<Array<Scalars['JSON']['input']>>;
   timespan: InsightsTimespan;
 };
@@ -3414,17 +3414,17 @@ export type AppQuery = {
 };
 
 
-export type AppQueryByDevDomainNameArgs = {
+export type AppQuery_ByDevDomainNameArgs = {
   name: Scalars['DevDomainName']['input'];
 };
 
 
-export type AppQueryByFullNameArgs = {
+export type AppQuery_ByFullNameArgs = {
   fullName: Scalars['String']['input'];
 };
 
 
-export type AppQueryByIdArgs = {
+export type AppQuery_ByIdArgs = {
   appId: Scalars['String']['input'];
 };
 
@@ -3444,7 +3444,7 @@ export type AppStoreConnectApiKey = {
 };
 
 
-export type AppStoreConnectApiKeyRemoteAppStoreConnectAppsArgs = {
+export type AppStoreConnectApiKey_RemoteAppStoreConnectAppsArgs = {
   bundleIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -3468,18 +3468,18 @@ export type AppStoreConnectApiKeyMutation = {
 };
 
 
-export type AppStoreConnectApiKeyMutationCreateAppStoreConnectApiKeyArgs = {
+export type AppStoreConnectApiKeyMutation_CreateAppStoreConnectApiKeyArgs = {
   accountId: Scalars['ID']['input'];
   appStoreConnectApiKeyInput: AppStoreConnectApiKeyInput;
 };
 
 
-export type AppStoreConnectApiKeyMutationDeleteAppStoreConnectApiKeyArgs = {
+export type AppStoreConnectApiKeyMutation_DeleteAppStoreConnectApiKeyArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppStoreConnectApiKeyMutationUpdateAppStoreConnectApiKeyArgs = {
+export type AppStoreConnectApiKeyMutation_UpdateAppStoreConnectApiKeyArgs = {
   appStoreConnectApiKeyUpdateInput: AppStoreConnectApiKeyUpdateInput;
   id: Scalars['ID']['input'];
 };
@@ -3490,7 +3490,7 @@ export type AppStoreConnectApiKeyQuery = {
 };
 
 
-export type AppStoreConnectApiKeyQueryByIdArgs = {
+export type AppStoreConnectApiKeyQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -3526,12 +3526,12 @@ export type AppStoreConnectAppMutation = {
 };
 
 
-export type AppStoreConnectAppMutationCreateAppStoreConnectAppArgs = {
+export type AppStoreConnectAppMutation_CreateAppStoreConnectAppArgs = {
   appStoreConnectAppInput: AppStoreConnectAppInput;
 };
 
 
-export type AppStoreConnectAppMutationDeleteAppStoreConnectAppArgs = {
+export type AppStoreConnectAppMutation_DeleteAppStoreConnectAppArgs = {
   appStoreConnectAppId: Scalars['ID']['input'];
 };
 
@@ -3654,13 +3654,13 @@ export type AppUsageMetrics = {
 };
 
 
-export type AppUsageMetricsByBillingPeriodArgs = {
+export type AppUsageMetrics_ByBillingPeriodArgs = {
   date: Scalars['DateTime']['input'];
   service?: InputMaybe<EasService>;
 };
 
 
-export type AppUsageMetricsMetricsForServiceMetricArgs = {
+export type AppUsageMetrics_MetricsForServiceMetricArgs = {
   filterParams?: InputMaybe<Scalars['JSONObject']['input']>;
   granularity: UsageMetricsGranularity;
   serviceMetric: EasServiceMetric;
@@ -3709,7 +3709,7 @@ export type AppVersionMutation = {
 };
 
 
-export type AppVersionMutationCreateAppVersionArgs = {
+export type AppVersionMutation_CreateAppVersionArgs = {
   appVersionInput: AppVersionInput;
 };
 
@@ -3787,20 +3787,20 @@ export type AppWorkflowsInsights = {
 };
 
 
-export type AppWorkflowsInsightsOverviewMetricsArgs = {
+export type AppWorkflowsInsights_OverviewMetricsArgs = {
   filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
   timespan: WorkflowsInsightsTimespanInput;
 };
 
 
-export type AppWorkflowsInsightsRunsOverTimeArgs = {
+export type AppWorkflowsInsights_RunsOverTimeArgs = {
   filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
   granularity: WorkflowsInsightsRunsOverTimeGranularity;
   timespan: WorkflowsInsightsTimespanInput;
 };
 
 
-export type AppWorkflowsInsightsWorkflowsArgs = {
+export type AppWorkflowsInsights_WorkflowsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
   first: Scalars['Int']['input'];
@@ -3844,7 +3844,7 @@ export type AppleAppIdentifierMutation = {
 };
 
 
-export type AppleAppIdentifierMutationCreateAppleAppIdentifierArgs = {
+export type AppleAppIdentifierMutation_CreateAppleAppIdentifierArgs = {
   accountId: Scalars['ID']['input'];
   appleAppIdentifierInput: AppleAppIdentifierInput;
 };
@@ -3897,18 +3897,18 @@ export type AppleDeviceMutation = {
 };
 
 
-export type AppleDeviceMutationCreateAppleDeviceArgs = {
+export type AppleDeviceMutation_CreateAppleDeviceArgs = {
   accountId: Scalars['ID']['input'];
   appleDeviceInput: AppleDeviceInput;
 };
 
 
-export type AppleDeviceMutationDeleteAppleDeviceArgs = {
+export type AppleDeviceMutation_DeleteAppleDeviceArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppleDeviceMutationUpdateAppleDeviceArgs = {
+export type AppleDeviceMutation_UpdateAppleDeviceArgs = {
   appleDeviceUpdateInput: AppleDeviceUpdateInput;
   id: Scalars['ID']['input'];
 };
@@ -3935,7 +3935,7 @@ export type AppleDeviceRegistrationRequestMutation = {
 };
 
 
-export type AppleDeviceRegistrationRequestMutationCreateAppleDeviceRegistrationRequestArgs = {
+export type AppleDeviceRegistrationRequestMutation_CreateAppleDeviceRegistrationRequestArgs = {
   accountId: Scalars['ID']['input'];
   appleTeamId: Scalars['ID']['input'];
   singleUse?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3954,7 +3954,7 @@ export type AppleDeviceRegistrationRequestPublicDataQuery = {
 };
 
 
-export type AppleDeviceRegistrationRequestPublicDataQueryByIdArgs = {
+export type AppleDeviceRegistrationRequestPublicDataQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -3964,7 +3964,7 @@ export type AppleDeviceRegistrationRequestQuery = {
 };
 
 
-export type AppleDeviceRegistrationRequestQueryByIdArgs = {
+export type AppleDeviceRegistrationRequestQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4006,13 +4006,13 @@ export type AppleDistributionCertificateMutation = {
 };
 
 
-export type AppleDistributionCertificateMutationCreateAppleDistributionCertificateArgs = {
+export type AppleDistributionCertificateMutation_CreateAppleDistributionCertificateArgs = {
   accountId: Scalars['ID']['input'];
   appleDistributionCertificateInput: AppleDistributionCertificateInput;
 };
 
 
-export type AppleDistributionCertificateMutationDeleteAppleDistributionCertificateArgs = {
+export type AppleDistributionCertificateMutation_DeleteAppleDistributionCertificateArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4022,7 +4022,7 @@ export type AppleDistributionCertificateQuery = {
 };
 
 
-export type AppleDistributionCertificateQueryByIdArgs = {
+export type AppleDistributionCertificateQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4060,24 +4060,24 @@ export type AppleProvisioningProfileMutation = {
 };
 
 
-export type AppleProvisioningProfileMutationCreateAppleProvisioningProfileArgs = {
+export type AppleProvisioningProfileMutation_CreateAppleProvisioningProfileArgs = {
   accountId: Scalars['ID']['input'];
   appleAppIdentifierId: Scalars['ID']['input'];
   appleProvisioningProfileInput: AppleProvisioningProfileInput;
 };
 
 
-export type AppleProvisioningProfileMutationDeleteAppleProvisioningProfileArgs = {
+export type AppleProvisioningProfileMutation_DeleteAppleProvisioningProfileArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppleProvisioningProfileMutationDeleteAppleProvisioningProfilesArgs = {
+export type AppleProvisioningProfileMutation_DeleteAppleProvisioningProfilesArgs = {
   ids: Array<Scalars['ID']['input']>;
 };
 
 
-export type AppleProvisioningProfileMutationUpdateAppleProvisioningProfileArgs = {
+export type AppleProvisioningProfileMutation_UpdateAppleProvisioningProfileArgs = {
   appleProvisioningProfileInput: AppleProvisioningProfileInput;
   id: Scalars['ID']['input'];
 };
@@ -4088,7 +4088,7 @@ export type AppleProvisioningProfileQuery = {
 };
 
 
-export type AppleProvisioningProfileQueryByIdArgs = {
+export type AppleProvisioningProfileQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4119,13 +4119,13 @@ export type ApplePushKeyMutation = {
 };
 
 
-export type ApplePushKeyMutationCreateApplePushKeyArgs = {
+export type ApplePushKeyMutation_CreateApplePushKeyArgs = {
   accountId: Scalars['ID']['input'];
   applePushKeyInput: ApplePushKeyInput;
 };
 
 
-export type ApplePushKeyMutationDeleteApplePushKeyArgs = {
+export type ApplePushKeyMutation_DeleteApplePushKeyArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4145,18 +4145,18 @@ export type AppleTeam = {
 };
 
 
-export type AppleTeamAppleAppIdentifiersArgs = {
+export type AppleTeam_AppleAppIdentifiersArgs = {
   bundleIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type AppleTeamAppleDevicesArgs = {
+export type AppleTeam_AppleDevicesArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-export type AppleTeamAppleProvisioningProfilesArgs = {
+export type AppleTeam_AppleProvisioningProfilesArgs = {
   appleAppIdentifierId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -4181,18 +4181,18 @@ export type AppleTeamMutation = {
 };
 
 
-export type AppleTeamMutationCreateAppleTeamArgs = {
+export type AppleTeamMutation_CreateAppleTeamArgs = {
   accountId: Scalars['ID']['input'];
   appleTeamInput: AppleTeamInput;
 };
 
 
-export type AppleTeamMutationScheduleAppleTeamDeletionArgs = {
+export type AppleTeamMutation_ScheduleAppleTeamDeletionArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type AppleTeamMutationUpdateAppleTeamArgs = {
+export type AppleTeamMutation_UpdateAppleTeamArgs = {
   appleTeamUpdateInput: AppleTeamUpdateInput;
   id: Scalars['ID']['input'];
 };
@@ -4203,7 +4203,7 @@ export type AppleTeamQuery = {
 };
 
 
-export type AppleTeamQueryByAppleTeamIdentifierArgs = {
+export type AppleTeamQuery_ByAppleTeamIdentifierArgs = {
   accountId: Scalars['ID']['input'];
   identifier: Scalars['String']['input'];
 };
@@ -4284,7 +4284,7 @@ export type AssetMutation = {
 };
 
 
-export type AssetMutationGetSignedAssetUploadSpecificationsArgs = {
+export type AssetMutation_GetSignedAssetUploadSpecificationsArgs = {
   assetContentTypes: Array<InputMaybe<Scalars['String']['input']>>;
 };
 
@@ -4298,19 +4298,19 @@ export type AssetQuery = {
 
 
 /** Check to see if assets with given storageKeys exist */
-export type AssetQueryByStorageKeysArgs = {
+export type AssetQuery_ByStorageKeysArgs = {
   storageKeys: Array<Scalars['String']['input']>;
 };
 
 
 /** Check to see if assets with given storageKeys exist */
-export type AssetQueryMetadataArgs = {
+export type AssetQuery_MetadataArgs = {
   storageKeys: Array<Scalars['String']['input']>;
 };
 
 
 /** Check to see if assets with given storageKeys exist */
-export type AssetQuerySignedUrlsArgs = {
+export type AssetQuery_SignedUrlsArgs = {
   storageKeys: Array<Scalars['String']['input']>;
   updateId: Scalars['ID']['input'];
 };
@@ -4369,7 +4369,7 @@ export type AuditLogMutation = {
 };
 
 
-export type AuditLogMutationExportAuditLogsArgs = {
+export type AuditLogMutation_ExportAuditLogsArgs = {
   exportInput: AuditLogExportInput;
 };
 
@@ -4381,7 +4381,7 @@ export type AuditLogQuery = {
 };
 
 
-export type AuditLogQueryByIdArgs = {
+export type AuditLogQuery_ByIdArgs = {
   auditLogId: Scalars['ID']['input'];
 };
 
@@ -4438,7 +4438,7 @@ export type BackgroundJobReceiptQuery = {
 };
 
 
-export type BackgroundJobReceiptQueryByIdArgs = {
+export type BackgroundJobReceiptQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4488,7 +4488,7 @@ export type BranchQuery = {
 };
 
 
-export type BranchQueryByIdArgs = {
+export type BranchQuery_ByIdArgs = {
   branchId: Scalars['ID']['input'];
 };
 
@@ -4615,13 +4615,13 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
 
 
 /** Represents an EAS Build */
-export type BuildCanRetryArgs = {
+export type Build_CanRetryArgs = {
   newMode?: InputMaybe<BuildMode>;
 };
 
 
 /** Represents an EAS Build */
-export type BuildRetryDisabledReasonArgs = {
+export type Build_RetryDisabledReasonArgs = {
   newMode?: InputMaybe<BuildMode>;
 };
 
@@ -4665,17 +4665,17 @@ export type BuildAnnotationMutation = {
 };
 
 
-export type BuildAnnotationMutationCreateBuildAnnotationArgs = {
+export type BuildAnnotationMutation_CreateBuildAnnotationArgs = {
   buildAnnotationData: BuildAnnotationDataInput;
 };
 
 
-export type BuildAnnotationMutationDeleteBuildAnnotationArgs = {
+export type BuildAnnotationMutation_DeleteBuildAnnotationArgs = {
   buildAnnotationId: Scalars['ID']['input'];
 };
 
 
-export type BuildAnnotationMutationUpdateBuildAnnotationArgs = {
+export type BuildAnnotationMutation_UpdateBuildAnnotationArgs = {
   buildAnnotationData: BuildAnnotationDataInput;
   buildAnnotationId: Scalars['ID']['input'];
 };
@@ -4695,12 +4695,12 @@ export type BuildAnnotationsQuery = {
 };
 
 
-export type BuildAnnotationsQueryAllArgs = {
+export type BuildAnnotationsQuery_AllArgs = {
   filters?: InputMaybe<BuildAnnotationFiltersInput>;
 };
 
 
-export type BuildAnnotationsQueryByIdArgs = {
+export type BuildAnnotationsQuery_ByIdArgs = {
   buildAnnotationId: Scalars['ID']['input'];
 };
 
@@ -4862,12 +4862,12 @@ export type BuildMutation = {
 };
 
 
-export type BuildMutationCancelBuildArgs = {
+export type BuildMutation_CancelBuildArgs = {
   buildId: Scalars['ID']['input'];
 };
 
 
-export type BuildMutationCreateAndroidBuildArgs = {
+export type BuildMutation_CreateAndroidBuildArgs = {
   appId: Scalars['ID']['input'];
   buildParams?: InputMaybe<BuildParamsInput>;
   job: AndroidJobInput;
@@ -4875,7 +4875,7 @@ export type BuildMutationCreateAndroidBuildArgs = {
 };
 
 
-export type BuildMutationCreateIosBuildArgs = {
+export type BuildMutation_CreateIosBuildArgs = {
   appId: Scalars['ID']['input'];
   buildParams?: InputMaybe<BuildParamsInput>;
   job: IosJobInput;
@@ -4883,7 +4883,7 @@ export type BuildMutationCreateIosBuildArgs = {
 };
 
 
-export type BuildMutationCreateLocalBuildArgs = {
+export type BuildMutation_CreateLocalBuildArgs = {
   appId: Scalars['ID']['input'];
   artifactSource: LocalBuildArchiveSourceInput;
   job: LocalBuildJobInput;
@@ -4891,30 +4891,30 @@ export type BuildMutationCreateLocalBuildArgs = {
 };
 
 
-export type BuildMutationDeleteBuildArgs = {
+export type BuildMutation_DeleteBuildArgs = {
   buildId: Scalars['ID']['input'];
 };
 
 
-export type BuildMutationGenerateLogsCentrifugoSubscriptionTokenArgs = {
+export type BuildMutation_GenerateLogsCentrifugoSubscriptionTokenArgs = {
   buildId: Scalars['ID']['input'];
   thread?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type BuildMutationRetryAndroidBuildArgs = {
+export type BuildMutation_RetryAndroidBuildArgs = {
   buildId: Scalars['ID']['input'];
   jobOverrides?: InputMaybe<AndroidJobOverridesInput>;
 };
 
 
-export type BuildMutationRetryIosBuildArgs = {
+export type BuildMutation_RetryIosBuildArgs = {
   buildId: Scalars['ID']['input'];
   jobOverrides?: InputMaybe<IosJobOverridesInput>;
 };
 
 
-export type BuildMutationUpdateBuildMetadataArgs = {
+export type BuildMutation_UpdateBuildMetadataArgs = {
   buildId: Scalars['ID']['input'];
   metadata: BuildMetadataInput;
 };
@@ -5017,7 +5017,7 @@ export type BuildPublicDataQuery = {
 };
 
 
-export type BuildPublicDataQueryByIdArgs = {
+export type BuildPublicDataQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -5034,7 +5034,7 @@ export type BuildQuery = {
 };
 
 
-export type BuildQueryAllForAppArgs = {
+export type BuildQuery_AllForAppArgs = {
   appId: Scalars['String']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
@@ -5043,7 +5043,7 @@ export type BuildQueryAllForAppArgs = {
 };
 
 
-export type BuildQueryByIdArgs = {
+export type BuildQuery_ByIdArgs = {
   buildId: Scalars['ID']['input'];
 };
 
@@ -5131,7 +5131,7 @@ export type ChannelQuery = {
 };
 
 
-export type ChannelQueryByIdArgs = {
+export type ChannelQuery_ByIdArgs = {
   channelId: Scalars['ID']['input'];
 };
 
@@ -5268,12 +5268,12 @@ export type ConvexProjectMutation = {
 };
 
 
-export type ConvexProjectMutationDeleteConvexProjectArgs = {
+export type ConvexProjectMutation_DeleteConvexProjectArgs = {
   convexProjectId: Scalars['ID']['input'];
 };
 
 
-export type ConvexProjectMutationSetupConvexProjectArgs = {
+export type ConvexProjectMutation_SetupConvexProjectArgs = {
   input: SetupConvexProjectInput;
 };
 
@@ -5300,17 +5300,17 @@ export type ConvexTeamConnectionMutation = {
 };
 
 
-export type ConvexTeamConnectionMutationCreateConvexTeamConnectionArgs = {
+export type ConvexTeamConnectionMutation_CreateConvexTeamConnectionArgs = {
   convexTeamConnectionData: CreateConvexTeamConnectionInput;
 };
 
 
-export type ConvexTeamConnectionMutationDeleteConvexTeamConnectionArgs = {
+export type ConvexTeamConnectionMutation_DeleteConvexTeamConnectionArgs = {
   convexTeamConnectionId: Scalars['ID']['input'];
 };
 
 
-export type ConvexTeamConnectionMutationSendConvexTeamInviteToVerifiedEmailArgs = {
+export type ConvexTeamConnectionMutation_SendConvexTeamInviteToVerifiedEmailArgs = {
   input: SendConvexTeamInviteToVerifiedEmailInput;
 };
 
@@ -5764,17 +5764,17 @@ export type CustomDomainMutation = {
 };
 
 
-export type CustomDomainMutationDeleteCustomDomainArgs = {
+export type CustomDomainMutation_DeleteCustomDomainArgs = {
   customDomainId: Scalars['ID']['input'];
 };
 
 
-export type CustomDomainMutationRefreshCustomDomainArgs = {
+export type CustomDomainMutation_RefreshCustomDomainArgs = {
   customDomainId: Scalars['ID']['input'];
 };
 
 
-export type CustomDomainMutationRegisterCustomDomainArgs = {
+export type CustomDomainMutation_RegisterCustomDomainArgs = {
   aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
   hostname: Scalars['String']['input'];
@@ -5810,7 +5810,7 @@ export type DashboardChat = {
 
 
 /** A dashboard AI chat conversation, private to the user who created it. */
-export type DashboardChatMessagesArgs = {
+export type DashboardChat_MessagesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -5882,7 +5882,7 @@ export type DashboardChatMutation = {
 };
 
 
-export type DashboardChatMutationAddUserMessageArgs = {
+export type DashboardChatMutation_AddUserMessageArgs = {
   accountID: Scalars['ID']['input'];
   chatID: Scalars['ID']['input'];
   clientMessageId: Scalars['String']['input'];
@@ -5890,23 +5890,23 @@ export type DashboardChatMutationAddUserMessageArgs = {
 };
 
 
-export type DashboardChatMutationCreateChatArgs = {
+export type DashboardChatMutation_CreateChatArgs = {
   accountID: Scalars['ID']['input'];
 };
 
 
-export type DashboardChatMutationDeleteChatArgs = {
+export type DashboardChatMutation_DeleteChatArgs = {
   chatID: Scalars['ID']['input'];
 };
 
 
-export type DashboardChatMutationRenameChatArgs = {
+export type DashboardChatMutation_RenameChatArgs = {
   chatID: Scalars['ID']['input'];
   title: Scalars['String']['input'];
 };
 
 
-export type DashboardChatMutationUpsertAssistantMessageArgs = {
+export type DashboardChatMutation_UpsertAssistantMessageArgs = {
   accountID: Scalars['ID']['input'];
   chatID: Scalars['ID']['input'];
   clientMessageId: Scalars['String']['input'];
@@ -5921,7 +5921,7 @@ export type DashboardChatQuery = {
 };
 
 
-export type DashboardChatQueryByIdArgs = {
+export type DashboardChatQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -6103,13 +6103,13 @@ export type Deployment = {
 
 
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type DeploymentBuildCountArgs = {
+export type Deployment_BuildCountArgs = {
   statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type DeploymentBuildsArgs = {
+export type Deployment_BuildsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeploymentBuildFilterInput>;
@@ -6119,7 +6119,7 @@ export type DeploymentBuildsArgs = {
 
 
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type DeploymentLatestUpdatesPerBranchArgs = {
+export type Deployment_LatestUpdatesPerBranchArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
@@ -6166,7 +6166,7 @@ export type DeploymentQuery = {
 };
 
 
-export type DeploymentQueryByIdArgs = {
+export type DeploymentQuery_ByIdArgs = {
   deploymentId: Scalars['ID']['input'];
 };
 
@@ -6202,31 +6202,31 @@ export type DeploymentsMutation = {
 };
 
 
-export type DeploymentsMutationAssignAliasArgs = {
+export type DeploymentsMutation_AssignAliasArgs = {
   aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
   deploymentIdentifier: Scalars['ID']['input'];
 };
 
 
-export type DeploymentsMutationCreateSignedDeploymentUrlArgs = {
+export type DeploymentsMutation_CreateSignedDeploymentUrlArgs = {
   appId: Scalars['ID']['input'];
   deploymentIdentifier?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
-export type DeploymentsMutationDeleteAliasArgs = {
+export type DeploymentsMutation_DeleteAliasArgs = {
   aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
 };
 
 
-export type DeploymentsMutationDeleteWorkerDeploymentArgs = {
+export type DeploymentsMutation_DeleteWorkerDeploymentArgs = {
   workerDeploymentId: Scalars['ID']['input'];
 };
 
 
-export type DeploymentsMutationDeleteWorkerDeploymentByIdentifierArgs = {
+export type DeploymentsMutation_DeleteWorkerDeploymentByIdentifierArgs = {
   appId: Scalars['ID']['input'];
   deploymentIdentifier: Scalars['ID']['input'];
 };
@@ -6295,7 +6295,7 @@ export type DeviceRunSessionArtifactQuery = {
 };
 
 
-export type DeviceRunSessionArtifactQueryByIdArgs = {
+export type DeviceRunSessionArtifactQuery_ByIdArgs = {
   deviceRunSessionArtifactId: Scalars['ID']['input'];
 };
 
@@ -6343,28 +6343,28 @@ export type DeviceRunSessionMutation = {
 };
 
 
-export type DeviceRunSessionMutationCreateArtifactUploadSessionArgs = {
+export type DeviceRunSessionMutation_CreateArtifactUploadSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
   input: CreateDeviceRunSessionArtifactUploadSessionInput;
 };
 
 
-export type DeviceRunSessionMutationCreateDeviceRunSessionArgs = {
+export type DeviceRunSessionMutation_CreateDeviceRunSessionArgs = {
   deviceRunSessionInput: CreateDeviceRunSessionInput;
 };
 
 
-export type DeviceRunSessionMutationCreateEventLogUploadSessionArgs = {
+export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
 
-export type DeviceRunSessionMutationEnsureDeviceRunSessionStoppedArgs = {
+export type DeviceRunSessionMutation_EnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
 
-export type DeviceRunSessionMutationStartDeviceRunSessionArgs = {
+export type DeviceRunSessionMutation_StartDeviceRunSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
   remoteConfig: Scalars['JSONObject']['input'];
 };
@@ -6375,7 +6375,7 @@ export type DeviceRunSessionQuery = {
 };
 
 
-export type DeviceRunSessionQueryByIdArgs = {
+export type DeviceRunSessionQuery_ByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
@@ -6425,7 +6425,7 @@ export type DiscordUserMutation = {
 };
 
 
-export type DiscordUserMutationDeleteDiscordUserArgs = {
+export type DiscordUserMutation_DeleteDiscordUserArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -6530,7 +6530,7 @@ export type EchoChat = {
 };
 
 
-export type EchoChatEchoMessagesArgs = {
+export type EchoChat_EchoMessagesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -6558,17 +6558,17 @@ export type EchoChatMutation = {
 };
 
 
-export type EchoChatMutationCreateChatArgs = {
+export type EchoChatMutation_CreateChatArgs = {
   input: CreateEchoChatInput;
 };
 
 
-export type EchoChatMutationDeleteChatArgs = {
+export type EchoChatMutation_DeleteChatArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type EchoChatMutationUpdateChatArgs = {
+export type EchoChatMutation_UpdateChatArgs = {
   id: Scalars['ID']['input'];
   input: UpdateEchoChatInput;
 };
@@ -6580,7 +6580,7 @@ export type EchoChatQuery = {
 };
 
 
-export type EchoChatQueryByIdArgs = {
+export type EchoChatQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -6634,13 +6634,13 @@ export type EchoMessageMutation = {
 };
 
 
-export type EchoMessageMutationCompleteMessageArgs = {
+export type EchoMessageMutation_CompleteMessageArgs = {
   id: Scalars['ID']['input'];
   metadata?: InputMaybe<Scalars['JSONObject']['input']>;
 };
 
 
-export type EchoMessageMutationCreateMessageArgs = {
+export type EchoMessageMutation_CreateMessageArgs = {
   input: CreateEchoMessageInput;
 };
 
@@ -6665,17 +6665,17 @@ export type EchoMessagePartMutation = {
 };
 
 
-export type EchoMessagePartMutationCreatePartArgs = {
+export type EchoMessagePartMutation_CreatePartArgs = {
   input: CreateEchoMessagePartInput;
 };
 
 
-export type EchoMessagePartMutationCreatePartsArgs = {
+export type EchoMessagePartMutation_CreatePartsArgs = {
   inputs: Array<CreateEchoMessagePartInput>;
 };
 
 
-export type EchoMessagePartMutationUpdatePartArgs = {
+export type EchoMessagePartMutation_UpdatePartArgs = {
   id: Scalars['ID']['input'];
   input: UpdateEchoMessagePartInput;
 };
@@ -6689,12 +6689,12 @@ export type EchoMessagePartQuery = {
 };
 
 
-export type EchoMessagePartQueryByEchoMessageIdArgs = {
+export type EchoMessagePartQuery_ByEchoMessageIdArgs = {
   echoMessageId: Scalars['ID']['input'];
 };
 
 
-export type EchoMessagePartQueryByIdArgs = {
+export type EchoMessagePartQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -6717,7 +6717,7 @@ export type EchoMessageQuery = {
 };
 
 
-export type EchoMessageQueryByIdArgs = {
+export type EchoMessageQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -6759,25 +6759,25 @@ export type EchoProject = {
 };
 
 
-export type EchoProjectEchoChatsArgs = {
+export type EchoProject_EchoChatsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-export type EchoProjectEchoVersionsArgs = {
+export type EchoProject_EchoVersionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
-export type EchoProjectEnvironmentVariablesArgs = {
+export type EchoProject_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
-export type EchoProjectEnvironmentVariablesIncludingSensitiveArgs = {
+export type EchoProject_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -6867,35 +6867,35 @@ export type EchoProjectMutation = {
 };
 
 
-export type EchoProjectMutationCreateEchoProjectArgs = {
+export type EchoProjectMutation_CreateEchoProjectArgs = {
   input: CreateEchoProjectInput;
 };
 
 
-export type EchoProjectMutationCreateEchoProjectIconsArgs = {
+export type EchoProjectMutation_CreateEchoProjectIconsArgs = {
   echoProjectId: Scalars['ID']['input'];
   icons: Array<CreateEchoProjectIconInput>;
 };
 
 
-export type EchoProjectMutationDeleteEchoProjectArgs = {
+export type EchoProjectMutation_DeleteEchoProjectArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type EchoProjectMutationDeleteEchoProjectIconArgs = {
+export type EchoProjectMutation_DeleteEchoProjectIconArgs = {
   echoProjectIconId: Scalars['ID']['input'];
   echoProjectId: Scalars['ID']['input'];
 };
 
 
-export type EchoProjectMutationSelectEchoProjectIconArgs = {
+export type EchoProjectMutation_SelectEchoProjectIconArgs = {
   echoProjectIconId: Scalars['ID']['input'];
   echoProjectId: Scalars['ID']['input'];
 };
 
 
-export type EchoProjectMutationUpdateEchoProjectArgs = {
+export type EchoProjectMutation_UpdateEchoProjectArgs = {
   id: Scalars['ID']['input'];
   input: UpdateEchoProjectInput;
 };
@@ -6911,17 +6911,17 @@ export type EchoProjectQuery = {
 };
 
 
-export type EchoProjectQueryByIdArgs = {
+export type EchoProjectQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type EchoProjectQueryBySlugArgs = {
+export type EchoProjectQuery_BySlugArgs = {
   slug: Scalars['String']['input'];
 };
 
 
-export type EchoProjectQueryPublicByAccountNameArgs = {
+export type EchoProjectQuery_PublicByAccountNameArgs = {
   accountName: Scalars['String']['input'];
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -6974,12 +6974,12 @@ export type EchoRepositoryMutation = {
 };
 
 
-export type EchoRepositoryMutationCreateEchoRepositoryArgs = {
+export type EchoRepositoryMutation_CreateEchoRepositoryArgs = {
   input: CreateEchoRepositoryInput;
 };
 
 
-export type EchoRepositoryMutationGenerateEchoRepositoryAccessTokenArgs = {
+export type EchoRepositoryMutation_GenerateEchoRepositoryAccessTokenArgs = {
   input: GenerateEchoRepositoryAccessTokenInput;
 };
 
@@ -7035,7 +7035,7 @@ export type EchoTurnMutation = {
 };
 
 
-export type EchoTurnMutationCompleteTurnArgs = {
+export type EchoTurnMutation_CompleteTurnArgs = {
   completionStatus?: InputMaybe<EchoTurnCompletionStatus>;
   error?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
@@ -7109,12 +7109,12 @@ export type EchoVersionMutation = {
 };
 
 
-export type EchoVersionMutationCreateVersionArgs = {
+export type EchoVersionMutation_CreateVersionArgs = {
   input: CreateEchoVersionInput;
 };
 
 
-export type EchoVersionMutationUpdateVersionArgs = {
+export type EchoVersionMutation_UpdateVersionArgs = {
   id: Scalars['ID']['input'];
   input: UpdateEchoVersionInput;
 };
@@ -7126,7 +7126,7 @@ export type EchoVersionQuery = {
 };
 
 
-export type EchoVersionQueryByIdArgs = {
+export type EchoVersionQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -7200,7 +7200,7 @@ export type EmbeddedUpdateAssetMutation = {
 };
 
 
-export type EmbeddedUpdateAssetMutationGetSignedEmbeddedUpdateAssetUploadSpecificationsArgs = {
+export type EmbeddedUpdateAssetMutation_GetSignedEmbeddedUpdateAssetUploadSpecificationsArgs = {
   appId: Scalars['ID']['input'];
   contentType: Scalars['String']['input'];
   embeddedUpdateId: Scalars['ID']['input'];
@@ -7239,12 +7239,12 @@ export type EmbeddedUpdateMutation = {
 };
 
 
-export type EmbeddedUpdateMutationDeleteEmbeddedUpdateArgs = {
+export type EmbeddedUpdateMutation_DeleteEmbeddedUpdateArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type EmbeddedUpdateMutationUploadEmbeddedUpdateArgs = {
+export type EmbeddedUpdateMutation_UploadEmbeddedUpdateArgs = {
   input: UploadEmbeddedUpdateInput;
 };
 
@@ -7259,7 +7259,7 @@ export type EmbeddedUpdateQuery = {
 };
 
 
-export type EmbeddedUpdateQueryByIdArgs = {
+export type EmbeddedUpdateQuery_ByIdArgs = {
   appId: Scalars['ID']['input'];
   embeddedUpdateId: Scalars['ID']['input'];
 };
@@ -7326,19 +7326,19 @@ export type EnvironmentSecretMutation = {
 };
 
 
-export type EnvironmentSecretMutationCreateEnvironmentSecretForAccountArgs = {
+export type EnvironmentSecretMutation_CreateEnvironmentSecretForAccountArgs = {
   accountId: Scalars['String']['input'];
   environmentSecretData: CreateEnvironmentSecretInput;
 };
 
 
-export type EnvironmentSecretMutationCreateEnvironmentSecretForAppArgs = {
+export type EnvironmentSecretMutation_CreateEnvironmentSecretForAppArgs = {
   appId: Scalars['String']['input'];
   environmentSecretData: CreateEnvironmentSecretInput;
 };
 
 
-export type EnvironmentSecretMutationDeleteEnvironmentSecretArgs = {
+export type EnvironmentSecretMutation_DeleteEnvironmentSecretArgs = {
   id: Scalars['String']['input'];
 };
 
@@ -7364,13 +7364,13 @@ export type EnvironmentVariable = {
 };
 
 
-export type EnvironmentVariableLinkedEnvironmentsArgs = {
+export type EnvironmentVariable_LinkedEnvironmentsArgs = {
   appFullName?: InputMaybe<Scalars['String']['input']>;
   appId?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type EnvironmentVariableValueArgs = {
+export type EnvironmentVariable_ValueArgs = {
   includeFileContent?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
@@ -7399,58 +7399,58 @@ export type EnvironmentVariableMutation = {
 };
 
 
-export type EnvironmentVariableMutationCreateBulkEnvironmentVariablesForAccountArgs = {
+export type EnvironmentVariableMutation_CreateBulkEnvironmentVariablesForAccountArgs = {
   accountId: Scalars['ID']['input'];
   environmentVariablesData: Array<CreateSharedEnvironmentVariableInput>;
 };
 
 
-export type EnvironmentVariableMutationCreateBulkEnvironmentVariablesForAppArgs = {
+export type EnvironmentVariableMutation_CreateBulkEnvironmentVariablesForAppArgs = {
   appId: Scalars['ID']['input'];
   environmentVariablesData: Array<CreateEnvironmentVariableInput>;
 };
 
 
-export type EnvironmentVariableMutationCreateBulkEnvironmentVariablesForEchoProjectArgs = {
+export type EnvironmentVariableMutation_CreateBulkEnvironmentVariablesForEchoProjectArgs = {
   echoProjectId: Scalars['ID']['input'];
   environmentVariablesData: Array<CreateEnvironmentVariableInput>;
 };
 
 
-export type EnvironmentVariableMutationCreateEnvironmentVariableForAccountArgs = {
+export type EnvironmentVariableMutation_CreateEnvironmentVariableForAccountArgs = {
   accountId: Scalars['ID']['input'];
   environmentVariableData: CreateSharedEnvironmentVariableInput;
 };
 
 
-export type EnvironmentVariableMutationCreateEnvironmentVariableForAppArgs = {
+export type EnvironmentVariableMutation_CreateEnvironmentVariableForAppArgs = {
   appId: Scalars['ID']['input'];
   environmentVariableData: CreateEnvironmentVariableInput;
 };
 
 
-export type EnvironmentVariableMutationCreateEnvironmentVariableForEchoProjectArgs = {
+export type EnvironmentVariableMutation_CreateEnvironmentVariableForEchoProjectArgs = {
   echoProjectId: Scalars['ID']['input'];
   environmentVariableData: CreateEnvironmentVariableInput;
 };
 
 
-export type EnvironmentVariableMutationDeleteBulkEnvironmentVariablesArgs = {
+export type EnvironmentVariableMutation_DeleteBulkEnvironmentVariablesArgs = {
   ids: Array<Scalars['ID']['input']>;
 };
 
 
-export type EnvironmentVariableMutationDeleteEnvironmentVariableArgs = {
+export type EnvironmentVariableMutation_DeleteEnvironmentVariableArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type EnvironmentVariableMutationUpdateBulkEnvironmentVariablesArgs = {
+export type EnvironmentVariableMutation_UpdateBulkEnvironmentVariablesArgs = {
   environmentVariablesData: Array<UpdateEnvironmentVariableInput>;
 };
 
 
-export type EnvironmentVariableMutationUpdateEnvironmentVariableArgs = {
+export type EnvironmentVariableMutation_UpdateEnvironmentVariableArgs = {
   environmentVariableData: UpdateEnvironmentVariableInput;
 };
 
@@ -7485,13 +7485,13 @@ export type EnvironmentVariableWithSecret = {
 };
 
 
-export type EnvironmentVariableWithSecretLinkedEnvironmentsArgs = {
+export type EnvironmentVariableWithSecret_LinkedEnvironmentsArgs = {
   appFullName?: InputMaybe<Scalars['String']['input']>;
   appId?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type EnvironmentVariableWithSecretValueArgs = {
+export type EnvironmentVariableWithSecret_ValueArgs = {
   includeFileContent?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
@@ -7613,17 +7613,17 @@ export type ExitInterviewMutation = {
 };
 
 
-export type ExitInterviewMutationBeginChatTurnArgs = {
+export type ExitInterviewMutation_BeginChatTurnArgs = {
   input: ExitInterviewBeginChatTurnInput;
 };
 
 
-export type ExitInterviewMutationCompleteArgs = {
+export type ExitInterviewMutation_CompleteArgs = {
   input: ExitInterviewCompleteInput;
 };
 
 
-export type ExitInterviewMutationSubmitFeedbackArgs = {
+export type ExitInterviewMutation_SubmitFeedbackArgs = {
   input: ExitInterviewFeedbackInput;
 };
 
@@ -7676,7 +7676,7 @@ export type ExpoGoBuildQuery = {
 };
 
 
-export type ExpoGoBuildQueryRepackConfigurationArgs = {
+export type ExpoGoBuildQuery_RepackConfigurationArgs = {
   input: ExpoGoRepackInput;
 };
 
@@ -7752,7 +7752,7 @@ export type Fingerprint = {
 };
 
 
-export type FingerprintBuildsArgs = {
+export type Fingerprint_BuildsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<FingerprintBuildsFilterInput>;
@@ -7761,7 +7761,7 @@ export type FingerprintBuildsArgs = {
 };
 
 
-export type FingerprintUpdatesArgs = {
+export type Fingerprint_UpdatesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -7799,7 +7799,7 @@ export type FingerprintMutation = {
 };
 
 
-export type FingerprintMutationCreateOrGetExistingFingerprintArgs = {
+export type FingerprintMutation_CreateOrGetExistingFingerprintArgs = {
   appId: Scalars['ID']['input'];
   fingerprintData: CreateFingerprintInput;
 };
@@ -7915,12 +7915,12 @@ export type GitHubAppInstallationMutation = {
 };
 
 
-export type GitHubAppInstallationMutationCreateGitHubAppInstallationForAccountArgs = {
+export type GitHubAppInstallationMutation_CreateGitHubAppInstallationForAccountArgs = {
   githubAppInstallationData: CreateGitHubAppInstallationInput;
 };
 
 
-export type GitHubAppInstallationMutationDeleteGitHubAppInstallationArgs = {
+export type GitHubAppInstallationMutation_DeleteGitHubAppInstallationArgs = {
   githubAppInstallationId: Scalars['ID']['input'];
 };
 
@@ -7937,7 +7937,7 @@ export type GitHubAppMutation = {
 };
 
 
-export type GitHubAppMutationCreateGitHubBuildArgs = {
+export type GitHubAppMutation_CreateGitHubBuildArgs = {
   buildInput: GitHubBuildInput;
 };
 
@@ -7951,7 +7951,7 @@ export type GitHubAppQuery = {
 };
 
 
-export type GitHubAppQueryInstallationArgs = {
+export type GitHubAppQuery_InstallationArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -8005,17 +8005,17 @@ export type GitHubBuildTriggerMutation = {
 };
 
 
-export type GitHubBuildTriggerMutationCreateGitHubBuildTriggerArgs = {
+export type GitHubBuildTriggerMutation_CreateGitHubBuildTriggerArgs = {
   githubBuildTriggerData: CreateGitHubBuildTriggerInput;
 };
 
 
-export type GitHubBuildTriggerMutationDeleteGitHubBuildTriggerArgs = {
+export type GitHubBuildTriggerMutation_DeleteGitHubBuildTriggerArgs = {
   githubBuildTriggerId: Scalars['ID']['input'];
 };
 
 
-export type GitHubBuildTriggerMutationUpdateGitHubBuildTriggerArgs = {
+export type GitHubBuildTriggerMutation_UpdateGitHubBuildTriggerArgs = {
   githubBuildTriggerData: UpdateGitHubBuildTriggerInput;
   githubBuildTriggerId: Scalars['ID']['input'];
 };
@@ -8059,17 +8059,17 @@ export type GitHubJobRunTriggerMutation = {
 };
 
 
-export type GitHubJobRunTriggerMutationCreateGitHubJobRunTriggerArgs = {
+export type GitHubJobRunTriggerMutation_CreateGitHubJobRunTriggerArgs = {
   gitHubJobRunTriggerData: CreateGitHubJobRunTriggerInput;
 };
 
 
-export type GitHubJobRunTriggerMutationDeleteGitHubJobRunTriggerArgs = {
+export type GitHubJobRunTriggerMutation_DeleteGitHubJobRunTriggerArgs = {
   gitHubJobRunTriggerId: Scalars['ID']['input'];
 };
 
 
-export type GitHubJobRunTriggerMutationUpdateGitHubJobRunTriggerArgs = {
+export type GitHubJobRunTriggerMutation_UpdateGitHubJobRunTriggerArgs = {
   gitHubJobRunTriggerData: UpdateGitHubJobRunTriggerInput;
   gitHubJobRunTriggerId: Scalars['ID']['input'];
 };
@@ -8122,22 +8122,22 @@ export type GitHubRepositoryMutation = {
 };
 
 
-export type GitHubRepositoryMutationConfigureEasArgs = {
+export type GitHubRepositoryMutation_ConfigureEasArgs = {
   githubRepositoryId: Scalars['ID']['input'];
 };
 
 
-export type GitHubRepositoryMutationCreateAndConfigureRepositoryArgs = {
+export type GitHubRepositoryMutation_CreateAndConfigureRepositoryArgs = {
   input: CreateAndConfigureRepositoryInput;
 };
 
 
-export type GitHubRepositoryMutationCreateGitHubRepositoryArgs = {
+export type GitHubRepositoryMutation_CreateGitHubRepositoryArgs = {
   githubRepositoryData: CreateGitHubRepositoryInput;
 };
 
 
-export type GitHubRepositoryMutationScheduleGitHubRepositoryDeletionArgs = {
+export type GitHubRepositoryMutation_ScheduleGitHubRepositoryDeletionArgs = {
   githubRepositoryId: Scalars['ID']['input'];
 };
 
@@ -8173,17 +8173,17 @@ export type GitHubRepositorySettingsMutation = {
 };
 
 
-export type GitHubRepositorySettingsMutationCreateGitHubRepositorySettingsArgs = {
+export type GitHubRepositorySettingsMutation_CreateGitHubRepositorySettingsArgs = {
   githubRepositorySettingsData: CreateGitHubRepositorySettingsInput;
 };
 
 
-export type GitHubRepositorySettingsMutationDeleteGitHubRepositorySettingsArgs = {
+export type GitHubRepositorySettingsMutation_DeleteGitHubRepositorySettingsArgs = {
   githubRepositorySettingsId: Scalars['ID']['input'];
 };
 
 
-export type GitHubRepositorySettingsMutationUpdateGitHubRepositorySettingsArgs = {
+export type GitHubRepositorySettingsMutation_UpdateGitHubRepositorySettingsArgs = {
   githubRepositorySettingsData: UpdateGitHubRepositorySettingsInput;
   githubRepositorySettingsId: Scalars['ID']['input'];
 };
@@ -8213,7 +8213,7 @@ export type GitHubUserMutation = {
 };
 
 
-export type GitHubUserMutationDeleteGitHubUserArgs = {
+export type GitHubUserMutation_DeleteGitHubUserArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -8243,13 +8243,13 @@ export type GoogleServiceAccountKeyMutation = {
 };
 
 
-export type GoogleServiceAccountKeyMutationCreateGoogleServiceAccountKeyArgs = {
+export type GoogleServiceAccountKeyMutation_CreateGoogleServiceAccountKeyArgs = {
   accountId: Scalars['ID']['input'];
   googleServiceAccountKeyInput: GoogleServiceAccountKeyInput;
 };
 
 
-export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
+export type GoogleServiceAccountKeyMutation_DeleteGoogleServiceAccountKeyArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -8259,7 +8259,7 @@ export type GoogleServiceAccountKeyQuery = {
 };
 
 
-export type GoogleServiceAccountKeyQueryByIdArgs = {
+export type GoogleServiceAccountKeyQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -8361,19 +8361,19 @@ export type InvoiceQuery = {
 };
 
 
-export type InvoiceQueryPreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
+export type InvoiceQuery_PreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
   accountID: Scalars['ID']['input'];
   additionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
-export type InvoiceQueryPreviewInvoiceForAdditionalConcurrenciesCountUpdateArgs = {
+export type InvoiceQuery_PreviewInvoiceForAdditionalConcurrenciesCountUpdateArgs = {
   accountID: Scalars['ID']['input'];
   additionalConcurrenciesCount: Scalars['Int']['input'];
 };
 
 
-export type InvoiceQueryPreviewInvoiceForSubscriptionUpdateArgs = {
+export type InvoiceQuery_PreviewInvoiceForSubscriptionUpdateArgs = {
   accountId: Scalars['String']['input'];
   couponCode?: InputMaybe<Scalars['String']['input']>;
   newPlanIdentifier: Scalars['String']['input'];
@@ -8411,24 +8411,24 @@ export type IosAppBuildCredentialsMutation = {
 };
 
 
-export type IosAppBuildCredentialsMutationCreateIosAppBuildCredentialsArgs = {
+export type IosAppBuildCredentialsMutation_CreateIosAppBuildCredentialsArgs = {
   iosAppBuildCredentialsInput: IosAppBuildCredentialsInput;
   iosAppCredentialsId: Scalars['ID']['input'];
 };
 
 
-export type IosAppBuildCredentialsMutationDeleteIosAppBuildCredentialsArgs = {
+export type IosAppBuildCredentialsMutation_DeleteIosAppBuildCredentialsArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type IosAppBuildCredentialsMutationSetDistributionCertificateArgs = {
+export type IosAppBuildCredentialsMutation_SetDistributionCertificateArgs = {
   distributionCertificateId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
 
 
-export type IosAppBuildCredentialsMutationSetProvisioningProfileArgs = {
+export type IosAppBuildCredentialsMutation_SetProvisioningProfileArgs = {
   id: Scalars['ID']['input'];
   provisioningProfileId: Scalars['ID']['input'];
 };
@@ -8448,12 +8448,12 @@ export type IosAppCredentials = {
 };
 
 
-export type IosAppCredentialsIosAppBuildCredentialsArrayArgs = {
+export type IosAppCredentials_IosAppBuildCredentialsArrayArgs = {
   filter?: InputMaybe<IosAppBuildCredentialsFilter>;
 };
 
 
-export type IosAppCredentialsIosAppBuildCredentialsListArgs = {
+export type IosAppCredentials_IosAppBuildCredentialsListArgs = {
   filter?: InputMaybe<IosAppBuildCredentialsFilter>;
 };
 
@@ -8483,31 +8483,31 @@ export type IosAppCredentialsMutation = {
 };
 
 
-export type IosAppCredentialsMutationCreateIosAppCredentialsArgs = {
+export type IosAppCredentialsMutation_CreateIosAppCredentialsArgs = {
   appId: Scalars['ID']['input'];
   appleAppIdentifierId: Scalars['ID']['input'];
   iosAppCredentialsInput: IosAppCredentialsInput;
 };
 
 
-export type IosAppCredentialsMutationDeleteIosAppCredentialsArgs = {
+export type IosAppCredentialsMutation_DeleteIosAppCredentialsArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type IosAppCredentialsMutationSetAppStoreConnectApiKeyForSubmissionsArgs = {
+export type IosAppCredentialsMutation_SetAppStoreConnectApiKeyForSubmissionsArgs = {
   ascApiKeyId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
 
 
-export type IosAppCredentialsMutationSetPushKeyArgs = {
+export type IosAppCredentialsMutation_SetPushKeyArgs = {
   id: Scalars['ID']['input'];
   pushKeyId: Scalars['ID']['input'];
 };
 
 
-export type IosAppCredentialsMutationUpdateIosAppCredentialsArgs = {
+export type IosAppCredentialsMutation_UpdateIosAppCredentialsArgs = {
   id: Scalars['ID']['input'];
   iosAppCredentialsInput: IosAppCredentialsInput;
 };
@@ -8700,12 +8700,12 @@ export type JobRunMutation = {
 };
 
 
-export type JobRunMutationCancelJobRunArgs = {
+export type JobRunMutation_CancelJobRunArgs = {
   jobRunId: Scalars['ID']['input'];
 };
 
 
-export type JobRunMutationGenerateLogsCentrifugoSubscriptionTokenArgs = {
+export type JobRunMutation_GenerateLogsCentrifugoSubscriptionTokenArgs = {
   jobRunId: Scalars['ID']['input'];
   thread?: InputMaybe<Scalars['String']['input']>;
 };
@@ -8722,7 +8722,7 @@ export type JobRunQuery = {
 };
 
 
-export type JobRunQueryByIdArgs = {
+export type JobRunQuery_ByIdArgs = {
   jobRunId: Scalars['ID']['input'];
 };
 
@@ -8843,22 +8843,22 @@ export type LogRocketOrganizationMutation = {
 };
 
 
-export type LogRocketOrganizationMutationDeleteLogRocketOrganizationArgs = {
+export type LogRocketOrganizationMutation_DeleteLogRocketOrganizationArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type LogRocketOrganizationMutationGenerateLogRocketOrganizationLinkingUrlArgs = {
+export type LogRocketOrganizationMutation_GenerateLogRocketOrganizationLinkingUrlArgs = {
   input: GenerateLogRocketOrganizationLinkingUrlInput;
 };
 
 
-export type LogRocketOrganizationMutationGenerateLogRocketReplayTokenArgs = {
+export type LogRocketOrganizationMutation_GenerateLogRocketReplayTokenArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type LogRocketOrganizationMutationLinkLogRocketOrganizationToExpoAccountArgs = {
+export type LogRocketOrganizationMutation_LinkLogRocketOrganizationToExpoAccountArgs = {
   input: LinkLogRocketOrganizationToExpoAccountInput;
 };
 
@@ -8881,13 +8881,13 @@ export type LogRocketProjectMutation = {
 };
 
 
-export type LogRocketProjectMutationCreateLogRocketProjectArgs = {
+export type LogRocketProjectMutation_CreateLogRocketProjectArgs = {
   appId: Scalars['ID']['input'];
   logRocketProjectSlug: Scalars['String']['input'];
 };
 
 
-export type LogRocketProjectMutationDeleteLogRocketProjectArgs = {
+export type LogRocketProjectMutation_DeleteLogRocketProjectArgs = {
   logRocketProjectId: Scalars['ID']['input'];
 };
 
@@ -8939,92 +8939,92 @@ export type MeMutation = {
 };
 
 
-export type MeMutationAddSecondFactorDeviceArgs = {
+export type MeMutation_AddSecondFactorDeviceArgs = {
   deviceConfiguration: SecondFactorDeviceConfiguration;
   otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type MeMutationCertifySecondFactorDeviceArgs = {
+export type MeMutation_CertifySecondFactorDeviceArgs = {
   otp: Scalars['String']['input'];
 };
 
 
-export type MeMutationCreateAccountArgs = {
+export type MeMutation_CreateAccountArgs = {
   accountData: AccountDataInput;
 };
 
 
-export type MeMutationDeleteSecondFactorDeviceArgs = {
+export type MeMutation_DeleteSecondFactorDeviceArgs = {
   otp?: InputMaybe<Scalars['String']['input']>;
   userSecondFactorDeviceId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationDeleteSnackArgs = {
+export type MeMutation_DeleteSnackArgs = {
   snackId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationDisableSecondFactorAuthenticationArgs = {
+export type MeMutation_DisableSecondFactorAuthenticationArgs = {
   otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type MeMutationInitiateSecondFactorAuthenticationArgs = {
+export type MeMutation_InitiateSecondFactorAuthenticationArgs = {
   deviceConfigurations: Array<SecondFactorDeviceConfiguration>;
   recaptchaResponseToken?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type MeMutationLeaveAccountArgs = {
+export type MeMutation_LeaveAccountArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationRecordChatTokenUsageArgs = {
+export type MeMutation_RecordChatTokenUsageArgs = {
   inputTokens: Scalars['Int']['input'];
   outputTokens: Scalars['Int']['input'];
 };
 
 
-export type MeMutationRegenerateSecondFactorBackupCodesArgs = {
+export type MeMutation_RegenerateSecondFactorBackupCodesArgs = {
   otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type MeMutationScheduleAccountDeletionArgs = {
+export type MeMutation_ScheduleAccountDeletionArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationScheduleSsoUserDeletionAsSsoAccountOwnerArgs = {
+export type MeMutation_ScheduleSsoUserDeletionAsSsoAccountOwnerArgs = {
   ssoUserId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationSetPrimarySecondFactorDeviceArgs = {
+export type MeMutation_SetPrimarySecondFactorDeviceArgs = {
   userSecondFactorDeviceId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationTransferAppArgs = {
+export type MeMutation_TransferAppArgs = {
   appId: Scalars['ID']['input'];
   destinationAccountId: Scalars['ID']['input'];
 };
 
 
-export type MeMutationUpdateAppArgs = {
+export type MeMutation_UpdateAppArgs = {
   appData: AppDataInput;
 };
 
 
-export type MeMutationUpdateProfileArgs = {
+export type MeMutation_UpdateProfileArgs = {
   userData: UserDataInput;
 };
 
 
-export type MeMutationUpdateSsoProfileArgs = {
+export type MeMutation_UpdateSsoProfileArgs = {
   userData: SsoUserDataInput;
 };
 
@@ -9076,12 +9076,12 @@ export type NotificationPreferenceMutation = {
 };
 
 
-export type NotificationPreferenceMutationSetAccountNotificationPreferenceArgs = {
+export type NotificationPreferenceMutation_SetAccountNotificationPreferenceArgs = {
   input: AccountNotificationPreferenceInput;
 };
 
 
-export type NotificationPreferenceMutationSetAppNotificationPreferenceArgs = {
+export type NotificationPreferenceMutation_SetAppNotificationPreferenceArgs = {
   input: AppNotificationPreferenceInput;
 };
 
@@ -9209,7 +9209,7 @@ export type PartnerActor = Actor & {
 
 
 /** Represents a partner-provisioned actor. */
-export type PartnerActorFeatureGatesArgs = {
+export type PartnerActor_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -9291,27 +9291,27 @@ export type PostHogOrganizationConnectionMutation = {
 };
 
 
-export type PostHogOrganizationConnectionMutationCompletePostHogConnectionArgs = {
+export type PostHogOrganizationConnectionMutation_CompletePostHogConnectionArgs = {
   input: CompletePostHogConnectionInput;
 };
 
 
-export type PostHogOrganizationConnectionMutationCreatePostHogAccountRequestArgs = {
+export type PostHogOrganizationConnectionMutation_CreatePostHogAccountRequestArgs = {
   input: CreatePostHogAccountRequestInput;
 };
 
 
-export type PostHogOrganizationConnectionMutationCreatePostHogDeepLinkArgs = {
+export type PostHogOrganizationConnectionMutation_CreatePostHogDeepLinkArgs = {
   input: CreatePostHogDeepLinkInput;
 };
 
 
-export type PostHogOrganizationConnectionMutationDeletePostHogOrganizationConnectionArgs = {
+export type PostHogOrganizationConnectionMutation_DeletePostHogOrganizationConnectionArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type PostHogOrganizationConnectionMutationStartPostHogConnectionArgs = {
+export type PostHogOrganizationConnectionMutation_StartPostHogConnectionArgs = {
   input: CreatePostHogAccountRequestInput;
 };
 
@@ -9348,12 +9348,12 @@ export type PostHogProjectMutation = {
 };
 
 
-export type PostHogProjectMutationDeletePostHogProjectArgs = {
+export type PostHogProjectMutation_DeletePostHogProjectArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type PostHogProjectMutationSetupPostHogProjectArgs = {
+export type PostHogProjectMutation_SetupPostHogProjectArgs = {
   input: SetupPostHogProjectInput;
 };
 
@@ -9461,7 +9461,7 @@ export type RealtimeLogsMutation = {
 };
 
 
-export type RealtimeLogsMutationGenerateCentrifugoSubscriptionTokenArgs = {
+export type RealtimeLogsMutation_GenerateCentrifugoSubscriptionTokenArgs = {
   target: RealtimeLogsTargetInput;
   thread?: InputMaybe<Scalars['String']['input']>;
 };
@@ -9590,7 +9590,7 @@ export type Robot = Actor & {
 
 
 /** Represents a robot (not human) actor. */
-export type RobotFeatureGatesArgs = {
+export type Robot_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -9609,19 +9609,19 @@ export type RobotMutation = {
 };
 
 
-export type RobotMutationCreateRobotForAccountArgs = {
+export type RobotMutation_CreateRobotForAccountArgs = {
   accountID: Scalars['String']['input'];
   permissions: Array<InputMaybe<Permission>>;
   robotData?: InputMaybe<RobotDataInput>;
 };
 
 
-export type RobotMutationScheduleRobotDeletionArgs = {
+export type RobotMutation_ScheduleRobotDeletionArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type RobotMutationUpdateRobotArgs = {
+export type RobotMutation_UpdateRobotArgs = {
   id: Scalars['String']['input'];
   robotData: RobotDataInput;
 };
@@ -9802,17 +9802,17 @@ export type RootMutation = {
 };
 
 
-export type RootMutationAccountArgs = {
+export type RootMutation_AccountArgs = {
   accountName?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
-export type RootMutationAppArgs = {
+export type RootMutation_AppArgs = {
   appId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
-export type RootMutationBuildArgs = {
+export type RootMutation_BuildArgs = {
   buildId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -9942,12 +9942,12 @@ export type RootQuery = {
 };
 
 
-export type RootQueryAppByAppIdArgs = {
+export type RootQuery_AppByAppIdArgs = {
   appId: Scalars['String']['input'];
 };
 
 
-export type RootQueryUpdatesByGroupArgs = {
+export type RootQuery_UpdatesByGroupArgs = {
   group: Scalars['ID']['input'];
   platform?: InputMaybe<Scalars['String']['input']>;
 };
@@ -9970,13 +9970,13 @@ export type Runtime = {
 };
 
 
-export type RuntimeBuildCountArgs = {
+export type Runtime_BuildCountArgs = {
   channel?: InputMaybe<Scalars['String']['input']>;
   statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 
-export type RuntimeBuildsArgs = {
+export type Runtime_BuildsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<RuntimeBuildsFilterInput>;
@@ -9985,7 +9985,7 @@ export type RuntimeBuildsArgs = {
 };
 
 
-export type RuntimeDeploymentsArgs = {
+export type Runtime_DeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<RuntimeDeploymentsFilterInput>;
@@ -9994,12 +9994,12 @@ export type RuntimeDeploymentsArgs = {
 };
 
 
-export type RuntimeEmbeddedUpdateCountArgs = {
+export type Runtime_EmbeddedUpdateCountArgs = {
   channel?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type RuntimeUpdatesArgs = {
+export type Runtime_UpdatesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<RuntimeUpdatesFilterInput>;
@@ -10040,7 +10040,7 @@ export type RuntimeQuery = {
 };
 
 
-export type RuntimeQueryByIdArgs = {
+export type RuntimeQuery_ByIdArgs = {
   runtimeId: Scalars['ID']['input'];
 };
 
@@ -10108,7 +10108,7 @@ export type SsoUser = Actor & UserActor & {
 
 
 /** Represents a human SSO (not robot) actor. */
-export type SsoUserActivityTimelineProjectActivitiesArgs = {
+export type SsoUser_ActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
@@ -10116,20 +10116,20 @@ export type SsoUserActivityTimelineProjectActivitiesArgs = {
 
 
 /** Represents a human SSO (not robot) actor. */
-export type SsoUserFeatureGatesArgs = {
+export type SsoUser_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents a human SSO (not robot) actor. */
-export type SsoUserSnacksArgs = {
+export type SsoUser_SnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** Represents a human SSO (not robot) actor. */
-export type SsoUserWebsiteNotificationsPaginatedArgs = {
+export type SsoUser_WebsiteNotificationsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -10206,22 +10206,22 @@ export type SentryInstallationMutation = {
 };
 
 
-export type SentryInstallationMutationConfirmPendingSentryInstallationArgs = {
+export type SentryInstallationMutation_ConfirmPendingSentryInstallationArgs = {
   installationId: Scalars['ID']['input'];
 };
 
 
-export type SentryInstallationMutationDeleteSentryInstallationArgs = {
+export type SentryInstallationMutation_DeleteSentryInstallationArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type SentryInstallationMutationGenerateSentryTokenArgs = {
+export type SentryInstallationMutation_GenerateSentryTokenArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type SentryInstallationMutationLinkSentryInstallationToExpoAccountArgs = {
+export type SentryInstallationMutation_LinkSentryInstallationToExpoAccountArgs = {
   input: LinkSentryInstallationToExpoAccountInput;
 };
 
@@ -10245,12 +10245,12 @@ export type SentryProjectMutation = {
 };
 
 
-export type SentryProjectMutationCreateSentryProjectArgs = {
+export type SentryProjectMutation_CreateSentryProjectArgs = {
   input: CreateSentryProjectInput;
 };
 
 
-export type SentryProjectMutationDeleteSentryProjectArgs = {
+export type SentryProjectMutation_DeleteSentryProjectArgs = {
   sentryProjectId: Scalars['ID']['input'];
 };
 
@@ -10335,7 +10335,7 @@ export type SnackQuery = {
 };
 
 
-export type SnackQueryByHashIdArgs = {
+export type SnackQuery_ByHashIdArgs = {
   hashId: Scalars['ID']['input'];
 };
 
@@ -10440,7 +10440,7 @@ export type StatuspageServiceQuery = {
 };
 
 
-export type StatuspageServiceQueryByServiceNamesArgs = {
+export type StatuspageServiceQuery_ByServiceNamesArgs = {
   serviceNames: Array<StatuspageServiceName>;
 };
 
@@ -10547,22 +10547,22 @@ export type SubmissionMutation = {
 };
 
 
-export type SubmissionMutationCancelSubmissionArgs = {
+export type SubmissionMutation_CancelSubmissionArgs = {
   submissionId: Scalars['ID']['input'];
 };
 
 
-export type SubmissionMutationCreateAndroidSubmissionArgs = {
+export type SubmissionMutation_CreateAndroidSubmissionArgs = {
   input: CreateAndroidSubmissionInput;
 };
 
 
-export type SubmissionMutationCreateIosSubmissionArgs = {
+export type SubmissionMutation_CreateIosSubmissionArgs = {
   input: CreateIosSubmissionInput;
 };
 
 
-export type SubmissionMutationRetrySubmissionArgs = {
+export type SubmissionMutation_RetrySubmissionArgs = {
   parentSubmissionId: Scalars['ID']['input'];
 };
 
@@ -10578,7 +10578,7 @@ export type SubmissionQuery = {
 };
 
 
-export type SubmissionQueryByIdArgs = {
+export type SubmissionQuery_ByIdArgs = {
   submissionId: Scalars['ID']['input'];
 };
 
@@ -10618,7 +10618,7 @@ export type SubscriptionDetails = {
 };
 
 
-export type SubscriptionDetailsPlanEnablementArgs = {
+export type SubscriptionDetails_PlanEnablementArgs = {
   serviceMetric: EasServiceMetric;
 };
 
@@ -10655,27 +10655,27 @@ export type SupabaseConnectionMutation = {
 };
 
 
-export type SupabaseConnectionMutationBeginSupabaseOAuthArgs = {
+export type SupabaseConnectionMutation_BeginSupabaseOAuthArgs = {
   input: BeginSupabaseOAuthInput;
 };
 
 
-export type SupabaseConnectionMutationCompleteSupabaseOAuthArgs = {
+export type SupabaseConnectionMutation_CompleteSupabaseOAuthArgs = {
   input: CompleteSupabaseOAuthInput;
 };
 
 
-export type SupabaseConnectionMutationDisconnectSupabaseArgs = {
+export type SupabaseConnectionMutation_DisconnectSupabaseArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type SupabaseConnectionMutationListSupabaseOrganizationsArgs = {
+export type SupabaseConnectionMutation_ListSupabaseOrganizationsArgs = {
   accountId: Scalars['ID']['input'];
 };
 
 
-export type SupabaseConnectionMutationSetSupabaseConnectionOrganizationArgs = {
+export type SupabaseConnectionMutation_SetSupabaseConnectionOrganizationArgs = {
   input: SetSupabaseConnectionOrganizationInput;
 };
 
@@ -10730,27 +10730,27 @@ export type SupabaseProjectMutation = {
 };
 
 
-export type SupabaseProjectMutationDeleteSupabaseProjectArgs = {
+export type SupabaseProjectMutation_DeleteSupabaseProjectArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type SupabaseProjectMutationFetchSupabasePublishableKeyArgs = {
+export type SupabaseProjectMutation_FetchSupabasePublishableKeyArgs = {
   appId: Scalars['ID']['input'];
 };
 
 
-export type SupabaseProjectMutationLinkSupabaseProjectArgs = {
+export type SupabaseProjectMutation_LinkSupabaseProjectArgs = {
   input: LinkSupabaseProjectInput;
 };
 
 
-export type SupabaseProjectMutationProvisionAdditionalSupabaseProjectArgs = {
+export type SupabaseProjectMutation_ProvisionAdditionalSupabaseProjectArgs = {
   input: ProvisionAdditionalSupabaseProjectInput;
 };
 
 
-export type SupabaseProjectMutationProvisionSupabaseProjectArgs = {
+export type SupabaseProjectMutation_ProvisionSupabaseProjectArgs = {
   input: ProvisionSupabaseProjectInput;
 };
 
@@ -10797,7 +10797,7 @@ export type TunnelsMutation = {
 };
 
 
-export type TunnelsMutationCreateSignedTunnelUrlArgs = {
+export type TunnelsMutation_CreateSignedTunnelUrlArgs = {
   accountId: Scalars['ID']['input'];
 };
 
@@ -10807,7 +10807,7 @@ export type TurtleBrownfieldArtifactMutation = {
 };
 
 
-export type TurtleBrownfieldArtifactMutationCreateTurtleBrownfieldArtifactArgs = {
+export type TurtleBrownfieldArtifactMutation_CreateTurtleBrownfieldArtifactArgs = {
   input: CreateBrownfieldArtifactInput;
 };
 
@@ -10818,12 +10818,12 @@ export type TurtleBrownfieldArtifactQuery = {
 };
 
 
-export type TurtleBrownfieldArtifactQueryByIdArgs = {
+export type TurtleBrownfieldArtifactQuery_ByIdArgs = {
   turtleBrownfieldArtifactId: Scalars['ID']['input'];
 };
 
 
-export type TurtleBrownfieldArtifactQueryLatestForAppArgs = {
+export type TurtleBrownfieldArtifactQuery_LatestForAppArgs = {
   appId: Scalars['ID']['input'];
   bundleName: Scalars['String']['input'];
   platform: AppPlatform;
@@ -10866,7 +10866,7 @@ export type TurtleSshSessionMutation = {
 };
 
 
-export type TurtleSshSessionMutationCreateOrUpdateTurtleSshSessionArgs = {
+export type TurtleSshSessionMutation_CreateOrUpdateTurtleSshSessionArgs = {
   connectionConfig: TurtleSshConnectionConfigInput;
   sessionSettings: TurtleSshSessionSettingsInput;
   target: TurtleSshTargetInput;
@@ -10947,7 +10947,7 @@ export type Update = ActivityTimelineProjectActivity & {
 };
 
 
-export type UpdateDeploymentsArgs = {
+export type Update_DeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -10955,7 +10955,7 @@ export type UpdateDeploymentsArgs = {
 };
 
 
-export type UpdateDiffReceiptsArgs = {
+export type Update_DiffReceiptsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<UpdateDiffReceiptFilterInput>;
   first: Scalars['Int']['input'];
@@ -10983,7 +10983,7 @@ export type UpdateBranch = {
 };
 
 
-export type UpdateBranchRuntimesArgs = {
+export type UpdateBranch_RuntimesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<RuntimeFilterInput>;
@@ -10992,14 +10992,14 @@ export type UpdateBranchRuntimesArgs = {
 };
 
 
-export type UpdateBranchUpdateGroupsArgs = {
+export type UpdateBranch_UpdateGroupsArgs = {
   filter?: InputMaybe<UpdatesFilter>;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
-export type UpdateBranchUpdateGroupsPaginatedArgs = {
+export type UpdateBranch_UpdateGroupsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<UpdatesFilterV2>;
@@ -11008,7 +11008,7 @@ export type UpdateBranchUpdateGroupsPaginatedArgs = {
 };
 
 
-export type UpdateBranchUpdatesArgs = {
+export type UpdateBranch_UpdatesArgs = {
   filter?: InputMaybe<UpdatesFilter>;
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
@@ -11035,28 +11035,28 @@ export type UpdateBranchMutation = {
 };
 
 
-export type UpdateBranchMutationCreateUpdateBranchForAppArgs = {
+export type UpdateBranchMutation_CreateUpdateBranchForAppArgs = {
   appId: Scalars['ID']['input'];
   name: Scalars['String']['input'];
 };
 
 
-export type UpdateBranchMutationDeleteUpdateBranchArgs = {
+export type UpdateBranchMutation_DeleteUpdateBranchArgs = {
   branchId: Scalars['ID']['input'];
 };
 
 
-export type UpdateBranchMutationEditUpdateBranchArgs = {
+export type UpdateBranchMutation_EditUpdateBranchArgs = {
   input: EditUpdateBranchInput;
 };
 
 
-export type UpdateBranchMutationPublishUpdateGroupsArgs = {
+export type UpdateBranchMutation_PublishUpdateGroupsArgs = {
   publishUpdateGroupsInput: Array<PublishUpdateGroupInput>;
 };
 
 
-export type UpdateBranchMutationScheduleUpdateBranchDeletionArgs = {
+export type UpdateBranchMutation_ScheduleUpdateBranchDeletionArgs = {
   branchId: Scalars['ID']['input'];
 };
 
@@ -11082,7 +11082,7 @@ export type UpdateChannel = {
 };
 
 
-export type UpdateChannelBuildsAndEmbeddedUpdatesPaginatedArgs = {
+export type UpdateChannel_BuildsAndEmbeddedUpdatesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -11090,7 +11090,7 @@ export type UpdateChannelBuildsAndEmbeddedUpdatesPaginatedArgs = {
 };
 
 
-export type UpdateChannelLatestRuntimesArgs = {
+export type UpdateChannel_LatestRuntimesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -11098,7 +11098,7 @@ export type UpdateChannelLatestRuntimesArgs = {
 };
 
 
-export type UpdateChannelUpdateBranchesArgs = {
+export type UpdateChannel_UpdateBranchesArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
@@ -11137,45 +11137,45 @@ export type UpdateChannelMutation = {
 };
 
 
-export type UpdateChannelMutationCreateUpdateChannelForAppArgs = {
+export type UpdateChannelMutation_CreateUpdateChannelForAppArgs = {
   appId: Scalars['ID']['input'];
   branchMapping?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
 };
 
 
-export type UpdateChannelMutationDeleteUpdateChannelArgs = {
+export type UpdateChannelMutation_DeleteUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationEditUpdateChannelArgs = {
+export type UpdateChannelMutation_EditUpdateChannelArgs = {
   branchMapping: Scalars['String']['input'];
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationPauseUpdateChannelArgs = {
+export type UpdateChannelMutation_PauseUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationProtectUpdateChannelArgs = {
+export type UpdateChannelMutation_ProtectUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationResumeUpdateChannelArgs = {
+export type UpdateChannelMutation_ResumeUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationScheduleUpdateChannelDeletionArgs = {
+export type UpdateChannelMutation_ScheduleUpdateChannelDeletionArgs = {
   channelId: Scalars['ID']['input'];
 };
 
 
-export type UpdateChannelMutationUnprotectUpdateChannelArgs = {
+export type UpdateChannelMutation_UnprotectUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
@@ -11189,25 +11189,25 @@ export type UpdateChannelRuntimeInsights = {
 };
 
 
-export type UpdateChannelRuntimeInsightsCumulativeMetricsOverTimeArgs = {
+export type UpdateChannelRuntimeInsights_CumulativeMetricsOverTimeArgs = {
   runtimeVersion: Scalars['String']['input'];
   timespan: InsightsTimespan;
 };
 
 
-export type UpdateChannelRuntimeInsightsEmbeddedUpdateTotalUniqueUsersArgs = {
+export type UpdateChannelRuntimeInsights_EmbeddedUpdateTotalUniqueUsersArgs = {
   runtimeVersion: Scalars['String']['input'];
   timespan: InsightsTimespan;
 };
 
 
-export type UpdateChannelRuntimeInsightsMostPopularUpdatesArgs = {
+export type UpdateChannelRuntimeInsights_MostPopularUpdatesArgs = {
   runtimeVersion: Scalars['String']['input'];
   timespan: InsightsTimespan;
 };
 
 
-export type UpdateChannelRuntimeInsightsUniqueUsersOverTimeArgs = {
+export type UpdateChannelRuntimeInsights_UniqueUsersOverTimeArgs = {
   runtimeVersion: Scalars['String']['input'];
   timespan: InsightsTimespan;
 };
@@ -11396,12 +11396,12 @@ export type UpdateInsights = {
 };
 
 
-export type UpdateInsightsCumulativeMetricsArgs = {
+export type UpdateInsights_CumulativeMetricsArgs = {
   timespan: InsightsTimespan;
 };
 
 
-export type UpdateInsightsTotalUniqueUsersArgs = {
+export type UpdateInsights_TotalUniqueUsersArgs = {
   timespan: InsightsTimespan;
 };
 
@@ -11416,18 +11416,18 @@ export type UpdateMutation = {
 };
 
 
-export type UpdateMutationScheduleUpdateGroupDeletionArgs = {
+export type UpdateMutation_ScheduleUpdateGroupDeletionArgs = {
   group: Scalars['ID']['input'];
 };
 
 
-export type UpdateMutationSetCodeSigningInfoArgs = {
+export type UpdateMutation_SetCodeSigningInfoArgs = {
   codeSigningInfo: CodeSigningInfoInput;
   updateId: Scalars['ID']['input'];
 };
 
 
-export type UpdateMutationSetRolloutPercentageArgs = {
+export type UpdateMutation_SetRolloutPercentageArgs = {
   percentage: Scalars['Int']['input'];
   updateId: Scalars['ID']['input'];
 };
@@ -11439,7 +11439,7 @@ export type UpdateQuery = {
 };
 
 
-export type UpdateQueryByIdArgs = {
+export type UpdateQuery_ByIdArgs = {
   updateId: Scalars['ID']['input'];
 };
 
@@ -11540,25 +11540,25 @@ export type UploadSession = {
 };
 
 
-export type UploadSessionCreateAccountScopedUploadSessionArgs = {
+export type UploadSession_CreateAccountScopedUploadSessionArgs = {
   accountID: Scalars['ID']['input'];
   type: AccountUploadSessionType;
 };
 
 
-export type UploadSessionCreateAppScopedUploadSessionArgs = {
+export type UploadSession_CreateAppScopedUploadSessionArgs = {
   appID: Scalars['ID']['input'];
   type: AppUploadSessionType;
 };
 
 
-export type UploadSessionCreateEchoProjectScopedUploadSessionArgs = {
+export type UploadSession_CreateEchoProjectScopedUploadSessionArgs = {
   echoProjectID: Scalars['ID']['input'];
   type: EchoProjectUploadSessionType;
 };
 
 
-export type UploadSessionCreateUploadSessionArgs = {
+export type UploadSession_CreateUploadSessionArgs = {
   filename?: InputMaybe<Scalars['String']['input']>;
   type: UploadSessionType;
 };
@@ -11677,7 +11677,7 @@ export type User = Actor & UserActor & {
 
 
 /** Represents a human (not robot) actor. */
-export type UserActivityTimelineProjectActivitiesArgs = {
+export type User_ActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
@@ -11685,20 +11685,20 @@ export type UserActivityTimelineProjectActivitiesArgs = {
 
 
 /** Represents a human (not robot) actor. */
-export type UserFeatureGatesArgs = {
+export type User_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents a human (not robot) actor. */
-export type UserSnacksArgs = {
+export type User_SnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** Represents a human (not robot) actor. */
-export type UserWebsiteNotificationsPaginatedArgs = {
+export type User_WebsiteNotificationsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -11757,7 +11757,7 @@ export type UserActor = {
 
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
-export type UserActorActivityTimelineProjectActivitiesArgs = {
+export type UserActor_ActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
@@ -11765,20 +11765,20 @@ export type UserActorActivityTimelineProjectActivitiesArgs = {
 
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
-export type UserActorFeatureGatesArgs = {
+export type UserActor_FeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
-export type UserActorSnacksArgs = {
+export type UserActor_SnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
 
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
-export type UserActorWebsiteNotificationsPaginatedArgs = {
+export type UserActor_WebsiteNotificationsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -11799,7 +11799,7 @@ export type UserActorPublicData = {
 
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
-export type UserActorPublicDataSnacksArgs = {
+export type UserActorPublicData_SnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
 };
@@ -11811,7 +11811,7 @@ export type UserActorPublicDataQuery = {
 };
 
 
-export type UserActorPublicDataQueryByUsernameArgs = {
+export type UserActorPublicDataQuery_ByUsernameArgs = {
   username: Scalars['String']['input'];
 };
 
@@ -11857,12 +11857,12 @@ export type UserAppPinMutation = {
 };
 
 
-export type UserAppPinMutationPinAppArgs = {
+export type UserAppPinMutation_PinAppArgs = {
   appId: Scalars['ID']['input'];
 };
 
 
-export type UserAppPinMutationUnpinAppArgs = {
+export type UserAppPinMutation_UnpinAppArgs = {
   appId: Scalars['ID']['input'];
 };
 
@@ -11914,7 +11914,7 @@ export type UserAuditLogMutation = {
 };
 
 
-export type UserAuditLogMutationExportUserAuditLogsArgs = {
+export type UserAuditLogMutation_ExportUserAuditLogsArgs = {
   exportInput: UserAuditLogExportInput;
 };
 
@@ -11927,12 +11927,12 @@ export type UserAuditLogQuery = {
 };
 
 
-export type UserAuditLogQueryByIdArgs = {
+export type UserAuditLogQuery_ByIdArgs = {
   auditLogId: Scalars['ID']['input'];
 };
 
 
-export type UserAuditLogQueryByUserIdPaginatedArgs = {
+export type UserAuditLogQuery_ByUserIdPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<UserAuditLogFilterInput>;
@@ -11948,13 +11948,13 @@ export type UserDashboardViewPinMutation = {
 };
 
 
-export type UserDashboardViewPinMutationPinDashboardViewArgs = {
+export type UserDashboardViewPinMutation_PinDashboardViewArgs = {
   accountId: Scalars['ID']['input'];
   view: DashboardViewPin;
 };
 
 
-export type UserDashboardViewPinMutationUnpinDashboardViewArgs = {
+export type UserDashboardViewPinMutation_UnpinDashboardViewArgs = {
   accountId: Scalars['ID']['input'];
 };
 
@@ -12033,39 +12033,39 @@ export type UserInvitationMutation = {
 };
 
 
-export type UserInvitationMutationAcceptUserInvitationAsViewerArgs = {
+export type UserInvitationMutation_AcceptUserInvitationAsViewerArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type UserInvitationMutationAcceptUserInvitationByTokenAsViewerArgs = {
+export type UserInvitationMutation_AcceptUserInvitationByTokenAsViewerArgs = {
   token: Scalars['ID']['input'];
 };
 
 
-export type UserInvitationMutationCreateUserInvitationForAccountArgs = {
+export type UserInvitationMutation_CreateUserInvitationForAccountArgs = {
   accountID: Scalars['ID']['input'];
   email: Scalars['String']['input'];
   permissions: Array<InputMaybe<Permission>>;
 };
 
 
-export type UserInvitationMutationDeleteUserInvitationArgs = {
+export type UserInvitationMutation_DeleteUserInvitationArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type UserInvitationMutationDeleteUserInvitationByTokenArgs = {
+export type UserInvitationMutation_DeleteUserInvitationByTokenArgs = {
   token: Scalars['ID']['input'];
 };
 
 
-export type UserInvitationMutationResendUserInvitationArgs = {
+export type UserInvitationMutation_ResendUserInvitationArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-export type UserInvitationMutationUpdateUserInvitationPermissionsArgs = {
+export type UserInvitationMutation_UpdateUserInvitationPermissionsArgs = {
   invitationID: Scalars['ID']['input'];
   permissions: Array<InputMaybe<Permission>>;
 };
@@ -12092,7 +12092,7 @@ export type UserInvitationPublicDataQuery = {
 };
 
 
-export type UserInvitationPublicDataQueryByTokenArgs = {
+export type UserInvitationPublicDataQuery_ByTokenArgs = {
   token: Scalars['ID']['input'];
 };
 
@@ -12148,13 +12148,13 @@ export type UserPreferenceMutation = {
 
 
 /** Mutation interface for user preferences */
-export type UserPreferenceMutationDeleteArgs = {
+export type UserPreferenceMutation_DeleteArgs = {
   key: Scalars['String']['input'];
 };
 
 
 /** Mutation interface for user preferences */
-export type UserPreferenceMutationSetArgs = {
+export type UserPreferenceMutation_SetArgs = {
   key: Scalars['String']['input'];
   value: Scalars['JSON']['input'];
 };
@@ -12168,7 +12168,7 @@ export type UserPreferenceQuery = {
 
 
 /** Query interface for user preferences */
-export type UserPreferenceQueryGetArgs = {
+export type UserPreferenceQuery_GetArgs = {
   key: Scalars['String']['input'];
 };
 
@@ -12234,12 +12234,12 @@ export type VexoAccountConnectionMutation = {
 };
 
 
-export type VexoAccountConnectionMutationCreateVexoAccountConnectionArgs = {
+export type VexoAccountConnectionMutation_CreateVexoAccountConnectionArgs = {
   vexoAccountConnectionData: CreateVexoAccountConnectionInput;
 };
 
 
-export type VexoAccountConnectionMutationRevokeAndDeleteVexoAccountConnectionArgs = {
+export type VexoAccountConnectionMutation_RevokeAndDeleteVexoAccountConnectionArgs = {
   vexoAccountConnectionId: Scalars['ID']['input'];
 };
 
@@ -12266,17 +12266,17 @@ export type VexoAppMutation = {
 };
 
 
-export type VexoAppMutationCreateVexoAppArgs = {
+export type VexoAppMutation_CreateVexoAppArgs = {
   vexoAppData: CreateVexoAppInput;
 };
 
 
-export type VexoAppMutationDeleteVexoAppArgs = {
+export type VexoAppMutation_DeleteVexoAppArgs = {
   vexoAppId: Scalars['ID']['input'];
 };
 
 
-export type VexoAppMutationUpdateVexoAppArgs = {
+export type VexoAppMutation_UpdateVexoAppArgs = {
   vexoAppData: UpdateVexoAppInput;
   vexoAppId: Scalars['ID']['input'];
 };
@@ -12327,18 +12327,18 @@ export type WebhookMutation = {
 };
 
 
-export type WebhookMutationCreateWebhookArgs = {
+export type WebhookMutation_CreateWebhookArgs = {
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
 };
 
 
-export type WebhookMutationDeleteWebhookArgs = {
+export type WebhookMutation_DeleteWebhookArgs = {
   webhookId: Scalars['ID']['input'];
 };
 
 
-export type WebhookMutationUpdateWebhookArgs = {
+export type WebhookMutation_UpdateWebhookArgs = {
   webhookId: Scalars['ID']['input'];
   webhookInput: WebhookInput;
 };
@@ -12349,7 +12349,7 @@ export type WebhookQuery = {
 };
 
 
-export type WebhookQueryByIdArgs = {
+export type WebhookQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -12371,7 +12371,7 @@ export type WebsiteNotificationMutation = {
 };
 
 
-export type WebsiteNotificationMutationUpdateNotificationReadStateArgs = {
+export type WebsiteNotificationMutation_UpdateNotificationReadStateArgs = {
   input: WebNotificationUpdateReadStateInput;
 };
 
@@ -12417,19 +12417,19 @@ export type WorkerDeployment = ActivityTimelineProjectActivity & {
 };
 
 
-export type WorkerDeploymentCrashesArgs = {
+export type WorkerDeployment_CrashesArgs = {
   filters?: InputMaybe<CrashesFilters>;
   timespan: DatasetTimespan;
 };
 
 
-export type WorkerDeploymentLogsArgs = {
+export type WorkerDeployment_LogsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   timespan: LogsTimespan;
 };
 
 
-export type WorkerDeploymentRequestsArgs = {
+export type WorkerDeployment_RequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
   timespan: DatasetTimespan;
 };
@@ -12567,7 +12567,7 @@ export type WorkerDeploymentQuery = {
 };
 
 
-export type WorkerDeploymentQueryByIdArgs = {
+export type WorkerDeploymentQuery_ByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -12631,61 +12631,61 @@ export type WorkerDeploymentRequests = {
 };
 
 
-export type WorkerDeploymentRequestsByBrowserArgs = {
+export type WorkerDeploymentRequests_ByBrowserArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByCacheStatusArgs = {
+export type WorkerDeploymentRequests_ByCacheStatusArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByContinentArgs = {
+export type WorkerDeploymentRequests_ByContinentArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByCountryArgs = {
+export type WorkerDeploymentRequests_ByCountryArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByMethodArgs = {
+export type WorkerDeploymentRequests_ByMethodArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByOsArgs = {
+export type WorkerDeploymentRequests_ByOsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByPathnameArgs = {
+export type WorkerDeploymentRequests_ByPathnameArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByPlatformArgs = {
+export type WorkerDeploymentRequests_ByPlatformArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByResponseTypeArgs = {
+export type WorkerDeploymentRequests_ByResponseTypeArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 
-export type WorkerDeploymentRequestsByStatusTypeArgs = {
+export type WorkerDeploymentRequests_ByStatusTypeArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
@@ -12838,13 +12838,13 @@ export type Workflow = {
 };
 
 
-export type WorkflowInsightsArgs = {
+export type Workflow_InsightsArgs = {
   filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
   timespan: WorkflowsInsightsTimespanInput;
 };
 
 
-export type WorkflowRevisionsPaginatedArgs = {
+export type Workflow_RevisionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -12852,7 +12852,7 @@ export type WorkflowRevisionsPaginatedArgs = {
 };
 
 
-export type WorkflowRunsPaginatedArgs = {
+export type Workflow_RunsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<WorkflowRunFilterInput>;
@@ -12919,7 +12919,7 @@ export type WorkflowCacheMutation = {
 };
 
 
-export type WorkflowCacheMutationDeleteWorkflowCacheArgs = {
+export type WorkflowCacheMutation_DeleteWorkflowCacheArgs = {
   cacheId: Scalars['ID']['input'];
 };
 
@@ -12974,18 +12974,18 @@ export type WorkflowDeviceTestCaseHistory = {
 };
 
 
-export type WorkflowDeviceTestCaseHistoryErrorPatternsArgs = {
+export type WorkflowDeviceTestCaseHistory_ErrorPatternsArgs = {
   first: Scalars['Int']['input'];
 };
 
 
-export type WorkflowDeviceTestCaseHistoryRecentRunsArgs = {
+export type WorkflowDeviceTestCaseHistory_RecentRunsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first: Scalars['Int']['input'];
 };
 
 
-export type WorkflowDeviceTestCaseHistoryTimeSeriesArgs = {
+export type WorkflowDeviceTestCaseHistory_TimeSeriesArgs = {
   granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
 };
 
@@ -13003,7 +13003,7 @@ export type WorkflowDeviceTestCaseInsights = {
 };
 
 
-export type WorkflowDeviceTestCaseInsightsTestsArgs = {
+export type WorkflowDeviceTestCaseInsights_TestsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first: Scalars['Int']['input'];
   search?: InputMaybe<Scalars['String']['input']>;
@@ -13012,7 +13012,7 @@ export type WorkflowDeviceTestCaseInsightsTestsArgs = {
 };
 
 
-export type WorkflowDeviceTestCaseInsightsTimeSeriesArgs = {
+export type WorkflowDeviceTestCaseInsights_TimeSeriesArgs = {
   granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
 };
 
@@ -13180,7 +13180,7 @@ export type WorkflowDeviceTestCaseResultMutation = {
 };
 
 
-export type WorkflowDeviceTestCaseResultMutationCreateWorkflowDeviceTestCaseResultsArgs = {
+export type WorkflowDeviceTestCaseResultMutation_CreateWorkflowDeviceTestCaseResultsArgs = {
   input: CreateWorkflowDeviceTestCaseResultsInput;
 };
 
@@ -13316,13 +13316,13 @@ export type WorkflowJobAppleDeviceRegistrationRequestMutation = {
 };
 
 
-export type WorkflowJobAppleDeviceRegistrationRequestMutationApproveAppleDeviceRegistrationArgs = {
+export type WorkflowJobAppleDeviceRegistrationRequestMutation_ApproveAppleDeviceRegistrationArgs = {
   appleDeviceId: Scalars['ID']['input'];
   workflowJobId: Scalars['ID']['input'];
 };
 
 
-export type WorkflowJobAppleDeviceRegistrationRequestMutationRejectAppleDeviceRegistrationArgs = {
+export type WorkflowJobAppleDeviceRegistrationRequestMutation_RejectAppleDeviceRegistrationArgs = {
   appleDeviceId: Scalars['ID']['input'];
   workflowJobId: Scalars['ID']['input'];
 };
@@ -13343,7 +13343,7 @@ export type WorkflowJobApprovalMutation = {
 };
 
 
-export type WorkflowJobApprovalMutationSetWorkflowJobApprovalDecisionArgs = {
+export type WorkflowJobApprovalMutation_SetWorkflowJobApprovalDecisionArgs = {
   decision: WorkflowJobReviewDecision;
   workflowJobId: Scalars['ID']['input'];
 };
@@ -13360,7 +13360,7 @@ export type WorkflowJobQuery = {
 };
 
 
-export type WorkflowJobQueryByIdArgs = {
+export type WorkflowJobQuery_ByIdArgs = {
   workflowJobId: Scalars['ID']['input'];
 };
 
@@ -13442,13 +13442,13 @@ export type WorkflowQuery = {
 };
 
 
-export type WorkflowQueryByAppIdAndFileNameArgs = {
+export type WorkflowQuery_ByAppIdAndFileNameArgs = {
   appId: Scalars['ID']['input'];
   fileName: Scalars['String']['input'];
 };
 
 
-export type WorkflowQueryByIdArgs = {
+export type WorkflowQuery_ByIdArgs = {
   workflowId: Scalars['ID']['input'];
 };
 
@@ -13482,20 +13482,20 @@ export type WorkflowRevisionMutation = {
 };
 
 
-export type WorkflowRevisionMutationGetOrCreateWorkflowRevisionFromGitRefArgs = {
+export type WorkflowRevisionMutation_GetOrCreateWorkflowRevisionFromGitRefArgs = {
   appId: Scalars['ID']['input'];
   fileName: Scalars['String']['input'];
   gitRef: Scalars['String']['input'];
 };
 
 
-export type WorkflowRevisionMutationGetWorkflowRevisionsFromGitRefArgs = {
+export type WorkflowRevisionMutation_GetWorkflowRevisionsFromGitRefArgs = {
   appId: Scalars['ID']['input'];
   gitRef: Scalars['String']['input'];
 };
 
 
-export type WorkflowRevisionMutationValidateWorkflowYamlConfigArgs = {
+export type WorkflowRevisionMutation_ValidateWorkflowYamlConfigArgs = {
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
 };
@@ -13506,7 +13506,7 @@ export type WorkflowRevisionQuery = {
 };
 
 
-export type WorkflowRevisionQueryByIdArgs = {
+export type WorkflowRevisionQuery_ByIdArgs = {
   workflowRevisionId: Scalars['ID']['input'];
 };
 
@@ -13600,26 +13600,26 @@ export type WorkflowRunMutation = {
 };
 
 
-export type WorkflowRunMutationCancelWorkflowRunArgs = {
+export type WorkflowRunMutation_CancelWorkflowRunArgs = {
   workflowRunId: Scalars['ID']['input'];
 };
 
 
-export type WorkflowRunMutationCreateExpoGoRepackWorkflowRunArgs = {
+export type WorkflowRunMutation_CreateExpoGoRepackWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   projectSource: WorkflowProjectSourceInput;
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 
-export type WorkflowRunMutationCreateWorkflowRunArgs = {
+export type WorkflowRunMutation_CreateWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   workflowRevisionInput: WorkflowRevisionInput;
   workflowRunInput: WorkflowRunInput;
 };
 
 
-export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
+export type WorkflowRunMutation_CreateWorkflowRunFromGitRefArgs = {
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   ssh?: InputMaybe<WorkflowRunSshInput>;
@@ -13627,7 +13627,7 @@ export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
 };
 
 
-export type WorkflowRunMutationRetryWorkflowRunArgs = {
+export type WorkflowRunMutation_RetryWorkflowRunArgs = {
   fromFailedJobs?: InputMaybe<Scalars['Boolean']['input']>;
   ssh?: InputMaybe<WorkflowRunSshInput>;
   workflowRunId: Scalars['ID']['input'];
@@ -13639,7 +13639,7 @@ export type WorkflowRunQuery = {
 };
 
 
-export type WorkflowRunQueryByIdArgs = {
+export type WorkflowRunQuery_ByIdArgs = {
   workflowRunId: Scalars['ID']['input'];
 };
 
@@ -13732,7 +13732,7 @@ export type WorkflowsInsightsMutation = {
 };
 
 
-export type WorkflowsInsightsMutationExportWorkflowRunsArgs = {
+export type WorkflowsInsightsMutation_ExportWorkflowRunsArgs = {
   input: WorkflowsInsightsExportInput;
 };
 
