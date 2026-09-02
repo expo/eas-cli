@@ -33,6 +33,7 @@ import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
@@ -110,7 +111,7 @@ export default class Simulator extends EasCommand {
     type: Flags.option({
       description:
         'Type of simulator session to create. All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       default: DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.AgentDevice],
     })(),
     'package-version': Flags.string({
