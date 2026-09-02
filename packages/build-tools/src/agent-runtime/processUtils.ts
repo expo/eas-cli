@@ -77,6 +77,7 @@ export async function runBoundedAgentProcessAsync({
       signal: abortController.signal,
       stdio: 'pipe',
     });
+    processPromise.child.stdin?.end();
     pipeRedactedOutput(processPromise.child.stdout, logger, 'info', secrets);
     pipeRedactedOutput(processPromise.child.stderr, logger, 'error', secrets);
     return await processPromise;

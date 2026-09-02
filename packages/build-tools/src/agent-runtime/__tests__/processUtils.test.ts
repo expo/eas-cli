@@ -1,6 +1,11 @@
 import { errors } from '@expo/eas-build-job';
+import type { bunyan } from '@expo/logger';
 
-import { SecretRedactingTransform, assertAgentExecutableVersionAsync } from '../processUtils';
+import {
+  SecretRedactingTransform,
+  assertAgentExecutableVersionAsync,
+  runBoundedAgentProcessAsync,
+} from '../processUtils';
 
 describe(SecretRedactingTransform, () => {
   it('redacts secrets split between output chunks', async () => {
@@ -42,5 +47,20 @@ describe(assertAgentExecutableVersionAsync, () => {
         displayName: 'Node.js',
       })
     ).rejects.toBeInstanceOf(errors.UserError);
+  });
+});
+
+describe(runBoundedAgentProcessAsync, () => {
+  it('closes stdin for a non-interactive process', async () => {
+    await expect(
+      runBoundedAgentProcessAsync({
+        command: process.execPath,
+        args: ['-e', 'process.stdin.resume()'],
+        env: process.env,
+        logger: { info: jest.fn(), error: jest.fn() } as unknown as bunyan,
+        maximumInvocationSeconds: 5,
+        secrets: [],
+      })
+    ).resolves.toBeDefined();
   });
 });
