@@ -383,46 +383,6 @@ export async function ensureFfmpegInstalledAsync({
   }
 }
 
-const MITMPROXY_INSTALL_TIMEOUT_MS = 5 * 60 * 1000;
-
-async function isMitmproxyAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  return (await asyncResult(spawn('mitmdump', ['--version'], { env }))).ok;
-}
-
-export async function ensureMitmproxyInstalledAsync({
-  env,
-  logger,
-}: {
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  if (await isMitmproxyAvailableAsync(env)) {
-    logger.info('mitmproxy is already installed.');
-    return;
-  }
-
-  logger.info('mitmproxy is not installed, installing it with Homebrew for network capture.');
-  try {
-    await spawn('brew', ['install', 'mitmproxy'], {
-      env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-      logger,
-      timeout: MITMPROXY_INSTALL_TIMEOUT_MS,
-    });
-  } catch (err) {
-    throw new SystemError('Could not install mitmproxy for network capture.', {
-      cause: err,
-    });
-  }
-
-  if (!(await isMitmproxyAvailableAsync(env))) {
-    throw new SystemError(
-      'Installed mitmproxy but mitmdump is still not runnable. Try `brew reinstall --cask mitmproxy` on the image.'
-    );
-  }
-
-  logger.info('Installed mitmproxy.');
-}
-
 const TurnIceServersResponseSchema = z.object({
   data: z.object({
     iceServers: TurnIceServersSchema,
@@ -760,10 +720,6 @@ export async function startServeSimWithTunnelAsync(
     networkCapture?: boolean;
   }
 ): Promise<ServeSimPreviewHandle> {
-  if (networkCapture) {
-    await ensureMitmproxyInstalledAsync({ env, logger });
-  }
-
   const port = await findAvailablePortAsync();
   logger.info(
     `Launching ${createServeSimPackageSpec(packageVersion)} on ${SERVE_SIM_HOST}:${port}.`

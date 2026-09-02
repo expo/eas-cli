@@ -15,7 +15,6 @@ import { sleepAsync } from '../../../utils/retry';
 import {
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
-  ensureMitmproxyInstalledAsync,
   fetchServeSimTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startNgrokTunnelAsync,
@@ -645,62 +644,6 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
       );
     });
-  });
-});
-
-describe(ensureMitmproxyInstalledAsync, () => {
-  const spawnMock = jest.mocked(spawn);
-
-  beforeEach(() => {
-    spawnMock.mockReset();
-  });
-
-  it('does not install when mitmdump is on PATH', async () => {
-    spawnMock.mockReturnValueOnce(spawnResolved());
-
-    await ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() });
-
-    expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(spawnMock).toHaveBeenCalledWith('mitmdump', ['--version'], expect.anything());
-  });
-
-  it('installs mitmproxy with Homebrew when it is missing', async () => {
-    spawnMock
-      .mockReturnValueOnce(spawnRejected())
-      .mockReturnValueOnce(spawnResolved())
-      .mockReturnValueOnce(spawnResolved());
-
-    await ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() });
-
-    expect(spawnMock).toHaveBeenCalledTimes(3);
-    expect(spawnMock).toHaveBeenNthCalledWith(
-      2,
-      'brew',
-      ['install', 'mitmproxy'],
-      expect.objectContaining({
-        env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }),
-      })
-    );
-    expect(spawnMock).toHaveBeenLastCalledWith('mitmdump', ['--version'], expect.anything());
-  });
-
-  it('throws when the install fails', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnRejected());
-
-    await expect(
-      ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() })
-    ).rejects.toThrow(/Could not install mitmproxy/);
-  });
-
-  it('throws when brew succeeds but mitmdump still does not run', async () => {
-    spawnMock
-      .mockReturnValueOnce(spawnRejected())
-      .mockReturnValueOnce(spawnResolved())
-      .mockReturnValueOnce(spawnRejected());
-
-    await expect(
-      ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() })
-    ).rejects.toThrow(/still not runnable/);
   });
 });
 
