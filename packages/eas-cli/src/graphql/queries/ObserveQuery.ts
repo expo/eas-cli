@@ -134,7 +134,7 @@ type AppObserveCustomEventNamesQueryVariables = {
   appId: string;
   startTime: string;
   endTime: string;
-  platform?: AppObservePlatform;
+  platforms?: AppObservePlatform[];
   environment?: string;
 };
 
@@ -217,16 +217,18 @@ export const ObserveQuery = {
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
-      platform,
+      platforms,
       startTime,
       endTime,
       metricNames,
+      environment,
     }: {
       appId: string;
-      platform: AppObservePlatform;
+      platforms: AppObservePlatform[];
       startTime: string;
       endTime: string;
       metricNames?: string[];
+      environment?: string;
     }
   ): Promise<AppObserveAppVersion[]> {
     const data = await withErrorHandlingAsync(
@@ -252,7 +254,13 @@ export const ObserveQuery = {
           `,
           {
             appId,
-            input: { platform, startTime, endTime, ...(metricNames && { metricNames }) },
+            input: {
+              platforms,
+              startTime,
+              endTime,
+              ...(metricNames && { metricNames }),
+              ...(environment && { environment }),
+            },
           }
         )
         .toPromise()
@@ -379,13 +387,13 @@ export const ObserveQuery = {
       appId,
       startTime,
       endTime,
-      platform,
+      platforms,
       environment,
     }: {
       appId: string;
       startTime: string;
       endTime: string;
-      platform?: AppObservePlatform;
+      platforms?: AppObservePlatform[];
       environment?: string;
     }
   ): Promise<{ names: AppObserveCustomEventName[]; isTruncated: boolean }> {
@@ -397,7 +405,7 @@ export const ObserveQuery = {
               $appId: String!
               $startTime: DateTime!
               $endTime: DateTime!
-              $platform: AppObservePlatform
+              $platforms: [AppObservePlatform!]
               $environment: String
             ) {
               app {
@@ -407,7 +415,7 @@ export const ObserveQuery = {
                     customEventNames(
                       startTime: $startTime
                       endTime: $endTime
-                      platform: $platform
+                      platforms: $platforms
                       environment: $environment
                     ) {
                       isTruncated
@@ -425,7 +433,7 @@ export const ObserveQuery = {
             appId,
             startTime,
             endTime,
-            ...(platform && { platform }),
+            ...(platforms?.length && { platforms }),
             ...(environment && { environment }),
           }
         )

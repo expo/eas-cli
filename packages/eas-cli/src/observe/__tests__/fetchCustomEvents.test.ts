@@ -63,7 +63,7 @@ describe('fetchObserveCustomEventsAsync', () => {
   it('forwards platform, appVersion, and sessionId filters when provided', async () => {
     await fetchObserveCustomEventsAsync(mockGraphqlClient, 'project-123', {
       limit: 10,
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
       appVersion: '2.1.0',
       sessionId: 'session-xyz',
       startTime: '2025-01-01T00:00:00.000Z',
@@ -71,7 +71,7 @@ describe('fetchObserveCustomEventsAsync', () => {
     });
 
     const filter = mockCustomEventListAsync.mock.calls[0][1].filter;
-    expect(filter?.platform).toBe(AppObservePlatform.Ios);
+    expect(filter?.platforms).toEqual([AppObservePlatform.Ios]);
     expect(filter?.appVersion).toBe('2.1.0');
     expect(filter?.sessionId).toBe('session-xyz');
   });

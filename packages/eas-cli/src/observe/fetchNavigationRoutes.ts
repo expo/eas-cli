@@ -4,35 +4,39 @@ import {
   AppObserveNavigationRoute,
   AppObserveNavigationRoutesOrderBy,
   AppObserveNavigationRoutesOrderByField,
-  AppPlatform,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import { isObservePlanGateError } from './planGating';
-import { appPlatformToObservePlatform } from './platforms';
+import {
+  ObservePlatformKey,
+  ObservePlatformTarget,
+  observePlatformDisplayNames,
+} from './platforms';
 
 export interface NavigationRouteWithPlatform {
-  platform: AppPlatform;
+  platform: ObservePlatformKey;
   route: AppObserveNavigationRoute;
 }
 
 export interface FetchNavigationRoutesOptions {
   startTime: string;
   endTime: string;
-  platforms: AppPlatform[];
+  targets: ObservePlatformTarget[];
   limit: number;
   after?: string;
   appVersion?: string;
   updateId?: string;
   buildNumber?: string;
   routeNames?: string[];
+  environment?: string;
   orderBy?: AppObserveNavigationRoutesOrderBy;
 }
 
 export interface FetchNavigationRoutesResult {
   routes: NavigationRouteWithPlatform[];
-  pageInfoByPlatform: Map<AppPlatform, PageInfo>;
+  pageInfoByPlatform: Map<ObservePlatformKey, PageInfo>;
 }
 
 export async function fetchObserveNavigationRoutesAsync(
@@ -45,32 +49,36 @@ export async function fetchObserveNavigationRoutesAsync(
     direction: AppObserveEventsOrderByDirection.Desc,
   };
 
-  const queries = options.platforms.map(async appPlatform => {
-    const observePlatform = appPlatformToObservePlatform[appPlatform];
+  const queries = options.targets.map(async target => {
     try {
       const result = await ObserveQuery.navigationRoutesAsync(graphqlClient, {
         appId,
         filter: {
-          platform: observePlatform,
+          platforms: target.platforms,
           startTime: options.startTime,
           endTime: options.endTime,
           ...(options.appVersion && { appVersion: options.appVersion }),
           ...(options.updateId && { appUpdateId: options.updateId }),
           ...(options.buildNumber && { appBuildNumber: options.buildNumber }),
           ...(options.routeNames?.length && { routeNames: options.routeNames }),
+          ...(options.environment && { environment: options.environment }),
         },
         first: options.limit,
         ...(options.after && { after: options.after }),
         orderBy,
       });
-      return { appPlatform, ...result };
+      return { target, ...result };
     } catch (error: any) {
       // A plan gate is an account-wide rejection, not a per-platform failure —
       // let it propagate so the command surfaces the upgrade prompt.
       if (isObservePlanGateError(error)) {
         throw error;
       }
-      Log.warn(`Failed to fetch navigation routes on ${observePlatform}: ${error.message}`);
+      Log.warn(
+        `Failed to fetch navigation routes on ${observePlatformDisplayNames[target.key]}: ${
+          error.message
+        }`
+      );
       return null;
     }
   });
@@ -78,15 +86,15 @@ export async function fetchObserveNavigationRoutesAsync(
   const results = await Promise.all(queries);
 
   const routes: NavigationRouteWithPlatform[] = [];
-  const pageInfoByPlatform = new Map<AppPlatform, PageInfo>();
+  const pageInfoByPlatform = new Map<ObservePlatformKey, PageInfo>();
 
   for (const result of results) {
     if (!result) {
       continue;
     }
-    pageInfoByPlatform.set(result.appPlatform, result.pageInfo);
+    pageInfoByPlatform.set(result.target.key, result.pageInfo);
     for (const route of result.routes) {
-      routes.push({ platform: result.appPlatform, route });
+      routes.push({ platform: result.target.key, route });
     }
   }
 

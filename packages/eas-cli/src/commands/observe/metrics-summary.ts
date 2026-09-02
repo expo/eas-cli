@@ -8,6 +8,7 @@ import {
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -20,7 +21,7 @@ import {
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { appPlatformsFromFlag } from '../../observe/platforms';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -62,6 +63,7 @@ export default class ObserveMetricsSummary extends EasCommand {
       options: DEFAULT_STATS_JSON,
     })(),
     ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -97,7 +99,7 @@ export default class ObserveMetricsSummary extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
       await withObservePlanGateHandlingAsync(() =>
@@ -105,9 +107,10 @@ export default class ObserveMetricsSummary extends EasCommand {
           graphqlClient,
           projectId,
           metricNames,
-          platforms,
+          targets,
           startTime,
-          endTime
+          endTime,
+          flags.environment
         )
       );
 

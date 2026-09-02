@@ -10,9 +10,15 @@ export const ObserveProjectIdFlag = {
 
 export const ObservePlatformFlag = {
   platform: Flags.option({
-    description: 'Filter by platform',
+    description: 'Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)',
     options: allowedPlatformFlagValues,
   })(),
+};
+
+export const ObserveEnvironmentFlag = {
+  environment: Flags.string({
+    description: 'Filter by environment (e.g. production, development)',
+  }),
 };
 
 export const ObserveTimeRangeFlags = {
@@ -47,5 +53,11 @@ export const ObserveAppVersionFlag = {
 export const ObserveUpdateIdFlag = {
   'update-id': Flags.string({
     description: 'Filter by EAS update ID',
+  }),
+};
+
+export const ObserveBuildNumberFlag = {
+  'build-number': Flags.string({
+    description: 'Filter by app build number',
   }),
 };

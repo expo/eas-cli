@@ -6,12 +6,13 @@ import {
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
 } from '../../observe/flags';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
-import { appPlatformsFromFlag } from '../../observe/platforms';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -22,6 +23,7 @@ export default class ObserveVersions extends EasCommand {
   static override flags = {
     ...ObservePlatformFlag,
     ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -53,14 +55,15 @@ export default class ObserveVersions extends EasCommand {
 
     const { startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const results = await fetchObserveVersionsAsync(
       graphqlClient,
       projectId,
-      platforms,
+      targets,
       startTime,
-      endTime
+      endTime,
+      flags.environment
     );
 
     if (json) {

@@ -11,6 +11,8 @@ import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigation
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -25,7 +27,7 @@ import {
 } from '../../observe/formatNavigationRoutes';
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { appPlatformsFromFlag } from '../../observe/platforms';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -61,15 +63,14 @@ export default class ObserveRoutes extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
-    'build-number': Flags.string({
-      description: 'Filter by app build number',
-    }),
     'route-name': Flags.string({
       description:
         'Filter by route name (can be specified multiple times to include several routes)',
       multiple: true,
     }),
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -112,19 +113,20 @@ export default class ObserveRoutes extends EasCommand {
       : undefined;
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const { routes, pageInfoByPlatform } = await withObservePlanGateHandlingAsync(() =>
       fetchObserveNavigationRoutesAsync(graphqlClient, projectId, {
         startTime,
         endTime,
-        platforms,
+        targets,
         limit: flags.limit ?? DEFAULT_ROUTES_LIMIT,
         ...(flags.after && { after: flags.after }),
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
         buildNumber: flags['build-number'],
         routeNames,
+        environment: flags.environment,
       })
     );
 

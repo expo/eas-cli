@@ -181,6 +181,7 @@ export interface FetchSessionMetricCandidatesOptions {
   startTime: string;
   endTime: string;
   limit: number;
+  environment?: string;
 }
 
 /**
@@ -199,6 +200,7 @@ export async function fetchSessionMetricCandidatesAsync(
     limit: options.limit,
     startTime: options.startTime,
     endTime: options.endTime,
+    environment: options.environment,
   });
   return events.filter((e): e is SessionMetricCandidate => !!e.sessionId);
 }
@@ -216,6 +218,7 @@ export interface FetchSessionLogCandidatesOptions {
   startTime: string;
   endTime: string;
   limit: number;
+  environment?: string;
 }
 
 /**
@@ -232,6 +235,7 @@ export async function fetchSessionLogCandidatesAsync(
     limit: options.limit,
     startTime: options.startTime,
     endTime: options.endTime,
+    environment: options.environment,
     orderBy: {
       field: AppObserveCustomEventListOrderByField.Timestamp,
       direction: options.orderAscending

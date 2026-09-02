@@ -14,10 +14,12 @@ interface FetchCustomEventsOptions {
   after?: string;
   startTime?: string;
   endTime?: string;
-  platform?: AppObservePlatform;
+  platforms?: AppObservePlatform[];
   appVersion?: string;
+  buildNumber?: string;
   updateId?: string;
   sessionId?: string;
+  environment?: string;
   orderBy?: AppObserveCustomEventListOrderBy;
 }
 
@@ -35,10 +37,12 @@ export async function fetchObserveCustomEventsAsync(
     ...(options.startTime && { startTime: options.startTime }),
     ...(options.endTime && { endTime: options.endTime }),
     ...(options.eventName && { eventName: options.eventName }),
-    ...(options.platform && { platform: options.platform }),
+    ...(options.platforms?.length && { platforms: options.platforms }),
     ...(options.appVersion && { appVersion: options.appVersion }),
+    ...(options.buildNumber && { appBuildNumber: options.buildNumber }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
+    ...(options.environment && { environment: options.environment }),
   };
 
   return await ObserveQuery.customEventListAsync(graphqlClient, {
