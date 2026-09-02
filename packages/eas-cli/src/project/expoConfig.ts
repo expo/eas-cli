@@ -1,10 +1,20 @@
-import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import {
+  ExpoConfig,
+  getConfig,
+  getConfigFilePaths,
+  getPackageJson,
+  modifyConfigAsync,
+} from '@expo/config';
 import { Env } from '@expo/eas-build-job';
+import { resolvePackageManager } from '@expo/package-manager';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import path from 'path';
+import resolveFrom from 'resolve-from';
 
 import { isExpoInstalled } from './projectUtils';
+import { link } from '../log';
 import { spawnExpoCommand } from '../utils/expoCli';
 
 export type PublicExpoConfig = Omit<
@@ -63,12 +73,28 @@ async function getExpoConfigInternalAsync(
         }
       );
       exp = JSON.parse(stdout);
-    } else {
+    } else if (resolveFrom.silent(projectDir, 'expo/package.json')) {
+      // The `expo` package is installed but Expo CLI is not part of it. This happens with old
+      // SDK versions, which predate the local CLI. Since we can't run `expo config`, read the app
+      // config with the copy of `@expo/config` that ships with EAS CLI.
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
         ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
         ...(opts.skipPlugins ? { skipPlugins: true } : {}),
       }).exp;
+    } else if (getPackageJson(projectDir)?.dependencies?.expo) {
+      const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
+      throw new Error(
+        `EAS CLI needs your project's dependencies to be installed to read your app config. Run ${chalk.bold(
+          installCommand
+        )} in your project directory and run this command again.`
+      );
+    } else {
+      throw new Error(
+        `The "expo" package was not found in your project's dependencies, needed to read your app config. Add "expo" to your dependencies and install it. Refer to the version compatibility table at: ${link(
+          'https://docs.expo.dev/versions/latest/'
+        )}`
+      );
     }
 
     const { error } = MinimalAppConfigSchema.validate(exp, {
