@@ -4,6 +4,8 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 
+import Sentry from '../sentry';
+
 // These tests use real fs and directories in os.tmpdir().
 // Something about tar v7 makes mocking fs with memfs problematic.
 // Mocking all variants of fs/node:fs/fs/promises does not help.
@@ -31,6 +33,7 @@ describe(GCSCacheManager, () => {
     await fs.rm(outsideDir, { recursive: true, force: true });
     jest.mocked(uploadCacheAsync).mockReset();
     jest.mocked(downloadCacheAsync).mockReset();
+    jest.mocked(Sentry.capture).mockReset();
   });
 
   function createMockCtx(cacheConfig: Partial<Cache>) {
@@ -250,6 +253,7 @@ describe(GCSCacheManager, () => {
     await manager.saveCache(mockCtx);
 
     expect(mockCtx.logger.info).toHaveBeenCalledWith('No cache found for this key');
+    expect(Sentry.capture).not.toHaveBeenCalled();
     const requestedKey = jest.mocked(downloadCacheAsync).mock.calls[0][0].key;
     expect(uploadCacheAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -269,6 +273,52 @@ describe(GCSCacheManager, () => {
     await manager.saveCache(mockCtx);
 
     expect(uploadCacheAsync).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Failed to download legacy build cache',
+      expect.any(Error),
+      { level: 'warning' }
+    );
+  });
+
+  test('does not fail the build when saving cache fails', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ paths: ['index.ts'] });
+    await fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
+    const statSpy = jest.spyOn(fs, 'stat').mockImplementationOnce(() => {
+      throw new Error('stat failed');
+    });
+
+    await expect(manager.saveCache(mockCtx)).resolves.toBeUndefined();
+
+    expect(uploadCacheAsync).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Failed to save legacy build cache',
+      expect.any(Error),
+      { level: 'warning' }
+    );
+    statSpy.mockRestore();
+  });
+
+  test('does not save when cache extraction fails', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ paths: ['index.ts'] });
+    const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cache-download-'));
+    const archivePath = path.join(downloadDir, 'cache.tar.gz');
+    await fs.writeFile(archivePath, 'invalid archive');
+    jest.mocked(downloadCacheAsync).mockResolvedValue({
+      archivePath,
+      matchedKey: 'matched-cache-key',
+    });
+
+    await manager.restoreCache(mockCtx);
+    await manager.saveCache(mockCtx);
+
+    expect(uploadCacheAsync).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Failed to extract legacy build cache',
+      expect.any(Error),
+      { level: 'warning' }
+    );
   });
 
   test('cache key is stable when clear changes and job cache is not mutated', async () => {
