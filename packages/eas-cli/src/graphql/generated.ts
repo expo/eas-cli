@@ -16307,6 +16307,17 @@ export type AppObserveErrorGroupsQueryVariables = Exact<{
 
 export type AppObserveErrorGroupsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', errors: { __typename?: 'AppObserveErrors', groups: { __typename?: 'AppObserveErrorGroups', isTruncated: boolean, groups: Array<{ __typename?: 'AppObserveErrorGroup', fingerprint: string, exceptionType?: string | null, exceptionMessage?: string | null, errorSource?: string | null, severity: AppObserveErrorSeverity, isFatal: boolean, eventCount: number, uniqueUserCount: number, affectedSessionCount: number, firstSeenAt: any, lastSeenAt: any, platforms: Array<string> }> } } } } } };
 
+export type AppObserveErrorOccurrencesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter?: InputMaybe<AppObserveErrorOccurrencesFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveErrorOccurrencesOrderBy>;
+}>;
+
+
+export type AppObserveErrorOccurrencesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', errors: { __typename?: 'AppObserveErrors', occurrences: { __typename?: 'AppObserveErrorConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveErrorEdge', cursor: string, node: { __typename?: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, stacktrace?: string | null, body?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> } }> } } } } } };
+
 export type AppObserveSessionEventsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   id: Scalars['ID']['input'];
@@ -16712,6 +16723,8 @@ export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash
 export type AppObserveUserEventFragment = { __typename?: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
 
 export type AppObserveErrorFragment = { __typename?: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
+
+export type AppObserveErrorOccurrenceFragment = { __typename?: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, stacktrace?: string | null, body?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
 
 export type AppObserveMetricFragment = { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null };
 

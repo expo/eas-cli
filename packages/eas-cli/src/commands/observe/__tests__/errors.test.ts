@@ -4,10 +4,15 @@ import { GraphQLError } from 'graphql';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObserveErrorSeverity } from '../../../graphql/generated';
-import { fetchObserveErrorGroupsAsync } from '../../../observe/fetchErrors';
+import {
+  fetchObserveErrorGroupsAsync,
+  fetchObserveErrorOccurrencesAsync,
+} from '../../../observe/fetchErrors';
 import {
   buildObserveErrorGroupsJson,
   buildObserveErrorGroupsTable,
+  buildObserveErrorOccurrencesJson,
+  buildObserveErrorOccurrencesTable,
 } from '../../../observe/formatErrors';
 import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
@@ -17,13 +22,20 @@ jest.mock('../../../observe/fetchErrors');
 jest.mock('../../../observe/formatErrors', () => ({
   buildObserveErrorGroupsTable: jest.fn().mockReturnValue('errors-table'),
   buildObserveErrorGroupsJson: jest.fn().mockReturnValue({ errors: [], isTruncated: false }),
+  buildObserveErrorOccurrencesTable: jest.fn().mockReturnValue('occurrences-table'),
+  buildObserveErrorOccurrencesJson: jest
+    .fn()
+    .mockReturnValue({ occurrences: [], pageInfo: { hasNextPage: false, endCursor: null } }),
 }));
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockFetchErrorGroupsAsync = jest.mocked(fetchObserveErrorGroupsAsync);
+const mockFetchErrorOccurrencesAsync = jest.mocked(fetchObserveErrorOccurrencesAsync);
 const mockBuildTable = jest.mocked(buildObserveErrorGroupsTable);
 const mockBuildJson = jest.mocked(buildObserveErrorGroupsJson);
+const mockBuildOccurrencesTable = jest.mocked(buildObserveErrorOccurrencesTable);
+const mockBuildOccurrencesJson = jest.mocked(buildObserveErrorOccurrencesJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
@@ -35,6 +47,10 @@ describe(ObserveErrors, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetchErrorGroupsAsync.mockResolvedValue({ groups: [], isTruncated: false });
+    mockFetchErrorOccurrencesAsync.mockResolvedValue({
+      occurrences: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, endCursor: null } as any,
+    });
   });
 
   function createCommand(argv: string[]): ObserveErrors {
@@ -65,6 +81,25 @@ describe(ObserveErrors, () => {
     await createCommand(['--severity', 'fatal']).runAsync();
     const options = mockFetchErrorGroupsAsync.mock.calls[0][2];
     expect(options.severity).toBe(AppObserveErrorSeverity.Fatal);
+  });
+
+  it('fetches occurrences (not groups) and renders their table when --fingerprint is set', async () => {
+    await createCommand(['--fingerprint', 'fp-1']).runAsync();
+    expect(mockFetchErrorGroupsAsync).not.toHaveBeenCalled();
+    expect(mockFetchErrorOccurrencesAsync).toHaveBeenCalledTimes(1);
+    expect(mockFetchErrorOccurrencesAsync.mock.calls[0][2]).toMatchObject({ fingerprint: 'fp-1' });
+    expect(mockBuildOccurrencesTable).toHaveBeenCalledTimes(1);
+    expect(mockBuildTable).not.toHaveBeenCalled();
+  });
+
+  it('emits occurrences JSON with --fingerprint --json', async () => {
+    await createCommand(['--fingerprint', 'fp-1', '--json', '--non-interactive']).runAsync();
+    expect(mockEnableJsonOutput).toHaveBeenCalledTimes(1);
+    expect(mockBuildOccurrencesJson).toHaveBeenCalledTimes(1);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      occurrences: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
   });
 
   it('surfaces the plan-gate message when errors are not available on the plan', async () => {
