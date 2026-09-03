@@ -836,12 +836,14 @@ export async function startServeSimWithTunnelAsync(
 export async function startExpoDeviceHubWithTunnelAsync(
   ctx: CustomBuildContext,
   {
+    runtimePlatform,
     baseDomain,
     env,
     logger,
     timeoutMs,
     packageVersion,
   }: {
+    runtimePlatform: BuildRuntimePlatform;
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
@@ -849,11 +851,9 @@ export async function startExpoDeviceHubWithTunnelAsync(
     packageVersion?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
-  await ensureFfmpegInstalledAsync({
-    runtimePlatform: BuildRuntimePlatform.LINUX,
-    env,
-    logger,
-  });
+  if (runtimePlatform === BuildRuntimePlatform.LINUX) {
+    await ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+  }
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -883,7 +883,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     case BuildRuntimePlatform.DARWIN:
       return await startServeSimWithTunnelAsync(ctx, options);
     case BuildRuntimePlatform.LINUX:
-      return await startExpoDeviceHubWithTunnelAsync(ctx, options);
+      return await startExpoDeviceHubWithTunnelAsync(ctx, { ...options, runtimePlatform });
   }
 }
 

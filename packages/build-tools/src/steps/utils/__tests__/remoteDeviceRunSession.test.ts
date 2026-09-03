@@ -19,6 +19,7 @@ import {
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startDeviceWebPreviewWithTunnelAsync,
+  startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
@@ -440,6 +441,32 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startExpoDeviceHubWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
+    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
+      'ffmpeg',
+      expect.anything(),
+      expect.anything()
+    );
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
