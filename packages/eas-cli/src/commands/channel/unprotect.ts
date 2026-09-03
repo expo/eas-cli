@@ -14,7 +14,7 @@ import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelUnprotect extends EasCommand {
-  static override description = 'remove protection from a channel';
+  static override description = "remove a channel's admin-only publishing restriction";
 
   static override args = {
     name: Args.string({
@@ -35,6 +35,9 @@ export default class ChannelUnprotect extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(ChannelUnprotect);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (json) {
+      enableJsonOutput();
+    }
     if (!args.name && nonInteractive) {
       throw new Error('Channel name must be set when running in non-interactive mode');
     }
@@ -42,10 +45,6 @@ export default class ChannelUnprotect extends EasCommand {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelUnprotect, { nonInteractive });
-    if (json) {
-      enableJsonOutput();
-    }
-
     const existingChannel = args.name
       ? await ChannelQuery.viewUpdateChannelBasicInfoAsync(graphqlClient, {
           appId: projectId,
@@ -57,13 +56,22 @@ export default class ChannelUnprotect extends EasCommand {
           paginatedQueryOptions: { json, nonInteractive, offset: 0 },
         });
 
+    if (!existingChannel.isProtected) {
+      if (json) {
+        printJsonOnlyOutput(existingChannel);
+      } else {
+        Log.log(chalk`Channel {bold ${existingChannel.name}} is already unprotected.`);
+      }
+      return;
+    }
+
     if (!nonInteractive) {
       const confirmed = await toggleConfirmAsync({
         message: chalk`Remove protection from channel {bold ${existingChannel.name}}?`,
       });
       if (!confirmed) {
-        Log.log(chalk`Canceled removing protection from channel {bold ${existingChannel.name}}.`);
-        return;
+        Log.error(chalk`Canceled removing protection from channel {bold ${existingChannel.name}}.`);
+        process.exit(1);
       }
     }
 

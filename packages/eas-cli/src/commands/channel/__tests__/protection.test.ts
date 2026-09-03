@@ -36,7 +36,10 @@ function setContext(command: ChannelProtect | ChannelUnprotect): void {
 describe(ChannelProtect, () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(ChannelQuery.viewUpdateChannelBasicInfoAsync).mockResolvedValue(channel);
+    jest.mocked(ChannelQuery.viewUpdateChannelBasicInfoAsync).mockResolvedValue({
+      ...channel,
+      isProtected: false,
+    });
     jest.mocked(protectUpdateChannelAsync).mockResolvedValue(channel);
   });
 
@@ -63,22 +66,43 @@ describe(ChannelProtect, () => {
     expect(Log.withTick).not.toHaveBeenCalled();
   });
 
+  it('does not mutate a channel that is already protected', async () => {
+    jest.mocked(ChannelQuery.viewUpdateChannelBasicInfoAsync).mockResolvedValue(channel);
+    const command = new ChannelProtect(['production'], getMockOclifConfig());
+    setContext(command);
+
+    await command.runAsync();
+
+    expect(protectUpdateChannelAsync).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('already protected'));
+  });
+
   it('requires a channel name in non-interactive mode', async () => {
-    const command = new ChannelProtect(['--non-interactive'], getMockOclifConfig());
+    const command = new ChannelProtect(['--non-interactive', '--json'], getMockOclifConfig());
 
     await expect(command.runAsync()).rejects.toThrow(
       'Channel name must be set when running in non-interactive mode'
     );
+    expect(enableJsonOutput).toHaveBeenCalled();
     expect(protectUpdateChannelAsync).not.toHaveBeenCalled();
   });
 });
 
 describe(ChannelUnprotect, () => {
+  let processExitSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(ChannelQuery.viewUpdateChannelBasicInfoAsync).mockResolvedValue(channel);
     jest.mocked(unprotectUpdateChannelAsync).mockResolvedValue({ ...channel, isProtected: false });
     jest.mocked(toggleConfirmAsync).mockResolvedValue(true);
+    processExitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit');
+    }) as never);
+  });
+
+  afterEach(() => {
+    processExitSpy.mockRestore();
   });
 
   it('asks for confirmation before removing protection', async () => {
@@ -100,10 +124,26 @@ describe(ChannelUnprotect, () => {
     const command = new ChannelUnprotect(['production'], getMockOclifConfig());
     setContext(command);
 
-    await command.runAsync();
+    await expect(command.runAsync()).rejects.toThrow('process.exit');
 
     expect(unprotectUpdateChannelAsync).not.toHaveBeenCalled();
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('production'));
+    expect(Log.error).toHaveBeenCalledWith(expect.stringContaining('production'));
+    expect(processExitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('does not mutate a channel that is already unprotected', async () => {
+    jest.mocked(ChannelQuery.viewUpdateChannelBasicInfoAsync).mockResolvedValue({
+      ...channel,
+      isProtected: false,
+    });
+    const command = new ChannelUnprotect(['production'], getMockOclifConfig());
+    setContext(command);
+
+    await command.runAsync();
+
+    expect(toggleConfirmAsync).not.toHaveBeenCalled();
+    expect(unprotectUpdateChannelAsync).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('already unprotected'));
   });
 
   it('does not prompt in non-interactive mode', async () => {
@@ -117,11 +157,12 @@ describe(ChannelUnprotect, () => {
   });
 
   it('requires a channel name in non-interactive mode', async () => {
-    const command = new ChannelUnprotect(['--non-interactive'], getMockOclifConfig());
+    const command = new ChannelUnprotect(['--non-interactive', '--json'], getMockOclifConfig());
 
     await expect(command.runAsync()).rejects.toThrow(
       'Channel name must be set when running in non-interactive mode'
     );
+    expect(enableJsonOutput).toHaveBeenCalled();
     expect(unprotectUpdateChannelAsync).not.toHaveBeenCalled();
   });
 });
