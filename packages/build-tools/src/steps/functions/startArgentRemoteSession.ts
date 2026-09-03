@@ -20,7 +20,7 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
-  ensureFfmpegInstalledAsync,
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -103,11 +103,12 @@ export function createStartArgentRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      // Argent shells out to ffmpeg to record the screen. Installing it pulls a
-      // large Homebrew dependency tree, so do not block session readiness on it:
-      // the session comes up at its usual speed and only a recording started in
-      // the first moments misses ffmpeg. Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+      // Start the potentially slow installation while Argent is being prepared.
+      // On Linux expo-device-hub calls this again and awaits the same in-flight
+      // setup before launching. On macOS this remains non-blocking, so only a
+      // recording started in the first moments may miss ffmpeg.
+      // Never rejects, so `void` is safe.
+      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
