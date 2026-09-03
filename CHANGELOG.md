@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Point at `submit.<profile>.ios.companyName` in eas.json when App Store Connect rejects app creation with "You must provide a value for the attribute 'companyName'". ([#4243](https://github.com/expo/eas-cli/pull/4243) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
