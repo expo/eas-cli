@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Escape Apple credentials before scrubbing them from `eas metadata` telemetry, so a value containing `+`, `.` or `(` is redacted instead of being sent verbatim or throwing. ([#4256](https://github.com/expo/eas-cli/pull/4256) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
