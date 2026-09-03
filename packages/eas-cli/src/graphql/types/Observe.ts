@@ -76,6 +76,23 @@ export const AppObserveMetricFragmentNode = gql`
   }
 `;
 
+export const AppObserveErrorGroupFragmentNode = gql`
+  fragment AppObserveErrorGroupFragment on AppObserveErrorGroup {
+    fingerprint
+    exceptionType
+    exceptionMessage
+    errorSource
+    severity
+    isFatal
+    eventCount
+    uniqueUserCount
+    affectedSessionCount
+    firstSeenAt
+    lastSeenAt
+    platforms
+  }
+`;
+
 export const AppObserveAppVersionFragmentNode = gql`
   fragment AppObserveAppVersionFragment on AppObserveAppVersion {
     appVersion

@@ -205,6 +205,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas metadata:pull`](#eas-metadatapull)
 * [`eas metadata:push`](#eas-metadatapush)
 * [`eas new [PATH]`](#eas-new-path)
+* [`eas observe:errors`](#eas-observeerrors)
 * [`eas observe:events [EVENTNAME]`](#eas-observeevents-eventname)
 * [`eas observe:metrics [METRIC]`](#eas-observemetrics-metric)
 * [`eas observe:metrics-summary`](#eas-observemetrics-summary)
@@ -2234,6 +2235,38 @@ DESCRIPTION
 ALIASES
   $ eas new
 ```
+
+## `eas observe:errors`
+
+display error and exception issue groups (grouped by fingerprint) for the app
+
+```
+USAGE
+  $ eas observe:errors [--platform android|ios|ipados|macos|tvos|apple] [--severity fatal|error] [--start <value> |
+    --days <value>] [--end <value> | ] [--app-version <value>] [--build-number <value>] [--update-id <value>]
+    [--environment <value>] [--project-id <value>] [--json] [--non-interactive]
+
+FLAGS
+  --app-version=<value>   Filter by app version
+  --build-number=<value>  Filter by app build number
+  --days=<value>          Show results from the last N days (mutually exclusive with --start/--end)
+  --end=<value>           End of time range (ISO date)
+  --environment=<value>   Filter by environment (e.g. production, development)
+  --json                  Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive       Run the command in non-interactive mode.
+  --platform=<option>     Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)
+                          <options: android|ios|ipados|macos|tvos|apple>
+  --project-id=<value>    EAS project ID (defaults to the project ID of the current directory)
+  --severity=<option>     Filter by severity
+                          <options: fatal|error>
+  --start=<value>         Start of time range (ISO date)
+  --update-id=<value>     Filter by EAS update ID
+
+DESCRIPTION
+  display error and exception issue groups (grouped by fingerprint) for the app
+```
+
+_See code: [packages/eas-cli/src/commands/observe/errors.ts](https://github.com/expo/eas-cli/blob/v23.2.0/packages/eas-cli/src/commands/observe/errors.ts)_
 
 ## `eas observe:events [EVENTNAME]`
 
