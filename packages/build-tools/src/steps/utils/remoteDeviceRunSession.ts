@@ -881,11 +881,13 @@ export async function startServeSimWithTunnelAsync(
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
+        // A serve-sim that does not know --require-token fails earlier, in the readiness check, so
+        // reaching here means it started and left no token in its state file.
         throw new SystemError(
-          `serve-sim started without a session token for device ${device}. It is always launched ` +
-            'with --require-token, so this usually means the pinned @expo/serve-sim predates that ' +
-            'flag and ignored it, leaving the preview ungated on a public tunnel. Pin a serve-sim ' +
-            'version that supports --require-token.'
+          `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
+            'on a public tunnel and would be reachable without one, so the session cannot continue. ' +
+            'This usually means the state file was not written as expected; retry the session, and ' +
+            'report it if it repeats.'
         );
       }
       return previewToken;
