@@ -20,7 +20,7 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
-  ensureFfmpegInstalledAsync,
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -108,7 +108,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       // setup before launching. On macOS this remains non-blocking, so only a
       // recording started in the first moments may miss ffmpeg.
       // Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(

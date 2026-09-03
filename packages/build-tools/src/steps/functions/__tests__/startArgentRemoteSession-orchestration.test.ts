@@ -9,7 +9,7 @@ import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
 import {
-  ensureFfmpegInstalledAsync,
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -42,7 +42,7 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
-  ensureFfmpegInstalledAsync: jest.fn(),
+  ensureFfmpegInstalledOnceAsync: jest.fn(),
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),
@@ -129,12 +129,12 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
 
     // (1) FFmpeg setup starts in the background before Argent setup.
-    expect(ensureFfmpegInstalledAsync).toHaveBeenCalledWith({
+    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledWith({
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: { EXISTING: 'value' },
       logger: expect.anything(),
     });
-    expect(jest.mocked(ensureFfmpegInstalledAsync).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(jest.mocked(ensureFfmpegInstalledOnceAsync).mock.invocationCallOrder[0]).toBeLessThan(
       jest.mocked(spawn).mock.invocationCallOrder[0]
     );
 

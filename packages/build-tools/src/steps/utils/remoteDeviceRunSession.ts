@@ -348,7 +348,7 @@ let ffmpegSetupPromise: Promise<void> | undefined;
  * `spawn` is not an async function and can throw synchronously, which
  * `asyncResult` cannot catch — it only wraps an already-created promise.
  */
-async function ensureFfmpegInstalledOnceAsync({
+async function ensureFfmpegInstalledAsync({
   runtimePlatform,
   env,
   logger,
@@ -387,7 +387,7 @@ async function ensureFfmpegInstalledOnceAsync({
   }
 }
 
-export async function ensureFfmpegInstalledAsync({
+export async function ensureFfmpegInstalledOnceAsync({
   runtimePlatform,
   env,
   logger,
@@ -401,7 +401,7 @@ export async function ensureFfmpegInstalledAsync({
     return;
   }
 
-  const setupPromise = ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
   ffmpegSetupPromise = setupPromise;
   try {
     await setupPromise;
@@ -879,7 +879,7 @@ export async function startExpoDeviceHubWithTunnelAsync(
   }
 ): Promise<DeviceWebPreviewHandle> {
   if (runtimePlatform === BuildRuntimePlatform.LINUX) {
-    await ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,

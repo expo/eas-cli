@@ -15,7 +15,7 @@ import { sleepAsync } from '../../../utils/retry';
 import {
   createExpoDeviceHubArgs,
   createServeSimArgs,
-  ensureFfmpegInstalledAsync,
+  ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startDeviceWebPreviewWithTunnelAsync,
@@ -840,7 +840,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 });
 
-describe(ensureFfmpegInstalledAsync, () => {
+describe(ensureFfmpegInstalledOnceAsync, () => {
   const spawnMock = jest.mocked(spawn);
 
   function spawnResolved(): ReturnType<typeof spawn> {
@@ -859,7 +859,7 @@ describe(ensureFfmpegInstalledAsync, () => {
   it('does not install when ffmpeg is on PATH', async () => {
     spawnMock.mockReturnValueOnce(spawnResolved());
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -872,7 +872,7 @@ describe(ensureFfmpegInstalledAsync, () => {
   it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
     spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnResolved());
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -893,7 +893,7 @@ describe(ensureFfmpegInstalledAsync, () => {
       .mockReturnValueOnce(spawnResolved()) // apt-get update
       .mockReturnValueOnce(spawnResolved()); // apt-get install
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -930,11 +930,11 @@ describe(ensureFfmpegInstalledAsync, () => {
       logger: createLoggerMock(),
     };
 
-    const firstSetup = ensureFfmpegInstalledAsync(options);
+    const firstSetup = ensureFfmpegInstalledOnceAsync(options);
     await new Promise<void>(resolve => setImmediate(resolve));
     expect(spawnMock).toHaveBeenCalledTimes(3);
 
-    const secondSetup = ensureFfmpegInstalledAsync(options);
+    const secondSetup = ensureFfmpegInstalledOnceAsync(options);
     expect(spawnMock).toHaveBeenCalledTimes(3);
 
     finishInstall?.();
@@ -949,7 +949,7 @@ describe(ensureFfmpegInstalledAsync, () => {
       .mockReturnValueOnce(spawnResolved()); // apt-get install
     const logger = createLoggerMock();
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: createEnvMock(),
       logger,
@@ -968,7 +968,7 @@ describe(ensureFfmpegInstalledAsync, () => {
     const logger = createLoggerMock();
 
     await expect(
-      ensureFfmpegInstalledAsync({
+      ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: createEnvMock(),
         logger,
@@ -989,7 +989,7 @@ describe(ensureFfmpegInstalledAsync, () => {
     const logger = createLoggerMock();
 
     await expect(
-      ensureFfmpegInstalledAsync({
+      ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: createEnvMock(),
         logger,
