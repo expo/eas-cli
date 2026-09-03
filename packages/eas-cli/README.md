@@ -2242,22 +2242,27 @@ display error and exception issue groups (grouped by fingerprint) for the app
 
 ```
 USAGE
-  $ eas observe:errors [--platform android|ios|ipados|macos|tvos|apple] [--severity fatal|error] [--start <value> |
-    --days <value>] [--end <value> | ] [--app-version <value>] [--build-number <value>] [--update-id <value>]
-    [--environment <value>] [--project-id <value>] [--json] [--non-interactive]
+  $ eas observe:errors [--platform android|ios|ipados|macos|tvos|apple] [--fingerprint <value>] [--severity
+    fatal|error] [--after <value>] [--limit <value>] [--start <value> | --days <value>] [--end <value> | ]
+    [--app-version <value>] [--build-number <value>] [--update-id <value>] [--environment <value>] [--project-id
+    <value>] [--json] [--non-interactive]
 
 FLAGS
+  --after=<value>         Cursor for pagination. Use the endCursor from a previous query to fetch the next page.
   --app-version=<value>   Filter by app version
   --build-number=<value>  Filter by app build number
   --days=<value>          Show results from the last N days (mutually exclusive with --start/--end)
   --end=<value>           End of time range (ISO date)
   --environment=<value>   Filter by environment (e.g. production, development)
+  --fingerprint=<value>   Show individual occurrences (with stack traces) for this error group fingerprint instead of
+                          the grouped summary
   --json                  Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --limit=<value>         The number of items to fetch each query. Defaults to 5 and is capped at 100.
   --non-interactive       Run the command in non-interactive mode.
   --platform=<option>     Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)
                           <options: android|ios|ipados|macos|tvos|apple>
   --project-id=<value>    EAS project ID (defaults to the project ID of the current directory)
-  --severity=<option>     Filter by severity
+  --severity=<option>     Filter by severity (ignored when --fingerprint is set)
                           <options: fatal|error>
   --start=<value>         Start of time range (ISO date)
   --update-id=<value>     Filter by EAS update ID

@@ -5,10 +5,15 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObserveErrorSeverity } from '../../graphql/generated';
 import Log from '../../log';
-import { fetchObserveErrorGroupsAsync } from '../../observe/fetchErrors';
 import {
+  fetchObserveErrorGroupsAsync,
+  fetchObserveErrorOccurrencesAsync,
+} from '../../observe/fetchErrors';
+import {
+  ObserveAfterFlag,
   ObserveAppVersionFlag,
   ObserveBuildNumberFlag,
   ObserveEnvironmentFlag,
@@ -20,6 +25,8 @@ import {
 import {
   buildObserveErrorGroupsJson,
   buildObserveErrorGroupsTable,
+  buildObserveErrorOccurrencesJson,
+  buildObserveErrorOccurrencesTable,
 } from '../../observe/formatErrors';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformsFromFlag } from '../../observe/platforms';
@@ -32,17 +39,29 @@ const SEVERITY_BY_FLAG: Record<string, AppObserveErrorSeverity> = {
   error: AppObserveErrorSeverity.Error,
 };
 
+const DEFAULT_OCCURRENCES_LIMIT = 5;
+
 export default class ObserveErrors extends EasCommand {
   static override description =
     'display error and exception issue groups (grouped by fingerprint) for the app';
 
   static override flags = {
     ...ObservePlatformFlag,
+    fingerprint: Flags.string({
+      description:
+        'Show individual occurrences (with stack traces) for this error group fingerprint instead of the grouped summary',
+      required: false,
+    }),
     severity: Flags.option({
-      description: 'Filter by severity',
+      description: 'Filter by severity (ignored when --fingerprint is set)',
       options: Object.keys(SEVERITY_BY_FLAG),
       required: false,
     })(),
+    ...ObserveAfterFlag,
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: DEFAULT_OCCURRENCES_LIMIT,
+      limit: 100,
+    }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
     ...ObserveBuildNumberFlag,
@@ -78,6 +97,38 @@ export default class ObserveErrors extends EasCommand {
     }
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+
+    if (flags.fingerprint) {
+      const { occurrences, pageInfo } = await withObservePlanGateHandlingAsync(() =>
+        fetchObserveErrorOccurrencesAsync(graphqlClient, projectId, {
+          fingerprint: flags.fingerprint as string,
+          startTime,
+          endTime,
+          platforms: observePlatformsFromFlag(flags.platform),
+          appVersion: flags['app-version'],
+          buildNumber: flags['build-number'],
+          updateId: flags['update-id'],
+          environment: flags.environment,
+          limit: flags.limit ?? DEFAULT_OCCURRENCES_LIMIT,
+          ...(flags.after && { after: flags.after }),
+        })
+      );
+
+      if (json) {
+        printJsonOnlyOutput(buildObserveErrorOccurrencesJson(occurrences, pageInfo));
+      } else {
+        Log.addNewLineIfNone();
+        Log.log(
+          buildObserveErrorOccurrencesTable(occurrences, pageInfo, {
+            fingerprint: flags.fingerprint,
+            daysBack,
+            startTime,
+            endTime,
+          })
+        );
+      }
+      return;
+    }
 
     const { groups, isTruncated } = await withObservePlanGateHandlingAsync(() =>
       fetchObserveErrorGroupsAsync(graphqlClient, projectId, {

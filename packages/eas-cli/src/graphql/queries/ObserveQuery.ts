@@ -6,6 +6,8 @@ import {
   AppObserveAppVersion,
   AppObserveError,
   AppObserveErrorGroup,
+  AppObserveErrorOccurrencesFilter,
+  AppObserveErrorOccurrencesOrderBy,
   AppObserveErrorsGroupsInput,
   AppObserveLogsOrderBy,
   AppObserveMetric,
@@ -27,6 +29,7 @@ import {
   AppObserveAppVersionFragmentNode,
   AppObserveErrorFragmentNode,
   AppObserveErrorGroupFragmentNode,
+  AppObserveErrorOccurrenceFragmentNode,
   AppObserveMetricFragmentNode,
   AppObserveUserEventFragmentNode,
 } from '../types/Observe';
@@ -178,6 +181,30 @@ type AppObserveErrorGroupsQuery = {
 type AppObserveErrorGroupsQueryVariables = {
   appId: string;
   input: AppObserveErrorsGroupsInput;
+};
+
+type AppObserveErrorOccurrencesQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        errors: {
+          occurrences: {
+            pageInfo: PageInfo;
+            edges: Array<{ cursor: string; node: AppObserveError }>;
+          };
+        };
+      };
+    };
+  };
+};
+
+type AppObserveErrorOccurrencesQueryVariables = {
+  appId: string;
+  filter: AppObserveErrorOccurrencesFilter;
+  first?: number;
+  after?: string;
+  orderBy?: AppObserveErrorOccurrencesOrderBy;
 };
 
 type AppObserveSessionEventsQuery = {
@@ -523,6 +550,64 @@ export const ObserveQuery = {
     );
 
     return data.app.byId.observe.errors.groups;
+  },
+
+  async errorOccurrencesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveErrorOccurrencesQueryVariables
+  ): Promise<{ occurrences: AppObserveError[]; pageInfo: PageInfo }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveErrorOccurrencesQuery, AppObserveErrorOccurrencesQueryVariables>(
+          gql`
+            query AppObserveErrorOccurrences(
+              $appId: String!
+              $filter: AppObserveErrorOccurrencesFilter
+              $first: Int
+              $after: String
+              $orderBy: AppObserveErrorOccurrencesOrderBy
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    errors {
+                      occurrences(
+                        filter: $filter
+                        first: $first
+                        after: $after
+                        orderBy: $orderBy
+                      ) {
+                        pageInfo {
+                          hasNextPage
+                          hasPreviousPage
+                          endCursor
+                        }
+                        edges {
+                          cursor
+                          node {
+                            id
+                            ...AppObserveErrorOccurrenceFragment
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveErrorOccurrenceFragmentNode)}
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    const { edges, pageInfo } = data.app.byId.observe.errors.occurrences;
+    return {
+      occurrences: edges.map(edge => edge.node),
+      pageInfo,
+    };
   },
 
   async sessionEventsAsync(
