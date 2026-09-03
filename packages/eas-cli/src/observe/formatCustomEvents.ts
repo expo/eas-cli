@@ -40,6 +40,66 @@ export interface ObserveCustomEventJson {
   easClientId: string;
 }
 
+export function buildObserveCustomEventJson(event: AppObserveUserEvent): ObserveCustomEventJson {
+  return {
+    id: event.id,
+    name: event.name,
+    timestamp: event.timestamp,
+    sessionId: event.sessionId ?? null,
+    severityNumber: event.severityNumber ?? null,
+    severityText: event.severityText ?? null,
+    properties: event.properties.map(p => ({
+      key: p.key,
+      value: p.value,
+      type: p.type,
+    })),
+    appVersion: event.appVersion,
+    appBuildNumber: event.appBuildNumber,
+    appUpdateId: event.appUpdateId ?? null,
+    appEasBuildId: event.appEasBuildId ?? null,
+    deviceModel: event.deviceModel,
+    deviceOs: event.deviceOs,
+    deviceOsVersion: event.deviceOsVersion,
+    countryCode: event.countryCode ?? null,
+    environment: event.environment ?? null,
+    easClientId: event.easClientId,
+  };
+}
+
+/**
+ * Render a single user-defined (log) event as a vertical Field/Value detail
+ * table, plus its properties, for `eas observe:event`.
+ */
+export function buildObserveCustomEventDetail(event: AppObserveUserEvent): string {
+  const rows: string[][] = [
+    ['ID', event.id],
+    ['Type', 'Log'],
+    ['Event Name', event.name],
+    ['Timestamp', formatLogTimestamp(event.timestamp)],
+    ['Severity', formatSeverity(event)],
+    ['Session ID', event.sessionId ?? '-'],
+    ['App Version', `${event.appVersion} (${event.appBuildNumber})`],
+    ['Update ID', event.appUpdateId ?? '-'],
+    ['EAS Build ID', event.appEasBuildId ?? '-'],
+    ['Platform', `${event.deviceOs} ${event.deviceOsVersion}`],
+    ['Device', event.deviceModel],
+    ['Country', event.countryCode ?? '-'],
+    ['Environment', event.environment ?? '-'],
+    ['EAS Client ID', event.easClientId],
+  ];
+  const lines = [chalk.bold('Log event'), '', renderTextTable(['Field', 'Value'], rows)];
+  if (event.properties.length > 0) {
+    const propertyRows = event.properties.map(p => [p.key, p.type, p.value]);
+    lines.push(
+      '',
+      chalk.bold('Properties'),
+      '',
+      renderTextTable(['Key', 'Type', 'Value'], propertyRows)
+    );
+  }
+  return lines.join('\n');
+}
+
 export interface BuildCustomEventsTableOptions {
   eventName?: string;
   daysBack?: number;
@@ -109,29 +169,7 @@ export function buildObserveCustomEventsJson(
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
 } {
   return {
-    events: events.map(event => ({
-      id: event.id,
-      name: event.name,
-      timestamp: event.timestamp,
-      sessionId: event.sessionId ?? null,
-      severityNumber: event.severityNumber ?? null,
-      severityText: event.severityText ?? null,
-      properties: event.properties.map(p => ({
-        key: p.key,
-        value: p.value,
-        type: p.type,
-      })),
-      appVersion: event.appVersion,
-      appBuildNumber: event.appBuildNumber,
-      appUpdateId: event.appUpdateId ?? null,
-      appEasBuildId: event.appEasBuildId ?? null,
-      deviceModel: event.deviceModel,
-      deviceOs: event.deviceOs,
-      deviceOsVersion: event.deviceOsVersion,
-      countryCode: event.countryCode ?? null,
-      environment: event.environment ?? null,
-      easClientId: event.easClientId,
-    })),
+    events: events.map(buildObserveCustomEventJson),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,
       endCursor: pageInfo.endCursor ?? null,

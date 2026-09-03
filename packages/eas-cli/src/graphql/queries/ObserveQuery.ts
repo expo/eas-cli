@@ -236,6 +236,35 @@ type AppObserveSessionEventsQueryVariables = {
   logsOrderBy?: AppObserveLogsOrderBy;
 };
 
+type AppObserveMetricByIdQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        metrics: {
+          metric: AppObserveMetric | null;
+        };
+      };
+    };
+  };
+};
+
+type AppObserveLogByIdQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        log: AppObserveSessionLog | null;
+      };
+    };
+  };
+};
+
+type AppObserveByIdQueryVariables = {
+  appId: string;
+  id: string;
+};
+
 export const ObserveQuery = {
   async appVersionsAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -689,5 +718,76 @@ export const ObserveQuery = {
       metricsPageInfo: metrics.pageInfo,
       logsPageInfo: logs.pageInfo,
     };
+  },
+
+  async metricByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, id }: AppObserveByIdQueryVariables
+  ): Promise<AppObserveMetric | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveMetricByIdQuery, AppObserveByIdQueryVariables>(
+          gql`
+            query AppObserveMetricById($appId: String!, $id: ID!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    metrics {
+                      metric(id: $id) {
+                        id
+                        ...AppObserveMetricFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveMetricFragmentNode)}
+          `,
+          { appId, id }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.metrics.metric ?? null;
+  },
+
+  async logByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, id }: AppObserveByIdQueryVariables
+  ): Promise<AppObserveSessionLog | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveLogByIdQuery, AppObserveByIdQueryVariables>(
+          gql`
+            query AppObserveLogById($appId: String!, $id: ID!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    log(id: $id) {
+                      id
+                      __typename
+                      ... on AppObserveUserEvent {
+                        ...AppObserveUserEventFragment
+                      }
+                      ... on AppObserveError {
+                        ...AppObserveErrorFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveUserEventFragmentNode)}
+            ${print(AppObserveErrorFragmentNode)}
+          `,
+          { appId, id }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.log ?? null;
   },
 };
