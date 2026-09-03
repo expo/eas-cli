@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Make `eas metadata:lint` report an `apple.review.demoPassword` longer than 100 characters, instead of letting `eas metadata:push` fail at upload time with "Password cannot be longer than 100 characters". ([#4242](https://github.com/expo/eas-cli/pull/4242) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
