@@ -915,6 +915,33 @@ describe(ensureFfmpegInstalledAsync, () => {
     );
   });
 
+  it('shares an in-flight ffmpeg setup between callers', async () => {
+    let finishInstall: (() => void) | undefined;
+    const pendingInstall = new Promise<void>(resolve => {
+      finishInstall = resolve;
+    });
+    spawnMock
+      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
+      .mockReturnValueOnce(spawnResolved()) // apt-get update
+      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>); // apt-get install
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    };
+
+    const firstSetup = ensureFfmpegInstalledAsync(options);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+
+    const secondSetup = ensureFfmpegInstalledAsync(options);
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+
+    finishInstall?.();
+    await Promise.all([firstSetup, secondSetup]);
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+  });
+
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
       .mockReturnValueOnce(spawnRejected()) // ffmpeg -version

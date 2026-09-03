@@ -332,6 +332,8 @@ async function installFfmpegWithAptAsync({
   await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
 }
 
+let ffmpegSetupPromise: Promise<void> | undefined;
+
 /**
  * Install ffmpeg when the runtime does not already provide it. Device-session
  * tools use it for video encoding on macOS (iOS simulators) and Linux (Android
@@ -346,7 +348,7 @@ async function installFfmpegWithAptAsync({
  * `spawn` is not an async function and can throw synchronously, which
  * `asyncResult` cannot catch — it only wraps an already-created promise.
  */
-export async function ensureFfmpegInstalledAsync({
+async function ensureFfmpegInstalledOnceAsync({
   runtimePlatform,
   env,
   logger,
@@ -382,6 +384,31 @@ export async function ensureFfmpegInstalledAsync({
       { err: error },
       'Could not install ffmpeg. FFmpeg-dependent features may not work in this session.'
     );
+  }
+}
+
+export async function ensureFfmpegInstalledAsync({
+  runtimePlatform,
+  env,
+  logger,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (ffmpegSetupPromise) {
+    await ffmpegSetupPromise;
+    return;
+  }
+
+  const setupPromise = ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+  ffmpegSetupPromise = setupPromise;
+  try {
+    await setupPromise;
+  } finally {
+    if (ffmpegSetupPromise === setupPromise) {
+      ffmpegSetupPromise = undefined;
+    }
   }
 }
 

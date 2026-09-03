@@ -9,6 +9,7 @@ import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
 import {
+  ensureFfmpegInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -127,7 +128,17 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       } as never
     );
 
-    // (1) The event log flag is enabled, before the tool-server is launched.
+    // (1) FFmpeg setup starts in the background before Argent setup.
+    expect(ensureFfmpegInstalledAsync).toHaveBeenCalledWith({
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: { EXISTING: 'value' },
+      logger: expect.anything(),
+    });
+    expect(jest.mocked(ensureFfmpegInstalledAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(spawn).mock.invocationCallOrder[0]
+    );
+
+    // (2) The event log flag is enabled, before the tool-server is launched.
     const spawnCalls = jest.mocked(spawn).mock.calls;
     const enableEventLogIndex = spawnCalls.findIndex(
       ([command, args]) =>
@@ -138,7 +149,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(spawnDetached).mock.invocationCallOrder[0]
     );
 
-    // (2) The tool-server and the collector are pinned to the exact same event log path.
+    // (3) The tool-server and the collector are pinned to the exact same event log path.
     const serverEnv = jest.mocked(spawnDetached).mock.calls[0][0].env;
     expect(serverEnv.ARGENT_EVENT_LOG).toBe(EXPECTED_EVENT_LOG_PATH);
     expect(serverEnv.EXISTING).toBe('value');
@@ -147,7 +158,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       eventLogPath: EXPECTED_EVENT_LOG_PATH,
     });
 
-    // (3) Collection starts (before we wait for the session to stop) and (4) is torn down
+    // (4) Collection starts (before we wait for the session to stop) and (5) is torn down
     // afterwards, exactly once.
     expect(startArgentEventCollectionAsync).toHaveBeenCalledTimes(1);
     expect(mockStopAsync).toHaveBeenCalledTimes(1);
