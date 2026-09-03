@@ -117,6 +117,7 @@ describe('BuildService Datadog setup', () => {
       cleanUp: jest.fn(async () => {}),
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] } as any,
       outputStream: {} as any,
+      registerSecret: jest.fn(),
     });
   });
 

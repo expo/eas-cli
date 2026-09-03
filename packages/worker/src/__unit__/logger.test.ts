@@ -135,6 +135,29 @@ describe('logger', () => {
     expect(logs[1].msg).toBe('another ****** in base64 is ********************');
   });
 
+  it('obfuscates a secret registered after the logger starts in every log sink', async () => {
+    const { logger, outputStream, logBuffer, registerSecret } =
+      await createBuildLoggerWithSecretsFilter({});
+    const logs: any[] = [];
+    outputStream.pipe(
+      new Writable({
+        objectMode: true,
+        write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+          logs.push(chunk);
+          callback(null, chunk);
+        },
+      })
+    );
+
+    registerSecret('dynamic-access-token');
+    logger.info({ source: 'stdout' }, 'token=dynamic-access-token');
+    await waitForStreamFlush();
+
+    expect(logs[0].msg).toBe('token=********************');
+    expect(logBuffer.getLogs()).toEqual(['token=********************']);
+    expect((logger as any).streams).toHaveLength(1);
+  });
+
   it('adds logId to each log', async () => {
     const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 

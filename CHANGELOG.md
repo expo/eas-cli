@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add access-only Claude CLI and Codex runtimes for EAS workers. ([#4330](https://github.com/expo/eas-cli/pull/4330) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))

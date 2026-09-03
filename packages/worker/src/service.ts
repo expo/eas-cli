@@ -164,9 +164,10 @@ export default class BuildService {
       return;
     }
 
+    this.buildContext?.cancel();
     this.state.setAbortReason(reason);
     const wasBuildCanceled = reason === LauncherMessage.AbortReason.CANCEL;
-    logger.info('Job aborted - ' + wasBuildCanceled ? 'canceled by user' : 'build timed out');
+    logger.info(`Job aborted - ${wasBuildCanceled ? 'canceled by user' : 'build timed out'}`);
     await this.maybeUploadXCodeLogs();
     this.state.finish(Worker.Status.ABORTED, {
       applicationArchiveName: null,
@@ -275,6 +276,7 @@ export default class BuildService {
         logger: buildLogger,
         cleanUp,
         logBuffer,
+        registerSecret,
       } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
@@ -300,6 +302,7 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
+        registerSecret,
       });
       this.buildContext = ctx;
 
