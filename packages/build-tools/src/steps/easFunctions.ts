@@ -53,6 +53,7 @@ import { createStartIosSimulatorBuildFunction } from './functions/startIosSimula
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
 import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
@@ -108,6 +109,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
+    createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 
