@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Stop `eas build` from looping forever printing "There are still no registered devices." when a device registration method other than Website registers no devices. ([#4254](https://github.com/expo/eas-cli/pull/4254) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
