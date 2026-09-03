@@ -103,6 +103,7 @@ export async function createBuildContext<TJob extends Job>({
     cacheManager: new GCSCacheManager(),
     metadata,
     expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+    mcpServerUrl: config.mcpServerUrl,
   });
   return ctx;
 }
