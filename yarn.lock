@@ -2324,6 +2324,7 @@ __metadata:
     "@types/retry": "npm:^0.12.5"
     "@types/semver": "npm:^7.5.8"
     "@types/uuid": "npm:^9.0.8"
+    "@types/ws": "npm:8.5.10"
     "@urql/core": "npm:^6.0.1"
     bplist-parser: "npm:0.3.2"
     content-disposition: "npm:1.0.1"
@@ -2354,6 +2355,7 @@ __metadata:
     tslib: "npm:^2.6.3"
     typescript: "npm:^5.5.4"
     uuid: "npm:^9.0.1"
+    ws: "npm:8.21.1"
     yaml: "npm:^2.8.1"
     zod: "npm:^4.3.5"
   languageName: unknown
