@@ -48,6 +48,8 @@ beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   process.env = { ...OLD_ENV }; // Make a copy
+  // Tests must not depend on the experimental flag being set in the ambient shell
+  delete process.env.EAS_EXPERIMENTAL_ACCOUNT_SWITCHER;
 });
 
 afterEach(() => {
@@ -55,17 +57,17 @@ afterEach(() => {
 });
 
 describe(SessionManager, () => {
-  describe('getSession', () => {
+  describe('getActiveSession', () => {
     it('returns null when session is not stored', () => {
       const sessionManager = new SessionManager(analytics);
-      expect(sessionManager['getSession']()).toBeNull();
+      expect(sessionManager['getActiveSession']()).toBeNull();
     });
 
     it('returns stored session data', async () => {
       await fs.mkdirp(path.dirname(getStateJsonPath()));
       await fs.writeJSON(getStateJsonPath(), { auth: authStub });
       const sessionManager = new SessionManager(analytics);
-      expect(sessionManager['getSession']()).toMatchObject(authStub);
+      expect(sessionManager['getActiveSession']()).toMatchObject(authStub);
     });
   });
 
@@ -390,6 +392,125 @@ describe(SessionManager, () => {
       await expect(
         sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah')
       ).rejects.toThrowError('Cancelled login');
+    });
+  });
+
+  describe('multi-account (EAS_EXPERIMENTAL_ACCOUNT_SWITCHER=1)', () => {
+    const loginAsUserAsync = async (
+      sessionManager: SessionManager,
+      { id, username }: { id: string; username: string }
+    ): Promise<void> => {
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValueOnce({
+        sessionSecret: `SECRET_${id}`,
+        id,
+        username,
+      });
+      await sessionManager['loginAsync']({ username, password: 'PASSWORD' });
+    };
+
+    beforeEach(() => {
+      process.env.EAS_EXPERIMENTAL_ACCOUNT_SWITCHER = '1';
+    });
+
+    it('migrates v0 state to v1 on login, preserving the old session and unrelated top-level keys', async () => {
+      await fs.mkdirp(path.dirname(getStateJsonPath()));
+      await fs.writeJSON(getStateJsonPath(), {
+        uuid: 'SOME_UUID',
+        auth: {
+          sessionSecret: 'OLD_SECRET',
+          userId: 'OLD_USER_ID',
+          username: 'OLD_USERNAME',
+          currentConnection: 'Username-Password-Authentication',
+        },
+      });
+
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'USER_ID', username: 'USERNAME' });
+
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(state.uuid).toBe('SOME_UUID');
+      expect(state.version).toBe(1);
+      expect(state.auth.activeAccountId).toBe('USER_ID');
+      expect(Object.keys(state.auth.accounts).sort()).toEqual(['OLD_USER_ID', 'USER_ID']);
+      expect(state.auth.sessionSecret).toBe('SECRET_USER_ID');
+      expect(state.auth.username).toBe('USERNAME');
+    });
+
+    it('uses an account for the process without persisting a switch', async () => {
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'ID_A', username: 'user-a' });
+      await loginAsUserAsync(sessionManager, { id: 'ID_B', username: 'user-b' });
+
+      expect(sessionManager['getSessionSecret']()).toBe('SECRET_ID_B');
+
+      expect(sessionManager.useAccountForProcessByUsername('user-a')).toBe(true);
+      expect(sessionManager['getSessionSecret']()).toBe('SECRET_ID_A');
+
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(state.auth.activeAccountId).toBe('ID_B');
+      expect(state.auth.sessionSecret).toBe('SECRET_ID_B');
+
+      expect(sessionManager.useAccountForProcessByUsername('nonexistent')).toBe(false);
+    });
+
+    it('invalidates the session secret on the server when removing an account', async () => {
+      const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'ID_A', username: 'user-a' });
+      await loginAsUserAsync(sessionManager, { id: 'ID_B', username: 'user-b' });
+
+      await sessionManager.removeAccountAsync('ID_A');
+
+      expect(apiV2PostSpy).toHaveBeenCalledWith('auth/logout', { body: {} });
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(Object.keys(state.auth.accounts)).toEqual(['ID_B']);
+      expect(state.auth.activeAccountId).toBe('ID_B');
+    });
+
+    it('invalidates all session secrets on the server when removing all accounts', async () => {
+      const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'ID_A', username: 'user-a' });
+      await loginAsUserAsync(sessionManager, { id: 'ID_B', username: 'user-b' });
+
+      await sessionManager.removeAllAccountsAsync();
+
+      expect(apiV2PostSpy).toHaveBeenCalledTimes(2);
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(state.auth.accounts).toEqual({});
+      expect(state.auth.activeAccountId).toBeNull();
+      expect(sessionManager['getSessionSecret']()).toBeNull();
+    });
+
+    it('keeps the v1 accounts map in sync when logging in with the flag off', async () => {
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'ID_A', username: 'user-a' });
+
+      delete process.env.EAS_EXPERIMENTAL_ACCOUNT_SWITCHER;
+      await loginAsUserAsync(sessionManager, { id: 'ID_B', username: 'user-b' });
+
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(state.auth.activeAccountId).toBe('ID_B');
+      expect(Object.keys(state.auth.accounts).sort()).toEqual(['ID_A', 'ID_B']);
+
+      // Re-enabling the flag must not resurrect the stale identity
+      process.env.EAS_EXPERIMENTAL_ACCOUNT_SWITCHER = '1';
+      expect(sessionManager['getActiveSession']()).toMatchObject({ userId: 'ID_B' });
+    });
+
+    it('preserves other stored accounts when logging out with the flag off', async () => {
+      const sessionManager = new SessionManager(analytics);
+      await loginAsUserAsync(sessionManager, { id: 'ID_A', username: 'user-a' });
+      await loginAsUserAsync(sessionManager, { id: 'ID_B', username: 'user-b' });
+
+      delete process.env.EAS_EXPERIMENTAL_ACCOUNT_SWITCHER;
+      await sessionManager.logoutAsync();
+
+      expect(sessionManager['getSessionSecret']()).toBeNull();
+      const state = await fs.readJSON(getStateJsonPath());
+      expect(state.auth.activeAccountId).toBeNull();
+      expect(Object.keys(state.auth.accounts)).toEqual(['ID_A']);
+      expect(state.auth.sessionSecret).toBeUndefined();
     });
   });
 });

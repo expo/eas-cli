@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add experimental multi-account support behind `EAS_EXPERIMENTAL_ACCOUNT_SWITCHER=1`: `account:list`, `account:switch`, a global `--account` flag, and multi-account `account:login`/`account:logout`. ([#3340](https://github.com/expo/eas-cli/pull/3340) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))

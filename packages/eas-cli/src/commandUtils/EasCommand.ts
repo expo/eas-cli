@@ -30,6 +30,7 @@ import Log, { link } from '../log';
 import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
 import { getActorDisplayName } from '../user/User';
+import { isMultiAccountEnabled } from '../utils/easCli';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -224,10 +225,74 @@ export default abstract class EasCommand extends Command {
 
   protected abstract runAsync(): Promise<any>;
 
+  /**
+   * Parse and remove the --account flag from command line arguments.
+   * This is a global flag available on all commands when multi-account is enabled.
+   * We remove it from this.argv so child commands don't see it during their parse().
+   * Commands that declare their own `account` flag (with different semantics,
+   * e.g. `project:init`) are skipped so their flag keeps working.
+   */
+  private parseAndRemoveAccountFlag(): string | undefined {
+    if (this.ctor.flags && 'account' in this.ctor.flags) {
+      return undefined;
+    }
+
+    const terminatorIndex = this.argv.indexOf('--');
+    const searchEnd = terminatorIndex === -1 ? this.argv.length : terminatorIndex;
+
+    for (let i = 0; i < searchEnd; i++) {
+      const arg = this.argv[i];
+      if (arg === '--account') {
+        const value = i + 1 < searchEnd ? this.argv[i + 1] : undefined;
+        if (!value || value.startsWith('-')) {
+          throw new Error('The --account flag requires a username value.');
+        }
+        this.argv.splice(i, 2);
+        return value;
+      }
+      if (arg.startsWith('--account=')) {
+        const value = arg.slice('--account='.length);
+        if (!value) {
+          throw new Error('The --account flag requires a username value.');
+        }
+        this.argv.splice(i, 1);
+        return value;
+      }
+    }
+    return undefined;
+  }
+
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
     this.analyticsInternal = await createAnalyticsAsync();
     this.sessionManagerInternal = new SessionManager(this.analytics);
+
+    // Handle --account flag for per-command account selection
+    if (isMultiAccountEnabled()) {
+      const accountFlag = this.parseAndRemoveAccountFlag();
+      if (accountFlag) {
+        if (this.sessionManager.getAccessToken()) {
+          throw new Error(
+            'EXPO_TOKEN is set in your environment and is used for all EAS authentication, so --account has no effect. Unset EXPO_TOKEN to select an account with --account.'
+          );
+        }
+        const accounts = this.sessionManager.getAllAccounts();
+        const targetAccount = accounts.find(a => a.username === accountFlag);
+        if (!targetAccount) {
+          const availableAccounts = accounts.map(a => a.username).join(', ') || 'none';
+          throw new Error(
+            `Account '${accountFlag}' not found. Available accounts: ${availableAccounts}`
+          );
+        }
+        if (
+          !targetAccount.isActive &&
+          !this.sessionManager.useAccountForProcessByUsername(accountFlag)
+        ) {
+          throw new Error(`Account '${accountFlag}' not found.`);
+        }
+        Log.log(chalk.dim(`Using account: ${accountFlag}`));
+      }
+    }
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
     // if possible
