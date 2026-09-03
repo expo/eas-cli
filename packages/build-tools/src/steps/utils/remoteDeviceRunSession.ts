@@ -297,10 +297,9 @@ async function sleepUntilAbortedAsync(
   }
 }
 
-// Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
-// which it resolves from PATH. The tool-server inherits this step's env, so
-// spawning ffmpeg resolves against the same PATH argent will search: it rejects
-// with ENOENT when the binary is absent, and running it also proves it works.
+// Device-session tools resolve `ffmpeg` from PATH. Spawning it with the step's
+// environment rejects with ENOENT when the binary is absent, and running it also
+// proves that the installed binary works.
 async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
   return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
 }
@@ -334,13 +333,12 @@ async function installFfmpegWithAptAsync({
 }
 
 /**
- * Install ffmpeg when the runtime does not already provide it, so argent's
- * `screen-recording-start` tool can encode a video. The worker images do not
- * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
- * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
+ * Install ffmpeg when the runtime does not already provide it. Device-session
+ * tools use it for video encoding on macOS (iOS simulators) and Linux (Android
+ * emulators) alike, but the worker images do not ship it yet.
  *
- * Best-effort by design: screen recording is one optional argent tool, so a
- * failure here is logged and the session continues without it.
+ * Best-effort by design: a failure here is logged and the session continues
+ * without FFmpeg-dependent features.
  *
  * The whole body is wrapped because the caller runs this in the background with
  * `void`. There is no unhandledRejection handler in the worker, so a rejection
@@ -367,7 +365,7 @@ export async function ensureFfmpegInstalledAsync({
     logger.info(
       `ffmpeg is not installed, installing it with ${
         isDarwin ? 'Homebrew' : 'apt'
-      } for argent screen recording.`
+      } for the device session.`
     );
     if (isDarwin) {
       await installFfmpegWithHomebrewAsync({ env, logger });
@@ -377,12 +375,12 @@ export async function ensureFfmpegInstalledAsync({
     logger.info('Installed ffmpeg.');
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    Sentry.capture('Could not install ffmpeg for argent screen recording', error, {
+    Sentry.capture('Could not install ffmpeg for the device session', error, {
       level: 'warning',
     });
     logger.warn(
       { err: error },
-      'Could not install ffmpeg. Argent screen recording will not work in this session.'
+      'Could not install ffmpeg. FFmpeg-dependent features may not work in this session.'
     );
   }
 }
@@ -851,6 +849,11 @@ export async function startExpoDeviceHubWithTunnelAsync(
     packageVersion?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
+  await ensureFfmpegInstalledAsync({
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+  });
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,

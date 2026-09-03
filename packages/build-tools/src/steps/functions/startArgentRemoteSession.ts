@@ -101,13 +101,15 @@ export function createStartArgentRemoteSessionBuildFunction(
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
 
-      // Argent shells out to ffmpeg to record the screen. Installing it pulls a
-      // large Homebrew dependency tree, so do not block session readiness on it:
-      // the session comes up at its usual speed and only a recording started in
-      // the first moments misses ffmpeg. Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+        // Argent shells out to ffmpeg to record the screen. Installing it pulls a
+        // large Homebrew dependency tree, so do not block session readiness on it:
+        // the session comes up at its usual speed and only a recording started in
+        // the first moments misses ffmpeg. On Linux the Android web preview waits
+        // for this installation before launching expo-device-hub instead.
+        // Never rejects, so `void` is safe.
+        void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+      }
 
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(

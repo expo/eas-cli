@@ -359,13 +359,20 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
   });
 
-  it('starts expo-device-hub for Linux and cleans up the preview resources', async () => {
+  it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
     const packageVersion = '1.2.3';
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
       close,
     } as never);
+    jest
+      .mocked(spawn)
+      .mockReturnValueOnce(
+        Promise.reject(new Error('ffmpeg is missing')) as ReturnType<typeof spawn>
+      )
+      .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
+      .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
     const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.LINUX,
@@ -376,7 +383,28 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       packageVersion,
     });
 
-    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const spawnCalls = jest.mocked(spawn).mock.calls;
+    expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
+    expect(spawnCalls[1]).toEqual([
+      'sudo',
+      ['apt-get', 'update'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      }),
+    ]);
+    expect(spawnCalls[2]).toEqual([
+      'sudo',
+      ['apt-get', 'install', '-y', 'ffmpeg'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      }),
+    ]);
+    const expoDeviceHubCallIndex = spawnCalls.findIndex(([command]) => command === 'npx');
+    expect(expoDeviceHubCallIndex).toBeGreaterThan(2);
+    expect(jest.mocked(spawn).mock.invocationCallOrder[2]).toBeLessThan(
+      jest.mocked(spawn).mock.invocationCallOrder[expoDeviceHubCallIndex]
+    );
+    const [command, args] = spawnCalls[expoDeviceHubCallIndex];
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
