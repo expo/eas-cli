@@ -4,8 +4,8 @@ import { GraphQLError } from 'graphql';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import {
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
   AppObservePlatform,
 } from '../../../graphql/generated';
 import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
@@ -247,8 +247,8 @@ describe(ObserveMetrics, () => {
     const mockEvents = [
       {
         id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        name: 'expo.app_startup.tti',
+        value: 1.23,
         timestamp: '2025-01-15T10:30:00.000Z',
         appVersion: '1.0.0',
         appBuildNumber: '42',
@@ -290,8 +290,8 @@ describe(ObserveMetrics, () => {
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
     expect(options.orderBy).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
@@ -315,29 +315,29 @@ describe(ObserveMetrics, () => {
 describe(resolveOrderBy, () => {
   it('resolves lowercase "slowest" to MetricValue DESC', () => {
     expect(resolveOrderBy('slowest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('resolves lowercase "fastest" to MetricValue ASC', () => {
     expect(resolveOrderBy('fastest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 
   it('resolves lowercase "newest" to Timestamp DESC', () => {
     expect(resolveOrderBy('newest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('resolves lowercase "oldest" to Timestamp ASC', () => {
     expect(resolveOrderBy('oldest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 });

@@ -1,9 +1,9 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  AppObserveEventsOrderByDirection,
+  AppObserveNavigationOrderBy,
   AppObserveNavigationRoute,
-  AppObserveNavigationRoutesOrderBy,
   AppObserveNavigationRoutesOrderByField,
+  AppObserveOrderDirection,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
@@ -31,7 +31,7 @@ export interface FetchNavigationRoutesOptions {
   buildNumber?: string;
   routeNames?: string[];
   environment?: string;
-  orderBy?: AppObserveNavigationRoutesOrderBy;
+  orderBy?: AppObserveNavigationOrderBy;
 }
 
 export interface FetchNavigationRoutesResult {
@@ -44,9 +44,9 @@ export async function fetchObserveNavigationRoutesAsync(
   appId: string,
   options: FetchNavigationRoutesOptions
 ): Promise<FetchNavigationRoutesResult> {
-  const orderBy: AppObserveNavigationRoutesOrderBy = options.orderBy ?? {
+  const orderBy: AppObserveNavigationOrderBy = options.orderBy ?? {
     field: AppObserveNavigationRoutesOrderByField.NavigationCount,
-    direction: AppObserveEventsOrderByDirection.Desc,
+    direction: AppObserveOrderDirection.Desc,
   };
 
   const queries = options.targets.map(async target => {

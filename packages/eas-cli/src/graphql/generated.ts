@@ -134,6 +134,8 @@ export type Account = {
   environmentVariablesIncludingSensitive: Array<EnvironmentVariableWithSecret>;
   /** GitHub App installations for an account */
   githubAppInstallations: Array<GitHubAppInstallation>;
+  /** GitHub Enterprise app registration for an account */
+  githubAppRegistration?: Maybe<GitHubAppRegistration>;
   /** @deprecated Use googleServiceAccountKeysPaginated */
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Android credentials for account */
@@ -8625,6 +8627,11 @@ export type GitHubAppInstallation = {
   id: Scalars['ID']['output'];
   installationIdentifier: Scalars['Int']['output'];
   metadata: GitHubAppInstallationMetadata;
+  /**
+   * The GitHub Enterprise registration this installation belongs to, or null for the default
+   * github.com app.
+   */
+  registration?: Maybe<GitHubAppRegistration>;
 };
 
 export type GitHubAppInstallationAccessibleRepository = {
@@ -8729,6 +8736,12 @@ export type GitHubAppRegistrationManifest = {
 export type GitHubAppRegistrationMutation = {
   __typename?: 'GitHubAppRegistrationMutation';
   /**
+   * Deletes a GitHub Enterprise app registration. Installations of the app and repository links
+   * made through it are removed as well. The app itself remains on the GitHub Enterprise instance
+   * and must be deleted there separately.
+   */
+  deleteGitHubAppRegistration: GitHubAppRegistration;
+  /**
    * Finalizes a GitHub App registration after the GHE instance redirects back with a temporary
    * code. Exchanges the code for the app's credentials and stores the registration.
    */
@@ -8738,6 +8751,11 @@ export type GitHubAppRegistrationMutation = {
    * manifest for the browser to submit.
    */
   startGitHubAppRegistration: GitHubAppRegistrationManifest;
+};
+
+
+export type GitHubAppRegistrationMutation_DeleteGitHubAppRegistrationArgs = {
+  githubAppRegistrationId: Scalars['ID']['input'];
 };
 
 
@@ -16232,14 +16250,6 @@ export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
 
 export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId: { __typename?: 'GoogleServiceAccountKey', id: string, keyJson: string } } };
 
-export type AppObserveTimeSeriesQueryVariables = Exact<{
-  appId: Scalars['String']['input'];
-  input: AppObserveTimeSeriesInput;
-}>;
-
-
-export type AppObserveTimeSeriesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', timeSeries: { __typename?: 'AppObserveTimeSeries', eventCount: number, appVersionMarkers: Array<{ __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> }>, statistics: { __typename?: 'AppObserveTimeSeriesStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } } } } } };
-
 export type AppObserveAppVersionsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   input: AppObserveReleasesInput;
@@ -16248,49 +16258,60 @@ export type AppObserveAppVersionsQueryVariables = Exact<{
 
 export type AppObserveAppVersionsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', appVersions: Array<{ __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> }> } } } };
 
-export type AppObserveEventsQueryVariables = Exact<{
+export type AppObserveMetricsListQueryVariables = Exact<{
   appId: Scalars['String']['input'];
-  filter?: InputMaybe<AppObserveEventsFilter>;
+  filter?: InputMaybe<AppObserveMetricsListFilter>;
   first?: InputMaybe<Scalars['Int']['input']>;
   after?: InputMaybe<Scalars['String']['input']>;
-  orderBy?: InputMaybe<AppObserveEventsOrderBy>;
+  orderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
 }>;
 
 
-export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> } } } } };
+export type AppObserveMetricsListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', metrics: { __typename?: 'AppObserveMetrics', list: { __typename?: 'AppObserveMetricConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveMetricEdge', cursor: string, node: { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> } } } } } };
 
-export type AppObserveCustomEventListQueryVariables = Exact<{
+export type AppObserveUserEventListQueryVariables = Exact<{
   appId: Scalars['String']['input'];
-  filter?: InputMaybe<AppObserveCustomEventListFilter>;
+  filter?: InputMaybe<AppObserveUserEventListFilter>;
   first?: InputMaybe<Scalars['Int']['input']>;
   after?: InputMaybe<Scalars['String']['input']>;
-  orderBy?: InputMaybe<AppObserveCustomEventListOrderBy>;
+  orderBy?: InputMaybe<AppObserveUserEventListOrderBy>;
 }>;
 
 
-export type AppObserveCustomEventListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', customEventList: { __typename?: 'AppObserveCustomEventListConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveCustomEventEdge', cursor: string, node: { __typename?: 'AppObserveCustomEvent', id: string, eventName: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> } }> } } } } };
+export type AppObserveUserEventListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', userEvents: { __typename?: 'AppObserveUserEvents', list: { __typename?: 'AppObserveUserEventConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveUserEventEdge', cursor: string, node: { __typename?: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> } }> } } } } } };
 
-export type AppObserveCustomEventNamesQueryVariables = Exact<{
+export type AppObserveUserEventNamesQueryVariables = Exact<{
   appId: Scalars['String']['input'];
-  startTime: Scalars['DateTime']['input'];
-  endTime: Scalars['DateTime']['input'];
-  platforms?: InputMaybe<Array<AppObservePlatform> | AppObservePlatform>;
-  environment?: InputMaybe<Scalars['String']['input']>;
+  input: AppObserveUserEventNamesInput;
 }>;
 
 
-export type AppObserveCustomEventNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', customEventNames: { __typename?: 'AppObserveCustomEventNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveCustomEventName', eventName: string, count: number }> } } } } };
+export type AppObserveUserEventNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', userEvents: { __typename?: 'AppObserveUserEvents', names: { __typename?: 'AppObserveUserEventNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveUserEventName', name: string, count: number }> } } } } } };
 
 export type AppObserveNavigationRoutesQueryVariables = Exact<{
   appId: Scalars['String']['input'];
-  filter: AppObserveNavigationRoutesFilter;
+  filter: AppObserveNavigationFilter;
   first?: InputMaybe<Scalars['Int']['input']>;
   after?: InputMaybe<Scalars['String']['input']>;
-  orderBy?: InputMaybe<AppObserveNavigationRoutesOrderBy>;
+  orderBy?: InputMaybe<AppObserveNavigationOrderBy>;
 }>;
 
 
-export type AppObserveNavigationRoutesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', navigationRoutes: { __typename?: 'AppObserveNavigationRoutesConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveNavigationRouteEdge', cursor: string, node: { __typename?: 'AppObserveNavigationRoute', routeName: string, coldTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, warmTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, tti: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null } } }> } } } } };
+export type AppObserveNavigationRoutesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', navigation: { __typename?: 'AppObserveNavigation', routes: { __typename?: 'AppObserveNavigationRoutesConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveNavigationRouteEdge', cursor: string, node: { __typename?: 'AppObserveNavigationRoute', routeName: string, coldTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, warmTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, tti: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null } } }> } } } } } };
+
+export type AppObserveSessionEventsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+  first?: InputMaybe<Scalars['Int']['input']>;
+  metricsOrderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
+  logsOrderBy?: InputMaybe<AppObserveLogsOrderBy>;
+}>;
+
+
+export type AppObserveSessionEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', session: { __typename?: 'AppObserveSession', id: string, metrics: { __typename?: 'AppObserveMetricConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveMetricEdge', node: { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> }, logs: { __typename?: 'AppObserveLogConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveLogEdge', node:
+                | { __typename: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
+                | { __typename: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
+               }> } } } } } };
 
 export type PostHogOrganizationConnectionByAccountIdQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -16680,11 +16701,11 @@ export type EnvironmentVariableWithSecretFragment = { __typename?: 'EnvironmentV
 
 export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } };
 
-export type AppObserveTimeSeriesFragment = { __typename?: 'AppObserveTimeSeries', eventCount: number, appVersionMarkers: Array<{ __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> }>, statistics: { __typename?: 'AppObserveTimeSeriesStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } };
+export type AppObserveUserEventFragment = { __typename?: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
 
-export type AppObserveCustomEventFragment = { __typename?: 'AppObserveCustomEvent', id: string, eventName: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
+export type AppObserveErrorFragment = { __typename?: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
 
-export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null };
+export type AppObserveMetricFragment = { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null };
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
 

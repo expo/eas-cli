@@ -287,12 +287,10 @@ async function promptForEventNameAsync({
     })
   );
 
-  const logChoices: ExpoChoice<EventNameChoice>[] = customEventNames.map(
-    ({ eventName, count }) => ({
-      title: `${eventName} (${count} log event${count === 1 ? '' : 's'})`,
-      value: { name: eventName, isMetric: false },
-    })
-  );
+  const logChoices: ExpoChoice<EventNameChoice>[] = customEventNames.map(({ name, count }) => ({
+    title: `${name} (${count} log event${count === 1 ? '' : 's'})`,
+    value: { name, isMetric: false },
+  }));
 
   const choices = [...metricChoices, ...logChoices];
   if (choices.length === 0) {

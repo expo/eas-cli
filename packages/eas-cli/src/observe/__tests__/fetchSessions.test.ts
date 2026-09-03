@@ -1,10 +1,13 @@
 import {
-  AppObserveCustomEvent,
-  AppObserveCustomEventListOrderByField,
-  AppObserveEvent,
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveError,
+  AppObserveLogsOrderByField,
+  AppObserveMetric,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
+  AppObserveUserEvent,
+  AppObserveUserEventListOrderByField,
 } from '../../graphql/generated';
+import { AppObserveSessionLog, ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../fetchCustomEvents';
 import { fetchObserveEventsAsync } from '../fetchEvents';
 import {
@@ -21,16 +24,20 @@ jest.mock('../fetchEvents', () => {
     fetchObserveEventsAsync: jest.fn(),
   };
 });
+jest.mock('../../graphql/queries/ObserveQuery');
 
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
+const mockSessionEventsAsync = jest.mocked(ObserveQuery.sessionEventsAsync);
 
-function makeMetricEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEvent {
+const noNextPage = { hasNextPage: false, hasPreviousPage: false };
+
+function makeMetricEvent(overrides: Partial<AppObserveMetric> = {}): AppObserveMetric {
   return {
-    __typename: 'AppObserveEvent' as const,
+    __typename: 'AppObserveMetric' as const,
     id: 'evt-m-1',
-    metricName: 'expo.app_startup.tti',
-    metricValue: 0.5,
+    name: 'expo.app_startup.tti',
+    value: 0.5,
     timestamp: '2025-01-15T10:00:00.000Z',
     appVersion: '1.0.0',
     appBuildNumber: '42',
@@ -43,14 +50,14 @@ function makeMetricEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEv
     easClientId: 'client-1',
     customParams: null,
     ...overrides,
-  } as AppObserveEvent;
+  } as AppObserveMetric;
 }
 
-function makeCustomEvent(overrides: Partial<AppObserveCustomEvent> = {}): AppObserveCustomEvent {
+function makeUserEvent(overrides: Partial<AppObserveUserEvent> = {}): AppObserveUserEvent {
   return {
-    __typename: 'AppObserveCustomEvent' as const,
+    __typename: 'AppObserveUserEvent' as const,
     id: 'evt-c-1',
-    eventName: 'login_pressed',
+    name: 'login_pressed',
     timestamp: '2025-01-15T10:01:00.000Z',
     sessionId: 'session-1',
     severityNumber: null,
@@ -67,7 +74,36 @@ function makeCustomEvent(overrides: Partial<AppObserveCustomEvent> = {}): AppObs
     countryCode: 'US',
     properties: [],
     ...overrides,
-  } as AppObserveCustomEvent;
+  } as AppObserveUserEvent;
+}
+
+function makeUserLog(overrides: Partial<AppObserveUserEvent> = {}): AppObserveSessionLog {
+  return makeUserEvent(overrides) as AppObserveSessionLog;
+}
+
+function makeErrorLog(overrides: Partial<AppObserveError> = {}): AppObserveSessionLog {
+  return {
+    __typename: 'AppObserveError' as const,
+    id: 'err-1',
+    type: 'TypeError',
+    message: 'undefined is not a function',
+    timestamp: '2025-01-15T10:02:00.000Z',
+    sessionId: 'session-1',
+    severityText: 'fatal',
+    severityNumber: null,
+    appVersion: '1.0.0',
+    appBuildNumber: '42',
+    appUpdateId: null,
+    appEasBuildId: null,
+    deviceModel: 'iPhone 15',
+    deviceOs: 'iOS',
+    deviceOsVersion: '17.0',
+    environment: 'production',
+    easClientId: 'client-1',
+    countryCode: 'US',
+    properties: [],
+    ...overrides,
+  } as AppObserveSessionLog;
 }
 
 const baseOptions = {
@@ -77,45 +113,47 @@ const baseOptions = {
 describe('fetchObserveSessionEventsAsync', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchObserveEventsAsync.mockResolvedValue({
-      events: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
-    });
-    mockFetchObserveCustomEventsAsync.mockResolvedValue({
-      events: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [],
+      logs: [],
+      metricsPageInfo: noNextPage,
+      logsPageInfo: noNextPage,
     });
   });
 
-  it('forwards sessionId to both event sources and orders metric events oldest-first', async () => {
+  it('queries the session timeline oldest-first for both metrics and logs', async () => {
     await fetchObserveSessionEventsAsync({} as any, 'project-1', {
       ...baseOptions,
       sessionId: 'session-1',
     });
 
-    expect(mockFetchObserveEventsAsync.mock.calls[0][2].sessionId).toBe('session-1');
-    expect(mockFetchObserveEventsAsync.mock.calls[0][2].orderBy).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
-    });
-    expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].sessionId).toBe('session-1');
+    expect(mockSessionEventsAsync).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        appId: 'project-1',
+        id: 'session-1',
+        first: 100,
+        metricsOrderBy: {
+          field: AppObserveMetricsListOrderByField.Timestamp,
+          direction: AppObserveOrderDirection.Asc,
+        },
+        logsOrderBy: {
+          field: AppObserveLogsOrderByField.Timestamp,
+          direction: AppObserveOrderDirection.Asc,
+        },
+      })
+    );
   });
 
   it('returns combined entries sorted chronologically, tagged with their source', async () => {
-    mockFetchObserveEventsAsync.mockResolvedValue({
-      events: [makeMetricEvent({ timestamp: '2025-01-15T10:05:00.000Z' })],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
-    });
-    mockFetchObserveCustomEventsAsync.mockResolvedValue({
-      events: [
-        makeCustomEvent({ timestamp: '2025-01-15T10:01:00.000Z' }),
-        makeCustomEvent({
-          id: 'evt-c-2',
-          timestamp: '2025-01-15T10:10:00.000Z',
-          eventName: 'logout',
-        }),
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [makeMetricEvent({ timestamp: '2025-01-15T10:05:00.000Z' })],
+      logs: [
+        makeUserLog({ timestamp: '2025-01-15T10:01:00.000Z' }),
+        makeUserLog({ id: 'evt-c-2', timestamp: '2025-01-15T10:10:00.000Z', name: 'logout' }),
       ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      metricsPageInfo: noNextPage,
+      logsPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -131,30 +169,38 @@ describe('fetchObserveSessionEventsAsync', () => {
     expect(result.entries.map(e => e.source)).toEqual(['log', 'metric', 'log']);
   });
 
-  it('derives session metadata from the entries (first/last timestamps, device, app version)', async () => {
-    mockFetchObserveEventsAsync.mockResolvedValue({
-      events: [
-        makeMetricEvent({
-          timestamp: '2025-01-15T10:00:00.000Z',
-          appVersion: '1.0.0',
-          appBuildNumber: '42',
-          deviceOs: 'iOS',
-          deviceOsVersion: '17.0',
-          deviceModel: 'iPhone 15',
-          appUpdateId: 'update-xyz',
-          countryCode: 'US',
-        }),
+  it('includes error logs as log entries named by their exception type, surfacing message and properties', async () => {
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [],
+      logs: [
+        makeErrorLog({
+          properties: [{ key: 'attr', value: 'v', type: 'STRING' }],
+        } as Partial<AppObserveError>),
       ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      metricsPageInfo: noNextPage,
+      logsPageInfo: noNextPage,
     });
-    mockFetchObserveCustomEventsAsync.mockResolvedValue({
-      events: [
-        makeCustomEvent({
-          timestamp: '2025-01-15T10:05:00.000Z',
-          appUpdateId: 'update-xyz',
-        }),
-      ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+
+    const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
+      ...baseOptions,
+      sessionId: 'session-1',
+    });
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].source).toBe('log');
+    expect(result.entries[0].name).toBe('TypeError');
+    expect(result.entries[0].properties).toEqual([
+      { key: 'message', value: 'undefined is not a function', type: 'STRING' },
+      { key: 'attr', value: 'v', type: 'STRING' },
+    ]);
+  });
+
+  it('derives session metadata from the entries (first/last timestamps, device, app version)', async () => {
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [makeMetricEvent({ timestamp: '2025-01-15T10:00:00.000Z' })],
+      logs: [makeUserLog({ timestamp: '2025-01-15T10:05:00.000Z', appUpdateId: 'update-xyz' })],
+      metricsPageInfo: noNextPage,
+      logsPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -184,13 +230,11 @@ describe('fetchObserveSessionEventsAsync', () => {
   });
 
   it('reports hasMore* flags from the underlying page info', async () => {
-    mockFetchObserveEventsAsync.mockResolvedValue({
-      events: [],
-      pageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: 'cm' },
-    });
-    mockFetchObserveCustomEventsAsync.mockResolvedValue({
-      events: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [],
+      logs: [],
+      metricsPageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: 'cm' },
+      logsPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -208,7 +252,7 @@ describe('fetchSessionMetricCandidatesAsync', () => {
     jest.clearAllMocks();
     mockFetchObserveEventsAsync.mockResolvedValue({
       events: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      pageInfo: noNextPage,
     });
   });
 
@@ -227,8 +271,8 @@ describe('fetchSessionMetricCandidatesAsync', () => {
     expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
     expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
     expect(options.orderBy).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
@@ -239,7 +283,7 @@ describe('fetchSessionMetricCandidatesAsync', () => {
         makeMetricEvent({ id: 'evt-2', sessionId: null }),
         makeMetricEvent({ id: 'evt-3', sessionId: 'session-b' }),
       ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      pageInfo: noNextPage,
     });
 
     const result = await fetchSessionMetricCandidatesAsync({} as any, 'project-1', {
@@ -259,7 +303,7 @@ describe('fetchSessionLogCandidatesAsync', () => {
     jest.clearAllMocks();
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      pageInfo: noNextPage,
     });
   });
 
@@ -289,8 +333,8 @@ describe('fetchSessionLogCandidatesAsync', () => {
     });
 
     expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
-      field: AppObserveCustomEventListOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveUserEventListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
@@ -304,19 +348,19 @@ describe('fetchSessionLogCandidatesAsync', () => {
     });
 
     expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
-      field: AppObserveCustomEventListOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveUserEventListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 
   it('preserves the server-provided order (no client-side re-sorting)', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [
-        makeCustomEvent({ id: 'c', timestamp: '2025-01-15T10:10:00.000Z' }),
-        makeCustomEvent({ id: 'b', timestamp: '2025-01-15T10:05:00.000Z' }),
-        makeCustomEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
+        makeUserEvent({ id: 'c', timestamp: '2025-01-15T10:10:00.000Z' }),
+        makeUserEvent({ id: 'b', timestamp: '2025-01-15T10:05:00.000Z' }),
+        makeUserEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
       ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      pageInfo: noNextPage,
     });
 
     const result = await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
@@ -332,10 +376,10 @@ describe('fetchSessionLogCandidatesAsync', () => {
   it('filters out events without a sessionId', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [
-        makeCustomEvent({ id: 'a', sessionId: 'session-a' }),
-        makeCustomEvent({ id: 'b', sessionId: null }),
+        makeUserEvent({ id: 'a', sessionId: 'session-a' }),
+        makeUserEvent({ id: 'b', sessionId: null }),
       ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      pageInfo: noNextPage,
     });
 
     const result = await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
