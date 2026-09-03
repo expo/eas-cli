@@ -6,6 +6,7 @@ import path from 'path';
 import { EnvVar } from '../../environments/variables';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
+import { formatEnvValue } from '../../utils/dotenv';
 
 export async function writeEnvLocalAsync(
   projectDir: string,
@@ -53,15 +54,6 @@ export async function writeEnvLocalAsync(
 // Copied from dotenv (lib/main.js) so this finds exactly the keys dotenv.parse reports above.
 const DOTENV_LINE =
   /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?$/gm;
-
-// dotenv trims unquoted values, cuts them at `#`, and strips one layer of quotes. Inside double
-// quotes it unescapes only `\n` and `\r`, so `"` and `\` stay literal.
-function formatEnvValue(value: string): string {
-  if (value === value.trim() && !/[#\r\n'"`]/.test(value.charAt(0) + value)) {
-    return value;
-  }
-  return `"${value.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}"`;
-}
 
 export function mergeEnvContent(rawContent: string, newVars: Record<string, string>): string {
   const edits: { start: number; end: number; text: string }[] = [];
