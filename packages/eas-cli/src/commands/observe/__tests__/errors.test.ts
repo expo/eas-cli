@@ -1,0 +1,90 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { AppObserveErrorSeverity } from '../../../graphql/generated';
+import { fetchObserveErrorGroupsAsync } from '../../../observe/fetchErrors';
+import {
+  buildObserveErrorGroupsJson,
+  buildObserveErrorGroupsTable,
+} from '../../../observe/formatErrors';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import ObserveErrors from '../errors';
+
+jest.mock('../../../observe/fetchErrors');
+jest.mock('../../../observe/formatErrors', () => ({
+  buildObserveErrorGroupsTable: jest.fn().mockReturnValue('errors-table'),
+  buildObserveErrorGroupsJson: jest.fn().mockReturnValue({ errors: [], isTruncated: false }),
+}));
+jest.mock('../../../log');
+jest.mock('../../../utils/json');
+
+const mockFetchErrorGroupsAsync = jest.mocked(fetchObserveErrorGroupsAsync);
+const mockBuildTable = jest.mocked(buildObserveErrorGroupsTable);
+const mockBuildJson = jest.mocked(buildObserveErrorGroupsJson);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+describe(ObserveErrors, () => {
+  const graphqlClient = {} as any as ExpoGraphqlClient;
+  const mockConfig = getMockOclifConfig();
+  const projectId = 'test-project-id';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetchErrorGroupsAsync.mockResolvedValue({ groups: [], isTruncated: false });
+  });
+
+  function createCommand(argv: string[]): ObserveErrors {
+    const command = new ObserveErrors(argv, mockConfig);
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      projectId,
+      loggedIn: { graphqlClient },
+    });
+    return command;
+  }
+
+  it('fetches error groups and renders a table by default', async () => {
+    await createCommand([]).runAsync();
+    expect(mockFetchErrorGroupsAsync).toHaveBeenCalledTimes(1);
+    expect(mockBuildTable).toHaveBeenCalledTimes(1);
+    expect(mockEnableJsonOutput).not.toHaveBeenCalled();
+  });
+
+  it('emits JSON with --json', async () => {
+    await createCommand(['--json', '--non-interactive']).runAsync();
+    expect(mockEnableJsonOutput).toHaveBeenCalledTimes(1);
+    expect(mockBuildJson).toHaveBeenCalledTimes(1);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({ errors: [], isTruncated: false });
+  });
+
+  it('maps the --severity flag to the AppObserveErrorSeverity enum', async () => {
+    await createCommand(['--severity', 'fatal']).runAsync();
+    const options = mockFetchErrorGroupsAsync.mock.calls[0][2];
+    expect(options.severity).toBe(AppObserveErrorSeverity.Fatal);
+  });
+
+  it('surfaces the plan-gate message when errors are not available on the plan', async () => {
+    mockFetchErrorGroupsAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Subscription to EAS is required for this feature.',
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+            }
+          ),
+        ],
+      })
+    );
+    await expect(createCommand([]).runAsync()).rejects.toThrow(/Subscription to EAS is required/);
+  });
+});

@@ -5,6 +5,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   AppObserveAppVersion,
   AppObserveError,
+  AppObserveErrorGroup,
+  AppObserveErrorsGroupsInput,
   AppObserveLogsOrderBy,
   AppObserveMetric,
   AppObserveMetricsListFilter,
@@ -24,6 +26,7 @@ import { print } from 'graphql';
 import {
   AppObserveAppVersionFragmentNode,
   AppObserveErrorFragmentNode,
+  AppObserveErrorGroupFragmentNode,
   AppObserveMetricFragmentNode,
   AppObserveUserEventFragmentNode,
 } from '../types/Observe';
@@ -154,6 +157,27 @@ type AppObserveNavigationRoutesQueryVariables = {
   first?: number;
   after?: string;
   orderBy?: AppObserveNavigationOrderBy;
+};
+
+type AppObserveErrorGroupsQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        errors: {
+          groups: {
+            isTruncated: boolean;
+            groups: AppObserveErrorGroup[];
+          };
+        };
+      };
+    };
+  };
+};
+
+type AppObserveErrorGroupsQueryVariables = {
+  appId: string;
+  input: AppObserveErrorsGroupsInput;
 };
 
 type AppObserveSessionEventsQuery = {
@@ -464,6 +488,41 @@ export const ObserveQuery = {
       routes: edges.map(edge => edge.node),
       pageInfo,
     };
+  },
+
+  async errorGroupsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, input }: { appId: string; input: AppObserveErrorsGroupsInput }
+  ): Promise<{ groups: AppObserveErrorGroup[]; isTruncated: boolean }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveErrorGroupsQuery, AppObserveErrorGroupsQueryVariables>(
+          gql`
+            query AppObserveErrorGroups($appId: String!, $input: AppObserveErrorsGroupsInput!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    errors {
+                      groups(input: $input) {
+                        isTruncated
+                        groups {
+                          ...AppObserveErrorGroupFragment
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveErrorGroupFragmentNode)}
+          `,
+          { appId, input }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.errors.groups;
   },
 
   async sessionEventsAsync(
