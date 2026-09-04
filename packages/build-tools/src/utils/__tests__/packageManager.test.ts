@@ -10,6 +10,7 @@ import {
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
   resolveFallbackPackageManager,
+  resolveOverridePackageManager,
   resolvePackageExec,
   resolvePackageManager,
   resolvePackageVersionAsync,
@@ -135,6 +136,25 @@ describe(resolveFallbackPackageManager, () => {
     expect(() => resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' })).toThrow(
       errors.UserError
     );
+  });
+});
+
+describe(resolveOverridePackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveOverridePackageManager({})).toBeUndefined();
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() =>
+      resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })
+    ).toThrow(errors.UserError);
   });
 });
 
