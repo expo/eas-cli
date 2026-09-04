@@ -68,6 +68,13 @@ export function resolveOverridePackageManager(env: BuildStepEnv): PackageManager
   );
 }
 
+export function resolveConfiguredPackageManager(
+  env: BuildStepEnv,
+  whenUnset: PackageManager
+): PackageManager {
+  return resolveOverridePackageManager(env) ?? resolveFallbackPackageManager(env) ?? whenUnset;
+}
+
 export function resolvePackageExec(
   manager: PackageManager,
   args: string[]

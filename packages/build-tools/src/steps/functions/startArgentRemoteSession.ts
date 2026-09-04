@@ -19,7 +19,7 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { Sentry } from '../../sentry';
-import { PackageManager, resolveOverridePackageManager, resolvePackageExec } from '../../utils/packageManager';
+import { PackageManager, resolveConfiguredPackageManager, resolvePackageExec } from '../../utils/packageManager';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
@@ -114,7 +114,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       // Never rejects, so `void` is safe.
       void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
-      const packageManager = resolveOverridePackageManager(env) ?? PackageManager.BUN;
+      const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
       const argentExec = (args: string[]): { command: string; args: string[] } =>
         resolvePackageExec(packageManager, args);
 
