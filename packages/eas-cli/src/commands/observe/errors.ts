@@ -39,7 +39,7 @@ const SEVERITY_BY_FLAG: Record<string, AppObserveErrorSeverity> = {
   error: AppObserveErrorSeverity.Error,
 };
 
-const DEFAULT_OCCURRENCES_LIMIT = 5;
+const DEFAULT_OCCURRENCES_LIMIT = 10;
 
 export default class ObserveErrors extends EasCommand {
   static override description =
@@ -91,6 +91,12 @@ export default class ObserveErrors extends EasCommand {
       projectIdOverride: flags['project-id'],
       nonInteractive,
     });
+
+    if (!flags.fingerprint && (flags.after || flags.limit)) {
+      throw new Error(
+        '--after or --limit can only be used in combination with the --fingerprint flag.'
+      );
+    }
 
     if (json) {
       enableJsonOutput();
