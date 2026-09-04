@@ -98,4 +98,37 @@ describe('SupabaseQuery', () => {
       expect.objectContaining({ requestPolicy: 'network-only' })
     );
   });
+
+  it('getSupabaseAdvisorLintsByAppIdAsync splits the project from the aliased advisor lists', async () => {
+    const lint = {
+      name: 'rls_disabled_in_public',
+      title: 'RLS Disabled in Public',
+      level: 'ERROR',
+      description: 'Detects tables without RLS.',
+      detail: 'Table `public.todos` is public, but RLS has not been enabled.',
+      entity: 'public.todos',
+      remediation: null,
+      cacheKey: 'rls_disabled_in_public_public_todos',
+    };
+    const client = makeQueryClient({
+      app: { byId: { id: 'app-1', supabaseProject: { ...project, security: [lint] } } },
+    });
+
+    await expect(
+      SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync(client, 'app-1')
+    ).resolves.toEqual({ project, security: [lint], performance: null });
+    expect(client.query).toHaveBeenCalledWith(
+      expect.anything(),
+      { appId: 'app-1' },
+      expect.objectContaining({ requestPolicy: 'network-only' })
+    );
+  });
+
+  it('getSupabaseAdvisorLintsByAppIdAsync returns null when no project is linked', async () => {
+    const client = makeQueryClient({ app: { byId: { id: 'app-1', supabaseProject: null } } });
+
+    await expect(
+      SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync(client, 'app-1')
+    ).resolves.toBeNull();
+  });
 });

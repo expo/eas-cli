@@ -4,6 +4,9 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  SupabaseAdvisorLintData,
+  SupabaseAdvisorLintFragmentNode,
+  SupabaseAdvisorLintsData,
   SupabaseConnectionData,
   SupabaseConnectionFragmentNode,
   SupabaseProjectData,
@@ -24,6 +27,20 @@ type SupabaseProjectByAppIdQuery = {
     byId: {
       id: string;
       supabaseProject?: SupabaseProjectData | null;
+    };
+  };
+};
+
+type SupabaseAdvisorLintsByAppIdQuery = {
+  app: {
+    byId: {
+      id: string;
+      supabaseProject?:
+        | (SupabaseProjectData & {
+            security?: SupabaseAdvisorLintData[] | null;
+            performance?: SupabaseAdvisorLintData[] | null;
+          })
+        | null;
     };
   };
 };
@@ -93,5 +110,46 @@ export const SupabaseQuery = {
         .toPromise()
     );
     return data.app.byId.supabaseProject ?? null;
+  },
+
+  async getSupabaseAdvisorLintsByAppIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<SupabaseAdvisorLintsData | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<SupabaseAdvisorLintsByAppIdQuery, { appId: string }>(
+          gql`
+            query SupabaseAdvisorLintsByAppId($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  supabaseProject {
+                    id
+                    ...SupabaseProjectFragment
+                    security: advisorLints(type: SECURITY) {
+                      ...SupabaseAdvisorLintFragment
+                    }
+                    performance: advisorLints(type: PERFORMANCE) {
+                      ...SupabaseAdvisorLintFragment
+                    }
+                  }
+                }
+              }
+            }
+            ${print(SupabaseProjectFragmentNode)}
+            ${print(SupabaseAdvisorLintFragmentNode)}
+          `,
+          { appId },
+          { additionalTypenames: ['App', 'SupabaseProject'], requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    const project = data.app.byId.supabaseProject;
+    if (!project) {
+      return null;
+    }
+    const { security, performance, ...projectData } = project;
+    return { project: projectData, security: security ?? null, performance: performance ?? null };
   },
 };

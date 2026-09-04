@@ -1,11 +1,18 @@
+import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 
 import {
+  SupabaseAdvisorLintData,
+  SupabaseAdvisorLintLevel,
+  SupabaseAdvisorType,
   SupabaseConnectionData,
   SupabaseOrganizationData,
   SupabaseProjectData,
 } from '../graphql/types/SupabaseConnection';
 import Log, { link } from '../log';
+
+export const SUPABASE_REAUTHORIZATION_REQUIRED_ERROR_CODE =
+  'SUPABASE_REAUTHORIZATION_REQUIRED_ERROR';
 
 export function getSupabaseProjectDashboardUrl(
   project: Pick<SupabaseProjectData, 'supabaseProjectRef'>
@@ -93,4 +100,68 @@ export function formatSupabaseProject(project: SupabaseProjectData): string {
 
 export function logNoSupabaseProject(projectName: string): void {
   Log.warn(`No Supabase project is linked to Expo app ${chalk.bold(projectName)} on EAS.`);
+}
+
+export function getSupabaseAdvisorsDashboardUrl(
+  project: Pick<SupabaseProjectData, 'supabaseProjectRef'>,
+  type: SupabaseAdvisorType
+): string {
+  return `${getSupabaseProjectDashboardUrl(project)}/advisors/${type.toLowerCase()}`;
+}
+
+export function isSupabaseReauthorizationRequiredError(error: unknown): boolean {
+  return (
+    error instanceof CombinedError &&
+    error.graphQLErrors.some(
+      graphQLError =>
+        graphQLError.extensions?.errorCode === SUPABASE_REAUTHORIZATION_REQUIRED_ERROR_CODE
+    )
+  );
+}
+
+const ADVISOR_LINT_LEVEL_LABELS: Record<
+  SupabaseAdvisorLintLevel,
+  [singular: string, plural: string]
+> = {
+  ERROR: ['error', 'errors'],
+  WARN: ['warning', 'warnings'],
+  INFO: ['suggestion', 'suggestions'],
+};
+
+const ADVISOR_LINT_LEVEL_MARKERS: Record<SupabaseAdvisorLintLevel, string> = {
+  [SupabaseAdvisorLintLevel.Error]: chalk.red('✖'),
+  [SupabaseAdvisorLintLevel.Warn]: chalk.yellow('▲'),
+  [SupabaseAdvisorLintLevel.Info]: chalk.blue('●'),
+};
+
+export function summarizeSupabaseAdvisorLints(lints: readonly SupabaseAdvisorLintData[]): string {
+  if (lints.length === 0) {
+    return 'no unresolved findings';
+  }
+  return (Object.keys(ADVISOR_LINT_LEVEL_LABELS) as SupabaseAdvisorLintLevel[])
+    .map(level => [level, lints.filter(lint => lint.level === level).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([level, count]) => `${count} ${ADVISOR_LINT_LEVEL_LABELS[level][count === 1 ? 0 : 1]}`)
+    .join(', ');
+}
+
+function stripInlineCode(text: string): string {
+  return text.replaceAll('\\`', '').replaceAll('`', '');
+}
+
+export function formatSupabaseAdvisorLints(
+  project: Pick<SupabaseProjectData, 'supabaseProjectRef'>,
+  type: SupabaseAdvisorType,
+  lints: readonly SupabaseAdvisorLintData[]
+): string {
+  const heading = `${chalk.bold(type === SupabaseAdvisorType.Security ? 'Security' : 'Performance')}: ${summarizeSupabaseAdvisorLints(lints)}`;
+  const rows = lints.flatMap(lint => [
+    `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${chalk.bold(lint.title)}${lint.entity ? `  ${chalk.dim(lint.entity)}` : ''}`,
+    `      ${stripInlineCode(lint.detail)}`,
+    ...(lint.remediation
+      ? [`      ${chalk.dim('Fix:')} ${link(lint.remediation, { dim: false })}`]
+      : []),
+  ]);
+  const dashboard = `  ${chalk.dim('Dashboard:')} ${link(getSupabaseAdvisorsDashboardUrl(project, type), { dim: false })}`;
+  return [heading, ...rows, dashboard].join('\n');
 }
