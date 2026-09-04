@@ -11,6 +11,7 @@ import {
 } from '../../commandUtils/flags';
 import {
   AppPlatform,
+  DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -191,10 +192,6 @@ export default class Simulator extends EasCommand {
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
     const openUrl = flags['open-url']?.trim() || undefined;
-    const resourceClass = flags['resource-class']
-      ? DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE[flags['resource-class']]
-      : undefined;
-
     if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
     }
@@ -218,6 +215,11 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const resourceClass = flags['resource-class']
+      ? DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE[flags['resource-class']]
+      : platform === AppPlatform.Android
+        ? DeviceRunSessionResourceClass.Large
+        : undefined;
     if (platform === AppPlatform.Android) {
       Log.warn(
         'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'

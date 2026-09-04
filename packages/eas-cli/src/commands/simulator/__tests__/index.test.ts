@@ -564,11 +564,37 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
   });
 
-  it('omits resourceClass when --resource-class is not set', async () => {
+  it('omits resourceClass for iOS when --resource-class is not set', async () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
 
     expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('resourceClass');
+  });
+
+  it('uses the large resource class for Android by default', async () => {
+    const { command } = createCommand(['--platform', 'android', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ resourceClass: DeviceRunSessionResourceClass.Large })
+    );
+  });
+
+  it('allows the medium resource class to be selected explicitly for Android', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--resource-class',
+      'medium',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ resourceClass: DeviceRunSessionResourceClass.Medium })
+    );
   });
 
   it.each([
