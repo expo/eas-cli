@@ -99,6 +99,34 @@ export function formatPreviewUrl(url: string, token: string | null | undefined):
   return withToken.toString();
 }
 
+/**
+ * Remote config for `--json`. The preview URL carries the token and the standalone token field is
+ * dropped, so a consumer gets one URL that works rather than a bare URL that 401s next to a secret
+ * it has to know to combine.
+ */
+export function sanitizeRemoteConfigForJson(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): DeviceRunSessionRemoteConfig {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig': {
+      const { previewToken, ...rest } = remoteConfig;
+      return { ...rest, previewUrl: formatPreviewUrl(remoteConfig.previewUrl, previewToken) };
+    }
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig': {
+      const { webPreviewToken, ...rest } = remoteConfig;
+      return {
+        ...rest,
+        webPreviewUrl: remoteConfig.webPreviewUrl
+          ? formatPreviewUrl(remoteConfig.webPreviewUrl, webPreviewToken)
+          : remoteConfig.webPreviewUrl,
+      };
+    }
+  }
+}
+
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType

@@ -9,6 +9,7 @@ import {
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getRemoteSessionEnvironmentVariables,
+  sanitizeRemoteConfigForJson,
 } from '../utils';
 
 const iosAppiumConfig = {
@@ -91,6 +92,64 @@ describe(formatPreviewUrl, () => {
     expect(formatPreviewUrl('https://preview.example.test', undefined)).toBe(
       'https://preview.example.test'
     );
+  });
+});
+
+describe(sanitizeRemoteConfigForJson, () => {
+  const PREVIEW_URL = 'https://preview.example.test';
+
+  it('moves the token into the preview url and drops the standalone field', () => {
+    const sanitized = sanitizeRemoteConfigForJson({
+      __typename: 'ServeSimRunSessionRemoteConfig' as const,
+      previewUrl: PREVIEW_URL,
+      previewToken: 'tok-1',
+    });
+
+    expect(sanitized).toEqual({
+      __typename: 'ServeSimRunSessionRemoteConfig',
+      previewUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+    expect(JSON.stringify(sanitized)).not.toContain('previewToken');
+  });
+
+  it('does the same for a controller session', () => {
+    const sanitized = sanitizeRemoteConfigForJson({
+      __typename: 'ArgentRunSessionRemoteConfig' as const,
+      toolsUrl: 'https://argent.example.test',
+      toolsAuthToken: 'argent-token',
+      webPreviewUrl: PREVIEW_URL,
+      webPreviewToken: 'tok-1',
+    });
+
+    expect(sanitized).toMatchObject({ webPreviewUrl: `${PREVIEW_URL}/?token=tok-1` });
+    expect(JSON.stringify(sanitized)).not.toContain('webPreviewToken');
+    // The controller credential is a different secret and stays: it is what simulator:exec needs.
+    expect(sanitized).toMatchObject({ toolsAuthToken: 'argent-token' });
+  });
+
+  it('leaves an ungated session untouched', () => {
+    const remoteConfig = {
+      __typename: 'ServeSimRunSessionRemoteConfig' as const,
+      previewUrl: PREVIEW_URL,
+      previewToken: null,
+    };
+
+    expect(sanitizeRemoteConfigForJson(remoteConfig)).toEqual({
+      __typename: 'ServeSimRunSessionRemoteConfig',
+      previewUrl: PREVIEW_URL,
+    });
+  });
+
+  it('leaves a controller session with no web preview alone', () => {
+    const sanitized = sanitizeRemoteConfigForJson({
+      __typename: 'AppiumRunSessionRemoteConfig' as const,
+      appiumUrl: 'https://appium.example.test',
+      capabilities: {},
+      webPreviewUrl: null,
+      webPreviewToken: null,
+    });
+
+    expect(sanitized).toMatchObject({ webPreviewUrl: null });
   });
 });
 
