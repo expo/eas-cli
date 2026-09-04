@@ -19,6 +19,37 @@ const iosAppiumConfig = {
   webPreviewUrl: 'https://preview.example.test',
 };
 
+describe('managed simulator instructions', () => {
+  it('runs agent-device with bunx', () => {
+    const instructions = formatRemoteSessionInstructions(
+      {
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+        agentDeviceRemoteSessionToken: 'agent-token',
+      },
+      'dotenv'
+    );
+
+    expect(instructions).toContain('eas simulator:exec bunx agent-device <command>');
+    expect(instructions).not.toContain('npx agent-device');
+  });
+
+  it('runs Argent with bunx', () => {
+    const instructions = formatRemoteSessionInstructions(
+      {
+        __typename: 'ArgentRunSessionRemoteConfig',
+        toolsUrl: 'https://argent.example.test',
+        toolsAuthToken: 'argent-token',
+      },
+      'dotenv'
+    );
+
+    expect(instructions).toContain(
+      "bunx @swmansion/argent link 'https://argent.example.test' --token 'argent-token' --yes"
+    );
+  });
+});
+
 describe('Appium simulator configuration', () => {
   it('maps the appium CLI value to the GraphQL enum', () => {
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE.appium).toBe(DeviceRunSessionType.Appium);

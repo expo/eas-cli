@@ -98,7 +98,7 @@ export function formatRemoteSessionInstructions(
           ? [
               '🔑 Run the following to use agent-device with the simulator:',
               '',
-              'eas simulator:exec npx agent-device <command>',
+              'eas simulator:exec bunx agent-device <command>',
             ]
           : [
               '🔑 Run the following in your shell to attach to the agent-device daemon:',
@@ -125,7 +125,8 @@ export function formatRemoteSessionInstructions(
               '🔑 Run the following to link your local Argent client to this simulator session:',
               '',
               [
-                'argent',
+                'bunx',
+                '@swmansion/argent',
                 'link',
                 `'${remoteConfig.toolsUrl}'`,
                 remoteConfig.toolsAuthToken

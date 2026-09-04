@@ -279,7 +279,7 @@ describe(Simulator, () => {
       [
         '🔑 Run the following to use agent-device with the simulator:',
         '',
-        'eas simulator:exec npx agent-device <command>',
+        'eas simulator:exec bunx agent-device <command>',
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
