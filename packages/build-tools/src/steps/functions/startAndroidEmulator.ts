@@ -38,6 +38,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       BuildStepInput.createProvider({
         id: 'device_identifier',
         required: false,
+        defaultValue: AndroidEmulatorUtils.defaultDeviceIdentifier,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({

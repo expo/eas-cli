@@ -8,7 +8,11 @@ import path from 'node:path';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
-import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
+import {
+  AndroidDeviceName,
+  AndroidEmulatorUtils,
+  AndroidVirtualDeviceName,
+} from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -46,6 +50,70 @@ describe('AndroidEmulatorUtils', () => {
         await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
       })
     );
+  });
+
+  describe(AndroidEmulatorUtils.createAsync, () => {
+    it('sets the lower-resolution display configuration before returning', async () => {
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(
+        `${avdDirectory}/config.ini`,
+        [
+          'hw.ramSize=1536',
+          'hw.lcd.height=2424',
+          'hw.lcd.width=1080',
+          'hw.lcd.density=420',
+          'skin.path=pixel_9',
+          'showDeviceFrame=yes',
+        ].join('\n')
+      );
+      const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      const write = jest.fn();
+      const end = jest.fn();
+      avdManagerPromise.child = { stdin: { write, end } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: 'system-images;android-35;default;x86_64',
+        deviceIdentifier: 'medium_phone' as AndroidDeviceName,
+        env: {
+          HOME: '/home/expo',
+          ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+        },
+        logger: createMockLogger(),
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'avdmanager',
+        [
+          'create',
+          'avd',
+          '--name',
+          deviceName,
+          '--package',
+          'system-images;android-35;default;x86_64',
+          '--force',
+          '--device',
+          'medium_phone',
+        ],
+        { env: expect.any(Object), stdio: 'pipe' }
+      );
+      expect(write).toHaveBeenCalledWith('no');
+      expect(end).toHaveBeenCalled();
+      await expect(fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8')).resolves.toBe(
+        [
+          'hw.ramSize=2048',
+          'hw.lcd.height=1600',
+          'hw.lcd.width=720',
+          'hw.lcd.density=262',
+          'skin.path=_no_skin',
+          'showDeviceFrame=no',
+          '',
+        ].join('\n')
+      );
+    });
   });
 
   describe(AndroidEmulatorUtils.startAsync, () => {
