@@ -38,6 +38,7 @@ import {
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getRemoteSessionEnvironmentVariables,
+  sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
@@ -381,7 +382,7 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig,
+        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
       });
       return;
     }
