@@ -1,4 +1,4 @@
-import { AppObserveCustomEvent, AppObserveEvent } from '../../graphql/generated';
+import { AppObserveMetric, AppObserveUserEvent } from '../../graphql/generated';
 import { SessionEventEntry, SessionMetadata } from '../fetchSessions';
 import {
   buildObserveSessionEventsJson,
@@ -21,8 +21,8 @@ function makeMetricEntry(overrides: Partial<SessionEventEntry> = {}): SessionEve
     deviceOsVersion: '17.0',
     countryCode: 'US',
     easClientId: 'client-1',
-    metricName: 'expo.app_startup.tti',
-    metricValue: 0.8,
+    name: 'expo.app_startup.tti',
+    value: 0.8,
     customParams: null,
     ...overrides,
   };
@@ -41,7 +41,7 @@ function makeLogEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventE
     deviceOsVersion: '17.0',
     countryCode: 'US',
     easClientId: 'client-1',
-    eventName: 'login_pressed',
+    name: 'login_pressed',
     severityText: null,
     severityNumber: null,
     properties: [],
@@ -71,8 +71,8 @@ describe(buildObserveSessionEventsTable, () => {
   it('appends the routeName to navigation metric rows', () => {
     const entries = [
       makeMetricEntry({
-        metricName: 'expo.navigation.tti',
-        metricValue: 0.32,
+        name: 'expo.navigation.tti',
+        value: 0.32,
         routeName: '/home',
       }),
     ];
@@ -150,7 +150,7 @@ describe(buildObserveSessionEventsTable, () => {
 
   it('leaves the Value column as "-" for log entries (metric rows keep their value)', () => {
     const entries = [
-      makeMetricEntry({ metricValue: 0.8 }),
+      makeMetricEntry({ value: 0.8 }),
       makeLogEntry({
         properties: [{ key: 'user_id', value: 'abc', type: 'STRING' }],
       }),
@@ -259,12 +259,12 @@ describe(shortSessionId, () => {
   });
 });
 
-function makeMetricEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEvent {
+function makeMetricEvent(overrides: Partial<AppObserveMetric> = {}): AppObserveMetric {
   return {
-    __typename: 'AppObserveEvent' as const,
+    __typename: 'AppObserveMetric' as const,
     id: 'evt-m-1',
-    metricName: 'expo.app_startup.tti',
-    metricValue: 1.23,
+    name: 'expo.app_startup.tti',
+    value: 1.23,
     timestamp: '2025-01-15T10:00:00.000Z',
     appVersion: '1.0.0',
     appBuildNumber: '42',
@@ -278,14 +278,14 @@ function makeMetricEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEv
     customParams: null,
     routeName: null,
     ...overrides,
-  } as AppObserveEvent;
+  } as AppObserveMetric;
 }
 
-function makeCustomEventEvt(overrides: Partial<AppObserveCustomEvent> = {}): AppObserveCustomEvent {
+function makeCustomEventEvt(overrides: Partial<AppObserveUserEvent> = {}): AppObserveUserEvent {
   return {
-    __typename: 'AppObserveCustomEvent' as const,
+    __typename: 'AppObserveUserEvent' as const,
     id: 'evt-c-1',
-    eventName: 'login_pressed',
+    name: 'login_pressed',
     timestamp: '2025-01-15T10:00:00.000Z',
     sessionId: 'session-abcdefgh1234567890',
     severityNumber: null,
@@ -302,7 +302,7 @@ function makeCustomEventEvt(overrides: Partial<AppObserveCustomEvent> = {}): App
     countryCode: 'US',
     properties: [],
     ...overrides,
-  } as AppObserveCustomEvent;
+  } as AppObserveUserEvent;
 }
 
 describe(formatMetricCandidateTitle, () => {

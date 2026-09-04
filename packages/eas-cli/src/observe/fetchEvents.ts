@@ -1,10 +1,10 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  AppObserveEvent,
-  AppObserveEventsFilter,
-  AppObserveEventsOrderBy,
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveMetric,
+  AppObserveMetricsListFilter,
+  AppObserveMetricsListOrderBy,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
   AppObservePlatform,
   PageInfo,
 } from '../graphql/generated';
@@ -19,35 +19,35 @@ export enum EventsOrderPreset {
   Oldest = 'OLDEST',
 }
 
-export function resolveOrderBy(input: string): AppObserveEventsOrderBy {
+export function resolveOrderBy(input: string): AppObserveMetricsListOrderBy {
   const preset = input.toUpperCase() as EventsOrderPreset;
   switch (preset) {
     case EventsOrderPreset.Slowest:
       return {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       };
     case EventsOrderPreset.Fastest:
       return {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Asc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Asc,
       };
     case EventsOrderPreset.Newest:
       return {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Desc,
       };
     case EventsOrderPreset.Oldest:
       return {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Asc,
+        field: AppObserveMetricsListOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Asc,
       };
   }
 }
 
 interface FetchObserveEventsOptions {
   metricName?: string;
-  orderBy: AppObserveEventsOrderBy;
+  orderBy: AppObserveMetricsListOrderBy;
   limit: number;
   after?: string;
   startTime?: string;
@@ -61,7 +61,7 @@ interface FetchObserveEventsOptions {
 }
 
 interface FetchObserveEventsResult {
-  events: AppObserveEvent[];
+  events: AppObserveMetric[];
   pageInfo: PageInfo;
 }
 
@@ -70,10 +70,10 @@ export async function fetchObserveEventsAsync(
   appId: string,
   options: FetchObserveEventsOptions
 ): Promise<FetchObserveEventsResult> {
-  const filter: AppObserveEventsFilter = {
+  const filter: AppObserveMetricsListFilter = {
     ...(options.startTime && { startTime: options.startTime }),
     ...(options.endTime && { endTime: options.endTime }),
-    ...(options.metricName && { metricName: options.metricName }),
+    ...(options.metricName && { name: options.metricName }),
     ...(options.platforms?.length && { platforms: options.platforms }),
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.buildNumber && { appBuildNumber: options.buildNumber }),

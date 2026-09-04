@@ -1,11 +1,14 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  AppObserveCustomEvent,
-  AppObserveCustomEventListOrderByField,
-  AppObserveEvent,
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveError,
+  AppObserveLogsOrderByField,
+  AppObserveMetric,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
+  AppObserveUserEvent,
+  AppObserveUserEventListOrderByField,
 } from '../graphql/generated';
+import { AppObserveSessionLog, ObserveQuery } from '../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from './fetchCustomEvents';
 import { fetchObserveEventsAsync, resolveOrderBy } from './fetchEvents';
 
@@ -13,6 +16,8 @@ export interface SessionEventEntry {
   source: 'metric' | 'log';
   timestamp: string;
   sessionId: string;
+  // Metric name, user-event name, or error type.
+  name: string;
   appVersion: string;
   appBuildNumber: string;
   appUpdateId: string | null;
@@ -22,23 +27,22 @@ export interface SessionEventEntry {
   countryCode: string | null;
   easClientId: string;
   // metric-only fields
-  metricName?: string;
-  metricValue?: number;
+  value?: number;
   customParams?: { [key: string]: any } | null;
   routeName?: string | null;
   // log-only fields
-  eventName?: string;
   severityText?: string | null;
   severityNumber?: number | null;
   properties?: Array<{ key: string; value: string; type: string }>;
   environment?: string | null;
 }
 
-function metricEventToEntry(event: AppObserveEvent): SessionEventEntry {
+function metricEventToEntry(event: AppObserveMetric): SessionEventEntry {
   return {
     source: 'metric',
     timestamp: event.timestamp,
     sessionId: event.sessionId ?? '',
+    name: event.name,
     appVersion: event.appVersion,
     appBuildNumber: event.appBuildNumber,
     appUpdateId: event.appUpdateId ?? null,
@@ -47,18 +51,18 @@ function metricEventToEntry(event: AppObserveEvent): SessionEventEntry {
     deviceOsVersion: event.deviceOsVersion,
     countryCode: event.countryCode ?? null,
     easClientId: event.easClientId,
-    metricName: event.metricName,
-    metricValue: event.metricValue,
+    value: event.value,
     customParams: event.customParams ?? null,
     routeName: event.routeName ?? null,
   };
 }
 
-function customEventToEntry(event: AppObserveCustomEvent): SessionEventEntry {
+function userEventToEntry(event: AppObserveUserEvent): SessionEventEntry {
   return {
     source: 'log',
     timestamp: event.timestamp,
     sessionId: event.sessionId ?? '',
+    name: event.name,
     appVersion: event.appVersion,
     appBuildNumber: event.appBuildNumber,
     appUpdateId: event.appUpdateId ?? null,
@@ -67,12 +71,40 @@ function customEventToEntry(event: AppObserveCustomEvent): SessionEventEntry {
     deviceOsVersion: event.deviceOsVersion,
     countryCode: event.countryCode ?? null,
     easClientId: event.easClientId,
-    eventName: event.eventName,
     severityText: event.severityText ?? null,
     severityNumber: event.severityNumber ?? null,
     properties: event.properties.map(p => ({ key: p.key, value: p.value, type: p.type })),
     environment: event.environment ?? null,
   };
+}
+
+function errorToEntry(event: AppObserveError): SessionEventEntry {
+  const properties = [
+    ...(event.message ? [{ key: 'message', value: event.message, type: 'STRING' }] : []),
+    ...event.properties.map(p => ({ key: p.key, value: p.value, type: p.type })),
+  ];
+  return {
+    source: 'log',
+    timestamp: event.timestamp,
+    sessionId: event.sessionId ?? '',
+    name: event.type ?? 'exception',
+    appVersion: event.appVersion,
+    appBuildNumber: event.appBuildNumber,
+    appUpdateId: event.appUpdateId ?? null,
+    deviceModel: event.deviceModel,
+    deviceOs: event.deviceOs,
+    deviceOsVersion: event.deviceOsVersion,
+    countryCode: event.countryCode ?? null,
+    easClientId: event.easClientId,
+    severityText: event.severityText ?? null,
+    severityNumber: event.severityNumber ?? null,
+    properties,
+    environment: event.environment ?? null,
+  };
+}
+
+function sessionLogToEntry(log: AppObserveSessionLog): SessionEventEntry {
+  return log.__typename === 'AppObserveError' ? errorToEntry(log) : userEventToEntry(log);
 }
 
 export interface SessionMetadata {
@@ -124,25 +156,26 @@ export async function fetchObserveSessionEventsAsync(
   appId: string,
   options: FetchSessionEventsOptions
 ): Promise<FetchSessionEventsResult> {
-  const [metricResult, logResult] = await Promise.all([
-    fetchObserveEventsAsync(graphqlClient, appId, {
-      orderBy: {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Asc,
+  const { metrics, logs, metricsPageInfo, logsPageInfo } = await ObserveQuery.sessionEventsAsync(
+    graphqlClient,
+    {
+      appId,
+      id: options.sessionId,
+      first: options.limit,
+      metricsOrderBy: {
+        field: AppObserveMetricsListOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Asc,
       },
-      limit: options.limit,
-      sessionId: options.sessionId,
-    }),
-    fetchObserveCustomEventsAsync(graphqlClient, appId, {
-      limit: options.limit,
-      sessionId: options.sessionId,
-    }),
-  ]);
+      logsOrderBy: {
+        field: AppObserveLogsOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Asc,
+      },
+    }
+  );
 
-  const entries = [
-    ...metricResult.events.map(metricEventToEntry),
-    ...logResult.events.map(customEventToEntry),
-  ].sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
+  const entries = [...metrics.map(metricEventToEntry), ...logs.map(sessionLogToEntry)].sort(
+    (a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0)
+  );
 
   let metadata: SessionMetadata | null = null;
   if (entries.length > 0) {
@@ -163,8 +196,8 @@ export async function fetchObserveSessionEventsAsync(
   return {
     entries,
     metadata,
-    hasMoreMetricEvents: metricResult.pageInfo.hasNextPage,
-    hasMoreLogEvents: logResult.pageInfo.hasNextPage,
+    hasMoreMetricEvents: metricsPageInfo.hasNextPage,
+    hasMoreLogEvents: logsPageInfo.hasNextPage,
   };
 }
 
@@ -172,7 +205,7 @@ export async function fetchObserveSessionEventsAsync(
  * A metric event that is guaranteed to belong to a session — used as a
  * candidate when picking a session to inspect via `observe:session`.
  */
-export type SessionMetricCandidate = AppObserveEvent & { sessionId: string };
+export type SessionMetricCandidate = AppObserveMetric & { sessionId: string };
 
 export interface FetchSessionMetricCandidatesOptions {
   metricName: string;
@@ -186,7 +219,7 @@ export interface FetchSessionMetricCandidatesOptions {
 
 /**
  * Fetch a page of metric events for the given metricName + window, ordered
- * per `sort`, and filtered to events that have a sessionId. The events query
+ * per `sort`, and filtered to events that have a sessionId. The metrics query
  * supports server-side ordering, so `sort` is passed straight through.
  */
 export async function fetchSessionMetricCandidatesAsync(
@@ -206,10 +239,10 @@ export async function fetchSessionMetricCandidatesAsync(
 }
 
 /**
- * A custom log event that is guaranteed to belong to a session — used as a
- * candidate when picking a session to inspect via `observe:session`.
+ * A user-defined log event that is guaranteed to belong to a session — used as
+ * a candidate when picking a session to inspect via `observe:session`.
  */
-export type SessionLogCandidate = AppObserveCustomEvent & { sessionId: string };
+export type SessionLogCandidate = AppObserveUserEvent & { sessionId: string };
 
 export interface FetchSessionLogCandidatesOptions {
   eventName: string;
@@ -222,8 +255,8 @@ export interface FetchSessionLogCandidatesOptions {
 }
 
 /**
- * Fetch a page of custom log events for the given eventName + window, ordered
- * by timestamp server-side, and filtered to events that have a sessionId.
+ * Fetch a page of user-defined log events for the given eventName + window,
+ * ordered by timestamp server-side, and filtered to events that have a sessionId.
  */
 export async function fetchSessionLogCandidatesAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -237,10 +270,10 @@ export async function fetchSessionLogCandidatesAsync(
     endTime: options.endTime,
     environment: options.environment,
     orderBy: {
-      field: AppObserveCustomEventListOrderByField.Timestamp,
+      field: AppObserveUserEventListOrderByField.Timestamp,
       direction: options.orderAscending
-        ? AppObserveEventsOrderByDirection.Asc
-        : AppObserveEventsOrderByDirection.Desc,
+        ? AppObserveOrderDirection.Asc
+        : AppObserveOrderDirection.Desc,
     },
   });
   return events.filter((e): e is SessionLogCandidate => !!e.sessionId);

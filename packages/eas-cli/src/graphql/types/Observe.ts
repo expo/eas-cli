@@ -1,27 +1,9 @@
 import gql from 'graphql-tag';
 
-export const AppObserveTimeSeriesFragmentNode = gql`
-  fragment AppObserveTimeSeriesFragment on AppObserveTimeSeries {
-    appVersionMarkers {
-      ...AppObserveAppVersionFragment
-    }
-    eventCount
-    statistics {
-      min
-      max
-      median
-      average
-      p80
-      p90
-      p99
-    }
-  }
-`;
-
-export const AppObserveCustomEventFragmentNode = gql`
-  fragment AppObserveCustomEventFragment on AppObserveCustomEvent {
+export const AppObserveUserEventFragmentNode = gql`
+  fragment AppObserveUserEventFragment on AppObserveUserEvent {
     id
-    eventName
+    name
     timestamp
     sessionId
     severityNumber
@@ -44,11 +26,41 @@ export const AppObserveCustomEventFragmentNode = gql`
   }
 `;
 
-export const AppObserveEventFragmentNode = gql`
-  fragment AppObserveEventFragment on AppObserveEvent {
+export const AppObserveErrorFragmentNode = gql`
+  fragment AppObserveErrorFragment on AppObserveError {
     id
-    metricName
-    metricValue
+    timestamp
+    sessionId
+    severityNumber
+    severityText
+    type
+    message
+    source
+    fingerprint
+    isFatal
+    properties {
+      key
+      value
+      type
+    }
+    appVersion
+    appBuildNumber
+    appUpdateId
+    appEasBuildId
+    deviceOs
+    deviceOsVersion
+    deviceModel
+    environment
+    easClientId
+    countryCode
+  }
+`;
+
+export const AppObserveMetricFragmentNode = gql`
+  fragment AppObserveMetricFragment on AppObserveMetric {
+    id
+    name
+    value
     timestamp
     appVersion
     appBuildNumber
