@@ -15,7 +15,11 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { PackageManager, resolveConfiguredPackageManager, resolvePackageExec } from '../../utils/packageManager';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageExec,
+} from '../../utils/packageManager';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
@@ -800,7 +804,9 @@ async function startWebPreviewWithTunnelAsync(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     createArgs(port, turnArgs)
   );
-  logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`);
+  logger.info(
+    `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
+  );
   const previewServer = spawnDetached({
     command: previewExec.command,
     args: previewExec.args,
