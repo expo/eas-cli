@@ -15,7 +15,11 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { PackageManager, resolveConfiguredPackageManager, resolvePackageExec } from '../../utils/packageManager';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageExec,
+} from '../../utils/packageManager';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
@@ -550,7 +554,7 @@ async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> 
   }
   try {
     // spawnDetached creates a dedicated process group. Signaling the group also
-    // terminates npx/bunx descendants instead of leaving the actual daemon alive.
+    // terminates package-runner descendants instead of leaving the actual daemon alive.
     process.kill(-pid, 'SIGTERM');
   } catch {
     try {
@@ -806,7 +810,9 @@ async function startWebPreviewWithTunnelAsync(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     createArgs(port, turnArgs)
   );
-  logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`);
+  logger.info(
+    `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
+  );
   const previewServer = spawnDetached({
     command: previewExec.command,
     args: previewExec.args,

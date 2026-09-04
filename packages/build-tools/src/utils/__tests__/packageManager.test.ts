@@ -153,9 +153,9 @@ describe(resolveOverridePackageManager, () => {
   });
 
   it('throws a UserError on an unsupported value', () => {
-    expect(() =>
-      resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })
-    ).toThrow(errors.UserError);
+    expect(() => resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
   });
 });
 
@@ -166,10 +166,7 @@ describe(resolveConfiguredPackageManager, () => {
 
   it('uses EAS_FALLBACK_PACKAGE_MANAGER when no override is set', () => {
     expect(
-      resolveConfiguredPackageManager(
-        { EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
-        PackageManager.NPM
-      )
+      resolveConfiguredPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' }, PackageManager.NPM)
     ).toBe(PackageManager.BUN);
   });
 

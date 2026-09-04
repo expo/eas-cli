@@ -537,7 +537,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('launches serve-sim with bunx when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
+  it('launches serve-sim with bun x when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -556,16 +556,17 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
-    expect(command).toBe('bunx');
-    expect(args).toEqual(
-      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion: '4.5.6' })
-    );
+    expect(command).toBe('bun');
+    expect(args).toEqual([
+      'x',
+      ...createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion: '4.5.6' }),
+    ]);
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('launches serve-sim with bunx when EAS_FALLBACK_PACKAGE_MANAGER is bun', async () => {
+  it('launches serve-sim with bun x when EAS_FALLBACK_PACKAGE_MANAGER is bun', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -580,7 +581,10 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       timeoutMs: 10_000,
     });
 
-    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('bunx');
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(command).toBe('bun');
+    expect(args).toEqual(['x', ...createServeSimArgs({ port, turnArgs, metricsCorsArgs })]);
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
