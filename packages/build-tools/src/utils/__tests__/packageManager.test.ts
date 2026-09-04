@@ -9,6 +9,10 @@ import {
   PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolveConfiguredPackageManager,
+  resolveFallbackPackageManager,
+  resolveOverridePackageManager,
+  resolvePackageExec,
   resolvePackageManager,
   resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
@@ -114,6 +118,100 @@ describe(resolvePackageManager, () => {
       expect(error.message).toContain('bunn');
       expect(error.message).toContain('yarn, npm, pnpm, bun');
     }
+  });
+});
+
+describe(resolveFallbackPackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveFallbackPackageManager({})).toBeUndefined();
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveOverridePackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveOverridePackageManager({})).toBeUndefined();
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveConfiguredPackageManager, () => {
+  it('uses the unset default', () => {
+    expect(resolveConfiguredPackageManager({}, PackageManager.NPM)).toBe(PackageManager.NPM);
+  });
+
+  it('uses EAS_FALLBACK_PACKAGE_MANAGER when no override is set', () => {
+    expect(
+      resolveConfiguredPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' }, PackageManager.NPM)
+    ).toBe(PackageManager.BUN);
+  });
+
+  it('prefers EAS_OVERRIDE_PACKAGE_MANAGER over the fallback', () => {
+    expect(
+      resolveConfiguredPackageManager(
+        {
+          EAS_OVERRIDE_PACKAGE_MANAGER: 'npm',
+          EAS_FALLBACK_PACKAGE_MANAGER: 'bun',
+        },
+        PackageManager.BUN
+      )
+    ).toBe(PackageManager.NPM);
+  });
+});
+
+describe(resolvePackageExec, () => {
+  const packageArgs = ['@expo/serve-sim@latest', '--port', '1'];
+
+  it('maps npm to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.NPM, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps bun to bunx', () => {
+    expect(resolvePackageExec(PackageManager.BUN, packageArgs)).toEqual({
+      command: 'bunx',
+      args: packageArgs,
+    });
+  });
+
+  it('maps yarn to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.YARN, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps pnpm to pnpm dlx', () => {
+    expect(resolvePackageExec(PackageManager.PNPM, packageArgs)).toEqual({
+      command: 'pnpm',
+      args: ['dlx', ...packageArgs],
+    });
   });
 });
 

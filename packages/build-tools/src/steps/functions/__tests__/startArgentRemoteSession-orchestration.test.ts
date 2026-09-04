@@ -124,14 +124,14 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
           max_idle_time_minutes: { value: undefined },
         },
         outputs: {},
-        env: { EXISTING: 'value' },
+        env: { EXISTING: 'value', EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' },
       } as never
     );
 
     // (1) FFmpeg setup starts in the background before Argent setup.
     expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledWith({
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: { EXISTING: 'value' },
+      env: { EXISTING: 'value', EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' },
       logger: expect.anything(),
     });
     expect(jest.mocked(ensureFfmpegInstalledOnceAsync).mock.invocationCallOrder[0]).toBeLessThan(

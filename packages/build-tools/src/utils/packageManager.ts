@@ -30,19 +30,65 @@ export function resolvePackageManager(
     }
   } catch {}
 
-  const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
-  if (fallback) {
-    const parsed = z.enum(PackageManager).safeParse(fallback);
-    if (parsed.success) {
-      return parsed.data;
-    }
-    const allowed = Object.values(PackageManager).join(', ');
-    throw new errors.UserError(
-      'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
-      `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
-    );
+  return resolveFallbackPackageManager(env) ?? PackageManager.YARN;
+}
+
+function parsePackageManagerEnvValue(
+  value: string | undefined,
+  envName: string,
+  errorCode: string
+): PackageManager | undefined {
+  if (!value) {
+    return undefined;
   }
-  return PackageManager.YARN;
+  const parsed = z.enum(PackageManager).safeParse(value);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  const allowed = Object.values(PackageManager).join(', ');
+  throw new errors.UserError(
+    errorCode,
+    `Invalid ${envName} value "${value}" (expected one of: ${allowed}).`
+  );
+}
+
+export function resolveFallbackPackageManager(env: BuildStepEnv): PackageManager | undefined {
+  return parsePackageManagerEnvValue(
+    env.EAS_FALLBACK_PACKAGE_MANAGER,
+    'EAS_FALLBACK_PACKAGE_MANAGER',
+    'EAS_INVALID_FALLBACK_PACKAGE_MANAGER'
+  );
+}
+
+export function resolveOverridePackageManager(env: BuildStepEnv): PackageManager | undefined {
+  return parsePackageManagerEnvValue(
+    env.EAS_OVERRIDE_PACKAGE_MANAGER,
+    'EAS_OVERRIDE_PACKAGE_MANAGER',
+    'EAS_INVALID_OVERRIDE_PACKAGE_MANAGER'
+  );
+}
+
+export function resolveConfiguredPackageManager(
+  env: BuildStepEnv,
+  whenUnset: PackageManager
+): PackageManager {
+  return resolveOverridePackageManager(env) ?? resolveFallbackPackageManager(env) ?? whenUnset;
+}
+
+export function resolvePackageExec(
+  manager: PackageManager,
+  args: string[]
+): { command: string; args: string[] } {
+  switch (manager) {
+    case PackageManager.NPM:
+      return { command: 'npx', args: ['--yes', ...args] };
+    case PackageManager.BUN:
+      return { command: 'bunx', args };
+    case PackageManager.YARN:
+      return { command: 'npx', args: ['--yes', ...args] };
+    case PackageManager.PNPM:
+      return { command: 'pnpm', args: ['dlx', ...args] };
+  }
 }
 
 /**
