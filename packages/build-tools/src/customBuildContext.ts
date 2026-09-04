@@ -63,6 +63,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   public readonly logger: bunyan;
   public readonly graphqlClient: Client;
   public readonly runtimeApi: BuilderRuntimeApi;
+  public readonly mcpServerUrl?: string;
   public job: TJob;
   public metadata?: Metadata;
 
@@ -84,6 +85,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.runtimeApi = {
       uploadArtifact: (...args) => buildCtx['uploadArtifact'](...args),
     };
+    this.mcpServerUrl = buildCtx.mcpServerUrl;
     this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;
     this.startTime = new Date();
   }

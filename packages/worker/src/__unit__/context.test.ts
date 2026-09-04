@@ -91,6 +91,19 @@ describe(createBuildContext.name, () => {
     );
   });
 
+  it('adds the MCP server URL to the build context', async () => {
+    const ctx = await createBuildContext({
+      ...baseOptions,
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.GENERIC,
+        secrets: { environmentSecrets: [] },
+      } as any,
+    });
+
+    expect(ctx.mcpServerUrl).toBe(config.mcpServerUrl);
+  });
+
   it('routes managed source maps to the source-map uploader', async () => {
     const ctx = await createBuildContext({
       ...baseOptions,
