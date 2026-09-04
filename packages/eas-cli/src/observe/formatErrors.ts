@@ -19,6 +19,82 @@ export interface ObserveErrorGroupJson {
   platforms: string[];
 }
 
+export interface ObserveErrorJson {
+  id: string;
+  type: string | null;
+  message: string | null;
+  source: string | null;
+  fingerprint: string | null;
+  severityNumber: number | null;
+  severityText: string | null;
+  isFatal: boolean | null;
+  timestamp: string;
+  sessionId: string | null;
+  appVersion: string;
+  appBuildNumber: string;
+  appUpdateId: string | null;
+  appEasBuildId: string | null;
+  deviceModel: string;
+  deviceOs: string;
+  deviceOsVersion: string;
+  countryCode: string | null;
+  environment: string | null;
+  easClientId: string;
+}
+
+export function buildObserveErrorJson(event: AppObserveError): ObserveErrorJson {
+  return {
+    id: event.id,
+    type: event.type ?? null,
+    message: event.message ?? null,
+    source: event.source ?? null,
+    fingerprint: event.fingerprint ?? null,
+    severityNumber: event.severityNumber ?? null,
+    severityText: event.severityText ?? null,
+    isFatal: event.isFatal ?? null,
+    timestamp: event.timestamp,
+    sessionId: event.sessionId ?? null,
+    appVersion: event.appVersion,
+    appBuildNumber: event.appBuildNumber,
+    appUpdateId: event.appUpdateId ?? null,
+    appEasBuildId: event.appEasBuildId ?? null,
+    deviceModel: event.deviceModel,
+    deviceOs: event.deviceOs,
+    deviceOsVersion: event.deviceOsVersion,
+    countryCode: event.countryCode ?? null,
+    environment: event.environment ?? null,
+    easClientId: event.easClientId,
+  };
+}
+
+/**
+ * Render a single error (exception) event as a vertical Field/Value detail
+ * table, for `eas observe:event`.
+ */
+export function buildObserveErrorDetail(event: AppObserveError): string {
+  const severity = event.isFatal ? 'fatal' : (event.severityText ?? '-');
+  const rows: string[][] = [
+    ['ID', event.id],
+    ['Type', 'Error'],
+    ['Exception', event.type ?? '-'],
+    ['Message', event.message ?? '-'],
+    ['Source', event.source ?? '-'],
+    ['Fingerprint', event.fingerprint ?? '-'],
+    ['Severity', severity],
+    ['Timestamp', formatLogTimestamp(event.timestamp)],
+    ['Session ID', event.sessionId ?? '-'],
+    ['App Version', `${event.appVersion} (${event.appBuildNumber})`],
+    ['Update ID', event.appUpdateId ?? '-'],
+    ['EAS Build ID', event.appEasBuildId ?? '-'],
+    ['Platform', `${event.deviceOs} ${event.deviceOsVersion}`],
+    ['Device', event.deviceModel],
+    ['Country', event.countryCode ?? '-'],
+    ['Environment', event.environment ?? '-'],
+    ['EAS Client ID', event.easClientId],
+  ];
+  return [chalk.bold('Error event'), '', renderTextTable(['Field', 'Value'], rows)].join('\n');
+}
+
 export interface BuildErrorGroupsTableOptions {
   daysBack?: number;
   startTime?: string;
