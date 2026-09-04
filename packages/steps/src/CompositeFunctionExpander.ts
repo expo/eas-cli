@@ -8,11 +8,12 @@
  * resolve against composite-function-local names.
  */
 import {
-  CompositeFunctionCatalog,
   CompositeFunctionConfig,
   FunctionStep,
+  LocalFunctionCatalog,
   ShellStep,
   Step,
+  isLegacyFunctionConfig,
   isStepFunctionStep,
   isStepShellStep,
 } from '@expo/eas-build-job';
@@ -66,7 +67,7 @@ type StepOverrides = {
 export class CompositeFunctionExpander {
   constructor(
     private readonly ctx: BuildStepGlobalContext,
-    private readonly compositeFunctionCatalog: CompositeFunctionCatalog,
+    private readonly compositeFunctionCatalog: LocalFunctionCatalog,
     private readonly functionMaps: FunctionMaps
   ) {}
 
@@ -189,6 +190,11 @@ export class CompositeFunctionExpander {
     if (!compositeFunction) {
       throw new BuildConfigError(
         `Local composite function "${compositeFunctionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${compositeFunctionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
+      );
+    }
+    if (isLegacyFunctionConfig(compositeFunction)) {
+      throw new BuildConfigError(
+        `Local function "${compositeFunctionPath}" uses the legacy command/path shape, which this expander does not support yet.`
       );
     }
     return compositeFunction;
