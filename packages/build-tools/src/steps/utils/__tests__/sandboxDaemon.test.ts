@@ -16,6 +16,7 @@ describe(startSandboxDaemonAsync.name, () => {
       credential: 'secret-token',
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 60_000,
+      workingDirectory: process.cwd(),
     });
     const connectionError = daemon.ready.catch(error => error);
 
@@ -36,6 +37,7 @@ describe(startSandboxDaemonAsync.name, () => {
       credential: 'secret-token',
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 60_000,
+      workingDirectory: process.cwd(),
     });
 
     await expect(daemon.ready).rejects.toThrow('Sandbox MCP server connection failed');
@@ -65,6 +67,7 @@ describe(startSandboxDaemonAsync.name, () => {
       credential: 'secret-token',
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 10,
+      workingDirectory: process.cwd(),
     });
     const socket = await connection;
     const daemon = await daemonPromise;
@@ -93,6 +96,7 @@ describe(startSandboxDaemonAsync.name, () => {
       credential: 'secret-token',
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 10,
+      workingDirectory: process.cwd(),
     });
     const socket = await connection;
     await daemon.ready;
@@ -105,6 +109,24 @@ describe(startSandboxDaemonAsync.name, () => {
     await expect(response).resolves.toBe(
       JSON.stringify({ jsonrpc: '2.0', id: 'ping-1', result: {} })
     );
+
+    const commandResponse = new Promise<string>(resolve =>
+      socket.once('message', data => resolve(`${data}`))
+    );
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'command-1',
+        method: 'exec_command',
+        params: { cmd: 'printf hello' },
+      })
+    );
+
+    expect(JSON.parse(await commandResponse)).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'command-1',
+      result: { output: 'hello', exit_code: 0 },
+    });
     await daemon.stopAsync();
     mcpServer.close();
     await new Promise<void>(resolve => httpServer.close(() => resolve()));
@@ -125,6 +147,7 @@ describe(startSandboxDaemonAsync.name, () => {
       credential: 'secret-token',
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 60_000,
+      workingDirectory: process.cwd(),
     });
     const socket = await connection;
     const daemon = await daemonPromise;

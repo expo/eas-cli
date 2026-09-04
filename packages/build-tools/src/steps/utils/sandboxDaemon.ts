@@ -2,12 +2,14 @@ import Log from '@expo/logger';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket from 'ws';
 
+import { SandboxCommandExecutor } from './sandboxCommandExecutor';
 import { SandboxProtocol } from './sandboxProtocol';
 
 export interface SandboxDaemonOptions {
   credential: string;
   serverUrl: string;
   reconnectDelayMs: number;
+  workingDirectory: string;
 }
 
 export interface SandboxDaemon {
@@ -24,6 +26,7 @@ export async function startSandboxDaemonAsync(
   let hasConnected = false;
   let resolveConnected!: () => void;
   let rejectConnected!: (error: Error) => void;
+  const commandExecutor = new SandboxCommandExecutor(options.workingDirectory);
   const connected = new Promise<void>((resolve, reject) => {
     resolveConnected = resolve;
     rejectConnected = reject;
@@ -42,6 +45,8 @@ export async function startSandboxDaemonAsync(
             socket.send(JSON.stringify(response));
           }
         });
+        protocol.registerMethod('exec_command', params => commandExecutor.execCommandAsync(params));
+        protocol.registerMethod('write_stdin', params => commandExecutor.writeStdinAsync(params));
         socket.on('message', message => {
           void protocol.handleMessageAsync(message.toString());
         });
@@ -82,6 +87,7 @@ export async function startSandboxDaemonAsync(
     ready: connected,
     async stopAsync(): Promise<void> {
       abortController.abort();
+      commandExecutor.stop();
       socket?.close(1000, 'sandbox stopped');
       await connectionLoop;
     },
