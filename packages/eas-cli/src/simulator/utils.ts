@@ -1,3 +1,4 @@
+import { getExpoWebsiteBaseUrl } from '../api';
 import {
   DeviceRunSessionByIdQuery,
   DeviceRunSessionResourceClass,
@@ -7,6 +8,25 @@ import { link } from '../log';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
+
+const PREVIEW_HOST = /^https:\/\/web-preview-([^./]+)\./;
+
+export function simulatorPreviewUrl(webPreviewUrl: string): string {
+  const previewId = PREVIEW_HOST.exec(webPreviewUrl)?.[1];
+  return previewId ? `${getExpoWebsiteBaseUrl()}/simulator-preview/${previewId}` : webPreviewUrl;
+}
+
+export function remoteConfigWithPreviewPageUrl(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): DeviceRunSessionRemoteConfig {
+  if ('webPreviewUrl' in remoteConfig && remoteConfig.webPreviewUrl) {
+    return { ...remoteConfig, webPreviewUrl: simulatorPreviewUrl(remoteConfig.webPreviewUrl) };
+  }
+  if ('previewUrl' in remoteConfig && remoteConfig.previewUrl) {
+    return { ...remoteConfig, previewUrl: simulatorPreviewUrl(remoteConfig.previewUrl) };
+  }
+  return remoteConfig;
+}
 
 /** Landing page where accounts without access can request it. */
 export const EAS_SIMULATOR_WAITLIST_URL = 'https://expo.dev/services/simulators';
@@ -112,7 +132,7 @@ export function formatRemoteSessionInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          remoteConfig.webPreviewUrl
+          simulatorPreviewUrl(remoteConfig.webPreviewUrl)
         );
       }
       return lines.join('\n');
@@ -150,7 +170,7 @@ export function formatRemoteSessionInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          remoteConfig.webPreviewUrl
+          simulatorPreviewUrl(remoteConfig.webPreviewUrl)
         );
       }
       return lines.join('\n');
@@ -174,7 +194,12 @@ export function formatRemoteSessionInstructions(
               '<appium-client> [args...]',
             ];
       if (remoteConfig.webPreviewUrl) {
-        lines.push('', 'Open the simulator preview:', '', remoteConfig.webPreviewUrl);
+        lines.push(
+          '',
+          'Open the simulator preview:',
+          '',
+          simulatorPreviewUrl(remoteConfig.webPreviewUrl)
+        );
       }
       return lines.join('\n');
     }
@@ -182,13 +207,13 @@ export function formatRemoteSessionInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        remoteConfig.previewUrl,
+        simulatorPreviewUrl(remoteConfig.previewUrl),
       ].join('\n');
     case 'WebPreviewOnlyRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        remoteConfig.previewUrl,
+        simulatorPreviewUrl(remoteConfig.previewUrl),
       ].join('\n');
   }
 }

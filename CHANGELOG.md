@@ -6,6 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] `eas simulator:start` and `eas simulator:get` now report the expo.dev preview page instead of the raw tunnel URL, in both the printed instructions and `--json`. ([#4352](https://github.com/expo/eas-cli/pull/4352) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Align the `eas observe:*` commands with the renamed Observe GraphQL schema. `--json` output now uses `name`/`value` instead of `metricName`/`metricValue` (metrics) and `name` instead of `eventName` (log events and event-name summaries), and `eas observe:events` now lists user-defined events only — exceptions moved to the new `eas observe:errors`. ([#4338](https://github.com/expo/eas-cli/pull/4338) by [@douglowder](https://github.com/douglowder))
 
 ### 🎉 New features

@@ -127,7 +127,7 @@ describe(SimulatorGet, () => {
       type: DeviceRunSessionType.ServeSim,
       remoteConfig: {
         __typename: 'ServeSimRunSessionRemoteConfig',
-        previewUrl: 'https://preview.example.com',
+        previewUrl: 'https://web-preview-abc123.eas-simulator.ngrok.dev',
       },
     });
     mockByIdAsync.mockResolvedValue(session);
@@ -154,7 +154,10 @@ describe(SimulatorGet, () => {
       updatedAt: '2025-01-01T00:01:00.000Z',
       deviceRunSessionUrl:
         'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
-      remoteConfig: session.remoteConfig,
+      remoteConfig: {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://expo.dev/simulator-preview/abc123',
+      },
       artifacts: session.artifacts,
     });
   });

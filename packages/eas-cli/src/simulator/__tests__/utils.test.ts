@@ -6,6 +6,8 @@ import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
   getRemoteSessionEnvironmentVariables,
+  remoteConfigWithPreviewPageUrl,
+  simulatorPreviewUrl,
 } from '../utils';
 
 const iosAppiumConfig = {
@@ -16,8 +18,72 @@ const iosAppiumConfig = {
     'appium:automationName': 'XCUITest',
     'appium:udid': 'simulator-id',
   },
-  webPreviewUrl: 'https://preview.example.test',
+  webPreviewUrl: 'https://web-preview-abc123.eas-simulator.ngrok.dev',
 };
+
+describe(remoteConfigWithPreviewPageUrl, () => {
+  it('rewrites the preview url a controller session reports', () => {
+    const remoteConfig = remoteConfigWithPreviewPageUrl(iosAppiumConfig);
+
+    expect(remoteConfig).toMatchObject({
+      webPreviewUrl: 'https://expo.dev/simulator-preview/abc123',
+    });
+  });
+
+  it('rewrites the preview url a web-preview-only session reports', () => {
+    const remoteConfig = remoteConfigWithPreviewPageUrl({
+      __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+      previewUrl: 'https://web-preview-abc123.eas-simulator.ngrok.dev',
+    });
+
+    expect(remoteConfig).toMatchObject({
+      previewUrl: 'https://expo.dev/simulator-preview/abc123',
+    });
+  });
+
+  it('leaves a config with no preview url alone', () => {
+    const remoteConfig = remoteConfigWithPreviewPageUrl({
+      ...iosAppiumConfig,
+      webPreviewUrl: null,
+    });
+
+    expect(remoteConfig).toMatchObject({ webPreviewUrl: null });
+  });
+});
+
+describe(simulatorPreviewUrl, () => {
+  it('points at the preview page for the session', () => {
+    expect(simulatorPreviewUrl('https://web-preview-abc123.eas-simulator.ngrok.dev')).toBe(
+      'https://expo.dev/simulator-preview/abc123'
+    );
+  });
+
+  it.each(['https://appium-abc123.eas-simulator.ngrok.dev', 'not-a-url', ''])(
+    'falls back to what it was given when there is no preview host: %p',
+    url => {
+      expect(simulatorPreviewUrl(url)).toBe(url);
+    }
+  );
+
+  it('points at the website the cli is talking to', () => {
+    process.env.EXPO_STAGING = '1';
+    try {
+      expect(simulatorPreviewUrl('https://web-preview-abc123.eas-simulator.ngrok.dev')).toBe(
+        'https://staging.expo.dev/simulator-preview/abc123'
+      );
+    } finally {
+      delete process.env.EXPO_STAGING;
+    }
+  });
+
+  it('drops everything the tunnel url carries', () => {
+    expect(
+      simulatorPreviewUrl(
+        'https://web-preview-abc123.eas-simulator.ngrok.dev/session?token=secret#frame'
+      )
+    ).toBe('https://expo.dev/simulator-preview/abc123');
+  });
+});
 
 describe('Appium simulator configuration', () => {
   it('maps the appium CLI value to the GraphQL enum', () => {
@@ -36,7 +102,7 @@ describe('Appium simulator configuration', () => {
     const instructions = formatRemoteSessionInstructions(iosAppiumConfig, 'dotenv');
 
     expect(instructions).toContain('eas simulator:exec <appium-client> [args...]');
-    expect(instructions).toContain('https://preview.example.test');
+    expect(instructions).toContain('https://expo.dev/simulator-preview/abc123');
     expect(instructions).toContain('Open the simulator preview:');
     expect(instructions).not.toContain('iOS simulator preview');
     expect(instructions).not.toContain('https://appium.example.test');
