@@ -78,6 +78,38 @@ describe(startSandboxDaemonAsync.name, () => {
     await new Promise<void>(resolve => httpServer.close(() => resolve()));
   });
 
+  it('responds to ping messages', async () => {
+    const httpServer = http.createServer();
+    const mcpServer = new WebSocketServer({ noServer: true });
+    httpServer.on('upgrade', (request, socket, head) => {
+      mcpServer.handleUpgrade(request, socket, head, client =>
+        mcpServer.emit('connection', client)
+      );
+    });
+    await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve));
+    const address = httpServer.address() as AddressInfo;
+    const connection = new Promise<WebSocket>(resolve => mcpServer.once('connection', resolve));
+    const daemon = await startSandboxDaemonAsync({
+      credential: 'secret-token',
+      serverUrl: `ws://127.0.0.1:${address.port}`,
+      reconnectDelayMs: 10,
+    });
+    const socket = await connection;
+    await daemon.ready;
+    const response = new Promise<string>(resolve =>
+      socket.once('message', data => resolve(`${data}`))
+    );
+
+    socket.send(JSON.stringify({ jsonrpc: '2.0', id: 'ping-1', method: 'ping' }));
+
+    await expect(response).resolves.toBe(
+      JSON.stringify({ jsonrpc: '2.0', id: 'ping-1', result: {} })
+    );
+    await daemon.stopAsync();
+    mcpServer.close();
+    await new Promise<void>(resolve => httpServer.close(() => resolve()));
+  });
+
   it('cancels the reconnect delay when stopped', async () => {
     const httpServer = http.createServer();
     const mcpServer = new WebSocketServer({ noServer: true });
