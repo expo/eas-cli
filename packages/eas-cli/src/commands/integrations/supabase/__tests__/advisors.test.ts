@@ -13,6 +13,7 @@ import {
   SupabaseAdvisorLintsData,
 } from '../../../../graphql/types/SupabaseConnection';
 import Log from '../../../../log';
+import { confirmAsync } from '../../../../prompts';
 import { printJsonOnlyOutput } from '../../../../utils/json';
 import IntegrationsSupabaseAdvisors from '../advisors';
 
@@ -26,6 +27,7 @@ jest.mock('../../../../log', () => {
   };
 });
 jest.mock('../../../../utils/json');
+jest.mock('../../../../prompts');
 jest.mock('../../../../ora', () => ({
   ora: jest.fn(() => ({
     start: jest.fn().mockReturnThis(),
@@ -38,6 +40,8 @@ jest.mock('../../../../ora', () => ({
 describe(IntegrationsSupabaseAdvisors, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
+  const runCommand = jest.fn();
+  Object.assign(mockConfig, { runCommand });
 
   const rlsLint: SupabaseAdvisorLintData = {
     name: 'rls_disabled_in_public',
@@ -97,8 +101,21 @@ describe(IntegrationsSupabaseAdvisors, () => {
     jest.spyOn(Log, 'log').mockImplementation(() => {});
     jest.spyOn(Log, 'warn').mockImplementation(() => {});
     jest.spyOn(Log, 'newLine').mockImplementation(() => {});
+    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(mockResult.project);
     jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockResolvedValue(mockResult);
   });
+
+  function mockReauthorizationRequiredOnce(): void {
+    jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError('Expo is not allowed to read this Supabase project’s advisors.', {
+            extensions: { errorCode: 'SUPABASE_REAUTHORIZATION_REQUIRED_ERROR', errorType: 'USER' },
+          }),
+        ],
+      })
+    );
+  }
 
   it('prints both advisors with severity summaries, details, and dashboard links', async () => {
     await createCommand([]).runAsync();
@@ -149,27 +166,46 @@ describe(IntegrationsSupabaseAdvisors, () => {
   });
 
   it('warns when no Supabase project is linked', async () => {
-    jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
 
     await createCommand([]).runAsync();
 
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('No Supabase project'));
   });
 
-  it('tells the user to re-authorize when the API reports a missing permission', async () => {
-    jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockRejectedValue(
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError('Expo is not allowed to read this Supabase project’s advisors.', {
-            extensions: { errorCode: 'SUPABASE_REAUTHORIZATION_REQUIRED_ERROR', errorType: 'USER' },
-          }),
-        ],
-      })
-    );
+  it('offers to re-authorize, runs connect --reauth, and retries when accepted', async () => {
+    mockReauthorizationRequiredOnce();
+    jest.mocked(confirmAsync).mockResolvedValue(true);
 
-    await expect(createCommand([]).runAsync()).rejects.toThrow(EasCommandError);
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('Re-authorize Supabase') })
+    );
+    expect(runCommand).toHaveBeenCalledWith('integrations:supabase:connect', [
+      '--reauth',
+      '--link',
+      'abcdefghijklmnop',
+    ]);
+    expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledTimes(2);
+    expect(loggedOutput()).toContain('Security: 1 error');
+  });
+
+  it('stops with the reauth command when the user declines to re-authorize', async () => {
+    mockReauthorizationRequiredOnce();
+    jest.mocked(confirmAsync).mockResolvedValue(false);
+
     await expect(createCommand([]).runAsync()).rejects.toThrow(
       'eas integrations:supabase:connect --reauth'
     );
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it('fails with the reauth command in non-interactive mode', async () => {
+    mockReauthorizationRequiredOnce();
+
+    await expect(createCommand(['--non-interactive']).runAsync()).rejects.toThrow(EasCommandError);
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(runCommand).not.toHaveBeenCalled();
   });
 });
