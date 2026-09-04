@@ -63,6 +63,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
         reconnectDelayMs: RECONNECT_DELAY_MS,
+        workingDirectory: stepCtx.workingDirectory,
       });
       try {
         await daemon.ready;
