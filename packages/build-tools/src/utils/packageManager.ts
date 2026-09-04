@@ -33,19 +33,38 @@ export function resolvePackageManager(
   return resolveFallbackPackageManager(env) ?? PackageManager.YARN;
 }
 
-export function resolveFallbackPackageManager(env: BuildStepEnv): PackageManager | undefined {
-  const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
-  if (!fallback) {
+function parsePackageManagerEnvValue(
+  value: string | undefined,
+  envName: string,
+  errorCode: string
+): PackageManager | undefined {
+  if (!value) {
     return undefined;
   }
-  const parsed = z.enum(PackageManager).safeParse(fallback);
+  const parsed = z.enum(PackageManager).safeParse(value);
   if (parsed.success) {
     return parsed.data;
   }
   const allowed = Object.values(PackageManager).join(', ');
   throw new errors.UserError(
-    'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
-    `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
+    errorCode,
+    `Invalid ${envName} value "${value}" (expected one of: ${allowed}).`
+  );
+}
+
+export function resolveFallbackPackageManager(env: BuildStepEnv): PackageManager | undefined {
+  return parsePackageManagerEnvValue(
+    env.EAS_FALLBACK_PACKAGE_MANAGER,
+    'EAS_FALLBACK_PACKAGE_MANAGER',
+    'EAS_INVALID_FALLBACK_PACKAGE_MANAGER'
+  );
+}
+
+export function resolveOverridePackageManager(env: BuildStepEnv): PackageManager | undefined {
+  return parsePackageManagerEnvValue(
+    env.EAS_OVERRIDE_PACKAGE_MANAGER,
+    'EAS_OVERRIDE_PACKAGE_MANAGER',
+    'EAS_INVALID_OVERRIDE_PACKAGE_MANAGER'
   );
 }
 
