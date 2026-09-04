@@ -151,6 +151,19 @@ export default class IntegrationsPostHogConnect extends EasCommand {
       );
     } else {
       const region = await this.resolveRegionAsync(regionFlag, nonInteractive);
+      if (!nonInteractive) {
+        const confirmed = await confirmAsync({
+          message: `The ${chalk.bold(
+            account.name
+          )} account has no PostHog organization. Create a new PostHog organization and project in ${region}?`,
+        });
+        if (!confirmed) {
+          Log.log(
+            'Nothing was created. Connect an existing PostHog organization from the dashboard, or re-run this command to create one.'
+          );
+          return;
+        }
+      }
       connection = await this.startConnectionAsync(graphqlClient, account, region, nonInteractive);
     }
 
