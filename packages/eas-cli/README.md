@@ -2257,7 +2257,7 @@ FLAGS
   --fingerprint=<value>   Show individual occurrences (with stack traces) for this error group fingerprint instead of
                           the grouped summary
   --json                  Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
-  --limit=<value>         The number of items to fetch each query. Defaults to 5 and is capped at 100.
+  --limit=<value>         The number of items to fetch each query. Defaults to 10 and is capped at 100.
   --non-interactive       Run the command in non-interactive mode.
   --platform=<option>     Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)
                           <options: android|ios|ipados|macos|tvos|apple>

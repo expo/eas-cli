@@ -102,6 +102,29 @@ describe(ObserveErrors, () => {
     });
   });
 
+  it('forwards --limit to the occurrences fetch when --fingerprint is set', async () => {
+    await createCommand(['--fingerprint', 'fp-1', '--limit', '20']).runAsync();
+    expect(mockFetchErrorOccurrencesAsync.mock.calls[0][2]).toMatchObject({
+      fingerprint: 'fp-1',
+      limit: 20,
+    });
+  });
+
+  it('rejects --limit without --fingerprint', async () => {
+    await expect(createCommand(['--limit', '20']).runAsync()).rejects.toThrow(
+      /--after or --limit can only be used in combination with the --fingerprint flag/
+    );
+    expect(mockFetchErrorGroupsAsync).not.toHaveBeenCalled();
+    expect(mockFetchErrorOccurrencesAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --after without --fingerprint', async () => {
+    await expect(createCommand(['--after', 'cursor-1']).runAsync()).rejects.toThrow(
+      /--after or --limit can only be used in combination with the --fingerprint flag/
+    );
+    expect(mockFetchErrorGroupsAsync).not.toHaveBeenCalled();
+  });
+
   it('surfaces the plan-gate message when errors are not available on the plan', async () => {
     mockFetchErrorGroupsAsync.mockRejectedValueOnce(
       new CombinedError({
