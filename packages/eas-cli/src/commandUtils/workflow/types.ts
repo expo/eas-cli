@@ -14,6 +14,7 @@ export enum WorkflowTriggerType {
 export type WorkflowRunResult = {
   id: string;
   status: string;
+  displayTitle: string | null;
   gitCommitMessage: string | null;
   gitCommitHash: string | null;
   triggerType: WorkflowTriggerType;

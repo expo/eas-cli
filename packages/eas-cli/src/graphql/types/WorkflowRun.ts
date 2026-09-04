@@ -4,6 +4,7 @@ export const WorkflowRunFragmentNode = gql`
   fragment WorkflowRunFragment on WorkflowRun {
     id
     status
+    displayTitle
     gitCommitMessage
     gitCommitHash
     requestedGitRef

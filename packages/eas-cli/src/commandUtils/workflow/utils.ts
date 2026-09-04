@@ -60,9 +60,25 @@ export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
   return { triggerType, trigger };
 }
 
+export function getWorkflowRunDisplayTitle({
+  displayTitle,
+  workflowName,
+  workflowFileName,
+}: {
+  displayTitle?: string | null;
+  workflowName?: string | null;
+  workflowFileName: string;
+}): string {
+  return displayTitle ?? workflowName ?? workflowFileName;
+}
+
 export function choiceFromWorkflowRun(run: WorkflowRunResult): Choice {
   const titleArray = [
-    run.workflowFileName,
+    getWorkflowRunDisplayTitle({
+      displayTitle: run.displayTitle,
+      workflowName: run.workflowName,
+      workflowFileName: run.workflowFileName,
+    }),
     run.status,
     run.startedAt,
     run.triggerType,
@@ -71,7 +87,9 @@ export function choiceFromWorkflowRun(run: WorkflowRunResult): Choice {
   return {
     title: titleArray.join(' - '),
     value: run.id,
-    description: `ID: ${run.id}, Message: ${run.gitCommitMessage?.split('\n')[0] ?? ''}`,
+    description: `ID: ${run.id}, Workflow: ${run.workflowFileName}, Message: ${
+      run.gitCommitMessage?.split('\n')[0] ?? ''
+    }`,
   };
 }
 
@@ -104,6 +122,7 @@ export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunRes
     return {
       id: run.id,
       status: run.status,
+      displayTitle: run.displayTitle ?? null,
       gitCommitMessage: run.gitCommitMessage?.split('\n')[0] ?? null,
       gitCommitHash: run.gitCommitHash ?? null,
       startedAt: run.createdAt,

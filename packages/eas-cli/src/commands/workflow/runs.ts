@@ -3,7 +3,7 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { processWorkflowRuns } from '../../commandUtils/workflow/utils';
+import { getWorkflowRunDisplayTitle, processWorkflowRuns } from '../../commandUtils/workflow/utils';
 import { WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
@@ -81,6 +81,14 @@ export default class WorkflowRunList extends EasCommand {
       Log.log(
         formatFields([
           { label: 'Run ID', value: run.id },
+          {
+            label: 'Name',
+            value: getWorkflowRunDisplayTitle({
+              displayTitle: run.displayTitle,
+              workflowName: run.workflowName,
+              workflowFileName: run.workflowFileName,
+            }),
+          },
           { label: 'Workflow', value: run.workflowFileName },
           { label: 'Status', value: run.status },
           { label: 'Started At', value: run.startedAt },

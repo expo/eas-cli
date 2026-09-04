@@ -1,8 +1,13 @@
 import { getMockWorkflowRunWithJobsFragment } from '../../../__tests__/commands/utils';
 import { WorkflowJobStatus } from '../../../graphql/generated';
 import { groupLogLinesIntoSteps, parseLogLines } from '../logs/parseLogs';
-import { WorkflowLogs, WorkflowRawLogLine } from '../types';
-import { formatActiveWorkflowRun, formatFailedWorkflowRun } from '../utils';
+import { WorkflowLogs, WorkflowRawLogLine, WorkflowRunResult, WorkflowTriggerType } from '../types';
+import {
+  choiceFromWorkflowRun,
+  formatActiveWorkflowRun,
+  formatFailedWorkflowRun,
+  getWorkflowRunDisplayTitle,
+} from '../utils';
 
 function jobWithLogs(
   logLines: WorkflowRawLogLine[],
@@ -133,5 +138,75 @@ describe(formatFailedWorkflowRun, () => {
 
     expect(output).toContain('line0');
     expect(output).toContain('line7');
+  });
+});
+
+describe(getWorkflowRunDisplayTitle, () => {
+  test('prefers the run display title', () => {
+    expect(
+      getWorkflowRunDisplayTitle({
+        displayTitle: 'Deploy staging',
+        workflowName: 'Deploy',
+        workflowFileName: 'deploy.yml',
+      })
+    ).toBe('Deploy staging');
+  });
+
+  test('falls back to the workflow name, then the file name', () => {
+    expect(
+      getWorkflowRunDisplayTitle({
+        displayTitle: null,
+        workflowName: 'Deploy',
+        workflowFileName: 'deploy.yml',
+      })
+    ).toBe('Deploy');
+    expect(
+      getWorkflowRunDisplayTitle({
+        displayTitle: null,
+        workflowName: null,
+        workflowFileName: 'deploy.yml',
+      })
+    ).toBe('deploy.yml');
+  });
+
+  test('treats an empty display title as set', () => {
+    expect(
+      getWorkflowRunDisplayTitle({
+        displayTitle: '',
+        workflowName: 'Deploy',
+        workflowFileName: 'deploy.yml',
+      })
+    ).toBe('');
+  });
+});
+
+describe(choiceFromWorkflowRun, () => {
+  function workflowRun(overrides: Partial<WorkflowRunResult> = {}): WorkflowRunResult {
+    return {
+      id: 'run-1',
+      status: 'SUCCESS',
+      displayTitle: null,
+      gitCommitMessage: 'commit message',
+      gitCommitHash: '1234567890',
+      triggerType: WorkflowTriggerType.MANUAL,
+      trigger: 'jester',
+      startedAt: '2022-01-01T00:00:00.000Z',
+      finishedAt: '2022-01-01T00:05:00.000Z',
+      workflowId: 'wf-1',
+      workflowName: 'Deploy',
+      workflowFileName: 'deploy.yml',
+      ...overrides,
+    };
+  }
+
+  test('uses the display title as the choice title and keeps the file name in the description', () => {
+    const choice = choiceFromWorkflowRun(workflowRun({ displayTitle: 'Deploy staging' }));
+
+    expect(choice.title).toContain('Deploy staging');
+    expect(choice.description).toContain('Workflow: deploy.yml');
+  });
+
+  test('falls back to the workflow name when no display title is set', () => {
+    expect(choiceFromWorkflowRun(workflowRun()).title).toContain('Deploy');
   });
 });
