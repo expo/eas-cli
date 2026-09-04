@@ -7,8 +7,11 @@ import {
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
+  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   startDeviceWebPreviewWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
@@ -26,6 +29,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
     name: 'Start web preview remote session',
     __metricsId: 'eas/start_serve_sim_remote_session',
     inputProviders: [
+      ...createServeSimLaunchInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -43,8 +47,13 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
+      const launch = parseServeSimLaunchInputs(inputs, { runtimePlatform });
 
       logger.info(`Starting web preview remote session (runtime: ${runtimePlatform}).`);
+      const launchDescription = describeServeSimLaunch(launch);
+      if (launchDescription) {
+        logger.info(launchDescription);
+      }
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
@@ -57,6 +66,9 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
         packageVersion,
+        launchAppIdentifier: launch.launchAppIdentifier,
+        launchArgs: launch.launchArgs,
+        openUrl: launch.openUrl,
       });
       logger.info(`Preview URL: ${webPreview.previewUrl}`);
 

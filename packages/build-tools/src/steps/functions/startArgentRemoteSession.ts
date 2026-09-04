@@ -20,10 +20,13 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
@@ -63,6 +66,7 @@ export function createStartArgentRemoteSessionBuildFunction(
     name: 'Start argent remote session',
     __metricsId: 'eas/start_argent_remote_session',
     inputProviders: [
+      ...createServeSimLaunchInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -95,6 +99,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
+      const launch = parseServeSimLaunchInputs(inputs, { runtimePlatform });
       logger.info(
         `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
@@ -206,7 +211,14 @@ export function createStartArgentRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          launchAppIdentifier: launch.launchAppIdentifier,
+          launchArgs: launch.launchArgs,
+          openUrl: launch.openUrl,
         });
+        const launchDescription = describeServeSimLaunch(launch);
+        if (launchDescription) {
+          logger.info(launchDescription);
+        }
         logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
         await uploadRemoteSessionConfigAsync({
