@@ -9,7 +9,7 @@ import {
 } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { WorkflowRunResult } from '../commandUtils/workflow/types';
-import { processWorkflowRuns } from '../commandUtils/workflow/utils';
+import { getWorkflowRunDisplayTitle, processWorkflowRuns } from '../commandUtils/workflow/utils';
 import {
   AppPlatform,
   BuildFragment,
@@ -359,7 +359,11 @@ function renderWorkflowRun(run: WorkflowRunStatusSummary): string {
   const lines = [
     `  ${joinMeta([
       colorWorkflowStatus(run.status),
-      run.workflowName ?? run.workflowFileName,
+      getWorkflowRunDisplayTitle({
+        displayTitle: run.displayTitle,
+        workflowName: run.workflowName,
+        workflowFileName: run.workflowFileName,
+      }),
       timeAgo(run.startedAt),
     ])}`,
   ];

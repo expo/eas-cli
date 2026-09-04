@@ -228,6 +228,16 @@ describe(ProjectStatus, () => {
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('pending cancel'));
   });
 
+  it('renders the workflow run display title instead of the workflow name', async () => {
+    mockWorkflowRunsAsync.mockResolvedValue([makeWorkflowRun({ displayTitle: 'Deploy staging' })]);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Deploy staging'));
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Publish'));
+  });
+
   it('handles a project with no activity in any section', async () => {
     mockViewBuildsOnAppAsync.mockResolvedValue([]);
     mockWorkflowRunsAsync.mockResolvedValue([]);
@@ -271,6 +281,7 @@ describe(ProjectStatus, () => {
     expect(output.developmentBuilds).toHaveLength(1);
     expect(output.workflowRuns[0]).toMatchObject({
       id: 'run-1',
+      displayTitle: null,
       workflowName: 'Publish',
       errors: [],
       url: 'https://expo.dev/accounts/jester/projects/my-app/workflows/run-1',

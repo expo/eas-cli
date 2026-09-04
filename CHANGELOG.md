@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Show the workflow name, and any custom title set with `run_name`, instead of the workflow file name in `eas workflow:runs`, `eas workflow:view`, `eas project:status`, and run selection prompts. ([#4345](https://github.com/expo/eas-cli/pull/4345) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))

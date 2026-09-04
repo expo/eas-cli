@@ -10,7 +10,10 @@ import {
   workflowRunSelectionAction,
 } from '../../commandUtils/workflow/stateMachine';
 import { WorkflowTriggerType } from '../../commandUtils/workflow/types';
-import { computeTriggerInfoForWorkflowRun } from '../../commandUtils/workflow/utils';
+import {
+  computeTriggerInfoForWorkflowRun,
+  getWorkflowRunDisplayTitle,
+} from '../../commandUtils/workflow/utils';
 import {
   BuildArtifacts,
   WorkflowArtifact,
@@ -145,6 +148,14 @@ export default class WorkflowView extends EasCommand {
     Log.log(
       formatFields([
         { label: 'Run ID', value: result.id },
+        {
+          label: 'Name',
+          value: getWorkflowRunDisplayTitle({
+            displayTitle: result.displayTitle,
+            workflowName: result.workflow.name,
+            workflowFileName: result.workflow.fileName,
+          }),
+        },
         { label: 'Workflow', value: result.workflow.fileName },
         { label: 'Trigger Type', value: result.triggerType },
         { label: 'Trigger', value: result.trigger ?? 'null' },

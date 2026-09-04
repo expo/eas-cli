@@ -119,6 +119,7 @@ describe(WorkflowRunList, () => {
       {
         id: 'failure-0',
         status: 'FAILURE',
+        displayTitle: null,
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
         trigger: '',
@@ -169,6 +170,7 @@ describe(WorkflowRunList, () => {
       {
         id: 'build1',
         status: 'FAILURE',
+        displayTitle: null,
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
         trigger: '',
@@ -179,6 +181,34 @@ describe(WorkflowRunList, () => {
         workflowName: 'build',
         workflowFileName: 'build.yml',
       },
+    ]);
+  });
+  test('includes the run display title in json output', async () => {
+    const ctx = mockCommandContext(WorkflowRunList, {
+      projectId: mockProjectId,
+    });
+    jest.mocked(WorkflowRunQuery.byAppIdFileNameAndStatusAsync).mockResolvedValue([
+      {
+        id: 'build1',
+        status: WorkflowRunStatus.Success,
+        displayTitle: 'Deploy staging',
+        triggerEventType: WorkflowRunTriggerEventType.Manual,
+        createdAt: '2022-01-01T00:00:00.000Z',
+        updatedAt: '2022-01-01T00:00:00.000Z',
+        gitCommitHash: '1234567890',
+        gitCommitMessage: 'commit message',
+        errors: [],
+        workflow: {
+          id: 'build',
+          name: 'build',
+          fileName: 'build.yml',
+        },
+      },
+    ]);
+    const cmd = mockTestCommand(WorkflowRunList, ['--workflow', 'build.yml', '--json'], ctx);
+    await cmd.run();
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'build1', displayTitle: 'Deploy staging' }),
     ]);
   });
 });
