@@ -56,6 +56,38 @@ export const AppObserveErrorFragmentNode = gql`
   }
 `;
 
+export const AppObserveErrorOccurrenceFragmentNode = gql`
+  fragment AppObserveErrorOccurrenceFragment on AppObserveError {
+    id
+    timestamp
+    sessionId
+    severityNumber
+    severityText
+    type
+    message
+    source
+    fingerprint
+    isFatal
+    stacktrace
+    body
+    properties {
+      key
+      value
+      type
+    }
+    appVersion
+    appBuildNumber
+    appUpdateId
+    appEasBuildId
+    deviceOs
+    deviceOsVersion
+    deviceModel
+    environment
+    easClientId
+    countryCode
+  }
+`;
+
 export const AppObserveMetricFragmentNode = gql`
   fragment AppObserveMetricFragment on AppObserveMetric {
     id
@@ -73,6 +105,23 @@ export const AppObserveMetricFragmentNode = gql`
     easClientId
     customParams
     routeName
+  }
+`;
+
+export const AppObserveErrorGroupFragmentNode = gql`
+  fragment AppObserveErrorGroupFragment on AppObserveErrorGroup {
+    fingerprint
+    exceptionType
+    exceptionMessage
+    errorSource
+    severity
+    isFatal
+    eventCount
+    uniqueUserCount
+    affectedSessionCount
+    firstSeenAt
+    lastSeenAt
+    platforms
   }
 `;
 
