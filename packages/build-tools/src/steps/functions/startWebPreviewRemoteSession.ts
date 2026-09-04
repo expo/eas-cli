@@ -64,7 +64,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         await uploadRemoteSessionConfigAsync({
           ctx,
           deviceRunSessionId,
-          remoteConfig: { previewUrl: webPreview.previewUrl },
+          remoteConfig: {
+            previewUrl: webPreview.previewUrl,
+            ...(webPreview.previewToken ? { previewToken: webPreview.previewToken } : {}),
+          },
           logger,
         });
 
