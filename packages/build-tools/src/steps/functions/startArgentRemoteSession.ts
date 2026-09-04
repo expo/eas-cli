@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { resolvePackageExec, resolvePackageManager } from '../../utils/packageManager';
+import { PackageManager, resolveOverridePackageManager, resolvePackageExec } from '../../utils/packageManager';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
@@ -80,7 +80,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global, workingDirectory }, { inputs, env, signal }) => {
+    fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -111,7 +111,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       // Never rejects, so `void` is safe.
       void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
-      const packageManager = resolvePackageManager(workingDirectory, { env });
+      const packageManager = resolveOverridePackageManager(env) ?? PackageManager.BUN;
       const argentExec = (args: string[]): { command: string; args: string[] } =>
         resolvePackageExec(packageManager, args);
 

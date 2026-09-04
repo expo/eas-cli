@@ -45,7 +45,6 @@ function createLoggerMock(): bunyan {
 
 function createCtxMock(): CustomBuildContext {
   return {
-    defaultWorkingDirectory: '/tmp/eas-no-project',
     env: {
       __API_SERVER_URL: 'https://api.expo.test',
     },
@@ -319,7 +318,6 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     DEVICE_RUN_SESSION_ID: 'drs-id',
     EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
     NGROK_AUTHTOKEN: 'ngrok-token',
-    EAS_FALLBACK_PACKAGE_MANAGER: 'npm',
   } as unknown as BuildStepEnv;
 
   beforeEach(() => {
@@ -472,14 +470,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('launches serve-sim with bunx when EAS_FALLBACK_PACKAGE_MANAGER is bun', async () => {
+  it('launches serve-sim with bunx when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
       close,
     } as never);
 
-    const bunEnv = { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' };
+    const bunEnv = { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' };
     const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       baseDomain,
@@ -495,6 +493,27 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(args).toEqual(
       createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion: '4.5.6' })
     );
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not use EAS_FALLBACK_PACKAGE_MANAGER for serve-sim', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env: { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
