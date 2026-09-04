@@ -15,6 +15,20 @@ import { z } from 'zod';
 import { Sentry } from '../sentry';
 import { retryAsync } from './retry';
 
+function setConfigProperties(config: string, properties: Record<string, string>): string {
+  const propertyNames = new Set(Object.keys(properties));
+  const configWithoutProperties = config
+    .split(/\r?\n/)
+    .filter(line => !propertyNames.has(line.slice(0, line.indexOf('='))))
+    .join('\n')
+    .trimEnd();
+  const serializedProperties = Object.entries(properties)
+    .map(([name, value]) => `${name}=${value}`)
+    .join('\n');
+
+  return `${[configWithoutProperties, serializedProperties].filter(Boolean).join('\n')}\n`;
+}
+
 /** Android Virtual Device is the device we run. */
 export type AndroidVirtualDeviceName = string & z.BRAND<'AndroidVirtualDeviceName'>;
 /** Android device is configuration for the AVD -- screen size, etc. */
@@ -24,7 +38,8 @@ export type AndroidDeviceSerialId = string & z.BRAND<'AndroidDeviceSerialId'>;
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
 
-  export const defaultSystemImagePackage = `system-images;android-30;default;${
+  export const defaultDeviceIdentifier = 'medium_phone' as AndroidDeviceName;
+  export const defaultSystemImagePackage = `system-images;android-35;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
   }`;
 
@@ -137,44 +152,15 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      logger.info('Setting hw.ramSize to 2048.');
-      configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
-
-      const shouldResizeScreen =
-        env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';
-      if (shouldResizeScreen) {
-        const currentDensityString = configIniFileContent.match(/hw.lcd.density=(\d+)/)?.[1];
-        const currentDensity = currentDensityString
-          ? parseInt(currentDensityString, 10)
-          : undefined;
-        const currentHeightString = configIniFileContent.match(/hw.lcd.height=(\d+)/)?.[1];
-        const currentHeight = currentHeightString ? parseInt(currentHeightString, 10) : undefined;
-        const currentWidthString = configIniFileContent.match(/hw.lcd.width=(\d+)/)?.[1];
-        const currentWidth = currentWidthString ? parseInt(currentWidthString, 10) : undefined;
-
-        if (currentDensity && currentDensity > 220) {
-          logger.info(
-            `Current density is ${currentDensity}, which we believe may impact performance.`
-          );
-          if (currentHeight && currentWidth) {
-            const newDensity = 220;
-            logger.info(`Setting hw.lcd.density to ${newDensity}.`);
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.density=${newDensity}\n`;
-
-            const newHeight = Math.round((currentHeight * newDensity) / currentDensity);
-            const newWidth = Math.round((currentWidth * newDensity) / currentDensity);
-            logger.info(
-              `Setting scaled screen resolution: hw.lcd.height to ${newHeight} and hw.lcd.width to ${newWidth}.`
-            );
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${newHeight}\nhw.lcd.width=${newWidth}\n`;
-          } else {
-            logger.info(
-              'Could not find current screen resolution, setting to 1170x540 and 220 ppi.'
-            );
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${1170}\nhw.lcd.width=${540}\nhw.lcd.density=220\n`;
-          }
-        }
-      }
+      logger.info('Configuring a 720x1600 display at 262 ppi without a device frame.');
+      configIniFileContent = setConfigProperties(configIniFileContent, {
+        'hw.ramSize': '2048',
+        'hw.lcd.height': '1600',
+        'hw.lcd.width': '720',
+        'hw.lcd.density': '262',
+        'skin.path': '_no_skin',
+        showDeviceFrame: 'no',
+      });
 
       const shouldAdjustHeapSize =
         env.ANDROID_EMULATOR_ADJUST_HEAP_SIZE !== 'false' &&

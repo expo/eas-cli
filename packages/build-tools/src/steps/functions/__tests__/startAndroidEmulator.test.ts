@@ -21,7 +21,8 @@ jest.mock('../../../utils/retry', () => ({
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
-    defaultSystemImagePackage: 'system-images;android-30;default;x86_64',
+    defaultDeviceIdentifier: 'medium_phone',
+    defaultSystemImagePackage: 'system-images;android-35;default;x86_64',
     getAvailableDevicesAsync: jest.fn(),
     createAsync: jest.fn(),
     cloneAsync: jest.fn(),
@@ -81,6 +82,25 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
   afterAll(() => {
     mockedMkdtemp.mockRestore();
+  });
+
+  it('creates a Medium Phone emulator running Android 15 by default', async () => {
+    await createStep().executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'sdkmanager',
+      ['system-images;android-35;default;x86_64'],
+      expect.anything()
+    );
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceIdentifier: 'medium_phone',
+        systemImagePackage: 'system-images;android-35;default;x86_64',
+      })
+    );
+    expect(mockedAndroidUtils.createAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
+    );
   });
 
   it('retries base emulator startup with increasing readiness timeouts', async () => {
