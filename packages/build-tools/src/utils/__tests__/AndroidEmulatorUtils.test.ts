@@ -8,7 +8,11 @@ import path from 'node:path';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
-import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
+import {
+  AndroidDeviceName,
+  AndroidEmulatorUtils,
+  AndroidVirtualDeviceName,
+} from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -46,6 +50,125 @@ describe('AndroidEmulatorUtils', () => {
         await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
       })
     );
+  });
+
+  describe(AndroidEmulatorUtils.createAsync, () => {
+    it('applies an explicit LCD configuration after screen scaling', async () => {
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(
+        `${avdDirectory}/config.ini`,
+        [
+          'hw.ramSize=1536',
+          'hw.lcd.height=2424',
+          'hw.lcd.width=1080',
+          'hw.lcd.density=420',
+          'skin.path=pixel_9',
+          'showDeviceFrame=yes',
+        ].join('\n')
+      );
+      const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      const write = jest.fn();
+      const end = jest.fn();
+      avdManagerPromise.child = { stdin: { write, end } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+      const logger = createMockLogger();
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: 'system-images;android-35;default;x86_64',
+        deviceIdentifier: 'medium_phone' as AndroidDeviceName,
+        lcdWidth: 720,
+        lcdHeight: 1600,
+        lcdDensity: 262,
+        env: {
+          HOME: '/home/expo',
+          ANDROID_EMULATOR_ADJUST_SCREEN: '1',
+          ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+        },
+        logger,
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'avdmanager',
+        [
+          'create',
+          'avd',
+          '--name',
+          deviceName,
+          '--package',
+          'system-images;android-35;default;x86_64',
+          '--force',
+          '--device',
+          'medium_phone',
+        ],
+        { env: expect.any(Object), stdio: 'pipe' }
+      );
+      expect(write).toHaveBeenCalledWith('no');
+      expect(end).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        'Setting scaled screen resolution: hw.lcd.height to 1270 and hw.lcd.width to 566.'
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'Setting screen resolution to 720x1600 and density to 262 ppi.'
+      );
+      await expect(fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8')).resolves.toBe(
+        [
+          'hw.ramSize=1536',
+          'hw.lcd.height=2424',
+          'hw.lcd.width=1080',
+          'hw.lcd.density=420',
+          'skin.path=pixel_9',
+          'showDeviceFrame=yes',
+          'hw.ramSize=2048',
+          '',
+          'hw.lcd.density=220',
+          '',
+          'hw.lcd.height=1270',
+          'hw.lcd.width=566',
+          '',
+          'hw.lcd.height=1600',
+          'hw.lcd.width=720',
+          'hw.lcd.density=262',
+          '',
+        ].join('\n')
+      );
+    });
+
+    it('does not apply an LCD configuration when it is omitted', async () => {
+      const deviceName = 'generic-emulator' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      const initialConfig = [
+        'hw.lcd.height=2424',
+        'hw.lcd.width=1080',
+        'hw.lcd.density=420',
+        'skin.path=pixel_9',
+        'showDeviceFrame=yes',
+      ].join('\n');
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(`${avdDirectory}/config.ini`, initialConfig);
+      const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      avdManagerPromise.child = { stdin: { write: jest.fn(), end: jest.fn() } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+        deviceIdentifier: null,
+        env: {
+          HOME: '/home/expo',
+          ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+        },
+        logger: createMockLogger(),
+      });
+
+      const config = await fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8');
+      expect(config).toContain(initialConfig);
+      expect(config).not.toContain('hw.lcd.height=1600');
+      expect(config).not.toContain('hw.lcd.width=720');
+      expect(config).not.toContain('hw.lcd.density=262');
+    });
   });
 
   describe(AndroidEmulatorUtils.startAsync, () => {
