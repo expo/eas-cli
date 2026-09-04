@@ -87,22 +87,27 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionUrl
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
+                      webPreviewToken
                     }
                     ... on ArgentRunSessionRemoteConfig {
                       toolsUrl
                       toolsAuthToken
                       webPreviewUrl
+                      webPreviewToken
                     }
                     ... on AppiumRunSessionRemoteConfig {
                       appiumUrl
                       capabilities
                       webPreviewUrl
+                      webPreviewToken
                     }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
+                      previewToken
                     }
                     ... on WebPreviewOnlyRunSessionRemoteConfig {
                       previewUrl: webPreviewUrl
+                      previewToken: webPreviewToken
                     }
                   }
                   turtleJobRun {
