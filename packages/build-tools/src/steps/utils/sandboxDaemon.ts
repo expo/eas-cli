@@ -2,6 +2,8 @@ import Log from '@expo/logger';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket from 'ws';
 
+import { SandboxProtocol } from './sandboxProtocol';
+
 export interface SandboxDaemonOptions {
   credential: string;
   serverUrl: string;
@@ -35,6 +37,14 @@ export async function startSandboxDaemonAsync(
       try {
         await waitForOpen(socket);
         Log.info('Sandbox MCP server connected.');
+        const protocol = new SandboxProtocol(response => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(response));
+          }
+        });
+        socket.on('message', message => {
+          void protocol.handleMessageAsync(message.toString());
+        });
         hasConnected = true;
         resolveConnected();
         await waitForClose(socket);
