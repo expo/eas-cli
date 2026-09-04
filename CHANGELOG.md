@@ -10,6 +10,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved out of `.eas/build` configs into local `function.yml` files can be called from workflows. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Validate local functions declaring `command` or `path` referenced from workflows, including that the module directory of a `path` function exists. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
