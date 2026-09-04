@@ -21,6 +21,7 @@ import {
   getManifestBodyAsync,
   signBody,
 } from '../../../utils/code-signing';
+import { republishAsync } from '../../../update/republish';
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
@@ -51,9 +52,25 @@ jest.mock('../../../graphql/queries/BranchQuery');
 jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../update/queries');
 jest.mock('../../../ora', () => ({
-  ora: () => ({
-    start: () => ({ succeed: () => {}, fail: () => {} }),
-  }),
+  ora: () => {
+    const spinner = {
+      isSpinning: false,
+      start: () => {
+        spinner.isSpinning = true;
+        return spinner;
+      },
+      succeed: () => {
+        spinner.isSpinning = false;
+      },
+      fail: () => {
+        spinner.isSpinning = false;
+      },
+      stop: () => {
+        spinner.isSpinning = false;
+      },
+    };
+    return spinner;
+  },
 }));
 jest.mock('../../../utils/code-signing');
 jest.mock('../../../fetch');
@@ -128,6 +145,45 @@ describe(UpdateRepublish.name, () => {
 
     await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
       'There are no updates on branch "main" published for the platform(s) "android" with group ID "1234". Did you mean to publish a new update instead?'
+    );
+  });
+
+  it('republishes without checking rollouts when no caller opts in', async () => {
+    mockTestProject();
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([{ ...updateStub, id: 'update-new', platform: 'ios' }]);
+
+    await republishAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      app: { exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig, projectId: '1234' },
+      updatesToPublish: [
+        {
+          ...updateStub,
+          groupId: updateStub.group,
+          branchId: updateStub.branch.id,
+          branchName: updateStub.branch.name,
+        },
+      ],
+      targetBranch: { branchId: updateStub.branch.id, branchName: updateStub.branch.name },
+      updateMessage: 'no rollout check',
+      json: false,
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed republish and rethrows', async () => {
+    const flags = ['--group=1234', '--message=test-republish'];
+
+    mockTestProject();
+    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockRejectedValue(new Error('republish exploded'));
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      'republish exploded'
     );
   });
 

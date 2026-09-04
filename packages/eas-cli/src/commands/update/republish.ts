@@ -30,6 +30,7 @@ type UpdateRepublishRawFlags = {
   message?: string;
   platform: string;
   'private-key-path'?: string;
+  'force-end-active-rollout': boolean;
   'non-interactive': boolean;
   json?: boolean;
   'rollout-percentage'?: number;
@@ -44,6 +45,7 @@ type UpdateRepublishFlags = {
   updateMessage?: string;
   platform: Platform[];
   privateKeyPath?: string;
+  forceEndActiveRollout: boolean;
   nonInteractive: boolean;
   json: boolean;
   rolloutPercentage?: number;
@@ -94,6 +96,11 @@ export default class UpdateRepublish extends EasCommand {
       required: false,
       min: 0,
       max: 100,
+    }),
+    'force-end-active-rollout': Flags.boolean({
+      description:
+        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being republished to, so this update supersedes it. The update being rolled out is then served to every user until they receive this one.',
+      default: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -177,6 +184,10 @@ export default class UpdateRepublish extends EasCommand {
       codeSigningInfo,
       json: flags.json,
       rolloutPercentage: flags.rolloutPercentage,
+      activeRollout: {
+        forceEndActiveRollout: flags.forceEndActiveRollout,
+        nonInteractive: flags.nonInteractive,
+      },
     });
   }
 
@@ -206,6 +217,7 @@ export default class UpdateRepublish extends EasCommand {
       updateMessage: rawFlags.message,
       privateKeyPath,
       rolloutPercentage: rawFlags['rollout-percentage'],
+      forceEndActiveRollout: rawFlags['force-end-active-rollout'],
       json,
       nonInteractive,
     };
