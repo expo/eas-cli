@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--skip-screenshots` and `--skip-previews` flags to `eas metadata:pull` and `eas metadata:push` to skip downloading or uploading screenshots and video previews. ([#3843](https://github.com/expo/eas-cli/pull/3843) by [@TimBroddin](https://github.com/TimBroddin))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
