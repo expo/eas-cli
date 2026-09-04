@@ -9,6 +9,7 @@ import {
   PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolveConfiguredPackageManager,
   resolveFallbackPackageManager,
   resolveOverridePackageManager,
   resolvePackageExec,
@@ -155,6 +156,33 @@ describe(resolveOverridePackageManager, () => {
     expect(() =>
       resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })
     ).toThrow(errors.UserError);
+  });
+});
+
+describe(resolveConfiguredPackageManager, () => {
+  it('uses the unset default', () => {
+    expect(resolveConfiguredPackageManager({}, PackageManager.NPM)).toBe(PackageManager.NPM);
+  });
+
+  it('uses EAS_FALLBACK_PACKAGE_MANAGER when no override is set', () => {
+    expect(
+      resolveConfiguredPackageManager(
+        { EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
+        PackageManager.NPM
+      )
+    ).toBe(PackageManager.BUN);
+  });
+
+  it('prefers EAS_OVERRIDE_PACKAGE_MANAGER over the fallback', () => {
+    expect(
+      resolveConfiguredPackageManager(
+        {
+          EAS_OVERRIDE_PACKAGE_MANAGER: 'npm',
+          EAS_FALLBACK_PACKAGE_MANAGER: 'bun',
+        },
+        PackageManager.BUN
+      )
+    ).toBe(PackageManager.NPM);
   });
 });
 

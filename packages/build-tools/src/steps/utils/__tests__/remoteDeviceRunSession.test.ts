@@ -498,7 +498,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('does not use EAS_FALLBACK_PACKAGE_MANAGER for serve-sim', async () => {
+  it('launches serve-sim with bunx when EAS_FALLBACK_PACKAGE_MANAGER is bun', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -513,7 +513,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       timeoutMs: 10_000,
     });
 
-    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
+    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('bunx');
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
