@@ -10622,6 +10622,35 @@ export type SubscriptionDetails_PlanEnablementArgs = {
   serviceMetric: EasServiceMetric;
 };
 
+/** An unresolved finding from Supabase's Security or Performance Advisor (database linter). */
+export type SupabaseAdvisorLint = {
+  __typename?: 'SupabaseAdvisorLint';
+  /** Stable identifier for this finding on this project. */
+  cacheKey: Scalars['String']['output'];
+  description: Scalars['String']['output'];
+  /** Project-specific explanation naming the affected schema object. */
+  detail: Scalars['String']['output'];
+  /** Affected schema object, e.g. public.todos, when the lint names one. */
+  entity?: Maybe<Scalars['String']['output']>;
+  level: SupabaseAdvisorLintLevel;
+  /** Lint rule identifier, e.g. rls_disabled_in_public. */
+  name: Scalars['String']['output'];
+  /** Link to the remediation guide, when Supabase provides one. */
+  remediation?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+};
+
+export enum SupabaseAdvisorLintLevel {
+  Error = 'ERROR',
+  Info = 'INFO',
+  Warn = 'WARN'
+}
+
+export enum SupabaseAdvisorType {
+  Performance = 'PERFORMANCE',
+  Security = 'SECURITY'
+}
+
 export type SupabaseConnection = {
   __typename?: 'SupabaseConnection';
   account: Account;
@@ -10698,6 +10727,12 @@ export type SupabaseOrganization = {
 
 export type SupabaseProject = {
   __typename?: 'SupabaseProject';
+  /**
+   * Live unresolved lints from the project's Security or Performance Advisor (Management API),
+   * ordered by severity. Readable by anyone who can view the app, like the build page that shows
+   * them. Null when Supabase cannot be reached, so a failure does not hide the rest of the project.
+   */
+  advisorLints?: Maybe<Array<SupabaseAdvisorLint>>;
   app: App;
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
@@ -10707,6 +10742,11 @@ export type SupabaseProject = {
   supabaseProjectUrl: Scalars['String']['output'];
   supabaseRegion: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+};
+
+
+export type SupabaseProject_AdvisorLintsArgs = {
+  type: SupabaseAdvisorType;
 };
 
 export type SupabaseProjectMutation = {
@@ -15596,6 +15636,13 @@ export type SupabaseProjectByAppIdQueryVariables = Exact<{
 
 export type SupabaseProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } | null } } };
 
+export type SupabaseAdvisorLintsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type SupabaseAdvisorLintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any, security?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null, performance?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null } | null } } };
+
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
   timespan: InsightsTimespan;
@@ -15901,6 +15948,8 @@ export type SubmissionWithSubmittedBuildFragment = { __typename?: 'Submission', 
 export type SupabaseConnectionFragment = { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any };
 
 export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any };
+
+export type SupabaseAdvisorLintFragment = { __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }
