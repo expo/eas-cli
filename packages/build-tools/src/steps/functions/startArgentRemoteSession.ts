@@ -44,7 +44,7 @@ const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 // ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
 // Argent's default can never make the two disagree.
 const ARGENT_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, ARGENT_EVENT_LOG_FILENAME);
-const STARTUP_TIMEOUT_MS = 60_000;
+const STARTUP_TIMEOUT_MS = 200_000;
 
 const ArgentToolServerStateSchema = z.object({
   port: z.number(),

@@ -35,7 +35,7 @@ const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const AGENT_DEVICE_STATE_DIR = path.join(os.homedir(), '.agent-device');
 const DAEMON_JSON_PATH = path.join(AGENT_DEVICE_STATE_DIR, 'daemon.json');
-const STARTUP_TIMEOUT_MS = 60_000;
+const STARTUP_TIMEOUT_MS = 200_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
   AGENT_DEVICE_RETAIN_ARTIFACTS: '1',

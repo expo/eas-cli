@@ -15,7 +15,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
-const STARTUP_TIMEOUT_MS = 60_000;
+const STARTUP_TIMEOUT_MS = 200_000;
 
 export function createStartWebPreviewRemoteSessionBuildFunction(
   ctx: CustomBuildContext

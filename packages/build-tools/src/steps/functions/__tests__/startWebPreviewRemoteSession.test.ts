@@ -64,7 +64,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       baseDomain: 'tunnel.example.com',
       env,
       logger,
-      timeoutMs: 60_000,
+      timeoutMs: 200_000,
       packageVersion: '1.2.3',
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
