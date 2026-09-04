@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import { resolvePackageExec, resolvePackageManager } from '../../utils/packageManager';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
@@ -79,7 +80,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
+    fn: async ({ logger, global, workingDirectory }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -110,35 +111,44 @@ export function createStartArgentRemoteSessionBuildFunction(
       // Never rejects, so `void` is safe.
       void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
+      const packageManager = resolvePackageManager(workingDirectory, { env });
+      const argentExec = (args: string[]): { command: string; args: string[] } =>
+        resolvePackageExec(packageManager, args);
+
       logger.info('Enabling the Argent artifacts list endpoint flag.');
-      await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
-        { env, logger }
-      );
+      const enableArtifacts = argentExec([
+        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+        'enable',
+        ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
+      ]);
+      await spawn(enableArtifacts.command, enableArtifacts.args, { env, logger });
 
       logger.info('Enabling the Argent tool-server event log flag.');
-      await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
-        { env, logger }
-      );
+      const enableEventLog = argentExec([
+        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+        'enable',
+        ARGENT_EVENT_LOG_FLAG,
+      ]);
+      await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
-      // Keep Argent itself in foreground mode under the detached bunx process. This preserves
-      // the bunx -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      const startServer = argentExec([
+        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+        'server',
+        'start',
+        '--port',
+        '0',
+        '--idle-timeout',
+        '0',
+        '--force',
+      ]);
+      logger.info(
+        `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
+      );
+      // Keep Argent itself in foreground mode under the detached process. This preserves
+      // the package runner -> Argent CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
-        command: 'bunx',
-        args: [
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-          'server',
-          'start',
-          '--port',
-          '0',
-          '--idle-timeout',
-          '0',
-          '--force',
-        ],
+        command: startServer.command,
+        args: startServer.args,
         env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
       });
       if (argentServer.pid === undefined) {
@@ -294,7 +304,7 @@ export function warnIfArgentPackageVersionCannotBeVerified({
     logger.warn(
       `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer, ` +
         `but package_version "${packageVersion}" is not an exact semver version that EAS can verify. ` +
-        `Continuing and letting bunx resolve it.`
+        `Continuing and letting the package manager resolve it.`
     );
     return;
   }

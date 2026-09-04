@@ -9,6 +9,8 @@ import {
   PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolveFallbackPackageManager,
+  resolvePackageExec,
   resolvePackageManager,
   resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
@@ -114,6 +116,57 @@ describe(resolvePackageManager, () => {
       expect(error.message).toContain('bunn');
       expect(error.message).toContain('yarn, npm, pnpm, bun');
     }
+  });
+});
+
+describe(resolveFallbackPackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveFallbackPackageManager({})).toBeUndefined();
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolvePackageExec, () => {
+  const packageArgs = ['@expo/serve-sim@latest', '--port', '1'];
+
+  it('maps npm to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.NPM, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps bun to bunx', () => {
+    expect(resolvePackageExec(PackageManager.BUN, packageArgs)).toEqual({
+      command: 'bunx',
+      args: packageArgs,
+    });
+  });
+
+  it('maps yarn to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.YARN, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps pnpm to pnpm dlx', () => {
+    expect(resolvePackageExec(PackageManager.PNPM, packageArgs)).toEqual({
+      command: 'pnpm',
+      args: ['dlx', ...packageArgs],
+    });
   });
 });
 

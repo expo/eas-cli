@@ -30,19 +30,39 @@ export function resolvePackageManager(
     }
   } catch {}
 
+  return resolveFallbackPackageManager(env) ?? PackageManager.YARN;
+}
+
+export function resolveFallbackPackageManager(env: BuildStepEnv): PackageManager | undefined {
   const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
-  if (fallback) {
-    const parsed = z.enum(PackageManager).safeParse(fallback);
-    if (parsed.success) {
-      return parsed.data;
-    }
-    const allowed = Object.values(PackageManager).join(', ');
-    throw new errors.UserError(
-      'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
-      `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
-    );
+  if (!fallback) {
+    return undefined;
   }
-  return PackageManager.YARN;
+  const parsed = z.enum(PackageManager).safeParse(fallback);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  const allowed = Object.values(PackageManager).join(', ');
+  throw new errors.UserError(
+    'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
+    `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
+  );
+}
+
+export function resolvePackageExec(
+  manager: PackageManager,
+  args: string[]
+): { command: string; args: string[] } {
+  switch (manager) {
+    case PackageManager.NPM:
+      return { command: 'npx', args: ['--yes', ...args] };
+    case PackageManager.BUN:
+      return { command: 'bunx', args };
+    case PackageManager.YARN:
+      return { command: 'npx', args: ['--yes', ...args] };
+    case PackageManager.PNPM:
+      return { command: 'pnpm', args: ['dlx', ...args] };
+  }
 }
 
 /**
