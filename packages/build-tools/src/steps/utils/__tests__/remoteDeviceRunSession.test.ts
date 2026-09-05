@@ -336,7 +336,9 @@ describe(startNgrokTunnelAsync, () => {
       })
     );
     expect(tunnel.url).toBe('https://web-preview.example.test');
-    expect(logger.info).toHaveBeenCalledWith('Starting web preview tunnel -> http://localhost:4321.');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Starting web preview tunnel -> http://localhost:4321.'
+    );
     await tunnel.stopAsync();
     await tunnel.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
