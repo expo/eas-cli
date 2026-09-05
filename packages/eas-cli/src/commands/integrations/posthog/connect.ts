@@ -140,6 +140,7 @@ export default class IntegrationsPostHogConnect extends EasCommand {
       graphqlClient,
       account.id
     );
+    let confirmedProvisioning = false;
     if (connection) {
       if (regionFlag && regionFlag !== connection.posthogRegion) {
         Log.warn(
@@ -165,12 +166,26 @@ export default class IntegrationsPostHogConnect extends EasCommand {
         }
       }
       connection = await this.startConnectionAsync(graphqlClient, account, region, nonInteractive);
+      confirmedProvisioning = true;
     }
 
     let project = await PostHogQuery.getPostHogProjectByAppIdAsync(graphqlClient, projectId);
     if (project) {
       Log.withTick(`Using existing PostHog project ${chalk.bold(project.posthogProjectName)}`);
     } else {
+      // Reusing an organization still creates a project, and the CLI cannot remove that either, so
+      // it needs the same confirmation unless the prompt above already covered it.
+      if (!nonInteractive && !confirmedProvisioning) {
+        const confirmed = await confirmAsync({
+          message: `There is no PostHog project for this app in ${chalk.bold(
+            connection.posthogOrganizationName
+          )}. Create one?`,
+        });
+        if (!confirmed) {
+          Log.log('Nothing was created.');
+          return;
+        }
+      }
       const spinner = ora('Setting up PostHog project').start();
       try {
         project = await PostHogMutation.setupPostHogProjectAsync(graphqlClient, {
