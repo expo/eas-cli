@@ -53,15 +53,20 @@ async function getExpoConfigInternalAsync(
 
     let exp: ExpoConfig;
     if (isExpoInstalled(projectDir)) {
-      const { stdout } = await spawnExpoCommand(
-        projectDir,
-        ['config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
-        {
-          env: {
-            EXPO_NO_DOTENV: '1',
-          },
-        }
-      );
+      let stdout: string;
+      try {
+        ({ stdout } = await spawnExpoCommand(
+          projectDir,
+          ['config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
+          {
+            env: {
+              EXPO_NO_DOTENV: '1',
+            },
+          }
+        ));
+      } catch (error: any) {
+        throw new Error(expoConfigCommandFailedMessage(projectDir, error));
+      }
       exp = JSON.parse(stdout);
     } else {
       exp = getConfig(projectDir, {
@@ -82,6 +87,28 @@ async function getExpoConfigInternalAsync(
   } finally {
     process.env = originalProcessEnv;
   }
+}
+
+/**
+ * The Expo CLI prints the reason it failed on stderr, but a rejected spawn only carries
+ * "exited with non-zero code", so surface the output and name the usual cause: dependencies that
+ * are missing or half-installed.
+ */
+function expoConfigCommandFailedMessage(projectDir: string, error: any): string {
+  const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : '';
+  const parts = ['Failed to read the app config from the Expo CLI.'];
+  if (stderr) {
+    parts.push(stderr);
+  }
+  const dependenciesUnresolved =
+    /Cannot find module|MODULE_NOT_FOUND/.test(stderr) ||
+    !fs.existsSync(path.join(projectDir, 'node_modules'));
+  if (dependenciesUnresolved) {
+    parts.push(
+      'The project dependencies look missing or incomplete. Install them and run this command again.'
+    );
+  }
+  return parts.join('\n\n');
 }
 
 const MinimalAppConfigSchema = Joi.object({
