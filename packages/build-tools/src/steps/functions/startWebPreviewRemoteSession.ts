@@ -58,7 +58,6 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         timeoutMs: STARTUP_TIMEOUT_MS,
         packageVersion,
       });
-      logger.info(`Preview URL: ${webPreview.previewUrl}`);
 
       try {
         await uploadRemoteSessionConfigAsync({

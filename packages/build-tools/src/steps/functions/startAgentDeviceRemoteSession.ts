@@ -119,7 +119,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
         await uploadRemoteSessionConfigAsync({
           ctx,
