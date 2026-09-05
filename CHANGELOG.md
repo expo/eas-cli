@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [build-tools] Install FFmpeg before launching `expo-device-hub` in Android device sessions. ([#4332](https://github.com/expo/eas-cli/pull/4332) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Accept template expressions such as `${{ env.SLACK_WEBHOOK_URL }}` in `eas workflow:validate` for fields the workflow schema declares with a string format, like a `slack` job's `webhook_url`. Values without a template expression are still checked against the format. ([#4184](https://github.com/expo/eas-cli/pull/4184) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
