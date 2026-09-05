@@ -183,17 +183,21 @@ async function getGoogleServiceAccountKeyJsonAsync({
   return null;
 }
 
-async function getAppStoreConnectApiKeyJsonAsync({
+export async function getAppStoreConnectApiKeyJsonAsync({
   iosConfig,
   graphqlClient,
 }: {
   iosConfig: IosSubmissionConfigInput;
   graphqlClient: ExpoGraphqlClient;
 }): Promise<string | null> {
+  // Individual API keys have no issuer. fastlane detects them by the absence
+  // of the issuer_id field, so it must be omitted entirely, not set to null.
   if (iosConfig.ascApiKey) {
     return JSON.stringify({
       key_id: iosConfig.ascApiKey.keyIdentifier,
-      issuer_id: iosConfig.ascApiKey.issuerIdentifier,
+      ...(iosConfig.ascApiKey.issuerIdentifier
+        ? { issuer_id: iosConfig.ascApiKey.issuerIdentifier }
+        : null),
       key: iosConfig.ascApiKey.keyP8,
     });
   } else if (iosConfig.ascApiKeyId) {
@@ -201,7 +205,7 @@ async function getAppStoreConnectApiKeyJsonAsync({
 
     return JSON.stringify({
       key_id: key.keyIdentifier,
-      issuer_id: key.issuerIdentifier,
+      ...(key.issuerIdentifier ? { issuer_id: key.issuerIdentifier } : null),
       key: key.keyP8,
     });
   }

@@ -40,7 +40,17 @@ export async function resolveAscApiKeyAsync(
 ): Promise<MinimalAscApiKey> {
   const passedKeyP8 = await getAscKeyP8FromEnvironmentOrOptionsAsync(ascApiKey);
   const passedKeyId = await getAscKeyIdFromEnvironmentOrOptionsAsync(ascApiKey);
-  const passedIssuerId = await getAscIssuerIdFromEnvironmentOrOptionsAsync(ascApiKey);
+
+  // A key that is fully specified (key + key ID) without an issuer is an
+  // individual API key. Do not prompt for the Issuer ID it does not have.
+  const keyProvidedWithoutIssuer =
+    (!!ascApiKey?.keyP8 || !!process.env.EXPO_ASC_API_KEY_PATH) &&
+    (!!ascApiKey?.keyId || !!process.env.EXPO_ASC_KEY_ID) &&
+    !ascApiKey?.issuerId &&
+    !process.env.EXPO_ASC_ISSUER_ID;
+  const passedIssuerId = keyProvidedWithoutIssuer
+    ? undefined
+    : await getAscIssuerIdFromEnvironmentOrOptionsAsync(ascApiKey);
 
   return {
     keyP8: passedKeyP8,

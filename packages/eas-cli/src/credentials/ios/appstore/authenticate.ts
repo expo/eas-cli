@@ -38,6 +38,12 @@ export type Options = {
   teamType?: AppleTeamType;
   ascApiKey?: MinimalAscApiKey;
   /**
+   * Allow authenticating with an individual (issuer-less) ASC API key.
+   * Apple blocks individual keys from Provisioning endpoints, so only flows
+   * limited to submissions, TestFlight, and metadata may set this.
+   */
+  allowIndividualAscApiKey?: boolean;
+  /**
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
@@ -54,6 +60,33 @@ export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
     return authCtx;
   }
   throw new Error('Expected user authentication context (login/password).');
+}
+
+export function isIndividualAscApiKeyAuthCtx(authCtx: AuthCtx | undefined): boolean {
+  return !!authCtx && 'ascApiKey' in authCtx && !!authCtx.ascApiKey && !authCtx.ascApiKey.issuerId;
+}
+
+/**
+ * Apple responds with 401 NOT_AUTHORIZED (not 403) when an individual API key
+ * calls a Provisioning endpoint, which looks like a broken key. Append a hint
+ * so the failure is actionable; keep the original error, as a 401 can also
+ * mean the key was revoked or expired.
+ */
+export function withIndividualAscApiKeyProvisioningHint(
+  error: unknown,
+  authCtx: AuthCtx | undefined
+): unknown {
+  if (
+    error instanceof Error &&
+    isIndividualAscApiKeyAuthCtx(authCtx) &&
+    /NOT_AUTHORIZED|401/.test(error.message)
+  ) {
+    error.message +=
+      '\nNote: the App Store Connect API key in use is an individual key (it has no Issuer ID). ' +
+      'Apple blocks individual keys from Provisioning endpoints, so this error may not mean the key is invalid. ' +
+      'Use a team API key, or provide a distribution certificate and provisioning profile directly.';
+  }
+  return error;
 }
 
 export function getRequestContext(authCtx: AuthCtx): RequestContext {
@@ -163,6 +196,14 @@ export async function authenticateAsync(options: Options = {}): Promise<AuthCtx>
 async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
   // Resolve the user credentials, optimizing for password-less login.
   const ascApiKey = await resolveAscApiKeyAsync(options.ascApiKey);
+  if (!ascApiKey.issuerId && !options.allowIndividualAscApiKey) {
+    throw new Error(
+      'The App Store Connect API key has no Issuer ID, so it is an individual API key. ' +
+        'Apple blocks individual API keys from managing certificates and provisioning profiles (Provisioning endpoints). ' +
+        'Use a team API key (one with an Issuer ID), or provide a distribution certificate and provisioning profile directly. ' +
+        'If this is a team key, provide its Issuer ID (e.g. via EXPO_ASC_ISSUER_ID).'
+    );
+  }
   const team = await resolveAppleTeamAsync(options);
   const jwtDurationSeconds = 1200; // 20 minutes
   return {
@@ -171,7 +212,9 @@ async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKe
       context: {
         token: new Token({
           key: ascApiKey.keyP8,
-          issuerId: ascApiKey.issuerId,
+          // TODO(ENG-21475): drop the cast once @expo/apple-utils accepts an
+          // optional issuerId and signs issuer-less tokens with sub: "user".
+          issuerId: ascApiKey.issuerId as string,
           keyId: ascApiKey.keyId,
           duration: jwtDurationSeconds,
         }),
