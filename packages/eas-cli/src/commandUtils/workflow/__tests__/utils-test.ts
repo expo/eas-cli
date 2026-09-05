@@ -1,8 +1,10 @@
+import { PassThrough } from 'node:stream';
+
 import { getMockWorkflowRunWithJobsFragment } from '../../../__tests__/commands/utils';
 import { WorkflowJobStatus } from '../../../graphql/generated';
 import { groupLogLinesIntoSteps, parseLogLines } from '../logs/parseLogs';
 import { WorkflowLogs, WorkflowRawLogLine } from '../types';
-import { formatActiveWorkflowRun, formatFailedWorkflowRun } from '../utils';
+import { formatActiveWorkflowRun, formatFailedWorkflowRun, maybeReadStdinAsync } from '../utils';
 
 function jobWithLogs(
   logLines: WorkflowRawLogLine[],
@@ -134,4 +136,108 @@ describe(formatFailedWorkflowRun, () => {
     expect(output).toContain('line0');
     expect(output).toContain('line7');
   });
+});
+
+const DID_NOT_SETTLE = 'maybeReadStdinAsync() did not settle';
+
+/**
+ * Resolves to a sentinel value instead of hanging, so that a promise which never settles fails
+ * an assertion with a readable message rather than blowing the whole test file's timeout.
+ */
+async function settleWithinAsync(
+  promise: Promise<string | null>,
+  ms: number
+): Promise<string | null> {
+  let timeout: NodeJS.Timeout | undefined;
+  const guard = new Promise<string>(resolve => {
+    timeout = setTimeout(() => {
+      resolve(DID_NOT_SETTLE);
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([promise, guard]);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function mockProcessStdin(stream: PassThrough & { isTTY?: boolean }): () => void {
+  const original = Object.getOwnPropertyDescriptor(process, 'stdin')!;
+  Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+  return () => {
+    Object.defineProperty(process, 'stdin', original);
+  };
+}
+
+describe('maybeReadStdinAsync', () => {
+  let restoreProcessStdin: (() => void) | undefined;
+
+  afterEach(() => {
+    restoreProcessStdin?.();
+    restoreProcessStdin = undefined;
+  });
+
+  test('returns null when stdin is a TTY', async () => {
+    const stdin: PassThrough & { isTTY?: boolean } = new PassThrough();
+    stdin.isTTY = true;
+    restoreProcessStdin = mockProcessStdin(stdin);
+
+    await expect(settleWithinAsync(maybeReadStdinAsync(), 5000)).resolves.toBeNull();
+  });
+
+  test('returns null when stdin is an open pipe that never delivers data nor ends', async () => {
+    // This is what a CI agent hands the process: stdin is not a TTY, but nothing is ever written
+    // to it and nobody closes it, so 'end' never fires. See https://github.com/expo/eas-cli/issues/3164.
+    restoreProcessStdin = mockProcessStdin(new PassThrough());
+
+    await expect(settleWithinAsync(maybeReadStdinAsync(), 5000)).resolves.toBeNull();
+  }, 20000);
+
+  test('returns null when stdin has already been destroyed', async () => {
+    const stdin = new PassThrough();
+    stdin.destroy();
+    restoreProcessStdin = mockProcessStdin(stdin);
+
+    await expect(settleWithinAsync(maybeReadStdinAsync(), 5000)).resolves.toBeNull();
+  }, 20000);
+
+  test('reads JSON piped into stdin', async () => {
+    const stdin = new PassThrough();
+    restoreProcessStdin = mockProcessStdin(stdin);
+
+    const stdinPromise = maybeReadStdinAsync();
+    stdin.end('{"a":1}\n');
+
+    await expect(settleWithinAsync(stdinPromise, 5000)).resolves.toBe('{"a":1}');
+  }, 20000);
+
+  test('returns null for a pipe that closes without writing anything', async () => {
+    const stdin = new PassThrough();
+    restoreProcessStdin = mockProcessStdin(stdin);
+
+    const stdinPromise = maybeReadStdinAsync();
+    stdin.end();
+
+    await expect(settleWithinAsync(stdinPromise, 5000)).resolves.toBeNull();
+  }, 20000);
+
+  test('waits for the whole payload when the writer is slow to finish', async () => {
+    const stdin = new PassThrough();
+    restoreProcessStdin = mockProcessStdin(stdin);
+
+    const stdinPromise = maybeReadStdinAsync();
+    stdin.write('{"a":');
+    // Longer than the grace period we give the first chunk, to make sure a writer that has
+    // started talking to us is never cut off mid-payload.
+    const slowWriteTimeout = setTimeout(() => {
+      stdin.end('1}');
+    }, 2000);
+
+    try {
+      await expect(settleWithinAsync(stdinPromise, 10000)).resolves.toBe('{"a":1}');
+    } finally {
+      clearTimeout(slowWriteTimeout);
+    }
+  }, 20000);
 });
