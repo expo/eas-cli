@@ -2,7 +2,12 @@ import { ProjectConfig, getConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import { load } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
+import spawnAsync from '@expo/turtle-spawn';
+import isEqual from 'lodash/isEqual';
+import path from 'path';
 import semver from 'semver';
+
+import { Datadog } from '../datadog';
 import { expoCommandAsync } from './expoCli';
 
 interface ReadAppConfigParams {
@@ -12,7 +17,31 @@ interface ReadAppConfigParams {
   sdkVersion?: string;
 }
 
+type AppConfigSource = 'expo-cli' | 'bundled-config';
+
+interface AppConfigReadResult {
+  appConfig: ProjectConfig;
+  source: AppConfigSource;
+}
+
+interface AppConfigComparisonDetails {
+  productionSource?: AppConfigSource;
+  reason?: 'current_read_used_fallback' | 'production_read_failed';
+}
+
+const comparedBuildIds = new Set<string>();
+
 export async function readAppConfig(params: ReadAppConfigParams): Promise<ProjectConfig> {
+  const currentResult = await readAppConfigWithSource(params);
+
+  if (markBuildForAppConfigComparison(params.env)) {
+    await compareAppConfigWithProductionModeAsync(params, currentResult);
+  }
+
+  return currentResult.appConfig;
+}
+
+async function readAppConfigWithSource(params: ReadAppConfigParams): Promise<AppConfigReadResult> {
   const shouldLoadEnvVarsFromDotenvFile =
     params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
   if (shouldLoadEnvVarsFromDotenvFile) {
@@ -23,7 +52,10 @@ export async function readAppConfig(params: ReadAppConfigParams): Promise<Projec
 
   // Reading the app config is done in two steps/attempts. We first attempt to run `expo config` as a CLI,
   try {
-    return await getAppConfigFromExpo(params);
+    return {
+      appConfig: await getAppConfigFromExpo(params),
+      source: 'expo-cli',
+    };
   } catch (error: any) {
     params.logger.warn(
       'Failed to read the app config file with `expo config` command:\n' +
@@ -33,7 +65,115 @@ export async function readAppConfig(params: ReadAppConfigParams): Promise<Projec
 
   // If this fails, we fall back to directly using `@expo/config`
   // This can fail, since it's tied to a specific SDK version, so reading for older SDKs isn't guaranteed to work
-  return getAppConfigFromExpoConfig(params);
+  return {
+    appConfig: getAppConfigFromExpoConfig(params),
+    source: 'bundled-config',
+  };
+}
+
+function markBuildForAppConfigComparison(env: Env): boolean {
+  const buildId = env.EAS_BUILD_ID;
+  if (env.EAS_BUILD_RUNNER !== 'eas-build' || !buildId || comparedBuildIds.has(buildId)) {
+    return false;
+  }
+  comparedBuildIds.add(buildId);
+  return true;
+}
+
+async function compareAppConfigWithProductionModeAsync(
+  params: ReadAppConfigParams,
+  currentResult: AppConfigReadResult
+): Promise<void> {
+  if (currentResult.source !== 'expo-cli') {
+    logAppConfigComparison('error', currentResult.source, {
+      reason: 'current_read_used_fallback',
+    });
+    return;
+  }
+
+  try {
+    const productionAppConfig = await readAppConfigWithProductionModeAsync(params);
+    const status = isEqual(currentResult.appConfig.exp, productionAppConfig.exp)
+      ? 'match'
+      : 'mismatch';
+    logAppConfigComparison(status, currentResult.source, {
+      productionSource: 'expo-cli',
+    });
+  } catch {
+    logAppConfigComparison('error', currentResult.source, {
+      reason: 'production_read_failed',
+    });
+  }
+}
+
+function logAppConfigComparison(
+  status: 'match' | 'mismatch' | 'error',
+  currentSource: AppConfigSource,
+  { productionSource, reason }: AppConfigComparisonDetails = {}
+): void {
+  try {
+    Datadog.log(`App config production mode comparison ${status}`, {
+      event: 'app_config_production_mode_comparison',
+      status,
+      current_source: currentSource,
+      ...(productionSource ? { production_source: productionSource } : {}),
+      ...(reason ? { reason } : {}),
+    });
+  } catch {
+    // Keep Datadog errors from failing the build.
+  }
+}
+
+async function readAppConfigWithProductionModeAsync(
+  params: ReadAppConfigParams
+): Promise<ProjectConfig> {
+  let env = getProductionAppConfigEnv(params.env);
+  const shouldLoadEnvVarsFromDotenvFile =
+    params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
+  if (shouldLoadEnvVarsFromDotenvFile) {
+    const dotenvEnv = await readProductionDotenvEnvAsync(params.projectDir, env);
+    env = { ...dotenvEnv, ...env };
+  }
+
+  return getAppConfigFromExpo({ ...params, env });
+}
+
+async function readProductionDotenvEnvAsync(projectDir: string, env: Env): Promise<Env> {
+  const result = await spawnAsync(
+    process.execPath,
+    [path.join(__dirname, 'appConfigEnvWorker.js'), projectDir],
+    {
+      cwd: projectDir,
+      env,
+      stdio: 'pipe',
+    }
+  );
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    throw new Error('Failed to parse the production dotenv worker output.');
+  }
+
+  if (
+    !parsed ||
+    Array.isArray(parsed) ||
+    typeof parsed !== 'object' ||
+    Object.values(parsed).some(value => typeof value !== 'string')
+  ) {
+    throw new Error('The production dotenv worker returned invalid env vars.');
+  }
+
+  return parsed as Env;
+}
+
+function getProductionAppConfigEnv(env: Env): Env {
+  return {
+    ...env,
+    NODE_ENV: 'production',
+    __EXPO_CONFIG_MODE: 'production',
+  };
 }
 
 async function getAppConfigFromExpo({
