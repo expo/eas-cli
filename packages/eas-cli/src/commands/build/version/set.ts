@@ -6,6 +6,7 @@ import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../../commandUtils/flags';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -36,6 +37,12 @@ export default class BuildVersionSetView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
+    value: Flags.string({
+      char: 'v',
+      description: 'Version value to set (versionCode for Android, buildNumber for iOS)',
+      helpValue: 'VERSION',
+    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -47,19 +54,30 @@ export default class BuildVersionSetView extends EasCommand {
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSetView);
+    const nonInteractive = flags['non-interactive'] ?? !!flags.value;
+
+    if (nonInteractive && !flags.platform) {
+      throw new Error(
+        '--platform flag is required in non-interactive mode. Use --platform=android or --platform=ios.'
+      );
+    }
+    if (nonInteractive && !flags.value) {
+      throw new Error('--value flag is required in non-interactive mode.');
+    }
+
     const {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       vcsClient,
     } = await this.getContextAsync(BuildVersionSetView, {
-      nonInteractive: false,
+      nonInteractive,
       withServerSideEnvironment: null,
     });
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, { nonInteractive: false });
+    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, { nonInteractive });
     const profile = await EasJsonUtils.getBuildProfileAsync(
       easJsonAccessor,
       platform,
@@ -85,7 +103,7 @@ export default class BuildVersionSetView extends EasCommand {
       buildProfile: profile,
       platform,
       vcsClient,
-      nonInteractive: false,
+      nonInteractive,
       env,
     });
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
@@ -111,15 +129,30 @@ export default class BuildVersionSetView extends EasCommand {
       : `What version would you like to initialize it with?`;
     Log.log(currentStateMessage);
 
-    const { version } = await promptAsync({
-      type: platform === Platform.ANDROID ? 'number' : 'text',
-      name: 'version',
-      message: versionPromptMessage,
-      validate:
-        platform === Platform.ANDROID
-          ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
-          : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
-    });
+    let version: string | number;
+    if (flags.value) {
+      if (platform === Platform.ANDROID) {
+        if (!isValidVersionCode(flags.value)) {
+          throw new Error(`Invalid versionCode: ${VERSION_CODE_REQUIREMENTS}.`);
+        }
+      } else {
+        if (!isValidBuildNumber(flags.value)) {
+          throw new Error(`Invalid buildNumber: ${BUILD_NUMBER_REQUIREMENTS}.`);
+        }
+      }
+      version = flags.value;
+    } else {
+      const result = await promptAsync({
+        type: platform === Platform.ANDROID ? 'number' : 'text',
+        name: 'version',
+        message: versionPromptMessage,
+        validate:
+          platform === Platform.ANDROID
+            ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
+            : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
+      });
+      version = result.version;
+    }
     await AppVersionMutation.createAppVersionAsync(graphqlClient, {
       appId: projectId,
       platform: toAppPlatform(platform),
