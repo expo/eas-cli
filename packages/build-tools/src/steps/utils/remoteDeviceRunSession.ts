@@ -29,31 +29,16 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
-const WEB_PREVIEW_TUNNEL_HOST = /^https:\/\/web-preview-([^./]+)\./;
-const WEB_PREVIEW_SUBDOMAIN_PREFIX = 'web-preview';
+const PREVIEW_HOST = /^https:\/\/web-preview-([^./]+)\./;
 
-function getExpoWebsiteBaseUrl(env: BuildStepEnv): string {
-  if (env.EXPO_STAGING || process.env.EXPO_STAGING) {
-    return 'https://staging.expo.dev';
-  }
-  if (env.EXPO_LOCAL || process.env.EXPO_LOCAL) {
-    return 'http://expo.test';
-  }
-  return 'https://expo.dev';
-}
-
-export function simulatorPreviewPageUrl(
-  webPreviewUrl: string | undefined,
-  env: BuildStepEnv
-): string | undefined {
-  if (!webPreviewUrl) {
-    return undefined;
-  }
-  const match = WEB_PREVIEW_TUNNEL_HOST.exec(webPreviewUrl);
-  if (!match?.[1]) {
-    return webPreviewUrl;
-  }
-  return `${getExpoWebsiteBaseUrl(env)}/simulator-preview/${match[1]}`;
+export function simulatorPreviewUrl(webPreviewUrl: string, env: BuildStepEnv): string {
+  const previewId = PREVIEW_HOST.exec(webPreviewUrl)?.[1];
+  const websiteBaseUrl = env.EXPO_LOCAL
+    ? 'http://expo.test'
+    : env.EXPO_STAGING
+      ? 'https://staging.expo.dev'
+      : 'https://expo.dev';
+  return previewId ? `${websiteBaseUrl}/simulator-preview/${previewId}` : webPreviewUrl;
 }
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
@@ -835,15 +820,12 @@ async function startWebPreviewWithTunnelAsync(
     await waitForWebPreviewReadyAsync({ previewServer, serverName, port, timeoutMs });
     const tunnel = await startNgrokTunnelAsync({
       port,
-      subdomainPrefix: WEB_PREVIEW_SUBDOMAIN_PREFIX,
+      subdomainPrefix: 'web-preview',
       baseDomain,
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
     });
-    const previewPageUrl = simulatorPreviewPageUrl(tunnel.url, env);
-    if (previewPageUrl) {
-      logger.info(`Web preview URL: ${previewPageUrl}`);
-    }
+    logger.info(`Web preview URL: ${simulatorPreviewUrl(tunnel.url, env)}`);
     return {
       previewUrl: tunnel.url,
       stopAsync: async () => {
@@ -965,7 +947,7 @@ export async function startNgrokTunnelAsync({
   logger: bunyan;
 }): Promise<NgrokTunnelHandle> {
   const domain = `${subdomainPrefix}-${randomBytes(16).toString('hex')}.${baseDomain}`;
-  if (subdomainPrefix === WEB_PREVIEW_SUBDOMAIN_PREFIX) {
+  if (subdomainPrefix === 'web-preview') {
     logger.info(`Starting web preview tunnel -> http://localhost:${port}.`);
   } else {
     logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
