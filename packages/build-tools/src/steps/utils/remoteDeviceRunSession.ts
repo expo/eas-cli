@@ -29,6 +29,17 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+const PREVIEW_HOST = /^https:\/\/web-preview-([^./]+)\./;
+
+export function simulatorPreviewUrl(webPreviewUrl: string, env: BuildStepEnv): string {
+  const previewId = PREVIEW_HOST.exec(webPreviewUrl)?.[1];
+  const websiteBaseUrl = env.EXPO_LOCAL
+    ? 'http://expo.test'
+    : env.EXPO_STAGING
+      ? 'https://staging.expo.dev'
+      : 'https://expo.dev';
+  return previewId ? `${websiteBaseUrl}/simulator-preview/${previewId}` : webPreviewUrl;
+}
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -814,6 +825,7 @@ async function startWebPreviewWithTunnelAsync(
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
     });
+    logger.info(`Web preview URL: ${simulatorPreviewUrl(tunnel.url, env)}`);
     return {
       previewUrl: tunnel.url,
       stopAsync: async () => {
@@ -935,7 +947,11 @@ export async function startNgrokTunnelAsync({
   logger: bunyan;
 }): Promise<NgrokTunnelHandle> {
   const domain = `${subdomainPrefix}-${randomBytes(16).toString('hex')}.${baseDomain}`;
-  logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
+  if (subdomainPrefix === 'web-preview') {
+    logger.info(`Starting web preview tunnel -> http://localhost:${port}.`);
+  } else {
+    logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
+  }
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
   const listener = await ngrok.forward({

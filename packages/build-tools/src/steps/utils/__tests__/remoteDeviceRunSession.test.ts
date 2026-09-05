@@ -18,6 +18,7 @@ import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  simulatorPreviewUrl,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
@@ -278,9 +279,42 @@ describe(waitForWebPreviewReadyAsync, () => {
   });
 });
 
+describe(simulatorPreviewUrl, () => {
+  it('points at the preview page for the session', () => {
+    expect(simulatorPreviewUrl('https://web-preview-abc123.eas-simulator.ngrok.dev', {})).toBe(
+      'https://expo.dev/simulator-preview/abc123'
+    );
+  });
+
+  it.each(['https://agent-device-abc.eas-simulator.ngrok.dev', 'not-a-url', ''])(
+    'falls back to what it was given when there is no preview host: %p',
+    url => {
+      expect(simulatorPreviewUrl(url, {})).toBe(url);
+    }
+  );
+
+  it('points at staging.expo.dev when EXPO_STAGING is set', () => {
+    expect(
+      simulatorPreviewUrl('https://web-preview-abc123.eas-simulator.ngrok.dev', {
+        EXPO_STAGING: '1',
+      })
+    ).toBe('https://staging.expo.dev/simulator-preview/abc123');
+  });
+
+  it('drops everything the tunnel url carries', () => {
+    expect(
+      simulatorPreviewUrl(
+        'https://web-preview-abc123.eas-simulator.ngrok.dev/session?token=secret#frame',
+        {}
+      )
+    ).toBe('https://expo.dev/simulator-preview/abc123');
+  });
+});
+
 describe(startNgrokTunnelAsync, () => {
   it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
+    const logger = createLoggerMock();
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://web-preview.example.test',
       close,
@@ -291,7 +325,7 @@ describe(startNgrokTunnelAsync, () => {
       subdomainPrefix: 'web-preview',
       baseDomain: 'eas-simulator.ngrok.dev',
       authtoken: 'token',
-      logger: createLoggerMock(),
+      logger,
     });
 
     expect(ngrok.forward).toHaveBeenCalledWith(
@@ -302,6 +336,9 @@ describe(startNgrokTunnelAsync, () => {
       })
     );
     expect(tunnel.url).toBe('https://web-preview.example.test');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Starting web preview tunnel -> http://localhost:4321.'
+    );
     await tunnel.stopAsync();
     await tunnel.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
@@ -441,6 +478,33 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs the expo.dev preview page and keeps the tunnel URL for remote config', async () => {
+    const logger = createLoggerMock();
+    const tunnelUrl =
+      'https://web-preview-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.eas-simulator.ngrok.dev';
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => tunnelUrl,
+      close,
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewUrl).toBe(tunnelUrl);
+    expect(logger.info).toHaveBeenCalledWith(
+      'Web preview URL: https://expo.dev/simulator-preview/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    );
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
