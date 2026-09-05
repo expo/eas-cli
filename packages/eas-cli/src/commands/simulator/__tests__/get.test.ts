@@ -162,8 +162,63 @@ describe(SimulatorGet, () => {
     });
   });
 
+  it('emits JSON with a null remote config when the session has none', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ remoteConfig: null }));
+
+    const { command } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ remoteConfig: null })
+    );
+  });
+
+  it('fails the spinner when the session cannot be fetched', async () => {
+    mockByIdAsync.mockRejectedValue(new Error('not found'));
+
+    const { command } = createCommand(['--id', 'session-123']);
+    await expect(command.runAsync()).rejects.toThrow('not found');
+  });
+
+  it('tells the user remote config is still coming when the session has none yet', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ remoteConfig: null, artifacts: [] }));
+
+    const { command } = createCommand(['--id', 'session-123']);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(
+      '⏳ Session is starting up — remote config is not available yet. Re-run this command in a moment.'
+    );
+  });
+
+  it('prints artifacts that have no size or metadata', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        artifacts: [
+          {
+            id: 'artifact-123',
+            name: 'session-log',
+            filename: 'session.log',
+            downloadUrl: 'https://artifacts.example.com/session.log',
+            fileSizeBytes: null,
+            metadata: null,
+            createdAt: '2025-01-01T00:00:10.000Z',
+            updatedAt: '2025-01-01T00:00:20.000Z',
+          },
+        ],
+      })
+    );
+
+    const { command } = createCommand(['--id', 'session-123']);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('null'));
+  });
+
   it('includes the session name in JSON and human output when the session is named', async () => {
-    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ name: 'Checkout regression', tags: ['smoke'], startedAt: null })
+    );
 
     const { command } = createCommand(['--id', 'session-123', '--json']);
     await command.runAsync();
@@ -174,12 +229,15 @@ describe(SimulatorGet, () => {
 
     jest.clearAllMocks();
     mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
-    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ name: 'Checkout regression', tags: ['smoke'], startedAt: null })
+    );
 
     const { command: humanCommand } = createCommand(['--id', 'session-123']);
     await humanCommand.runAsync();
 
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Checkout regression'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('smoke'));
   });
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
