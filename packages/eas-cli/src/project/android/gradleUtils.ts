@@ -45,7 +45,28 @@ export async function getAppBuildGradleAsync(projectDir: string): Promise<AppBui
     .filter(line => !line.trim().startsWith('//'))
     .join('\n');
 
-  return await g2js.parseText(rawBuildGradleWithoutComments);
+  return await g2js.parseText(unwrapStringInterpolations(rawBuildGradleWithoutComments));
+}
+
+/**
+ * gradle-to-js counts `{` and `}` without knowing about string literals, so the braces of a
+ * Groovy string interpolation are treated as a block. When the interpolation contains a method
+ * call, like `buildConfigField "String", "KEY", "\"${System.getenv("KEY")}\""`, the parser
+ * skips one character too many and swallows the closing brace of the surrounding block. Every
+ * entry that follows then ends up nested in the wrong place, which is why `android.productFlavors`
+ * comes back as `undefined` for projects that use interpolated build config fields.
+ *
+ * Unwrapping the interpolations drops the braces and keeps their content. `[^{}]*` never matches
+ * across a brace, so nested interpolations are unwrapped one level per pass.
+ */
+function unwrapStringInterpolations(buildGradle: string): string {
+  let result = buildGradle;
+  let previousResult;
+  do {
+    previousResult = result;
+    result = result.replace(/\$\{([^{}]*)\}/g, '$$$1');
+  } while (result !== previousResult);
+  return result;
 }
 
 export function resolveConfigValue(
