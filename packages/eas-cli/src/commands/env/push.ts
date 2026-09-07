@@ -7,7 +7,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
-  markRequired,
+  markRequiredInNonInteractiveMode,
 } from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
@@ -35,7 +35,7 @@ export default class EnvPush extends EasCommand {
   };
 
   static override flags = {
-    ...markRequired(EASMultiEnvironmentFlag),
+    ...markRequiredInNonInteractiveMode(EASMultiEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the input `.env` file',
       default: '.env.local',

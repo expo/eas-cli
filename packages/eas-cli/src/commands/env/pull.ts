@@ -4,7 +4,11 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EASNonInteractiveFlag, markRequired } from '../../commandUtils/flags';
+import {
+  EASEnvironmentFlag,
+  EASNonInteractiveFlag,
+  markRequiredInNonInteractiveMode,
+} from '../../commandUtils/flags';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
@@ -39,7 +43,7 @@ export default class EnvPull extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
-    ...markRequired(EASEnvironmentFlag),
+    ...markRequiredInNonInteractiveMode(EASEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the result `.env` file',
       default: '.env.local',

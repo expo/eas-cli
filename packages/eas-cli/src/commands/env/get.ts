@@ -64,7 +64,7 @@ export default class EnvGet extends EasCommand {
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: '(required) Current environment of the variable',
+      description: '(required in non-interactive mode) Current environment of the variable',
     }),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
@@ -153,7 +153,7 @@ export default class EnvGet extends EasCommand {
     });
     if (environment && flags['variable-environment']) {
       throw new Error(
-        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:get --help` for more information."
+        "You can't use the --variable-environment flag when the environment is passed as a positional argument. Run `eas env:get --help` for more information."
       );
     }
 

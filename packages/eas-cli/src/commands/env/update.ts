@@ -66,7 +66,7 @@ interface UpdateFlags {
 export default class EnvUpdate extends EasCommand {
   static override description = `update an environment variable on the current project or account (deprecated, use eas env:set)
 
-If --type is provided, --value is also required.`;
+In non-interactive mode, if --type is provided, --value is also required.`;
 
   static override hidden = true;
 
@@ -77,18 +77,18 @@ If --type is provided, --value is also required.`;
 
   static override flags = {
     'variable-name': Flags.string({
-      description: '(required) Current name of the variable',
+      description: '(required in non-interactive mode) Current name of the variable',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: '(required) Current environment of the variable to update',
+      description: 'Current environment of the variable to update',
     }),
     name: Flags.string({
       description: 'New name of the variable',
     }),
     value: Flags.string({
       description:
-        '(required with --type) New value for the variable, or a file path when --type=file',
+        '(required with --type in non-interactive mode) New value for the variable, or a file path when --type=file',
     }),
     type: Flags.option({
       description: 'The type of variable',
@@ -236,7 +236,7 @@ If --type is provided, --value is also required.`;
     });
     if (environment && flags['variable-environment']) {
       throw new Error(
-        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:update --help` for more information."
+        "You can't use the --variable-environment flag when the environment is passed as a positional argument. Run `eas env:update --help` for more information."
       );
     }
 

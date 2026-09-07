@@ -45,8 +45,10 @@ export function prependFlagDescription<T extends Record<string, { description?: 
   ) as T;
 }
 
-export function markRequired<T extends Record<string, { description?: string }>>(flags: T): T {
-  return prependFlagDescription(flags, '(required)');
+export function markRequiredInNonInteractiveMode<
+  T extends Record<string, { description?: string }>,
+>(flags: T): T {
+  return prependFlagDescription(flags, '(required in non-interactive mode)');
 }
 
 export function validateNonInteractiveRequiredInputs({

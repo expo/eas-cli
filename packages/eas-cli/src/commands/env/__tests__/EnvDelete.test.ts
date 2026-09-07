@@ -199,7 +199,7 @@ describe(EnvDelete, () => {
     });
 
     await expect(command.runAsync()).rejects.toThrow(
-      "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:delete --help` for more information."
+      "You can't use the --variable-environment flag when the environment is passed as a positional argument. Run `eas env:delete --help` for more information."
     );
     expect(getContextAsyncSpy).not.toHaveBeenCalled();
   });

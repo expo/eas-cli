@@ -9,7 +9,7 @@ import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
-  markRequired,
+  markRequiredInNonInteractiveMode,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
@@ -105,7 +105,7 @@ export default class EnvList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
-    ...markRequired(EASMultiEnvironmentFlag),
+    ...markRequiredInNonInteractiveMode(EASMultiEnvironmentFlag),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
     ...EASNonInteractiveFlag,

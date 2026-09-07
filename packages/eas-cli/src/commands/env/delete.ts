@@ -40,7 +40,7 @@ export default class EnvDelete extends EasCommand {
 
   static override flags = {
     'variable-name': Flags.string({
-      description: '(required) Name of the variable to delete',
+      description: '(required in non-interactive mode) Name of the variable to delete',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
@@ -160,7 +160,7 @@ export default class EnvDelete extends EasCommand {
     });
     if (environment && flags['variable-environment']) {
       throw new Error(
-        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:delete --help` for more information."
+        "You can't use the --variable-environment flag when the environment is passed as a positional argument. Run `eas env:delete --help` for more information."
       );
     }
 

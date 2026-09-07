@@ -11,7 +11,7 @@ import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableVisibilityFlag,
-  markRequired,
+  markRequiredInNonInteractiveMode,
   validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
@@ -78,22 +78,24 @@ export default class EnvCreate extends EasCommand {
 
   static override flags = {
     name: Flags.string({
-      description: '(required) Name of the variable',
+      description: '(required in non-interactive mode) Name of the variable',
     }),
     value: Flags.string({
-      description: '(required) Text value of the variable, or a file path when --type=file',
+      description:
+        '(required in non-interactive mode) Text value of the variable, or a file path when --type=file',
     }),
     force: Flags.boolean({
-      description: '(required when overwriting) Overwrite existing variable',
+      description:
+        '(required when overwriting in non-interactive mode) Overwrite existing variable',
       default: false,
     }),
     type: Flags.option({
       description: 'The type of variable',
       options: ['string', 'file'] as const,
     })(),
-    ...markRequired(EASVariableVisibilityFlag),
+    ...markRequiredInNonInteractiveMode(EASVariableVisibilityFlag),
     ...EASEnvironmentVariableScopeFlag,
-    ...markRequired(EASMultiEnvironmentFlag),
+    ...markRequiredInNonInteractiveMode(EASMultiEnvironmentFlag),
     ...EASNonInteractiveFlag,
   };
 
