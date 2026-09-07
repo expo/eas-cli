@@ -6,6 +6,7 @@ import {
   Job,
   Platform,
   SystemError,
+  UserError,
   Workflow,
 } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
@@ -622,9 +623,12 @@ describe('local project sources', () => {
     'rejects local %s sources before fetching or unpacking',
     async type => {
       const ctx = createContext(type);
-      await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).rejects.toThrow(
-        'Local builds require a PATH project source'
-      );
+      const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+      await expect(result).rejects.toBeInstanceOf(UserError);
+      await expect(result).rejects.toMatchObject({
+        errorCode: 'INVALID_LOCAL_PROJECT_SOURCE',
+        message: 'Local builds require a PATH project source.',
+      });
       expect(fetch).not.toHaveBeenCalled();
       expect(spawn).not.toHaveBeenCalled();
       expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();

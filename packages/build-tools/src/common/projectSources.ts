@@ -5,11 +5,11 @@ import {
   ArchiveSourceType,
   Job,
   SystemError,
+  UserError,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
-import assert from 'assert';
 import fs from 'fs/promises';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
@@ -27,10 +27,12 @@ export async function prepareProjectSourcesAsync<TJob extends Job>(
 ): // Return type required to make switch exhaustive.
 Promise<{ handled: boolean }> {
   if (ctx.isLocal) {
-    assert(
-      ctx.job.projectArchive.type === ArchiveSourceType.PATH,
-      'Local builds require a PATH project source'
-    );
+    if (ctx.job.projectArchive.type !== ArchiveSourceType.PATH) {
+      throw new UserError(
+        'INVALID_LOCAL_PROJECT_SOURCE',
+        'Local builds require a PATH project source.'
+      );
+    }
     await prepareProjectSourcesLocallyAsync(ctx, ctx.job.projectArchive.path, destinationDirectory);
     return { handled: true };
   }
