@@ -45,12 +45,6 @@ export type ArchiveSource =
   | { type: ArchiveSourceType.PATH; path: string }
   | {
       type: ArchiveSourceType.GIT;
-      /**
-       * Url that can be used to clone repository.
-       * It should contain embedded credentials for private registries.
-       * May be omitted in remote jobs, which resolve sources through the API.
-       */
-      repositoryUrl?: string;
       /** A Git ref - points to a branch head, tag head or a branch name. */
       gitRef: string | null;
       /**
@@ -80,7 +74,8 @@ export const ArchiveSourceSchema = Joi.object<ArchiveSource>({
   .when(Joi.object({ type: ArchiveSourceType.GIT }).unknown(), {
     then: Joi.object({
       type: Joi.string().valid(ArchiveSourceType.GIT).required(),
-      repositoryUrl: Joi.string(),
+      // Discard URLs from older job producers. Credentials are fetched from www.
+      repositoryUrl: Joi.any().strip(),
       gitCommitHash: Joi.string().required(),
       gitRef: Joi.string().allow(null).required(),
     }),
@@ -95,7 +90,6 @@ export const ArchiveSourceSchema = Joi.object<ArchiveSource>({
 export const ArchiveSourceSchemaZ = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(ArchiveSourceType.GIT),
-    repositoryUrl: z.string().url().optional(),
     gitRef: z.string().nullable(),
     gitCommitHash: z.string(),
   }),

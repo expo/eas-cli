@@ -687,19 +687,21 @@ describe('Git archive sources', () => {
     gitCommitHash: '1234567890',
   };
 
-  it.each([undefined, 'https://github.com/expo/eas-cli.git'])(
-    'accepts a repository URL of %s in both job schemas',
-    repositoryUrl => {
-      const archive = repositoryUrl === undefined ? source : { ...source, repositoryUrl };
-      expect(ArchiveSourceSchema.validate(archive).error).toBeUndefined();
-      expect(ArchiveSourceSchemaZ.parse(archive)).toEqual(archive);
-    }
-  );
+  it('accepts Git job sources without a repository URL', () => {
+    expect(ArchiveSourceSchema.validate(source)).toMatchObject({ value: source });
+    expect(ArchiveSourceSchema.validate(source).error).toBeUndefined();
+    expect(ArchiveSourceSchemaZ.parse(source)).toEqual(source);
+  });
 
-  it.each([null, 123, ''])('rejects an invalid repository URL of %s', repositoryUrl => {
-    const archive = { ...source, repositoryUrl };
-    expect(ArchiveSourceSchema.validate(archive).error).toBeDefined();
-    expect(ArchiveSourceSchemaZ.safeParse(archive).success).toBe(false);
+  it('strips the repository URL from legacy job sources', () => {
+    const archive = {
+      ...source,
+      repositoryUrl: 'https://x-access-token:old-token@github.com/expo/eas-cli.git',
+    };
+    const result = ArchiveSourceSchema.validate(archive);
+    expect(result.error).toBeUndefined();
+    expect(result.value).toEqual(source);
+    expect(ArchiveSourceSchemaZ.parse(archive)).toEqual(source);
   });
 
   it('still requires the commit and ref', () => {

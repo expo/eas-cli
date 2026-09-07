@@ -131,7 +131,6 @@ describe('projectSources', () => {
           appId: randomUUID(),
           projectArchive: {
             type: ArchiveSourceType.GIT,
-            repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
             gitRef: 'refs/heads/main',
             gitCommitHash: randomBytes(20).toString('hex'),
           },
@@ -215,7 +214,6 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -286,7 +284,6 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash: randomBytes(20).toString('hex'),
         },

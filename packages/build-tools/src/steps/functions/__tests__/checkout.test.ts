@@ -14,7 +14,6 @@ const projectTargetDirectory = '/workingdir/project';
 
 const GIT_PROJECT_ARCHIVE = {
   type: ArchiveSourceType.GIT,
-  repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/app.git',
   gitRef: 'refs/heads/main',
   gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
 };
