@@ -1,11 +1,5 @@
 import downloadFile from '@expo/downloader';
-import {
-  ArchiveSource,
-  ArchiveSourceSchemaZ,
-  ArchiveSourceType,
-  Job,
-  SystemError,
-} from '@expo/eas-build-job';
+import { ArchiveSourceType, Job, SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
@@ -45,12 +39,6 @@ Promise<{ handled: boolean }> {
   const projectArchive = projectArchiveResult.value;
 
   switch (projectArchive.type) {
-    case ArchiveSourceType.PATH:
-    case ArchiveSourceType.R2:
-    case ArchiveSourceType.GCS: {
-      throw new Error('Remote project sources should be resolved earlier to URL');
-    }
-
     case ArchiveSourceType.NONE: {
       // May be used in no-sources jobs like submission jobs.
       return { handled: true };
@@ -254,7 +242,7 @@ async function uploadProjectMetadataAsync(
   }
 }
 
-async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>): Promise<ArchiveSource> {
+async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
   const taskId = nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
   const expoApiServerURL = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
   const robotAccessToken = nullthrows(
@@ -294,10 +282,16 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>): Promise<A
 
   const dataResult = z
     .object({
-      data: ArchiveSourceSchemaZ.refine(
-        source => source.type !== ArchiveSourceType.GIT || source.repositoryUrl !== undefined,
-        { message: 'Refreshed Git sources must include a repository URL' }
-      ),
+      data: z.discriminatedUnion('type', [
+        z.object({
+          type: z.literal(ArchiveSourceType.GIT),
+          repositoryUrl: z.string().url(),
+          gitRef: z.string().nullable(),
+          gitCommitHash: z.string(),
+        }),
+        z.object({ type: z.literal(ArchiveSourceType.URL), url: z.string().url() }),
+        z.object({ type: z.literal(ArchiveSourceType.NONE) }),
+      ]),
     })
     .safeParse(jsonResult.value);
   if (!dataResult.success) {

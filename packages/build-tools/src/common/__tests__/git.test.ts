@@ -1,9 +1,8 @@
-import { ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
+import { UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 
-import { createMockLogger } from '../../__tests__/utils/logger';
-import { fetchAndCheckoutRefAsync, shallowCloneRepositoryAsync } from '../git';
+import { fetchAndCheckoutRefAsync } from '../git';
 
 jest.mock('@expo/turtle-spawn');
 
@@ -146,22 +145,5 @@ describe(fetchAndCheckoutRefAsync, () => {
     const error = await promise.catch(err => err);
     expect(error.message).toContain('Failed to fetch and check out ref "main"');
     expect(error.message).not.toContain('ghs_secret123');
-  });
-});
-
-describe(shallowCloneRepositoryAsync, () => {
-  it('rejects Git sources without a URL before starting Git', async () => {
-    await expect(
-      shallowCloneRepositoryAsync({
-        logger: createMockLogger(),
-        destinationDirectory: repositoryDirectory,
-        archiveSource: {
-          type: ArchiveSourceType.GIT,
-          gitRef: null,
-          gitCommitHash: '1234567890',
-        },
-      })
-    ).rejects.toBeInstanceOf(SystemError);
-    expect(spawn).not.toHaveBeenCalled();
   });
 });

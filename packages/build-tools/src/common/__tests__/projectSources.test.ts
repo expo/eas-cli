@@ -115,7 +115,7 @@ describe('projectSources', () => {
     );
   });
 
-  it.each(['http', 'network', 'json', 'schema', 'missing-url'])(
+  it.each(['http', 'network', 'json', 'schema', 'missing-url', 'PATH', 'GCS', 'R2'])(
     'throws a system error if refresh fails (%s)',
     async failure => {
       const robotAccessToken = randomUUID();
@@ -166,6 +166,9 @@ describe('projectSources', () => {
           json: async () => {
             if (failure === 'json') {
               throw cause;
+            }
+            if (['PATH', 'GCS', 'R2'].includes(failure)) {
+              return { data: { type: failure, path: '/project.tar.gz', bucketKey: 'project' } };
             }
             if (failure === 'missing-url') {
               return {

@@ -1,4 +1,4 @@
-import { ArchiveSource, ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -10,13 +10,10 @@ export async function shallowCloneRepositoryAsync({
   destinationDirectory,
 }: {
   logger: bunyan;
-  archiveSource: ArchiveSource & { type: ArchiveSourceType.GIT };
+  archiveSource: ArchiveSource & { type: ArchiveSourceType.GIT; repositoryUrl: string };
   destinationDirectory: string;
 }): Promise<void> {
   const { repositoryUrl } = archiveSource;
-  if (!repositoryUrl) {
-    throw new SystemError('Cannot clone Git sources because the repository URL is missing.');
-  }
   try {
     await spawn('git', ['init'], { cwd: destinationDirectory });
     await spawn('git', ['remote', 'add', 'origin', repositoryUrl], { cwd: destinationDirectory });
