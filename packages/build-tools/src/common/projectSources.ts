@@ -9,6 +9,7 @@ import {
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
+import assert from 'assert';
 import fs from 'fs/promises';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
@@ -25,30 +26,28 @@ export async function prepareProjectSourcesAsync<TJob extends Job>(
   destinationDirectory: string
 ): // Return type required to make switch exhaustive.
 Promise<{ handled: boolean }> {
-  let projectArchive: ArchiveSource = ctx.job.projectArchive;
   if (ctx.isLocal) {
-    console.warn('Local build, skipping project archive refresh');
-  } else {
-    const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
-
-    if (!projectArchiveResult.ok) {
-      throw new SystemError('Failed to fetch project sources. Re-run the job.', {
-        cause: projectArchiveResult.reason,
-      });
-    }
-
-    projectArchive = projectArchiveResult.value;
+    assert(
+      ctx.job.projectArchive.type === ArchiveSourceType.PATH,
+      'Local builds require a PATH project source'
+    );
+    await prepareProjectSourcesLocallyAsync(ctx, ctx.job.projectArchive.path, destinationDirectory);
+    return { handled: true };
   }
 
+  const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
+  if (!projectArchiveResult.ok) {
+    throw new SystemError('Failed to fetch project sources. Re-run the job.', {
+      cause: projectArchiveResult.reason,
+    });
+  }
+  const projectArchive = projectArchiveResult.value;
+
   switch (projectArchive.type) {
+    case ArchiveSourceType.PATH:
     case ArchiveSourceType.R2:
     case ArchiveSourceType.GCS: {
       throw new Error('Remote project sources should be resolved earlier to URL');
-    }
-
-    case ArchiveSourceType.PATH: {
-      await prepareProjectSourcesLocallyAsync(ctx, projectArchive.path, destinationDirectory); // used in eas build --local
-      return { handled: true };
     }
 
     case ArchiveSourceType.NONE: {
