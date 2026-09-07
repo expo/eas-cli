@@ -32,7 +32,7 @@ Promise<{ handled: boolean }> {
     const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
 
     if (!projectArchiveResult.ok) {
-      throw new SystemError('Failed to refresh project archive. Re-run the job.', {
+      throw new SystemError('Failed to fetch project sources. Re-run the job.', {
         cause: projectArchiveResult.reason,
       });
     }
