@@ -139,13 +139,7 @@ describe('AndroidEmulatorUtils', () => {
     it('does not apply an LCD configuration when it is omitted', async () => {
       const deviceName = 'generic-emulator' as AndroidVirtualDeviceName;
       const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
-      const initialConfig = [
-        'hw.lcd.height=2424',
-        'hw.lcd.width=1080',
-        'hw.lcd.density=420',
-        'skin.path=pixel_9',
-        'showDeviceFrame=yes',
-      ].join('\n');
+      const initialConfig = ['skin.path=pixel_9', 'showDeviceFrame=yes'].join('\n');
       await fs.promises.mkdir(avdDirectory, { recursive: true });
       await fs.promises.writeFile(`${avdDirectory}/config.ini`, initialConfig);
       const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
@@ -168,9 +162,7 @@ describe('AndroidEmulatorUtils', () => {
 
       const config = await fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8');
       expect(config).toContain(initialConfig);
-      expect(config).not.toContain('hw.lcd.height=1600');
-      expect(config).not.toContain('hw.lcd.width=720');
-      expect(config).not.toContain('hw.lcd.density=262');
+      expect(config).not.toContain('hw.lcd.');
     });
   });
 
