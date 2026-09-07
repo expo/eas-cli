@@ -47,7 +47,7 @@ describe('projectSources', () => {
     expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
   });
 
-  it('uses the refreshed repository URL', async () => {
+  it.each([true, false])('uses the refreshed URL (legacy URL: %s)', async includeRepositoryUrl => {
     const robotAccessToken = randomUUID();
     const buildId = randomUUID();
     await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
@@ -63,7 +63,9 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
+          ...(includeRepositoryUrl
+            ? { repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git' }
+            : {}),
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -113,7 +115,7 @@ describe('projectSources', () => {
     );
   });
 
-  it.each(['http', 'network', 'json', 'schema'])(
+  it.each(['http', 'network', 'json', 'schema', 'missing-url'])(
     'throws a system error if refresh fails (%s)',
     async failure => {
       const robotAccessToken = randomUUID();
@@ -164,6 +166,15 @@ describe('projectSources', () => {
           json: async () => {
             if (failure === 'json') {
               throw cause;
+            }
+            if (failure === 'missing-url') {
+              return {
+                data: {
+                  type: ArchiveSourceType.GIT,
+                  gitRef: 'refs/heads/main',
+                  gitCommitHash: randomBytes(20).toString('hex'),
+                },
+              };
             }
             return { data: { repository_url: 'https://github.com/expo/eas-cli.git' } };
           },

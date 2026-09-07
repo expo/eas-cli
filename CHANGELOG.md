@@ -55,6 +55,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Allow Git project sources in remote jobs to omit the repository URL. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
+
 - [build-tools] Add `lcd_width`, `lcd_height`, and `lcd_density` inputs to configure the Android emulator display. ([#4349](https://github.com/expo/eas-cli/pull/4349) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [eas-cli] Add `eas channel:protect` and `eas channel:unprotect` to manage EAS Update channel protection, and show protection in channel list and view output. ([#4319](https://github.com/expo/eas-cli/pull/4319) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [eas-cli] Add `eas observe:errors` to display error and exception issue groups (grouped by fingerprint), with `--fingerprint <fingerprint>` to drill into a group's individual occurrences and stack traces. ([#4339](https://github.com/expo/eas-cli/pull/4339) by [@douglowder](https://github.com/douglowder))

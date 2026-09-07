@@ -292,7 +292,14 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>): Promise<A
     );
   }
 
-  const dataResult = z.object({ data: ArchiveSourceSchemaZ }).safeParse(jsonResult.value);
+  const dataResult = z
+    .object({
+      data: ArchiveSourceSchemaZ.refine(
+        source => source.type !== ArchiveSourceType.GIT || source.repositoryUrl !== undefined,
+        { message: 'Refreshed Git sources must include a repository URL' }
+      ),
+    })
+    .safeParse(jsonResult.value);
   if (!dataResult.success) {
     throw new Error(
       `Unexpected data from server (${response.status}): ${z.prettifyError(dataResult.error)}`
