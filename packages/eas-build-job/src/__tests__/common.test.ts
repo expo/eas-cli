@@ -693,12 +693,12 @@ describe('Git archive sources', () => {
     expect(ArchiveSourceSchemaZ.parse(source)).toEqual(source);
   });
 
-  it('strips the repository URL from legacy job sources', () => {
+  it('strips the legacy repository URL with the job validation options', () => {
     const archive = {
       ...source,
       repositoryUrl: 'https://x-access-token:old-token@github.com/expo/eas-cli.git',
     };
-    const result = ArchiveSourceSchema.validate(archive);
+    const result = ArchiveSourceSchema.validate(archive, { stripUnknown: true });
     expect(result.error).toBeUndefined();
     expect(result.value).toEqual(source);
     expect(ArchiveSourceSchemaZ.parse(archive)).toEqual(source);

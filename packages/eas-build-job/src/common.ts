@@ -74,8 +74,6 @@ export const ArchiveSourceSchema = Joi.object<ArchiveSource>({
   .when(Joi.object({ type: ArchiveSourceType.GIT }).unknown(), {
     then: Joi.object({
       type: Joi.string().valid(ArchiveSourceType.GIT).required(),
-      // Discard URLs from older job producers. Credentials are fetched from www.
-      repositoryUrl: Joi.any().strip(),
       gitCommitHash: Joi.string().required(),
       gitRef: Joi.string().allow(null).required(),
     }),
