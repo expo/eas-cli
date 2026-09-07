@@ -99,12 +99,18 @@ export namespace AndroidEmulatorUtils {
     deviceName,
     systemImagePackage,
     deviceIdentifier,
+    lcdWidth,
+    lcdHeight,
+    lcdDensity,
     env,
     logger,
   }: {
     deviceName: AndroidVirtualDeviceName;
     systemImagePackage: string;
     deviceIdentifier: AndroidDeviceName | null;
+    lcdWidth: number | null;
+    lcdHeight: number | null;
+    lcdDensity: number | null;
     env: NodeJS.ProcessEnv;
     logger: bunyan;
   }): Promise<void> {
@@ -174,6 +180,13 @@ export namespace AndroidEmulatorUtils {
             configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${1170}\nhw.lcd.width=${540}\nhw.lcd.density=220\n`;
           }
         }
+      }
+
+      if (lcdWidth !== null && lcdHeight !== null && lcdDensity !== null) {
+        logger.info(
+          `Setting screen resolution to ${lcdWidth}x${lcdHeight} and density to ${lcdDensity} ppi.`
+        );
+        configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${lcdHeight}\nhw.lcd.width=${lcdWidth}\nhw.lcd.density=${lcdDensity}\n`;
       }
 
       const shouldAdjustHeapSize =

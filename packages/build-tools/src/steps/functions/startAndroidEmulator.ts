@@ -47,6 +47,21 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'lcd_width',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
+        id: 'lcd_height',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
+        id: 'lcd_density',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
         id: 'count',
         required: false,
         defaultValue: 1,
@@ -86,6 +101,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const systemImagePackage = `${inputs.system_image_package.value}`;
       // We can cast because allowedValueTypeName validated this is a string.
       const deviceIdentifier = inputs.device_identifier.value as AndroidDeviceName | undefined;
+      const lcdWidth = inputs.lcd_width.value as number | undefined;
+      const lcdHeight = inputs.lcd_height.value as number | undefined;
+      const lcdDensity = inputs.lcd_density.value as number | undefined;
       const shouldAdjustAnimationScale =
         env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
         env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
@@ -129,6 +147,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               deviceName,
               systemImagePackage,
               deviceIdentifier: deviceIdentifier ?? null,
+              lcdWidth: lcdWidth ?? null,
+              lcdHeight: lcdHeight ?? null,
+              lcdDensity: lcdDensity ?? null,
               env,
               logger,
             });
