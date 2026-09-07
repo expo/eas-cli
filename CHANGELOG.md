@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Use "runner" instead of "worker" for the machine that runs builds and workflow jobs in CLI output. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@sswrk](https://github.com/sswrk))
+
 ## [24.3.0](https://github.com/expo/eas-cli/releases/tag/v24.3.0) - 2026-09-11
 
 ### 🎉 New features
