@@ -59,10 +59,10 @@ export function createStartCuttlefishDeviceBuildFunction(): BuildFunction {
       if (!dependencyCheck.ok) {
         logger.error(
           dependencyCheck.reason,
-          'Cuttlefish requires Docker and cvdr, which are only available on the latest Android worker image. Add `image: latest` to your job configuration to use the latest image.'
+          'Cuttlefish requires Docker and cvdr, which are only available on the latest Android runner image. Add `image: latest` to your job configuration to use the latest image.'
         );
         throw new Error(
-          'Cuttlefish device start is only supported on the latest Android worker image.'
+          'Cuttlefish device start is only supported on the latest Android runner image.'
         );
       }
 
