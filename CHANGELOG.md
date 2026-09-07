@@ -15,7 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- [build-tools] Use "runner image" instead of "worker image" in Cuttlefish error messages. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Use "runner image" instead of "worker image" in Cuttlefish error messages. ([#4358](https://github.com/expo/eas-cli/pull/4358) by [@sswrk](https://github.com/sswrk))
 
 ## [23.2.0](https://github.com/expo/eas-cli/releases/tag/v23.2.0) - 2026-08-31
 
