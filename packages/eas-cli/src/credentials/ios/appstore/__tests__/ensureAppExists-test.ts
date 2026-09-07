@@ -1,7 +1,7 @@
 import { Session } from '@expo/apple-utils';
 import nock from 'nock';
 
-import { createAppAsync } from '../ensureAppExists';
+import { createAppAsync, explainCreateAppError } from '../ensureAppExists';
 
 const FIXTURE_SUCCESS = {
   data: {
@@ -164,5 +164,25 @@ it('doubles up entropy', async () => {
     bundleId: 'com.bacon.jan27.x',
     name: 'Expo',
     companyName: 'expo',
+  });
+});
+
+describe(explainCreateAppError, () => {
+  it('points at eas.json when App Store Connect requires a company name', () => {
+    const error = explainCreateAppError(
+      new Error(
+        "The provided entity is missing a required attribute - You must provide a value for the attribute 'companyName' with this request"
+      )
+    );
+
+    expect(error.message).toContain('submit.<profile>.ios.companyName');
+    expect(error.message).toContain('https://docs.expo.dev/eas/json/#companyname');
+  });
+
+  it('keeps the App Store Connect hint for any other failure', () => {
+    const error = explainCreateAppError(new Error('Something else went wrong'));
+
+    expect(error.message).toContain('Something else went wrong');
+    expect(error.message).toContain('https://appstoreconnect.apple.com');
   });
 });
