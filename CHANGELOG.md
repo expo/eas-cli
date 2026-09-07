@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [build-tools] Require PATH project sources for local builds. ([#4362](https://github.com/expo/eas-cli/pull/4362) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
 
 ### 🐛 Bug fixes
