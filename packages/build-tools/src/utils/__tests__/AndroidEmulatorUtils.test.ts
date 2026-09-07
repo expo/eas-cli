@@ -156,6 +156,9 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
         deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
         env: {
           HOME: '/home/expo',
           ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',

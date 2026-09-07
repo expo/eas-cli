@@ -147,9 +147,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               deviceName,
               systemImagePackage,
               deviceIdentifier: deviceIdentifier ?? null,
-              lcdWidth,
-              lcdHeight,
-              lcdDensity,
+              lcdWidth: lcdWidth ?? null,
+              lcdHeight: lcdHeight ?? null,
+              lcdDensity: lcdDensity ?? null,
               env,
               logger,
             });

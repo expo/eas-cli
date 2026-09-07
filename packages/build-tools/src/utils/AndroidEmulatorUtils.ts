@@ -108,9 +108,9 @@ export namespace AndroidEmulatorUtils {
     deviceName: AndroidVirtualDeviceName;
     systemImagePackage: string;
     deviceIdentifier: AndroidDeviceName | null;
-    lcdWidth?: number;
-    lcdHeight?: number;
-    lcdDensity?: number;
+    lcdWidth: number | null;
+    lcdHeight: number | null;
+    lcdDensity: number | null;
     env: NodeJS.ProcessEnv;
     logger: bunyan;
   }): Promise<void> {
@@ -182,7 +182,7 @@ export namespace AndroidEmulatorUtils {
         }
       }
 
-      if (lcdWidth !== undefined && lcdHeight !== undefined && lcdDensity !== undefined) {
+      if (lcdWidth !== null && lcdHeight !== null && lcdDensity !== null) {
         logger.info(
           `Setting screen resolution to ${lcdWidth}x${lcdHeight} and density to ${lcdDensity} ppi.`
         );
