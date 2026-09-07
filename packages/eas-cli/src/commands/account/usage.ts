@@ -129,7 +129,7 @@ export function displayUsage(data: UsageDisplayData, usageData: AccountFullUsage
 
   // Show build counts by platform and worker size
   if (data.builds.countsByPlatformAndSize.length > 0) {
-    Log.log('  Breakdown by platform/worker:');
+    Log.log('  Breakdown by platform/runner:');
     for (const item of data.builds.countsByPlatformAndSize) {
       const platformName = item.platform === 'ios' ? 'iOS' : 'Android';
       Log.log(`    ${platformName} ${item.resourceClass}: ${formatNumber(item.count)} builds`);
