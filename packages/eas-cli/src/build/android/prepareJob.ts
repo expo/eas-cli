@@ -48,7 +48,11 @@ export async function prepareJobAsync(
     : {};
 
   let buildType = buildProfile.buildType;
-  if (!buildType && !buildProfile.gradleCommand && buildProfile.distribution === 'internal') {
+  if (
+    !buildType &&
+    !buildProfile.gradleCommand &&
+    (buildProfile.distribution === 'internal' || buildProfile.distribution === 'development')
+  ) {
     buildType = Android.BuildType.APK;
   }
 
