@@ -74,6 +74,34 @@ export type AccessTokenMutation_SetAccessTokenRevokedArgs = {
   revoked?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+/** A GitHub App installation visible to a viewer, not necessarily linked yet. */
+export type AccessibleGitHubAppInstallation = {
+  __typename?: 'AccessibleGitHubAppInstallation';
+  account: AccessibleGitHubAppInstallationAccount;
+  installationIdentifier: Scalars['Int']['output'];
+};
+
+export type AccessibleGitHubAppInstallationAccount = {
+  __typename?: 'AccessibleGitHubAppInstallationAccount';
+  avatarUrl: Scalars['String']['output'];
+  login: Scalars['String']['output'];
+  type: GitHubAppInstallationAccountType;
+};
+
+export type AccessibleGitHubRepository = {
+  __typename?: 'AccessibleGitHubRepository';
+  id: Scalars['Int']['output'];
+  name: Scalars['String']['output'];
+  nodeId: Scalars['String']['output'];
+  owner: AccessibleGitHubRepositoryOwner;
+  private: Scalars['Boolean']['output'];
+};
+
+export type AccessibleGitHubRepositoryOwner = {
+  __typename?: 'AccessibleGitHubRepositoryOwner';
+  login: Scalars['String']['output'];
+};
+
 /**
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
@@ -86,7 +114,6 @@ export type Account = {
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** AI provider connections available to agent sandbox sessions. */
   agentProviderConnections: Array<AgentProviderConnection>;
-  aiChatEnabled: Scalars['Boolean']['output'];
   appCount: Scalars['Int']['output'];
   /** @deprecated Use appStoreConnectApiKeysPaginated */
   appStoreConnectApiKeys: Array<AppStoreConnectApiKey>;
@@ -207,8 +234,6 @@ export type Account = {
   users: Array<UserPermission>;
   /** Vexo account connection for this account */
   vexoAccountConnection?: Maybe<VexoAccountConnection>;
-  /** Most recently active first */
-  viewerDashboardChats: DashboardChatConnection;
   /** Notification preferences of the viewer for this account */
   viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Permission info for the viewer on this account */
@@ -493,18 +518,6 @@ export type Account_TimelineActivityArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
-
-/**
- * An account is a container owning projects, credentials, billing and other organization
- * data and settings. Actors may own and be members of accounts.
- */
-export type Account_ViewerDashboardChatsArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-};
-
 export type AccountAppStoreConnectApiKeysConnection = {
   __typename?: 'AccountAppStoreConnectApiKeysConnection';
   edges: Array<AccountAppStoreConnectApiKeysEdge>;
@@ -699,8 +712,6 @@ export type AccountMutation = {
   requestRefund?: Maybe<Scalars['Boolean']['output']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
-  /** Set whether the AI chat is enabled for this account. */
-  setAiChatEnabled: Account;
   /** Set the display name for the account. Pass null to clear it and fall back to the account identifier. */
   setDisplayName: Account;
   /** Set whether EAS Observe ingestion is paused for this account. */
@@ -778,12 +789,6 @@ export type AccountMutation_RevokeActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
-};
-
-
-export type AccountMutation_SetAiChatEnabledArgs = {
-  accountID: Scalars['ID']['input'];
-  aiChatEnabled: Scalars['Boolean']['input'];
 };
 
 
@@ -2264,8 +2269,6 @@ export type AppObserve = {
    * @deprecated Use userEvents.event, errors.error, or log instead.
    */
   customEvent?: Maybe<AppObserveCustomEvent>;
-  /** @deprecated Unused; no replacement planned. */
-  customEventCounts: AppObserveCustomEventCounts;
   /** @deprecated Use userEvents.list (or errors.occurrences for exceptions) instead. */
   customEventList: AppObserveCustomEventListConnection;
   /** @deprecated Use userEvents.names instead. */
@@ -2369,11 +2372,6 @@ export type AppObserve_AppVersionsArgs = {
 
 export type AppObserve_CustomEventArgs = {
   id: Scalars['ID']['input'];
-};
-
-
-export type AppObserve_CustomEventCountsArgs = {
-  input: AppObserveCustomEventCountsInput;
 };
 
 
@@ -2629,34 +2627,6 @@ export type AppObserveCustomEvent = {
   timestamp: Scalars['DateTime']['output'];
 };
 
-export type AppObserveCustomEventCountBucket = {
-  __typename?: 'AppObserveCustomEventCountBucket';
-  bucket: Scalars['DateTime']['output'];
-  count: Scalars['Int']['output'];
-};
-
-export type AppObserveCustomEventCounts = {
-  __typename?: 'AppObserveCustomEventCounts';
-  buckets: Array<AppObserveCustomEventCountBucket>;
-  totalCount: Scalars['Int']['output'];
-};
-
-export type AppObserveCustomEventCountsInput = {
-  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
-  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
-  appUpdateId?: InputMaybe<Scalars['String']['input']>;
-  appVersion?: InputMaybe<Scalars['String']['input']>;
-  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
-  endTime: Scalars['DateTime']['input'];
-  environment?: InputMaybe<Scalars['String']['input']>;
-  eventName: Scalars['String']['input'];
-  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
-  platform?: InputMaybe<AppObservePlatform>;
-  /** Filter to these platforms. Cannot be set together with platform. One of platform or platforms is required. */
-  platforms?: InputMaybe<Array<AppObservePlatform>>;
-  startTime: Scalars['DateTime']['input'];
-};
-
 export type AppObserveCustomEventEdge = {
   __typename?: 'AppObserveCustomEventEdge';
   cursor: Scalars['String']['output'];
@@ -2674,6 +2644,9 @@ export type AppObserveCustomEventListFilter = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
+  deviceOsVersion?: InputMaybe<Scalars['String']['input']>;
   easClientId?: InputMaybe<Scalars['String']['input']>;
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -2772,7 +2745,7 @@ export type AppObserveEngagementInput = {
   startTime: Scalars['DateTime']['input'];
 };
 
-/** One unhandled JS error (an app_events exception row). */
+/** One error or crash (an app_events *.exception row). */
 export type AppObserveError = AppObserveLog & {
   __typename?: 'AppObserveError';
   appBuildNumber: Scalars['String']['output'];
@@ -2790,11 +2763,14 @@ export type AppObserveError = AppObserveLog & {
   deviceOsVersion: Scalars['String']['output'];
   easClientId: Scalars['String']['output'];
   environment?: Maybe<Scalars['String']['output']>;
+  /** Raw log event name, e.g. exception, js.exception, native.exception. */
+  eventName: Scalars['String']['output'];
   expoSdkVersion?: Maybe<Scalars['String']['output']>;
   fingerprint?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   ingestedAt?: Maybe<Scalars['DateTime']['output']>;
   isFatal?: Maybe<Scalars['Boolean']['output']>;
+  kind: AppObserveErrorKind;
   message?: Maybe<Scalars['String']['output']>;
   properties: Array<AppObserveEventProperty>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
@@ -2847,10 +2823,12 @@ export type AppObserveErrorGroup = {
   exceptionMessage?: Maybe<Scalars['String']['output']>;
   /** Error class/type, from the most recent occurrence (e.g. TypeError). */
   exceptionType?: Maybe<Scalars['String']['output']>;
-  /** Stable grouping key (sha256 over error type + entropy-normalized message). */
+  /** Stable grouping key (sha256 over error kind + error type + entropy-normalized message). */
   fingerprint: Scalars['String']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
   isFatal: Scalars['Boolean']['output'];
+  /** Derived from the event name of the most recent occurrence. */
+  kind: AppObserveErrorKind;
   lastSeenAt: Scalars['DateTime']['output'];
   /** Per-platform occurrence and unique-user counts, sorted by eventCount descending. Covers every device OS seen (iOS, Android, iPadOS, ...), so the counts sum to the group totals. */
   platformCounts: Array<AppObserveErrorGroupPlatformCount>;
@@ -2882,6 +2860,8 @@ export type AppObserveErrorGroupBreakdownInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   fingerprint: Scalars['String']['input'];
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   platform?: InputMaybe<AppObservePlatform>;
   /** Filter to these platforms. Cannot be set together with platform. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
@@ -2915,6 +2895,8 @@ export type AppObserveErrorGroupsInput = {
   /** Restrict to a single group, e.g. to fetch one group's header on the detail page. */
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   orderBy?: InputMaybe<AppObserveErrorGroupsOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
   /** Filter to these platforms. Cannot be set together with platform. */
@@ -2933,6 +2915,13 @@ export enum AppObserveErrorGroupsOrderBy {
   MostUsers = 'MOST_USERS'
 }
 
+/** JS covers both the legacy exception name and js.exception. NATIVE is native.exception. OTHER is any other *.exception event. */
+export enum AppObserveErrorKind {
+  Js = 'JS',
+  Native = 'NATIVE',
+  Other = 'OTHER'
+}
+
 export type AppObserveErrorOccurrencesFilter = {
   appBuildNumber?: InputMaybe<Scalars['String']['input']>;
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
@@ -2944,6 +2933,8 @@ export type AppObserveErrorOccurrencesFilter = {
   /** Restrict to one error group. */
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
@@ -3007,6 +2998,8 @@ export type AppObserveErrorStatsInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   platform?: InputMaybe<AppObservePlatform>;
   /** Filter to these platforms. Cannot be set together with platform. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
@@ -3045,18 +3038,20 @@ export type AppObserveErrorTimeSeriesInput = {
   /** Restrict to one error group for the detail page's occurrences-over-time chart. Omit for the overview chart. */
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   platform?: InputMaybe<AppObservePlatform>;
   /** Filter to these platforms. Cannot be set together with platform. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors = {
   __typename?: 'AppObserveErrors';
   /** Breaks one error group down by app version, OS, device, or country. */
   breakdown: AppObserveErrorGroupBreakdown;
-  /** A single error by id. Null when missing, aged out, or the id belongs to a user-defined event. */
+  /** A single error or crash by id. Null when missing, aged out, or the id belongs to a user-defined event. */
   error?: Maybe<AppObserveError>;
   /** Distinct error groups (the issues list), grouped by fingerprint. */
   groups: AppObserveErrorGroups;
@@ -3069,25 +3064,25 @@ export type AppObserveErrors = {
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_BreakdownArgs = {
   input: AppObserveErrorsBreakdownInput;
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_ErrorArgs = {
   id: Scalars['ID']['input'];
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_GroupsArgs = {
   input: AppObserveErrorsGroupsInput;
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_OccurrencesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
@@ -3098,13 +3093,13 @@ export type AppObserveErrors_OccurrencesArgs = {
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_StatsArgs = {
   input: AppObserveErrorsStatsInput;
 };
 
 
-/** Unhandled JS errors: app_events exception rows. */
+/** JS errors and native crashes: app_events *.exception rows. */
 export type AppObserveErrors_TimeSeriesArgs = {
   input: AppObserveErrorsTimeSeriesInput;
 };
@@ -3119,6 +3114,8 @@ export type AppObserveErrorsBreakdownInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   fingerprint: Scalars['String']['input'];
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
@@ -3136,6 +3133,8 @@ export type AppObserveErrorsGroupsInput = {
   /** Restrict to one error group. */
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   orderBy?: InputMaybe<AppObserveErrorGroupsOrderBy>;
   /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
@@ -3152,6 +3151,8 @@ export type AppObserveErrorsStatsInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
@@ -3168,6 +3169,8 @@ export type AppObserveErrorsTimeSeriesInput = {
   /** Restrict to one error group. */
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Restrict to one error kind (JS errors, native crashes, or other *.exception events). */
+  kind?: InputMaybe<AppObserveErrorKind>;
   /** Filter to these platforms. */
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
@@ -3969,10 +3972,99 @@ export type AppObserveUserEvent = AppObserveLog & {
   timestamp: Scalars['DateTime']['output'];
 };
 
+export type AppObserveUserEventBreakdown = {
+  __typename?: 'AppObserveUserEventBreakdown';
+  /** Buckets ordered by count descending. */
+  buckets: Array<AppObserveUserEventBreakdownBucket>;
+  /** True when more buckets exist than were returned (top-N truncation). */
+  isTruncated: Scalars['Boolean']['output'];
+  /** Number of distinct dimension values before truncation. */
+  totalBucketCount: Scalars['Int']['output'];
+};
+
+export type AppObserveUserEventBreakdownBucket = {
+  __typename?: 'AppObserveUserEventBreakdownBucket';
+  count: Scalars['Int']['output'];
+  /** Dimension value (app version, OS, device model, country code, or EAS client id). Empty string when unknown. */
+  key: Scalars['String']['output'];
+  uniqueUserCount: Scalars['Int']['output'];
+};
+
+export enum AppObserveUserEventBreakdownDimension {
+  AppVersion = 'APP_VERSION',
+  Country = 'COUNTRY',
+  Device = 'DEVICE',
+  Os = 'OS',
+  OsVersion = 'OS_VERSION',
+  User = 'USER'
+}
+
+export type AppObserveUserEventBreakdownInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
+  deviceOsVersion?: InputMaybe<Scalars['String']['input']>;
+  dimension: AppObserveUserEventBreakdownDimension;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Maximum buckets to return, 1 to 100. Defaults to 100. */
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  /** Event name. The reserved `exception` name is rejected. */
+  name: Scalars['String']['input'];
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
 export type AppObserveUserEventConnection = {
   __typename?: 'AppObserveUserEventConnection';
   edges: Array<AppObserveUserEventEdge>;
   pageInfo: PageInfo;
+};
+
+export type AppObserveUserEventCountBucket = {
+  __typename?: 'AppObserveUserEventCountBucket';
+  bucket: Scalars['DateTime']['output'];
+  count: Scalars['Int']['output'];
+};
+
+export type AppObserveUserEventCountSeries = {
+  __typename?: 'AppObserveUserEventCountSeries';
+  /** Buckets with at least one occurrence, ascending. Empty buckets are omitted. */
+  buckets: Array<AppObserveUserEventCountBucket>;
+  name: Scalars['String']['output'];
+  /** Sum of count across all buckets. */
+  totalCount: Scalars['Int']['output'];
+};
+
+export type AppObserveUserEventCounts = {
+  __typename?: 'AppObserveUserEventCounts';
+  /** One series per requested name, in request order. */
+  series: Array<AppObserveUserEventCountSeries>;
+};
+
+export type AppObserveUserEventCountsInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  /** Bucket width. Defaults to 60. The range must not exceed 2000 buckets. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
+  deviceOsVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Event names to count. At most 10; the reserved `exception` name is rejected. */
+  names: Array<Scalars['String']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
 };
 
 export type AppObserveUserEventEdge = {
@@ -3986,6 +4078,9 @@ export type AppObserveUserEventListFilter = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
+  deviceOsVersion?: InputMaybe<Scalars['String']['input']>;
   easClientId?: InputMaybe<Scalars['String']['input']>;
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -4052,12 +4147,28 @@ export type AppObserveUserEventPropertyFilter = {
 /** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
 export type AppObserveUserEvents = {
   __typename?: 'AppObserveUserEvents';
+  /** Top values of one dimension (app version, OS, device, user, ...) for a single event name. */
+  breakdown: AppObserveUserEventBreakdown;
+  /** Time-bucketed occurrence counts, one series per requested event name. */
+  counts: AppObserveUserEventCounts;
   /** A single user-defined event by id. Null when missing, aged out, or the id belongs to an error. */
   event?: Maybe<AppObserveUserEvent>;
   /** Individual user-defined events. Defaults to newest first. */
   list: AppObserveUserEventConnection;
   /** Distinct event names with counts over the time range. */
   names: AppObserveUserEventNames;
+};
+
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents_BreakdownArgs = {
+  input: AppObserveUserEventBreakdownInput;
+};
+
+
+/** User-defined events (`Observe.logEvent`): app_events log rows, excluding errors. */
+export type AppObserveUserEvents_CountsArgs = {
+  input: AppObserveUserEventCountsInput;
 };
 
 
@@ -4178,7 +4289,8 @@ export type AppStoreConnectApiKey = {
   appleTeam?: Maybe<AppleTeam>;
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
-  issuerIdentifier: Scalars['String']['output'];
+  /** Null for individual (user-scoped) keys, which only support submissions. */
+  issuerIdentifier?: Maybe<Scalars['String']['output']>;
   keyIdentifier: Scalars['String']['output'];
   keyP8: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
@@ -4194,7 +4306,11 @@ export type AppStoreConnectApiKey_RemoteAppStoreConnectAppsArgs = {
 
 export type AppStoreConnectApiKeyInput = {
   appleTeamId?: InputMaybe<Scalars['ID']['input']>;
-  issuerIdentifier: Scalars['String']['input'];
+  /**
+   * Omit for individual (user-scoped) keys, which have no issuer ID and only
+   * support submissions.
+   */
+  issuerIdentifier?: InputMaybe<Scalars['String']['input']>;
   keyIdentifier: Scalars['String']['input'];
   keyP8: Scalars['String']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -4977,7 +5093,8 @@ export type ArgentRunSessionRemoteConfig = {
 };
 
 export type AscApiKeyInput = {
-  issuerIdentifier: Scalars['String']['input'];
+  /** Omit for individual (user-scoped) keys, which have no issuer ID. */
+  issuerIdentifier?: InputMaybe<Scalars['String']['input']>;
   keyIdentifier: Scalars['String']['input'];
   keyP8: Scalars['String']['input'];
 };
@@ -5909,15 +6026,6 @@ export type Charge = {
   wasRefunded: Scalars['Boolean']['output'];
 };
 
-/** A human user's chat token usage over the trailing 30 days, with their fair-usage limit. */
-export type ChatTokenUsage = {
-  __typename?: 'ChatTokenUsage';
-  isLimitExceeded: Scalars['Boolean']['output'];
-  /** Null when the user's plan has no chat token limit. */
-  limitTokens?: Maybe<Scalars['Int']['output']>;
-  usedTokens: Scalars['Int']['output'];
-};
-
 export type ClaudeAuthorization = {
   __typename?: 'ClaudeAuthorization';
   authorizationUrl: Scalars['String']['output'];
@@ -6340,6 +6448,7 @@ export type CreateFingerprintInput = {
 
 export type CreateGitHubAppInstallationInput = {
   accountId: Scalars['ID']['input'];
+  githubAppRegistrationId?: InputMaybe<Scalars['ID']['input']>;
   installationIdentifier: Scalars['Int']['input'];
 };
 
@@ -6539,135 +6648,6 @@ export enum CustomDomainStatus {
   Pending = 'PENDING',
   TimedOut = 'TIMED_OUT'
 }
-
-/** A dashboard AI chat conversation, private to the user who created it. */
-export type DashboardChat = {
-  __typename?: 'DashboardChat';
-  account: Account;
-  createdAt: Scalars['DateTime']['output'];
-  id: Scalars['ID']['output'];
-  lastMessageAt?: Maybe<Scalars['DateTime']['output']>;
-  /** Most recent first */
-  messages: DashboardChatMessageConnection;
-  title?: Maybe<Scalars['String']['output']>;
-};
-
-
-/** A dashboard AI chat conversation, private to the user who created it. */
-export type DashboardChat_MessagesArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-};
-
-export type DashboardChatConnection = {
-  __typename?: 'DashboardChatConnection';
-  edges: Array<DashboardChatEdge>;
-  pageInfo: PageInfo;
-};
-
-export type DashboardChatEdge = {
-  __typename?: 'DashboardChatEdge';
-  cursor: Scalars['String']['output'];
-  node: DashboardChat;
-};
-
-export type DashboardChatMessage = {
-  __typename?: 'DashboardChatMessage';
-  /** Client-supplied; unique per chat, not globally */
-  clientMessageId: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  /** UIMessage parts, stored verbatim, ordered by index */
-  parts: Array<Scalars['JSONObject']['output']>;
-  role: DashboardChatMessageRole;
-  status?: Maybe<DashboardChatMessageStatus>;
-};
-
-export type DashboardChatMessageConnection = {
-  __typename?: 'DashboardChatMessageConnection';
-  edges: Array<DashboardChatMessageEdge>;
-  pageInfo: PageInfo;
-};
-
-export type DashboardChatMessageEdge = {
-  __typename?: 'DashboardChatMessageEdge';
-  cursor: Scalars['String']['output'];
-  node: DashboardChatMessage;
-};
-
-export enum DashboardChatMessageRole {
-  Assistant = 'ASSISTANT',
-  User = 'USER'
-}
-
-/** Terminal state of an assistant message */
-export enum DashboardChatMessageStatus {
-  Canceled = 'CANCELED',
-  Completed = 'COMPLETED',
-  Error = 'ERROR'
-}
-
-export type DashboardChatMutation = {
-  __typename?: 'DashboardChatMutation';
-  /** Persist a user message. Idempotent on clientMessageId. */
-  addUserMessage: DashboardChatMessage;
-  /** Create a new chat owned by the viewer */
-  createChat: DashboardChat;
-  /** Delete a chat and all of its messages */
-  deleteChat: DashboardChat;
-  /** Rename a chat */
-  renameChat: DashboardChat;
-  /**
-   * Persist an assistant message, replacing parts when a message with the
-   * same clientMessageId already exists.
-   */
-  upsertAssistantMessage: DashboardChatMessage;
-};
-
-
-export type DashboardChatMutation_AddUserMessageArgs = {
-  accountID: Scalars['ID']['input'];
-  chatID: Scalars['ID']['input'];
-  clientMessageId: Scalars['String']['input'];
-  parts: Array<Scalars['JSONObject']['input']>;
-};
-
-
-export type DashboardChatMutation_CreateChatArgs = {
-  accountID: Scalars['ID']['input'];
-};
-
-
-export type DashboardChatMutation_DeleteChatArgs = {
-  chatID: Scalars['ID']['input'];
-};
-
-
-export type DashboardChatMutation_RenameChatArgs = {
-  chatID: Scalars['ID']['input'];
-  title: Scalars['String']['input'];
-};
-
-
-export type DashboardChatMutation_UpsertAssistantMessageArgs = {
-  accountID: Scalars['ID']['input'];
-  chatID: Scalars['ID']['input'];
-  clientMessageId: Scalars['String']['input'];
-  parts: Array<Scalars['JSONObject']['input']>;
-  status: DashboardChatMessageStatus;
-};
-
-export type DashboardChatQuery = {
-  __typename?: 'DashboardChatQuery';
-  /** Get dashboard chat by ID - entry point to the graph */
-  byId?: Maybe<DashboardChat>;
-};
-
-
-export type DashboardChatQuery_ByIdArgs = {
-  id: Scalars['ID']['input'];
-};
 
 export enum DashboardViewPin {
   Activity = 'ACTIVITY',
@@ -8634,18 +8614,6 @@ export type GitHubAppInstallation = {
   registration?: Maybe<GitHubAppRegistration>;
 };
 
-export type GitHubAppInstallationAccessibleRepository = {
-  __typename?: 'GitHubAppInstallationAccessibleRepository';
-  defaultBranch?: Maybe<Scalars['String']['output']>;
-  description?: Maybe<Scalars['String']['output']>;
-  id: Scalars['Int']['output'];
-  name: Scalars['String']['output'];
-  nodeId: Scalars['String']['output'];
-  owner: GitHubRepositoryOwner;
-  private: Scalars['Boolean']['output'];
-  url: Scalars['String']['output'];
-};
-
 export enum GitHubAppInstallationAccountType {
   Organization = 'ORGANIZATION',
   User = 'USER'
@@ -8709,20 +8677,35 @@ export type GitHubAppQuery_InstallationArgs = {
   id: Scalars['ID']['input'];
 };
 
-/** A GitHub Enterprise app. */
+/** A GitHub App Expo can act through. */
 export type GitHubAppRegistration = {
   __typename?: 'GitHubAppRegistration';
-  /** The Expo account that owns this registration. */
-  account: Account;
+  /** The Expo account that owns this registration, or null for the default github.com app. */
+  account?: Maybe<Account>;
+  /**
+   * Installations visible to the viewer's GitHub user, or null when the viewer's GitHub
+   * authorization for this registration could not be used. The accompanying error says why.
+   */
+  appInstallationsForViewer?: Maybe<Array<AccessibleGitHubAppInstallation>>;
   /** URL of the app's page on its GitHub instance, e.g. https://github.example.com/github-apps/expo. */
   githubAppUrl: Scalars['String']['output'];
   /** Public OAuth client id of the GHE app. */
   githubClientIdentifier: Scalars['String']['output'];
   id: Scalars['ID']['output'];
-  /** Origin of the GitHub Enterprise instance, e.g. https://github.example.com or https://example.ghe.com. No trailing slash. */
+  /** Origin of the GitHub instance. */
   origin: Scalars['String']['output'];
+  /** Repositories the viewer's GitHub user can reach through the given installation. */
+  repositoriesForViewer: GitHubAppRegistrationRepositoriesConnection;
   /** The GHE app slug. */
   slug: Scalars['String']['output'];
+};
+
+
+/** A GitHub App Expo can act through. */
+export type GitHubAppRegistration_RepositoriesForViewerArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+  installationIdentifier: Scalars['Int']['input'];
 };
 
 /** Registration data for the GitHub App manifest flow. */
@@ -8768,6 +8751,28 @@ export type GitHubAppRegistrationMutation_StartGitHubAppRegistrationArgs = {
   input: StartGitHubAppRegistrationInput;
 };
 
+export type GitHubAppRegistrationQuery = {
+  __typename?: 'GitHubAppRegistrationQuery';
+  byId: GitHubAppRegistration;
+};
+
+
+export type GitHubAppRegistrationQuery_ByIdArgs = {
+  githubAppRegistrationId: Scalars['ID']['input'];
+};
+
+export type GitHubAppRegistrationRepositoriesConnection = {
+  __typename?: 'GitHubAppRegistrationRepositoriesConnection';
+  edges: Array<GitHubAppRegistrationRepositoryEdge>;
+  pageInfo: PageInfo;
+};
+
+export type GitHubAppRegistrationRepositoryEdge = {
+  __typename?: 'GitHubAppRegistrationRepositoryEdge';
+  cursor: Scalars['String']['output'];
+  node: AccessibleGitHubRepository;
+};
+
 export type GitHubBuildInput = {
   appId: Scalars['ID']['input'];
   autoSubmit?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8776,6 +8781,8 @@ export type GitHubBuildInput = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
+  /** Refresh the ad hoc provisioning profile before building. Supported for iOS builds with a build profile that uses internal distribution and remote credentials. */
+  refreshAdHocProvisioningProfile?: InputMaybe<Scalars['Boolean']['input']>;
   submitProfile?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -8900,6 +8907,7 @@ export enum GitHubJobRunTriggerType {
 export type GitHubRepository = {
   __typename?: 'GitHubRepository';
   app: App;
+  branchesForViewer: Array<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   githubAppInstallation: GitHubAppInstallation;
   githubRepositoryIdentifier: Scalars['Int']['output'];
@@ -8954,20 +8962,6 @@ export type GitHubRepositoryMutation_ScheduleGitHubRepositoryDeletionArgs = {
   githubRepositoryId: Scalars['ID']['input'];
 };
 
-export type GitHubRepositoryOwner = {
-  __typename?: 'GitHubRepositoryOwner';
-  avatarUrl: Scalars['String']['output'];
-  id: Scalars['Int']['output'];
-  login: Scalars['String']['output'];
-  url: Scalars['String']['output'];
-};
-
-export type GitHubRepositoryPaginationResult = {
-  __typename?: 'GitHubRepositoryPaginationResult';
-  repositories: Array<GitHubAppInstallationAccessibleRepository>;
-  totalCount: Scalars['Int']['output'];
-};
-
 export type GitHubRepositorySettings = {
   __typename?: 'GitHubRepositorySettings';
   app: App;
@@ -9006,6 +9000,7 @@ export type GitHubUser = {
   githubUserIdentifier: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   metadata?: Maybe<GitHubUserMetadata>;
+  registration?: Maybe<GitHubAppRegistration>;
   userActor: UserActor;
 };
 
@@ -9028,6 +9023,11 @@ export type GitHubUserMutation = {
 
 export type GitHubUserMutation_DeleteGitHubUserArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type GitHubUserMutation_GenerateGitHubUserAccessTokenArgs = {
+  githubAppRegistrationId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type GoogleServiceAccountKey = {
@@ -9729,8 +9729,6 @@ export type MeMutation = {
   leaveAccount: LeaveAccountResult;
   /** Purge unfinished two-factor authentication setup for the current user if not fully-set-up */
   purgeUnfinishedSecondFactorAuthentication: SecondFactorBooleanResult;
-  /** Record chat token usage for the current user. */
-  recordChatTokenUsage: ChatTokenUsage;
   /** Regenerate backup codes for the current user */
   regenerateSecondFactorBackupCodes: SecondFactorRegenerateBackupCodesResult;
   /** Schedule deletion for Account created via createAccount */
@@ -9792,12 +9790,6 @@ export type MeMutation_InitiateSecondFactorAuthenticationArgs = {
 
 export type MeMutation_LeaveAccountArgs = {
   accountId: Scalars['ID']['input'];
-};
-
-
-export type MeMutation_RecordChatTokenUsageArgs = {
-  inputTokens: Scalars['Int']['input'];
-  outputTokens: Scalars['Int']['input'];
 };
 
 
@@ -10504,8 +10496,6 @@ export type RootMutation = {
   convexProject: ConvexProjectMutation;
   convexTeamConnection: ConvexTeamConnectionMutation;
   customDomain: CustomDomainMutation;
-  /** Mutations for dashboard chats */
-  dashboardChat: DashboardChatMutation;
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
@@ -10674,8 +10664,6 @@ export type RootQuery = {
   channels: ChannelQuery;
   /** Top-level query object for querying Convex Integration information. */
   convexIntegration: ConvexIntegrationQuery;
-  /** Top-level query object for querying dashboard chats. */
-  dashboardChat: DashboardChatQuery;
   /** Top-level query object for querying Deployments. */
   deployments: DeploymentQuery;
   deviceRunSessionArtifacts: DeviceRunSessionArtifactQuery;
@@ -10696,6 +10684,7 @@ export type RootQuery = {
   expoGoBuild: ExpoGoBuildQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
   githubApp: GitHubAppQuery;
+  githubAppRegistrations: GitHubAppRegistrationQuery;
   /** Top-level query object for querying Google Service Account Keys. */
   googleServiceAccountKey: GoogleServiceAccountKeyQuery;
   /** Top-level query object for querying Stripe Invoices. */
@@ -10744,8 +10733,6 @@ export type RootQuery = {
    * query object
    */
   viewer?: Maybe<User>;
-  /** The current user's chat token usage and limit. */
-  viewerChatTokenUsage: ChatTokenUsage;
   /** Top-level query object for querying Webhooks. */
   webhook: WebhookQuery;
   workerDeployment: WorkerDeploymentQuery;
@@ -10898,8 +10885,19 @@ export type SsoUser = Actor & UserActor & {
   featureGates: Scalars['JSONObject']['output'];
   firstName?: Maybe<Scalars['String']['output']>;
   fullName?: Maybe<Scalars['String']['output']>;
-  /** GitHub account linked to a user */
+  /**
+   * Every GitHub App registration this actor can link a GitHub user through. Includes the default
+   * github.com app. An entry is null when that registration failed to resolve; the accompanying
+   * error says why.
+   */
+  githubAppRegistrations: Array<Maybe<GitHubAppRegistration>>;
+  /** GitHub.com account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /**
+   * Every GitHub account linked to a user, one per GitHub App registration they have linked
+   * through. Includes githubUser.
+   */
+  githubUsers: Array<GitHubUser>;
   id: Scalars['ID']['output'];
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
@@ -12458,8 +12456,19 @@ export type User = Actor & UserActor & {
   featureGates: Scalars['JSONObject']['output'];
   firstName?: Maybe<Scalars['String']['output']>;
   fullName?: Maybe<Scalars['String']['output']>;
-  /** GitHub account linked to a user */
+  /**
+   * Every GitHub App registration this actor can link a GitHub user through. Includes the default
+   * github.com app. An entry is null when that registration failed to resolve; the accompanying
+   * error says why.
+   */
+  githubAppRegistrations: Array<Maybe<GitHubAppRegistration>>;
+  /** GitHub.com account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /**
+   * Every GitHub account linked to a user, one per GitHub App registration they have linked
+   * through. Includes githubUser.
+   */
+  githubUsers: Array<GitHubUser>;
   hasPassword: Scalars['Boolean']['output'];
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean']['output'];
@@ -12556,8 +12565,19 @@ export type UserActor = {
   featureGates: Scalars['JSONObject']['output'];
   firstName?: Maybe<Scalars['String']['output']>;
   fullName?: Maybe<Scalars['String']['output']>;
-  /** GitHub account linked to a user */
+  /**
+   * Every GitHub App registration this actor can link a GitHub user through. Includes the default
+   * github.com app. An entry is null when that registration failed to resolve; the accompanying
+   * error says why.
+   */
+  githubAppRegistrations: Array<Maybe<GitHubAppRegistration>>;
+  /** GitHub.com account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /**
+   * Every GitHub account linked to a user, one per GitHub App registration they have linked
+   * through. Includes githubUser.
+   */
+  githubUsers: Array<GitHubUser>;
   id: Scalars['ID']['output'];
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
@@ -14902,7 +14922,7 @@ export type CreateAppStoreConnectApiKeyMutationVariables = Exact<{
 }>;
 
 
-export type CreateAppStoreConnectApiKeyMutation = { __typename?: 'RootMutation', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyMutation', createAppStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } } };
+export type CreateAppStoreConnectApiKeyMutation = { __typename?: 'RootMutation', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyMutation', createAppStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } } };
 
 export type DeleteAppStoreConnectApiKeyMutationVariables = Exact<{
   appStoreConnectApiKeyId: Scalars['ID']['input'];
@@ -15075,7 +15095,7 @@ export type CreateIosAppCredentialsMutation = { __typename?: 'RootMutation', ios
            | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                 | { __typename?: 'SSOUser', id: string, username: string }
                 | { __typename?: 'User', id: string, username: string }
-               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
+               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
 
 export type SetPushKeyMutationVariables = Exact<{
   iosAppCredentialsId: Scalars['ID']['input'];
@@ -15092,7 +15112,7 @@ export type SetPushKeyMutation = { __typename?: 'RootMutation', iosAppCredential
            | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                 | { __typename?: 'SSOUser', id: string, username: string }
                 | { __typename?: 'User', id: string, username: string }
-               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
+               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
 
 export type SetAppStoreConnectApiKeyForSubmissionsMutationVariables = Exact<{
   iosAppCredentialsId: Scalars['ID']['input'];
@@ -15109,7 +15129,7 @@ export type SetAppStoreConnectApiKeyForSubmissionsMutation = { __typename?: 'Roo
            | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                 | { __typename?: 'SSOUser', id: string, username: string }
                 | { __typename?: 'User', id: string, username: string }
-               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
+               | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null } } };
 
 export type AppStoreConnectApiKeysPaginatedByAccountQueryVariables = Exact<{
   accountName: Scalars['String']['input'];
@@ -15120,7 +15140,7 @@ export type AppStoreConnectApiKeysPaginatedByAccountQueryVariables = Exact<{
 }>;
 
 
-export type AppStoreConnectApiKeysPaginatedByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appStoreConnectApiKeysPaginated: { __typename?: 'AccountAppStoreConnectApiKeysConnection', edges: Array<{ __typename?: 'AccountAppStoreConnectApiKeysEdge', cursor: string, node: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+export type AppStoreConnectApiKeysPaginatedByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appStoreConnectApiKeysPaginated: { __typename?: 'AccountAppStoreConnectApiKeysConnection', edges: Array<{ __typename?: 'AccountAppStoreConnectApiKeysEdge', cursor: string, node: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type AppleAppIdentifierByBundleIdQueryVariables = Exact<{
   accountName: Scalars['String']['input'];
@@ -15249,7 +15269,7 @@ export type IosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = { __ty
              | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                   | { __typename?: 'SSOUser', id: string, username: string }
                   | { __typename?: 'User', id: string, username: string }
-                 | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null }> } } };
+                 | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null }> } } };
 
 export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQueryVariables = Exact<{
   projectFullName: Scalars['String']['input'];
@@ -15266,7 +15286,7 @@ export type CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery = 
              | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                   | { __typename?: 'SSOUser', id: string, username: string }
                   | { __typename?: 'User', id: string, username: string }
-                 | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null }> } } };
+                 | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null }> } } };
 
 export type CreateAppMutationVariables = Exact<{
   appInput: AppInput;
@@ -15893,7 +15913,7 @@ export type AppStoreConnectApiKeyByIdQueryVariables = Exact<{
 }>;
 
 
-export type AppStoreConnectApiKeyByIdQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, keyP8: string } } };
+export type AppStoreConnectApiKeyByIdQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, keyP8: string } } };
 
 export type LatestAppVersionQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -16820,7 +16840,7 @@ export type AndroidFcmFragment = { __typename?: 'AndroidFcm', id: string, creden
 
 export type AndroidKeystoreFragment = { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null, md5CertificateFingerprint?: string | null, sha1CertificateFingerprint?: string | null, sha256CertificateFingerprint?: string | null, createdAt: any, updatedAt: any };
 
-export type AppStoreConnectApiKeyFragment = { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null };
+export type AppStoreConnectApiKeyFragment = { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null };
 
 export type AppleAppIdentifierFragment = { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string };
 
@@ -16857,7 +16877,7 @@ export type CommonIosAppCredentialsWithoutBuildCredentialsFragment = { __typenam
        | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
             | { __typename?: 'SSOUser', id: string, username: string }
             | { __typename?: 'User', id: string, username: string }
-           | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
+           | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
 
 export type CommonIosAppCredentialsFragment = { __typename?: 'IosAppCredentials', id: string, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosDistributionType: IosDistributionType, distributionCertificate?: { __typename?: 'AppleDistributionCertificate', id: string, certificateP12?: string | null, certificatePassword?: string | null, serialNumber: string, developerPortalIdentifier?: string | null, validityNotBefore: any, validityNotAfter: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosAppCredentials: { __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
                 | { __typename?: 'SSOUser', id: string, username: string }
@@ -16868,7 +16888,7 @@ export type CommonIosAppCredentialsFragment = { __typename?: 'IosAppCredentials'
        | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
             | { __typename?: 'SSOUser', id: string, username: string }
             | { __typename?: 'User', id: string, username: string }
-           | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
+           | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier?: string | null, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
 
 export type ScheduleUpdateGroupDeletionMutationVariables = Exact<{
   group: Scalars['ID']['input'];
