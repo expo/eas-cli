@@ -460,7 +460,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         logger: createLoggerMock(),
         timeoutMs: 10_000,
       })
-    ).rejects.toThrow(/started without a session token/);
+    ).rejects.toThrow(/wrote no session token/);
   });
 
   // expo-device-hub mints no token, so the Android preview must not require one.
