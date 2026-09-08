@@ -2,6 +2,7 @@ import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/e
 import { CombinedError } from '@urql/core';
 import { promises as fs } from 'fs';
 import path from 'path';
+import addFormats from 'ajv-formats';
 import * as YAML from 'yaml';
 
 import { validateWorkflowLocalCompositeFunctionsAsync } from './compositeFunctions';
@@ -15,9 +16,10 @@ import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 import { parsedYamlFromWorkflowContents } from './parse';
 
 const jobTypesWithBuildProfile = new Set(['build', 'repack']);
+const validateUri = addFormats.get('uri') as (value: string) => boolean;
 
-const buildProfileIsInterpolated = (profileName: string): boolean => {
-  return profileName.includes('${{') && profileName.includes('}}');
+const stringIsInterpolated = (value: string): boolean => {
+  return value.includes('${{') && value.includes('}}');
 };
 
 export async function validateWorkflowFileAsync(
@@ -113,7 +115,7 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
     job =>
       !buildProfileNames.has(job.value.params.profile) &&
       // If a profile name is interpolated, we can't check if it's valid until the workflow actually runs
-      !buildProfileIsInterpolated(job.value.params.profile)
+      !stringIsInterpolated(job.value.params.profile)
   );
 
   if (invalidBuildJobs.length > 0) {
@@ -139,10 +141,12 @@ function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): voi
   }
 }
 
-function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): void {
+export function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): void {
   delete workflowJsonSchema['$schema'];
 
   const ajv = createValidator();
+  // Interpolated values cannot be format-checked until the workflow runs.
+  ajv.addFormat('uri', value => stringIsInterpolated(value) || validateUri(value));
   const validate = ajv.compile(workflowJsonSchema);
   const result = validate(parsedYaml);
 
