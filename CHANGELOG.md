@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Update `@expo/xcpretty` to preserve Xcode compiler errors that were missing from formatted build logs. ([#4365](https://github.com/expo/eas-cli/pull/4365) by [@sjchmiela](https://github.com/sjchmiela))
+
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [build-tools] Install FFmpeg before launching `expo-device-hub` in Android device sessions. ([#4332](https://github.com/expo/eas-cli/pull/4332) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 
