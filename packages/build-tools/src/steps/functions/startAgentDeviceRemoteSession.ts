@@ -17,6 +17,12 @@ import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
+  buildEgressRemoteConfigFields,
+  monitorLocalEgressAsync,
+  readLocalEgressHandoffAsync,
+  stopLocalEgressResourcesAsync,
+} from '../utils/localEgress';
+import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -107,6 +113,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
+      // Written by the `start_local_egress` step when the session was created with
+      // local egress; absent otherwise.
+      const localEgress = await readLocalEgressHandoffAsync();
+      const localEgressMonitorAbortController = new AbortController();
+
       let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
@@ -129,9 +140,22 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
             agentDeviceRemoteSessionToken: daemonToken,
             webPreviewUrl: webPreview.previewUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
+            ...buildEgressRemoteConfigFields(localEgress),
           },
           logger,
         });
+        if (localEgress) {
+          logger.info(
+            'Local egress: waiting for the EAS CLI egress client to connect. The simulator has no ' +
+              'internet access until it does.'
+          );
+          void monitorLocalEgressAsync({
+            port: localEgress.port,
+            env,
+            logger,
+            signal: localEgressMonitorAbortController.signal,
+          });
+        }
         void pollAgentDeviceArtifactsForUploadAsync(ctx, {
           deviceRunSessionId,
           daemonUrl: `http://127.0.0.1:${daemonPort}`,
@@ -161,6 +185,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
+        localEgressMonitorAbortController.abort();
         if (webPreview) {
           await webPreview.stopAsync();
         }
@@ -173,6 +198,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           });
         }
         await daemonProcess.stopAsync();
+        await stopLocalEgressResourcesAsync(logger);
       }
     },
   });

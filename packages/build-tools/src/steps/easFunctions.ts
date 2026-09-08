@@ -51,6 +51,7 @@ import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAp
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
+import { createStartLocalEgressBuildFunction } from './functions/startLocalEgress';
 import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
@@ -103,6 +104,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
+    createStartLocalEgressBuildFunction(),
     createStartIosSimulatorRecordingsBuildFunction(),
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),

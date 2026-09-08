@@ -707,7 +707,7 @@ export function createExpoDeviceHubArgs({
   ];
 }
 
-async function findAvailablePortAsync(): Promise<number> {
+export async function findAvailablePortAsync(): Promise<number> {
   const server = createServer();
   server.unref();
   await new Promise<void>((resolve, reject) => {
