@@ -139,10 +139,38 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
 
     // (2) The event log flag is enabled, before the tool-server is launched.
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      'bun',
+      ['x', '@swmansion/argent@latest', 'enable', 'artifacts-list-endpoint'],
+      expect.objectContaining({ env: { EXISTING: 'value' } })
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'bun',
+      ['x', '@swmansion/argent@latest', 'enable', 'tool-server-event-log'],
+      expect.objectContaining({ env: { EXISTING: 'value' } })
+    );
+    expect(spawnDetached).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: 'bun',
+        args: [
+          'x',
+          '@swmansion/argent@latest',
+          'server',
+          'start',
+          '--port',
+          '0',
+          '--idle-timeout',
+          '0',
+          '--force',
+        ],
+      })
+    );
     const spawnCalls = jest.mocked(spawn).mock.calls;
     const enableEventLogIndex = spawnCalls.findIndex(
       ([command, args]) =>
-        command === 'bunx' && Array.isArray(args) && args.includes('tool-server-event-log')
+        command === 'bun' && Array.isArray(args) && args.includes('tool-server-event-log')
     );
     expect(enableEventLogIndex).toBeGreaterThanOrEqual(0);
     expect(jest.mocked(spawn).mock.invocationCallOrder[enableEventLogIndex]).toBeLessThan(
