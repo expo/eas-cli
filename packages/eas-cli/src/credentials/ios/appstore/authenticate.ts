@@ -56,6 +56,10 @@ export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
   throw new Error('Expected user authentication context (login/password).');
 }
 
+export function isIndividualAscApiKeyAuthCtx(authCtx: AuthCtx | undefined): boolean {
+  return !!authCtx && 'ascApiKey' in authCtx && !!authCtx.ascApiKey && !authCtx.ascApiKey.issuerId;
+}
+
 export function getRequestContext(authCtx: AuthCtx): RequestContext {
   assert(authCtx.authState?.context, 'Apple request context must be defined');
   return authCtx.authState.context;
