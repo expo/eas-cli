@@ -1,7 +1,18 @@
-import { SystemError } from '@expo/eas-build-job';
+import {
+  SandboxDaemonCommands,
+  type SandboxDaemonMethod,
+  SandboxDaemonRequestZ,
+  type SandboxDaemonResponse,
+  SystemError,
+} from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket from 'ws';
+
+import {
+  type SandboxDaemonCommandImplementations,
+  createSandboxDaemonCommandImplementations,
+} from './sandboxCommandImplementations';
 
 export interface SandboxDaemonOptions {
   credential: string;
@@ -9,6 +20,7 @@ export interface SandboxDaemonOptions {
   reconnectDelayMs: number;
   logger: bunyan;
   signal?: AbortSignal;
+  workingDirectory: string;
 }
 
 export interface SandboxDaemon {
@@ -25,6 +37,8 @@ export async function startSandboxDaemonAsync(
   let hasConnected = false;
   let resolveConnected!: () => void;
   let rejectConnected!: (error: Error) => void;
+  const { commandImplementations, stopAsync: stopCommandImplementationsAsync } =
+    createSandboxDaemonCommandImplementations(options.workingDirectory);
   const connected = new Promise<void>((resolve, reject) => {
     resolveConnected = resolve;
     rejectConnected = reject;
@@ -38,15 +52,23 @@ export async function startSandboxDaemonAsync(
   const connectionLoop = (async () => {
     while (!abortController.signal.aborted) {
       try {
-        socket = new WebSocket(new URL('/sandbox/connect', options.serverUrl), {
+        const connectedSocket = new WebSocket(new URL('/sandbox/connect', options.serverUrl), {
           handshakeTimeout: 10_000,
           headers: { Authorization: `Bearer ${options.credential}` },
         });
-        await waitForOpen(socket);
+        socket = connectedSocket;
+        await waitForOpen(connectedSocket);
         options.logger.info('Sandbox MCP server connected.');
+        connectedSocket.on('message', message => {
+          void handleMessageAsync(commandImplementations, message.toString(), response => {
+            if (connectedSocket.readyState === WebSocket.OPEN) {
+              connectedSocket.send(JSON.stringify(response));
+            }
+          });
+        });
         hasConnected = true;
         resolveConnected();
-        await waitForClose(socket);
+        await waitForClose(connectedSocket);
       } catch (error: any) {
         if (!hasConnected) {
           const message = `Sandbox MCP server connection failed: ${error?.message ?? 'unknown error'}`;
@@ -82,6 +104,7 @@ export async function startSandboxDaemonAsync(
     async stopAsync(): Promise<void> {
       options.signal?.removeEventListener('abort', stop);
       stop();
+      await stopCommandImplementationsAsync();
       await connectionLoop;
     },
   };
@@ -102,5 +125,70 @@ function waitForClose(socket: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {
     socket.once('close', resolve);
     socket.once('error', reject);
+  });
+}
+
+type JsonRpcResponse =
+  | SandboxDaemonResponse
+  | {
+      jsonrpc: '2.0';
+      id: string | null;
+      error: { code: number; message: string; data?: unknown };
+    };
+
+async function handleMessageAsync(
+  commandImplementations: SandboxDaemonCommandImplementations,
+  message: string,
+  send: (response: JsonRpcResponse) => void
+): Promise<void> {
+  let rawRequest: unknown;
+  try {
+    rawRequest = JSON.parse(message);
+  } catch {
+    sendError(send, null, -32700, 'Parse error');
+    return;
+  }
+
+  const request = SandboxDaemonRequestZ.safeParse(rawRequest);
+  if (!request.success) {
+    sendError(send, null, -32600, 'Invalid request', request.error.flatten());
+    return;
+  }
+
+  const { id, method, params } = request.data;
+  if (!Object.hasOwn(SandboxDaemonCommands, method)) {
+    sendError(send, id, -32601, 'Method not found');
+    return;
+  }
+  const commandMethod = method as SandboxDaemonMethod;
+
+  const parsedParams = SandboxDaemonCommands[commandMethod].params.safeParse(params);
+  if (!parsedParams.success) {
+    sendError(send, id, -32602, 'Invalid params', parsedParams.error.flatten());
+    return;
+  }
+  try {
+    const result = await commandImplementations[commandMethod](parsedParams.data as never);
+    send({
+      jsonrpc: '2.0',
+      id,
+      result: SandboxDaemonCommands[commandMethod].result.parse(result),
+    });
+  } catch (error) {
+    sendError(send, id, -32603, error instanceof Error ? error.message : 'Internal error');
+  }
+}
+
+function sendError(
+  send: (response: JsonRpcResponse) => void,
+  id: string | null,
+  code: number,
+  message: string,
+  data?: unknown
+): void {
+  send({
+    jsonrpc: '2.0',
+    id,
+    error: { code, message, ...(data === undefined ? {} : { data }) },
   });
 }

@@ -48,6 +48,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         reconnectDelayMs: RECONNECT_DELAY_MS,
         logger: stepCtx.logger,
         signal,
+        workingDirectory: stepCtx.workingDirectory,
       });
       try {
         await daemon.ready;
