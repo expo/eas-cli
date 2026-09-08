@@ -142,7 +142,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     const spawnCalls = jest.mocked(spawn).mock.calls;
     const enableEventLogIndex = spawnCalls.findIndex(
       ([command, args]) =>
-        command === 'bunx' && Array.isArray(args) && args.includes('tool-server-event-log')
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('tool-server-event-log')
     );
     expect(enableEventLogIndex).toBeGreaterThanOrEqual(0);
     expect(jest.mocked(spawn).mock.invocationCallOrder[enableEventLogIndex]).toBeLessThan(

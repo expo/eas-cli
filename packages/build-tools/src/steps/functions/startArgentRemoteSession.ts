@@ -112,24 +112,30 @@ export function createStartArgentRemoteSessionBuildFunction(
 
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        'bun',
+        [
+          'x',
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
+        ],
         { env, logger }
       );
 
       logger.info('Enabling the Argent tool-server event log flag.');
       await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+        'bun',
+        ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
         { env, logger }
       );
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
-      // Keep Argent itself in foreground mode under the detached bunx process. This preserves
-      // the bunx -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bun x.`);
+      // Keep Argent itself in foreground mode under the detached bun process. This preserves
+      // the bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
-        command: 'bunx',
+        command: 'bun',
         args: [
+          'x',
           `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
           'server',
           'start',
@@ -294,7 +300,7 @@ export function warnIfArgentPackageVersionCannotBeVerified({
     logger.warn(
       `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer, ` +
         `but package_version "${packageVersion}" is not an exact semver version that EAS can verify. ` +
-        `Continuing and letting bunx resolve it.`
+        `Continuing and letting bun x resolve it.`
     );
     return;
   }
