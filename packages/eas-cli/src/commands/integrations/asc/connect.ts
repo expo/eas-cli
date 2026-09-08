@@ -113,6 +113,11 @@ export default class IntegrationsAscConnect extends EasCommand {
           `Multiple App Store Connect API keys match Apple key identifier "${apiKeyId}".`
         );
       } else if (keysByAppleId.length === 1) {
+        if (!keysByAppleId[0].issuerIdentifier) {
+          throw new EasCommandError(
+            `App Store Connect API key "${apiKeyId}" is an individual key (it has no Issuer ID). Individual keys are not supported for the App Store Connect connection. Use a team API key.`
+          );
+        }
         apiKeyId = keysByAppleId[0].id;
       } else {
         throw new EasCommandError(

@@ -2,6 +2,7 @@ import { selectAsync } from '../../prompts';
 import { CredentialsContext } from '../../credentials/context';
 import {
   AppStoreApiKeyPurpose,
+  filterOutIndividualAscApiKeys,
   formatAscApiKey,
   provideOrGenerateAscApiKeyAsync,
   sortAscApiKeysByUpdatedAtDesc,
@@ -17,7 +18,8 @@ export async function selectOrCreateAscApiKeyIdAsync({
   existingKeys: AppStoreConnectApiKeyFragment[];
   ownerAccount: AccountFragment;
 }): Promise<string> {
-  const sortedKeys = sortAscApiKeysByUpdatedAtDesc(existingKeys);
+  // Individual API keys are not supported for the ASC connection yet.
+  const sortedKeys = sortAscApiKeysByUpdatedAtDesc(filterOutIndividualAscApiKeys(existingKeys));
   const createKeyOption = {
     title: '[Create or upload a new API key]',
     value: '__create_new_key__',
