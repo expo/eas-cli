@@ -15,6 +15,11 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageExec,
+} from '../../utils/packageManager';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
@@ -646,7 +651,6 @@ export function createServeSimArgs({
   packageVersion?: string;
 }): string[] {
   return [
-    '--yes',
     createServeSimPackageSpec(packageVersion),
     '--port',
     String(port),
@@ -679,7 +683,6 @@ export function createExpoDeviceHubArgs({
   packageVersion?: string;
 }): string[] {
   return [
-    '--yes',
     createExpoDeviceHubPackageSpec(packageVersion),
     '--port',
     String(port),
@@ -796,11 +799,17 @@ async function startWebPreviewWithTunnelAsync(
   }
 ): Promise<DeviceWebPreviewHandle> {
   const port = await findAvailablePortAsync();
-  logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const previewExec = resolvePackageExec(
+    resolveConfiguredPackageManager(env, PackageManager.NPM),
+    createArgs(port, turnArgs)
+  );
+  logger.info(
+    `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
+  );
   const previewServer = spawnDetached({
-    command: 'npx',
-    args: createArgs(port, turnArgs),
+    command: previewExec.command,
+    args: previewExec.args,
     env,
   });
 
