@@ -8,9 +8,58 @@ import {
   formatPreviewUrl,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
+  getLocalEgressConfig,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../utils';
+
+const agentDeviceConfig = {
+  __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+  agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+  agentDeviceRemoteSessionToken: 'daemon-token',
+  webPreviewUrl: 'https://preview.example.test',
+};
+
+const agentDeviceConfigWithEgress = {
+  ...agentDeviceConfig,
+  egressUrl: 'https://egress-abc.eas-simulator.ngrok.dev',
+  egressAuth: 'eas:egress-secret',
+  egressFingerprint: 'fp=',
+  egressPort: 8899,
+};
+
+describe('local egress configuration', () => {
+  it('is absent for sessions without egress', () => {
+    expect(getLocalEgressConfig(agentDeviceConfig)).toBeNull();
+    expect(getRemoteSessionEnvironmentVariables(agentDeviceConfig)).toEqual({
+      AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
+      AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token',
+    });
+    expect(formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv')).not.toContain(
+      'eas simulator:egress'
+    );
+  });
+
+  it('adds the egress variables and instructions when the worker reported them', () => {
+    expect(getLocalEgressConfig(agentDeviceConfigWithEgress)).toEqual({
+      url: 'https://egress-abc.eas-simulator.ngrok.dev',
+      auth: 'eas:egress-secret',
+      fingerprint: 'fp=',
+      port: 8899,
+    });
+    expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
+      AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
+      AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token',
+      EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
+      EAS_SIMULATOR_EGRESS_AUTH: 'eas:egress-secret',
+      EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
+      EAS_SIMULATOR_EGRESS_PORT: '8899',
+    });
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
+    expect(instructions).toContain('eas simulator:egress');
+    expect(instructions).toContain('no internet access until the egress client is running');
+  });
+});
 
 const iosAppiumConfig = {
   __typename: 'AppiumRunSessionRemoteConfig' as const,

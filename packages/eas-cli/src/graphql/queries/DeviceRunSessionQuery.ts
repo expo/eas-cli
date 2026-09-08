@@ -88,6 +88,10 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
                       webPreviewToken
+                      egressUrl
+                      egressAuth
+                      egressFingerprint
+                      egressPort
                     }
                     ... on ArgentRunSessionRemoteConfig {
                       toolsUrl

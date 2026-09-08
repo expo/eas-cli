@@ -4,6 +4,12 @@ import {
   DeviceRunSessionType,
 } from '../graphql/generated';
 import { link } from '../log';
+import {
+  EAS_SIMULATOR_EGRESS_AUTH,
+  EAS_SIMULATOR_EGRESS_FINGERPRINT,
+  EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_URL,
+} from './env';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
@@ -59,6 +65,44 @@ export const DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE = Object.fromEntrie
   ).map(([resourceClass, value]) => [value, resourceClass])
 ) as Record<string, DeviceRunSessionResourceClass>;
 
+export type LocalEgressConfig = {
+  url: string;
+  auth: string;
+  fingerprint: string;
+  port: number;
+};
+
+/**
+ * Connection details for the local egress client, present only for sessions
+ * started with `--egress local`.
+ */
+export function getLocalEgressConfig(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): LocalEgressConfig | null {
+  if (remoteConfig.__typename !== 'AgentDeviceRunSessionRemoteConfig') {
+    return null;
+  }
+  const { egressUrl, egressAuth, egressFingerprint, egressPort } = remoteConfig;
+  if (!egressUrl || !egressAuth || !egressFingerprint || egressPort == null) {
+    return null;
+  }
+  return { url: egressUrl, auth: egressAuth, fingerprint: egressFingerprint, port: egressPort };
+}
+
+export function getLocalEgressEnvironmentVariables(
+  egress: LocalEgressConfig | null
+): Record<string, string> {
+  if (!egress) {
+    return {};
+  }
+  return {
+    [EAS_SIMULATOR_EGRESS_URL]: egress.url,
+    [EAS_SIMULATOR_EGRESS_AUTH]: egress.auth,
+    [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
+    [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
+  };
+}
+
 export function getRemoteSessionEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): Record<string, string> {
@@ -67,6 +111,7 @@ export function getRemoteSessionEnvironmentVariables(
       return {
         AGENT_DEVICE_DAEMON_BASE_URL: remoteConfig.agentDeviceRemoteSessionUrl,
         AGENT_DEVICE_DAEMON_AUTH_TOKEN: remoteConfig.agentDeviceRemoteSessionToken,
+        ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
       };
     case 'ArgentRunSessionRemoteConfig':
       return {
@@ -154,6 +199,17 @@ export function formatRemoteSessionInstructions(
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
           formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+        );
+      }
+      if (getLocalEgressConfig(remoteConfig)) {
+        lines.push(
+          '',
+          "🔀 This session routes the simulator's network traffic through this machine. The",
+          'simulator has no internet access until the egress client is running:',
+          '',
+          'eas simulator:egress',
+          '',
+          'Keep it running for the life of the session.'
         );
       }
       return lines.join('\n');

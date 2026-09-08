@@ -1081,6 +1081,26 @@ export type AgentDeviceRunSessionRemoteConfig = {
   __typename?: 'AgentDeviceRunSessionRemoteConfig';
   agentDeviceRemoteSessionToken: Scalars['String']['output'];
   agentDeviceRemoteSessionUrl: Scalars['String']['output'];
+  /**
+   * Credentials for the reverse-tunnel endpoint, as user:password. Null when the
+   * session does not use local egress.
+   */
+  egressAuth?: Maybe<Scalars['String']['output']>;
+  /**
+   * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
+   * the session does not use local egress.
+   */
+  egressFingerprint?: Maybe<Scalars['String']['output']>;
+  /**
+   * Loopback port on the device host that the local egress client must serve
+   * through the tunnel. Null when the session does not use local egress.
+   */
+  egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Reverse-tunnel endpoint the local egress client connects to. Null when the
+   * session does not use local egress.
+   */
+  egressUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
@@ -6285,6 +6305,12 @@ export type CreateDeviceRunSessionInput = {
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
+   * Where the virtual device's network traffic exits to the internet. If omitted,
+   * traffic exits from EAS infrastructure. LOCAL is only supported for AGENT_DEVICE
+   * sessions on IOS.
+   */
+  egress?: InputMaybe<DeviceRunSessionEgress>;
+  /**
    * Install and launch Expo Go before the simulator session becomes available. The server resolves
    * the platform-specific application archive. Mutually exclusive with buildId, buildFingerprint,
    * and applicationArchiveUrl.
@@ -7104,6 +7130,19 @@ export type DeviceRunSessionQuery_ByIdArgs = {
 };
 
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
+
+/**
+ * Where the virtual device's network traffic exits to the internet. When unset,
+ * traffic exits from EAS infrastructure.
+ */
+export enum DeviceRunSessionEgress {
+  /**
+   * Through a reverse tunnel to the machine running the EAS CLI egress client, so
+   * third parties see that machine's public IP. The client must stay connected for
+   * the life of the session.
+   */
+  Local = 'LOCAL'
+}
 
 export enum DeviceRunSessionResourceClass {
   Large = 'LARGE',
@@ -16178,7 +16217,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
-        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null }
+        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, egressUrl?: string | null, egressAuth?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
         | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, previewToken?: string | null }

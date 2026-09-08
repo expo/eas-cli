@@ -6633,6 +6633,54 @@
             "deprecationReason": null
           },
           {
+            "name": "egressAuth",
+            "description": "Credentials for the reverse-tunnel endpoint, as user:password. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "egressFingerprint",
+            "description": "Fingerprint of the reverse-tunnel server key for the client to pin. Null when\nthe session does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "egressPort",
+            "description": "Loopback port on the device host that the local egress client must serve\nthrough the tunnel. Null when the session does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "egressUrl",
+            "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewToken",
             "description": "Session token gating the web preview. Null when the preview runs ungated.",
             "args": [],
@@ -45143,6 +45191,18 @@
             "deprecationReason": null
           },
           {
+            "name": "egress",
+            "description": "Where the virtual device's network traffic exits to the internet. If omitted,\ntraffic exits from EAS infrastructure. LOCAL is only supported for AGENT_DEVICE\nsessions on IOS.",
+            "type": {
+              "kind": "ENUM",
+              "name": "DeviceRunSessionEgress",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "sdkVersion",
             "description": "Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is\ntrue. If omitted, the current Expo Go archive for the platform is used.",
             "type": {
@@ -50795,6 +50855,23 @@
             "ofType": null
           }
         ]
+      },
+      {
+        "kind": "ENUM",
+        "name": "DeviceRunSessionEgress",
+        "description": "Where the virtual device's network traffic exits to the internet. When unset,\ntraffic exits from EAS infrastructure.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "LOCAL",
+            "description": "Through a reverse tunnel to the machine running the EAS CLI egress client, so\nthird parties see that machine's public IP. The client must stay connected for\nthe life of the session.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
       },
       {
         "kind": "ENUM",
