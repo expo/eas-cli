@@ -50,7 +50,7 @@
     "@expo/steps": "23.1.0",
     "@expo/template-file": "23.0.0",
     "@expo/turtle-spawn": "23.1.0",
-    "@expo/xcpretty": "^4.3.1",
+    "@expo/xcpretty": "^4.4.5",
     "@ngrok/ngrok": "1.7.0",
     "@sentry/node": "7.77.0",
     "@urql/core": "^6.0.1",
