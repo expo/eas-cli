@@ -11,6 +11,7 @@ export function getAppstoreMock(): AppStoreApi {
   return {
     defaultAuthenticationMode: AuthenticationMode.USER,
     ensureAuthenticatedAsync: jest.fn(),
+    ensureProvisioningAuthenticatedAsync: jest.fn(),
     ensureBundleIdExistsAsync: jest.fn(),
     listDistributionCertificatesAsync: jest.fn(),
     createDistributionCertificateAsync: jest.fn(),

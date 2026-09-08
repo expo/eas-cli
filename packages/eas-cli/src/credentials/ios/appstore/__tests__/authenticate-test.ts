@@ -1,6 +1,10 @@
 import { Token } from '@expo/apple-utils';
 
-import { authenticateAsync, isIndividualAscApiKeyAuthCtx } from '../authenticate';
+import {
+  assertProvisioningAuthCtx,
+  authenticateAsync,
+  isIndividualAscApiKeyAuthCtx,
+} from '../authenticate';
 import { ApiKeyAuthCtx, AppleTeamType, AuthCtx, AuthenticationMode } from '../authenticateTypes';
 
 jest.mock('@expo/apple-utils', () => ({
@@ -66,5 +70,25 @@ describe(isIndividualAscApiKeyAuthCtx, () => {
     expect(isIndividualAscApiKeyAuthCtx(teamKeyAuthCtx)).toBe(false);
     expect(isIndividualAscApiKeyAuthCtx(userAuthCtx)).toBe(false);
     expect(isIndividualAscApiKeyAuthCtx(undefined)).toBe(false);
+  });
+});
+
+describe(assertProvisioningAuthCtx, () => {
+  it('rejects an individual API key auth context', () => {
+    expect(() => {
+      assertProvisioningAuthCtx(individualKeyAuthCtx);
+    }).toThrow('individual API key');
+    expect(() => {
+      assertProvisioningAuthCtx(individualKeyAuthCtx);
+    }).toThrow('EXPO_ASC_ISSUER_ID');
+  });
+
+  it('accepts team API key and user auth contexts', () => {
+    expect(() => {
+      assertProvisioningAuthCtx(teamKeyAuthCtx);
+    }).not.toThrow();
+    expect(() => {
+      assertProvisioningAuthCtx(userAuthCtx);
+    }).not.toThrow();
   });
 });
