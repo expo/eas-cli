@@ -52,6 +52,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas channel:protect` and `eas channel:unprotect` to manage EAS Update channel protection, and show protection in channel list and view output. ([#4319](https://github.com/expo/eas-cli/pull/4319) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [eas-cli] Add `eas observe:errors` to display error and exception issue groups (grouped by fingerprint), with `--fingerprint <fingerprint>` to drill into a group's individual occurrences and stack traces. ([#4339](https://github.com/expo/eas-cli/pull/4339) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Add `eas observe:event` to display a single Observe event (metric, log, or error) by its ID. ([#4252](https://github.com/expo/eas-cli/pull/4252) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add `eas workflow:insights` to display Workflows Insights for a time range: run counts and success rate compared with the previous period, runs over time, and a per-workflow breakdown, with `--json` output for scripts. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
 
@@ -59,6 +60,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [build-tools] Install FFmpeg before launching `expo-device-hub` in Android device sessions. ([#4332](https://github.com/expo/eas-cli/pull/4332) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [eas-cli] Print the session token in simulator preview links, so they still open once the preview is gated. ([#4312](https://github.com/expo/eas-cli/pull/4312) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Reject `--end` without `--start` in the `observe:*`, `update:insights`, `channel:insights`, and `update:view --insights` commands instead of silently falling back to the default time range. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Reject non-integer values for `--limit` and `--offset` instead of sending them to the server. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🧹 Chores
 

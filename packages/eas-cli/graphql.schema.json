@@ -42641,6 +42641,18 @@
             "deprecationReason": null
           },
           {
+            "name": "IS_WORKFLOW_BUILD",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "LOCAL_BUILDS_NOT_RETRYABLE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "NOT_COMPLETED_YET",
             "description": null,
             "isDeprecated": false,

@@ -5998,6 +5998,8 @@ export enum BuildRetryDisabledReason {
   AlreadyRetried = 'ALREADY_RETRIED',
   InvalidStatus = 'INVALID_STATUS',
   IsGithubBuild = 'IS_GITHUB_BUILD',
+  IsWorkflowBuild = 'IS_WORKFLOW_BUILD',
+  LocalBuildsNotRetryable = 'LOCAL_BUILDS_NOT_RETRYABLE',
   NotCompletedYet = 'NOT_COMPLETED_YET',
   TooMuchTimeElapsed = 'TOO_MUCH_TIME_ELAPSED'
 }
@@ -16770,6 +16772,14 @@ export type JobRunSshPollQueryVariables = Exact<{
 
 export type JobRunSshPollQuery = { __typename?: 'RootQuery', jobRun: { __typename?: 'JobRunQuery', byId: { __typename?: 'JobRun', id: string, status: JobRunStatus, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } } };
 
+export type WorkflowByAppIdAndFileNameQueryVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+}>;
+
+
+export type WorkflowByAppIdAndFileNameQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string } } };
+
 export type ExpoGoSupportedSdkVersionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -16820,6 +16830,17 @@ export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQue
               | { __typename: 'SSOUser', username: string, id: string }
               | { __typename: 'User', username: string, id: string }
              | null, errors: Array<{ __typename?: 'WorkflowRunError', title?: string | null, message: string }>, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
+export type WorkflowsInsightsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  timespan: WorkflowsInsightsTimespanInput;
+  filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
+  granularity: WorkflowsInsightsRunsOverTimeGranularity;
+  first: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?:
     | { __typename?: 'SSOUser', id: string, username: string }

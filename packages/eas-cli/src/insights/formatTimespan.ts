@@ -16,3 +16,7 @@ export function formatTimespan(timespan: InsightsTimespanFields): string {
 export function toDateOnly(isoTimestamp: string): string {
   return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd');
 }
+
+export function toDateTime(isoTimestamp: string): string {
+  return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd HH:MM');
+}

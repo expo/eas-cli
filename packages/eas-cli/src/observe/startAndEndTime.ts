@@ -1,4 +1,5 @@
 import { validateDateFlag } from './fetchMetrics';
+import { EasCommandError } from '../commandUtils/errors';
 
 export const DEFAULT_DAYS_BACK = 60;
 
@@ -35,6 +36,9 @@ export function resolveTimeRange(flags: { days?: number; start?: string; end?: s
   }
   if (flags.end) {
     validateDateFlag(flags.end, '--end');
+  }
+  if (flags.end && !flags.start) {
+    throw new EasCommandError('--end requires --start. Pass both, or use --days instead.');
   }
 
   const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
