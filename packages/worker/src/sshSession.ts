@@ -35,7 +35,7 @@ export async function startSshSessionPhaseAsync({
         ctx.logger.info(
           idleTimeoutSeconds === 0
             ? 'It stays open for the whole job and closes once the job finishes and no client is connected.'
-            : `It stays open for the whole job, then closes after ${formatSecondsForLog(idleTimeoutSeconds)} with no client connected. The worker stays up until then.`
+            : `It stays open for the whole job, then closes after ${formatSecondsForLog(idleTimeoutSeconds)} with no client connected. The runner stays up until then.`
         );
 
         const sshLogger = logger.child({ phase: BuildPhase.SSH_SESSION });
