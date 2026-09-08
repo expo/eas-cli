@@ -120,7 +120,7 @@ export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunRes
 function descriptionForJobStatus(status: WorkflowJobStatus): string {
   switch (status) {
     case WorkflowJobStatus.New:
-      return 'Waiting for worker';
+      return 'Waiting for runner';
     case WorkflowJobStatus.InProgress:
       return 'In progress';
     case WorkflowJobStatus.Success:

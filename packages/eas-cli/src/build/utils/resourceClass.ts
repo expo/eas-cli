@@ -66,7 +66,7 @@ function resolveIosResourceClass(
 
   if (resourceClassFlag === ResourceClass.LARGE) {
     throw new Error(
-      `Experimental "large" resource class for Intel iOS workers is no longer available. Remove the specified resource class to use the default, or learn more about all available resource classes: ${link(
+      `Experimental "large" resource class for Intel iOS runners is no longer available. Remove the specified resource class to use the default, or learn more about all available resource classes: ${link(
         'https://docs.expo.dev/build-reference/eas-json/'
       )}`
     );
