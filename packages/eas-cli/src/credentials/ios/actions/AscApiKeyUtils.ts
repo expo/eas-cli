@@ -260,6 +260,23 @@ function filterKeysFromDifferentAppleTeam(
   return keys.filter(key => !key.appleTeam || key.appleTeam?.appleTeamIdentifier === teamId);
 }
 
+export function filterOutIndividualAscApiKeys(
+  keys: AppStoreConnectApiKeyFragment[]
+): AppStoreConnectApiKeyFragment[] {
+  const teamKeys = keys.filter(key => !!key.issuerIdentifier);
+  const hiddenCount = keys.length - teamKeys.length;
+  if (hiddenCount > 0) {
+    Log.log(
+      chalk.gray(
+        `${hiddenCount} individual API ${
+          hiddenCount === 1 ? 'key' : 'keys'
+        } hidden: individual keys are valid only for submissions.`
+      )
+    );
+  }
+  return teamKeys;
+}
+
 export function sortAscApiKeysByUpdatedAtDesc(
   keys: AppStoreConnectApiKeyFragment[]
 ): AppStoreConnectApiKeyFragment[] {

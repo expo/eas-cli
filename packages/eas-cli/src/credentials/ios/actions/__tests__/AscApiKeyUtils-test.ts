@@ -16,6 +16,7 @@ import { AppleTeamType } from '../../appstore/authenticateTypes';
 import { hasAscEnvVars } from '../../appstore/resolveCredentials';
 import {
   AppStoreApiKeyPurpose,
+  filterOutIndividualAscApiKeys,
   getAscApiKeyName,
   promptForAscApiKeyPathAsync,
   provideOrGenerateAscApiKeyAsync,
@@ -51,6 +52,24 @@ afterEach(() => {
   jest.mocked(hasAscEnvVars).mockReset();
   jest.mocked(getAscApiKeyForAppSubmissionsAsync).mockReset();
   jest.mocked(AppStoreConnectApiKeyQuery.getByIdAsync).mockReset();
+});
+
+describe(filterOutIndividualAscApiKeys, () => {
+  it('removes keys without an issuer identifier and keeps the rest', () => {
+    const teamKey = { id: 'team', issuerIdentifier: 'issuer-id' } as any;
+    const individualKey = { id: 'individual', issuerIdentifier: null } as any;
+
+    expect(filterOutIndividualAscApiKeys([teamKey, individualKey])).toEqual([teamKey]);
+  });
+
+  it('returns all keys when none is individual', () => {
+    const keys = [
+      { id: 'a', issuerIdentifier: 'issuer-a' },
+      { id: 'b', issuerIdentifier: 'issuer-b' },
+    ] as any[];
+
+    expect(filterOutIndividualAscApiKeys(keys)).toEqual(keys);
+  });
 });
 
 describe(getAscApiKeyName, () => {
