@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [build-tools] Install FFmpeg before launching `expo-device-hub` in Android device sessions. ([#4332](https://github.com/expo/eas-cli/pull/4332) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Send the branch or tag name to `eas workflow:run --ref`, instead of resolving it to a commit hash locally, so that runs are labeled with the ref that was requested. ([#4311](https://github.com/expo/eas-cli/issues/4311) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
