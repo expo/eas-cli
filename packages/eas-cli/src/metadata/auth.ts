@@ -105,7 +105,7 @@ async function tryResolveAscApiKeyAsync({
         ascApiKey: {
           keyP8: fullKey.keyP8,
           keyId: fullKey.keyIdentifier,
-          issuerId: fullKey.issuerIdentifier,
+          issuerId: fullKey.issuerIdentifier ?? '',
         },
         teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
         teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
