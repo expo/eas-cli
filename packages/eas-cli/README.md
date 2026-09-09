@@ -206,6 +206,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas metadata:push`](#eas-metadatapush)
 * [`eas new [PATH]`](#eas-new-path)
 * [`eas observe:errors`](#eas-observeerrors)
+* [`eas observe:event ID`](#eas-observeevent-id)
 * [`eas observe:events [EVENTNAME]`](#eas-observeevents-eventname)
 * [`eas observe:metrics [METRIC]`](#eas-observemetrics-metric)
 * [`eas observe:metrics-summary`](#eas-observemetrics-summary)
@@ -2272,6 +2273,28 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/observe/errors.ts](https://github.com/expo/eas-cli/blob/v23.2.0/packages/eas-cli/src/commands/observe/errors.ts)_
+
+## `eas observe:event ID`
+
+display a single Observe event (metric, log, or error) by its ID
+
+```
+USAGE
+  $ eas observe:event ID [--project-id <value>] [--json] [--non-interactive]
+
+ARGUMENTS
+  ID  ID of the event to display
+
+FLAGS
+  --json                Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive     Run the command in non-interactive mode.
+  --project-id=<value>  EAS project ID (defaults to the project ID of the current directory)
+
+DESCRIPTION
+  display a single Observe event (metric, log, or error) by its ID
+```
+
+_See code: [packages/eas-cli/src/commands/observe/event.ts](https://github.com/expo/eas-cli/blob/v23.2.0/packages/eas-cli/src/commands/observe/event.ts)_
 
 ## `eas observe:events [EVENTNAME]`
 

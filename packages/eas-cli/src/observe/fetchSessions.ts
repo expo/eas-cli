@@ -14,6 +14,7 @@ import { fetchObserveEventsAsync, resolveOrderBy } from './fetchEvents';
 
 export interface SessionEventEntry {
   source: 'metric' | 'log';
+  id: string;
   timestamp: string;
   sessionId: string;
   // Metric name, user-event name, or error type.
@@ -40,6 +41,7 @@ export interface SessionEventEntry {
 function metricEventToEntry(event: AppObserveMetric): SessionEventEntry {
   return {
     source: 'metric',
+    id: event.id,
     timestamp: event.timestamp,
     sessionId: event.sessionId ?? '',
     name: event.name,
@@ -60,6 +62,7 @@ function metricEventToEntry(event: AppObserveMetric): SessionEventEntry {
 function userEventToEntry(event: AppObserveUserEvent): SessionEventEntry {
   return {
     source: 'log',
+    id: event.id,
     timestamp: event.timestamp,
     sessionId: event.sessionId ?? '',
     name: event.name,
@@ -85,6 +88,7 @@ function errorToEntry(event: AppObserveError): SessionEventEntry {
   ];
   return {
     source: 'log',
+    id: event.id,
     timestamp: event.timestamp,
     sessionId: event.sessionId ?? '',
     name: event.type ?? 'exception',
