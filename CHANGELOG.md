@@ -75,6 +75,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas observe:errors` to display error and exception issue groups (grouped by fingerprint), with `--fingerprint <fingerprint>` to drill into a group's individual occurrences and stack traces. ([#4339](https://github.com/expo/eas-cli/pull/4339) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Add `eas observe:event` to display a single Observe event (metric, log, or error) by its ID. ([#4252](https://github.com/expo/eas-cli/pull/4252) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Add the `eas/install_mitmproxy` step and start serve-sim with `--network-capture` when a simulator session requests network capture. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
