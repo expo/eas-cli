@@ -11,6 +11,19 @@ jest.mock('../utils/stepMetrics');
 const mockUploadStepMetricsToWwwAsync = jest.mocked(uploadStepMetricsToWwwAsync);
 
 describe(CustomBuildContext, () => {
+  it('copies the MCP server URL from the build context', () => {
+    const ctx = new BuildContext(createTestIosJob(), {
+      env: { __API_SERVER_URL: 'http://api.expo.test' },
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      uploadArtifact: jest.fn(),
+      workingdir: '',
+      mcpServerUrl: 'ws://localhost:8787',
+    });
+
+    expect(new CustomBuildContext(ctx).mcpServerUrl).toBe('ws://localhost:8787');
+  });
+
   it('should not lose workflowInterpolationContext', () => {
     const contextUploadArtifact = jest.fn();
     const ctx = new BuildContext(
