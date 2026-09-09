@@ -13,11 +13,7 @@ import zlib from 'node:zlib';
 
 import { sleepAsync } from '../../utils/retry';
 
-import {
-  type DetachedProcessHandle,
-  type NgrokTunnelHandle,
-  spawnDetached,
-} from './remoteDeviceRunSession';
+import { type DetachedProcessHandle, spawnDetached } from './remoteDeviceRunSession';
 
 /**
  * Local egress provides an HTTP(S) proxy through the machine running the EAS CLI.
@@ -176,11 +172,13 @@ export async function startChiselServerAsync({
   controlPort,
   authfilePath,
   env,
+  signal,
 }: {
   chiselPath: string;
   controlPort: number;
   authfilePath: string;
   env: BuildStepEnv;
+  signal?: AbortSignal;
 }): Promise<{ process: DetachedProcessHandle; fingerprint: string }> {
   const server = spawnDetached({
     command: chiselPath,
@@ -194,26 +192,42 @@ export async function startChiselServerAsync({
       '--authfile',
       authfilePath,
     ],
-    env,
+    // AUTH adds an unrestricted user even when --authfile is supplied.
+    env: { ...env, AUTH: '' },
   });
 
-  const deadline = Date.now() + CHISEL_STARTUP_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const fingerprint = parseChiselFingerprint(server.getOutput());
-    if (fingerprint) {
-      return { process: server, fingerprint };
+  try {
+    const deadline = Date.now() + CHISEL_STARTUP_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      signal?.throwIfAborted();
+      if (server.pid === undefined || !isProcessRunning(server.pid)) {
+        break;
+      }
+      const output = server.getOutput();
+      const fingerprint = parseChiselFingerprint(output);
+      // Chisel prints the fingerprint before binding. This line comes from the
+      // child only after its listener succeeds, unlike a probe of a reused port.
+      const listening = output
+        .split('\n')
+        .some(line =>
+          line
+            .trimEnd()
+            .endsWith(`server: Listening on http://${LOCAL_EGRESS_PROXY_HOST}:${controlPort}`)
+        );
+      if (fingerprint && listening) {
+        return { process: server, fingerprint };
+      }
+      await sleepAsync(250);
     }
-    if (server.pid !== undefined && !isProcessRunning(server.pid)) {
-      break;
-    }
-    await sleepAsync(250);
+    throw new SystemError(
+      `The reverse tunnel server did not start within ${CHISEL_STARTUP_TIMEOUT_MS / 1000}s. Output:\n${
+        server.getOutput() || '<empty>'
+      }`
+    );
+  } catch (error) {
+    await server.stopAsync();
+    throw error;
   }
-  await server.stopAsync();
-  throw new SystemError(
-    `The reverse tunnel server did not start within ${CHISEL_STARTUP_TIMEOUT_MS / 1000}s. Output:\n${
-      server.getOutput() || '<empty>'
-    }`
-  );
 }
 
 export function parseDefaultRouteInterface(routeOutput: string): string | null {
@@ -296,10 +310,12 @@ export async function configureSystemProxyAsync({
   env,
   logger,
   port,
+  signal,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
   port: number;
+  signal?: AbortSignal;
 }): Promise<{ service: string }> {
   if (process.env.ENVIRONMENT === 'development') {
     logger.info('Job running outside of EAS, not changing the system proxy.');
@@ -307,7 +323,8 @@ export async function configureSystemProxyAsync({
   }
   const service = await resolveActiveNetworkServiceNameAsync({ env });
   for (const args of buildNetworksetupProxyArgs({ service, host: LOCAL_EGRESS_PROXY_HOST, port })) {
-    await spawn('networksetup', args, { env, logger });
+    signal?.throwIfAborted();
+    await spawn('networksetup', args, { env, logger, signal });
   }
   logger.info(`System proxy for "${service}" set to ${LOCAL_EGRESS_PROXY_HOST}:${port}.`);
   return { service };
@@ -367,17 +384,19 @@ export function buildEgressRemoteConfigFields(
   };
 }
 
-type LocalEgressResources = {
-  server: DetachedProcessHandle;
-  tunnel: NgrokTunnelHandle;
-};
-
 // The egress step returns before the session ends, so the resources it created
-// are held here and released by the step that owns the session's lifetime.
-let activeLocalEgressResources: LocalEgressResources | undefined;
+// are held here and released by the session step or the job's finally block.
+let activeLocalEgressResources:
+  | { stopAsync: () => Promise<void>; controller: AbortController; stopping?: Promise<void> }
+  | undefined;
 
-export function registerLocalEgressResources(resources: LocalEgressResources): void {
-  activeLocalEgressResources = resources;
+export function registerLocalEgressResources(stopAsync: () => Promise<void>): AbortSignal {
+  if (activeLocalEgressResources) {
+    throw new SystemError('Local egress resources are already registered for this job.');
+  }
+  const controller = new AbortController();
+  activeLocalEgressResources = { stopAsync, controller };
+  return controller.signal;
 }
 
 export async function stopLocalEgressResourcesAsync(logger: bunyan): Promise<void> {
@@ -385,16 +404,14 @@ export async function stopLocalEgressResourcesAsync(logger: bunyan): Promise<voi
   if (!resources) {
     return;
   }
-  activeLocalEgressResources = undefined;
-  const results = await Promise.allSettled([
-    resources.tunnel.stopAsync(),
-    resources.server.stopAsync(),
-  ]);
-  for (const result of results) {
-    if (result.status === 'rejected') {
-      logger.warn({ err: result.reason }, 'Could not stop a local egress resource.');
-    }
-  }
+  resources.controller.abort();
+  resources.stopping ??= Promise.resolve()
+    .then(resources.stopAsync)
+    .catch(err => logger.warn({ err }, 'Could not stop a local egress resource.'))
+    .finally(() => {
+      activeLocalEgressResources = undefined;
+    });
+  await resources.stopping;
 }
 
 export async function isPortListeningAsync({
@@ -631,8 +648,9 @@ export async function monitorLocalEgressAsync({
   let lastEscapeScanAt = 0;
   let escapeScanBroken = false;
   const reportedEscapes = new Set<string>();
+  const lifetimeSignal = activeLocalEgressResources?.controller.signal;
   try {
-    while (!signal.aborted) {
+    while (!signal.aborted && !lifetimeSignal?.aborted) {
       const listening = await isPortListeningAsync({ host: LOCAL_EGRESS_PROXY_HOST, port });
       if (listening && !connected) {
         connected = true;

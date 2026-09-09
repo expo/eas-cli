@@ -1,6 +1,9 @@
+import { type bunyan } from '@expo/logger';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { spawnDetached } from '../remoteDeviceRunSession';
 
 import {
   CHISEL_VERSION,
@@ -17,11 +20,15 @@ import {
   parseExitIpResponse,
   parseNetworkServiceNameForDevice,
   readLocalEgressHandoffAsync,
+  registerLocalEgressResources,
+  startChiselServerAsync,
+  stopLocalEgressResourcesAsync,
   writeLocalEgressHandoffAsync,
 } from '../localEgress';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('@expo/turtle-spawn');
+jest.mock('../remoteDeviceRunSession', () => ({ spawnDetached: jest.fn() }));
 
 describe(getChiselAssetName, () => {
   it.each([
@@ -289,5 +296,116 @@ describe('local egress handoff', () => {
     const handoffPath = path.join(tempDir, 'handoff.json');
     await fs.promises.writeFile(handoffPath, JSON.stringify({ url: 'x' }), 'utf8');
     await expect(readLocalEgressHandoffAsync(handoffPath)).rejects.toThrow('malformed');
+  });
+});
+
+describe(startChiselServerAsync, () => {
+  const options = {
+    chiselPath: '/tmp/chisel',
+    controlPort: 52001,
+    authfilePath: '/tmp/authfile.json',
+    env: { PATH: '/bin', AUTH: 'unexpected:password' },
+  };
+  let output: string;
+  let stopAsync: jest.Mock;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    output = 'server: Fingerprint pinned-key=\n';
+    stopAsync = jest.fn().mockResolvedValue(undefined);
+    jest.spyOn(process, 'kill').mockReturnValue(true);
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 12345,
+      getOutput: () => output,
+      stopAsync,
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it('waits for the child to bind its exact port and clears inherited AUTH', async () => {
+    let resolved = false;
+    const started = startChiselServerAsync(options).then(result => {
+      resolved = true;
+      return result;
+    });
+    output += 'server: Listening on http://127.0.0.1:520010\n';
+    await jest.advanceTimersByTimeAsync(250);
+    expect(resolved).toBe(false);
+    output += 'server: Listening on http://127.0.0.1:52001\n';
+    await jest.advanceTimersByTimeAsync(250);
+    await expect(started).resolves.toMatchObject({ fingerprint: 'pinned-key=' });
+    expect(spawnDetached).toHaveBeenCalledWith(
+      expect.objectContaining({ env: { PATH: '/bin', AUTH: '' } })
+    );
+    expect(options.env.AUTH).toBe('unexpected:password');
+    expect(stopAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects and stops a child that prints its fingerprint then fails to bind', async () => {
+    const started = startChiselServerAsync(options);
+    const rejected = expect(started).rejects.toThrow('address already in use');
+    output += 'listen tcp 127.0.0.1:52001: bind: address already in use\n';
+    jest.mocked(process.kill).mockImplementation(() => {
+      throw new Error('ESRCH');
+    });
+    await jest.advanceTimersByTimeAsync(250);
+    await rejected;
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the child when startup is cancelled', async () => {
+    const controller = new AbortController();
+    const started = startChiselServerAsync({ ...options, signal: controller.signal });
+    const rejected = expect(started).rejects.toThrow('cancelled');
+    controller.abort(new Error('cancelled'));
+    await jest.advanceTimersByTimeAsync(250);
+    await rejected;
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('local egress resource lifetime', () => {
+  const logger = { warn: jest.fn() } as unknown as bunyan;
+
+  it('aborts the lifetime and awaits the same cleanup for concurrent callers', async () => {
+    let finish!: () => void;
+    const cleanup = jest.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const signal = registerLocalEgressResources(cleanup);
+    const first = stopLocalEgressResourcesAsync(logger);
+    const second = stopLocalEgressResourcesAsync(logger);
+    expect(signal.aborted).toBe(true);
+    await Promise.resolve();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    let complete = false;
+    void second.then(() => {
+      complete = true;
+    });
+    await Promise.resolve();
+    expect(complete).toBe(false);
+    finish();
+    await Promise.all([first, second]);
+    await stopLocalEgressResourcesAsync(logger);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports cleanup failure without masking the job result', async () => {
+    const error = new Error('cleanup failed');
+    registerLocalEgressResources(async () => {
+      throw error;
+    });
+    await expect(stopLocalEgressResourcesAsync(logger)).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      'Could not stop a local egress resource.'
+    );
   });
 });

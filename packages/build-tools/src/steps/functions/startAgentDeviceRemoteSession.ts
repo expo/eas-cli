@@ -186,19 +186,22 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         });
       } finally {
         localEgressMonitorAbortController.abort();
-        if (webPreview) {
-          await webPreview.stopAsync();
+        try {
+          if (webPreview) {
+            await webPreview.stopAsync();
+          }
+          await agentDeviceTunnel.stopAsync();
+          if (eventCollection) {
+            await stopAgentDeviceEventCollectionSafelyAsync({
+              eventCollection,
+              deviceRunSessionId,
+              logger,
+            });
+          }
+          await daemonProcess.stopAsync();
+        } finally {
+          await stopLocalEgressResourcesAsync(logger);
         }
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
-            deviceRunSessionId,
-            logger,
-          });
-        }
-        await daemonProcess.stopAsync();
-        await stopLocalEgressResourcesAsync(logger);
       }
     },
   });

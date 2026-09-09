@@ -413,6 +413,14 @@ export async function startLocalEgressProxyServerAsync({
     });
   };
   const server = http.createServer();
+  // Bound accepted sockets as well as parsed operations: idle peers and upgraded
+  // connections still consume descriptors. Upstream sockets use a separate budget.
+  server.maxConnections = MAX_CONCURRENT_CONNECTIONS;
+  server.setTimeout(SOCKET_IDLE_TIMEOUT_MS);
+  server.on('timeout', (socket: net.Socket) => socket.destroy());
+  server.on('drop', () => {
+    stats.refused += 1;
+  });
   server.on('connection', trackSocket);
 
   // HTTPS and WSS use CONNECT. Acquire and observe disconnects before the first await.
