@@ -139,7 +139,7 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios and --type agent-device.',
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios.',
       options: EGRESS_FLAG_VALUES,
     })(),
     force: Flags.boolean({
@@ -229,14 +229,8 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
-    if (
-      egress &&
-      (platform !== AppPlatform.Ios ||
-        DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type] !== DeviceRunSessionType.AgentDevice)
-    ) {
-      throw new EasCommandError(
-        '--egress local is only supported with --platform ios and --type agent-device.'
-      );
+    if (egress && platform !== AppPlatform.Ios) {
+      throw new EasCommandError('--egress local is only supported with --platform ios.');
     }
     if (platform === AppPlatform.Android) {
       Log.warn(
@@ -421,7 +415,7 @@ export default class Simulator extends EasCommand {
       sessionInterrupt.dispose();
       if (localEgress) {
         Log.log(
-          'Start `eas simulator:egress` in another process to connect the tunnel for proxied HTTP(S) requests.'
+          `Start \`eas simulator:egress${flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env ? ' --config-type env' : ''}\` in another process to connect the tunnel for proxied HTTP(S) requests.`
         );
       }
       Log.log(

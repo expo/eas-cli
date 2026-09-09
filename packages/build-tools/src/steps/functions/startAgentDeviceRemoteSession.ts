@@ -13,15 +13,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import {
+  uploadRemoteSessionConfigWithLocalEgressAsync,
+  withLocalEgressSession,
+} from '../utils/localEgressSession';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
-import {
-  buildEgressRemoteConfigFields,
-  monitorLocalEgressAsync,
-  readLocalEgressHandoffAsync,
-  stopLocalEgressResourcesAsync,
-} from '../utils/localEgress';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -31,7 +29,6 @@ import {
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -72,7 +69,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -113,11 +110,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      // Written by the `start_local_egress` step when the session was created with
-      // local egress; absent otherwise.
-      const localEgress = await readLocalEgressHandoffAsync();
-      const localEgressMonitorAbortController = new AbortController();
-
       let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
@@ -132,7 +124,9 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         });
         logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
-        await uploadRemoteSessionConfigAsync({
+        await uploadRemoteSessionConfigWithLocalEgressAsync({
+          env,
+          signal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
@@ -140,22 +134,9 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
             agentDeviceRemoteSessionToken: daemonToken,
             webPreviewUrl: webPreview.previewUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
-            ...buildEgressRemoteConfigFields(localEgress),
           },
           logger,
         });
-        if (localEgress) {
-          logger.info(
-            'Local egress: waiting for the EAS CLI egress client to connect. Proxied HTTP(S) ' +
-              'requests are unavailable until it does.'
-          );
-          void monitorLocalEgressAsync({
-            port: localEgress.port,
-            env,
-            logger,
-            signal: localEgressMonitorAbortController.signal,
-          });
-        }
         void pollAgentDeviceArtifactsForUploadAsync(ctx, {
           deviceRunSessionId,
           daemonUrl: `http://127.0.0.1:${daemonPort}`,
@@ -185,25 +166,20 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        localEgressMonitorAbortController.abort();
-        try {
-          if (webPreview) {
-            await webPreview.stopAsync();
-          }
-          await agentDeviceTunnel.stopAsync();
-          if (eventCollection) {
-            await stopAgentDeviceEventCollectionSafelyAsync({
-              eventCollection,
-              deviceRunSessionId,
-              logger,
-            });
-          }
-          await daemonProcess.stopAsync();
-        } finally {
-          await stopLocalEgressResourcesAsync(logger);
+        if (webPreview) {
+          await webPreview.stopAsync();
         }
+        await agentDeviceTunnel.stopAsync();
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+        await daemonProcess.stopAsync();
       }
-    },
+    }),
   });
 }
 

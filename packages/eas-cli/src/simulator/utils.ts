@@ -80,9 +80,6 @@ export type LocalEgressConfig = {
 export function getLocalEgressConfig(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): LocalEgressConfig | null {
-  if (remoteConfig.__typename !== 'AgentDeviceRunSessionRemoteConfig') {
-    return null;
-  }
   const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
   if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
     return null;
@@ -107,12 +104,20 @@ export function getLocalEgressEnvironmentVariables(
 export function getRemoteSessionEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): Record<string, string> {
+  return {
+    ...getControllerEnvironmentVariables(remoteConfig),
+    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
+  };
+}
+
+function getControllerEnvironmentVariables(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): Record<string, string> {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig':
       return {
         AGENT_DEVICE_DAEMON_BASE_URL: remoteConfig.agentDeviceRemoteSessionUrl,
         AGENT_DEVICE_DAEMON_AUTH_TOKEN: remoteConfig.agentDeviceRemoteSessionToken,
-        ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
       };
     case 'ArgentRunSessionRemoteConfig':
       return {
@@ -177,9 +182,35 @@ export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType
 ): string {
+  const instructions = formatControllerInstructions(remoteConfig, configType);
+  const egress = getLocalEgressConfig(remoteConfig);
+  if (!egress) {
+    return instructions;
+  }
+  return [
+    instructions,
+    '',
+    '🔀 This session can route proxied HTTP(S) requests through this machine.',
+    ...(configType === 'env'
+      ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
+          ([key, value]) => `export ${key}='${value}'`
+        )
+      : []),
+    'Run the egress client to connect the tunnel:',
+    '',
+    configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress',
+    '',
+    'Keep it running for the life of the session.',
+  ].join('\n');
+}
+
+function formatControllerInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  configType: RemoteSessionInstructionsConfigType
+): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -202,21 +233,10 @@ export function formatRemoteSessionInstructions(
           formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
-      if (getLocalEgressConfig(remoteConfig)) {
-        lines.push(
-          '',
-          '🔀 This session can route proxied HTTP(S) requests through this machine.',
-          'Run the egress client to connect the tunnel:',
-          '',
-          'eas simulator:egress',
-          '',
-          'Keep it running for the life of the session.'
-        );
-      }
       return lines.join('\n');
     }
     case 'ArgentRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -254,7 +274,7 @@ export function formatRemoteSessionInstructions(
       return lines.join('\n');
     }
     case 'AppiumRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [

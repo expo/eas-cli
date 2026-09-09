@@ -15,6 +15,10 @@ import semver from 'semver';
 import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import {
+  uploadRemoteSessionConfigWithLocalEgressAsync,
+  withLocalEgressSession,
+} from '../utils/localEgressSession';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import { sleepAsync } from '../../utils/retry';
@@ -28,7 +32,6 @@ import {
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -62,7 +65,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
@@ -138,7 +141,9 @@ export function createStartAppiumRemoteSessionBuildFunction(
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
         });
 
-        await uploadRemoteSessionConfigAsync({
+        await uploadRemoteSessionConfigWithLocalEgressAsync({
+          env,
+          signal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
@@ -178,7 +183,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         await appiumProcess.stopAsync();
         await fs.promises.rm(appiumHome, { recursive: true, force: true });
       }
-    },
+    }),
   });
 }
 

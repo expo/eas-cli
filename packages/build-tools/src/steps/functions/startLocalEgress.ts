@@ -76,9 +76,9 @@ function awaitLocalEgressAcquisitionAsync<T>(
  * Points the device host's system HTTP(S) proxy at the EAS CLI's egress client.
  * Must run before `eas/start_ios_simulator`: the simulator reads the system proxy
  * at boot. Nothing else on the host changes, so requests from libraries that
- * bypass the system proxy are not covered; the agent-device session step reports
- * them. The resources started here are released by that step when the session
- * ends.
+ * bypass the system proxy are not covered; the shared session monitor reports
+ * them. The shared session cleanup releases the resources started here when
+ * the session ends, with a job finalizer as a fallback.
  */
 export function createStartLocalEgressBuildFunction(): BuildFunction {
   return new BuildFunction({

@@ -1,3 +1,5 @@
+import { Flags } from '@oclif/core';
+
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { readLocalEgressConfigFromEnv, runLocalEgressAsync } from '../../simulator/egress';
@@ -10,18 +12,28 @@ import {
 export default class SimulatorEgress extends EasCommand {
   static override hidden = true;
   static override aliases = ['sim:egress'];
-  static override description = `[EXPERIMENTAL] run the local egress client for the simulator session in ${SIMULATOR_DOTENV_FILE_NAME} to route proxied HTTP(S) requests through this machine`;
+  static override description = `[EXPERIMENTAL] run the local egress client for a simulator session to route proxied HTTP(S) requests through this machine`;
+
+  static override flags = {
+    'config-type': Flags.option({
+      description: `Read session credentials from ${SIMULATOR_DOTENV_FILE_NAME} (dotenv) or the current shell environment (env).`,
+      options: ['dotenv', 'env'] as const,
+      default: 'dotenv',
+    })(),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
-    await this.parse(SimulatorEgress);
+    const { flags } = await this.parse(SimulatorEgress);
     const { projectDir } = await this.getContextAsync(SimulatorEgress, {
       nonInteractive: true,
     });
-    await loadSimulatorEnvAsync(projectDir);
+    if (flags['config-type'] === 'dotenv') {
+      await loadSimulatorEnvAsync(projectDir);
+    }
 
     const egress = readLocalEgressConfigFromEnv(process.env);
     const deviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -33,7 +45,7 @@ export default class SimulatorEgress extends EasCommand {
     );
     Log.log(
       'Press Ctrl+C to stop the egress client. The simulator session keeps running; ' +
-        'proxied HTTP(S) requests are unavailable until the tunnel reconnects. Stop the session with `eas simulator:stop`.'
+        `proxied HTTP(S) requests are unavailable until the tunnel reconnects. Stop the session with \`eas simulator:stop${deviceRunSessionId ? ` --id ${deviceRunSessionId}` : ''}\`.`
     );
     Log.newLine();
 

@@ -94,22 +94,38 @@ export const DeviceRunSessionQuery = {
                       egressPort
                     }
                     ... on ArgentRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       toolsUrl
                       toolsAuthToken
                       webPreviewUrl
                       webPreviewToken
                     }
                     ... on AppiumRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       appiumUrl
                       capabilities
                       webPreviewUrl
                       webPreviewToken
                     }
                     ... on ServeSimRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       previewUrl
                       previewToken
                     }
                     ... on WebPreviewOnlyRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       previewUrl: webPreviewUrl
                       previewToken: webPreviewToken
                     }

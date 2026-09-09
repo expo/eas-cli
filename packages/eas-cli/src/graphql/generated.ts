@@ -1082,11 +1082,6 @@ export type AgentDeviceRunSessionRemoteConfig = {
   agentDeviceRemoteSessionToken: Scalars['String']['output'];
   agentDeviceRemoteSessionUrl: Scalars['String']['output'];
   /**
-   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
-   * when the session does not use local egress.
-   */
-  egressToken?: Maybe<Scalars['String']['output']>;
-  /**
    * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
    * the session does not use local egress.
    */
@@ -1096,6 +1091,11 @@ export type AgentDeviceRunSessionRemoteConfig = {
    * through the tunnel. Null when the session does not use local egress.
    */
   egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
+   */
+  egressToken?: Maybe<Scalars['String']['output']>;
   /**
    * Reverse-tunnel endpoint the local egress client connects to. Null when the
    * session does not use local egress.
@@ -4693,6 +4693,26 @@ export type AppiumRunSessionRemoteConfig = {
   appiumUrl: Scalars['String']['output'];
   /** W3C capabilities for the device that backs this session. */
   capabilities: Scalars['JSONObject']['output'];
+  /**
+   * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
+   * the session does not use local egress.
+   */
+  egressFingerprint?: Maybe<Scalars['String']['output']>;
+  /**
+   * Loopback port on the device host that the local egress client must serve
+   * through the tunnel. Null when the session does not use local egress.
+   */
+  egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
+   */
+  egressToken?: Maybe<Scalars['String']['output']>;
+  /**
+   * Reverse-tunnel endpoint the local egress client connects to. Null when the
+   * session does not use local egress.
+   */
+  egressUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
@@ -5101,6 +5121,26 @@ export type AppleTeamUpdateInput = {
 
 export type ArgentRunSessionRemoteConfig = {
   __typename?: 'ArgentRunSessionRemoteConfig';
+  /**
+   * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
+   * the session does not use local egress.
+   */
+  egressFingerprint?: Maybe<Scalars['String']['output']>;
+  /**
+   * Loopback port on the device host that the local egress client must serve
+   * through the tunnel. Null when the session does not use local egress.
+   */
+  egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
+   */
+  egressToken?: Maybe<Scalars['String']['output']>;
+  /**
+   * Reverse-tunnel endpoint the local egress client connects to. Null when the
+   * session does not use local egress.
+   */
+  egressUrl?: Maybe<Scalars['String']['output']>;
   toolsAuthToken?: Maybe<Scalars['String']['output']>;
   toolsUrl: Scalars['String']['output'];
   /** Session token gating the web preview. Null when the preview runs ungated. */
@@ -6307,7 +6347,7 @@ export type CreateDeviceRunSessionInput = {
   /**
    * Where the virtual device's proxied network traffic exits to the internet. If
    * omitted, all traffic exits from EAS infrastructure. LOCAL is only supported for
-   * AGENT_DEVICE sessions on IOS.
+   * sessions on IOS.
    */
   egress?: InputMaybe<DeviceRunSessionEgress>;
   /**
@@ -7055,6 +7095,22 @@ export type DeviceRunSessionArtifactUploadSession = {
   url: Scalars['String']['output'];
 };
 
+/**
+ * Where the virtual device's proxied network traffic exits to the internet. When
+ * unset, all traffic exits from EAS infrastructure.
+ */
+export enum DeviceRunSessionEgress {
+  /**
+   * HTTP(S) requests that honor the device's system proxy exit through a reverse
+   * tunnel to the machine running the EAS CLI egress client, so third parties see
+   * that machine's public IP. Those requests fail while the client is disconnected.
+   * Requests from libraries that bypass the system proxy are not covered and exit
+   * from EAS infrastructure. The client must stay connected for the life of the
+   * session.
+   */
+  Local = 'LOCAL'
+}
+
 export type DeviceRunSessionEventLogUploadSession = {
   __typename?: 'DeviceRunSessionEventLogUploadSession';
   headers: Scalars['JSONObject']['output'];
@@ -7130,22 +7186,6 @@ export type DeviceRunSessionQuery_ByIdArgs = {
 };
 
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
-
-/**
- * Where the virtual device's proxied network traffic exits to the internet. When
- * unset, all traffic exits from EAS infrastructure.
- */
-export enum DeviceRunSessionEgress {
-  /**
-   * HTTP(S) requests that honor the device's system proxy exit through a reverse
-   * tunnel to the machine running the EAS CLI egress client, so third parties see
-   * that machine's public IP. Those requests fail while the client is disconnected.
-   * Requests from libraries that bypass the system proxy are not covered and exit
-   * from EAS infrastructure. The client must stay connected for the life of the
-   * session.
-   */
-  Local = 'LOCAL'
-}
 
 export enum DeviceRunSessionResourceClass {
   Large = 'LARGE',
@@ -11114,6 +11154,26 @@ export type SentryProjectMutation_DeleteSentryProjectArgs = {
  */
 export type ServeSimRunSessionRemoteConfig = {
   __typename?: 'ServeSimRunSessionRemoteConfig';
+  /**
+   * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
+   * the session does not use local egress.
+   */
+  egressFingerprint?: Maybe<Scalars['String']['output']>;
+  /**
+   * Loopback port on the device host that the local egress client must serve
+   * through the tunnel. Null when the session does not use local egress.
+   */
+  egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
+   */
+  egressToken?: Maybe<Scalars['String']['output']>;
+  /**
+   * Reverse-tunnel endpoint the local egress client connects to. Null when the
+   * session does not use local egress.
+   */
+  egressUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the preview. Null when the preview runs ungated. */
   previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
@@ -13177,6 +13237,26 @@ export type WebNotificationUpdateReadStateInput = {
 
 export type WebPreviewOnlyRunSessionRemoteConfig = {
   __typename?: 'WebPreviewOnlyRunSessionRemoteConfig';
+  /**
+   * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
+   * the session does not use local egress.
+   */
+  egressFingerprint?: Maybe<Scalars['String']['output']>;
+  /**
+   * Loopback port on the device host that the local egress client must serve
+   * through the tunnel. Null when the session does not use local egress.
+   */
+  egressPort?: Maybe<Scalars['Int']['output']>;
+  /**
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
+   */
+  egressToken?: Maybe<Scalars['String']['output']>;
+  /**
+   * Reverse-tunnel endpoint the local egress client connects to. Null when the
+   * session does not use local egress.
+   */
+  egressUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   webPreviewUrl: Scalars['String']['output'];
@@ -16221,10 +16301,10 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
-        | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null }
-        | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null }
-        | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, previewToken?: string | null }
-        | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', previewUrl: string, previewToken?: string | null }
+        | { __typename: 'AppiumRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null }
+        | { __typename: 'ArgentRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null }
+        | { __typename: 'ServeSimRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null }
+        | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{

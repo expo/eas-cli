@@ -6,6 +6,7 @@ import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
+  DeviceRunSessionEgress,
   DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -860,32 +861,173 @@ describe(Simulator, () => {
     processExitSpy.mockRestore();
   });
 
-  it('propagates an egress failure after stopping the session and removing its interrupt handler', async () => {
-    const failure = new Error('listen EADDRINUSE');
-    jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
-    const session = makeDeviceRunSession();
-    mockByIdAsync.mockResolvedValue({
-      ...session,
-      remoteConfig: {
+  const localEgressSessions: [
+    string,
+    DeviceRunSessionType,
+    NonNullable<DeviceRunSessionById['remoteConfig']>,
+  ][] = [
+    [
+      'agent-device',
+      DeviceRunSessionType.AgentDevice,
+      {
         __typename: 'AgentDeviceRunSessionRemoteConfig',
         agentDeviceRemoteSessionUrl: 'https://agent.example.com',
         agentDeviceRemoteSessionToken: 'token',
-        egressUrl: 'https://egress.example.com',
-        egressToken: 'pw',
-        egressFingerprint: 'fp',
-        egressPort: 8899,
       },
-    });
-    const listeners = process.listeners('SIGINT');
-    const { command } = createCommand(['--platform', 'ios', '--egress', 'local']);
-    await expect(command.runAsync()).rejects.toBe(failure);
-    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      'session-123'
+    ],
+    [
+      'appium',
+      DeviceRunSessionType.Appium,
+      {
+        __typename: 'AppiumRunSessionRemoteConfig',
+        appiumUrl: 'https://appium.example.com',
+        capabilities: {},
+      },
+    ],
+    [
+      'argent',
+      DeviceRunSessionType.Argent,
+      {
+        __typename: 'ArgentRunSessionRemoteConfig',
+        toolsUrl: 'https://argent.example.com',
+      },
+    ],
+    [
+      'web-preview-only',
+      DeviceRunSessionType.WebPreviewOnly,
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    ],
+    [
+      'web-preview-only',
+      DeviceRunSessionType.ServeSim,
+      {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    ],
+  ];
+  const localEgressFields = {
+    egressUrl: 'https://egress.example.com',
+    egressToken: 'pw',
+    egressFingerprint: 'fp',
+    egressPort: 8899,
+  };
+
+  it.each(localEgressSessions)(
+    'creates iOS %s sessions with local egress and saves connection details',
+    async (typeFlag, type, remoteConfig) => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+        '--non-interactive',
+      ]);
+      await command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          platform: AppPlatform.Ios,
+          egress: DeviceRunSessionEgress.Local,
+        })
+      );
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_TOKEN='pw'")
+      );
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:egress'));
+      expect(runLocalEgressAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it('prints the shell credential command when local egress uses env output', async () => {
+    const [typeFlag, type, remoteConfig] = localEgressSessions[1];
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type,
+        remoteConfig: { ...remoteConfig, ...localEgressFields },
+      })
     );
-    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
-    expect(process.listeners('SIGINT')).toEqual(listeners);
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      typeFlag,
+      '--egress',
+      'local',
+      '--out-config-type',
+      'env',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('Start `eas simulator:egress --config-type env` in another process')
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Start `eas simulator:egress` in another process')
+    );
   });
+
+  it.each(localEgressSessions)(
+    'rejects local egress for Android %s before creating a session',
+    async typeFlag => {
+      const { command } = createCommand([
+        '--platform',
+        'android',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+        '--non-interactive',
+      ]);
+      await expect(command.runAsync()).rejects.toThrow(
+        '--egress local is only supported with --platform ios.'
+      );
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(localEgressSessions)(
+    'stops %s after an interactive egress failure and removes its interrupt handler',
+    async (typeFlag, type, remoteConfig) => {
+      const failure = new Error('listen EADDRINUSE');
+      jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
+      const listeners = process.listeners('SIGINT');
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+      ]);
+      await expect(command.runAsync()).rejects.toBe(failure);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+      expect(process.listeners('SIGINT')).toEqual(listeners);
+    }
+  );
 
   it('prompts to select the platform when --platform is omitted', async () => {
     mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
