@@ -27,11 +27,13 @@ function makeIosBuildContext({
   cocoapodsCacheUrl,
   usePrecompiledModules = true,
   expoUsePrecompiledModules,
+  enterpriseRepository,
 }: {
   expoVersion?: string;
   cocoapodsCacheUrl?: string;
   usePrecompiledModules?: boolean;
   expoUsePrecompiledModules?: string;
+  enterpriseRepository?: string;
 }): BuildContext<Ios.Job> {
   vol.fromJSON({
     [path.join(IOS_DIR, '.keep')]: '',
@@ -63,6 +65,7 @@ function makeIosBuildContext({
         ? { EXPO_USE_PRECOMPILED_MODULES: expoUsePrecompiledModules }
         : {}),
       ...(cocoapodsCacheUrl ? { EAS_BUILD_COCOAPODS_CACHE_URL: cocoapodsCacheUrl } : {}),
+      ...(enterpriseRepository ? { ENTERPRISE_REPOSITORY: enterpriseRepository } : {}),
     },
     uploadArtifact: jest.fn(),
   });
@@ -128,6 +131,47 @@ describe(installPods, () => {
     expect(ctx.logger.info).toHaveBeenCalledWith(
       'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nEXPO_PRECOMPILED_MODULES_BASE_URL=https://cocoapods-cache.expo.test/storage.googleapis.com/eas-build-precompiled-modules/\nPrecompiled modules pod install environment is configured.'
     );
+  });
+
+  it('configures the React Native enterprise repository through the CocoaPods cache', async () => {
+    const ctx = makeIosBuildContext({
+      usePrecompiledModules: false,
+      cocoapodsCacheUrl: 'https://cocoapods-cache.expo.test/',
+    });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env).toEqual(
+      expect.objectContaining({
+        EAS_BUILD_COCOAPODS_CACHE_URL: 'https://cocoapods-cache.expo.test/',
+        ENTERPRISE_REPOSITORY: 'https://cocoapods-cache.expo.test/repo1.maven.org/maven2',
+      })
+    );
+  });
+
+  it('does not override a user-provided React Native enterprise repository', async () => {
+    const ctx = makeIosBuildContext({
+      usePrecompiledModules: false,
+      cocoapodsCacheUrl: 'https://cocoapods-cache.expo.test/',
+      enterpriseRepository: 'https://maven.corporate.test/maven2',
+    });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env).toEqual(
+      expect.objectContaining({
+        EAS_BUILD_COCOAPODS_CACHE_URL: 'https://cocoapods-cache.expo.test/',
+        ENTERPRISE_REPOSITORY: 'https://maven.corporate.test/maven2',
+      })
+    );
+  });
+
+  it('does not configure the React Native enterprise repository without the CocoaPods cache', async () => {
+    const ctx = makeIosBuildContext({ usePrecompiledModules: false });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.ENTERPRISE_REPOSITORY).toBeUndefined();
   });
 
   it('does not add precompiled modules env vars below the minimum Expo version', async () => {
