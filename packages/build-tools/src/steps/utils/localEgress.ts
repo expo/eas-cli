@@ -20,16 +20,20 @@ import {
 } from './remoteDeviceRunSession';
 
 /**
- * Local egress routes the simulator's network traffic through the machine that
- * runs the EAS CLI, so third parties see that machine's public IP.
+ * Local egress provides an HTTP(S) proxy through the machine running the EAS CLI.
+ * Requests that use this proxy exit through that machine's network.
  *
  * Worker side: a chisel server in reverse mode listens on loopback and is exposed
  * through the session's ngrok domain. When the CLI's egress client connects, chisel
  * opens LOCAL_EGRESS_PROXY_PORT on this host and forwards every connection to the
- * CONNECT proxy the CLI runs. The macOS system proxy points at that port, so the
- * simulator's CFNetwork and WebKit traffic goes through it. Until the client
- * connects, nothing listens on the port and proxied requests fail instead of
- * leaving from this host's address.
+ * HTTP proxy the CLI runs. The macOS system proxy points at that port. Until the
+ * client connects, nothing listens on the port and proxied requests fail.
+ *
+ * Contract: HTTP(S) and WebSocket requests that honor the system proxy (WebKit,
+ * URLSession and other CFNetwork clients) exit from the egress client's network
+ * and fail while the client is disconnected. Requests from libraries that bypass
+ * the system proxy are not covered and exit from this host. Nothing here enforces
+ * routing; the session monitor reports such direct connections instead.
  */
 
 export const LOCAL_EGRESS_PROXY_HOST = '127.0.0.1';
@@ -51,8 +55,9 @@ const CHISEL_SHA256_BY_ASSET: Record<string, string> = {
 };
 
 const CHISEL_STARTUP_TIMEOUT_MS = 15_000;
-const PF_WORKER_ANCHOR = 'worker';
 const EGRESS_MONITOR_INTERVAL_MS = 2_000;
+const EGRESS_ESCAPE_SCAN_INTERVAL_MS = 5_000;
+const EGRESS_ESCAPE_LOG_LIMIT = 50;
 
 export type LocalEgressHandoff = {
   /** Public URL of the reverse tunnel server, reachable through ngrok. */
@@ -284,8 +289,8 @@ export function buildNetworksetupProxyArgs({
 /**
  * Point the macOS system HTTP and HTTPS proxy at the loopback egress port. The
  * simulator reads these settings when it boots, so this must run before
- * `start_ios_simulator`. No bypass domains are set: any destination that
- * bypassed the proxy would leave from this host's address.
+ * `start_ios_simulator`. Existing bypass and automatic proxy settings are left
+ * unchanged. Requests that bypass this proxy can leave from this host's address.
  */
 export async function configureSystemProxyAsync({
   env,
@@ -306,86 +311,6 @@ export async function configureSystemProxyAsync({
   }
   logger.info(`System proxy for "${service}" set to ${LOCAL_EGRESS_PROXY_HOST}:${port}.`);
   return { service };
-}
-
-export function parseDnsResolvers(scutilDnsOutput: string): string[] {
-  const resolvers = new Set<string>();
-  for (const match of scutilDnsOutput.matchAll(/nameserver\[\d+\]\s*:\s*(\S+)/g)) {
-    resolvers.add(match[1]);
-  }
-  return [...resolvers];
-}
-
-/**
- * Append a UDP block to the existing pf anchor rules. UDP is the traffic an HTTP
- * proxy cannot carry (QUIC, WebRTC, STUN), so without this it would leave from
- * the host's own address. DNS to the host's configured resolvers stays open for
- * the worker itself. `quick` rules match first-wins, so the existing passes to the
- * VM gateway keep working. Idempotent: lines already present are not repeated.
- */
-export function buildEgressPfRules({
-  existingRules,
-  resolvers,
-}: {
-  existingRules: string;
-  resolvers: string[];
-}): string {
-  const lines = existingRules
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  const additions = [
-    ...resolvers.map(resolver => `pass out quick proto udp from any to ${resolver} port 53`),
-    'block drop out quick inet proto udp all',
-    'block drop out quick inet6 proto udp all',
-  ];
-  for (const addition of additions) {
-    if (!lines.includes(addition)) {
-      lines.push(addition);
-    }
-  }
-  return `${lines.join('\n')}\n`;
-}
-
-export async function applyEgressPfRulesAsync({
-  env,
-  logger,
-  workDir,
-}: {
-  env: BuildStepEnv;
-  logger: bunyan;
-  workDir: string;
-}): Promise<void> {
-  if (process.env.ENVIRONMENT === 'development') {
-    logger.info('Job running outside of EAS, not changing pf rules.');
-    return;
-  }
-  const existing = await spawn('sudo', ['pfctl', '-a', PF_WORKER_ANCHOR, '-sr'], {
-    env,
-    stdio: 'pipe',
-  });
-  const dns = await spawn('scutil', ['--dns'], { env, stdio: 'pipe' });
-  const resolvers = parseDnsResolvers(dns.stdout);
-  const rules = buildEgressPfRules({ existingRules: existing.stdout, resolvers });
-  const rulesPath = path.join(workDir, 'egress-pf.conf');
-  await fs.promises.writeFile(rulesPath, rules, 'utf8');
-  await spawn('sudo', ['pfctl', '-a', PF_WORKER_ANCHOR, '-f', rulesPath], { env, logger });
-  await spawn('sudo', ['pfctl', '-E'], { env, logger });
-
-  const loaded = await spawn('sudo', ['pfctl', '-a', PF_WORKER_ANCHOR, '-sr'], {
-    env,
-    stdio: 'pipe',
-  });
-  if (!loaded.stdout.includes('block drop out quick inet proto udp')) {
-    throw new SystemError(
-      `pf did not load the UDP block for local egress. Loaded rules:\n${loaded.stdout || '<empty>'}`
-    );
-  }
-  logger.info(
-    `pf blocks direct UDP from this host${
-      resolvers.length > 0 ? ` except DNS to ${resolvers.join(', ')}` : ''
-    }. Direct TCP from processes that ignore the system proxy is not blocked yet.`
-  );
 }
 
 export async function writeLocalEgressHandoffAsync(
@@ -519,8 +444,172 @@ export async function fetchExitIpThroughProxyAsync({
 }
 
 /**
- * Log when the egress client connects and disconnects, and the exit IP seen
- * through it. Never rejects: it runs in the background for the whole session.
+ * Processes inside the simulator run on the host as descendants of launchd_sim,
+ * so `ps -axo pid=,ppid=,comm=` ancestry identifies them. Returns every
+ * descendant pid; launchd_sim itself opens no network connections.
+ */
+export function collectSimulatorProcessIds(psOutput: string): number[] {
+  const childrenByParent = new Map<number, number[]>();
+  const roots: number[] = [];
+  for (const line of psOutput.split('\n')) {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\S.*)$/.exec(line);
+    if (!match) {
+      continue;
+    }
+    const pid = Number(match[1]);
+    const parentPid = Number(match[2]);
+    const command = match[3].trim();
+    const siblings = childrenByParent.get(parentPid) ?? [];
+    siblings.push(pid);
+    childrenByParent.set(parentPid, siblings);
+    if (path.basename(command) === 'launchd_sim') {
+      roots.push(pid);
+    }
+  }
+
+  const descendants: number[] = [];
+  const seen = new Set<number>(roots);
+  const queue = [...roots];
+  for (let i = 0; i < queue.length; i++) {
+    for (const child of childrenByParent.get(queue[i]) ?? []) {
+      if (seen.has(child)) {
+        continue;
+      }
+      seen.add(child);
+      descendants.push(child);
+      queue.push(child);
+    }
+  }
+  return descendants;
+}
+
+export type DirectSimulatorConnection = {
+  pid: number;
+  command: string;
+  protocol: string;
+  /** Remote peer as lsof prints it, e.g. `93.184.216.34:443` or `[2606::1]:443`. */
+  remote: string;
+};
+
+function remoteHostOf(remote: string): string {
+  if (remote.startsWith('[')) {
+    const end = remote.indexOf(']');
+    return end === -1 ? remote : remote.slice(1, end);
+  }
+  const colon = remote.lastIndexOf(':');
+  return colon === -1 ? remote : remote.slice(0, colon);
+}
+
+function isLoopbackHost(host: string): boolean {
+  return (
+    host === 'localhost' || host.startsWith('127.') || host === '::1' || host === '::ffff:127.0.0.1'
+  );
+}
+
+/**
+ * Parse `lsof -nP -i -F pcPnT` output. Returns the TCP and UDP connections that
+ * simulator processes hold to peers outside loopback. Those did not go through
+ * the proxy on 127.0.0.1, so they exit from this host instead of the egress
+ * client. Listening sockets, unconnected UDP sockets and connections to
+ * loopback (the proxy itself) are ignored.
+ */
+export function parseDirectSimulatorConnections(
+  lsofOutput: string,
+  simulatorPids: ReadonlySet<number>
+): DirectSimulatorConnection[] {
+  const connections: DirectSimulatorConnection[] = [];
+  let pid: number | null = null;
+  let command = '';
+  let protocol: string | null = null;
+  let name: string | null = null;
+  let tcpState: string | null = null;
+
+  const flush = (): void => {
+    if (pid !== null && simulatorPids.has(pid) && protocol && name) {
+      const arrow = name.indexOf('->');
+      const remote = arrow === -1 ? null : name.slice(arrow + 2);
+      const active =
+        protocol !== 'TCP' ||
+        tcpState === null ||
+        tcpState === 'ESTABLISHED' ||
+        tcpState === 'SYN_SENT';
+      if (remote && active && !isLoopbackHost(remoteHostOf(remote))) {
+        connections.push({ pid, command, protocol, remote });
+      }
+    }
+    protocol = null;
+    name = null;
+    tcpState = null;
+  };
+
+  for (const line of lsofOutput.split('\n')) {
+    const field = line[0];
+    const value = line.slice(1);
+    switch (field) {
+      case 'p':
+        flush();
+        pid = Number(value);
+        command = '';
+        break;
+      case 'c':
+        command = value;
+        break;
+      case 'f':
+        flush();
+        break;
+      case 'P':
+        protocol = value;
+        break;
+      case 'n':
+        name = value;
+        break;
+      case 'T':
+        if (value.startsWith('ST=')) {
+          tcpState = value.slice('ST='.length);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  flush();
+  return connections;
+}
+
+async function findDirectSimulatorConnectionsAsync({
+  env,
+}: {
+  env: BuildStepEnv;
+}): Promise<DirectSimulatorConnection[]> {
+  const ps = await spawn('ps', ['-axo', 'pid=,ppid=,comm='], { env, stdio: 'pipe' });
+  const pids = collectSimulatorProcessIds(ps.stdout);
+  if (pids.length === 0) {
+    return [];
+  }
+  let lsofOutput: string;
+  try {
+    const lsof = await spawn('lsof', ['-nP', '-i', '-F', 'pcPnT', '-a', '-p', pids.join(',')], {
+      env,
+      stdio: 'pipe',
+    });
+    lsofOutput = lsof.stdout;
+  } catch (err) {
+    // lsof exits with 1 when none of the processes holds a matching socket, and
+    // when one of them exited between `ps` and `lsof`. Its stdout is still valid.
+    const result = err as { status?: number | null; stdout?: string };
+    if (result.status !== 1) {
+      throw err;
+    }
+    lsofOutput = result.stdout ?? '';
+  }
+  return parseDirectSimulatorConnections(lsofOutput, new Set(pids));
+}
+
+/**
+ * Log proxy listener availability, the exit IP observed by a worker request
+ * through it, and simulator connections that bypassed the proxy. Neither check
+ * verifies that proxied simulator requests reach the egress client. Never
+ * rejects: it runs in the background for the whole session.
  */
 export async function monitorLocalEgressAsync({
   port,
@@ -534,26 +623,61 @@ export async function monitorLocalEgressAsync({
   signal: AbortSignal;
 }): Promise<void> {
   let connected = false;
+  let lastEscapeScanAt = 0;
+  let escapeScanBroken = false;
+  const reportedEscapes = new Set<string>();
   try {
     while (!signal.aborted) {
       const listening = await isPortListeningAsync({ host: LOCAL_EGRESS_PROXY_HOST, port });
       if (listening && !connected) {
         connected = true;
-        logger.info('Local egress client connected.');
+        logger.info('Local egress proxy listener is available.');
         try {
           const exitIp = await fetchExitIpThroughProxyAsync({ port, env });
-          logger.info(`Simulator traffic now exits from ${exitIp}, the egress client's address.`);
+          logger.info(
+            `Worker proxy exit-IP check observed ${exitIp}. This does not verify simulator routing.`
+          );
         } catch (err) {
           logger.warn(
             { err },
-            'The egress client connected, but the exit IP check through it failed. Traffic may not be flowing yet.'
+            'The local egress proxy listener is available, but the worker exit-IP check through it failed.'
           );
         }
       } else if (!listening && connected) {
         connected = false;
         logger.warn(
-          'Local egress client disconnected. The simulator has no internet access until it reconnects.'
+          'Local egress proxy listener is unavailable. Proxied HTTP(S) requests fail until it returns.'
         );
+      }
+
+      if (!escapeScanBroken && Date.now() - lastEscapeScanAt >= EGRESS_ESCAPE_SCAN_INTERVAL_MS) {
+        lastEscapeScanAt = Date.now();
+        try {
+          for (const connection of await findDirectSimulatorConnectionsAsync({ env })) {
+            const key = `${connection.pid}|${connection.protocol}|${connection.remote}`;
+            if (reportedEscapes.has(key)) {
+              continue;
+            }
+            reportedEscapes.add(key);
+            if (reportedEscapes.size > EGRESS_ESCAPE_LOG_LIMIT) {
+              if (reportedEscapes.size === EGRESS_ESCAPE_LOG_LIMIT + 1) {
+                logger.warn(
+                  `Local egress: more than ${EGRESS_ESCAPE_LOG_LIMIT} direct connections were reported; further ones are not logged.`
+                );
+              }
+              continue;
+            }
+            logger.warn(
+              `Local egress: ${connection.command} (pid ${connection.pid}) opened a direct ${connection.protocol} connection to ${connection.remote}, bypassing the system proxy. That traffic exits from this worker, not from the egress client.`
+            );
+          }
+        } catch (err) {
+          escapeScanBroken = true;
+          logger.warn(
+            { err },
+            'Local egress: could not inspect simulator connections. Direct connections that bypass the proxy will not be reported.'
+          );
+        }
       }
       await sleepAsync(EGRESS_MONITOR_INTERVAL_MS);
     }

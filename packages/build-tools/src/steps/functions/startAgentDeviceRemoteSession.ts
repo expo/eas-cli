@@ -146,8 +146,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         });
         if (localEgress) {
           logger.info(
-            'Local egress: waiting for the EAS CLI egress client to connect. The simulator has no ' +
-              'internet access until it does.'
+            'Local egress: waiting for the EAS CLI egress client to connect. Proxied HTTP(S) ' +
+              'requests are unavailable until it does.'
           );
           void monitorLocalEgressAsync({
             port: localEgress.port,

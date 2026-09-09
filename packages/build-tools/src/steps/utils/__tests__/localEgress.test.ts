@@ -5,15 +5,15 @@ import path from 'node:path';
 import {
   CHISEL_VERSION,
   LOCAL_EGRESS_PROXY_PORT,
-  buildEgressPfRules,
   buildEgressRemoteConfigFields,
   buildNetworksetupProxyArgs,
+  collectSimulatorProcessIds,
   createChiselAuthfileContents,
   getChiselAssetName,
   getChiselDownloadUrl,
   parseChiselFingerprint,
   parseDefaultRouteInterface,
-  parseDnsResolvers,
+  parseDirectSimulatorConnections,
   parseExitIpResponse,
   parseNetworkServiceNameForDevice,
   readLocalEgressHandoffAsync,
@@ -135,63 +135,90 @@ describe(buildNetworksetupProxyArgs, () => {
   });
 });
 
-describe(parseDnsResolvers, () => {
-  it('collects unique nameservers from `scutil --dns`', () => {
-    const output =
-      'DNS configuration\n' +
-      '\n' +
-      'resolver #1\n' +
-      '  nameserver[0] : 192.168.64.1\n' +
-      '  nameserver[1] : 8.8.8.8\n' +
-      '  if_index : 4 (en0)\n' +
-      '\n' +
-      'resolver #2\n' +
-      '  domain   : local\n' +
-      '  options  : mdns\n' +
-      '\n' +
-      'DNS configuration (for scoped queries)\n' +
-      '\n' +
-      'resolver #1\n' +
-      '  nameserver[0] : 192.168.64.1\n';
-    expect(parseDnsResolvers(output)).toEqual(['192.168.64.1', '8.8.8.8']);
+describe(collectSimulatorProcessIds, () => {
+  const runtimeRoot =
+    '/Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot';
+  const psOutput =
+    '    1     0 /sbin/launchd\n' +
+    '  501     1 /usr/local/bin/node\n' +
+    `  600     1 ${runtimeRoot}/sbin/launchd_sim\n` +
+    '  610   600 /Users/expo/Library/Developer/CoreSimulator/Devices/ABC/data/Containers/Bundle/Application/DEF/App.app/App\n' +
+    `  611   600 ${runtimeRoot}/System/Library/ExtensionKit/Extensions/NetworkingExtension.appex/com.apple.WebKit.Networking\n` +
+    '  620   610 /usr/bin/helper\n' +
+    '  700     1 /usr/sbin/lsof\n';
+
+  it('returns every descendant of launchd_sim and nothing else', () => {
+    expect(collectSimulatorProcessIds(psOutput).sort((a, b) => a - b)).toEqual([610, 611, 620]);
+  });
+
+  it('returns nothing when no simulator is running', () => {
+    expect(
+      collectSimulatorProcessIds('    1     0 /sbin/launchd\n  501     1 /usr/local/bin/node\n')
+    ).toEqual([]);
   });
 });
 
-describe(buildEgressPfRules, () => {
-  const existingRules =
-    'pass in quick proto tcp from 192.168.64.1 to any\n' +
-    'pass in quick proto udp from 192.168.64.1 to any\n' +
-    'pass out quick proto tcp from any to 192.168.64.1\n' +
-    'pass out quick proto udp from any to 192.168.64.1\n' +
-    'block drop in inet from 192.168.64.0/24 to any\n';
+describe(parseDirectSimulatorConnections, () => {
+  const lsofOutput = [
+    'p610',
+    'cApp',
+    'f10',
+    'PTCP',
+    'n127.0.0.1:52344->127.0.0.1:8899',
+    'TST=ESTABLISHED',
+    'f11',
+    'PTCP',
+    'n192.168.64.2:52345->93.184.216.34:443',
+    'TST=ESTABLISHED',
+    'f12',
+    'PTCP',
+    'n192.168.64.2:52346->104.16.0.1:443',
+    'TST=SYN_SENT',
+    'f13',
+    'PTCP',
+    'n*:8080',
+    'TST=LISTEN',
+    'f14',
+    'PUDP',
+    'n*:5353',
+    'f15',
+    'PUDP',
+    'n192.168.64.2:60000->1.1.1.1:443',
+    'f16',
+    'PTCP',
+    'n[::1]:52347->[::1]:8899',
+    'TST=ESTABLISHED',
+    'f17',
+    'PTCP',
+    'n[fd00::2]:52348->[2606:4700:4700::1111]:443',
+    'TST=ESTABLISHED',
+    'p700',
+    'cnode',
+    'f20',
+    'PTCP',
+    'n192.168.64.2:52349->93.184.216.34:443',
+    'TST=ESTABLISHED',
+    '',
+  ].join('\n');
 
-  it('keeps the existing anchor rules first and appends DNS passes before the UDP block', () => {
-    expect(
-      buildEgressPfRules({ existingRules, resolvers: ['192.168.64.1', '8.8.8.8'] }).split('\n')
-    ).toEqual([
-      'pass in quick proto tcp from 192.168.64.1 to any',
-      'pass in quick proto udp from 192.168.64.1 to any',
-      'pass out quick proto tcp from any to 192.168.64.1',
-      'pass out quick proto udp from any to 192.168.64.1',
-      'block drop in inet from 192.168.64.0/24 to any',
-      'pass out quick proto udp from any to 192.168.64.1 port 53',
-      'pass out quick proto udp from any to 8.8.8.8 port 53',
-      'block drop out quick inet proto udp all',
-      'block drop out quick inet6 proto udp all',
-      '',
+  it('reports simulator connections to non-loopback peers only', () => {
+    expect(parseDirectSimulatorConnections(lsofOutput, new Set([610]))).toEqual([
+      { pid: 610, command: 'App', protocol: 'TCP', remote: '93.184.216.34:443' },
+      { pid: 610, command: 'App', protocol: 'TCP', remote: '104.16.0.1:443' },
+      { pid: 610, command: 'App', protocol: 'UDP', remote: '1.1.1.1:443' },
+      { pid: 610, command: 'App', protocol: 'TCP', remote: '[2606:4700:4700::1111]:443' },
     ]);
   });
 
-  it('is idempotent when applied to its own output', () => {
-    const once = buildEgressPfRules({ existingRules, resolvers: ['192.168.64.1'] });
-    const twice = buildEgressPfRules({ existingRules: once, resolvers: ['192.168.64.1'] });
-    expect(twice).toBe(once);
+  it('ignores processes outside the simulator', () => {
+    expect(parseDirectSimulatorConnections(lsofOutput, new Set([700]))).toEqual([
+      { pid: 700, command: 'node', protocol: 'TCP', remote: '93.184.216.34:443' },
+    ]);
+    expect(parseDirectSimulatorConnections(lsofOutput, new Set([999]))).toEqual([]);
   });
 
-  it('blocks all UDP when no resolver is known', () => {
-    expect(buildEgressPfRules({ existingRules: '', resolvers: [] })).toBe(
-      'block drop out quick inet proto udp all\nblock drop out quick inet6 proto udp all\n'
-    );
+  it('returns nothing for an empty listing', () => {
+    expect(parseDirectSimulatorConnections('', new Set([610]))).toEqual([]);
   });
 });
 

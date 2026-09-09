@@ -6,7 +6,6 @@ import path from 'node:path';
 import {
   CHISEL_VERSION,
   LOCAL_EGRESS_PROXY_PORT,
-  applyEgressPfRulesAsync,
   configureSystemProxyAsync,
   createChiselAuthfileContents,
   downloadChiselAsync,
@@ -24,10 +23,12 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 /**
- * Prepares the device host so the simulator's traffic exits through the EAS
- * CLI's egress client. Must run before `eas/start_ios_simulator`: the simulator
- * reads the system proxy at boot. The resources it starts are released by the
- * agent-device session step when the session ends.
+ * Points the device host's system HTTP(S) proxy at the EAS CLI's egress client.
+ * Must run before `eas/start_ios_simulator`: the simulator reads the system proxy
+ * at boot. Nothing else on the host changes, so requests from libraries that
+ * bypass the system proxy are not covered; the agent-device session step reports
+ * them. The resources started here are released by that step when the session
+ * ends.
  */
 export function createStartLocalEgressBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -75,7 +76,6 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           logger,
           port: LOCAL_EGRESS_PROXY_PORT,
         });
-        await applyEgressPfRulesAsync({ env, logger, workDir });
         await writeLocalEgressHandoffAsync({
           url: tunnel.url,
           auth: `${credentials.user}:${credentials.password}`,
@@ -83,9 +83,10 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           port: LOCAL_EGRESS_PROXY_PORT,
         });
         logger.info(
-          `Local egress is configured on network service "${service}". The simulator has no ` +
-            'internet access until the EAS CLI egress client connects; from then on its traffic ' +
-            "exits from that client's network."
+          `Local egress is configured on network service "${service}". HTTP(S) and WebSocket ` +
+            'requests that honor the system proxy (WebKit, URLSession and other CFNetwork clients) ' +
+            'fail until the EAS CLI egress client connects, then exit from that machine. Requests ' +
+            'from libraries that bypass the system proxy are not covered and exit from this worker.'
         );
       } catch (error) {
         await stopLocalEgressResourcesAsync(logger);
