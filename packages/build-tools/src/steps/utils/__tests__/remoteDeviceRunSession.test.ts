@@ -12,6 +12,7 @@ import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { sleepAsync } from '../../../utils/retry';
+import { getImagePackageExecutableAsync } from '../simulatorImage';
 import {
   createExpoDeviceHubArgs,
   createServeSimArgs,
@@ -33,6 +34,9 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
+jest.mock('../simulatorImage');
+
+beforeEach(() => jest.mocked(getImagePackageExecutableAsync).mockResolvedValue(null));
 
 function createLoggerMock(): bunyan {
   return {
@@ -470,6 +474,28 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the baked serve-sim executable with unchanged server arguments', async () => {
+    const executable = '/image/tools/serve-sim/cli.js';
+    jest.mocked(getImagePackageExecutableAsync).mockResolvedValue(executable);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(command).toBe(executable);
+    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs }).slice(2));
+    expect(args).not.toContain('--yes');
+    await preview.stopAsync();
   });
 });
 
