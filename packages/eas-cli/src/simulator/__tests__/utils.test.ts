@@ -23,7 +23,7 @@ const agentDeviceConfig = {
 const agentDeviceConfigWithEgress = {
   ...agentDeviceConfig,
   egressUrl: 'https://egress-abc.eas-simulator.ngrok.dev',
-  egressAuth: 'eas:egress-secret',
+  egressToken: 'egress-secret',
   egressFingerprint: 'fp=',
   egressPort: 8899,
 };
@@ -43,7 +43,7 @@ describe('local egress configuration', () => {
   it('adds the egress variables and instructions when the worker reported them', () => {
     expect(getLocalEgressConfig(agentDeviceConfigWithEgress)).toEqual({
       url: 'https://egress-abc.eas-simulator.ngrok.dev',
-      auth: 'eas:egress-secret',
+      token: 'egress-secret',
       fingerprint: 'fp=',
       port: 8899,
     });
@@ -51,7 +51,7 @@ describe('local egress configuration', () => {
       AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
       AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token',
       EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
-      EAS_SIMULATOR_EGRESS_AUTH: 'eas:egress-secret',
+      EAS_SIMULATOR_EGRESS_TOKEN: 'egress-secret',
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
     });

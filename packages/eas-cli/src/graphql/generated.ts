@@ -1082,10 +1082,10 @@ export type AgentDeviceRunSessionRemoteConfig = {
   agentDeviceRemoteSessionToken: Scalars['String']['output'];
   agentDeviceRemoteSessionUrl: Scalars['String']['output'];
   /**
-   * Credentials for the reverse-tunnel endpoint, as user:password. Null when the
-   * session does not use local egress.
+   * Secret the local egress client presents to the reverse-tunnel endpoint. Null
+   * when the session does not use local egress.
    */
-  egressAuth?: Maybe<Scalars['String']['output']>;
+  egressToken?: Maybe<Scalars['String']['output']>;
   /**
    * Fingerprint of the reverse-tunnel server key for the client to pin. Null when
    * the session does not use local egress.
@@ -16220,7 +16220,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
-        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, egressUrl?: string | null, egressAuth?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
+        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
         | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, previewToken?: string | null }

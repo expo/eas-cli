@@ -157,13 +157,13 @@ describe(readLocalEgressConfigFromEnv, () => {
     expect(
       readLocalEgressConfigFromEnv({
         EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
-        EAS_SIMULATOR_EGRESS_AUTH: 'eas:pw',
+        EAS_SIMULATOR_EGRESS_TOKEN: 'pw',
         EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
         EAS_SIMULATOR_EGRESS_PORT: '8899',
       })
     ).toEqual({
       url: 'https://egress-abc.eas-simulator.ngrok.dev',
-      auth: 'eas:pw',
+      token: 'pw',
       fingerprint: 'fp=',
       port: 8899,
     });
@@ -618,7 +618,7 @@ describe(runLocalEgressAsync, () => {
     try {
       const running = runLocalEgressAsync({
         url: 'https://example.test',
-        auth: 'pw',
+        token: 'pw',
         fingerprint: 'fp',
         port: 8899,
         signal: controller.signal,
@@ -651,7 +651,7 @@ describe(runLocalEgressAsync, () => {
     const running = controllers.map(controller =>
       runLocalEgressAsync({
         url: 'https://example.test',
-        auth: 'pw',
+        token: 'pw',
         fingerprint: 'fp',
         port: 8899,
         signal: controller.signal,
@@ -660,7 +660,7 @@ describe(runLocalEgressAsync, () => {
     try {
       await waitForAsync(() => children.length === 2);
       const localPorts = jest.mocked(spawnAsync).mock.calls.map(([, args, options]) => {
-        expect(options).toMatchObject({ ignoreStdio: true, env: { AUTH: 'pw' } });
+        expect(options).toMatchObject({ ignoreStdio: true, env: { AUTH: 'eas:pw' } });
         const remote = args?.[args.length - 1] ?? '';
         expect(remote).toMatch(/^R:127\.0\.0\.1:8899:127\.0\.0\.1:\d+$/);
         return Number(remote.split(':').at(-1));

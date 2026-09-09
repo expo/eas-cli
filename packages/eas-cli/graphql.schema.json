@@ -6633,8 +6633,8 @@
             "deprecationReason": null
           },
           {
-            "name": "egressAuth",
-            "description": "Credentials for the reverse-tunnel endpoint, as user:password. Null when the\nsession does not use local egress.",
+            "name": "egressToken",
+            "description": "Secret the local egress client presents to the reverse-tunnel endpoint. Null\nwhen the session does not use local egress.",
             "args": [],
             "type": {
               "kind": "SCALAR",

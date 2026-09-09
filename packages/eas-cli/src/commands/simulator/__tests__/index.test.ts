@@ -871,7 +871,7 @@ describe(Simulator, () => {
         agentDeviceRemoteSessionUrl: 'https://agent.example.com',
         agentDeviceRemoteSessionToken: 'token',
         egressUrl: 'https://egress.example.com',
-        egressAuth: 'pw',
+        egressToken: 'pw',
         egressFingerprint: 'fp',
         egressPort: 8899,
       },

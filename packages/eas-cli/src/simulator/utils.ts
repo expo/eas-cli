@@ -5,9 +5,9 @@ import {
 } from '../graphql/generated';
 import { link } from '../log';
 import {
-  EAS_SIMULATOR_EGRESS_AUTH,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
   EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_TOKEN,
   EAS_SIMULATOR_EGRESS_URL,
 } from './env';
 
@@ -67,7 +67,8 @@ export const DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE = Object.fromEntrie
 
 export type LocalEgressConfig = {
   url: string;
-  auth: string;
+  /** Secret for the tunnel server; the client pairs it with the fixed egress username. */
+  token: string;
   fingerprint: string;
   port: number;
 };
@@ -82,11 +83,11 @@ export function getLocalEgressConfig(
   if (remoteConfig.__typename !== 'AgentDeviceRunSessionRemoteConfig') {
     return null;
   }
-  const { egressUrl, egressAuth, egressFingerprint, egressPort } = remoteConfig;
-  if (!egressUrl || !egressAuth || !egressFingerprint || egressPort == null) {
+  const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
+  if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
     return null;
   }
-  return { url: egressUrl, auth: egressAuth, fingerprint: egressFingerprint, port: egressPort };
+  return { url: egressUrl, token: egressToken, fingerprint: egressFingerprint, port: egressPort };
 }
 
 export function getLocalEgressEnvironmentVariables(
@@ -97,7 +98,7 @@ export function getLocalEgressEnvironmentVariables(
   }
   return {
     [EAS_SIMULATOR_EGRESS_URL]: egress.url,
-    [EAS_SIMULATOR_EGRESS_AUTH]: egress.auth,
+    [EAS_SIMULATOR_EGRESS_TOKEN]: egress.token,
     [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
     [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
   };

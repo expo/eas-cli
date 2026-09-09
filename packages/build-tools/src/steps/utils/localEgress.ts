@@ -62,8 +62,8 @@ const EGRESS_ESCAPE_LOG_LIMIT = 50;
 export type LocalEgressHandoff = {
   /** Public URL of the reverse tunnel server, reachable through ngrok. */
   url: string;
-  /** Credentials for the tunnel server, as user:password. */
-  auth: string;
+  /** Secret the client presents to the tunnel server, paired with LOCAL_EGRESS_USERNAME. */
+  token: string;
   /** Fingerprint of the tunnel server key, for the client to pin. */
   fingerprint: string;
   /** Loopback port on this host that the client must serve. */
@@ -338,13 +338,18 @@ export async function readLocalEgressHandoffAsync(
   const parsed = JSON.parse(raw) as Partial<LocalEgressHandoff>;
   if (
     typeof parsed.url !== 'string' ||
-    typeof parsed.auth !== 'string' ||
+    typeof parsed.token !== 'string' ||
     typeof parsed.fingerprint !== 'string' ||
     typeof parsed.port !== 'number'
   ) {
     throw new SystemError(`Local egress handoff at ${handoffPath} is malformed.`);
   }
-  return { url: parsed.url, auth: parsed.auth, fingerprint: parsed.fingerprint, port: parsed.port };
+  return {
+    url: parsed.url,
+    token: parsed.token,
+    fingerprint: parsed.fingerprint,
+    port: parsed.port,
+  };
 }
 
 /** remoteConfig fields the CLI needs to start the egress client. */
@@ -356,7 +361,7 @@ export function buildEgressRemoteConfigFields(
   }
   return {
     egressUrl: handoff.url,
-    egressAuth: handoff.auth,
+    egressToken: handoff.token,
     egressFingerprint: handoff.fingerprint,
     egressPort: handoff.port,
   };

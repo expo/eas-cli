@@ -78,7 +78,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
         });
         await writeLocalEgressHandoffAsync({
           url: tunnel.url,
-          auth: `${credentials.user}:${credentials.password}`,
+          token: credentials.password,
           fingerprint,
           port: LOCAL_EGRESS_PROXY_PORT,
         });

@@ -89,7 +89,7 @@ export const DeviceRunSessionQuery = {
                       webPreviewUrl
                       webPreviewToken
                       egressUrl
-                      egressAuth
+                      egressToken
                       egressFingerprint
                       egressPort
                     }

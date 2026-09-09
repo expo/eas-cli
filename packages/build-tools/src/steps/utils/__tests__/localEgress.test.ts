@@ -231,13 +231,13 @@ describe(buildEgressRemoteConfigFields, () => {
     expect(
       buildEgressRemoteConfigFields({
         url: 'https://egress-abc.eas-simulator.ngrok.dev',
-        auth: 'eas:pw',
+        token: 'pw',
         fingerprint: 'fp=',
         port: LOCAL_EGRESS_PROXY_PORT,
       })
     ).toEqual({
       egressUrl: 'https://egress-abc.eas-simulator.ngrok.dev',
-      egressAuth: 'eas:pw',
+      egressToken: 'pw',
       egressFingerprint: 'fp=',
       egressPort: LOCAL_EGRESS_PROXY_PORT,
     });
@@ -271,7 +271,7 @@ describe('local egress handoff', () => {
     const handoffPath = path.join(tempDir, 'handoff.json');
     const handoff = {
       url: 'https://egress-abc.eas-simulator.ngrok.dev',
-      auth: 'eas:pw',
+      token: 'pw',
       fingerprint: 'fp=',
       port: 8899,
     };

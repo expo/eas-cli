@@ -11,9 +11,9 @@ import { Duplex } from 'node:stream';
 import zlib from 'node:zlib';
 
 import {
-  EAS_SIMULATOR_EGRESS_AUTH,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
   EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_TOKEN,
   EAS_SIMULATOR_EGRESS_URL,
 } from './env';
 import { LocalEgressConfig } from './utils';
@@ -39,6 +39,8 @@ import { getCacheDirectory } from '../utils/paths';
  */
 
 export const LOCAL_EGRESS_PROXY_HOST = '127.0.0.1';
+/** Username in the worker's chisel authfile; the session token is its password. */
+export const LOCAL_EGRESS_USERNAME = 'eas';
 
 const CHISEL_VERSION = '1.12.0';
 // sha256 of the release .gz assets, cross-checked against chisel_1.12.0_checksums.txt.
@@ -71,17 +73,17 @@ const HOP_BY_HOP_HEADERS = new Set([
 
 export function readLocalEgressConfigFromEnv(env: NodeJS.ProcessEnv): LocalEgressConfig {
   const url = env[EAS_SIMULATOR_EGRESS_URL];
-  const auth = env[EAS_SIMULATOR_EGRESS_AUTH];
+  const token = env[EAS_SIMULATOR_EGRESS_TOKEN];
   const fingerprint = env[EAS_SIMULATOR_EGRESS_FINGERPRINT];
   const port = Number(env[EAS_SIMULATOR_EGRESS_PORT]);
-  if (!url || !auth || !fingerprint || !Number.isInteger(port) || port <= 0) {
+  if (!url || !token || !fingerprint || !Number.isInteger(port) || port <= 0) {
     throw new Error(
       'The current simulator session was not started with local egress, so there is no egress ' +
         `client to run (${EAS_SIMULATOR_EGRESS_URL} is not set). Start one with ` +
         '`eas simulator:start --platform ios --egress local`.'
     );
   }
-  return { url, auth, fingerprint, port };
+  return { url, token, fingerprint, port };
 }
 
 // ---------------------------------------------------------------------------
@@ -762,7 +764,7 @@ export function classifyChiselClientLogLine(line: string): 'connected' | 'discon
  */
 export async function runLocalEgressAsync({
   url,
-  auth,
+  token,
   fingerprint,
   port,
   localPort = 0,
@@ -809,7 +811,7 @@ export async function runLocalEgressAsync({
       {
         // Stream diagnostics without retaining the entire session's logs in spawnAsync.
         ignoreStdio: true,
-        env: { ...process.env, AUTH: auth },
+        env: { ...process.env, AUTH: `${LOCAL_EGRESS_USERNAME}:${token}` },
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
