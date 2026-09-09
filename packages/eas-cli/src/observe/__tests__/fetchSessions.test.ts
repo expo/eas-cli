@@ -167,6 +167,7 @@ describe('fetchObserveSessionEventsAsync', () => {
       '2025-01-15T10:10:00.000Z',
     ]);
     expect(result.entries.map(e => e.source)).toEqual(['log', 'metric', 'log']);
+    expect(result.entries.map(e => e.id)).toEqual(['evt-c-1', 'evt-m-1', 'evt-c-2']);
   });
 
   it('includes error logs as log entries named by their exception type, surfacing message and properties', async () => {

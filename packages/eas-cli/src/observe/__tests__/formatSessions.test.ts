@@ -11,6 +11,7 @@ import {
 function makeMetricEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventEntry {
   return {
     source: 'metric',
+    id: 'evt-m-1',
     timestamp: '2025-01-15T10:00:00.000Z',
     sessionId: 'session-1',
     appVersion: '1.0.0',
@@ -31,6 +32,7 @@ function makeMetricEntry(overrides: Partial<SessionEventEntry> = {}): SessionEve
 function makeLogEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventEntry {
   return {
     source: 'log',
+    id: 'evt-c-1',
     timestamp: '2025-01-15T10:01:00.000Z',
     sessionId: 'session-1',
     appVersion: '1.0.0',
@@ -240,6 +242,7 @@ describe(buildObserveSessionEventsJson, () => {
       hasMoreMetricEvents: false,
       hasMoreLogEvents: true,
     });
+    expect(result.entries[0].id).toBe('evt-m-1');
   });
 
   it('returns null metadata when there were no entries', () => {
