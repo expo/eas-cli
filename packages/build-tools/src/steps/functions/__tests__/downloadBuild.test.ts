@@ -11,7 +11,12 @@ import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { copyImageExpoGoAsync } from '../../utils/simulatorImage';
 import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
+
+jest.mock('../../utils/simulatorImage');
+
+beforeEach(() => jest.mocked(copyImageExpoGoAsync).mockResolvedValue(null));
 
 // contains a 'TestApp.app/TestApp' file with 'i am executable' content
 const APP_TAR_GZ_BUFFER = Buffer.from(
@@ -108,6 +113,19 @@ async function createFlatAppTarGzBufferAsync(): Promise<Buffer> {
 }
 
 describe('downloadBuild', () => {
+  it('uses an exact image-cache hit without fetching or extracting an archive', async () => {
+    jest.mocked(copyImageExpoGoAsync).mockResolvedValue('/tmp/job-owned/Expo.app');
+    const result = await downloadBuildAsync({
+      logger: createMockLogger(),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+    expect(result).toEqual({ artifactPath: '/tmp/job-owned/Expo.app' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('downloads from applicationArchiveUrl returned by GraphQL', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({

@@ -16,6 +16,7 @@ import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
+import { getImagePackageAsync } from '../utils/simulatorImage';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -209,6 +210,19 @@ async function startAgentDeviceDaemonAsync({
   logger: bunyan;
 }): Promise<DetachedProcessHandle> {
   const packageSpec = createAgentDevicePackageSpec(packageVersion);
+  const imagePackage = await getImagePackageAsync({
+    name: AGENT_DEVICE_PACKAGE_NAME,
+    version: packageVersion,
+    logger,
+  });
+  const imageDaemonPath = imagePackage && path.join(imagePackage, 'dist/src/internal/daemon.js');
+  if (imageDaemonPath && fs.existsSync(imageDaemonPath)) {
+    return spawnDetached({
+      command: 'node',
+      args: [imageDaemonPath],
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+    });
+  }
   try {
     logger.info(`Installing ${packageSpec} globally with Bun.`);
     await spawn('bun', ['add', '--global', packageSpec], {

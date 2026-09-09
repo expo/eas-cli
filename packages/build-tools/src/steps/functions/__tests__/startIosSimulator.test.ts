@@ -3,12 +3,15 @@ import spawn from '@expo/turtle-spawn';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { claimImageSimulatorAsync } from '../../utils/simulatorImage';
 import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
+
+jest.mock('../../utils/simulatorImage');
 
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: {
@@ -37,6 +40,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+    jest.mocked(claimImageSimulatorAsync).mockResolvedValue(null);
     mockedUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedUtils.getDeviceAsync.mockResolvedValue(null);
     mockedUtils.cloneAsync.mockResolvedValue(undefined);
@@ -44,6 +48,28 @@ describe(createStartIosSimulatorBuildFunction, () => {
     mockedUtils.startAsync.mockResolvedValue({ udid: 'test-udid' as any });
     mockedUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedUtils.disableApsdAsync.mockResolvedValue(undefined);
+  });
+
+  it('adopts a prepared device without shutdown-only accessibility writes or another boot', async () => {
+    jest.mocked(claimImageSimulatorAsync).mockResolvedValue('prepared-udid');
+    await createStep({
+      device_identifier: 'iPhone 17 Pro',
+      enable_accessibility_settings: true,
+    }).executeAsync();
+    expect(mockedUtils.startAsync).not.toHaveBeenCalled();
+    expect(mockedUtils.enableAccessibilitySettingsAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not run a competing normal boot when the image handoff fails', async () => {
+    jest.mocked(claimImageSimulatorAsync).mockRejectedValue(new Error('preparation timeout'));
+    await expect(createStep({ device_identifier: 'iPhone 17' }).executeAsync()).rejects.toThrow();
+    expect(mockedUtils.startAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the existing multi-device build path', async () => {
+    await createStep({ device_identifier: 'iPhone 17', count: 2 }).executeAsync();
+    expect(claimImageSimulatorAsync).not.toHaveBeenCalled();
+    expect(mockedUtils.cloneAsync).toHaveBeenCalledTimes(2);
   });
 
   it('does not enable accessibility settings by default', async () => {

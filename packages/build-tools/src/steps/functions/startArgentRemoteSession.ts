@@ -19,6 +19,7 @@ import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
+import { getImagePackageExecutableAsync } from '../utils/simulatorImage';
 import {
   ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
@@ -110,41 +111,30 @@ export function createStartArgentRemoteSessionBuildFunction(
       // Never rejects, so `void` is safe.
       void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
+      const imageExecutable = await getImagePackageExecutableAsync({
+        name: ARGENT_PACKAGE_NAME,
+        version: packageVersion,
+        binaryName: 'argent',
+        logger,
+      });
+      const command = imageExecutable ?? 'bun';
+      const prefixArgs = imageExecutable ? [] : ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`];
+
       logger.info('Enabling the Argent artifacts list endpoint flag.');
-      await spawn(
-        'bun',
-        [
-          'x',
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-          'enable',
-          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
-        ],
-        { env, logger }
-      );
+      await spawn(command, [...prefixArgs, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG], {
+        env,
+        logger,
+      });
 
       logger.info('Enabling the Argent tool-server event log flag.');
-      await spawn(
-        'bun',
-        ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
-        { env, logger }
-      );
+      await spawn(command, [...prefixArgs, 'enable', ARGENT_EVENT_LOG_FLAG], { env, logger });
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bun x.`);
-      // Keep Argent itself in foreground mode under the detached bun process. This preserves
-      // the bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server.`);
+      // Keep Argent in foreground mode under the detached process, preserving the
+      // CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
-        command: 'bun',
-        args: [
-          'x',
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-          'server',
-          'start',
-          '--port',
-          '0',
-          '--idle-timeout',
-          '0',
-          '--force',
-        ],
+        command,
+        args: [...prefixArgs, 'server', 'start', '--port', '0', '--idle-timeout', '0', '--force'],
         env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
       });
       if (argentServer.pid === undefined) {

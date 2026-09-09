@@ -12,6 +12,7 @@ import {
   IosSimulatorUtils,
   IosSimulatorUuid,
 } from '../../utils/IosSimulatorUtils';
+import { claimImageSimulatorAsync } from '../utils/simulatorImage';
 
 export function createStartIosSimulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -59,6 +60,13 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         | IosSimulatorUuid
         | IosSimulatorName
         | undefined;
+      const count = Number(inputs.count.value ?? 1);
+      if (
+        count === 1 &&
+        (await claimImageSimulatorAsync({ deviceIdentifier: deviceIdentifierInput, env, logger }))
+      ) {
+        return;
+      }
       const originalDeviceIdentifier =
         deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
       const enableAccessibilitySettings = Boolean(inputs.enable_accessibility_settings.value);
@@ -92,7 +100,6 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       const formattedDevice = device?.displayName ?? originalDeviceIdentifier;
       logger.info(`${formattedDevice} is ready.`);
 
-      const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
         logger.info(`Requested ${count} Simulators, shutting down ${formattedDevice} for cloning.`);
         await spawn('xcrun', ['simctl', 'shutdown', originalDeviceIdentifier], {

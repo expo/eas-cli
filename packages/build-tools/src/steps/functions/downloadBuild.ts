@@ -27,6 +27,7 @@ import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { pluralize } from '../../utils/strings';
+import { copyImageExpoGoAsync } from '../utils/simulatorImage';
 
 const streamPipeline = promisify(stream.pipeline);
 
@@ -185,6 +186,13 @@ export async function downloadBuildAsync(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
       'Pass buildId or applicationArchiveUrl.'
     );
+  }
+
+  if (params.applicationArchiveUrl && extensions.includes('app')) {
+    const cachedPath = await copyImageExpoGoAsync({ url: downloadUrl, logger });
+    if (cachedPath) {
+      return { artifactPath: cachedPath };
+    }
   }
 
   const downloadDestinationDirectory = await fs.promises.mkdtemp(

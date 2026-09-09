@@ -17,6 +17,7 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { getImagePackageExecutableAsync } from './simulatorImage';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -785,6 +786,7 @@ async function startWebPreviewWithTunnelAsync(
     serverName,
     packageSpec,
     createArgs,
+    imageExecutable,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -793,14 +795,17 @@ async function startWebPreviewWithTunnelAsync(
     serverName: string;
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[]) => string[];
+    imageExecutable?: string | null;
   }
 ): Promise<DeviceWebPreviewHandle> {
   const port = await findAvailablePortAsync();
   logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const args = createArgs(port, turnArgs);
   const previewServer = spawnDetached({
-    command: 'npx',
-    args: createArgs(port, turnArgs),
+    command: imageExecutable ?? 'npx',
+    // createArgs includes npx's --yes and package spec before the server flags.
+    args: imageExecutable ? args.slice(2) : args,
     env,
   });
 
@@ -848,6 +853,12 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
+  const imageExecutable = await getImagePackageExecutableAsync({
+    name: SERVE_SIM_PACKAGE_NAME,
+    version: packageVersion,
+    binaryName: 'serve-sim',
+    logger,
+  });
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -855,6 +866,7 @@ export async function startServeSimWithTunnelAsync(
     timeoutMs,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
+    imageExecutable,
     createArgs: (port, turnArgs) =>
       createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
   });
