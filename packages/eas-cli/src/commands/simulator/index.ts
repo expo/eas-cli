@@ -139,7 +139,7 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'Where the simulator\'s network traffic exits to the internet. "local" routes it through this machine, so third parties see this machine\'s public IP. The egress client must keep running for the life of the session. Only supported with --platform ios and --type agent-device.',
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios and --type agent-device.',
       options: EGRESS_FLAG_VALUES,
     })(),
     force: Flags.boolean({
@@ -421,7 +421,7 @@ export default class Simulator extends EasCommand {
       sessionInterrupt.dispose();
       if (localEgress) {
         Log.log(
-          'The simulator has no internet access until `eas simulator:egress` is running in another process.'
+          'Start `eas simulator:egress` in another process to connect the tunnel for proxied HTTP(S) requests.'
         );
       }
       Log.log(
@@ -431,13 +431,13 @@ export default class Simulator extends EasCommand {
     }
 
     // In interactive mode the egress client runs right here, for as long as the
-    // session does. A session without egress has no internet access and still
-    // bills, so Ctrl+C stops both.
+    // session does. A session with a disconnected tunnel still bills, so Ctrl+C stops both.
     let egressPromise: Promise<void> | undefined;
+    let egressError: Error | undefined;
     const egressAbortController = new AbortController();
     if (localEgress) {
       Log.log(
-        "🔀 Running the egress client in this terminal. The simulator's network traffic exits from this machine while this command runs."
+        "🔀 Running the egress client in this terminal. When connected, proxied HTTP(S) requests can use this machine's network."
       );
       Log.log('Press Ctrl+C to stop both the egress client and the simulator session.');
       Log.newLine();
@@ -452,14 +452,17 @@ export default class Simulator extends EasCommand {
         ...localEgress,
         signal: egressAbortController.signal,
         onConnected: () => {
-          Log.succeed("Egress connected. Simulator traffic now exits from this machine's network.");
+          Log.succeed(
+            "Egress tunnel connected. Proxied HTTP(S) requests can use this machine's network."
+          );
         },
         onDisconnected: () => {
           Log.warn(
-            'Egress tunnel disconnected; reconnecting. The simulator has no internet access until it reconnects.'
+            'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
           );
         },
       }).catch(err => {
+        egressError = err instanceof Error ? err : new Error(String(err));
         Log.error(
           `${err instanceof Error ? err.message : String(err)} Stopping the simulator session.`
         );
@@ -478,6 +481,9 @@ export default class Simulator extends EasCommand {
     } finally {
       egressAbortController.abort();
       await egressPromise;
+    }
+    if (egressError) {
+      throw egressError;
     }
   }
 }

@@ -1,11 +1,13 @@
 import spawnAsync from '@expo/spawn-async';
 import * as fs from 'fs-extra';
+import { ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import dns from 'node:dns/promises';
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
 import readline from 'node:readline';
+import { Duplex } from 'node:stream';
 import zlib from 'node:zlib';
 
 import {
@@ -23,14 +25,17 @@ import { getCacheDirectory } from '../utils/paths';
  * Local egress client. Two pieces run on the developer's machine for the life of
  * a simulator session started with `--egress local`:
  *
- * 1. An HTTP proxy on loopback that carries the simulator's traffic out to the
+ * 1. An HTTP proxy on loopback that forwards the requests it receives to the
  *    internet from this machine. It supports CONNECT tunnels (HTTPS, WSS), plain
  *    HTTP requests with absolute URLs, and HTTP upgrades (WS). It refuses
  *    destinations on this machine's local networks: the requests it forwards
  *    come from code running in the remote simulator, not from the developer.
  * 2. A chisel client that connects out to the session's tunnel server and asks it
- *    to listen on the same loopback port on the device host, forwarding every
- *    connection back here. The device host's system proxy points at that port.
+ *    to listen on the device host's loopback proxy port, forwarding every
+ *    connection back to the local proxy. The device host's system proxy points at
+ *    that port, so requests that honor it (WebKit, URLSession and other CFNetwork
+ *    clients) arrive here. Requests from libraries that bypass the system proxy
+ *    never reach this client and exit from the device host instead.
  */
 
 export const LOCAL_EGRESS_PROXY_HOST = '127.0.0.1';
@@ -52,7 +57,17 @@ const MAX_CONCURRENT_CONNECTIONS = 512;
 const UPSTREAM_ATTEMPT_TIMEOUT_MS = 5_000;
 const UPSTREAM_RESPONSE_TIMEOUT_MS = 30_000;
 const SOCKET_IDLE_TIMEOUT_MS = 120_000;
-const HOP_BY_HOP_REQUEST_HEADERS = new Set(['proxy-connection', 'proxy-authorization']);
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'proxy-connection',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
 
 export function readLocalEgressConfigFromEnv(env: NodeJS.ProcessEnv): LocalEgressConfig {
   const url = env[EAS_SIMULATOR_EGRESS_URL];
@@ -242,14 +257,19 @@ function parseAuthority(authority: string, defaultPort: number): { host: string;
 async function connectUpstreamAsync({
   addresses,
   port,
+  signal,
+  onSocket,
 }: {
   addresses: string[];
   port: number;
+  signal: AbortSignal;
+  onSocket: (socket: net.Socket) => void;
 }): Promise<net.Socket> {
   let lastError: Error | undefined;
   for (const address of addresses) {
+    signal.throwIfAborted();
     try {
-      return await connectOnceAsync({ host: address, port });
+      return await connectOnceAsync({ host: address, port, signal, onSocket });
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
     }
@@ -260,12 +280,18 @@ async function connectUpstreamAsync({
 async function connectOnceAsync({
   host,
   port,
+  signal,
+  onSocket,
 }: {
   host: string;
   port: number;
+  signal: AbortSignal;
+  onSocket: (socket: net.Socket) => void;
 }): Promise<net.Socket> {
   return await new Promise((resolve, reject) => {
-    const socket = net.connect({ host, port });
+    signal.throwIfAborted();
+    const socket = net.connect({ host, port, signal });
+    onSocket(socket);
     const timeout = setTimeout(() => {
       socket.destroy();
       reject(new Error(`Timed out connecting to ${host}:${port}.`));
@@ -276,12 +302,13 @@ async function connectOnceAsync({
     });
     socket.once('error', err => {
       clearTimeout(timeout);
+      socket.destroy();
       reject(err);
     });
   });
 }
 
-function pipeBothWays(a: net.Socket, b: net.Socket, onClose: () => void): void {
+function pipeBothWays(a: Duplex, b: net.Socket, onClose: () => void): void {
   let closed = false;
   const finish = (): void => {
     if (closed) {
@@ -293,7 +320,9 @@ function pipeBothWays(a: net.Socket, b: net.Socket, onClose: () => void): void {
     onClose();
   };
   for (const socket of [a, b]) {
-    socket.setTimeout(SOCKET_IDLE_TIMEOUT_MS, finish);
+    if (socket instanceof net.Socket) {
+      socket.setTimeout(SOCKET_IDLE_TIMEOUT_MS, finish);
+    }
     socket.on('error', finish);
     socket.on('close', finish);
   }
@@ -305,12 +334,24 @@ function statusForError(err: unknown): number {
   return err instanceof EgressPolicyError ? 403 : 502;
 }
 
-function filteredRawHeaders(rawHeaders: string[]): string[] {
+function filteredRawHeaders(rawHeaders: string[], upgrade = false): string[] {
+  const removed = new Set(HOP_BY_HOP_HEADERS);
+  for (let i = 0; i < rawHeaders.length; i += 2) {
+    if (rawHeaders[i].toLowerCase() === 'connection') {
+      for (const token of rawHeaders[i + 1].split(',')) {
+        removed.add(token.trim().toLowerCase());
+      }
+    }
+  }
   const result: string[] = [];
   for (let i = 0; i < rawHeaders.length; i += 2) {
-    if (!HOP_BY_HOP_REQUEST_HEADERS.has(rawHeaders[i].toLowerCase())) {
+    const name = rawHeaders[i].toLowerCase();
+    if (!removed.has(name) || (upgrade && name === 'upgrade')) {
       result.push(rawHeaders[i], rawHeaders[i + 1]);
     }
+  }
+  if (upgrade) {
+    result.push('Connection', 'Upgrade');
   }
   return result;
 }
@@ -325,193 +366,296 @@ export async function startLocalEgressProxyServerAsync({
   resolveTargetAsync?: EgressTargetResolver;
 }): Promise<LocalEgressProxyServer> {
   const stats: LocalEgressProxyStats = { active: 0, total: 0, refused: 0 };
-  const acquire = (): (() => void) | null => {
-    if (stats.active >= MAX_CONCURRENT_CONNECTIONS) {
+  const sockets = new Set<net.Socket>();
+  const operations = new Set<() => void>();
+  let closing = false;
+  const trackSocket = (socket: net.Socket): void => {
+    sockets.add(socket);
+    // Keep errors handled between connecting and assigning a socket to its request.
+    socket.on('error', () => {});
+    socket.once('close', () => sockets.delete(socket));
+    if (closing) {
+      socket.destroy();
+    }
+  };
+  const acquire = (): { signal: AbortSignal; finish: () => void } | null => {
+    if (closing || stats.active >= MAX_CONCURRENT_CONNECTIONS) {
       stats.refused += 1;
       return null;
     }
     stats.active += 1;
     stats.total += 1;
-    let released = false;
-    return () => {
-      if (!released) {
-        released = true;
+    const controller = new AbortController();
+    const finish = (): void => {
+      if (operations.delete(finish)) {
         stats.active -= 1;
+        controller.abort();
       }
     };
+    operations.add(finish);
+    return { signal: controller.signal, finish };
   };
-
+  const connectAsync = async (
+    hostname: string,
+    targetPort: number,
+    signal: AbortSignal
+  ): Promise<net.Socket> => {
+    const addresses = await resolveTargetAsync(hostname);
+    // DNS lookup itself cannot be canceled, but a late answer must never open a socket.
+    signal.throwIfAborted();
+    return await connectUpstreamAsync({
+      addresses,
+      port: targetPort,
+      signal,
+      onSocket: trackSocket,
+    });
+  };
   const server = http.createServer();
+  server.on('connection', trackSocket);
 
-  // HTTPS and WSS: the simulator asks for a raw tunnel to host:port.
+  // HTTPS and WSS use CONNECT. Acquire and observe disconnects before the first await.
   server.on('connect', (req, clientSocket, head) => {
+    const operation = acquire();
+    if (!operation) {
+      clientSocket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+      return;
+    }
+    const { signal, finish } = operation;
+    const cancel = (): void => {
+      finish();
+      clientSocket.destroy();
+    };
+    clientSocket.once('close', finish);
+    clientSocket.once('end', cancel);
+    clientSocket.once('error', cancel);
     void (async () => {
-      const release = acquire();
-      if (!release) {
-        clientSocket.end('HTTP/1.1 503 Service Unavailable\r\n\r\n');
-        return;
-      }
       try {
         const { host: targetHost, port: targetPort } = parseAuthority(req.url ?? '', 443);
-        const addresses = await resolveTargetAsync(targetHost);
-        const upstream = await connectUpstreamAsync({ addresses, port: targetPort });
+        const upstream = await connectAsync(targetHost, targetPort, signal);
+        signal.throwIfAborted();
+        clientSocket.removeListener('end', cancel);
         Log.debug(`[egress] CONNECT ${targetHost}:${targetPort}`);
         clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         if (head.length > 0) {
           upstream.write(head);
         }
-        // Node types the client side of 'connect' and 'upgrade' as a Duplex; it is a net.Socket.
-        pipeBothWays(clientSocket as net.Socket, upstream, release);
+        pipeBothWays(clientSocket, upstream, finish);
       } catch (err) {
-        release();
+        finish();
         Log.debug(
           `[egress] CONNECT ${req.url} refused: ${err instanceof Error ? err.message : err}`
         );
         if (!clientSocket.destroyed) {
           clientSocket.end(
-            `HTTP/1.1 ${statusForError(err)} ${http.STATUS_CODES[statusForError(err)]}\r\n\r\n`
+            `HTTP/1.1 ${statusForError(err)} ${http.STATUS_CODES[statusForError(err)]}\r\nConnection: close\r\n\r\n`
           );
         }
       }
     })();
   });
 
-  // Plain HTTP: the simulator sends the absolute URL in the request line.
-  server.on('request', (req, res) => {
+  const forwardHttp = (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    upgradeClient?: { socket: Duplex; head: Buffer }
+  ): void => {
+    const operation = acquire();
+    if (!operation) {
+      res.writeHead(503).end();
+      return;
+    }
+    const { signal, finish } = operation;
+    res.once('close', finish);
+    req.once('aborted', finish);
+    req.once('error', finish);
+    const cancelUpgrade = (): void => {
+      finish();
+      upgradeClient?.socket.destroy();
+    };
+    upgradeClient?.socket.once('end', cancelUpgrade);
+    upgradeClient?.socket.once('close', finish);
+    upgradeClient?.socket.once('error', cancelUpgrade);
     void (async () => {
-      let url: URL;
       try {
-        url = new URL(req.url ?? '');
-      } catch {
-        res.writeHead(400).end('This proxy only accepts requests with absolute URLs.');
-        return;
-      }
-      if (url.protocol !== 'http:') {
-        res.writeHead(400).end(`Unsupported URL scheme ${url.protocol}`);
-        return;
-      }
-      const release = acquire();
-      if (!release) {
-        res.writeHead(503).end();
-        return;
-      }
-      try {
-        const addresses = await resolveTargetAsync(url.hostname);
-        const upstreamSocket = await connectUpstreamAsync({
-          addresses,
-          port: url.port ? Number(url.port) : 80,
-        });
+        let url: URL;
+        try {
+          url = new URL(req.url ?? '');
+        } catch {
+          res.writeHead(400).end('This proxy only accepts requests with absolute URLs.');
+          return;
+        }
+        if (url.protocol !== 'http:') {
+          res.writeHead(400).end(`Unsupported URL scheme ${url.protocol}`);
+          return;
+        }
+        const transferEncoding = req.headers['transfer-encoding'];
+        if (transferEncoding && transferEncoding.trim().toLowerCase() !== 'chunked') {
+          // Node removes chunk framing but does not decode other transfer codings.
+          res.writeHead(501).end('Only chunked request transfer encoding is supported.');
+          return;
+        }
+        const upstreamSocket = await connectAsync(
+          url.hostname,
+          url.port ? Number(url.port) : 80,
+          signal
+        );
+        signal.throwIfAborted();
         Log.debug(`[egress] ${req.method} ${url.host}`);
-        const headers = { ...req.headers };
-        for (const name of HOP_BY_HOP_REQUEST_HEADERS) {
-          delete headers[name];
+        const rawHeaders = filteredRawHeaders(req.rawHeaders, !!upgradeClient);
+        const headers: http.OutgoingHttpHeaders = {};
+        for (let i = 0; i < rawHeaders.length; i += 2) {
+          const name = rawHeaders[i].toLowerCase();
+          const value = rawHeaders[i + 1];
+          const previous = headers[name];
+          headers[name] =
+            previous === undefined
+              ? value
+              : [...(Array.isArray(previous) ? previous : [String(previous)]), value];
+        }
+        // Absolute-form authority is authoritative, even if a client sends a conflicting Host.
+        headers.host = url.host;
+        if (
+          transferEncoding ||
+          (req.headers['content-length'] !== undefined && headers['content-length'] === undefined)
+        ) {
+          // Reframe the decoded body explicitly: Node does not enable chunking by
+          // default for GET/DELETE, including when Connection nominated its framing header.
+          headers['transfer-encoding'] = 'chunked';
         }
         const upstreamRequest = http.request({
-          // The socket is already connected to a validated address.
           createConnection: () => upstreamSocket,
           method: req.method,
           path: `${url.pathname}${url.search}`,
           headers,
-          // Keep the Host header the simulator sent; we connect by resolved address.
           setHost: false,
+          signal,
           timeout: UPSTREAM_RESPONSE_TIMEOUT_MS,
         });
-        upstreamRequest.on('timeout', () =>
-          upstreamRequest.destroy(new Error('Upstream timed out.'))
-        );
+        let failed = false;
+        const fail = (err: Error): void => {
+          if (failed) {
+            return;
+          }
+          failed = true;
+          Log.debug(`[egress] ${req.method} ${url.host} failed: ${err.message}`);
+          if (!res.destroyed) {
+            if (res.headersSent) {
+              // Do not turn a truncated successful response into an apparently complete one.
+              res.destroy();
+            } else {
+              res.writeHead(502).end();
+            }
+          }
+          finish();
+        };
+        upstreamRequest.on('timeout', () => {
+          upstreamRequest.destroy(new Error('Upstream timed out.'));
+        });
+        upstreamRequest.on('error', fail);
         upstreamRequest.on('response', upstreamResponse => {
-          res.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+          upstreamResponse.on('error', fail);
+          upstreamResponse.on('aborted', () => {
+            fail(new Error('Upstream response was truncated.'));
+          });
+          const transferEncoding = upstreamResponse.headers['transfer-encoding'];
+          if (transferEncoding && transferEncoding.trim().toLowerCase() !== 'chunked') {
+            fail(new Error('Unsupported upstream transfer encoding.'));
+            upstreamResponse.destroy();
+            return;
+          }
+          res.writeHead(
+            upstreamResponse.statusCode ?? 502,
+            filteredRawHeaders(upstreamResponse.rawHeaders)
+          );
           upstreamResponse.pipe(res);
         });
-        upstreamRequest.on('error', err => {
-          Log.debug(`[egress] ${req.method} ${url.host} failed: ${err.message}`);
-          if (!res.headersSent) {
-            res.writeHead(502);
-          }
-          res.end();
-        });
-        res.on('close', release);
-        req.pipe(upstreamRequest);
+        if (upgradeClient) {
+          upstreamRequest.on('upgrade', (upstreamResponse, upstream, upstreamHead) => {
+            if (signal.aborted) {
+              upstream.destroy();
+              return;
+            }
+            const { socket, head } = upgradeClient;
+            socket.removeListener('end', cancelUpgrade);
+            res.removeListener('close', finish);
+            res.detachSocket(socket as net.Socket);
+            const rawHeaders = filteredRawHeaders(upstreamResponse.rawHeaders, true);
+            const headerLines: string[] = [];
+            for (let i = 0; i < rawHeaders.length; i += 2) {
+              headerLines.push(`${rawHeaders[i]}: ${rawHeaders[i + 1]}`);
+            }
+            socket.write(
+              `HTTP/1.1 ${upstreamResponse.statusCode} ${upstreamResponse.statusMessage}\r\n${headerLines.join('\r\n')}\r\n\r\n`
+            );
+            if (upstreamHead.length > 0) {
+              socket.write(upstreamHead);
+            }
+            if (head.length > 0) {
+              upstream.write(head);
+            }
+            pipeBothWays(socket, upstream, finish);
+          });
+          upstreamRequest.end();
+        } else {
+          req.pipe(upstreamRequest);
+        }
       } catch (err) {
-        release();
+        if (!res.destroyed) {
+          res.writeHead(statusForError(err)).end();
+        }
+        finish();
         Log.debug(
-          `[egress] ${req.method} ${url.host} refused: ${err instanceof Error ? err.message : err}`
+          `[egress] ${req.method} ${req.url} refused: ${err instanceof Error ? err.message : err}`
         );
-        res.writeHead(statusForError(err)).end();
       }
     })();
-  });
+  };
 
-  // WebSocket over plain HTTP: forward the upgrade request as-is over a raw socket.
-  server.on('upgrade', (req, clientSocket, head) => {
-    void (async () => {
-      const release = acquire();
-      if (!release) {
-        clientSocket.end('HTTP/1.1 503 Service Unavailable\r\n\r\n');
-        return;
-      }
-      try {
-        const url = new URL(req.url ?? '');
-        if (url.protocol !== 'http:') {
-          throw new Error(`Unsupported URL scheme ${url.protocol}`);
-        }
-        const addresses = await resolveTargetAsync(url.hostname);
-        const upstream = await connectUpstreamAsync({
-          addresses,
-          port: url.port ? Number(url.port) : 80,
-        });
-        const rawHeaders = filteredRawHeaders(req.rawHeaders);
-        const headerLines: string[] = [];
-        for (let i = 0; i < rawHeaders.length; i += 2) {
-          headerLines.push(`${rawHeaders[i]}: ${rawHeaders[i + 1]}`);
-        }
-        upstream.write(
-          `${req.method} ${url.pathname}${url.search} HTTP/1.1\r\n${headerLines.join('\r\n')}\r\n\r\n`
-        );
-        if (head.length > 0) {
-          upstream.write(head);
-        }
-        // Node types the client side of 'connect' and 'upgrade' as a Duplex; it is a net.Socket.
-        pipeBothWays(clientSocket as net.Socket, upstream, release);
-      } catch (err) {
-        release();
-        Log.debug(
-          `[egress] upgrade ${req.url} refused: ${err instanceof Error ? err.message : err}`
-        );
-        if (!clientSocket.destroyed) {
-          clientSocket.end(
-            `HTTP/1.1 ${statusForError(err)} ${http.STATUS_CODES[statusForError(err)]}\r\n\r\n`
-          );
-        }
-      }
-    })();
+  server.on('request', (req, res) => {
+    forwardHttp(req, res);
   });
-
+  server.on('upgrade', (req, socket, head) => {
+    // Parse/filter the handshake in both directions before switching to a raw tunnel.
+    const res = new http.ServerResponse(req);
+    res.assignSocket(socket as net.Socket);
+    res.shouldKeepAlive = false;
+    res.once('finish', () => socket.end());
+    forwardHttp(req, res, { socket, head });
+  });
   server.on('clientError', (_err, socket) => {
     if (!socket.destroyed) {
-      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+      socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
     }
   });
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, () => {
+      server.removeListener('error', reject);
       resolve();
     });
   });
   const address = server.address();
   const boundPort = address && typeof address !== 'string' ? address.port : port;
-
+  let closePromise: Promise<void> | undefined;
   return {
     port: boundPort,
     getStats: () => ({ ...stats }),
     closeAsync: async () => {
-      await new Promise<void>(resolve => {
+      closePromise ??= new Promise<void>(resolve => {
+        closing = true;
         server.close(() => {
           resolve();
         });
-        server.closeAllConnections();
+        for (const finish of operations) {
+          finish();
+        }
+        // closeAllConnections excludes CONNECT/upgrade sockets; own all sockets explicitly.
+        for (const socket of sockets) {
+          socket.destroy();
+        }
       });
+      await closePromise;
     },
   };
 }
@@ -540,22 +684,27 @@ export function getChiselAssetName({
 export async function ensureChiselBinaryAsync({
   platform = process.platform,
   arch = process.arch,
-}: { platform?: NodeJS.Platform; arch?: string } = {}): Promise<string> {
+  signal,
+}: { platform?: NodeJS.Platform; arch?: string; signal?: AbortSignal } = {}): Promise<string> {
+  signal?.throwIfAborted();
   const assetName = getChiselAssetName({ platform, arch });
   const expectedSha256 = CHISEL_SHA256_BY_ASSET[assetName];
   const binaryDir = path.join(getCacheDirectory(), 'chisel', CHISEL_VERSION);
   const binaryPath = path.join(binaryDir, 'chisel');
   if (await fs.pathExists(binaryPath)) {
+    signal?.throwIfAborted();
     return binaryPath;
   }
 
   const url = `https://github.com/jpillora/chisel/releases/download/v${CHISEL_VERSION}/${assetName}`;
   Log.log(`Downloading the tunnel client (chisel ${CHISEL_VERSION})...`);
-  const response = await fetch(url);
+  signal?.throwIfAborted();
+  const response = await fetch(url, { signal, timeout: 60_000 });
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
   const archive = Buffer.from(await response.arrayBuffer());
+  signal?.throwIfAborted();
   const actualSha256 = createHash('sha256').update(archive).digest('hex');
   if (actualSha256 !== expectedSha256) {
     throw new Error(
@@ -580,7 +729,7 @@ export function buildChiselClientArgs({
   fingerprint: string;
   /** Port the tunnel server listens on, on the device host. */
   port: number;
-  /** Port the proxy listens on here. Differs from `port` only when both run on one machine. */
+  /** Port the proxy listens on here; independent of the worker's listening port. */
   localPort?: number;
 }): string[] {
   const remote = `R:${LOCAL_EGRESS_PROXY_HOST}:${port}:${LOCAL_EGRESS_PROXY_HOST}:${localPort}`;
@@ -609,74 +758,88 @@ export function classifyChiselClientLogLine(line: string): 'connected' | 'discon
 
 /**
  * Run the egress client until `signal` aborts. Rejects if the tunnel client exits
- * on its own, which means the simulator has lost its route to the internet.
+ * on its own, which means proxied HTTP(S) requests have lost their tunnel.
  */
 export async function runLocalEgressAsync({
   url,
   auth,
   fingerprint,
   port,
-  localPort = port,
+  localPort = 0,
   signal,
   onConnected,
   onDisconnected,
 }: LocalEgressConfig & {
-  /** Only for tests that run both ends on one machine; defaults to `port`. */
+  /** Defaults to an available ephemeral port; the remote worker port stays fixed. */
   localPort?: number;
   signal: AbortSignal;
   onConnected?: () => void;
   onDisconnected?: (line: string) => void;
 }): Promise<void> {
-  if (signal.aborted) {
-    return;
-  }
-  const chiselPath = await ensureChiselBinaryAsync();
-  const proxy = await startLocalEgressProxyServerAsync({ port: localPort });
-  Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
-
-  const chisel = spawnAsync(
-    chiselPath,
-    buildChiselClientArgs({ url, fingerprint, port, localPort }),
-    {
-      // The credential goes through the environment so it does not appear in `ps`.
-      env: { ...process.env, AUTH: auth },
-      stdio: ['ignore', 'pipe', 'pipe'],
+  let proxy: LocalEgressProxyServer | undefined;
+  let child: ChildProcess | undefined;
+  let killTimer: NodeJS.Timeout | undefined;
+  let proxyClosing: Promise<void> | undefined;
+  const readers: readline.Interface[] = [];
+  const stop = (): void => {
+    if (proxy) {
+      proxyClosing ??= proxy.closeAsync();
     }
-  );
-  const child = chisel.child;
-
-  let connected = false;
-  const handleLine = (line: string): void => {
-    Log.debug(`[egress] ${line}`);
-    switch (classifyChiselClientLogLine(line)) {
-      case 'connected':
-        connected = true;
-        onConnected?.();
-        break;
-      case 'disconnected':
-        if (connected) {
-          connected = false;
-          onDisconnected?.(line);
-        }
-        break;
-      case 'other':
-        break;
-    }
-  };
-  for (const stream of [child.stdout, child.stderr]) {
-    if (stream) {
-      readline.createInterface({ input: stream }).on('line', handleLine);
-    }
-  }
-
-  const stopChild = (): void => {
-    if (child.exitCode === null && !child.killed) {
+    if (child && child.exitCode === null && child.signalCode === null && !killTimer) {
       child.kill('SIGTERM');
+      killTimer = setTimeout(() => {
+        if (child && child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL');
+        }
+      }, 5_000);
+      killTimer.unref();
     }
   };
-  signal.addEventListener('abort', stopChild, { once: true });
-
+  signal.addEventListener('abort', stop, { once: true });
   try {
+    signal.throwIfAborted();
+    const chiselPath = await ensureChiselBinaryAsync({ signal });
+    signal.throwIfAborted();
+    proxy = await startLocalEgressProxyServerAsync({ port: localPort });
+    signal.throwIfAborted();
+    Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
+    const chisel = spawnAsync(
+      chiselPath,
+      buildChiselClientArgs({ url, fingerprint, port, localPort: proxy.port }),
+      {
+        // Stream diagnostics without retaining the entire session's logs in spawnAsync.
+        ignoreStdio: true,
+        env: { ...process.env, AUTH: auth },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+    child = chisel.child;
+    let connected = false;
+    const handleLine = (line: string): void => {
+      Log.debug(`[egress] ${line}`);
+      switch (classifyChiselClientLogLine(line)) {
+        case 'connected':
+          connected = true;
+          onConnected?.();
+          break;
+        case 'disconnected':
+          if (connected) {
+            connected = false;
+            onDisconnected?.(line);
+          }
+          break;
+        case 'other':
+          break;
+      }
+    };
+    for (const stream of [child.stdout, child.stderr]) {
+      if (stream) {
+        readers.push(readline.createInterface({ input: stream }).on('line', handleLine));
+      }
+    }
+    if (signal.aborted) {
+      stop();
+    }
     await chisel;
     if (!signal.aborted) {
       throw new Error('The egress tunnel client exited unexpectedly.');
@@ -685,12 +848,18 @@ export async function runLocalEgressAsync({
     if (!signal.aborted) {
       throw new Error(
         `The egress tunnel client stopped: ${err instanceof Error ? err.message : String(err)}. ` +
-          'The simulator has no internet access until it runs again.'
+          'Proxied HTTP(S) requests are unavailable until the tunnel reconnects.'
       );
     }
   } finally {
-    signal.removeEventListener('abort', stopChild);
-    stopChild();
-    await proxy.closeAsync();
+    signal.removeEventListener('abort', stop);
+    stop();
+    if (killTimer) {
+      clearTimeout(killTimer);
+    }
+    for (const reader of readers) {
+      reader.close();
+    }
+    await proxyClosing;
   }
 }

@@ -57,7 +57,7 @@ describe('local egress configuration', () => {
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain('eas simulator:egress');
-    expect(instructions).toContain('no internet access until the egress client is running');
+    expect(instructions).toContain('Run the egress client to connect the tunnel');
   });
 });
 

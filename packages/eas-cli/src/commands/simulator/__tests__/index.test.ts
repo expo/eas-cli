@@ -17,6 +17,7 @@ import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSession
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { promptAsync } from '../../../prompts';
+import { runLocalEgressAsync } from '../../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -38,6 +39,8 @@ jest.mock('../../../log', () => ({
     log: jest.fn(),
     newLine: jest.fn(),
     warn: jest.fn(),
+    error: jest.fn(),
+    succeed: jest.fn(),
     withTick: jest.fn(),
   },
   link: jest.fn((url: string) => url),
@@ -49,6 +52,7 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../prompts');
+jest.mock('../../../simulator/egress');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -854,6 +858,33 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
     processExitSpy.mockRestore();
+  });
+
+  it('propagates an egress failure after stopping the session and removing its interrupt handler', async () => {
+    const failure = new Error('listen EADDRINUSE');
+    jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
+    const session = makeDeviceRunSession();
+    mockByIdAsync.mockResolvedValue({
+      ...session,
+      remoteConfig: {
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+        agentDeviceRemoteSessionToken: 'token',
+        egressUrl: 'https://egress.example.com',
+        egressAuth: 'pw',
+        egressFingerprint: 'fp',
+        egressPort: 8899,
+      },
+    });
+    const listeners = process.listeners('SIGINT');
+    const { command } = createCommand(['--platform', 'ios', '--egress', 'local']);
+    await expect(command.runAsync()).rejects.toBe(failure);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGINT')).toEqual(listeners);
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {

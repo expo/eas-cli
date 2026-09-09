@@ -204,8 +204,8 @@ export function formatRemoteSessionInstructions(
       if (getLocalEgressConfig(remoteConfig)) {
         lines.push(
           '',
-          "🔀 This session routes the simulator's network traffic through this machine. The",
-          'simulator has no internet access until the egress client is running:',
+          '🔀 This session can route proxied HTTP(S) requests through this machine.',
+          'Run the egress client to connect the tunnel:',
           '',
           'eas simulator:egress',
           '',

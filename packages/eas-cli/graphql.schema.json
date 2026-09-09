@@ -45192,7 +45192,7 @@
           },
           {
             "name": "egress",
-            "description": "Where the virtual device's network traffic exits to the internet. If omitted,\ntraffic exits from EAS infrastructure. LOCAL is only supported for AGENT_DEVICE\nsessions on IOS.",
+            "description": "Where the virtual device's proxied network traffic exits to the internet. If\nomitted, all traffic exits from EAS infrastructure. LOCAL is only supported for\nAGENT_DEVICE sessions on IOS.",
             "type": {
               "kind": "ENUM",
               "name": "DeviceRunSessionEgress",
@@ -50859,14 +50859,14 @@
       {
         "kind": "ENUM",
         "name": "DeviceRunSessionEgress",
-        "description": "Where the virtual device's network traffic exits to the internet. When unset,\ntraffic exits from EAS infrastructure.",
+        "description": "Where the virtual device's proxied network traffic exits to the internet. When\nunset, all traffic exits from EAS infrastructure.",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
           {
             "name": "LOCAL",
-            "description": "Through a reverse tunnel to the machine running the EAS CLI egress client, so\nthird parties see that machine's public IP. The client must stay connected for\nthe life of the session.",
+            "description": "HTTP(S) requests that honor the device's system proxy exit through a reverse\ntunnel to the machine running the EAS CLI egress client, so third parties see\nthat machine's public IP. Those requests fail while the client is disconnected.\nRequests from libraries that bypass the system proxy are not covered and exit\nfrom EAS infrastructure. The client must stay connected for the life of the\nsession.",
             "isDeprecated": false,
             "deprecationReason": null
           }

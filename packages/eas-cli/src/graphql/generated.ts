@@ -6305,9 +6305,9 @@ export type CreateDeviceRunSessionInput = {
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
-   * Where the virtual device's network traffic exits to the internet. If omitted,
-   * traffic exits from EAS infrastructure. LOCAL is only supported for AGENT_DEVICE
-   * sessions on IOS.
+   * Where the virtual device's proxied network traffic exits to the internet. If
+   * omitted, all traffic exits from EAS infrastructure. LOCAL is only supported for
+   * AGENT_DEVICE sessions on IOS.
    */
   egress?: InputMaybe<DeviceRunSessionEgress>;
   /**
@@ -7132,14 +7132,17 @@ export type DeviceRunSessionQuery_ByIdArgs = {
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
 
 /**
- * Where the virtual device's network traffic exits to the internet. When unset,
- * traffic exits from EAS infrastructure.
+ * Where the virtual device's proxied network traffic exits to the internet. When
+ * unset, all traffic exits from EAS infrastructure.
  */
 export enum DeviceRunSessionEgress {
   /**
-   * Through a reverse tunnel to the machine running the EAS CLI egress client, so
-   * third parties see that machine's public IP. The client must stay connected for
-   * the life of the session.
+   * HTTP(S) requests that honor the device's system proxy exit through a reverse
+   * tunnel to the machine running the EAS CLI egress client, so third parties see
+   * that machine's public IP. Those requests fail while the client is disconnected.
+   * Requests from libraries that bypass the system proxy are not covered and exit
+   * from EAS infrastructure. The client must stay connected for the life of the
+   * session.
    */
   Local = 'LOCAL'
 }

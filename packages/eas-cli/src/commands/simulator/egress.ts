@@ -10,7 +10,7 @@ import {
 export default class SimulatorEgress extends EasCommand {
   static override hidden = true;
   static override aliases = ['sim:egress'];
-  static override description = `[EXPERIMENTAL] run the local egress client for the simulator session in ${SIMULATOR_DOTENV_FILE_NAME}, so the simulator's network traffic exits from this machine`;
+  static override description = `[EXPERIMENTAL] run the local egress client for the simulator session in ${SIMULATOR_DOTENV_FILE_NAME} to route proxied HTTP(S) requests through this machine`;
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectDir,
@@ -29,11 +29,11 @@ export default class SimulatorEgress extends EasCommand {
     Log.log(
       `Starting the local egress client${
         deviceRunSessionId ? ` for simulator session ${deviceRunSessionId}` : ''
-      }. While it runs, the simulator's network traffic exits from this machine.`
+      }. When connected, proxied HTTP(S) requests can use this machine's network.`
     );
     Log.log(
-      'Press Ctrl+C to stop the egress client. The simulator session keeps running without ' +
-        'internet access until the client runs again; stop the session with `eas simulator:stop`.'
+      'Press Ctrl+C to stop the egress client. The simulator session keeps running; ' +
+        'proxied HTTP(S) requests are unavailable until the tunnel reconnects. Stop the session with `eas simulator:stop`.'
     );
     Log.newLine();
 
@@ -47,11 +47,13 @@ export default class SimulatorEgress extends EasCommand {
         ...egress,
         signal: abortController.signal,
         onConnected: () => {
-          Log.succeed("Egress connected. Simulator traffic now exits from this machine's network.");
+          Log.succeed(
+            "Egress tunnel connected. Proxied HTTP(S) requests can use this machine's network."
+          );
         },
         onDisconnected: () => {
           Log.warn(
-            'Egress tunnel disconnected; reconnecting. The simulator has no internet access until it reconnects.'
+            'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
           );
         },
       });

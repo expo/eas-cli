@@ -1,3 +1,7 @@
+import spawnAsync from '@expo/spawn-async';
+import * as fs from 'fs-extra';
+import { ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
 import http from 'node:http';
 import net from 'node:net';
 
@@ -10,10 +14,26 @@ import {
   orderEgressAddresses,
   readLocalEgressConfigFromEnv,
   resolveEgressTargetAsync,
+  runLocalEgressAsync,
   startLocalEgressProxyServerAsync,
 } from '../egress';
 
 jest.mock('../../log');
+jest.mock('@expo/spawn-async');
+jest.mock('fs-extra', () => ({
+  ...jest.requireActual('fs-extra'),
+  pathExists: jest.fn(),
+}));
+
+async function waitForAsync(predicate: () => boolean): Promise<void> {
+  const deadline = Date.now() + 2_000;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error('Timed out waiting for socket cleanup.');
+    }
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+}
 
 describe(isForbiddenEgressAddress, () => {
   it.each([
@@ -219,9 +239,9 @@ describe(startLocalEgressProxyServerAsync, () => {
     });
   }
 
-  it('forwards plain HTTP requests with absolute URLs and keeps the Host header', async () => {
+  it('uses the absolute URL authority instead of an inconsistent Host header', async () => {
     const response = await rawRequestAsync(
-      `GET http://target.test:${targetHttpPort}/path?q=1 HTTP/1.1\r\nHost: target.test:${targetHttpPort}\r\nProxy-Connection: keep-alive\r\nConnection: close\r\n\r\n`
+      `GET http://target.test:${targetHttpPort}/path?q=1 HTTP/1.1\r\nHost: wrong.test\r\nProxy-Connection: keep-alive\r\nConnection: close\r\n\r\n`
     );
     expect(response).toContain('HTTP/1.1 200');
     expect(response).toContain('hello from GET /path?q=1');
@@ -268,5 +288,403 @@ describe(startLocalEgressProxyServerAsync, () => {
       'GET /relative HTTP/1.1\r\nHost: target.test\r\nConnection: close\r\n\r\n'
     );
     expect(response).toContain('HTTP/1.1 400');
+  });
+
+  it.each(['GET', 'CONNECT', 'upgrade'])(
+    'releases a disconnected %s client before DNS completes and never connects afterward',
+    async method => {
+      let resolveDns!: (addresses: string[]) => void;
+      let enteredDns!: () => void;
+      const started = new Promise<void>(resolve => (enteredDns = resolve));
+      const deferredProxy = await startLocalEgressProxyServerAsync({
+        port: 0,
+        resolveTargetAsync: () => {
+          enteredDns();
+          return new Promise(resolve => (resolveDns = resolve));
+        },
+      });
+      const connection = jest.fn();
+      targetHttpServer.on('connection', connection);
+      const client = net.connect(deferredProxy.port, '127.0.0.1');
+      try {
+        const target = `target.test:${targetHttpPort}`;
+        client.write(
+          method === 'CONNECT'
+            ? `CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\n\r\n`
+            : `GET http://${target}/ HTTP/1.1\r\nHost: ${target}\r\n${method === 'upgrade' ? 'Connection: Upgrade\r\nUpgrade: websocket\r\n' : ''}\r\n`
+        );
+        await started;
+        client.destroy();
+        await waitForAsync(() => deferredProxy.getStats().active === 0);
+        resolveDns(['127.0.0.1']);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        expect(connection).not.toHaveBeenCalled();
+      } finally {
+        client.destroy();
+        targetHttpServer.removeListener('connection', connection);
+        await deferredProxy.closeAsync();
+      }
+    }
+  );
+
+  it('closes established CONNECT sockets without waiting for idle timeout', async () => {
+    const tunnelProxy = await startLocalEgressProxyServerAsync({
+      port: 0,
+      resolveTargetAsync: async () => ['127.0.0.1'],
+    });
+    const client = net.connect(tunnelProxy.port, '127.0.0.1');
+    const reply = once(client, 'data');
+    client.write(`CONNECT target.test:${targetEchoPort} HTTP/1.1\r\nHost: target.test\r\n\r\n`);
+    await reply;
+    const closed = once(client, 'close');
+    await tunnelProxy.closeAsync();
+    await closed;
+    expect(tunnelProxy.getStats().active).toBe(0);
+    await tunnelProxy.closeAsync();
+  });
+
+  it('reframes chunked requests/responses and removes connection-nominated fields on keep-alive', async () => {
+    const received: { headers: http.IncomingHttpHeaders; body: string }[] = [];
+    const target = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', chunk => (body += chunk));
+      req.on('end', () => {
+        received.push({ headers: req.headers, body });
+        res.writeHead(200, {
+          Connection: 'keep-alive, X-Response-Hop',
+          'X-Response-Hop': 'remove-me',
+          'Set-Cookie': ['a=1', 'b=2'],
+        });
+        res.write('response-');
+        res.end(body);
+      });
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    const targetPort = (target.address() as net.AddressInfo).port;
+    const agent = new http.Agent({ keepAlive: true });
+    try {
+      for (let i = 0; i < 2; i++) {
+        const result = await new Promise<{ body: string; headers: http.IncomingHttpHeaders }>(
+          (resolve, reject) => {
+            const req = http.request(
+              {
+                host: '127.0.0.1',
+                port: proxy.port,
+                agent,
+                method: 'POST',
+                path: `http://target.test:${targetPort}/`,
+                headers: {
+                  Host: 'wrong.test',
+                  Connection: 'keep-alive, X-Request-Hop',
+                  'X-Request-Hop': 'remove-me',
+                  TE: 'trailers',
+                },
+              },
+              res => {
+                let body = '';
+                res.on('data', chunk => (body += chunk));
+                res.on('error', reject);
+                res.on('end', () => {
+                  resolve({ body, headers: res.headers });
+                });
+              }
+            );
+            req.on('error', reject);
+            req.write('chunk-');
+            req.end(String(i));
+          }
+        );
+        expect(result.body).toBe(`response-chunk-${i}`);
+        expect(result.headers['x-response-hop']).toBeUndefined();
+        expect(result.headers['set-cookie']).toEqual(['a=1', 'b=2']);
+      }
+      expect(received.map(({ body }) => body)).toEqual(['chunk-0', 'chunk-1']);
+      for (const { headers } of received) {
+        expect(headers.host).toBe(`target.test:${targetPort}`);
+        expect(headers['x-request-hop']).toBeUndefined();
+        expect(headers.te).toBeUndefined();
+      }
+    } finally {
+      agent.destroy();
+      target.closeAllConnections();
+      await new Promise<void>(resolve =>
+        target.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+
+  it.each([
+    ['GET', 'Transfer-Encoding: chunked\r\nConnection: close', '4\r\ntest\r\n0\r\n\r\n'],
+    ['DELETE', 'Transfer-Encoding: chunked\r\nConnection: close', '4\r\ntest\r\n0\r\n\r\n'],
+    ['GET', 'Content-Length: 4\r\nConnection: close, Content-Length', 'test'],
+  ])('preserves a raw %s body after rebuilding its framing (%s)', async (method, framing, body) => {
+    const received: { body: string; headers: http.IncomingHttpHeaders }[] = [];
+    const target = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', chunk => (body += chunk));
+      req.on('end', () => {
+        received.push({ body, headers: req.headers });
+        res.end(`received:${body}`);
+      });
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    try {
+      const targetPort = (target.address() as net.AddressInfo).port;
+      const response = await rawRequestAsync(
+        `${method} http://target.test:${targetPort}/ HTTP/1.1\r\nHost: target.test\r\n${framing}\r\n\r\n${body}`
+      );
+      expect(response).toContain('HTTP/1.1 200');
+      expect(response).toContain('received:test');
+      expect(received).toHaveLength(1);
+      expect(received[0].body).toBe('test');
+      expect(received[0].headers['transfer-encoding']).toBe('chunked');
+    } finally {
+      target.closeAllConnections();
+      await new Promise<void>(resolve => {
+        target.close(() => {
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('rejects transfer-coding chains it cannot decode without connecting upstream', async () => {
+    const connection = jest.fn();
+    targetHttpServer.on('connection', connection);
+    try {
+      const response = await rawRequestAsync(
+        `GET http://target.test:${targetHttpPort}/ HTTP/1.1\r\nHost: target.test\r\nTransfer-Encoding: gzip, chunked\r\nConnection: close\r\n\r\n4\r\ntest\r\n0\r\n\r\n`
+      );
+      expect(response).toContain('HTTP/1.1 501');
+      expect(connection).not.toHaveBeenCalled();
+    } finally {
+      targetHttpServer.removeListener('connection', connection);
+    }
+  });
+
+  it('rejects upstream transfer-coding chains instead of forwarding undecoded bytes', async () => {
+    const target = net.createServer(socket => {
+      socket.once('data', () => {
+        socket.end(
+          'HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip, chunked\r\n\r\n4\r\ntest\r\n0\r\n\r\n'
+        );
+      });
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    try {
+      const targetPort = (target.address() as net.AddressInfo).port;
+      const response = await rawRequestAsync(
+        `GET http://target.test:${targetPort}/ HTTP/1.1\r\nHost: target.test\r\nConnection: close\r\n\r\n`
+      );
+      expect(response).toContain('HTTP/1.1 502');
+      expect(response).not.toContain('test');
+    } finally {
+      await new Promise<void>(resolve => {
+        target.close(() => {
+          resolve();
+        });
+      });
+    }
+  });
+
+  it('closes a truncated upstream response and releases its operation', async () => {
+    const target = net.createServer(socket => {
+      socket.once('data', () =>
+        socket.end('HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\npartial')
+      );
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    try {
+      const targetPort = (target.address() as net.AddressInfo).port;
+      const response = await rawRequestAsync(
+        `GET http://target.test:${targetPort}/ HTTP/1.1\r\nHost: target.test\r\nConnection: close\r\n\r\n`
+      );
+      expect(response).toContain('Content-Length: 100');
+      expect(response).toContain('partial');
+      await waitForAsync(() => proxy.getStats().active === 0);
+    } finally {
+      await new Promise<void>(resolve =>
+        target.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+
+  it('destroys an in-flight upstream response when the downstream client disconnects', async () => {
+    let upstreamClosed = false;
+    const target = http.createServer((req, res) => {
+      req.socket.once('close', () => (upstreamClosed = true));
+      res.writeHead(200);
+      res.write('partial');
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    const targetPort = (target.address() as net.AddressInfo).port;
+    const client = net.connect(proxy.port, '127.0.0.1');
+    try {
+      const reply = once(client, 'data');
+      client.write(`GET http://target.test:${targetPort}/ HTTP/1.1\r\nHost: target.test\r\n\r\n`);
+      await reply;
+      client.destroy();
+      await waitForAsync(() => upstreamClosed && proxy.getStats().active === 0);
+    } finally {
+      client.destroy();
+      target.closeAllConnections();
+      await new Promise<void>(resolve =>
+        target.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+
+  it('closes promptly while DNS is pending and does not connect after the late answer', async () => {
+    let resolveDns!: (addresses: string[]) => void;
+    const deferredProxy = await startLocalEgressProxyServerAsync({
+      port: 0,
+      resolveTargetAsync: () => new Promise(resolve => (resolveDns = resolve)),
+    });
+    const client = net.connect(deferredProxy.port, '127.0.0.1');
+    client.write(`CONNECT target.test:${targetEchoPort} HTTP/1.1\r\nHost: target.test\r\n\r\n`);
+    await waitForAsync(() => resolveDns !== undefined);
+    const closed = once(client, 'close');
+    await deferredProxy.closeAsync();
+    await closed;
+    expect(deferredProxy.getStats().active).toBe(0);
+    resolveDns(['127.0.0.1']);
+    await new Promise(resolve => setImmediate(resolve));
+    expect(deferredProxy.getStats().active).toBe(0);
+  });
+
+  it('filters both upgrade handshakes and closes upgraded sockets during shutdown', async () => {
+    let seenHeaders: http.IncomingHttpHeaders | undefined;
+    const target = http.createServer();
+    target.on('upgrade', (req, socket) => {
+      seenHeaders = req.headers;
+      socket.write(
+        'HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade, X-Response-Hop\r\nUpgrade: websocket\r\nX-Response-Hop: remove-me\r\n\r\n'
+      );
+      socket.pipe(socket);
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    const targetPort = (target.address() as net.AddressInfo).port;
+    const tunnelProxy = await startLocalEgressProxyServerAsync({
+      port: 0,
+      resolveTargetAsync: async () => ['127.0.0.1'],
+    });
+    const client = net.connect(tunnelProxy.port, '127.0.0.1');
+    try {
+      const reply = once(client, 'data');
+      client.write(
+        `GET http://target.test:${targetPort}/ HTTP/1.1\r\nHost: wrong.test\r\nConnection: Upgrade, X-Request-Hop\r\nUpgrade: websocket\r\nX-Request-Hop: remove-me\r\n\r\n`
+      );
+      const [handshake] = await reply;
+      expect(handshake.toString()).toContain('101 Switching Protocols');
+      expect(handshake.toString()).not.toContain('X-Response-Hop');
+      expect(seenHeaders?.host).toBe(`target.test:${targetPort}`);
+      expect(seenHeaders?.['x-request-hop']).toBeUndefined();
+      const echo = once(client, 'data');
+      client.write('ping');
+      expect((await echo)[0].toString()).toBe('ping');
+      const closed = once(client, 'close');
+      await tunnelProxy.closeAsync();
+      await closed;
+      expect(tunnelProxy.getStats().active).toBe(0);
+    } finally {
+      client.destroy();
+      await tunnelProxy.closeAsync();
+      await new Promise<void>(resolve =>
+        target.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+});
+
+describe(runLocalEgressAsync, () => {
+  afterEach(() => {
+    jest.mocked(spawnAsync).mockReset();
+    jest.mocked(fs.pathExists).mockReset();
+  });
+  it('does not spawn a child when interrupted during the binary cache lookup', async () => {
+    let completeLookup!: (exists: boolean) => void;
+    const exists = jest
+      .mocked(fs.pathExists)
+      .mockImplementation(() => new Promise<boolean>(resolve => (completeLookup = resolve)));
+    const controller = new AbortController();
+    try {
+      const running = runLocalEgressAsync({
+        url: 'https://example.test',
+        auth: 'pw',
+        fingerprint: 'fp',
+        port: 8899,
+        signal: controller.signal,
+      });
+      controller.abort();
+      completeLookup(true);
+      await running;
+      expect(spawnAsync).not.toHaveBeenCalled();
+    } finally {
+      exists.mockReset();
+    }
+  });
+
+  it('uses distinct ephemeral local ports and stops both proxies and children on abort', async () => {
+    jest.mocked(fs.pathExists).mockResolvedValue(true as never);
+    const children: ChildProcess[] = [];
+    jest.mocked(spawnAsync).mockImplementation(() => {
+      const child = new ChildProcess();
+      children.push(child);
+      const promise = new Promise<never>((_resolve, reject) => {
+        child.kill = jest.fn(signal => {
+          Object.defineProperty(child, 'signalCode', { value: signal, configurable: true });
+          reject(new Error('terminated'));
+          return true;
+        });
+      });
+      return Object.assign(promise, { child });
+    });
+    const controllers = [new AbortController(), new AbortController()];
+    const running = controllers.map(controller =>
+      runLocalEgressAsync({
+        url: 'https://example.test',
+        auth: 'pw',
+        fingerprint: 'fp',
+        port: 8899,
+        signal: controller.signal,
+      })
+    );
+    try {
+      await waitForAsync(() => children.length === 2);
+      const localPorts = jest.mocked(spawnAsync).mock.calls.map(([, args, options]) => {
+        expect(options).toMatchObject({ ignoreStdio: true, env: { AUTH: 'pw' } });
+        const remote = args?.[args.length - 1] ?? '';
+        expect(remote).toMatch(/^R:127\.0\.0\.1:8899:127\.0\.0\.1:\d+$/);
+        return Number(remote.split(':').at(-1));
+      });
+      expect(new Set(localPorts).size).toBe(2);
+      expect(localPorts.every(port => port > 0)).toBe(true);
+      controllers.forEach(controller => {
+        controller.abort();
+      });
+      await Promise.all(running);
+      for (const child of children) {
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      }
+      for (const port of localPorts) {
+        const probe = net.connect(port, '127.0.0.1');
+        const [error] = await once(probe, 'error');
+        expect(error.code).toBe('ECONNREFUSED');
+        probe.destroy();
+      }
+    } finally {
+      controllers.forEach(controller => {
+        controller.abort();
+      });
+      await Promise.all(running);
+    }
   });
 });
