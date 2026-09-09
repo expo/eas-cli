@@ -640,11 +640,13 @@ export function createServeSimArgs({
   turnArgs = [],
   metricsCorsArgs = [],
   packageVersion,
+  networkCapture = false,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
   packageVersion?: string;
+  networkCapture?: boolean;
 }): string[] {
   return [
     '--yes',
@@ -668,6 +670,7 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...metricsCorsArgs,
+    ...(networkCapture ? ['--network-capture'] : []),
   ];
 }
 
@@ -860,12 +863,14 @@ export async function startServeSimWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
+    networkCapture = false,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
@@ -877,7 +882,7 @@ export async function startServeSimWithTunnelAsync(
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
-      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion, networkCapture }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
@@ -939,6 +944,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
   }
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
