@@ -16020,6 +16020,13 @@ export type AppByIdWorkflowsQueryVariables = Exact<{
 
 export type AppByIdWorkflowsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any, revisionsPaginated: { __typename?: 'WorkflowRevisionsConnection', edges: Array<{ __typename?: 'WorkflowRevisionEdge', node: { __typename?: 'WorkflowRevision', id: string, blobSha: string, commitSha?: string | null, createdAt: any, yamlConfig: string } }> } }> } } };
 
+export type AppByIdWorkflowFileNamesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type AppByIdWorkflowFileNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }> } } };
+
 export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   status?: InputMaybe<WorkflowRunStatus>;
@@ -16746,6 +16753,33 @@ export type WebhookByIdQueryVariables = Exact<{
 
 export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename?: 'WebhookQuery', byId: { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any } } };
 
+export type WorkflowDeviceTestCaseInsightsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
+  filters?: InputMaybe<WorkflowDeviceTestCaseInsightsFiltersInput>;
+  granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
+  sortField?: InputMaybe<WorkflowDeviceTestCaseStatSortField>;
+  sortDirection?: InputMaybe<WorkflowDeviceTestCaseSortDirection>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowDeviceTestCaseInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflowDeviceTestCaseInsights: { __typename?: 'WorkflowDeviceTestCaseInsights', totals: { __typename?: 'WorkflowDeviceTestCaseInsightsTotals', totalRuns: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, passedCleanCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, flakyCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, distinctFlakyTestCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowDeviceTestCaseInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null } }, timeSeries: Array<{ __typename?: 'WorkflowDeviceTestCaseInsightsBucket', bucketStartAt: any, passedClean: number, flaky: number, failed: number }>, tests: { __typename?: 'WorkflowDeviceTestCaseStatConnection', totalCount: number, edges: Array<{ __typename?: 'WorkflowDeviceTestCaseStatEdge', node: { __typename?: 'WorkflowDeviceTestCaseStat', path: string, name: string, totalRuns: number, passedCleanCount: number, flakyCount: number, failedCount: number, p90DurationMs?: number | null, lastRunAt: any, lastRunStatus: WorkflowDeviceTestCaseStatus, lastRunIsFlaky: boolean } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+
+export type WorkflowDeviceTestCaseHistoryByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  path: Scalars['String']['input'];
+  timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
+  filters?: InputMaybe<WorkflowDeviceTestCaseHistoryFiltersInput>;
+  granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
+  errorPatternsFirst: Scalars['Int']['input'];
+  recentRunsFirst: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowDeviceTestCaseHistoryByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflowDeviceTestCaseHistory: { __typename?: 'WorkflowDeviceTestCaseHistory', totals: { __typename?: 'WorkflowDeviceTestCaseInsightsTotals', totalRuns: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number }, passedCleanCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number }, flakyCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number }, p90DurationMs: { __typename?: 'WorkflowDeviceTestCaseInsightsNullableMetric', currentValue?: number | null } }, timeSeries: Array<{ __typename?: 'WorkflowDeviceTestCaseInsightsBucket', bucketStartAt: any, passedClean: number, flaky: number, failed: number }>, errorPatterns: Array<{ __typename?: 'WorkflowDeviceTestCaseErrorPattern', sampleMessage: string, count: number }>, recentRuns: { __typename?: 'WorkflowDeviceTestCaseRecentRunConnection', totalCount: number, edges: Array<{ __typename?: 'WorkflowDeviceTestCaseRecentRunEdge', node: { __typename?: 'WorkflowDeviceTestCaseRecentRun', id: string, status: WorkflowDeviceTestCaseStatus, durationMs?: number | null, isFlaky: boolean, createdAt: any, workflowRunId: string, workflowRunName: string, gitRef?: string | null, commitSha?: string | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+
 export type WorkflowJobByIdQueryVariables = Exact<{
   workflowJobId: Scalars['ID']['input'];
 }>;
@@ -16771,14 +16805,6 @@ export type JobRunSshPollQueryVariables = Exact<{
 
 
 export type JobRunSshPollQuery = { __typename?: 'RootQuery', jobRun: { __typename?: 'JobRunQuery', byId: { __typename?: 'JobRun', id: string, status: JobRunStatus, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } } };
-
-export type WorkflowByAppIdAndFileNameQueryVariables = Exact<{
-  appId: Scalars['ID']['input'];
-  fileName: Scalars['String']['input'];
-}>;
-
-
-export type WorkflowByAppIdAndFileNameQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string } } };
 
 export type ExpoGoSupportedSdkVersionsQueryVariables = Exact<{ [key: string]: never; }>;
 

@@ -16,6 +16,14 @@ export function formatTimespan(timespan: InsightsTimespanFields): string {
   return `${toDateOnly(timespan.startTime)} to ${toDateOnly(timespan.endTime)}`;
 }
 
+export function toTimespanJson(timespan: InsightsTimespanFields): object {
+  return {
+    start: timespan.startTime,
+    end: timespan.endTime,
+    ...(timespan.daysBack !== undefined ? { daysBack: timespan.daysBack } : {}),
+  };
+}
+
 export function toDateOnly(isoTimestamp: string): string {
   return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd');
 }

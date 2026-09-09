@@ -4,6 +4,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -16,11 +17,7 @@ import {
   fetchSessionMetricCandidatesAsync,
   verifyObserveSessionAccessAsync,
 } from '../../observe/fetchSessions';
-import {
-  ObserveEnvironmentFlag,
-  ObserveProjectIdFlag,
-  ObserveTimeRangeFlags,
-} from '../../observe/flags';
+import { ObserveEnvironmentFlag, ObserveTimeRangeFlags } from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import {
   buildObserveSessionEventsJson,
@@ -70,7 +67,7 @@ export default class ObserveSession extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveEnvironmentFlag,
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

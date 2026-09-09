@@ -1,30 +1,29 @@
 import { EasCommandError } from '../../commandUtils/errors';
-import { GraphqlError } from '../../graphql/client';
+import { findPlanGateError } from '../../commandUtils/planGating';
 
-// Must match the server's Workflows Insights plan-gate error codes (`ExpoErrorCode`).
+// Must match the server's plan-gate error codes (`ExpoErrorCode`).
 export const EAS_WORKFLOWS_INSIGHTS_NOT_AVAILABLE_ERROR_CODE =
   'EAS_WORKFLOWS_INSIGHTS_NOT_AVAILABLE';
 export const EAS_WORKFLOWS_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED_ERROR_CODE =
   'EAS_WORKFLOWS_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED';
+export const EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_NOT_AVAILABLE_ERROR_CODE =
+  'EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_NOT_AVAILABLE';
+export const EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED_ERROR_CODE =
+  'EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED';
 
 const PLAN_GATE_ERROR_CODES: ReadonlySet<string> = new Set([
   EAS_WORKFLOWS_INSIGHTS_NOT_AVAILABLE_ERROR_CODE,
   EAS_WORKFLOWS_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED_ERROR_CODE,
+  EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_NOT_AVAILABLE_ERROR_CODE,
+  EAS_WORKFLOW_DEVICE_TEST_CASE_INSIGHTS_TIMESPAN_LIMIT_EXCEEDED_ERROR_CODE,
 ]);
 
-/** Plan-gate rejections become a plain error message instead of a raw GraphQL error. */
-export async function withWorkflowsInsightsPlanGateHandlingAsync<T>(
-  fn: () => Promise<T>
-): Promise<T> {
+/** Plan-gate rejections from either insights surface become a plain error message. */
+export async function withInsightsPlanGateHandlingAsync<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (error) {
-    if (!(error instanceof GraphqlError)) {
-      throw error;
-    }
-    const planGateError = error.graphQLErrors.find(e =>
-      PLAN_GATE_ERROR_CODES.has(e?.extensions?.errorCode as string)
-    );
+    const planGateError = findPlanGateError(error, PLAN_GATE_ERROR_CODES);
     if (!planGateError) {
       throw error;
     }

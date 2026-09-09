@@ -4,6 +4,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
@@ -20,7 +21,6 @@ import {
   ObserveBuildNumberFlag,
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
@@ -63,7 +63,7 @@ export default class ObserveMetrics extends EasCommand {
     ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
     ...ObserveEnvironmentFlag,
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

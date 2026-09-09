@@ -3,6 +3,7 @@ import { Args, Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
@@ -15,7 +16,6 @@ import {
   ObserveBuildNumberFlag,
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
@@ -66,7 +66,7 @@ export default class ObserveEvents extends EasCommand {
         'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
       default: false,
     }),
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

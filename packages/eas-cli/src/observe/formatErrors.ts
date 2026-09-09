@@ -2,6 +2,7 @@ import chalk from 'chalk';
 
 import { AppObserveError, AppObserveErrorGroup, PageInfo } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
+import { truncate } from '../utils/terminalText';
 import { buildTimeRangeDescription, formatLogTimestamp, formatTimestamp } from './formatUtils';
 
 export interface ObserveErrorGroupJson {
@@ -99,10 +100,6 @@ export interface BuildErrorGroupsTableOptions {
   daysBack?: number;
   startTime?: string;
   endTime?: string;
-}
-
-function truncate(value: string, maxLength: number): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 }
 
 export function buildObserveErrorGroupsTable(

@@ -11,7 +11,7 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { ChannelInsightsQuery } from '../../graphql/queries/ChannelInsightsQuery';
-import { resolveInsightsTimeRange } from '../../insights/timeRange';
+import { InsightsTimeRangeFlags, resolveInsightsTimeRange } from '../../insights/timeRange';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -28,20 +28,7 @@ export default class ChannelInsights extends EasCommand {
       description: 'Runtime version to query insights for.',
       required: true,
     }),
-    days: Flags.integer({
-      description:
-        'Show insights from the last N days (default 7, mutually exclusive with --start/--end).',
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    start: Flags.string({
-      description: 'Start of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
+    ...InsightsTimeRangeFlags,
     ...EasNonInteractiveAndJsonFlags,
   };
 

@@ -2,12 +2,6 @@ import { Flags } from '@oclif/core';
 
 import { allowedPlatformFlagValues } from './platforms';
 
-export const ObserveProjectIdFlag = {
-  'project-id': Flags.string({
-    description: 'EAS project ID (defaults to the project ID of the current directory)',
-  }),
-};
-
 export const ObservePlatformFlag = {
   platform: Flags.option({
     description: 'Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)',
