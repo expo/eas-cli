@@ -18,6 +18,7 @@ import {
 import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
+  sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { formatBytes } from '../../utils/files';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
@@ -96,7 +97,9 @@ export default class SimulatorGet extends EasCommand {
         finishedAt: session.finishedAt ?? undefined,
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
-        remoteConfig: session.remoteConfig,
+        remoteConfig: session.remoteConfig
+          ? sanitizeRemoteConfigForJson(session.remoteConfig)
+          : session.remoteConfig,
         artifacts: session.artifacts,
       });
       return;
