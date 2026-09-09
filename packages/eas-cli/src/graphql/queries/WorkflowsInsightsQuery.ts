@@ -45,6 +45,10 @@ export const WorkflowsInsightsQuery = {
                 byId(appId: $appId) {
                   id
                   fullName
+                  workflows {
+                    id
+                    fileName
+                  }
                   workflowsInsights {
                     overviewMetrics(timespan: $timespan, filters: $filters) {
                       totalRuns {
@@ -101,7 +105,7 @@ export const WorkflowsInsightsQuery = {
             granularity,
             first,
           },
-          { additionalTypenames: ['App', 'AppWorkflowsInsights'] }
+          { additionalTypenames: ['App', 'AppWorkflowsInsights', 'Workflow'] }
         )
         .toPromise(),
       { featureName: 'EAS Workflows insights' }

@@ -21,6 +21,7 @@ function makeApp(
     labels?: string[];
     datasets?: { id: string; data: (number | null)[] }[];
     workflows?: any[];
+    appWorkflows?: { id: string; fileName: string }[];
     hasNextPage?: boolean;
   } = {}
 ): AppWithWorkflowsInsightsObject {
@@ -28,6 +29,12 @@ function makeApp(
     __typename: 'App',
     id: 'app-1',
     fullName: '@acme/app',
+    workflows: (
+      overrides.appWorkflows ?? [
+        { id: 'wf-1', fileName: 'build.yml' },
+        { id: 'wf-2', fileName: 'tests.yml' },
+      ]
+    ).map(workflow => ({ __typename: 'Workflow', ...workflow })),
     workflowsInsights: {
       __typename: 'AppWorkflowsInsights',
       overviewMetrics: {
@@ -167,6 +174,12 @@ describe(toWorkflowsInsightsSummary, () => {
     ]);
     expect(summary.hasMoreWorkflows).toBe(true);
   });
+
+  it('keys each workflow by file name and leaves it null for an unknown workflow', () => {
+    const summary = makeSummary({ appWorkflows: [{ id: 'wf-1', fileName: 'build.yml' }] });
+
+    expect(summary.workflows.map(w => w.fileName)).toEqual(['build.yml', null]);
+  });
 });
 
 describe(successRatePercent, () => {
@@ -207,6 +220,7 @@ describe(buildWorkflowsInsightsJson, () => {
     expect(json.runsOverTime.buckets).toHaveLength(2);
     expect(json.workflows[0]).toEqual({
       workflowId: 'wf-1',
+      fileName: 'build.yml',
       name: 'Build',
       totalRuns: 60,
       successfulRuns: 45,
@@ -245,7 +259,8 @@ describe(buildWorkflowsInsightsTable, () => {
     expect(table).toContain('-5.0 pts');
     expect(table).toContain('Runs over time (daily, UTC):');
     expect(table).toContain('2026-09-01');
-    expect(table).toContain('Build');
+    expect(table).toContain('build.yml');
+    expect(table).not.toContain('Build');
     expect(table).toContain('2026-09-02 10:30');
     expect(table).not.toContain('Filters');
     expect(table).not.toContain('with the most runs');
@@ -275,11 +290,46 @@ describe(buildWorkflowsInsightsTable, () => {
     expect(table).toContain('2026-09-01 00:00');
   });
 
-  it('says so when no workflow ran', () => {
-    const table = buildWorkflowsInsightsTable(makeSummary({ workflows: [], labels: [] }));
+  it('omits buckets with no runs and says so in the heading', () => {
+    const table = buildWorkflowsInsightsTable(
+      makeSummary({
+        labels: [
+          '2026-08-27T00:00:00.000Z',
+          '2026-08-28T00:00:00.000Z',
+          '2026-08-29T00:00:00.000Z',
+        ],
+        datasets: [
+          { id: 'WorkflowsInsightsRunsOverTimeDataset:total', data: [60, 0, 40] },
+          { id: 'WorkflowsInsightsRunsOverTimeDataset:success', data: [45, 0, 30] },
+          { id: 'WorkflowsInsightsRunsOverTimeDataset:failure', data: [12, 0, 8] },
+          { id: 'WorkflowsInsightsRunsOverTimeDataset:canceled', data: [3, 0, 2] },
+        ],
+      })
+    );
+
+    expect(table).toContain('Runs over time (daily, UTC; days with no runs omitted):');
+    expect(table).toContain('2026-08-27');
+    expect(table).not.toContain('2026-08-28');
+    expect(table).toContain('2026-08-29');
+  });
+
+  it('skips the runs-over-time table when no bucket has a run', () => {
+    // The server fills the whole window with zero buckets, so this is what a quiet project returns.
+    const zero = (id: string): { id: string; data: number[] } => ({ id, data: [0, 0] });
+    const summary = makeSummary({
+      workflows: [],
+      datasets: [
+        zero('WorkflowsInsightsRunsOverTimeDataset:total'),
+        zero('WorkflowsInsightsRunsOverTimeDataset:success'),
+        zero('WorkflowsInsightsRunsOverTimeDataset:failure'),
+        zero('WorkflowsInsightsRunsOverTimeDataset:canceled'),
+      ],
+    });
+    const table = buildWorkflowsInsightsTable(summary);
 
     expect(table).toContain('No workflow runs in this time range.');
     expect(table).not.toContain('Runs over time');
+    expect((buildWorkflowsInsightsJson(summary) as any).runsOverTime.buckets).toHaveLength(2);
   });
 
   it('shows n/a instead of a success rate when there were no runs', () => {

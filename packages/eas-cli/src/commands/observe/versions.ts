@@ -13,7 +13,6 @@ import {
 } from '../../observe/flags';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
 import { observePlatformTargetsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -33,20 +32,16 @@ export default class ObserveVersions extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveVersions);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveVersions,
-      loggedInOnlyContextDefinition: ObserveVersions.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveVersions, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {

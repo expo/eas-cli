@@ -18,7 +18,6 @@ import { buildObserveErrorDetail, buildObserveErrorJson } from '../../observe/fo
 import { buildObserveEventDetail, buildObserveEventJson } from '../../observe/formatEvents';
 import { ObserveProjectIdFlag } from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ObserveEvent extends EasCommand {
@@ -42,20 +41,16 @@ export default class ObserveEvent extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveEvent);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveEvent,
-      loggedInOnlyContextDefinition: ObserveEvent.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveEvent, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {

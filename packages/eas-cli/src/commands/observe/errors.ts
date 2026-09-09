@@ -30,7 +30,6 @@ import {
 } from '../../observe/formatErrors';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -76,20 +75,16 @@ export default class ObserveErrors extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveErrors);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveErrors,
-      loggedInOnlyContextDefinition: ObserveErrors.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveErrors, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (!flags.fingerprint && (flags.after || flags.limit)) {

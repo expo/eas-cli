@@ -1,7 +1,6 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
@@ -87,10 +86,6 @@ export default class WorkflowInsights extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(WorkflowInsights);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
@@ -98,10 +93,13 @@ export default class WorkflowInsights extends EasCommand {
     const timespan = resolveInsightsTimeRange(flags);
     const granularity = granularityForTimespan(timespan.startTime, timespan.endTime);
 
-    const { projectId, graphqlClient } = await this.resolveProjectContextAsync(
-      flags['project-id'],
-      nonInteractive
-    );
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(WorkflowInsights, {
+      nonInteractive,
+      projectIdOverride: flags['project-id'],
+    });
 
     if (json) {
       enableJsonOutput();
@@ -135,30 +133,5 @@ export default class WorkflowInsights extends EasCommand {
       Log.addNewLineIfNone();
       Log.log(buildWorkflowsInsightsTable(summary));
     }
-  }
-
-  /**
-   * With `--project-id` the command runs outside a project directory, so only the
-   * login context is needed.
-   */
-  private async resolveProjectContextAsync(
-    projectIdOverride: string | undefined,
-    nonInteractive: boolean
-  ): Promise<{ projectId: string; graphqlClient: ExpoGraphqlClient }> {
-    if (projectIdOverride) {
-      const {
-        loggedIn: { graphqlClient },
-      } = await this.getContextAsync(
-        { contextDefinition: WorkflowInsights.loggedInOnlyContextDefinition },
-        { nonInteractive }
-      );
-      return { projectId: projectIdOverride, graphqlClient };
-    }
-
-    const {
-      projectId,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(WorkflowInsights, { nonInteractive });
-    return { projectId, graphqlClient };
   }
 }

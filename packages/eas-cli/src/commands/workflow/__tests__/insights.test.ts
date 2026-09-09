@@ -30,6 +30,7 @@ const appResponse: any = {
   __typename: 'App',
   id: 'app-1',
   fullName: '@acme/app',
+  workflows: [{ __typename: 'Workflow', id: 'wf-build', fileName: 'build.yml' }],
   workflowsInsights: {
     __typename: 'AppWorkflowsInsights',
     overviewMetrics: {
@@ -103,11 +104,12 @@ describe(WorkflowInsights, () => {
     getContextAsync: jest.SpyInstance;
   } {
     const command = new WorkflowInsights(argv, mockConfig);
-    // @ts-expect-error getContextAsync is protected
-    const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
-      projectId: 'app-1',
-      loggedIn: { graphqlClient },
-    });
+    const getContextAsync = jest
+      .spyOn(command as any, 'getContextAsync')
+      .mockImplementation(async (_commandClass: any, { projectIdOverride }: any) => ({
+        projectId: projectIdOverride ?? 'app-1',
+        loggedIn: { graphqlClient },
+      }));
     return { command, getContextAsync };
   }
 
@@ -203,8 +205,10 @@ describe(WorkflowInsights, () => {
     const { command, getContextAsync } = createCommand(['--project-id', 'other-app']);
     await command.runAsync();
 
-    const [{ contextDefinition }] = getContextAsync.mock.calls[0];
-    expect(Object.keys(contextDefinition)).toEqual(['loggedIn']);
+    expect(getContextAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ projectIdOverride: 'other-app' })
+    );
     expect(mockByAppIdAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ appId: 'other-app' })
@@ -239,6 +243,7 @@ describe(WorkflowInsights, () => {
     expect(json.overview.successRatePercent).toEqual({ current: 75, previous: 80 });
     expect(json.runsOverTime.granularity).toBe('DAY');
     expect(json.workflows[0].name).toBe('Build');
+    expect(json.workflows[0].fileName).toBe('build.yml');
   });
 
   it('turns a plan-gate rejection into a readable error with the plan limit', async () => {

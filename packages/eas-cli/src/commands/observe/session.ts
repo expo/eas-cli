@@ -33,7 +33,6 @@ import {
   isKnownMetricName,
   resolveMetricName,
 } from '../../observe/metricNames';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { ExpoChoice, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -80,20 +79,16 @@ export default class ObserveSession extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveSession);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveSession,
-      loggedInOnlyContextDefinition: ObserveSession.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveSession, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {

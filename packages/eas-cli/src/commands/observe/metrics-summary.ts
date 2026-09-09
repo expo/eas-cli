@@ -22,7 +22,6 @@ import {
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformTargetsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -73,20 +72,16 @@ export default class ObserveMetricsSummary extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetricsSummary);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveMetricsSummary,
-      loggedInOnlyContextDefinition: ObserveMetricsSummary.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveMetricsSummary, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {

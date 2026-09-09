@@ -40,6 +40,7 @@ export interface WorkflowsInsightsBucket {
 
 export interface WorkflowsInsightsWorkflowSummary {
   workflowId: string;
+  fileName: string | null;
   name: string;
   totalRuns: number;
   successfulRuns: number;
@@ -66,20 +67,28 @@ export interface WorkflowsInsightsSummary extends InsightsTimespanFields {
 
 const GRANULARITY_PRESENTATION: Record<
   WorkflowsInsightsRunsOverTimeGranularity,
-  { label: string; columnHeader: string; formatBucketStart: (isoTimestamp: string) => string }
+  {
+    label: string;
+    unitPlural: string;
+    columnHeader: string;
+    formatBucketStart: (isoTimestamp: string) => string;
+  }
 > = {
   [WorkflowsInsightsRunsOverTimeGranularity.Minute]: {
     label: 'per minute, UTC',
+    unitPlural: 'minutes',
     columnHeader: 'Time',
     formatBucketStart: toDateTime,
   },
   [WorkflowsInsightsRunsOverTimeGranularity.Hour]: {
     label: 'hourly, UTC',
+    unitPlural: 'hours',
     columnHeader: 'Time',
     formatBucketStart: toDateTime,
   },
   [WorkflowsInsightsRunsOverTimeGranularity.Day]: {
     label: 'daily, UTC',
+    unitPlural: 'days',
     columnHeader: 'Date',
     formatBucketStart: toDateOnly,
   },
@@ -106,6 +115,9 @@ export function toWorkflowsInsightsSummary(
   }
 ): WorkflowsInsightsSummary {
   const { overviewMetrics, runsOverTime, workflows } = app.workflowsInsights;
+  // Insights rows carry the workflow's YAML name, which is neither unique nor what
+  // `--workflow` accepts, so the table is keyed by file name instead.
+  const fileNamesByWorkflowId = new Map(app.workflows.map(w => [w.id, w.fileName]));
 
   return {
     appFullName: app.fullName,
@@ -130,6 +142,7 @@ export function toWorkflowsInsightsSummary(
     runsOverTime: toBuckets(runsOverTime.lineChart),
     workflows: workflows.edges.map(({ node }) => ({
       workflowId: node.workflowId,
+      fileName: fileNamesByWorkflowId.get(node.workflowId) ?? null,
       name: node.name,
       totalRuns: node.totalRuns,
       successfulRuns: node.successfulRuns,
@@ -225,11 +238,18 @@ export function buildWorkflowsInsightsTable(summary: WorkflowsInsightsSummary): 
   );
 
   const granularity = GRANULARITY_PRESENTATION[summary.granularity];
-  if (summary.runsOverTime.length > 0) {
+  // The server fills the whole window with buckets, so a quiet project would print one
+  // zero row per day. The JSON output keeps every bucket.
+  const bucketsWithRuns = summary.runsOverTime.filter(bucket => bucket.totalRuns > 0);
+  if (bucketsWithRuns.length > 0) {
+    const omittedNote =
+      bucketsWithRuns.length < summary.runsOverTime.length
+        ? `; ${granularity.unitPlural} with no runs omitted`
+        : '';
     sections.push('');
-    sections.push(chalk.bold(`Runs over time (${granularity.label}):`));
+    sections.push(chalk.bold(`Runs over time (${granularity.label}${omittedNote}):`));
     sections.push('');
-    sections.push(indentString(renderRunsOverTimeTable(summary.runsOverTime, granularity), 2));
+    sections.push(indentString(renderRunsOverTimeTable(bucketsWithRuns, granularity), 2));
   }
 
   sections.push('');
@@ -333,7 +353,7 @@ function renderWorkflowsTable(workflows: WorkflowsInsightsWorkflowSummary[]): st
   return renderTextTable(
     ['Workflow', 'Runs', 'Successful', 'Failed', 'Canceled', 'Success rate', 'Last run'],
     workflows.map(workflow => [
-      workflow.name,
+      workflow.fileName ?? workflow.name,
       workflow.totalRuns.toLocaleString(),
       workflow.successfulRuns.toLocaleString(),
       workflow.failedRuns.toLocaleString(),
