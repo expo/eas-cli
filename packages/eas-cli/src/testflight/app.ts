@@ -76,7 +76,7 @@ async function findAppWithAccountAscApiKeysAsync({
         token: new Token({
           key: keyP8,
           keyId: keyIdentifier,
-          issuerId: issuerIdentifier ?? '',
+          issuerId: issuerIdentifier,
           duration: ASC_TOKEN_DURATION_SECONDS,
         }),
       };
