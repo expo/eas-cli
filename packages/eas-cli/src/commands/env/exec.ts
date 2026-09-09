@@ -29,6 +29,8 @@ export default class EnvExec extends EasCommand {
   static override description =
     'execute a command with environment variables from the selected environment';
 
+  static override examples = ["$ eas env:exec production 'bun run build'"];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
