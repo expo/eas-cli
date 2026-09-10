@@ -5,6 +5,7 @@ import {
 } from '../graphql/generated';
 import { link } from '../log';
 import {
+  EAS_SIMULATOR_EGRESS_ALLOW,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
   EAS_SIMULATOR_EGRESS_PORT,
   EAS_SIMULATOR_EGRESS_TOKEN,
@@ -71,20 +72,94 @@ export type LocalEgressConfig = {
   token: string;
   fingerprint: string;
   port: number;
+  /**
+   * Normalized `host:port` destinations on the developer's machine or network
+   * that the simulator may reach through the proxy (`--egress-allow`).
+   */
+  allow: string[];
+};
+
+export type LocalEgressOptions = {
+  egressAllow?: readonly string[];
 };
 
 /**
  * Connection details for the local egress client, present only for sessions
- * started with `--egress local`.
+ * started with `--egress local`. `allow` comes from the developer's flags, not
+ * from the worker.
  */
 export function getLocalEgressConfig(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  allow: readonly string[] = []
 ): LocalEgressConfig | null {
   const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
   if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
     return null;
   }
-  return { url: egressUrl, token: egressToken, fingerprint: egressFingerprint, port: egressPort };
+  return {
+    url: egressUrl,
+    token: egressToken,
+    fingerprint: egressFingerprint,
+    port: egressPort,
+    allow: [...allow],
+  };
+}
+
+export type LoopbackForwardPlan = {
+  /** Ports the tunnel client forwards on the device host's loopback interface. */
+  ports: number[];
+  /** Loopback allow entries that stay reachable by name through the proxy only. */
+  skipped: string[];
+};
+
+/**
+ * Which `--egress-allow` entries also become loopback port forwards. iOS never
+ * sends loopback-literal requests to the system proxy, and Expo CLI rewrites
+ * `localhost` to `127.0.0.1` in manifests, so the proxy alone cannot serve a dev
+ * server allowed as `localhost:<port>`. For each entry naming `localhost` or
+ * `127.0.0.1`, the tunnel client opens a reverse remote that makes
+ * `127.0.0.1:<port>` on the device host reach the same port here, like
+ * `adb reverse`. The device host only permits unprivileged ports, and the proxy
+ * port is already taken by the tunnel server, so those entries are skipped.
+ */
+export function getLoopbackForwardPlan(
+  allow: readonly string[],
+  proxyPort: number
+): LoopbackForwardPlan {
+  const ports = new Set<number>();
+  const skipped: string[] = [];
+  for (const destination of allow) {
+    const match = /^(?:localhost|127\.0\.0\.1):(\d+)$/.exec(destination);
+    if (!match) {
+      continue;
+    }
+    const port = Number(match[1]);
+    if (port < 1024 || port === proxyPort) {
+      skipped.push(destination);
+      continue;
+    }
+    ports.add(port);
+  }
+  return { ports: [...ports].sort((a, b) => a - b), skipped };
+}
+
+export function formatLoopbackForwardNotice({ ports, skipped }: LoopbackForwardPlan): string[] {
+  const lines: string[] = [];
+  if (ports.length > 0) {
+    const addresses = ports.map(port => `127.0.0.1:${port}`).join(', ');
+    lines.push(
+      `${addresses} in the simulator ${ports.length === 1 ? 'reaches' : 'reach'} the same ` +
+        `${ports.length === 1 ? 'port' : 'ports'} on this machine (like adb reverse), so dev server ` +
+        'URLs that use 127.0.0.1 work.'
+    );
+  }
+  if (skipped.length > 0) {
+    lines.push(
+      `${skipped.join(', ')} ${skipped.length === 1 ? 'is' : 'are'} reachable by name only: ` +
+        'privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.'
+    );
+  }
+  return lines;
 }
 
 export function getLocalEgressEnvironmentVariables(
@@ -98,15 +173,17 @@ export function getLocalEgressEnvironmentVariables(
     [EAS_SIMULATOR_EGRESS_TOKEN]: egress.token,
     [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
     [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
+    [EAS_SIMULATOR_EGRESS_ALLOW]: egress.allow.join(','),
   };
 }
 
 export function getRemoteSessionEnvironmentVariables(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  { egressAllow }: LocalEgressOptions = {}
 ): Record<string, string> {
   return {
     ...getControllerEnvironmentVariables(remoteConfig),
-    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
+    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig, egressAllow)),
   };
 }
 
@@ -180,10 +257,11 @@ export function sanitizeRemoteConfigForJson(
 
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
-  configType: RemoteSessionInstructionsConfigType
+  configType: RemoteSessionInstructionsConfigType,
+  { egressAllow }: LocalEgressOptions = {}
 ): string {
   const instructions = formatControllerInstructions(remoteConfig, configType);
-  const egress = getLocalEgressConfig(remoteConfig);
+  const egress = getLocalEgressConfig(remoteConfig, egressAllow);
   if (!egress) {
     return instructions;
   }
@@ -201,6 +279,13 @@ export function formatRemoteSessionInstructions(
     configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress',
     '',
     'Keep it running for the life of the session.',
+    ...(egress.allow.length > 0
+      ? [
+          '',
+          `The simulator may reach ${egress.allow.join(', ')} on this machine's network.`,
+          ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
+        ]
+      : []),
   ].join('\n');
 }
 

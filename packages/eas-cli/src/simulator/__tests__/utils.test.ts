@@ -6,10 +6,12 @@ import {
   DeviceRunSessionRemoteConfig,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
+  formatLoopbackForwardNotice,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
+  getLoopbackForwardPlan,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../utils';
@@ -47,6 +49,7 @@ describe('local egress configuration', () => {
       token: 'egress-secret',
       fingerprint: 'fp=',
       port: 8899,
+      allow: [],
     });
     expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
       AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
@@ -55,10 +58,78 @@ describe('local egress configuration', () => {
       EAS_SIMULATOR_EGRESS_TOKEN: 'egress-secret',
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
+      EAS_SIMULATOR_EGRESS_ALLOW: '',
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Run the egress client to connect the tunnel');
+    expect(instructions).not.toContain('may reach');
+    expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
+      "export EAS_SIMULATOR_EGRESS_ALLOW=''"
+    );
+  });
+
+  it('carries the allowed local destinations into the config, env file and instructions', () => {
+    const egressAllow = ['localhost:3000', '192.168.1.20:8080'];
+    expect(getLocalEgressConfig(agentDeviceConfigWithEgress, egressAllow)?.allow).toEqual(
+      egressAllow
+    );
+    expect(
+      getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress, { egressAllow })
+    ).toMatchObject({ EAS_SIMULATOR_EGRESS_ALLOW: 'localhost:3000,192.168.1.20:8080' });
+    expect(
+      getRemoteSessionEnvironmentVariables(agentDeviceConfig, { egressAllow })
+    ).not.toHaveProperty('EAS_SIMULATOR_EGRESS_ALLOW');
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+      egressAllow,
+    });
+    expect(instructions).toContain(
+      "The simulator may reach localhost:3000, 192.168.1.20:8080 on this machine's network."
+    );
+    expect(instructions).toContain(
+      '127.0.0.1:3000 in the simulator reaches the same port on this machine (like adb reverse)'
+    );
+  });
+
+  it('omits the loopback forwarding notice when no allowed destination is loopback', () => {
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+        egressAllow: ['192.168.1.20:8080'],
+      })
+    ).not.toContain('adb reverse');
+  });
+});
+
+describe(getLoopbackForwardPlan, () => {
+  it('forwards unprivileged localhost and 127.0.0.1 ports once each, in order', () => {
+    expect(
+      getLoopbackForwardPlan(
+        ['localhost:8082', '127.0.0.1:3000', 'localhost:3000', '192.168.1.20:8080', '[::1]:4000'],
+        8899
+      )
+    ).toEqual({ ports: [3000, 8082], skipped: [] });
+  });
+
+  it('skips privileged ports and the proxy port, which the device host does not forward', () => {
+    expect(
+      getLoopbackForwardPlan(['localhost:80', '127.0.0.1:8899', 'localhost:1024'], 8899)
+    ).toEqual({ ports: [1024], skipped: ['localhost:80', '127.0.0.1:8899'] });
+  });
+
+  it('returns an empty plan without allow entries', () => {
+    expect(getLoopbackForwardPlan([], 8899)).toEqual({ ports: [], skipped: [] });
+  });
+});
+
+describe(formatLoopbackForwardNotice, () => {
+  it('describes forwarded ports and name-only entries', () => {
+    expect(formatLoopbackForwardNotice({ ports: [3000, 8082], skipped: ['localhost:80'] })).toEqual(
+      [
+        '127.0.0.1:3000, 127.0.0.1:8082 in the simulator reach the same ports on this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work.',
+        'localhost:80 is reachable by name only: privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.',
+      ]
+    );
+    expect(formatLoopbackForwardNotice({ ports: [], skipped: [] })).toEqual([]);
   });
 });
 
@@ -368,17 +439,18 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       EAS_SIMULATOR_EGRESS_TOKEN: egress.egressToken,
       EAS_SIMULATOR_EGRESS_FINGERPRINT: egress.egressFingerprint,
       EAS_SIMULATOR_EGRESS_PORT: '8899',
+      EAS_SIMULATOR_EGRESS_ALLOW: '',
     });
     expect(getLocalEgressConfig(withEgress)).toEqual({
       url: egress.egressUrl,
       token: egress.egressToken,
       fingerprint: egress.egressFingerprint,
       port: 8899,
+      allow: [],
     });
     const dotenvInstructions = formatRemoteSessionInstructions(withEgress, 'dotenv');
     expect(dotenvInstructions).toContain('eas simulator:egress');
     expect(dotenvInstructions).not.toContain(egress.egressToken);
-    expect(dotenvInstructions).not.toContain('--config-type env');
     expect(formatRemoteSessionInstructions(withEgress, 'env')).toContain(
       'eas simulator:egress --config-type env'
     );

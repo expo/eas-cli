@@ -1,6 +1,7 @@
 import spawnAsync from '@expo/spawn-async';
 import * as fs from 'fs-extra';
 import { ChildProcess } from 'node:child_process';
+import dns from 'node:dns/promises';
 import { once } from 'node:events';
 import http from 'node:http';
 import net from 'node:net';
@@ -9,9 +10,12 @@ import {
   EgressPolicyError,
   buildChiselClientArgs,
   classifyChiselClientLogLine,
+  createEgressTargetResolver,
   getChiselAssetName,
+  isChiselRemoteRejectionLine,
   isForbiddenEgressAddress,
   orderEgressAddresses,
+  parseEgressAllowList,
   readLocalEgressConfigFromEnv,
   resolveEgressTargetAsync,
   runLocalEgressAsync,
@@ -79,15 +83,31 @@ describe(isForbiddenEgressAddress, () => {
 });
 
 describe(resolveEgressTargetAsync, () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it.each(['localhost', 'LOCALHOST', 'api.localhost', 'printer.local', '127.0.0.1', '[::1]'])(
     'refuses %s without resolving it',
     async host => {
-      await expect(resolveEgressTargetAsync(host)).rejects.toBeInstanceOf(EgressPolicyError);
+      await expect(resolveEgressTargetAsync(host, 443)).rejects.toBeInstanceOf(EgressPolicyError);
     }
   );
 
   it('returns a public IP literal unchanged', async () => {
-    await expect(resolveEgressTargetAsync('1.1.1.1')).resolves.toEqual(['1.1.1.1']);
+    await expect(resolveEgressTargetAsync('1.1.1.1', 443)).resolves.toEqual(['1.1.1.1']);
+  });
+
+  it('refuses a DNS name if any record is private', async () => {
+    const lookup = jest.spyOn(dns, 'lookup').mockResolvedValue([
+      { address: '1.1.1.1', family: 4 },
+      { address: '192.168.1.10', family: 4 },
+    ] as never);
+    await expect(resolveEgressTargetAsync('mixed.example', 443)).rejects.toBeInstanceOf(
+      EgressPolicyError
+    );
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(lookup).toHaveBeenCalledWith('mixed.example', { all: true, verbatim: true });
   });
 });
 
@@ -123,6 +143,39 @@ describe(buildChiselClientArgs, () => {
       'https://egress-abc.eas-simulator.ngrok.dev',
       'R:127.0.0.1:8899:127.0.0.1:8899',
     ]);
+  });
+
+  it('adds one loopback reverse remote per forwarded port after the proxy remote', () => {
+    expect(
+      buildChiselClientArgs({
+        url: 'https://egress-abc.eas-simulator.ngrok.dev',
+        fingerprint: 'fp=',
+        port: 8899,
+        localPort: 51000,
+        forwardPorts: [3000, 8082],
+      }).slice(-3)
+    ).toEqual([
+      'R:127.0.0.1:8899:127.0.0.1:51000',
+      'R:127.0.0.1:3000:127.0.0.1:3000',
+      'R:127.0.0.1:8082:127.0.0.1:8082',
+    ]);
+  });
+});
+
+describe(isChiselRemoteRejectionLine, () => {
+  it('recognizes denied and unbindable reverse remotes', () => {
+    expect(
+      isChiselRemoteRejectionLine("2026/09/10 client: access to 'R:127.0.0.1:8082' denied")
+    ).toBe(true);
+    expect(
+      isChiselRemoteRejectionLine(
+        '2026/09/10 client: Connection error: listen tcp 127.0.0.1:8082: bind: address already in use'
+      )
+    ).toBe(true);
+    expect(isChiselRemoteRejectionLine('2026/09/10 client: Connected (Latency 41ms)')).toBe(false);
+    expect(
+      isChiselRemoteRejectionLine('2026/09/10 client: Connection error: websocket: bad handshake')
+    ).toBe(false);
   });
 });
 
@@ -167,13 +220,101 @@ describe(readLocalEgressConfigFromEnv, () => {
       token: 'pw',
       fingerprint: 'fp=',
       port: 8899,
+      allow: [],
     });
+  });
+
+  it('reads the allowed local destinations written by --egress-allow', () => {
+    expect(
+      readLocalEgressConfigFromEnv({
+        EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
+        EAS_SIMULATOR_EGRESS_TOKEN: 'pw',
+        EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
+        EAS_SIMULATOR_EGRESS_PORT: '8899',
+        EAS_SIMULATOR_EGRESS_ALLOW: 'localhost:3000, 192.168.1.20:8080',
+      }).allow
+    ).toEqual(['localhost:3000', '192.168.1.20:8080']);
   });
 
   it('explains how to start a session with egress when the variables are missing', () => {
     expect(() => readLocalEgressConfigFromEnv({ EAS_SIMULATOR_SESSION_ID: 'abc' })).toThrow(
       'was not started with local egress'
     );
+  });
+});
+
+describe(parseEgressAllowList, () => {
+  it('normalizes exact host and port pairs and drops duplicates', () => {
+    expect(
+      parseEgressAllowList([
+        'localhost:3000',
+        ' LOCALHOST:3000 ',
+        '192.168.1.20:8080',
+        '[::1]:3000',
+        '[0:0:0:0:0:0:0:1]:3000',
+        'dev-box.lan:443',
+      ])
+    ).toEqual(['localhost:3000', '192.168.1.20:8080', '[::1]:3000', 'dev-box.lan:443']);
+  });
+
+  it.each([
+    'localhost',
+    'localhost:0',
+    'localhost:70000',
+    '*.test:80',
+    '10.0.0.0/8:80',
+    'http://localhost:3000',
+    '[not-an-ip]:3000',
+    ':3000',
+    ',localhost:3000',
+    'localhost,:3000',
+    'user@localhost:3000',
+    'localhost#ignored:3000',
+    'localhost?ignored:3000',
+    "local'host:3000",
+    'local\\host:3000',
+  ])('rejects %s', entry => {
+    expect(() => parseEgressAllowList([entry])).toThrow('Invalid --egress-allow value');
+  });
+
+  it('normalizes IDN hostnames containing combining marks', () => {
+    expect(parseEgressAllowList(['cafe\u0301.example:3000'])).toEqual(['xn--caf-dma.example:3000']);
+  });
+});
+
+describe(createEgressTargetResolver, () => {
+  it.each([
+    ['[0:0:0:0:0:0:0:1]:3000', '[::1]', '::1'],
+    ['127.1:3000', '127.0.0.1', '127.0.0.1'],
+    ['[::ffff:127.0.0.1]:3000', '[::ffff:7f00:1]', '::ffff:7f00:1'],
+  ])('matches %s after HTTP URL normalization', async (entry, hostname, address) => {
+    const resolve = createEgressTargetResolver({ allow: parseEgressAllowList([entry]) });
+    await expect(resolve(hostname, 3000)).resolves.toEqual([address]);
+    await expect(resolve(hostname, 3001)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('localhost', 3000)).rejects.toBeInstanceOf(EgressPolicyError);
+  });
+
+  it('returns the default policy when nothing is allowed', () => {
+    expect(createEgressTargetResolver({ allow: [] })).toBe(resolveEgressTargetAsync);
+  });
+
+  it('maps an allowed localhost destination to loopback and reports it', async () => {
+    const allowed: string[] = [];
+    const resolve = createEgressTargetResolver({
+      allow: ['localhost:3000', '192.168.1.20:8080'],
+      onAllowed: destination => allowed.push(destination),
+    });
+    await expect(resolve('LocalHost', 3000)).resolves.toEqual(['127.0.0.1', '::1']);
+    await expect(resolve('192.168.1.20', 8080)).resolves.toEqual(['192.168.1.20']);
+    expect(allowed).toEqual(['localhost:3000', '192.168.1.20:8080']);
+  });
+
+  it('keeps refusing the same host on other ports and unlisted private addresses', async () => {
+    const resolve = createEgressTargetResolver({ allow: ['localhost:3000'] });
+    await expect(resolve('localhost', 3001)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('127.0.0.1', 3000)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('192.168.1.20', 8080)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('93.184.216.34', 443)).resolves.toEqual(['93.184.216.34']);
   });
 });
 
@@ -314,6 +455,43 @@ describe(startLocalEgressProxyServerAsync, () => {
       'GET http://internal.example/ HTTP/1.1\r\nHost: internal.example\r\nConnection: close\r\n\r\n'
     );
     expect(httpResponse).toContain('HTTP/1.1 403');
+  });
+
+  it('reaches an allowed local destination and keeps refusing the rest', async () => {
+    const allowedProxy = await startLocalEgressProxyServerAsync({
+      port: 0,
+      resolveTargetAsync: createEgressTargetResolver({ allow: [`localhost:${targetHttpPort}`] }),
+    });
+    const requestAsync = (request: string): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const socket = net.connect({ host: '127.0.0.1', port: allowedProxy.port });
+        let response = '';
+        socket.on('data', chunk => (response += chunk.toString()));
+        socket.on('end', () => {
+          resolve(response);
+        });
+        socket.on('error', reject);
+        socket.on('connect', () => socket.write(request));
+      });
+    try {
+      const allowedResponse = await requestAsync(
+        `GET http://localhost:${targetHttpPort}/allowed HTTP/1.1\r\nHost: localhost:${targetHttpPort}\r\nConnection: close\r\n\r\n`
+      );
+      expect(allowedResponse).toContain('HTTP/1.1 200');
+      expect(allowedResponse).toContain('hello from GET /allowed');
+
+      const otherPortResponse = await requestAsync(
+        `CONNECT localhost:${targetEchoPort} HTTP/1.1\r\nHost: localhost\r\n\r\n`
+      );
+      expect(otherPortResponse).toContain('HTTP/1.1 403');
+
+      const ipResponse = await requestAsync(
+        `GET http://127.0.0.1:${targetHttpPort}/ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n`
+      );
+      expect(ipResponse).toContain('HTTP/1.1 403');
+    } finally {
+      await allowedProxy.closeAsync();
+    }
   });
 
   it('rejects requests without an absolute URL', async () => {
@@ -662,6 +840,43 @@ describe(runLocalEgressAsync, () => {
       expect(spawnAsync).not.toHaveBeenCalled();
     } finally {
       exists.mockReset();
+    }
+  });
+
+  it('opens a loopback reverse remote for each forwarded --egress-allow port', async () => {
+    jest.mocked(fs.pathExists).mockResolvedValue(true as never);
+    let child: ChildProcess | undefined;
+    jest.mocked(spawnAsync).mockImplementation(() => {
+      child = new ChildProcess();
+      const promise = new Promise<never>((_resolve, reject) => {
+        child!.kill = jest.fn(signal => {
+          Object.defineProperty(child, 'signalCode', { value: signal, configurable: true });
+          reject(new Error('terminated'));
+          return true;
+        });
+      });
+      return Object.assign(promise, { child });
+    });
+    const controller = new AbortController();
+    const running = runLocalEgressAsync({
+      url: 'https://example.test',
+      token: 'pw',
+      fingerprint: 'fp',
+      port: 8899,
+      allow: ['localhost:8082', '127.0.0.1:3000', 'localhost:80', '192.168.1.20:8080'],
+      signal: controller.signal,
+    });
+    try {
+      await waitForAsync(() => child !== undefined);
+      const args = jest.mocked(spawnAsync).mock.calls[0][1] ?? [];
+      expect(args.slice(-3)).toEqual([
+        expect.stringMatching(/^R:127\.0\.0\.1:8899:127\.0\.0\.1:\d+$/),
+        'R:127.0.0.1:3000:127.0.0.1:3000',
+        'R:127.0.0.1:8082:127.0.0.1:8082',
+      ]);
+    } finally {
+      controller.abort();
+      await running;
     }
   });
 
