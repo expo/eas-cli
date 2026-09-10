@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Remove the obsolete `appVersion` runtime policy warning that referenced SDK 46 and expo-updates 0.14.4. ([#TBD](https://github.com/expo/eas-cli/pull/TBD) by [@brentvatne](https://github.com/brentvatne))
+
 ## [24.0.0](https://github.com/expo/eas-cli/releases/tag/v24.0.0) - 2026-09-09
 
 ### 🛠 Breaking changes
