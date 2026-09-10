@@ -542,11 +542,18 @@ export async function startLocalEgressProxyServerAsync({
           timeout: UPSTREAM_RESPONSE_TIMEOUT_MS,
         });
         let failed = false;
+        let completed = false;
         const fail = (err: Error): void => {
           if (failed) {
             return;
           }
           failed = true;
+          if (completed && signal.aborted) {
+            // finish() aborts the shared signal once the response has been sent or
+            // the upgrade handed off, which errors the already-completed upstream
+            // request. That is cleanup, not a failure.
+            return;
+          }
           Log.debug(`[egress] ${req.method} ${url.host} failed: ${err.message}`);
           if (!res.destroyed) {
             if (res.headersSent) {
@@ -577,6 +584,9 @@ export async function startLocalEgressProxyServerAsync({
             upstreamResponse.statusCode ?? 502,
             filteredRawHeaders(upstreamResponse.rawHeaders)
           );
+          upstreamResponse.once('end', () => {
+            completed = true;
+          });
           upstreamResponse.pipe(res);
         });
         if (upgradeClient) {
@@ -585,6 +595,7 @@ export async function startLocalEgressProxyServerAsync({
               upstream.destroy();
               return;
             }
+            completed = true;
             const { socket, head } = upgradeClient;
             socket.removeListener('end', cancelUpgrade);
             res.removeListener('close', finish);

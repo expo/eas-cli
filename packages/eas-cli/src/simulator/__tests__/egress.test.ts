@@ -17,6 +17,7 @@ import {
   runLocalEgressAsync,
   startLocalEgressProxyServerAsync,
 } from '../egress';
+import Log from '../../log';
 
 jest.mock('../../log');
 jest.mock('@expo/spawn-async');
@@ -189,6 +190,13 @@ describe(startLocalEgressProxyServerAsync, () => {
   beforeAll(async () => {
     targetHttpServer = http.createServer((req, res) => {
       seenHostHeaders.push(req.headers.host ?? '');
+      if (req.url === '/truncate') {
+        // Announce a body, send part of it, then drop the connection.
+        res.writeHead(200, { 'content-type': 'text/plain', 'content-length': '100' });
+        res.write('partial');
+        res.socket?.destroy();
+        return;
+      }
       res.writeHead(200, { 'content-type': 'text/plain' });
       res.end(`hello from ${req.method} ${req.url}`);
     });
@@ -246,6 +254,31 @@ describe(startLocalEgressProxyServerAsync, () => {
     expect(response).toContain('HTTP/1.1 200');
     expect(response).toContain('hello from GET /path?q=1');
     expect(seenHostHeaders).toContain(`target.test:${targetHttpPort}`);
+  });
+
+  it('does not log a completed response as failed when its operation is released', async () => {
+    jest.mocked(Log.debug).mockClear();
+    const response = await rawRequestAsync(
+      `GET http://target.test:${targetHttpPort}/done HTTP/1.1\r\nHost: target.test\r\nConnection: close\r\n\r\n`
+    );
+    expect(response).toContain('hello from GET /done');
+    // Releasing the operation aborts the shared signal after the socket closes.
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const messages = jest.mocked(Log.debug).mock.calls.map(([message]) => String(message));
+    expect(messages).toContain(`[egress] GET target.test:${targetHttpPort}`);
+    expect(messages.filter(message => message.includes('failed:'))).toEqual([]);
+  });
+
+  it('still logs an upstream response that is cut short as failed', async () => {
+    jest.mocked(Log.debug).mockClear();
+    const response = await rawRequestAsync(
+      `GET http://target.test:${targetHttpPort}/truncate HTTP/1.1\r\nHost: target.test\r\nConnection: close\r\n\r\n`
+    );
+    // Depending on timing the client sees a 502 or a truncated 200; never a complete body.
+    expect(response).not.toContain('hello from');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const messages = jest.mocked(Log.debug).mock.calls.map(([message]) => String(message));
+    expect(messages.some(message => message.includes('failed:'))).toBe(true);
   });
 
   it('tunnels CONNECT requests to the resolved address', async () => {
