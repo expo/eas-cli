@@ -8,11 +8,6 @@ export const jester: Actor = {
   id: 'jester-id',
   email: 'jester@example.com',
   username: 'jester',
-  primaryAccount: {
-    id: 'jester-account-id',
-    name: 'jester',
-    viewerUserPermission: { role: Role.Admin },
-  },
   accounts: [
     {
       id: 'jester-account-id',

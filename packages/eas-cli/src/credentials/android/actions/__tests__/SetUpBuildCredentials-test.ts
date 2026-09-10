@@ -4,17 +4,13 @@ import {
   testAndroidBuildCredentialsFragment,
   testJksAndroidKeystoreFragment,
 } from '../../../__tests__/fixtures-android';
-import {
-  jester as mockJester,
-  testAppQueryByIdResponse,
-} from '../../../__tests__/fixtures-constants';
+import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { generateRandomKeystoreAsync } from '../../utils/keystore';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpBuildCredentials } from '../SetUpBuildCredentials';
 
 jest.mock('../../../../ora');
-jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 jest.mock('../../../../graphql/queries/AppQuery');

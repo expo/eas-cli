@@ -35,9 +35,6 @@ jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
-jest.mock('../../../user/actions', () => ({
-  ensureLoggedInAsync: jest.fn(() => mockJester),
-}));
 jest.mock('../../../project/projectUtils');
 jest.mock('../../ArchiveSource', () => {
   return {

@@ -28,7 +28,6 @@ jest.mock('../../../project/expoConfig', () => ({
   createOrModifyExpoConfigAsync: jest.fn(),
 }));
 jest.mock('../../../prompts');
-jest.mock('../../../user/actions');
 jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../ora', () => ({
