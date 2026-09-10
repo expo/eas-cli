@@ -7,6 +7,11 @@ import Log from '../log';
 
 export const SIMULATOR_DOTENV_FILE_NAME = '.env.eas-simulator';
 export const EAS_SIMULATOR_SESSION_ID = 'EAS_SIMULATOR_SESSION_ID';
+// Written for sessions started with `--egress local`; read by `eas simulator:egress`.
+export const EAS_SIMULATOR_EGRESS_URL = 'EAS_SIMULATOR_EGRESS_URL';
+export const EAS_SIMULATOR_EGRESS_TOKEN = 'EAS_SIMULATOR_EGRESS_TOKEN';
+export const EAS_SIMULATOR_EGRESS_FINGERPRINT = 'EAS_SIMULATOR_EGRESS_FINGERPRINT';
+export const EAS_SIMULATOR_EGRESS_PORT = 'EAS_SIMULATOR_EGRESS_PORT';
 export const SIMULATOR_DOTENV_FILE_HEADER =
   '# Do not commit this file.\n# Do not modify these values manually. They are managed by eas-cli.\n# It holds configuration only for the current simulator session.\n\n';
 

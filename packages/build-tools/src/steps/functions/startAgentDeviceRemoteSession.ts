@@ -13,6 +13,10 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import {
+  uploadRemoteSessionConfigWithLocalEgressAsync,
+  withLocalEgressSession,
+} from '../utils/localEgressSession';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
@@ -25,7 +29,6 @@ import {
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -66,7 +69,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -121,7 +124,9 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         });
         logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
-        await uploadRemoteSessionConfigAsync({
+        await uploadRemoteSessionConfigWithLocalEgressAsync({
+          env,
+          signal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
@@ -174,7 +179,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         }
         await daemonProcess.stopAsync();
       }
-    },
+    }),
   });
 }
 

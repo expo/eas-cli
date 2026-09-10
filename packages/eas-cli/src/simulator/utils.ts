@@ -4,6 +4,12 @@ import {
   DeviceRunSessionType,
 } from '../graphql/generated';
 import { link } from '../log';
+import {
+  EAS_SIMULATOR_EGRESS_FINGERPRINT,
+  EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_TOKEN,
+  EAS_SIMULATOR_EGRESS_URL,
+} from './env';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
@@ -59,7 +65,52 @@ export const DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE = Object.fromEntrie
   ).map(([resourceClass, value]) => [value, resourceClass])
 ) as Record<string, DeviceRunSessionResourceClass>;
 
+export type LocalEgressConfig = {
+  url: string;
+  /** Secret for the tunnel server; the client pairs it with the fixed egress username. */
+  token: string;
+  fingerprint: string;
+  port: number;
+};
+
+/**
+ * Connection details for the local egress client, present only for sessions
+ * started with `--egress local`.
+ */
+export function getLocalEgressConfig(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): LocalEgressConfig | null {
+  const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
+  if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
+    return null;
+  }
+  return { url: egressUrl, token: egressToken, fingerprint: egressFingerprint, port: egressPort };
+}
+
+export function getLocalEgressEnvironmentVariables(
+  egress: LocalEgressConfig | null
+): Record<string, string> {
+  if (!egress) {
+    return {};
+  }
+  return {
+    [EAS_SIMULATOR_EGRESS_URL]: egress.url,
+    [EAS_SIMULATOR_EGRESS_TOKEN]: egress.token,
+    [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
+    [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
+  };
+}
+
 export function getRemoteSessionEnvironmentVariables(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): Record<string, string> {
+  return {
+    ...getControllerEnvironmentVariables(remoteConfig),
+    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
+  };
+}
+
+function getControllerEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): Record<string, string> {
   switch (remoteConfig.__typename) {
@@ -131,9 +182,35 @@ export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType
 ): string {
+  const instructions = formatControllerInstructions(remoteConfig, configType);
+  const egress = getLocalEgressConfig(remoteConfig);
+  if (!egress) {
+    return instructions;
+  }
+  return [
+    instructions,
+    '',
+    '🔀 This session can route proxied HTTP(S) requests through this machine.',
+    ...(configType === 'env'
+      ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
+          ([key, value]) => `export ${key}='${value}'`
+        )
+      : []),
+    'Run the egress client to connect the tunnel:',
+    '',
+    configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress',
+    '',
+    'Keep it running for the life of the session.',
+  ].join('\n');
+}
+
+function formatControllerInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  configType: RemoteSessionInstructionsConfigType
+): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -159,7 +236,7 @@ export function formatRemoteSessionInstructions(
       return lines.join('\n');
     }
     case 'ArgentRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -197,7 +274,7 @@ export function formatRemoteSessionInstructions(
       return lines.join('\n');
     }
     case 'AppiumRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [

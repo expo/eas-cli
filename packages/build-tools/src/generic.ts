@@ -16,6 +16,7 @@ import { BuildContext } from './context';
 import { CustomBuildContext } from './customBuildContext';
 import { getEasFunctionGroups } from './steps/easFunctionGroups';
 import { getEasFunctions } from './steps/easFunctions';
+import { stopLocalEgressResourcesAsync } from './steps/utils/localEgress';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
 import { retryAsync } from './utils/retry';
 
@@ -82,7 +83,17 @@ export async function runGenericJobAsync(
     }
   });
 
-  const runResult = await asyncResult(workflow.executeAsync());
+  const runResult = await asyncResult(
+    (async () => {
+      try {
+        await workflow.executeAsync();
+      } finally {
+        // The session-owning step may never run if simulator boot/setup fails,
+        // or may time out while resource acquisition is still in flight.
+        await stopLocalEgressResourcesAsync(ctx.logger);
+      }
+    })()
+  );
 
   await ctx.runBuildPhase(BuildPhase.COMPLETE_JOB, async () => {
     const results = await Promise.allSettled([

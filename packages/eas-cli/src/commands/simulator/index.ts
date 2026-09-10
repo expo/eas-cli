@@ -11,6 +11,7 @@ import {
 } from '../../commandUtils/flags';
 import {
   AppPlatform,
+  DeviceRunSessionEgress,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -21,6 +22,7 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
+import { runLocalEgressAsync } from '../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -37,6 +39,7 @@ import {
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
+  getLocalEgressConfig,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
@@ -51,6 +54,7 @@ const OUT_CONFIG_TYPE_VALUES = {
 } as const;
 const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
 type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const EGRESS_FLAG_VALUES = ['local'] as const;
 const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
@@ -132,6 +136,11 @@ export default class Simulator extends EasCommand {
       description: 'The instance type that will be used to run this simulator session',
       hidden: true,
       options: Object.values(DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES),
+    })(),
+    egress: Flags.option({
+      description:
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+      options: EGRESS_FLAG_VALUES,
     })(),
     force: Flags.boolean({
       description:
@@ -219,6 +228,10 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (egress && platform !== AppPlatform.Ios) {
+      throw new EasCommandError('--egress local is only supported with --platform ios.');
+    }
     if (platform === AppPlatform.Android) {
       Log.warn(
         'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
@@ -263,6 +276,7 @@ export default class Simulator extends EasCommand {
         ...(launchArgs?.length ? { launchArgs } : {}),
         ...(openUrl ? { openUrl } : {}),
         ...(resourceClass ? { resourceClass } : {}),
+        ...(egress ? { egress } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
@@ -395,21 +409,76 @@ export default class Simulator extends EasCommand {
     Log.log(formatRemoteSessionInstructions(remoteConfig, flags['out-config-type']));
     Log.newLine();
 
+    const localEgress = getLocalEgressConfig(remoteConfig);
+
     if (nonInteractive) {
       sessionInterrupt.dispose();
+      if (localEgress) {
+        Log.log(
+          `Start \`eas simulator:egress${flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env ? ' --config-type env' : ''}\` in another process to connect the tunnel for proxied HTTP(S) requests.`
+        );
+      }
       Log.log(
         `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
       );
       return;
     }
 
-    await waitForSessionEndOrInterruptAsync({
-      graphqlClient,
-      deviceRunSessionId,
-      deviceRunSessionUrl,
-      projectDir,
-      sessionInterrupt,
-    });
+    // In interactive mode the egress client runs right here, for as long as the
+    // session does. A session with a disconnected tunnel still bills, so Ctrl+C stops both.
+    let egressPromise: Promise<void> | undefined;
+    let egressError: Error | undefined;
+    const egressAbortController = new AbortController();
+    if (localEgress) {
+      Log.log(
+        "🔀 Running the egress client in this terminal. When connected, proxied HTTP(S) requests can use this machine's network."
+      );
+      Log.log('Press Ctrl+C to stop both the egress client and the simulator session.');
+      Log.newLine();
+      sessionInterrupt.signal.addEventListener(
+        'abort',
+        () => {
+          egressAbortController.abort();
+        },
+        { once: true }
+      );
+      egressPromise = runLocalEgressAsync({
+        ...localEgress,
+        signal: egressAbortController.signal,
+        onConnected: () => {
+          Log.succeed(
+            "Egress tunnel connected. Proxied HTTP(S) requests can use this machine's network."
+          );
+        },
+        onDisconnected: () => {
+          Log.warn(
+            'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
+          );
+        },
+      }).catch(err => {
+        egressError = err instanceof Error ? err : new Error(String(err));
+        Log.error(
+          `${err instanceof Error ? err.message : String(err)} Stopping the simulator session.`
+        );
+        sessionInterrupt.abort();
+      });
+    }
+
+    try {
+      await waitForSessionEndOrInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        deviceRunSessionUrl,
+        projectDir,
+        sessionInterrupt,
+      });
+    } finally {
+      egressAbortController.abort();
+      await egressPromise;
+    }
+    if (egressError) {
+      throw egressError;
+    }
   }
 }
 
@@ -527,6 +596,8 @@ async function waitForSessionEndOrInterruptAsync({
 type SessionInterrupt = {
   signal: AbortSignal;
   abortPromise: Promise<void>;
+  /** Stop the session as if the user had pressed Ctrl+C. */
+  abort: () => void;
   dispose: () => void;
 };
 
@@ -558,6 +629,9 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
   return {
     signal,
     abortPromise,
+    abort: () => {
+      abortController.abort();
+    },
     dispose: () => process.removeListener('SIGINT', sigintHandler),
   };
 }

@@ -4,9 +4,11 @@ import { BuildStepGlobalContext, StepsConfigParser } from '@expo/steps';
 import { runGenericJobAsync } from '../generic';
 import { CustomBuildContext } from '../customBuildContext';
 import { uploadJobOutputsToWwwAsync } from '../utils/outputs';
+import { stopLocalEgressResourcesAsync } from '../steps/utils/localEgress';
 
 jest.mock('../customBuildContext');
 jest.mock('../utils/outputs');
+jest.mock('../steps/utils/localEgress', () => ({ stopLocalEgressResourcesAsync: jest.fn() }));
 jest.mock('../common/projectSources');
 jest.mock('../steps/easFunctions', () => ({ getEasFunctions: jest.fn().mockReturnValue([]) }));
 jest.mock('../steps/easFunctionGroups', () => ({
@@ -57,6 +59,25 @@ describe(runGenericJobAsync, () => {
 
     mockUploadJobOutputsToWwwAsync.mockResolvedValue(undefined);
   });
+
+  it.each(['success', 'failure'])(
+    'releases local egress after workflow %s, before uploading outputs',
+    async outcome => {
+      const executeAsync =
+        outcome === 'success'
+          ? jest.fn().mockResolvedValue(undefined)
+          : jest.fn().mockRejectedValue(new Error(outcome));
+      (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+        parseAsync: jest.fn().mockResolvedValue({ executeAsync }),
+      }));
+      const { runResult } = await runGenericJobAsync(mockCtx);
+      expect(runResult.ok).toBe(outcome === 'success');
+      expect(stopLocalEgressResourcesAsync).toHaveBeenCalledWith(mockCtx.logger);
+      expect(jest.mocked(stopLocalEgressResourcesAsync).mock.invocationCallOrder[0]).toBeLessThan(
+        mockUploadJobOutputsToWwwAsync.mock.invocationCallOrder[0]
+      );
+    }
+  );
 
   it('awaits drainPendingMetricUploads in COMPLETE_JOB phase', async () => {
     const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };

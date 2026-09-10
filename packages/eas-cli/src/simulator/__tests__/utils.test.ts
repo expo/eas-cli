@@ -3,14 +3,64 @@ import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DeviceRunSessionRemoteConfig,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
+  getLocalEgressConfig,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../utils';
+
+const agentDeviceConfig = {
+  __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+  agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+  agentDeviceRemoteSessionToken: 'daemon-token',
+  webPreviewUrl: 'https://preview.example.test',
+};
+
+const agentDeviceConfigWithEgress = {
+  ...agentDeviceConfig,
+  egressUrl: 'https://egress-abc.eas-simulator.ngrok.dev',
+  egressToken: 'egress-secret',
+  egressFingerprint: 'fp=',
+  egressPort: 8899,
+};
+
+describe('local egress configuration', () => {
+  it('is absent for sessions without egress', () => {
+    expect(getLocalEgressConfig(agentDeviceConfig)).toBeNull();
+    expect(getRemoteSessionEnvironmentVariables(agentDeviceConfig)).toEqual({
+      AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
+      AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token',
+    });
+    expect(formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv')).not.toContain(
+      'eas simulator:egress'
+    );
+  });
+
+  it('adds the egress variables and instructions when the worker reported them', () => {
+    expect(getLocalEgressConfig(agentDeviceConfigWithEgress)).toEqual({
+      url: 'https://egress-abc.eas-simulator.ngrok.dev',
+      token: 'egress-secret',
+      fingerprint: 'fp=',
+      port: 8899,
+    });
+    expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
+      AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
+      AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token',
+      EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
+      EAS_SIMULATOR_EGRESS_TOKEN: 'egress-secret',
+      EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
+      EAS_SIMULATOR_EGRESS_PORT: '8899',
+    });
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
+    expect(instructions).toContain('eas simulator:egress');
+    expect(instructions).toContain('Run the egress client to connect the tunnel');
+  });
+});
 
 const iosAppiumConfig = {
   __typename: 'AppiumRunSessionRemoteConfig' as const,
@@ -288,5 +338,60 @@ describe(formatSimulatorUnavailableMessage, () => {
 
     expect(message).toContain('acme');
     expect(message).toContain(EAS_SIMULATOR_WAITLIST_URL);
+  });
+});
+
+const controllerConfigs: DeviceRunSessionRemoteConfig[] = [
+  agentDeviceConfig,
+  iosAppiumConfig,
+  { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: 'https://argent.example.test' },
+  { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: 'https://preview.example.test' },
+  {
+    __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+    previewUrl: 'https://preview.example.test',
+  },
+];
+
+describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
+  const egress = {
+    egressUrl: 'https://egress.example.test',
+    egressToken: 'egress-secret',
+    egressFingerprint: 'fp=',
+    egressPort: 8899,
+  };
+
+  it('preserves controller variables and provides egress credentials and instructions', () => {
+    const withEgress = { ...remoteConfig, ...egress };
+    expect(getRemoteSessionEnvironmentVariables(withEgress)).toEqual({
+      ...getRemoteSessionEnvironmentVariables(remoteConfig),
+      EAS_SIMULATOR_EGRESS_URL: egress.egressUrl,
+      EAS_SIMULATOR_EGRESS_TOKEN: egress.egressToken,
+      EAS_SIMULATOR_EGRESS_FINGERPRINT: egress.egressFingerprint,
+      EAS_SIMULATOR_EGRESS_PORT: '8899',
+    });
+    expect(getLocalEgressConfig(withEgress)).toEqual({
+      url: egress.egressUrl,
+      token: egress.egressToken,
+      fingerprint: egress.egressFingerprint,
+      port: 8899,
+    });
+    const dotenvInstructions = formatRemoteSessionInstructions(withEgress, 'dotenv');
+    expect(dotenvInstructions).toContain('eas simulator:egress');
+    expect(dotenvInstructions).not.toContain(egress.egressToken);
+    expect(dotenvInstructions).not.toContain('--config-type env');
+    expect(formatRemoteSessionInstructions(withEgress, 'env')).toContain(
+      'eas simulator:egress --config-type env'
+    );
+    expect(formatRemoteSessionInstructions(withEgress, 'env')).toContain(
+      "export EAS_SIMULATOR_EGRESS_TOKEN='egress-secret'"
+    );
+  });
+
+  it('does not start a tunnel from absent or incomplete egress credentials', () => {
+    expect(getLocalEgressConfig(remoteConfig)).toBeNull();
+    expect(getLocalEgressConfig({ ...remoteConfig, ...egress, egressToken: null })).toBeNull();
+    expect(formatRemoteSessionInstructions(remoteConfig, 'dotenv')).not.toContain(
+      'eas simulator:egress'
+    );
   });
 });
