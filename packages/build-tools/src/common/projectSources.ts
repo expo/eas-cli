@@ -1,5 +1,11 @@
 import downloadFile from '@expo/downloader';
-import { ArchiveSource, ArchiveSourceSchemaZ, ArchiveSourceType, Job } from '@expo/eas-build-job';
+import {
+  ArchiveSource,
+  ArchiveSourceSchemaZ,
+  ArchiveSourceType,
+  Job,
+  SystemError,
+} from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
@@ -26,13 +32,12 @@ Promise<{ handled: boolean }> {
     const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
 
     if (!projectArchiveResult.ok) {
-      ctx.logger.error(
-        { err: projectArchiveResult.reason },
-        'Failed to refresh project archive, falling back to the original one'
-      );
+      throw new SystemError('Failed to fetch project sources. Re-run the job.', {
+        cause: projectArchiveResult.reason,
+      });
     }
 
-    projectArchive = projectArchiveResult.value ?? ctx.job.projectArchive;
+    projectArchive = projectArchiveResult.value;
   }
 
   switch (projectArchive.type) {
