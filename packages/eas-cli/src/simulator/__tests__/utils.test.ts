@@ -6,10 +6,12 @@ import {
   DeviceRunSessionRemoteConfig,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
+  formatLoopbackForwardNotice,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
+  getLoopbackForwardPlan,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../utils';
@@ -78,11 +80,56 @@ describe('local egress configuration', () => {
     expect(
       getRemoteSessionEnvironmentVariables(agentDeviceConfig, { egressAllow })
     ).not.toHaveProperty('EAS_SIMULATOR_EGRESS_ALLOW');
-    expect(
-      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', { egressAllow })
-    ).toContain(
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+      egressAllow,
+    });
+    expect(instructions).toContain(
       "The simulator may reach localhost:3000, 192.168.1.20:8080 on this machine's network."
     );
+    expect(instructions).toContain(
+      '127.0.0.1:3000 in the simulator reaches the same port on this machine (like adb reverse)'
+    );
+  });
+
+  it('omits the loopback forwarding notice when no allowed destination is loopback', () => {
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+        egressAllow: ['192.168.1.20:8080'],
+      })
+    ).not.toContain('adb reverse');
+  });
+});
+
+describe(getLoopbackForwardPlan, () => {
+  it('forwards unprivileged localhost and 127.0.0.1 ports once each, in order', () => {
+    expect(
+      getLoopbackForwardPlan(
+        ['localhost:8082', '127.0.0.1:3000', 'localhost:3000', '192.168.1.20:8080', '[::1]:4000'],
+        8899
+      )
+    ).toEqual({ ports: [3000, 8082], skipped: [] });
+  });
+
+  it('skips privileged ports and the proxy port, which the device host does not forward', () => {
+    expect(
+      getLoopbackForwardPlan(['localhost:80', '127.0.0.1:8899', 'localhost:1024'], 8899)
+    ).toEqual({ ports: [1024], skipped: ['localhost:80', '127.0.0.1:8899'] });
+  });
+
+  it('returns an empty plan without allow entries', () => {
+    expect(getLoopbackForwardPlan([], 8899)).toEqual({ ports: [], skipped: [] });
+  });
+});
+
+describe(formatLoopbackForwardNotice, () => {
+  it('describes forwarded ports and name-only entries', () => {
+    expect(formatLoopbackForwardNotice({ ports: [3000, 8082], skipped: ['localhost:80'] })).toEqual(
+      [
+        '127.0.0.1:3000, 127.0.0.1:8082 in the simulator reach the same ports on this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work.',
+        'localhost:80 is reachable by name only: privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.',
+      ]
+    );
+    expect(formatLoopbackForwardNotice({ ports: [], skipped: [] })).toEqual([]);
   });
 });
 

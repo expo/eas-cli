@@ -144,7 +144,7 @@ export default class Simulator extends EasCommand {
     })(),
     'egress-allow': Flags.string({
       description:
-        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. Requires --egress local.',
+        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. Requires --egress local.',
       multiple: true,
       dependsOn: ['egress'],
     }),

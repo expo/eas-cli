@@ -17,7 +17,7 @@ import {
   EAS_SIMULATOR_EGRESS_TOKEN,
   EAS_SIMULATOR_EGRESS_URL,
 } from './env';
-import { LocalEgressConfig } from './utils';
+import { LocalEgressConfig, getLoopbackForwardPlan } from './utils';
 import fetch from '../fetch';
 import Log from '../log';
 import { getCacheDirectory } from '../utils/paths';
@@ -844,6 +844,7 @@ export function buildChiselClientArgs({
   fingerprint,
   port,
   localPort = port,
+  forwardPorts = [],
 }: {
   url: string;
   fingerprint: string;
@@ -851,8 +852,17 @@ export function buildChiselClientArgs({
   port: number;
   /** Port the proxy listens on here; independent of the worker's listening port. */
   localPort?: number;
+  /**
+   * Loopback ports to forward from the device host to the same port here, one
+   * reverse remote each; see getLoopbackForwardPlan.
+   */
+  forwardPorts?: readonly number[];
 }): string[] {
   const remote = `R:${LOCAL_EGRESS_PROXY_HOST}:${port}:${LOCAL_EGRESS_PROXY_HOST}:${localPort}`;
+  const forwards = forwardPorts.map(
+    forwardPort =>
+      `R:${LOCAL_EGRESS_PROXY_HOST}:${forwardPort}:${LOCAL_EGRESS_PROXY_HOST}:${forwardPort}`
+  );
   return [
     'client',
     '--fingerprint',
@@ -863,7 +873,17 @@ export function buildChiselClientArgs({
     '-1',
     url,
     remote,
+    ...forwards,
   ];
+}
+
+/**
+ * The device host refuses a reverse remote it does not permit, or one whose
+ * port is already in use there. chisel then drops the whole connection and
+ * retries, so proxied requests stay unavailable until the entry is removed.
+ */
+export function isChiselRemoteRejectionLine(line: string): boolean {
+  return /access to '[^']*' denied|address already in use|bind:/i.test(line);
 }
 
 export function classifyChiselClientLogLine(line: string): 'connected' | 'disconnected' | 'other' {
@@ -942,9 +962,21 @@ export async function runLocalEgressAsync({
     });
     signal.throwIfAborted();
     Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
+    const forwards = getLoopbackForwardPlan(allow, port);
+    for (const forwardPort of forwards.ports) {
+      Log.debug(
+        `[egress] forwarding ${LOCAL_EGRESS_PROXY_HOST}:${forwardPort} on the device host to this machine`
+      );
+    }
     const chisel = spawnAsync(
       chiselPath,
-      buildChiselClientArgs({ url, fingerprint, port, localPort: proxy.port }),
+      buildChiselClientArgs({
+        url,
+        fingerprint,
+        port,
+        localPort: proxy.port,
+        forwardPorts: forwards.ports,
+      }),
       {
         // Stream diagnostics without retaining the entire session's logs in spawnAsync.
         ignoreStdio: true,
@@ -956,6 +988,13 @@ export async function runLocalEgressAsync({
     let connected = false;
     const handleLine = (line: string): void => {
       Log.debug(`[egress] ${line}`);
+      if (isChiselRemoteRejectionLine(line)) {
+        Log.warn(
+          `The device host rejected a forwarded loopback port, so the tunnel cannot connect: ${line}\n` +
+            'Remove the --egress-allow localhost/127.0.0.1 entry for that port, or check that the ' +
+            'session runs a worker that permits loopback port forwarding.'
+        );
+      }
       switch (classifyChiselClientLogLine(line)) {
         case 'connected':
           connected = true;

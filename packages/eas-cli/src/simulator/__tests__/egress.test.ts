@@ -12,6 +12,7 @@ import {
   classifyChiselClientLogLine,
   createEgressTargetResolver,
   getChiselAssetName,
+  isChiselRemoteRejectionLine,
   isForbiddenEgressAddress,
   orderEgressAddresses,
   parseEgressAllowList,
@@ -142,6 +143,39 @@ describe(buildChiselClientArgs, () => {
       'https://egress-abc.eas-simulator.ngrok.dev',
       'R:127.0.0.1:8899:127.0.0.1:8899',
     ]);
+  });
+
+  it('adds one loopback reverse remote per forwarded port after the proxy remote', () => {
+    expect(
+      buildChiselClientArgs({
+        url: 'https://egress-abc.eas-simulator.ngrok.dev',
+        fingerprint: 'fp=',
+        port: 8899,
+        localPort: 51000,
+        forwardPorts: [3000, 8082],
+      }).slice(-3)
+    ).toEqual([
+      'R:127.0.0.1:8899:127.0.0.1:51000',
+      'R:127.0.0.1:3000:127.0.0.1:3000',
+      'R:127.0.0.1:8082:127.0.0.1:8082',
+    ]);
+  });
+});
+
+describe(isChiselRemoteRejectionLine, () => {
+  it('recognizes denied and unbindable reverse remotes', () => {
+    expect(
+      isChiselRemoteRejectionLine("2026/09/10 client: access to 'R:127.0.0.1:8082' denied")
+    ).toBe(true);
+    expect(
+      isChiselRemoteRejectionLine(
+        '2026/09/10 client: Connection error: listen tcp 127.0.0.1:8082: bind: address already in use'
+      )
+    ).toBe(true);
+    expect(isChiselRemoteRejectionLine('2026/09/10 client: Connected (Latency 41ms)')).toBe(false);
+    expect(
+      isChiselRemoteRejectionLine('2026/09/10 client: Connection error: websocket: bad handshake')
+    ).toBe(false);
   });
 });
 
@@ -806,6 +840,43 @@ describe(runLocalEgressAsync, () => {
       expect(spawnAsync).not.toHaveBeenCalled();
     } finally {
       exists.mockReset();
+    }
+  });
+
+  it('opens a loopback reverse remote for each forwarded --egress-allow port', async () => {
+    jest.mocked(fs.pathExists).mockResolvedValue(true as never);
+    let child: ChildProcess | undefined;
+    jest.mocked(spawnAsync).mockImplementation(() => {
+      child = new ChildProcess();
+      const promise = new Promise<never>((_resolve, reject) => {
+        child!.kill = jest.fn(signal => {
+          Object.defineProperty(child, 'signalCode', { value: signal, configurable: true });
+          reject(new Error('terminated'));
+          return true;
+        });
+      });
+      return Object.assign(promise, { child });
+    });
+    const controller = new AbortController();
+    const running = runLocalEgressAsync({
+      url: 'https://example.test',
+      token: 'pw',
+      fingerprint: 'fp',
+      port: 8899,
+      allow: ['localhost:8082', '127.0.0.1:3000', 'localhost:80', '192.168.1.20:8080'],
+      signal: controller.signal,
+    });
+    try {
+      await waitForAsync(() => child !== undefined);
+      const args = jest.mocked(spawnAsync).mock.calls[0][1] ?? [];
+      expect(args.slice(-3)).toEqual([
+        expect.stringMatching(/^R:127\.0\.0\.1:8899:127\.0\.0\.1:\d+$/),
+        'R:127.0.0.1:3000:127.0.0.1:3000',
+        'R:127.0.0.1:8082:127.0.0.1:8082',
+      ]);
+    } finally {
+      controller.abort();
+      await running;
     }
   });
 
