@@ -2,6 +2,7 @@ import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graph
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
@@ -22,6 +23,17 @@ const iosAppiumConfig = {
   },
   webPreviewUrl: 'https://preview.example.test',
 };
+
+describe('DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS', () => {
+  it('offers web-preview-only once even though two enum values map to it', () => {
+    expect(DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS).toEqual([
+      'agent-device',
+      'appium',
+      'argent',
+      'web-preview-only',
+    ]);
+  });
+});
 
 describe('Appium simulator configuration', () => {
   it('maps the appium CLI value to the GraphQL enum', () => {

@@ -32,6 +32,12 @@ export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, s
   [DeviceRunSessionType.WebPreviewOnly]: 'web-preview-only',
 };
 
+// ServeSim and WebPreviewOnly share a flag value, so listing the record's values
+// directly would offer web-preview-only twice in --help.
+export const DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS = [
+  ...new Set(Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES)),
+];
+
 export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
   (Object.entries(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES) as [DeviceRunSessionType, string][]).map(
     ([type, value]) => [value, type]
