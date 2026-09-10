@@ -42,7 +42,7 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-const mockConfig = getMockOclifConfig();
+let mockConfig: Config;
 
 const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
@@ -52,7 +52,16 @@ const analytics: AnalyticsWithOrchestration = {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockConfig = getMockOclifConfig();
 });
+
+/**
+ * The config oclif handed to the most recently run command. Command.run returns
+ * a pre-built Config untouched only when it was created by the same @oclif/core
+ * copy the command extends; otherwise it silently builds and fully loads a new
+ * one, bringing back the command discovery this suite avoids.
+ */
+let lastCommandConfig: Config | undefined;
 
 const createTestEasCommand = (): any => {
   const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
@@ -60,13 +69,18 @@ const createTestEasCommand = (): any => {
   const EasCommand = require('../EasCommand').default;
 
   class TestEasCommand extends EasCommand {
-    async runAsync(): Promise<void> {}
+    async runAsync(): Promise<void> {
+      lastCommandConfig = this.config;
+    }
   }
 
   TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
   return TestEasCommand;
 };
 
+// These tests go through the static Command.run rather than constructing an
+// instance and calling run() like other command tests, because they cover
+// oclif's catch and finally wiring, which only runs inside the static path.
 describe('EasCommand', () => {
   describe('without exceptions', () => {
     it('ensures the user data is read', async () => {
@@ -76,6 +90,14 @@ describe('EasCommand', () => {
       const SessionManager = jest.requireMock('../../user/SessionManager').default;
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
+    });
+
+    it('runs with the unloaded config instead of loading one', async () => {
+      const TestEasCommand = createTestEasCommand();
+      await TestEasCommand.run([], mockConfig);
+
+      expect(lastCommandConfig).toBe(mockConfig);
+      expect(mockConfig.plugins.size).toBe(0);
     });
 
     it('initializes analytics', async () => {
