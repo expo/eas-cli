@@ -5,7 +5,6 @@ import {
   ArchiveSourceType,
   Job,
   SystemError,
-  UserError,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
@@ -28,9 +27,9 @@ export async function prepareProjectSourcesAsync<TJob extends Job>(
 Promise<{ handled: boolean }> {
   if (ctx.isLocal) {
     if (ctx.job.projectArchive.type !== ArchiveSourceType.PATH) {
-      throw new UserError(
-        'INVALID_LOCAL_PROJECT_SOURCE',
-        'Local builds require a PATH project source.'
+      throw new SystemError(
+        `Expected a PATH project source for a local build, received ${ctx.job.projectArchive.type}.`,
+        { trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE' }
       );
     }
     await prepareProjectSourcesLocallyAsync(ctx, ctx.job.projectArchive.path, destinationDirectory);
