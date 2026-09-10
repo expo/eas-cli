@@ -136,9 +136,18 @@ export function generateEgressCredentials(): { user: string; password: string } 
   return { user: LOCAL_EGRESS_USERNAME, password: randomBytes(24).toString('base64url') };
 }
 
+// Matches 1024-65535: every unprivileged TCP port.
+const UNPRIVILEGED_PORT_PATTERN =
+  '(102[4-9]|10[3-9][0-9]|1[1-9][0-9]{2}|[2-9][0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])';
+
 /**
- * chisel authfile: one user, allowed to open exactly one reverse remote, the
- * proxy port on loopback. Reverse remotes are matched as `R:<interface>:<port>`.
+ * chisel authfile: one user, allowed to open reverse remotes on loopback only.
+ * The proxy port carries proxied requests. Any unprivileged loopback port may be
+ * forwarded too: the EAS CLI opens one per `--egress-allow localhost:<port>`
+ * entry so `127.0.0.1:<port>` inside the simulator reaches that port on the
+ * developer's machine, like `adb reverse`. iOS never sends loopback-literal
+ * requests to the system proxy, so the proxy alone cannot serve them.
+ * Reverse remotes are matched as `R:<interface>:<port>`.
  */
 export function createChiselAuthfileContents({
   user,
@@ -150,7 +159,12 @@ export function createChiselAuthfileContents({
   port: number;
 }): string {
   const escapedHost = LOCAL_EGRESS_PROXY_HOST.replace(/\./g, '\\.');
-  return JSON.stringify({ [`${user}:${password}`]: [`^R:${escapedHost}:${port}$`] });
+  return JSON.stringify({
+    [`${user}:${password}`]: [
+      `^R:${escapedHost}:${port}$`,
+      `^R:${escapedHost}:${UNPRIVILEGED_PORT_PATTERN}$`,
+    ],
+  });
 }
 
 export function parseChiselFingerprint(output: string): string | null {

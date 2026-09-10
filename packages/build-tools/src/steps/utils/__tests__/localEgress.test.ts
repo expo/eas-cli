@@ -57,18 +57,32 @@ describe(getChiselAssetName, () => {
 });
 
 describe(createChiselAuthfileContents, () => {
-  it('allows exactly one reverse remote: the loopback proxy port', () => {
+  it('allows reverse remotes on the loopback proxy port and unprivileged loopback ports only', () => {
     const contents = createChiselAuthfileContents({ user: 'eas', password: 'pw', port: 8899 });
     const parsed = JSON.parse(contents) as Record<string, string[]>;
-    expect(parsed).toEqual({ 'eas:pw': ['^R:127\\.0\\.0\\.1:8899$'] });
+    expect(parsed['eas:pw']).toHaveLength(2);
+    expect(parsed['eas:pw'][0]).toBe('^R:127\\.0\\.0\\.1:8899$');
 
-    const pattern = new RegExp(parsed['eas:pw'][0]);
-    expect(pattern.test('R:127.0.0.1:8899')).toBe(true);
-    expect(pattern.test('R:0.0.0.0:8899')).toBe(false);
-    expect(pattern.test('R:127.0.0.1:88990')).toBe(false);
-    expect(pattern.test('R:127x0x0x1:8899')).toBe(false);
-    expect(pattern.test('R:socks')).toBe(false);
-    expect(pattern.test('example.com:443')).toBe(false);
+    const patterns = parsed['eas:pw'].map(source => new RegExp(source));
+    const allowed = (remote: string): boolean => patterns.some(pattern => pattern.test(remote));
+    expect(allowed('R:127.0.0.1:8899')).toBe(true);
+    expect(allowed('R:127.0.0.1:1024')).toBe(true);
+    expect(allowed('R:127.0.0.1:3000')).toBe(true);
+    expect(allowed('R:127.0.0.1:8081')).toBe(true);
+    expect(allowed('R:127.0.0.1:65535')).toBe(true);
+    // Privileged and out-of-range ports, other interfaces, and forward remotes stay denied.
+    expect(allowed('R:127.0.0.1:1023')).toBe(false);
+    expect(allowed('R:127.0.0.1:80')).toBe(false);
+    expect(allowed('R:127.0.0.1:0')).toBe(false);
+    expect(allowed('R:127.0.0.1:65536')).toBe(false);
+    expect(allowed('R:127.0.0.1:88990')).toBe(false);
+    expect(allowed('R:0.0.0.0:8899')).toBe(false);
+    expect(allowed('R:0.0.0.0:3000')).toBe(false);
+    expect(allowed('R:[::1]:3000')).toBe(false);
+    expect(allowed('R:127x0x0x1:8899')).toBe(false);
+    expect(allowed('R:socks')).toBe(false);
+    expect(allowed('example.com:443')).toBe(false);
+    expect(allowed('127.0.0.1:3000')).toBe(false);
   });
 });
 
