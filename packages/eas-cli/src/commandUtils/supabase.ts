@@ -123,9 +123,9 @@ const ADVISOR_LINT_LEVEL_LABELS: Record<
   SupabaseAdvisorLintLevel,
   [singular: string, plural: string]
 > = {
-  ERROR: ['error', 'errors'],
-  WARN: ['warning', 'warnings'],
-  INFO: ['suggestion', 'suggestions'],
+  [SupabaseAdvisorLintLevel.Error]: ['error', 'errors'],
+  [SupabaseAdvisorLintLevel.Warn]: ['warning', 'warnings'],
+  [SupabaseAdvisorLintLevel.Info]: ['suggestion', 'suggestions'],
 };
 
 const ADVISOR_LINT_LEVEL_MARKERS: Record<SupabaseAdvisorLintLevel, string> = {
@@ -145,8 +145,12 @@ export function summarizeSupabaseAdvisorLints(lints: readonly SupabaseAdvisorLin
     .join(', ');
 }
 
-function stripInlineCode(text: string): string {
-  return text.replaceAll('\\`', '').replaceAll('`', '');
+function formatInlineCode(text: string): string {
+  return text
+    .replaceAll('\\`', '`')
+    .split('`')
+    .map((part, index) => (index % 2 === 1 ? chalk.cyan(part) : part))
+    .join('');
 }
 
 export function formatSupabaseAdvisorLints(
@@ -155,13 +159,15 @@ export function formatSupabaseAdvisorLints(
   lints: readonly SupabaseAdvisorLintData[]
 ): string {
   const heading = `${chalk.bold(type === SupabaseAdvisorType.Security ? 'Security' : 'Performance')}: ${summarizeSupabaseAdvisorLints(lints)}`;
+  const dashboardUrl = getSupabaseAdvisorsDashboardUrl(project, type);
   const rows = lints.flatMap(lint => [
     `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${chalk.bold(lint.title)}${lint.entity ? `  ${chalk.dim(lint.entity)}` : ''}`,
-    `      ${stripInlineCode(lint.detail)}`,
+    `      ${formatInlineCode(lint.detail)}`,
     ...(lint.remediation
       ? [`      ${chalk.dim('Fix:')} ${link(lint.remediation, { dim: false })}`]
       : []),
+    `      ${chalk.dim('View:')} ${link(`${dashboardUrl}?id=${encodeURIComponent(lint.cacheKey)}`, { dim: false })}`,
   ]);
-  const dashboard = `  ${chalk.dim('Dashboard:')} ${link(getSupabaseAdvisorsDashboardUrl(project, type), { dim: false })}`;
+  const dashboard = `  ${chalk.dim('Dashboard:')} ${link(dashboardUrl, { dim: false })}`;
   return [heading, ...rows, dashboard].join('\n');
 }
