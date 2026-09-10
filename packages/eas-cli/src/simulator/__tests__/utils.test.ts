@@ -63,10 +63,29 @@ describe('local egress configuration', () => {
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Run the egress client to connect the tunnel');
+    expect(instructions).toContain('Keep it running for the life of the session.');
     expect(instructions).not.toContain('may reach');
     expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
       "export EAS_SIMULATOR_EGRESS_ALLOW=''"
     );
+  });
+
+  it('describes the inline egress client instead of asking the reader to start one', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+      egressClientRunsInline: true,
+    });
+    expect(instructions).toContain('The egress client runs in this terminal');
+    expect(instructions).toContain(
+      'reconnect the tunnel from another shell with:\n\neas simulator:egress'
+    );
+    expect(instructions).not.toContain('Run the egress client to connect the tunnel');
+    expect(instructions).not.toContain('Keep it running');
+
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env', {
+        egressClientRunsInline: true,
+      })
+    ).toContain('eas simulator:egress --config-type env');
   });
 
   it('carries the allowed local destinations into the config, env file and instructions', () => {

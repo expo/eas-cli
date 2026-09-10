@@ -81,6 +81,12 @@ export type LocalEgressConfig = {
 
 export type LocalEgressOptions = {
   egressAllow?: readonly string[];
+  /**
+   * Whether the calling command runs the egress client itself in the current
+   * terminal, as interactive `simulator:start` does. When false the reader must
+   * start `eas simulator:egress` in another process.
+   */
+  egressClientRunsInline?: boolean;
 };
 
 /**
@@ -258,13 +264,15 @@ export function sanitizeRemoteConfigForJson(
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType,
-  { egressAllow }: LocalEgressOptions = {}
+  { egressAllow, egressClientRunsInline = false }: LocalEgressOptions = {}
 ): string {
   const instructions = formatControllerInstructions(remoteConfig, configType);
   const egress = getLocalEgressConfig(remoteConfig, egressAllow);
   if (!egress) {
     return instructions;
   }
+  const egressCommand =
+    configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress';
   return [
     instructions,
     '',
@@ -274,11 +282,19 @@ export function formatRemoteSessionInstructions(
           ([key, value]) => `export ${key}='${value}'`
         )
       : []),
-    'Run the egress client to connect the tunnel:',
-    '',
-    configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress',
-    '',
-    'Keep it running for the life of the session.',
+    ...(egressClientRunsInline
+      ? [
+          'The egress client runs in this terminal for the life of the session. If this process exits, reconnect the tunnel from another shell with:',
+          '',
+          egressCommand,
+        ]
+      : [
+          'Run the egress client to connect the tunnel:',
+          '',
+          egressCommand,
+          '',
+          'Keep it running for the life of the session.',
+        ]),
     ...(egress.allow.length > 0
       ? [
           '',

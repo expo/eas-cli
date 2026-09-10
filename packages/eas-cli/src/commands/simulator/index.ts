@@ -419,7 +419,10 @@ export default class Simulator extends EasCommand {
 
     Log.newLine();
     Log.log(
-      formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], { egressAllow })
+      formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
+        egressAllow,
+        egressClientRunsInline: !nonInteractive,
+      })
     );
     Log.newLine();
 
@@ -444,9 +447,6 @@ export default class Simulator extends EasCommand {
     let egressError: Error | undefined;
     const egressAbortController = new AbortController();
     if (localEgress) {
-      Log.log(
-        "🔀 Running the egress client in this terminal. When connected, proxied HTTP(S) requests can use this machine's network."
-      );
       Log.log('Press Ctrl+C to stop both the egress client and the simulator session.');
       Log.newLine();
       sessionInterrupt.signal.addEventListener(
