@@ -1,3 +1,4 @@
+import { Config } from '@oclif/core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
@@ -24,17 +25,24 @@ jest.mock('../../analytics/AnalyticsManager', () => {
 });
 jest.mock('../../log');
 
-let originalProcessArgv: string[];
 const mockRequestId = uuidv4();
 
-beforeAll(() => {
-  originalProcessArgv = process.argv;
-  process.argv = [];
-});
+/**
+ * A Config that is never loaded. Letting oclif load one discovers and requires
+ * every command in the package, which takes seconds under coverage with a cold
+ * transform cache and has timed out on slow CI runners. Nothing here needs the
+ * command table or hooks.
+ */
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({
+    failures: [],
+    successes: [],
+  });
+  return config;
+}
 
-afterAll(() => {
-  process.argv = originalProcessArgv;
-});
+const mockConfig = getMockOclifConfig();
 
 const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
@@ -61,25 +69,18 @@ const createTestEasCommand = (): any => {
 
 describe('EasCommand', () => {
   describe('without exceptions', () => {
-    // The first test in this suite should have an increased timeout
-    // because of the implementation of Command from @oclif/command.
-    // It seems that loading config takes significant amount of time
-    // and I'm not sure how to mock it.
-    //
-    // See https://github.com/oclif/command/blob/master/src/command.ts#L80
-    // and look for "Config.load"
     it('ensures the user data is read', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const SessionManager = jest.requireMock('../../user/SessionManager').default;
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
-    }, 60_000);
+    });
 
     it('initializes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
       expect(createAnalyticsAsync).toHaveBeenCalled();
@@ -87,14 +88,14 @@ describe('EasCommand', () => {
 
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.flushAsync).toHaveBeenCalled();
     });
 
     it('flushes Sentry', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const Sentry = jest.requireMock('../../sentry').default;
       expect(Sentry.flush).toHaveBeenCalled();
@@ -102,7 +103,7 @@ describe('EasCommand', () => {
 
     it('logs events', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
@@ -114,7 +115,7 @@ describe('EasCommand', () => {
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
       try {
-        await TestEasCommand.run().then(() => {
+        await TestEasCommand.run([], mockConfig).then(() => {
           throw new Error('foo');
         });
       } catch {}
@@ -140,7 +141,7 @@ describe('EasCommand', () => {
         });
 
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(sentryScope.setTag).toHaveBeenCalledWith('command', TestEasCommand.id);
@@ -167,7 +168,7 @@ describe('EasCommand', () => {
         });
 
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(Sentry.captureException).toHaveBeenCalledTimes(1);
@@ -184,7 +185,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
@@ -204,7 +205,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
@@ -237,7 +238,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -273,7 +274,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -294,7 +295,7 @@ describe('EasCommand', () => {
           throw new Error('Error message');
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
@@ -310,7 +311,7 @@ describe('EasCommand', () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
@@ -340,7 +341,7 @@ describe('EasCommand', () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
