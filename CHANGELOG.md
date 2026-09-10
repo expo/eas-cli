@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.1.0](https://github.com/expo/eas-cli/releases/tag/v24.1.0) - 2026-09-10
+
+### 🎉 New features
+
 - [eas-cli] Add `--egress-allow <host:port>` to `eas simulator:start` so local egress sessions can reach dev servers on this machine or its network. ([#4369](https://github.com/expo/eas-cli/pull/4369) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli][build-tools] Forward `--egress-allow localhost:<port>` and `127.0.0.1:<port>` entries from the simulator host's loopback interface to this machine (like `adb reverse`), so dev server URLs that use `127.0.0.1` work through local egress. ([#4369](https://github.com/expo/eas-cli/pull/4369) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Add the `eas/start_local_egress` step for iOS simulator sessions with local egress: the device host's system proxy points at a reverse tunnel to the EAS CLI machine, so HTTP(S) requests that honor it exit from that machine and third parties see its IP. ([#4364](https://github.com/expo/eas-cli/pull/4364) by [@brentvatne](https://github.com/brentvatne))
@@ -17,8 +25,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Report a system error when project source refresh fails for a remote build. ([#4359](https://github.com/expo/eas-cli/pull/4359) by [@sjchmiela](https://github.com/sjchmiela))
-
-### 🧹 Chores
 
 ## [24.0.0](https://github.com/expo/eas-cli/releases/tag/v24.0.0) - 2026-09-09
 
