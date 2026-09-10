@@ -53,16 +53,14 @@ describe('expoConfig', () => {
   });
 
   describe('getPrivateExpoConfigAsync', () => {
-    function mockExpoCommandFailure(stderr: string): void {
+    function mockExpoCommandFailure(stderr: string): Error {
       jest.mocked(isExpoInstalled).mockReturnValue(true);
-      jest
-        .mocked(spawnExpoCommand)
-        .mockRejectedValue(
-          Object.assign(
-            new Error('/app/node_modules/expo/bin/cli config --json exited with non-zero code: 1'),
-            { stdout: '', stderr, status: 1 }
-          ) as any
-        );
+      const cause = Object.assign(
+        new Error('/app/node_modules/expo/bin/cli config --json exited with non-zero code: 1'),
+        { stdout: '', stderr, status: 1 }
+      );
+      jest.mocked(spawnExpoCommand).mockRejectedValue(cause as any);
+      return cause;
     }
 
     it('surfaces the stderr of a failed expo config command', async () => {
@@ -101,6 +99,20 @@ describe('expoConfig', () => {
       await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
         expect.objectContaining({
           message: expect.not.stringContaining('dependencies look missing or incomplete'),
+        }) as Error
+      );
+    });
+
+    it('keeps the original spawn failure as the cause', async () => {
+      const cause = mockExpoCommandFailure('some unrelated failure');
+      jest.mocked(fs.existsSync).mockReturnValue(true);
+
+      // The rewritten message is for the user; logs and debuggers still need the
+      // stack and the stdout/stderr/status the spawn rejection carried.
+      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
+        expect.objectContaining({
+          message: expect.stringMatching(/Failed to read the app config from the Expo CLI/),
+          cause,
         }) as Error
       );
     });
