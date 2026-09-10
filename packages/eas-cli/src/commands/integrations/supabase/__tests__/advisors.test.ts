@@ -130,7 +130,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(output).toContain('Table public.todos is public, but RLS has not been enabled.');
     expect(output).toContain('https://supabase.com/docs/guides/database/database-linter?lint=0013');
     expect(output).toContain(
-      'https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security'
+      'https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
     );
     expect(output).toContain('Performance: 1 suggestion');
     expect(output).toContain(
