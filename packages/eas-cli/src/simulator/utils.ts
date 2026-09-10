@@ -5,6 +5,7 @@ import {
 } from '../graphql/generated';
 import { link } from '../log';
 import {
+  EAS_SIMULATOR_EGRESS_ALLOW,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
   EAS_SIMULATOR_EGRESS_PORT,
   EAS_SIMULATOR_EGRESS_TOKEN,
@@ -71,20 +72,37 @@ export type LocalEgressConfig = {
   token: string;
   fingerprint: string;
   port: number;
+  /**
+   * Normalized `host:port` destinations on the developer's machine or network
+   * that the simulator may reach through the proxy (`--egress-allow`).
+   */
+  allow: string[];
+};
+
+export type LocalEgressOptions = {
+  egressAllow?: readonly string[];
 };
 
 /**
  * Connection details for the local egress client, present only for sessions
- * started with `--egress local`.
+ * started with `--egress local`. `allow` comes from the developer's flags, not
+ * from the worker.
  */
 export function getLocalEgressConfig(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  allow: readonly string[] = []
 ): LocalEgressConfig | null {
   const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
   if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
     return null;
   }
-  return { url: egressUrl, token: egressToken, fingerprint: egressFingerprint, port: egressPort };
+  return {
+    url: egressUrl,
+    token: egressToken,
+    fingerprint: egressFingerprint,
+    port: egressPort,
+    allow: [...allow],
+  };
 }
 
 export function getLocalEgressEnvironmentVariables(
@@ -98,15 +116,17 @@ export function getLocalEgressEnvironmentVariables(
     [EAS_SIMULATOR_EGRESS_TOKEN]: egress.token,
     [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
     [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
+    [EAS_SIMULATOR_EGRESS_ALLOW]: egress.allow.join(','),
   };
 }
 
 export function getRemoteSessionEnvironmentVariables(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  { egressAllow }: LocalEgressOptions = {}
 ): Record<string, string> {
   return {
     ...getControllerEnvironmentVariables(remoteConfig),
-    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig)),
+    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig, egressAllow)),
   };
 }
 
@@ -180,10 +200,11 @@ export function sanitizeRemoteConfigForJson(
 
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
-  configType: RemoteSessionInstructionsConfigType
+  configType: RemoteSessionInstructionsConfigType,
+  { egressAllow }: LocalEgressOptions = {}
 ): string {
   const instructions = formatControllerInstructions(remoteConfig, configType);
-  const egress = getLocalEgressConfig(remoteConfig);
+  const egress = getLocalEgressConfig(remoteConfig, egressAllow);
   if (!egress) {
     return instructions;
   }
@@ -201,6 +222,9 @@ export function formatRemoteSessionInstructions(
     configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress',
     '',
     'Keep it running for the life of the session.',
+    ...(egress.allow.length > 0
+      ? ['', `The simulator may reach ${egress.allow.join(', ')} on this machine's network.`]
+      : []),
   ].join('\n');
 }
 

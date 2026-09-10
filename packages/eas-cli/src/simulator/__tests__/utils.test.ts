@@ -47,6 +47,7 @@ describe('local egress configuration', () => {
       token: 'egress-secret',
       fingerprint: 'fp=',
       port: 8899,
+      allow: [],
     });
     expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
       AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
@@ -55,10 +56,33 @@ describe('local egress configuration', () => {
       EAS_SIMULATOR_EGRESS_TOKEN: 'egress-secret',
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
+      EAS_SIMULATOR_EGRESS_ALLOW: '',
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Run the egress client to connect the tunnel');
+    expect(instructions).not.toContain('may reach');
+    expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
+      "export EAS_SIMULATOR_EGRESS_ALLOW=''"
+    );
+  });
+
+  it('carries the allowed local destinations into the config, env file and instructions', () => {
+    const egressAllow = ['localhost:3000', '192.168.1.20:8080'];
+    expect(getLocalEgressConfig(agentDeviceConfigWithEgress, egressAllow)?.allow).toEqual(
+      egressAllow
+    );
+    expect(
+      getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress, { egressAllow })
+    ).toMatchObject({ EAS_SIMULATOR_EGRESS_ALLOW: 'localhost:3000,192.168.1.20:8080' });
+    expect(
+      getRemoteSessionEnvironmentVariables(agentDeviceConfig, { egressAllow })
+    ).not.toHaveProperty('EAS_SIMULATOR_EGRESS_ALLOW');
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', { egressAllow })
+    ).toContain(
+      "The simulator may reach localhost:3000, 192.168.1.20:8080 on this machine's network."
+    );
   });
 });
 
@@ -368,17 +392,18 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       EAS_SIMULATOR_EGRESS_TOKEN: egress.egressToken,
       EAS_SIMULATOR_EGRESS_FINGERPRINT: egress.egressFingerprint,
       EAS_SIMULATOR_EGRESS_PORT: '8899',
+      EAS_SIMULATOR_EGRESS_ALLOW: '',
     });
     expect(getLocalEgressConfig(withEgress)).toEqual({
       url: egress.egressUrl,
       token: egress.egressToken,
       fingerprint: egress.egressFingerprint,
       port: 8899,
+      allow: [],
     });
     const dotenvInstructions = formatRemoteSessionInstructions(withEgress, 'dotenv');
     expect(dotenvInstructions).toContain('eas simulator:egress');
     expect(dotenvInstructions).not.toContain(egress.egressToken);
-    expect(dotenvInstructions).not.toContain('--config-type env');
     expect(formatRemoteSessionInstructions(withEgress, 'env')).toContain(
       'eas simulator:egress --config-type env'
     );

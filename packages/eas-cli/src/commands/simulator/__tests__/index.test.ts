@@ -53,7 +53,10 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../prompts');
-jest.mock('../../../simulator/egress');
+jest.mock('../../../simulator/egress', () => ({
+  ...jest.requireActual('../../../simulator/egress'),
+  runLocalEgressAsync: jest.fn(),
+}));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -1028,6 +1031,65 @@ describe(Simulator, () => {
       expect(process.listeners('SIGINT')).toEqual(listeners);
     }
   );
+
+  it('passes normalized --egress-allow destinations to the egress client', async () => {
+    const session = makeDeviceRunSession({
+      remoteConfig: {
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+        agentDeviceRemoteSessionToken: 'token',
+        egressUrl: 'https://egress.example.com',
+        egressToken: 'pw',
+        egressFingerprint: 'fp',
+        egressPort: 8899,
+      },
+    });
+    mockByIdAsync
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce({ ...session, status: DeviceRunSessionStatus.Stopped });
+    jest.mocked(runLocalEgressAsync).mockResolvedValueOnce(undefined);
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--egress',
+      'local',
+      '--egress-allow',
+      'localhost:3000',
+      '--egress-allow',
+      'LOCALHOST:3000',
+      '--egress-allow',
+      '192.168.1.20:8080',
+    ]);
+    await command.runAsync();
+
+    expect(runLocalEgressAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ allow: ['localhost:3000', '192.168.1.20:8080'] })
+    );
+  });
+
+  it('rejects malformed --egress-allow values before creating a session', async () => {
+    // If validation were skipped, fail fast instead of polling a live session.
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped })
+    );
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--egress',
+      'local',
+      '--egress-allow',
+      'localhost',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('Invalid --egress-allow value "localhost"');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('requires --egress for --egress-allow', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--egress-allow', 'localhost:3000']);
+    await expect(command.runAsync()).rejects.toThrow(/--egress/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
 
   it('prompts to select the platform when --platform is omitted', async () => {
     mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });

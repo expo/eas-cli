@@ -11,6 +11,7 @@ import { Duplex } from 'node:stream';
 import zlib from 'node:zlib';
 
 import {
+  EAS_SIMULATOR_EGRESS_ALLOW,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
   EAS_SIMULATOR_EGRESS_PORT,
   EAS_SIMULATOR_EGRESS_TOKEN,
@@ -36,6 +37,11 @@ import { getCacheDirectory } from '../utils/paths';
  *    that port, so requests that honor it (WebKit, URLSession and other CFNetwork
  *    clients) arrive here. Requests from libraries that bypass the system proxy
  *    never reach this client and exit from the device host instead.
+ *
+ * `--egress-allow host:port` names destinations on the developer's machine or
+ * network that the proxy may connect to despite the local-network refusal, so a
+ * dev server on `localhost:3000` is reachable from the remote simulator the way
+ * it is from a local one. Entries are exact host and port pairs, never ranges.
  */
 
 export const LOCAL_EGRESS_PROXY_HOST = '127.0.0.1';
@@ -83,7 +89,10 @@ export function readLocalEgressConfigFromEnv(env: NodeJS.ProcessEnv): LocalEgres
         '`eas simulator:start --platform ios --egress local`.'
     );
   }
-  return { url, token, fingerprint, port };
+  const allow = parseEgressAllowList(
+    (env[EAS_SIMULATOR_EGRESS_ALLOW] ?? '').split(',').filter(entry => entry.trim().length > 0)
+  );
+  return { url, token, fingerprint, port, allow };
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +193,7 @@ export function isForbiddenEgressAddress(address: string): boolean {
   }
 }
 
-export type EgressTargetResolver = (hostname: string) => Promise<string[]>;
+export type EgressTargetResolver = (hostname: string, port: number) => Promise<string[]>;
 
 /**
  * IPv4 first. Developer networks often have broken or slow IPv6, and a hung
@@ -230,6 +239,96 @@ export const resolveEgressTargetAsync: EgressTargetResolver = async hostname => 
   }
   return orderEgressAddresses(addresses);
 };
+
+// ---------------------------------------------------------------------------
+// Allowed local destinations (--egress-allow)
+// ---------------------------------------------------------------------------
+
+function formatEgressDestination(host: string, port: number): string {
+  return `${net.isIPv6(host) ? `[${host}]` : host}:${port}`;
+}
+
+function normalizeEgressHostname(hostname: string): string {
+  const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (net.isIPv6(host)) {
+    // URL canonicalizes IPv6 but does not accept interface zone identifiers.
+    const [address, zone] = host.split('%');
+    const normalized = new URL(`http://[${address}]`).hostname.slice(1, -1);
+    return zone ? `${normalized}%${zone}` : normalized;
+  }
+  if (!/^[\p{L}\p{M}\p{N}_.-]+$/u.test(host)) {
+    throw new Error(`Invalid destination hostname "${hostname}".`);
+  }
+  // Match absolute-form HTTP URL parsing, including IPv4 and IDN normalization.
+  return new URL(`http://${host}`).hostname;
+}
+
+/**
+ * Parse one `--egress-allow` value into its normalized `host:port` form. Only an
+ * exact host and port pair is accepted. Web pages and SDKs inside the simulator
+ * can use the proxy too, so nothing here opens a range or a wildcard.
+ */
+export function parseEgressAllowEntry(entry: string): string {
+  const match = /^(\[[^\]]+\]|[^\s:/[\]*]+):(\d{1,5})$/.exec(entry.trim());
+  const host = match ? match[1].replace(/^\[|\]$/g, '').toLowerCase() : '';
+  const port = match ? Number(match[2]) : 0;
+  const bracketed = match ? match[1].startsWith('[') : false;
+  if (!match || port <= 0 || port > 65535 || (bracketed && !net.isIPv6(host))) {
+    throw new Error(
+      `Invalid --egress-allow value "${entry}". Use an exact host and port, for example ` +
+        'localhost:3000, 192.168.1.20:8080, or [::1]:3000. Wildcards and address ranges are not accepted.'
+    );
+  }
+  try {
+    return formatEgressDestination(normalizeEgressHostname(host), port);
+  } catch {
+    throw new Error(
+      `Invalid --egress-allow value "${entry}". Use an exact hostname or IP address and port.`
+    );
+  }
+}
+
+export function parseEgressAllowList(entries: readonly string[]): string[] {
+  return [...new Set(entries.map(parseEgressAllowEntry))];
+}
+
+/**
+ * Wrap the default destination policy with the `--egress-allow` list. A listed
+ * destination connects to this machine's loopback or network exactly as named;
+ * every other destination keeps the default refusals. `localhost` maps to the
+ * loopback addresses directly and never goes through DNS.
+ */
+export function createEgressTargetResolver({
+  allow,
+  onAllowed,
+}: {
+  allow: readonly string[];
+  onAllowed?: (destination: string) => void;
+}): EgressTargetResolver {
+  const allowed = new Set(allow);
+  if (allowed.size === 0) {
+    return resolveEgressTargetAsync;
+  }
+  return async (hostname, port) => {
+    const host = normalizeEgressHostname(hostname);
+    const destination = formatEgressDestination(host, port);
+    if (!allowed.has(destination)) {
+      return await resolveEgressTargetAsync(hostname, port);
+    }
+    onAllowed?.(destination);
+    if (host === 'localhost') {
+      return ['127.0.0.1', '::1'];
+    }
+    if (net.isIP(host)) {
+      return [host];
+    }
+    const addresses = await dns.lookup(host, { all: true, verbatim: true });
+    if (addresses.length === 0) {
+      throw new Error(`Could not resolve ${host}.`);
+    }
+    return orderEgressAddresses(addresses);
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Proxy server
@@ -402,7 +501,7 @@ export async function startLocalEgressProxyServerAsync({
     targetPort: number,
     signal: AbortSignal
   ): Promise<net.Socket> => {
-    const addresses = await resolveTargetAsync(hostname);
+    const addresses = await resolveTargetAsync(hostname, targetPort);
     // DNS lookup itself cannot be canceled, but a late answer must never open a socket.
     signal.throwIfAborted();
     return await connectUpstreamAsync({
@@ -786,11 +885,14 @@ export async function runLocalEgressAsync({
   token,
   fingerprint,
   port,
+  allow = [],
   localPort = 0,
   signal,
   onConnected,
   onDisconnected,
-}: LocalEgressConfig & {
+}: Omit<LocalEgressConfig, 'allow'> & {
+  /** Normalized `--egress-allow` destinations; see createEgressTargetResolver. */
+  allow?: readonly string[];
   /** Defaults to an available ephemeral port; the remote worker port stays fixed. */
   localPort?: number;
   signal: AbortSignal;
@@ -821,7 +923,23 @@ export async function runLocalEgressAsync({
     signal.throwIfAborted();
     const chiselPath = await ensureChiselBinaryAsync({ signal });
     signal.throwIfAborted();
-    proxy = await startLocalEgressProxyServerAsync({ port: localPort });
+    const reportedAllowed = new Set<string>();
+    const resolveAllowedTarget = createEgressTargetResolver({
+      allow,
+      onAllowed: destination => {
+        if (reportedAllowed.has(destination)) {
+          Log.debug(`[egress] ${destination} allowed by --egress-allow`);
+          return;
+        }
+        reportedAllowed.add(destination);
+        Log.log(`The simulator reached ${destination} on this machine's network.`);
+      },
+    });
+    proxy = await startLocalEgressProxyServerAsync({
+      port: localPort,
+      resolveTargetAsync: async (hostname, targetPort) =>
+        await resolveAllowedTarget(hostname, targetPort),
+    });
     signal.throwIfAborted();
     Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
     const chisel = spawnAsync(

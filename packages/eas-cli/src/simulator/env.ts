@@ -12,6 +12,8 @@ export const EAS_SIMULATOR_EGRESS_URL = 'EAS_SIMULATOR_EGRESS_URL';
 export const EAS_SIMULATOR_EGRESS_TOKEN = 'EAS_SIMULATOR_EGRESS_TOKEN';
 export const EAS_SIMULATOR_EGRESS_FINGERPRINT = 'EAS_SIMULATOR_EGRESS_FINGERPRINT';
 export const EAS_SIMULATOR_EGRESS_PORT = 'EAS_SIMULATOR_EGRESS_PORT';
+// Comma-separated host:port destinations from `--egress-allow`.
+export const EAS_SIMULATOR_EGRESS_ALLOW = 'EAS_SIMULATOR_EGRESS_ALLOW';
 export const SIMULATOR_DOTENV_FILE_HEADER =
   '# Do not commit this file.\n# Do not modify these values manually. They are managed by eas-cli.\n# It holds configuration only for the current simulator session.\n\n';
 
@@ -23,6 +25,38 @@ export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
 
   loadProjectEnv(projectDir, { silent: true });
+  try {
+    const simulatorEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
+    if (simulatorEnv[EAS_SIMULATOR_SESSION_ID] || simulatorEnv[EAS_SIMULATOR_EGRESS_URL]) {
+      // loadEnvFiles never replaces existing variables, even with force: true.
+      // Keep this session's credentials and destination policy together rather
+      // than combining them with values exported for an older session.
+      for (const key of [
+        EAS_SIMULATOR_SESSION_ID,
+        'AGENT_DEVICE_DAEMON_BASE_URL',
+        'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
+        'ARGENT_TOOLS_URL',
+        'ARGENT_AUTH_TOKEN',
+        'APPIUM_URL',
+        'APPIUM_CAPS',
+        EAS_SIMULATOR_EGRESS_URL,
+        EAS_SIMULATOR_EGRESS_TOKEN,
+        EAS_SIMULATOR_EGRESS_FINGERPRINT,
+        EAS_SIMULATOR_EGRESS_PORT,
+      ]) {
+        if (simulatorEnv[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = simulatorEnv[key];
+        }
+      }
+      process.env[EAS_SIMULATOR_EGRESS_ALLOW] = simulatorEnv[EAS_SIMULATOR_EGRESS_ALLOW] ?? '';
+    }
+  } catch (err) {
+    if (!(typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT')) {
+      throw err;
+    }
+  }
   loadEnvFiles([simulatorDotenvFilePath], { force: true });
 }
 

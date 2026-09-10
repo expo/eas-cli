@@ -17,6 +17,7 @@ jest.mock('../../../simulator/egress', () => ({
 
 const shellSession = {
   EAS_SIMULATOR_SESSION_ID: 'session-b',
+  EAS_SIMULATOR_EGRESS_ALLOW: '',
   EAS_SIMULATOR_EGRESS_URL: 'https://egress-b.example.test',
   EAS_SIMULATOR_EGRESS_TOKEN: 'token-b',
   EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fingerprint-b',
@@ -24,6 +25,7 @@ const shellSession = {
 };
 const fileSession = {
   EAS_SIMULATOR_SESSION_ID: 'session-a',
+  EAS_SIMULATOR_EGRESS_ALLOW: 'localhost:3000',
   EAS_SIMULATOR_EGRESS_URL: 'https://egress-a.example.test',
   EAS_SIMULATOR_EGRESS_TOKEN: 'token-a',
   EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fingerprint-a',
@@ -71,6 +73,7 @@ describe(SimulatorEgress, () => {
         token: shellSession.EAS_SIMULATOR_EGRESS_TOKEN,
         fingerprint: shellSession.EAS_SIMULATOR_EGRESS_FINGERPRINT,
         port: 8899,
+        allow: [],
       })
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('session-b'));
@@ -91,6 +94,7 @@ describe(SimulatorEgress, () => {
           token: fileSession.EAS_SIMULATOR_EGRESS_TOKEN,
           fingerprint: fileSession.EAS_SIMULATOR_EGRESS_FINGERPRINT,
           port: 8898,
+          allow: ['localhost:3000'],
         })
       );
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('session-a'));

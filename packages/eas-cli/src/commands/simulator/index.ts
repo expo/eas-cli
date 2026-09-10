@@ -22,7 +22,7 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
-import { runLocalEgressAsync } from '../../simulator/egress';
+import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -142,6 +142,12 @@ export default class Simulator extends EasCommand {
         'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios.',
       options: EGRESS_FLAG_VALUES,
     })(),
+    'egress-allow': Flags.string({
+      description:
+        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. Requires --egress local.',
+      multiple: true,
+      dependsOn: ['egress'],
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -231,6 +237,12 @@ export default class Simulator extends EasCommand {
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
     if (egress && platform !== AppPlatform.Ios) {
       throw new EasCommandError('--egress local is only supported with --platform ios.');
+    }
+    let egressAllow: string[] = [];
+    try {
+      egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
     if (platform === AppPlatform.Android) {
       Log.warn(
@@ -377,7 +389,7 @@ export default class Simulator extends EasCommand {
 
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
       await writeSimulatorEnvSafelyAsync(projectDir, {
-        ...getRemoteSessionEnvironmentVariables(remoteConfig),
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow }),
         [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
       });
     }
@@ -406,10 +418,12 @@ export default class Simulator extends EasCommand {
     }
 
     Log.newLine();
-    Log.log(formatRemoteSessionInstructions(remoteConfig, flags['out-config-type']));
+    Log.log(
+      formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], { egressAllow })
+    );
     Log.newLine();
 
-    const localEgress = getLocalEgressConfig(remoteConfig);
+    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow);
 
     if (nonInteractive) {
       sessionInterrupt.dispose();
