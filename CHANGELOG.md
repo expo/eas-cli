@@ -41,6 +41,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli][build-tools] Forward `--egress-allow localhost:<port>` and `127.0.0.1:<port>` entries from the simulator host's loopback interface to this machine (like `adb reverse`), so dev server URLs that use `127.0.0.1` work through local egress. ([#4369](https://github.com/expo/eas-cli/pull/4369) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Add the `eas/start_local_egress` step for iOS simulator sessions with local egress: the device host's system proxy points at a reverse tunnel to the EAS CLI machine, so HTTP(S) requests that honor it exit from that machine and third parties see its IP. ([#4364](https://github.com/expo/eas-cli/pull/4364) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `--egress local` to `eas simulator:start` and the `eas simulator:egress` command, which run the local egress client for the session. ([#4364](https://github.com/expo/eas-cli/pull/4364) by [@brentvatne](https://github.com/brentvatne))
+- [eas-build-job] Remove repository URLs from Git job inputs and fetch them when resolving project sources. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
+
 - [build-tools] Require the serve-sim session token for device run session previews, so the tunnel no longer exposes the shell-exec route. ([#4306](https://github.com/expo/eas-cli/pull/4306) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
@@ -54,8 +56,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Align the `eas observe:*` commands with the renamed Observe GraphQL schema. `--json` output now uses `name`/`value` instead of `metricName`/`metricValue` (metrics) and `name` instead of `eventName` (log events and event-name summaries), and `eas observe:events` now lists user-defined events only — exceptions moved to the new `eas observe:errors`. ([#4338](https://github.com/expo/eas-cli/pull/4338) by [@douglowder](https://github.com/douglowder))
 
 ### 🎉 New features
-
-- [eas-build-job] Remove repository URLs from Git job inputs and fetch them when resolving project sources. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
 
 - [build-tools] Add `lcd_width`, `lcd_height`, and `lcd_density` inputs to configure the Android emulator display. ([#4349](https://github.com/expo/eas-cli/pull/4349) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [eas-cli] Add `eas channel:protect` and `eas channel:unprotect` to manage EAS Update channel protection, and show protection in channel list and view output. ([#4319](https://github.com/expo/eas-cli/pull/4319) by [@sjkim-expo](https://github.com/sjkim-expo))
