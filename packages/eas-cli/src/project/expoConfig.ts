@@ -65,7 +65,7 @@ async function getExpoConfigInternalAsync(
           }
         ));
       } catch (error: any) {
-        throw new Error(expoConfigCommandFailedMessage(projectDir, error));
+        throw new Error(expoConfigCommandFailedMessage(projectDir, error), { cause: error });
       }
       exp = JSON.parse(stdout);
     } else {
