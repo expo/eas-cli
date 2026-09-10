@@ -24,7 +24,10 @@ describe(BuildUpload, () => {
   const mockConfig = getMockOclifConfig();
 
   function createCommand(argv: string[]): BuildUpload {
-    const command = new BuildUpload([...argv, '--platform=android', '--non-interactive'], mockConfig);
+    const command = new BuildUpload(
+      [...argv, '--platform=android', '--non-interactive'],
+      mockConfig
+    );
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
       projectId: testProjectId,
       loggedIn: { graphqlClient },

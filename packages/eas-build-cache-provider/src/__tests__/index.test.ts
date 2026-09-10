@@ -33,7 +33,9 @@ describe('uploadBuildCache', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.mocked(fs.exists).mockResolvedValue(true as never);
-    jest.mocked(spawnAsync).mockResolvedValue({ stdout: '{"url":"https://expo.dev/build"}' } as never);
+    jest
+      .mocked(spawnAsync)
+      .mockResolvedValue({ stdout: '{"url":"https://expo.dev/build"}' } as never);
   });
 
   it('records the build as a dev client when the project builds one', async () => {
