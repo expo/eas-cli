@@ -53,7 +53,7 @@ export default class UpdateRollback extends EasCommand {
     }),
     'force-end-active-rollout': Flags.boolean({
       description:
-        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it. The update being rolled out is then served to every user until they receive this one.',
+        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it.',
       default: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -112,7 +112,7 @@ export default class UpdateRollback extends EasCommand {
     const previousGroup = await getPreviousUpdateGroupAsync(graphqlClient, projectId, sourceGroup);
 
     const commonArgs = [
-      '--non-interactive',
+      ...(nonInteractive ? ['--non-interactive'] : []),
       '--platform',
       platform,
       ...privateKeyPathArg,
