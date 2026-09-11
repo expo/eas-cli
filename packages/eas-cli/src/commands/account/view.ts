@@ -68,6 +68,16 @@ export default class AccountView extends EasCommand {
       case Role.HasAdmin:
       case Role.NotAdmin:
         return 'Custom';
+      // A role added to the API after this version of the CLI was published. TypeScript narrows
+      // `role` to `never` here, but the server can still send one, so render its name rather than
+      // falling back to 'Custom', which would misdescribe it.
+      default: {
+        const unknownRole: string = role;
+        return unknownRole
+          .split('_')
+          .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+          .join(' ');
+      }
     }
   }
 }
