@@ -149,23 +149,18 @@ export function getLoopbackForwardPlan(
   return { ports: [...ports].sort((a, b) => a - b), skipped };
 }
 
-export function formatLoopbackForwardNotice({ ports, skipped }: LoopbackForwardPlan): string[] {
-  const lines: string[] = [];
-  if (ports.length > 0) {
-    const addresses = ports.map(port => `127.0.0.1:${port}`).join(', ');
-    lines.push(
-      `${addresses} in the simulator ${ports.length === 1 ? 'reaches' : 'reach'} the same ` +
-        `${ports.length === 1 ? 'port' : 'ports'} on this machine (like adb reverse), so dev server ` +
-        'URLs that use 127.0.0.1 work.'
-    );
+/**
+ * Only the exception is worth a line: forwarded ports just work, but an entry
+ * the device host will not forward changes what the reader would expect.
+ */
+export function formatLoopbackForwardNotice({ skipped }: LoopbackForwardPlan): string[] {
+  if (skipped.length === 0) {
+    return [];
   }
-  if (skipped.length > 0) {
-    lines.push(
-      `${skipped.join(', ')} ${skipped.length === 1 ? 'is' : 'are'} reachable by name only: ` +
-        'privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.'
-    );
-  }
-  return lines;
+  return [
+    `${skipped.join(', ')} ${skipped.length === 1 ? 'is' : 'are'} reachable by name only: ` +
+      'privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.',
+  ];
 }
 
 export function getLocalEgressEnvironmentVariables(
@@ -273,38 +268,30 @@ export function formatRemoteSessionInstructions(
   }
   const egressCommand =
     configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress';
+  const summary =
+    "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine." +
+    (egress.allow.length > 0 ? ` It can also reach ${egress.allow.join(', ')}.` : '');
   return [
     instructions,
     '',
-    '🔀 This session can route proxied HTTP(S) requests through this machine.',
-    ...(configType === 'env'
-      ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
-          ([key, value]) => `export ${key}='${value}'`
-        )
-      : []),
+    summary,
+    ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
+    // In interactive mode the client starts in this terminal once the session is
+    // ready and stops with it, so there is nothing for the reader to run.
     ...(egressClientRunsInline
-      ? [
-          'The egress client runs in this terminal. Press Ctrl+C to stop it together with the simulator session.',
-          'If this terminal closes any other way, the session keeps running. Reconnect the tunnel from another shell with:',
-          '',
-          egressCommand,
-          '',
-          'or stop the session with eas simulator:stop.',
-        ]
+      ? []
       : [
+          ...(configType === 'env'
+            ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
+                ([key, value]) => `export ${key}='${value}'`
+              )
+            : []),
           'Run the egress client to connect the tunnel:',
           '',
           egressCommand,
           '',
           'Keep it running for the life of the session.',
         ]),
-    ...(egress.allow.length > 0
-      ? [
-          '',
-          `The simulator may reach ${egress.allow.join(', ')} on this machine's network.`,
-          ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
-        ]
-      : []),
   ].join('\n');
 }
 
