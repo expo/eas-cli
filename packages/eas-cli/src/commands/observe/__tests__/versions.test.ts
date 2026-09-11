@@ -40,11 +40,12 @@ describe(ObserveVersions, () => {
 
   function createCommand(argv: string[]): ObserveVersions {
     const command = new ObserveVersions(argv, mockConfig);
-    // @ts-expect-error getContextAsync is a protected method
-    jest.spyOn(command, 'getContextAsync').mockReturnValue({
-      projectId,
-      loggedIn: { graphqlClient },
-    });
+    jest
+      .spyOn(command as any, 'getContextAsync')
+      .mockImplementation(async (_commandClass: any, { projectIdOverride }: any) => ({
+        projectId: projectIdOverride ?? projectId,
+        loggedIn: { graphqlClient },
+      }));
     return command;
   }
 

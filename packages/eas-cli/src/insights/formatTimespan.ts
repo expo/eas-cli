@@ -1,8 +1,11 @@
 import dateFormat from 'dateformat';
 
-export interface InsightsTimespanFields {
+export interface InsightsTimespanBounds {
   startTime: string;
   endTime: string;
+}
+
+export interface InsightsTimespanFields extends InsightsTimespanBounds {
   daysBack?: number;
 }
 
@@ -15,4 +18,8 @@ export function formatTimespan(timespan: InsightsTimespanFields): string {
 
 export function toDateOnly(isoTimestamp: string): string {
   return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd');
+}
+
+export function toDateTime(isoTimestamp: string): string {
+  return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd HH:MM');
 }

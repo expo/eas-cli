@@ -29,7 +29,6 @@ import {
 } from '../../observe/formatCustomEvents';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -76,10 +75,6 @@ export default class ObserveEvents extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveEvents);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
@@ -90,12 +85,12 @@ export default class ObserveEvents extends EasCommand {
       );
     }
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveEvents,
-      loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveEvents, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {

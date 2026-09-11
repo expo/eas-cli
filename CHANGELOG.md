@@ -8,7 +8,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas workflow:insights` to display Workflows Insights for a time range: run counts and success rate compared with the previous period, runs over time, and a per-workflow breakdown, with `--json` output for scripts. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
+
 ### 🐛 Bug fixes
+
+- [eas-cli] Reject `--end` without `--start` in the `observe:*`, `update:insights`, `channel:insights`, and `update:view --insights` commands instead of silently falling back to the default time range. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Reject a time range that does not run forwards in the `observe:*`, `update:insights`, `channel:insights`, `update:view --insights`, and `workflow:insights` commands instead of sending it to the server. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Reject non-integer values for `--limit` and `--offset` instead of sending them to the server. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🧹 Chores
 
