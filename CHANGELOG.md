@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Remove repository URLs from Git job inputs and fetch them when resolving project sources. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Add `eas workflow:insights` to display Workflows Insights for a time range: run counts and success rate compared with the previous period, runs over time, and a per-workflow breakdown, with `--json` output for scripts. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
 - [eas-cli] Add `eas workflow:insights:maestro` to display Maestro test insights for a time range: pass and flake rates, a sortable per-flow table, and a single flow's history with error patterns and recent runs, with `--json` output for scripts. ([#4370](https://github.com/expo/eas-cli/pull/4370) by [@hSATAC](https://github.com/hSATAC))
 
@@ -41,8 +42,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli][build-tools] Forward `--egress-allow localhost:<port>` and `127.0.0.1:<port>` entries from the simulator host's loopback interface to this machine (like `adb reverse`), so dev server URLs that use `127.0.0.1` work through local egress. ([#4369](https://github.com/expo/eas-cli/pull/4369) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Add the `eas/start_local_egress` step for iOS simulator sessions with local egress: the device host's system proxy points at a reverse tunnel to the EAS CLI machine, so HTTP(S) requests that honor it exit from that machine and third parties see its IP. ([#4364](https://github.com/expo/eas-cli/pull/4364) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `--egress local` to `eas simulator:start` and the `eas simulator:egress` command, which run the local egress client for the session. ([#4364](https://github.com/expo/eas-cli/pull/4364) by [@brentvatne](https://github.com/brentvatne))
-- [eas-build-job] Remove repository URLs from Git job inputs and fetch them when resolving project sources. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
-
 - [build-tools] Require the serve-sim session token for device run session previews, so the tunnel no longer exposes the shell-exec route. ([#4306](https://github.com/expo/eas-cli/pull/4306) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
