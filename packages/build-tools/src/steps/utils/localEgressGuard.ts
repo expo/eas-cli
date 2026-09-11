@@ -407,6 +407,102 @@ async function logAlreadyRunningProcessesAsync({
   );
 }
 
+export type GuardCoverage = {
+  /** Simulator processes with the guard library mapped. */
+  covered: string[];
+  /** Simulator processes without it: started before the guard was installed. */
+  uncovered: string[];
+};
+
+/**
+ * Which simulator processes have the guard library mapped, from
+ * `ps -axo pid=,ppid=,comm=` and `lsof -nP -a -p <pids> -d txt -F pn` output.
+ * A process is covered when any of its mapped images is the guard library.
+ */
+export function parseGuardCoverage(psOutput: string, lsofOutput: string): GuardCoverage {
+  const simulatorPids = new Set(collectSimulatorProcessIds(psOutput));
+  const commandsByPid = new Map<number, string>();
+  for (const line of psOutput.split('\n')) {
+    const match = /^\s*(\d+)\s+\d+\s+(\S.*)$/.exec(line);
+    if (match) {
+      commandsByPid.set(Number(match[1]), path.basename(match[2].trim()));
+    }
+  }
+  const loaded = new Set<number>();
+  let pid: number | null = null;
+  for (const line of lsofOutput.split('\n')) {
+    if (line[0] === 'p') {
+      pid = Number(line.slice(1));
+    } else if (line[0] === 'n' && pid !== null && line.endsWith(EGRESS_GUARD_LIBRARY_FILE)) {
+      loaded.add(pid);
+    }
+  }
+  const covered: string[] = [];
+  const uncovered: string[] = [];
+  for (const simulatorPid of simulatorPids) {
+    const name = commandsByPid.get(simulatorPid) ?? String(simulatorPid);
+    (loaded.has(simulatorPid) ? covered : uncovered).push(name);
+  }
+  covered.sort();
+  uncovered.sort();
+  return { covered, uncovered };
+}
+
+/**
+ * Measure and log guard coverage across the simulator's processes. Observation
+ * only: the uncovered set is whatever started before the guard was installed,
+ * which is nothing when installation runs right after `simctl boot`.
+ */
+export async function reportLocalEgressGuardCoverageAsync({
+  env,
+  logger,
+}: {
+  env: NodeJS.ProcessEnv;
+  logger: bunyan;
+}): Promise<GuardCoverage | null> {
+  let psOutput: string;
+  try {
+    psOutput = (await spawn('ps', ['-axo', 'pid=,ppid=,comm='], { env, stdio: 'pipe' })).stdout;
+  } catch {
+    return null;
+  }
+  const pids = collectSimulatorProcessIds(psOutput);
+  if (pids.length === 0) {
+    return null;
+  }
+  let lsofOutput: string;
+  try {
+    lsofOutput = (
+      await spawn('lsof', ['-nP', '-a', '-p', pids.join(','), '-d', 'txt', '-F', 'pn'], {
+        env,
+        stdio: 'pipe',
+      })
+    ).stdout;
+  } catch (err) {
+    // lsof exits 1 when some listed pid has already exited; stdout is still valid.
+    const result = err as { status?: number | null; stdout?: string };
+    if (result.status !== 1) {
+      return null;
+    }
+    lsofOutput = result.stdout ?? '';
+  }
+  const coverage = parseGuardCoverage(psOutput, lsofOutput);
+  const total = coverage.covered.length + coverage.uncovered.length;
+  if (coverage.uncovered.length === 0) {
+    logger.info(
+      `Local egress guard coverage: all ${total} simulator process(es) have the guard loaded.`
+    );
+  } else {
+    const shown =
+      coverage.uncovered.slice(0, 20).join(', ') +
+      (coverage.uncovered.length > 20 ? `, and ${coverage.uncovered.length - 20} more` : '');
+    logger.info(
+      `Local egress guard coverage: ${coverage.covered.length} of ${total} simulator process(es) have the guard loaded. Not covered, started before the guard was installed: ${shown}.`
+    );
+  }
+  return coverage;
+}
+
 /**
  * Run the packaged self-check inside the simulator: it must find the guard
  * loaded in a fresh process and see it behave as `mode` says. Throws when the
@@ -453,6 +549,7 @@ export async function verifyLocalEgressGuardAsync({
     );
   }
   logger.info(`Local egress guard verified in the Simulator: ${output || 'self-check passed'}.`);
+  await reportLocalEgressGuardCoverageAsync({ env, logger });
 }
 
 /** Stop relaying and write each relay's summary; called from the session cleanup. */

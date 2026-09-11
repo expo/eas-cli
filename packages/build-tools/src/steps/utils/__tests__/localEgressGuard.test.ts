@@ -15,6 +15,7 @@ import {
   GuardLogTailer,
   buildGuardLaunchdEnvironment,
   installLocalEgressGuardAsync,
+  parseGuardCoverage,
   parseGuardLogLine,
   resolveEgressGuardLibraryAsync,
   stopLocalEgressGuardRelaysAsync,
@@ -355,6 +356,34 @@ describe(installLocalEgressGuardAsync, () => {
   });
 });
 
+describe(parseGuardCoverage, () => {
+  const ps = [
+    '    1     0 /sbin/launchd',
+    ' 4000     1 /Runtimes/x/sbin/launchd_sim',
+    ' 4001  4000 /Runtimes/x/System/Library/CoreServices/SpringBoard.app/SpringBoard',
+    ' 4002  4000 /Runtimes/x/usr/libexec/backboardd',
+    ' 4003  4001 /Containers/Bundle/Application/1/Expo Go.app/Expo Go',
+    ' 3758     1 node',
+  ].join('\n');
+  const lsof = [
+    'p4001',
+    'n/Runtimes/x/System/Library/CoreServices/SpringBoard.app/SpringBoard',
+    'n/usr/lib/dyld',
+    'p4003',
+    'n/Containers/Bundle/Application/1/Expo Go.app/Expo Go',
+    'n/Users/expo/build-tools/bin/egress-guard.dylib',
+    'p3758',
+    'n/usr/local/bin/node',
+  ].join('\n');
+
+  it('splits simulator processes by whether the guard library is mapped', () => {
+    expect(parseGuardCoverage(ps, lsof)).toEqual({
+      covered: ['Expo Go'],
+      uncovered: ['SpringBoard', 'backboardd'],
+    });
+  });
+});
+
 describe(verifyLocalEgressGuardAsync, () => {
   let logger: ReturnType<typeof createLogger>;
   beforeEach(() => {
@@ -363,10 +392,12 @@ describe(verifyLocalEgressGuardAsync, () => {
   });
 
   it('runs the packaged self-check inside the simulator and logs its verdict', async () => {
-    mockedSpawn.mockResolvedValue({
-      stdout: 'egress-guard-check: guard loaded; non-loopback connections are refused\n',
-      stderr: '',
-    } as any);
+    mockedSpawn
+      .mockResolvedValueOnce({
+        stdout: 'egress-guard-check: guard loaded; non-loopback connections are refused\n',
+        stderr: '',
+      } as any)
+      .mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await verifyLocalEgressGuardAsync({
       udid: 'u' as any,
@@ -380,9 +411,11 @@ describe(verifyLocalEgressGuardAsync, () => {
       ['simctl', 'spawn', 'u', '/w/bin/egress-guard-check', '--mode', 'block'],
       expect.objectContaining({ stdio: 'pipe' })
     );
-    expect(logger.lines.at(-1)?.msg).toContain(
-      'verified in the Simulator: egress-guard-check: guard loaded'
-    );
+    expect(
+      logger.lines.some(l =>
+        /verified in the Simulator: egress-guard-check: guard loaded/.test(l.msg)
+      )
+    ).toBe(true);
   });
 
   it('fails the session with the self-check output when the check fails', async () => {

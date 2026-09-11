@@ -15,16 +15,16 @@ jobs:
       - name: Build build-tools and its workspace dependencies
         run: yarn run -T lerna run build --scope @expo/build-tools --include-dependencies
       - name: Build the guard library
-        working_directory: packages/build-tools
+        working_directory: ../build-tools
         run: yarn build:egress-guard
       - name: Run the guard policy unit tests
-        working_directory: packages/build-tools
+        working_directory: ../build-tools
         run: yarn test:egress-guard
       - name: Run the guard unit tests
-        working_directory: packages/build-tools
+        working_directory: ../build-tools
         run: yarn jest-unit src/steps/utils/__tests__/localEgressGuard.test.ts src/steps/functions/__tests__/startIosSimulator.test.ts
       - name: Run the simulator end-to-end tests
-        working_directory: packages/build-tools
+        working_directory: ../build-tools
         env:
           EAS_LOCAL_EGRESS_E2E: '1'
         run: yarn jest-unit src/steps/utils/__tests__/localEgressGuard.test.ios.ts
