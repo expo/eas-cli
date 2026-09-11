@@ -118,6 +118,25 @@ describe(ensureTestFlightSetupForExistingAppAsync, () => {
     });
   });
 
+  it('sets up TestFlight when environment credentials have no issuer ID (individual key)', async () => {
+    jest.mocked(hasAscEnvVars).mockReturnValue(true);
+    process.env.EXPO_ASC_API_KEY_PATH = '/path/to/key.p8';
+    process.env.EXPO_ASC_KEY_ID = 'key-id';
+    process.env.EXPO_APPLE_TEAM_ID = 'team-id';
+    const { ctx, ensureAuthenticatedAsync } = createContext({ nonInteractive: true });
+
+    await ensureTestFlightSetupForExistingAppAsync(ctx, '12345678');
+
+    expect(ensureAuthenticatedAsync).toHaveBeenCalledWith({
+      mode: AuthenticationMode.API_KEY,
+      teamId: 'team-id',
+      teamType: expect.any(String),
+    });
+    expect(ensureTestFlightGroupExistsAsync).toHaveBeenCalledWith(expect.anything(), {
+      nonInteractive: true,
+    });
+  });
+
   it('skips setup when environment credentials are incomplete', async () => {
     jest.mocked(hasAscEnvVars).mockReturnValue(true);
     process.env.EXPO_ASC_KEY_ID = 'key-id';

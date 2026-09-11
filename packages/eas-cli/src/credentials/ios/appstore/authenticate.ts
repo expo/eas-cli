@@ -25,7 +25,7 @@ import {
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
 } from './resolveCredentials';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
 import { MinimalAscApiKey } from '../credentials';
 
@@ -54,6 +54,33 @@ export function assertUserAuthCtx(authCtx: AuthCtx | undefined): UserAuthCtx {
     return authCtx;
   }
   throw new Error('Expected user authentication context (login/password).');
+}
+
+export function isIndividualAscApiKeyAuthCtx(authCtx: AuthCtx | undefined): boolean {
+  return !!authCtx && 'ascApiKey' in authCtx && !!authCtx.ascApiKey && !authCtx.ascApiKey.issuerId;
+}
+
+/**
+ * Apple blocks individual (issuer-less) ASC API keys from the Provisioning endpoints
+ * (certificates, profiles, bundle IDs, devices).
+ */
+export function assertProvisioningAuthCtx(authCtx: AuthCtx): void {
+  if (!isIndividualAscApiKeyAuthCtx(authCtx)) {
+    return;
+  }
+  throw new Error(
+    'The App Store Connect API key in use has no Issuer ID, so it is an individual API key. ' +
+      'Apple blocks individual API keys from managing certificates, provisioning profiles, and devices (Provisioning endpoints). ' +
+      'If this is a team key, provide its Issuer ID: set EXPO_ASC_ISSUER_ID when the key comes from environment variables, ' +
+      "or run 'eas credentials' and upload the key again with its Issuer ID when it is stored on EAS.\n" +
+      'To continue, do one of the following:\n' +
+      `  - Use a team API key (one with an Issuer ID). Run 'eas credentials' to set one up, or set EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID and EXPO_ASC_ISSUER_ID. ${learnMore(
+        'https://expo.fyi/creating-asc-api-key'
+      )}\n` +
+      `  - Provide a distribution certificate and provisioning profile via credentials.json. ${learnMore(
+        'https://docs.expo.dev/app-signing/local-credentials/'
+      )}`
+  );
 }
 
 export function getRequestContext(authCtx: AuthCtx): RequestContext {

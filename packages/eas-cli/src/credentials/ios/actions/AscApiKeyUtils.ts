@@ -260,6 +260,23 @@ function filterKeysFromDifferentAppleTeam(
   return keys.filter(key => !key.appleTeam || key.appleTeam?.appleTeamIdentifier === teamId);
 }
 
+export function filterOutIndividualAscApiKeys(
+  keys: AppStoreConnectApiKeyFragment[]
+): AppStoreConnectApiKeyFragment[] {
+  const teamKeys = keys.filter(key => !!key.issuerIdentifier);
+  const hiddenCount = keys.length - teamKeys.length;
+  if (hiddenCount > 0) {
+    Log.log(
+      chalk.gray(
+        `${hiddenCount} individual API ${
+          hiddenCount === 1 ? 'key' : 'keys'
+        } hidden: individual keys are valid only for submissions.`
+      )
+    );
+  }
+  return teamKeys;
+}
+
 export function sortAscApiKeysByUpdatedAtDesc(
   keys: AppStoreConnectApiKeyFragment[]
 ): AppStoreConnectApiKeyFragment[] {
@@ -329,6 +346,16 @@ export async function tryAuthenticateAppStoreWithEasAscApiKeyAsync(
   }
   try {
     if (hasAscEnvVars()) {
+      if (
+        process.env.EXPO_ASC_API_KEY_PATH &&
+        process.env.EXPO_ASC_KEY_ID &&
+        !process.env.EXPO_ASC_ISSUER_ID
+      ) {
+        Log.debug(
+          `App Store Connect API key ${process.env.EXPO_ASC_KEY_ID} has no Issuer ID (individual key). Skipping authentication with Apple. Set EXPO_ASC_ISSUER_ID if this is a team key.`
+        );
+        return false;
+      }
       await ctx.appStore.ensureAuthenticatedAsync({
         mode: AuthenticationMode.API_KEY,
         teamType,
@@ -340,6 +367,12 @@ export async function tryAuthenticateAppStoreWithEasAscApiKeyAsync(
       app,
     });
     if (!resolvedKey) {
+      return false;
+    }
+    if (!resolvedKey.ascApiKey.issuerId) {
+      Log.debug(
+        `App Store Connect API key ${resolvedKey.ascApiKey.keyId} has no Issuer ID (individual key). Skipping authentication with Apple. Run 'eas credentials' and upload the key again with its Issuer ID if this is a team key.`
+      );
       return false;
     }
     Log.log('Using App Store Connect API Key from EAS credentials service.');
