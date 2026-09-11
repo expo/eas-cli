@@ -44,7 +44,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(getNgrokTunnelDomainOrThrow).mockReturnValue('tunnel.example.com');
     jest.mocked(selectXcodeDeveloperDirectoryAsync).mockResolvedValue(undefined);
     jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewUrl: 'https://web-preview.example.test',
+      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+      apiUrl: 'https://web-preview.example.test',
       stopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
@@ -54,7 +55,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
 
   it('reports the session token when serve-sim minted one', async () => {
     jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewUrl: 'https://web-preview.example.test',
+      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+      apiUrl: 'https://web-preview.example.test',
       previewToken: 'tok-1',
       stopAsync,
     });
@@ -64,7 +66,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: {
-          previewUrl: 'https://web-preview.example.test',
+          previewUrl: 'https://expo.dev/simulator-preview/preview-id',
+          previewApiUrl: 'https://web-preview.example.test',
           previewToken: 'tok-1',
         },
       })
@@ -89,7 +92,10 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
       deviceRunSessionId: 'device-run-session-id',
-      remoteConfig: { previewUrl: 'https://web-preview.example.test' },
+      remoteConfig: {
+        previewUrl: 'https://expo.dev/simulator-preview/preview-id',
+        previewApiUrl: 'https://web-preview.example.test',
+      },
       logger,
     });
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith({
