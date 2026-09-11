@@ -26,11 +26,6 @@ describe(AccountResolver, () => {
       id: 'user_id_666',
       email: 'dominik@example.com',
       username: 'dominik',
-      primaryAccount: {
-        id: 'account_id_777',
-        name: 'dominik',
-        viewerUserPermission: { role: Role.Owner },
-      },
       accounts: [
         {
           id: 'account_id_777',

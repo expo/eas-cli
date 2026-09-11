@@ -1,7 +1,4 @@
-import {
-  jester as mockJester,
-  testAppQueryByIdResponse,
-} from '../../../../credentials/__tests__/fixtures-constants';
+import { testAppQueryByIdResponse } from '../../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { testKeystore } from '../../../__tests__/fixtures-android';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -11,7 +8,6 @@ import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateKeystore } from '../CreateKeystore';
 
 jest.mock('../../../../prompts', () => ({ confirmAsync: jest.fn(() => true) }));
-jest.mock('../../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 jest.mock('../../../utils/promptForCredentials');
 jest.mock('../../utils/keystore', () => ({ generateRandomKeystoreAsync: jest.fn() }));
 jest.mock('../../../../graphql/queries/AppQuery');

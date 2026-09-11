@@ -4,7 +4,7 @@ import os from 'os';
 import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
 import { resolveVcsClient } from '../../../vcs';
@@ -16,7 +16,6 @@ import {
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
-jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
 const vcsClient = resolveVcsClient();
 
