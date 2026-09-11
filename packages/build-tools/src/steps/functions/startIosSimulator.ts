@@ -169,8 +169,10 @@ async function bootWithLocalEgressAsync({
 }): Promise<IosSimulatorUuid> {
   const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
   await IosSimulatorUtils.bootAsync({ deviceIdentifier: udid, env });
-  await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
+  // The guard goes first: it is the enforcement, and every process launchd
+  // spawns from here on must inherit it. The proxy variables follow.
   const guardInstalled = await installLocalEgressGuardAsync({ udid, env, logger });
+  await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
   await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
   if (guardInstalled) {
     await verifyLocalEgressGuardAsync({ udid, env, logger });

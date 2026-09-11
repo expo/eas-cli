@@ -341,7 +341,7 @@ describe('IosSimulatorUtils', () => {
     });
   });
   describe(IosSimulatorUtils.setLaunchdEnvironmentAsync, () => {
-    it('sets each variable in the simulator launchd, in order', async () => {
+    it('sets every variable in the simulator launchd with one invocation', async () => {
       await IosSimulatorUtils.setLaunchdEnvironmentAsync({
         udid: 'test-udid' as any,
         env: process.env,
@@ -359,23 +359,21 @@ describe('IosSimulatorUtils', () => {
             'setenv',
             'https_proxy',
             'http://127.0.0.1:8899',
-          ],
-          { env: process.env },
-        ],
-        [
-          'xcrun',
-          [
-            'simctl',
-            'spawn',
-            'test-udid',
-            'launchctl',
-            'setenv',
             'no_proxy',
             'localhost,127.0.0.1',
           ],
           { env: process.env },
         ],
       ]);
+    });
+
+    it('does nothing for an empty variable set', async () => {
+      await IosSimulatorUtils.setLaunchdEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        variables: {},
+      });
+      expect(mockedSpawn).not.toHaveBeenCalled();
     });
 
     it('propagates a launchctl failure', async () => {
@@ -390,6 +388,7 @@ describe('IosSimulatorUtils', () => {
       ).rejects.toThrow('launchctl failed');
     });
   });
+
   describe(IosSimulatorUtils.resolveUdidAsync, () => {
     it('passes a udid through without listing devices', async () => {
       await expect(

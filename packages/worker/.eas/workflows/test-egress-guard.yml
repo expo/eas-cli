@@ -12,8 +12,8 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - name: Build workspace packages
-        run: yarn build
+      - name: Build build-tools and its workspace dependencies
+        run: yarn run -T lerna run build --scope @expo/build-tools --include-dependencies
       - name: Build the guard library
         working_directory: packages/build-tools
         run: yarn build:egress-guard

@@ -163,10 +163,9 @@ describe(createStartIosSimulatorBuildFunction, () => {
       const readyOrder = mockedUtils.waitForReadyAsync.mock.invocationCallOrder[callIndex];
       // launchd is up when boot returns and has spawned nothing yet: that is the
       // only moment at which its environment reaches every process of the boot.
-      expect(configureOrder).toBeGreaterThan(bootOrder);
       expect(guardOrder).toBeGreaterThan(bootOrder);
+      expect(configureOrder).toBeGreaterThan(guardOrder);
       expect(configureOrder).toBeLessThan(bootCompleteOrder);
-      expect(guardOrder).toBeLessThan(bootCompleteOrder);
       // The self-check needs a completed boot and runs before anything else.
       expect(verifyOrder).toBeGreaterThan(bootCompleteOrder);
       expect(verifyOrder).toBeLessThan(readyOrder);

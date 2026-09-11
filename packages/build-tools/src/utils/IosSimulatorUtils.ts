@@ -351,11 +351,15 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
     variables: Record<string, string>;
   }): Promise<void> {
-    for (const [name, value] of Object.entries(variables)) {
-      await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'setenv', name, value], {
-        env,
-      });
+    // One invocation for every variable: each `simctl spawn` costs a few
+    // hundred milliseconds on a device host, and this runs in the window
+    // between `simctl boot` returning and launchd spawning the boot's
+    // processes, which must inherit these.
+    const pairs = Object.entries(variables).flat();
+    if (pairs.length === 0) {
+      return;
     }
+    await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'setenv', ...pairs], { env });
   }
 
   export async function collectLogsAsync({
