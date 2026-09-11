@@ -1,4 +1,5 @@
 import { type bunyan } from '@expo/logger';
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,10 +8,13 @@ import { spawnDetached } from '../remoteDeviceRunSession';
 
 import {
   CHISEL_VERSION,
+  LOCAL_EGRESS_NO_PROXY,
   LOCAL_EGRESS_PROXY_PORT,
   buildEgressRemoteConfigFields,
+  buildLocalEgressSimulatorEnvironment,
   buildNetworksetupProxyArgs,
   collectSimulatorProcessIds,
+  configureSimulatorProxyEnvironmentAsync,
   createChiselAuthfileContents,
   getChiselAssetName,
   getChiselDownloadUrl,
@@ -310,6 +314,127 @@ describe('local egress handoff', () => {
     const handoffPath = path.join(tempDir, 'handoff.json');
     await fs.promises.writeFile(handoffPath, JSON.stringify({ url: 'x' }), 'utf8');
     await expect(readLocalEgressHandoffAsync(handoffPath)).rejects.toThrow('malformed');
+  });
+});
+
+describe(buildLocalEgressSimulatorEnvironment, () => {
+  it('points every proxy variable at the loopback port and excludes loopback', () => {
+    expect(buildLocalEgressSimulatorEnvironment(8899)).toEqual({
+      http_proxy: 'http://127.0.0.1:8899',
+      https_proxy: 'http://127.0.0.1:8899',
+      HTTP_PROXY: 'http://127.0.0.1:8899',
+      HTTPS_PROXY: 'http://127.0.0.1:8899',
+      grpc_proxy: 'http://127.0.0.1:8899',
+      no_proxy: LOCAL_EGRESS_NO_PROXY,
+      NO_PROXY: LOCAL_EGRESS_NO_PROXY,
+    });
+  });
+});
+
+describe(configureSimulatorProxyEnvironmentAsync, () => {
+  const mockedSpawn = jest.mocked(spawn);
+  let tempDir: string;
+  let logger: bunyan;
+
+  beforeEach(async () => {
+    mockedSpawn.mockReset();
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+    tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'local-egress-env-test-'));
+    logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  });
+
+  afterEach(async () => {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('does nothing when no local egress session is active', async () => {
+    await expect(
+      configureSimulatorProxyEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        logger,
+        handoffPath: path.join(tempDir, 'missing.json'),
+      })
+    ).resolves.toBe(false);
+
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('sets the proxy environment in the simulator when a handoff exists', async () => {
+    const handoffPath = path.join(tempDir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(
+      { url: 'https://egress.example', token: 'pw', fingerprint: 'fp=', port: 8899 },
+      handoffPath
+    );
+
+    await expect(
+      configureSimulatorProxyEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        logger,
+        handoffPath,
+      })
+    ).resolves.toBe(true);
+
+    const setenvCalls = mockedSpawn.mock.calls.map(([, args]) => args);
+    expect(setenvCalls).toEqual(
+      Object.entries(buildLocalEgressSimulatorEnvironment(8899)).map(([name, value]) => [
+        'simctl',
+        'spawn',
+        'test-udid',
+        'launchctl',
+        'setenv',
+        name,
+        value,
+      ])
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('proxy environment variables set')
+    );
+  });
+
+  it('warns and continues when launchctl fails', async () => {
+    const handoffPath = path.join(tempDir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(
+      { url: 'https://egress.example', token: 'pw', fingerprint: 'fp=', port: 8899 },
+      handoffPath
+    );
+    mockedSpawn.mockRejectedValue(new Error('launchctl failed'));
+
+    await expect(
+      configureSimulatorProxyEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        logger,
+        handoffPath,
+      })
+    ).resolves.toBe(false);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      expect.stringContaining('will bypass local egress and exit from this worker')
+    );
+  });
+
+  it('warns and continues when the handoff is malformed', async () => {
+    const handoffPath = path.join(tempDir, 'handoff.json');
+    await fs.promises.writeFile(handoffPath, JSON.stringify({ url: 'x' }), 'utf8');
+
+    await expect(
+      configureSimulatorProxyEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        logger,
+        handoffPath,
+      })
+    ).resolves.toBe(false);
+
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      expect.stringContaining('could not read the local egress handoff')
+    );
   });
 });
 

@@ -7,6 +7,8 @@ import {
 import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
 
+import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
+
 import {
   IosSimulatorName,
   IosSimulatorUtils,
@@ -85,6 +87,7 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
 
       await IosSimulatorUtils.waitForReadyAsync({ udid, env });
+      await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
 
       logger.info('');
 
@@ -131,6 +134,7 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             udid: cloneUdid,
             env,
           });
+          await configureSimulatorProxyEnvironmentAsync({ udid: cloneUdid, env, logger });
 
           logger.info(`${cloneDeviceName} is ready.`);
           logger.info('');

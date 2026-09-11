@@ -285,6 +285,28 @@ export namespace IosSimulatorUtils {
     throw lastError ?? new SystemError('Unable to disable apsd in the Simulator.');
   }
 
+  /**
+   * Set environment variables in the Simulator's launchd. Every process that
+   * launchd spawns afterwards inherits them: apps launched by SpringBoard
+   * (deep links, taps, WebDriverAgent) as well as by `simctl launch`.
+   * Processes that are already running keep their environment.
+   */
+  export async function setLaunchdEnvironmentAsync({
+    udid,
+    env,
+    variables,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+    variables: Record<string, string>;
+  }): Promise<void> {
+    for (const [name, value] of Object.entries(variables)) {
+      await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'setenv', name, value], {
+        env,
+      });
+    }
+  }
+
   export async function collectLogsAsync({
     deviceIdentifier,
     env,
