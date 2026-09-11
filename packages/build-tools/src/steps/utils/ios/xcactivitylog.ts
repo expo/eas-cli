@@ -9,6 +9,7 @@ import path from 'path';
 import { z } from 'zod';
 
 import { Sentry } from '../../../sentry';
+import { getProxiedDownloadUrl } from '../../../utils/download';
 
 const DEFAULT_XCLOGPARSER_VERSION = 'v0.2.47';
 const XCLOGPARSER_DOWNLOAD_URL = 'https://storage.googleapis.com/turtle-v2/xclogparser';
@@ -292,24 +293,6 @@ const COMPILE_SIGNATURE_PREFIXES = ['SwiftCompile ', 'SwiftGeneratePch '];
 
 function getXclogparserZipName(version: string): string {
   return `XCLogParser-macOS-x86-64-arm64-${version}.zip`;
-}
-
-function getProxiedDownloadUrl({
-  directUrl,
-  proxyBaseUrl,
-}: {
-  directUrl: string;
-  proxyBaseUrl?: string;
-}): string | null {
-  if (!proxyBaseUrl) {
-    return null;
-  }
-
-  const parsedUrl = new URL(directUrl);
-  return directUrl.replace(
-    `${parsedUrl.protocol}//${parsedUrl.host}`,
-    `${proxyBaseUrl}/${parsedUrl.host}`
-  );
 }
 
 export function isCompileStep(step: Partial<XcactivitylogStep>): boolean {

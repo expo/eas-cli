@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
@@ -11,8 +12,9 @@ import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigation
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
@@ -25,8 +27,7 @@ import {
 } from '../../observe/formatNavigationRoutes';
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { appPlatformsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -61,16 +62,15 @@ export default class ObserveRoutes extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
-    'build-number': Flags.string({
-      description: 'Filter by app build number',
-    }),
     'route-name': Flags.string({
       description:
         'Filter by route name (can be specified multiple times to include several routes)',
       multiple: true,
     }),
-    ...ObserveProjectIdFlag,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -79,20 +79,16 @@ export default class ObserveRoutes extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveRoutes);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveRoutes,
-      loggedInOnlyContextDefinition: ObserveRoutes.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveRoutes, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {
@@ -112,19 +108,20 @@ export default class ObserveRoutes extends EasCommand {
       : undefined;
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const { routes, pageInfoByPlatform } = await withObservePlanGateHandlingAsync(() =>
       fetchObserveNavigationRoutesAsync(graphqlClient, projectId, {
         startTime,
         endTime,
-        platforms,
+        targets,
         limit: flags.limit ?? DEFAULT_ROUTES_LIMIT,
         ...(flags.after && { after: flags.after }),
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
         buildNumber: flags['build-number'],
         routeNames,
+        environment: flags.environment,
       })
     );
 

@@ -11,6 +11,7 @@ import {
 } from '../../commandUtils/flags';
 import {
   AppPlatform,
+  DeviceRunSessionEgress,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -21,6 +22,7 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
+import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -28,13 +30,18 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
+import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
+  DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
+  getLocalEgressConfig,
   getRemoteSessionEnvironmentVariables,
+  sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
@@ -47,6 +54,7 @@ const OUT_CONFIG_TYPE_VALUES = {
 } as const;
 const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
 type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const EGRESS_FLAG_VALUES = ['local'] as const;
 const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
@@ -68,12 +76,45 @@ export default class Simulator extends EasCommand {
       description:
         'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
     }),
+    tag: Flags.string({
+      description:
+        'Label used to group simulator sessions, for example one per app variant. Repeat for multiple tags. Stored lowercased.',
+      multiple: true,
+    }),
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
     }),
+    'build-id': Flags.string({
+      description: 'EAS Build to install and launch before the simulator session is ready.',
+      exclusive: ['application-archive-url', 'expo-go'],
+    }),
+    'application-archive-url': Flags.string({
+      description:
+        'Application archive URL to download, install, and launch before the simulator session is ready.',
+      exclusive: ['build-id', 'expo-go'],
+    }),
+    'expo-go': Flags.boolean({
+      description:
+        "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
+      exclusive: ['build-id', 'application-archive-url'],
+    }),
+    'sdk-version': Flags.string({
+      description:
+        'Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.',
+    }),
+    'launch-arg': Flags.string({
+      description:
+        'Argument passed to the installed application when it launches. Repeat for multiple arguments.',
+      multiple: true,
+    }),
+    'open-url': Flags.string({
+      description:
+        'Expo or development-client URL to open in the installed application after it launches.',
+    }),
     type: Flags.option({
-      description: 'Type of simulator session to create',
+      description:
+        'Type of simulator session to create. All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
       default: DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.AgentDevice],
     })(),
@@ -85,6 +126,27 @@ export default class Simulator extends EasCommand {
       description:
         'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
       min: 0,
+    }),
+    'max-idle-time-minutes': Flags.integer({
+      description:
+        'Stop the simulator session automatically after this many minutes without session activity. When omitted, the session has no idle timeout and runs until its maximum duration.',
+      min: 0,
+    }),
+    'resource-class': Flags.option({
+      description: 'The instance type that will be used to run this simulator session',
+      hidden: true,
+      options: Object.values(DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES),
+    })(),
+    egress: Flags.option({
+      description:
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+      options: EGRESS_FLAG_VALUES,
+    })(),
+    'egress-allow': Flags.string({
+      description:
+        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. Requires --egress local.',
+      multiple: true,
+      dependsOn: ['egress'],
     }),
     force: Flags.boolean({
       description:
@@ -138,7 +200,30 @@ export default class Simulator extends EasCommand {
     // The server rejects blank names, so trim here and treat a whitespace-only
     // --name as if it had been omitted rather than surfacing a validation error.
     const name = flags.name?.trim() || undefined;
+    const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const buildId = flags['build-id']?.trim() || undefined;
+    const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
+    const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
+    const launchArgs = flags['launch-arg'];
+    const openUrl = flags['open-url']?.trim() || undefined;
+    const resourceClass = flags['resource-class']
+      ? DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE[flags['resource-class']]
+      : undefined;
+
+    if (sdkVersionFromFlag && !flags['expo-go']) {
+      throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
+    }
+    if (
+      (launchArgs?.length || openUrl) &&
+      !buildId &&
+      !applicationArchiveUrlFromFlag &&
+      !flags['expo-go']
+    ) {
+      throw new EasCommandError(
+        'Launch options require an application source. Pass --build-id, --application-archive-url, or --expo-go.'
+      );
+    }
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -149,6 +234,25 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (egress && platform !== AppPlatform.Ios) {
+      throw new EasCommandError('--egress local is only supported with --platform ios.');
+    }
+    let egressAllow: string[] = [];
+    try {
+      egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    if (platform === AppPlatform.Android) {
+      Log.warn(
+        'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
+      );
+      Log.newLine();
+    }
+    const expoGoSdkVersion = flags['expo-go']
+      ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
+      : undefined;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -167,11 +271,26 @@ export default class Simulator extends EasCommand {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
         name,
+        ...(tags?.length ? { tags } : {}),
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
-        deviceIdentifier,
+        ...(deviceIdentifier
+          ? platform === AppPlatform.Ios
+            ? { ios: { deviceIdentifier } }
+            : { android: { deviceIdentifier } }
+          : {}),
+        ...(buildId ? { buildId } : {}),
+        ...(applicationArchiveUrlFromFlag
+          ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+          : {}),
+        ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
+        ...(launchArgs?.length ? { launchArgs } : {}),
+        ...(openUrl ? { openUrl } : {}),
+        ...(resourceClass ? { resourceClass } : {}),
+        ...(egress ? { egress } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
+        maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
@@ -270,7 +389,7 @@ export default class Simulator extends EasCommand {
 
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
       await writeSimulatorEnvSafelyAsync(projectDir, {
-        ...getRemoteSessionEnvironmentVariables(remoteConfig),
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow }),
         [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
       });
     }
@@ -293,30 +412,79 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig,
+        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
       });
       return;
     }
 
     Log.newLine();
-    Log.log(formatRemoteSessionInstructions(remoteConfig, flags['out-config-type']));
+    Log.log(
+      formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
+        egressAllow,
+        egressClientRunsInline: !nonInteractive,
+      })
+    );
     Log.newLine();
+
+    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow);
 
     if (nonInteractive) {
       sessionInterrupt.dispose();
+      // The instructions above already tell the reader to run eas simulator:egress.
       Log.log(
         `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
       );
       return;
     }
 
-    await waitForSessionEndOrInterruptAsync({
-      graphqlClient,
-      deviceRunSessionId,
-      deviceRunSessionUrl,
-      projectDir,
-      sessionInterrupt,
-    });
+    // In interactive mode the egress client runs right here, for as long as the
+    // session does. A session with a disconnected tunnel still bills, so Ctrl+C stops both.
+    let egressPromise: Promise<void> | undefined;
+    let egressError: Error | undefined;
+    const egressAbortController = new AbortController();
+    if (localEgress) {
+      sessionInterrupt.signal.addEventListener(
+        'abort',
+        () => {
+          egressAbortController.abort();
+        },
+        { once: true }
+      );
+      egressPromise = runLocalEgressAsync({
+        ...localEgress,
+        signal: egressAbortController.signal,
+        onConnected: () => {
+          Log.succeed('Egress tunnel connected.');
+        },
+        onDisconnected: () => {
+          Log.warn(
+            'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
+          );
+        },
+      }).catch(err => {
+        egressError = err instanceof Error ? err : new Error(String(err));
+        Log.error(
+          `${err instanceof Error ? err.message : String(err)} Stopping the simulator session.`
+        );
+        sessionInterrupt.abort();
+      });
+    }
+
+    try {
+      await waitForSessionEndOrInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        deviceRunSessionUrl,
+        projectDir,
+        sessionInterrupt,
+      });
+    } finally {
+      egressAbortController.abort();
+      await egressPromise;
+    }
+    if (egressError) {
+      throw egressError;
+    }
   }
 }
 
@@ -434,6 +602,8 @@ async function waitForSessionEndOrInterruptAsync({
 type SessionInterrupt = {
   signal: AbortSignal;
   abortPromise: Promise<void>;
+  /** Stop the session as if the user had pressed Ctrl+C. */
+  abort: () => void;
   dispose: () => void;
 };
 
@@ -465,6 +635,9 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
   return {
     signal,
     abortPromise,
+    abort: () => {
+      abortController.abort();
+    },
     dispose: () => process.removeListener('SIGINT', sigintHandler),
   };
 }

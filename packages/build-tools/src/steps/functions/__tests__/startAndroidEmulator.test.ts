@@ -83,6 +83,31 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedMkdtemp.mockRestore();
   });
 
+  it('passes profile and LCD inputs to emulator creation', async () => {
+    const systemImagePackage = 'system-images;android-35;default;x86_64';
+    await createStep({
+      device_identifier: 'medium_phone',
+      system_image_package: systemImagePackage,
+      lcd_width: 720,
+      lcd_height: 1600,
+      lcd_density: 262,
+    }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith('sdkmanager', [systemImagePackage], expect.anything());
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceIdentifier: 'medium_phone',
+        systemImagePackage,
+        lcdWidth: 720,
+        lcdHeight: 1600,
+        lcdDensity: 262,
+      })
+    );
+    expect(mockedAndroidUtils.createAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
+    );
+  });
+
   it('retries base emulator startup with increasing readiness timeouts', async () => {
     mockedAndroidUtils.startAsync
       .mockResolvedValueOnce(createStartResult('emulator-1111'))

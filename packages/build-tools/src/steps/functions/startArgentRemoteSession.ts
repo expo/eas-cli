@@ -14,21 +14,24 @@ import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import {
+  uploadRemoteSessionConfigWithLocalEgressAsync,
+  withLocalEgressSession,
+} from '../utils/localEgressSession';
 import { Sentry } from '../../sentry';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
-  ensureFfmpegInstalledAsync,
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  startServeSimWithTunnelAsync,
-  uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -79,7 +82,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -103,32 +106,39 @@ export function createStartArgentRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      // Argent shells out to ffmpeg to record the screen. Installing it pulls a
-      // large Homebrew dependency tree, so do not block session readiness on it:
-      // the session comes up at its usual speed and only a recording started in
-      // the first moments misses ffmpeg. Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+      // Start the potentially slow installation while Argent is being prepared.
+      // On Linux expo-device-hub calls this again and awaits the same in-flight
+      // setup before launching. On macOS this remains non-blocking, so only a
+      // recording started in the first moments may miss ffmpeg.
+      // Never rejects, so `void` is safe.
+      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        'bun',
+        [
+          'x',
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
+        ],
         { env, logger }
       );
 
       logger.info('Enabling the Argent tool-server event log flag.');
       await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+        'bun',
+        ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
         { env, logger }
       );
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
-      // Keep Argent itself in foreground mode under the detached bunx process. This preserves
-      // the bunx -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bun x.`);
+      // Keep Argent itself in foreground mode under the detached bun process. This preserves
+      // the bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
-        command: 'bunx',
+        command: 'bun',
         args: [
+          'x',
           `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
           'server',
           'start',
@@ -186,7 +196,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -199,26 +209,25 @@ export function createStartArgentRemoteSessionBuildFunction(
         const publicToolsUrl = toolsTunnel.url;
         logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
-        // serve-sim is iOS-only — Android sessions go without a preview URL.
-        let webPreviewUrl: string | undefined;
-        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          serveSim = await startServeSimWithTunnelAsync(ctx, {
-            baseDomain: ngrokTunnelDomain,
-            env,
-            logger,
-            timeoutMs: STARTUP_TIMEOUT_MS,
-          });
-          webPreviewUrl = serveSim.previewUrl;
-          logger.info(`Web preview URL: ${webPreviewUrl}`);
-        }
+        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+          runtimePlatform,
+          baseDomain: ngrokTunnelDomain,
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+        });
+        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
-        await uploadRemoteSessionConfigAsync({
+        await uploadRemoteSessionConfigWithLocalEgressAsync({
+          env,
+          signal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
             toolsUrl: publicToolsUrl,
             ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
-            ...(webPreviewUrl ? { webPreviewUrl } : {}),
+            webPreviewUrl: webPreview.previewUrl,
+            ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
           logger,
         });
@@ -238,8 +247,8 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
+        if (webPreview) {
+          await webPreview.stopAsync();
         }
         if (toolsTunnel) {
           await toolsTunnel.stopAsync();
@@ -255,7 +264,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         }
         await argentServer.stopAsync();
       }
-    },
+    }),
   });
 }
 
@@ -297,7 +306,7 @@ export function warnIfArgentPackageVersionCannotBeVerified({
     logger.warn(
       `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer, ` +
         `but package_version "${packageVersion}" is not an exact semver version that EAS can verify. ` +
-        `Continuing and letting bunx resolve it.`
+        `Continuing and letting bun x resolve it.`
     );
     return;
   }

@@ -17,7 +17,6 @@ jest.mock('fs-extra', () => ({
 jest.mock('../../../prompts', () => ({
   promptAsync: jest.fn(),
 }));
-jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/runCommand');
 jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../project/expoConfig');

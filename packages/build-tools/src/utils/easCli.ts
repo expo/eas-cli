@@ -12,6 +12,8 @@ import { Sentry } from '../sentry';
 
 let cachedEasCliVersionsPromise: Promise<EasCliVersions> | undefined;
 
+const NPX_ENV = { NPM_CONFIG_MIN_RELEASE_AGE: '0' };
+
 /**
  * Resolves the `eas-cli` versions to install for staging/production. Prefers the
  * versions committed to `cli-versions.json` (fetched from expo/eas-cli); on any
@@ -74,21 +76,21 @@ export async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.STAGING}`],
-      extraEnv: {},
+      extraEnv: NPX_ENV,
     };
   } else if (process.env.ENVIRONMENT === 'staging') {
     const versions = await resolveEasCliVersionsAsync();
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.STAGING}`],
-      extraEnv: { EXPO_STAGING: '1' },
+      extraEnv: { ...NPX_ENV, EXPO_STAGING: '1' },
     };
   } else {
     const versions = await resolveEasCliVersionsAsync();
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.PRODUCTION}`],
-      extraEnv: {},
+      extraEnv: NPX_ENV,
     };
   }
 }

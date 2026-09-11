@@ -56,6 +56,19 @@ export function getUpdateGroupUrl(
   ).toString();
 }
 
+export function getSubmissionUrl(
+  accountName: string,
+  projectName: string,
+  submissionId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/submissions/${encodeURIComponent(submissionId)}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
 export function getWorkflowRunUrl(
   accountName: string,
   projectName: string,

@@ -64,6 +64,7 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
           name: 'test-channel-name',
           branchMapping:
             '{"data":[{"branchId":"test-branch-id","branchMappingLogic":"true"}],"version":0}',
+          isProtected: false,
         },
       },
     });
@@ -130,6 +131,7 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
           name: 'test-channel-name',
           branchMapping:
             '{"data":[{"branchId":"test-branch-id","branchMappingLogic":"true"}],"version":0}',
+          isProtected: false,
         },
       },
     });

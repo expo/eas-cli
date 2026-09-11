@@ -18,6 +18,7 @@ import {
 import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
+  sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { formatBytes } from '../../utils/files';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
@@ -87,6 +88,7 @@ export default class SimulatorGet extends EasCommand {
       printJsonOnlyOutput({
         id: session.id,
         name: session.name ?? undefined,
+        tags: session.tags,
         type: deviceRunSessionTypeToFlagValue(session.type),
         status: session.status,
         platform: session.platform,
@@ -95,7 +97,9 @@ export default class SimulatorGet extends EasCommand {
         finishedAt: session.finishedAt ?? undefined,
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
-        remoteConfig: session.remoteConfig,
+        remoteConfig: session.remoteConfig
+          ? sanitizeRemoteConfigForJson(session.remoteConfig)
+          : session.remoteConfig,
         artifacts: session.artifacts,
       });
       return;
@@ -123,6 +127,7 @@ function formatSessionFields(session: DeviceRunSessionById, deviceRunSessionUrl:
   return formatFields([
     { label: 'ID', value: session.id },
     { label: 'Name', value: formatNullable(session.name) },
+    { label: 'Tags', value: session.tags.length > 0 ? session.tags.join(', ') : 'none' },
     { label: 'Type', value: session.type },
     { label: 'Status', value: session.status },
     { label: 'Platform', value: session.platform },

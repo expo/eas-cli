@@ -63,6 +63,12 @@ export function createRepackBuildFunction(): BuildFunction {
         required: false,
       }),
       BuildStepInput.createProvider({
+        id: 'ios_signing_backend',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        required: false,
+        allowedValues: ['fastlane', 'zsign'],
+      }),
+      BuildStepInput.createProvider({
         id: 'repack_version',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         required: false,
@@ -144,12 +150,14 @@ export function createRepackBuildFunction(): BuildFunction {
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
+              backend: inputs.ios_signing_backend.value as 'fastlane' | 'zsign' | undefined,
               useAppEntitlements: inputs.ios_signing_use_source_app_entitlements.value as
                 | boolean
                 | undefined,
               entitlementsPath: inputs.ios_signing_app_entitlements_path.value as
                 | string
                 | undefined,
+              tmpDir,
             }),
             logger: stepsCtx.logger,
             spawnAsync: repackSpawnAsync,
@@ -297,24 +305,51 @@ export async function resolveAndroidSigningOptionsAsync({
 }
 
 /**
- * Resolves iOS signing options from the job secrets.
+ * Resolves iOS signing options from the job secrets, dispatching on the
+ * requested signing backend.
  */
 export async function resolveIosSigningOptionsAsync({
   job,
   logger,
+  backend,
   useAppEntitlements,
   entitlementsPath,
+  tmpDir,
 }: {
   job: Job;
   logger: bunyan;
+  backend?: 'fastlane' | 'zsign';
   useAppEntitlements?: boolean;
   entitlementsPath?: string;
+  tmpDir: string;
 }): Promise<IosSigningOptions | undefined> {
   const iosJob = job as Ios.Job;
   const buildCredentials = iosJob.secrets?.buildCredentials;
   if (iosJob.simulator || buildCredentials == null) {
     return undefined;
   }
+  const commonOptions = { buildCredentials, logger, useAppEntitlements, entitlementsPath };
+  return backend === 'zsign'
+    ? await createIosZsignOptionsAsync({ ...commonOptions, tmpDir })
+    : await createIosFastlaneOptionsAsync(commonOptions);
+}
+
+/**
+ * Creates signing options for the fastlane backend: certificates are imported
+ * into a temporary keychain and provisioning profiles are parsed with the
+ * macOS `security` tool.
+ */
+async function createIosFastlaneOptionsAsync({
+  buildCredentials,
+  logger,
+  useAppEntitlements,
+  entitlementsPath,
+}: {
+  buildCredentials: Ios.BuildCredentials;
+  logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+}): Promise<IosSigningOptions> {
   const credentialsManager = new IosCredentialsManager(buildCredentials);
   const credentials = await credentialsManager.prepare(logger);
 
@@ -326,6 +361,56 @@ export async function resolveIosSigningOptionsAsync({
     provisioningProfile,
     keychainPath: credentials.keychainPath,
     signingIdentity: credentials.applicationTargetProvisioningProfile.data.certificateCommonName,
+    useAppEntitlements,
+    entitlementsPath,
+  };
+}
+
+/**
+ * Creates signing options for the zsign backend. The distribution certificate
+ * secret is already a PKCS#12 file, so it goes to disk as-is together with the
+ * provisioning profiles.
+ */
+async function createIosZsignOptionsAsync({
+  buildCredentials,
+  logger,
+  useAppEntitlements,
+  entitlementsPath,
+  tmpDir,
+}: {
+  buildCredentials: Ios.BuildCredentials;
+  logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+  tmpDir: string;
+}): Promise<IosSigningOptions> {
+  const targets = Object.entries(buildCredentials);
+  const [targetName, targetCredentials] = targets[0];
+  logger.info(`Using the distribution certificate from target '${targetName}' for zsign`);
+
+  const certificatePath = path.join(tmpDir, `dist-cert-${randomUUID()}.p12`);
+  await fs.promises.writeFile(
+    certificatePath,
+    new Uint8Array(Buffer.from(targetCredentials.distributionCertificate.dataBase64, 'base64'))
+  );
+
+  // zsign matches profiles to bundles by the app-id suffix itself, so the
+  // record keys are informational only.
+  const provisioningProfile: Record<string, string> = {};
+  for (const [target, credentials] of targets) {
+    const profilePath = path.join(tmpDir, `profile-${target}-${randomUUID()}.mobileprovision`);
+    await fs.promises.writeFile(
+      profilePath,
+      new Uint8Array(Buffer.from(credentials.provisioningProfileBase64, 'base64'))
+    );
+    provisioningProfile[target] = profilePath;
+  }
+
+  return {
+    backend: 'zsign',
+    certificatePath,
+    keyPassword: targetCredentials.distributionCertificate.password,
+    provisioningProfile,
     useAppEntitlements,
     entitlementsPath,
   };

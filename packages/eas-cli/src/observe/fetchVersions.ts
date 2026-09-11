@@ -1,37 +1,42 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppObserveAppVersion, AppObservePlatform, AppPlatform } from '../graphql/generated';
+import { AppObserveAppVersion } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
-
-const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};
+import {
+  ObservePlatformKey,
+  ObservePlatformTarget,
+  observePlatformDisplayNames,
+} from './platforms';
 
 export interface AppVersionsResult {
-  platform: AppPlatform;
+  platform: ObservePlatformKey;
   appVersions: AppObserveAppVersion[];
 }
 
 export async function fetchObserveVersionsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
-  platforms: AppPlatform[],
+  targets: ObservePlatformTarget[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<AppVersionsResult[]> {
-  const queries = platforms.map(async (appPlatform): Promise<AppVersionsResult | null> => {
-    const observePlatform = appPlatformToObservePlatform[appPlatform];
+  const queries = targets.map(async (target): Promise<AppVersionsResult | null> => {
     try {
       const appVersions = await ObserveQuery.appVersionsAsync(graphqlClient, {
         appId,
-        platform: observePlatform,
+        platforms: target.platforms,
         startTime,
         endTime,
+        environment,
       });
-      return { platform: appPlatform, appVersions };
+      return { platform: target.key, appVersions };
     } catch (error: any) {
-      Log.warn(`Failed to fetch app versions for ${observePlatform}: ${error.message}`);
+      Log.warn(
+        `Failed to fetch app versions for ${observePlatformDisplayNames[target.key]}: ${
+          error.message
+        }`
+      );
       return null;
     }
   });

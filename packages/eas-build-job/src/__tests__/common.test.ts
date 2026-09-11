@@ -1,4 +1,8 @@
 import {
+  ArchiveSource,
+  ArchiveSourceSchema,
+  ArchiveSourceSchemaZ,
+  ArchiveSourceType,
   EasCliVersionsFetchTimeoutError,
   EnvSchema,
   SshSettingsZ,
@@ -672,6 +676,39 @@ describe('fetchEasCliVersionsAsync', () => {
       await assertion;
     } finally {
       jest.useRealTimers();
+    }
+  });
+});
+
+describe('Git archive sources', () => {
+  const source: ArchiveSource = {
+    type: ArchiveSourceType.GIT,
+    gitRef: null,
+    gitCommitHash: '1234567890',
+  };
+
+  it('accepts Git job sources without a repository URL', () => {
+    expect(ArchiveSourceSchema.validate(source)).toMatchObject({ value: source });
+    expect(ArchiveSourceSchema.validate(source).error).toBeUndefined();
+    expect(ArchiveSourceSchemaZ.parse(source)).toEqual(source);
+  });
+
+  it('strips the legacy repository URL with the job validation options', () => {
+    const archive = {
+      ...source,
+      repositoryUrl: 'https://x-access-token:old-token@github.com/expo/eas-cli.git',
+    };
+    const result = ArchiveSourceSchema.validate(archive, { stripUnknown: true });
+    expect(result.error).toBeUndefined();
+    expect(result.value).toEqual(source);
+    expect(ArchiveSourceSchemaZ.parse(archive)).toEqual(source);
+  });
+
+  it('still requires the commit and ref', () => {
+    for (const field of ['gitCommitHash', 'gitRef'] as const) {
+      const archive = { ...source, [field]: undefined };
+      expect(ArchiveSourceSchema.validate(archive).error).toBeDefined();
+      expect(ArchiveSourceSchemaZ.safeParse(archive).success).toBe(false);
     }
   });
 });

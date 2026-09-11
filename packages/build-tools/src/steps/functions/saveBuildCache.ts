@@ -15,7 +15,16 @@ import path from 'path';
 
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
 import { formatBytes } from '../../utils/artifacts';
-import { generateDefaultBuildCacheKeyAsync, getCcachePath } from '../../utils/cacheKey';
+import {
+  CcacheBuildTarget,
+  generateDefaultBuildCacheKeyAsync,
+  getCcachePath,
+} from '../../utils/cacheKey';
+import {
+  compressCocoapodsCacheAsync,
+  getCocoapodsCachePaths,
+  resolveCocoapodsCacheKeyAsync,
+} from '../../utils/cocoapodsCache';
 import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 
 export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFunction {
@@ -30,6 +39,11 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'simulator',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
     ],
     fn: async (stepCtx, { env, inputs }) => {
       const { logger } = stepCtx;
@@ -43,10 +57,20 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
         );
       }
 
+      const target: CcacheBuildTarget =
+        platform === Platform.IOS
+          ? {
+              platform,
+              simulator:
+                (inputs.simulator.value as boolean | undefined) ??
+                (stepCtx.global.staticContext.job.platform === Platform.IOS &&
+                  stepCtx.global.staticContext.job.simulator === true),
+            }
+          : { platform };
       await saveCcacheAsync({
         logger,
         workingDirectory,
-        platform,
+        target,
         evictUsedBefore,
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
@@ -59,22 +83,88 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
         });
+      } else {
+        await saveCocoapodsCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
       }
     },
   });
 }
 
+export async function saveCocoapodsCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_PODS_CACHE !== '1') {
+    return;
+  }
+
+  const { podsDirectory, podfileLockPath } = getCocoapodsCachePaths(workingDirectory);
+  try {
+    await Promise.all([fs.promises.access(podsDirectory), fs.promises.access(podfileLockPath)]);
+  } catch {
+    logger.warn('No CocoaPods installation found, skipping cache save');
+    return;
+  }
+
+  try {
+    const { stdout } = await spawnAsync('pod', ['--version'], {
+      env,
+      stdio: 'pipe',
+    });
+    const { key } = await resolveCocoapodsCacheKeyAsync(workingDirectory, stdout);
+    logger.info(`Saving CocoaPods cache key: ${key}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+
+    logger.info('Compressing CocoaPods cache...');
+    const { archivePath } = await compressCocoapodsCacheAsync({ workingDirectory });
+    const { size } = await fs.promises.stat(archivePath);
+    logger.info(`CocoaPods cache archive size: ${formatBytes(size)}`);
+
+    await uploadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      archivePath,
+      key,
+      paths: [podsDirectory],
+      size,
+      platform: Platform.IOS,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to save CocoaPods cache');
+  }
+}
+
 export async function saveCcacheAsync({
   logger,
   workingDirectory,
-  platform,
+  target,
   evictUsedBefore,
   env,
   secrets,
 }: {
   logger: bunyan;
   workingDirectory: string;
-  platform: Platform;
+  target: CcacheBuildTarget;
   evictUsedBefore: Date;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
@@ -99,7 +189,7 @@ export async function saveCcacheAsync({
   }
 
   try {
-    const cacheKey = await generateDefaultBuildCacheKeyAsync(workingDirectory, platform);
+    const cacheKey = await generateDefaultBuildCacheKeyAsync(workingDirectory, target);
     logger.info(`Saving cache key: ${cacheKey}`);
 
     const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
@@ -143,7 +233,7 @@ export async function saveCcacheAsync({
       key: cacheKey,
       paths: [cachePath],
       size,
-      platform,
+      platform: target.platform,
     });
   } catch (err) {
     logger.error({ err }, 'Failed to save cache');

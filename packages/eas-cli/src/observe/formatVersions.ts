@@ -5,10 +5,10 @@ import {
   AppObserveAppEasBuild,
   AppObserveAppUpdate,
 } from '../graphql/generated';
-import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
 import { AppVersionsResult } from './fetchVersions';
 import { formatDate } from './formatUtils';
+import { observePlatformDisplayNames } from './platforms';
 
 export interface AppVersionJson {
   platform: string;
@@ -109,7 +109,7 @@ export function buildObserveVersionsTable(results: AppVersionsResult[]): string 
     if (sections.length > 0) {
       sections.push('');
     }
-    sections.push(chalk.bold(appPlatformDisplayNames[platform]));
+    sections.push(chalk.bold(observePlatformDisplayNames[platform]));
 
     const rows: string[][] = appVersions.map(version => [
       version.appVersion,

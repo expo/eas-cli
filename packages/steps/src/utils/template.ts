@@ -1,6 +1,6 @@
 import cloneDeep from 'lodash.clonedeep';
-import get from 'lodash.get';
 
+import { get } from './get';
 import { nullthrows } from './nullthrows';
 import { BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildConfigError, BuildStepRuntimeError } from '../errors';

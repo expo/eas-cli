@@ -6,6 +6,8 @@ import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
+  DeviceRunSessionEgress,
+  DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -16,6 +18,7 @@ import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSession
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { promptAsync } from '../../../prompts';
+import { runLocalEgressAsync } from '../../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -23,6 +26,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
+import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -36,6 +40,8 @@ jest.mock('../../../log', () => ({
     log: jest.fn(),
     newLine: jest.fn(),
     warn: jest.fn(),
+    error: jest.fn(),
+    succeed: jest.fn(),
     withTick: jest.fn(),
   },
   link: jest.fn((url: string) => url),
@@ -45,7 +51,12 @@ jest.mock('../../../simulator/env', () => ({
   loadSimulatorEnvAsync: jest.fn(),
   resetSimulatorEnvAsync: jest.fn(),
 }));
+jest.mock('../../../simulator/expoGo');
 jest.mock('../../../prompts');
+jest.mock('../../../simulator/egress', () => ({
+  ...jest.requireActual('../../../simulator/egress'),
+  runLocalEgressAsync: jest.fn(),
+}));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -78,6 +89,7 @@ const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQue
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
+const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
 
@@ -106,6 +118,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
   return {
     id: 'session-123',
     name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -161,6 +174,7 @@ describe(Simulator, () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
+    mockResolveExpoGoSdkVersionAsync.mockResolvedValue('55.0.0');
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
   });
 
@@ -327,6 +341,33 @@ describe(Simulator, () => {
     );
   });
 
+  it('creates a WebPreviewOnly session for --type web-preview-only', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type: DeviceRunSessionType.WebPreviewOnly,
+        remoteConfig: {
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+          previewUrl: 'https://preview.example.test',
+        },
+      })
+    );
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      'web-preview-only',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ type: DeviceRunSessionType.WebPreviewOnly })
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://preview.example.test'));
+  });
+
   it('overwrites .env.eas-simulator when outputting dotenv and the file exists', async () => {
     const { command } = createCommand([
       '--platform',
@@ -389,6 +430,26 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+    });
+  });
+
+  it('passes --max-idle-time-minutes to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--max-idle-time-minutes',
+      '30',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: 'project-123',
+      name: undefined,
+      packageVersion: undefined,
+      platform: AppPlatform.Ios,
+      type: DeviceRunSessionType.AgentDevice,
+      maxIdleTimeMinutes: 30,
     });
   });
 
@@ -456,7 +517,7 @@ describe(Simulator, () => {
     );
   });
 
-  it('forwards --device to the create mutation as deviceIdentifier', async () => {
+  it('forwards --device in the iOS create options', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
@@ -468,7 +529,23 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
+    );
+  });
+
+  it('forwards --device in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ android: { deviceIdentifier: 'pixel_9' } })
     );
   });
 
@@ -484,7 +561,7 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
     );
   });
 
@@ -492,10 +569,263 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--device', '  ']);
     await command.runAsync();
 
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
+  });
+
+  it('omits resourceClass when --resource-class is not set', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('resourceClass');
+  });
+
+  it.each([
+    ['large', DeviceRunSessionResourceClass.Large],
+    ['medium', DeviceRunSessionResourceClass.Medium],
+  ] as const)(
+    'forwards --resource-class %s to the create mutation',
+    async (flag, resourceClass) => {
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--non-interactive',
+        '--resource-class',
+        flag,
+      ]);
+      await command.runAsync();
+
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({ resourceClass })
+      );
+    }
+  );
+
+  it('forwards --build-id to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '  8d8b713c-1834-4bd3-91e6-46f895422cbc  ',
+    ]);
+    await command.runAsync();
+
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ deviceIdentifier: undefined })
+      expect.objectContaining({ buildId: '8d8b713c-1834-4bd3-91e6-46f895422cbc' })
     );
+  });
+
+  it('forwards --application-archive-url to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--application-archive-url',
+      '  https://example.test/builds/app.apk  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        applicationArchiveUrl: 'https://example.test/builds/app.apk',
+      })
+    );
+  });
+
+  it('warns that Android emulator support is still in development before creating a session', async () => {
+    const { command } = createCommand(['--platform', 'android', '--non-interactive']);
+
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
+    );
+    expect(jest.mocked(Log.warn).mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateDeviceRunSessionAsync.mock.invocationCallOrder[0]
+    );
+  });
+
+  it.each([
+    ['ios', AppPlatform.Ios],
+    ['android', AppPlatform.Android],
+  ] as const)(
+    'forwards Expo Go and the project SDK for %s when --expo-go is passed',
+    async (platformFlag, appPlatform) => {
+      const { command } = createCommand([
+        '--platform',
+        platformFlag,
+        '--non-interactive',
+        '--expo-go',
+      ]);
+
+      await command.runAsync();
+
+      expect(mockResolveExpoGoSdkVersionAsync).toHaveBeenCalledWith({
+        projectDir,
+        sdkVersion: undefined,
+      });
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          expoGo: true,
+          sdkVersion: '55.0.0',
+          platform: appPlatform,
+        })
+      );
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.not.objectContaining({ applicationArchiveUrl: expect.anything() })
+      );
+    }
+  );
+
+  it('uses --sdk-version to select Expo Go', async () => {
+    mockResolveExpoGoSdkVersionAsync.mockResolvedValueOnce('57.0.0');
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--expo-go',
+      '--sdk-version',
+      '57.0.0',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockResolveExpoGoSdkVersionAsync).toHaveBeenCalledWith({
+      projectDir,
+      sdkVersion: '57.0.0',
+    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ expoGo: true, sdkVersion: '57.0.0' })
+    );
+  });
+
+  it('forwards repeated launch arguments and a URL to open', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '8d8b713c-1834-4bd3-91e6-46f895422cbc',
+      '--launch-arg',
+      '--uitesting',
+      '--launch-arg',
+      'true',
+      '--open-url',
+      '  exp://example.test  ',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        launchArgs: ['--uitesting', 'true'],
+        openUrl: 'exp://example.test',
+      })
+    );
+  });
+
+  it('forwards repeated tags', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--tag',
+      'variant:pro',
+      '--tag',
+      '  nightly  ',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ tags: ['variant:pro', 'nightly'] })
+    );
+  });
+
+  it('omits tags when every tag is blank', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--tag', '   ']);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ tags: expect.anything() })
+    );
+  });
+
+  it.each([
+    ['--launch-arg', '--uitesting'],
+    ['--open-url', 'exp://example.test'],
+  ])('rejects %s without an application source', async (launchFlag, launchValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      launchFlag,
+      launchValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'Launch options require an application source.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --sdk-version without --expo-go', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--sdk-version',
+      '57',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --sdk-version flag can only be used with --expo-go.'
+    );
+    expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects passing --build-id and --application-archive-url together', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '8d8b713c-1834-4bd3-91e6-46f895422cbc',
+      '--application-archive-url',
+      'https://example.test/builds/app.tar.gz',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
+  ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--expo-go',
+      sourceFlag,
+      sourceValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
   it('stops the simulator session when interrupted before the session is ready', async () => {
@@ -532,6 +862,239 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
     processExitSpy.mockRestore();
+  });
+
+  const localEgressSessions: [
+    string,
+    DeviceRunSessionType,
+    NonNullable<DeviceRunSessionById['remoteConfig']>,
+  ][] = [
+    [
+      'agent-device',
+      DeviceRunSessionType.AgentDevice,
+      {
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+        agentDeviceRemoteSessionToken: 'token',
+      },
+    ],
+    [
+      'appium',
+      DeviceRunSessionType.Appium,
+      {
+        __typename: 'AppiumRunSessionRemoteConfig',
+        appiumUrl: 'https://appium.example.com',
+        capabilities: {},
+      },
+    ],
+    [
+      'argent',
+      DeviceRunSessionType.Argent,
+      {
+        __typename: 'ArgentRunSessionRemoteConfig',
+        toolsUrl: 'https://argent.example.com',
+      },
+    ],
+    [
+      'web-preview-only',
+      DeviceRunSessionType.WebPreviewOnly,
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    ],
+    [
+      'web-preview-only',
+      DeviceRunSessionType.ServeSim,
+      {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    ],
+  ];
+  const localEgressFields = {
+    egressUrl: 'https://egress.example.com',
+    egressToken: 'pw',
+    egressFingerprint: 'fp',
+    egressPort: 8899,
+  };
+
+  it.each(localEgressSessions)(
+    'creates iOS %s sessions with local egress and saves connection details',
+    async (typeFlag, type, remoteConfig) => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+        '--non-interactive',
+      ]);
+      await command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          platform: AppPlatform.Ios,
+          egress: DeviceRunSessionEgress.Local,
+        })
+      );
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_TOKEN='pw'")
+      );
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:egress'));
+      expect(runLocalEgressAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it('prints the shell credential command when local egress uses env output', async () => {
+    const [typeFlag, type, remoteConfig] = localEgressSessions[1];
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type,
+        remoteConfig: { ...remoteConfig, ...localEgressFields },
+      })
+    );
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      typeFlag,
+      '--egress',
+      'local',
+      '--out-config-type',
+      'env',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run the egress client to connect the tunnel:\n\neas simulator:egress --config-type env\n'
+      )
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run the egress client to connect the tunnel:\n\neas simulator:egress\n'
+      )
+    );
+    // The instructions block is the only place the command is mentioned.
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('in another process'));
+  });
+
+  it.each(localEgressSessions)(
+    'rejects local egress for Android %s before creating a session',
+    async typeFlag => {
+      const { command } = createCommand([
+        '--platform',
+        'android',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+        '--non-interactive',
+      ]);
+      await expect(command.runAsync()).rejects.toThrow(
+        '--egress local is only supported with --platform ios.'
+      );
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(localEgressSessions)(
+    'stops %s after an interactive egress failure and removes its interrupt handler',
+    async (typeFlag, type, remoteConfig) => {
+      const failure = new Error('listen EADDRINUSE');
+      jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
+      const listeners = process.listeners('SIGINT');
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        typeFlag,
+        '--egress',
+        'local',
+      ]);
+      await expect(command.runAsync()).rejects.toBe(failure);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+      expect(process.listeners('SIGINT')).toEqual(listeners);
+    }
+  );
+
+  it('passes normalized --egress-allow destinations to the egress client', async () => {
+    const session = makeDeviceRunSession({
+      remoteConfig: {
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+        agentDeviceRemoteSessionToken: 'token',
+        egressUrl: 'https://egress.example.com',
+        egressToken: 'pw',
+        egressFingerprint: 'fp',
+        egressPort: 8899,
+      },
+    });
+    mockByIdAsync
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce({ ...session, status: DeviceRunSessionStatus.Stopped });
+    jest.mocked(runLocalEgressAsync).mockResolvedValueOnce(undefined);
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--egress',
+      'local',
+      '--egress-allow',
+      'localhost:3000',
+      '--egress-allow',
+      'LOCALHOST:3000',
+      '--egress-allow',
+      '192.168.1.20:8080',
+    ]);
+    await command.runAsync();
+
+    expect(runLocalEgressAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ allow: ['localhost:3000', '192.168.1.20:8080'] })
+    );
+  });
+
+  it('rejects malformed --egress-allow values before creating a session', async () => {
+    // If validation were skipped, fail fast instead of polling a live session.
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped })
+    );
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--egress',
+      'local',
+      '--egress-allow',
+      'localhost',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('Invalid --egress-allow value "localhost"');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('requires --egress for --egress-allow', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--egress-allow', 'localhost:3000']);
+    await expect(command.runAsync()).rejects.toThrow(/--egress/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {

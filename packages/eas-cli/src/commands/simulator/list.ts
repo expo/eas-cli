@@ -61,7 +61,8 @@ export default class SimulatorList extends EasCommand {
       multiple: true,
     })(),
     type: Flags.option({
-      description: 'Filter by session type (repeatable)',
+      description:
+        'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
       multiple: true,
     })(),
@@ -72,6 +73,10 @@ export default class SimulatorList extends EasCommand {
     })(),
     name: Flags.string({
       description: 'Filter by session name (case-insensitive prefix match)',
+    }),
+    tag: Flags.string({
+      description: 'Filter by tag (repeatable). A session must carry every tag listed.',
+      multiple: true,
     }),
     limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_LIMIT, limit: MAX_LIMIT }),
     after: Flags.string({
@@ -114,6 +119,9 @@ export default class SimulatorList extends EasCommand {
     if (flags.name) {
       filter.name = flags.name;
     }
+    if (flags.tag && flags.tag.length > 0) {
+      filter.tags = flags.tag;
+    }
 
     const limit = flags.limit ?? DEFAULT_LIMIT;
 
@@ -139,6 +147,7 @@ export default class SimulatorList extends EasCommand {
         sessions: sessions.map(session => ({
           id: session.id,
           name: session.name ?? undefined,
+          tags: session.tags,
           type: deviceRunSessionTypeToFlagValue(session.type),
           status: session.status,
           platform: session.platform,
@@ -172,6 +181,7 @@ export default class SimulatorList extends EasCommand {
       const lines = [
         `ID:       ${session.id}`,
         `Name:     ${session.name ?? 'null'}`,
+        `Tags:     ${session.tags.length > 0 ? session.tags.join(', ') : 'none'}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,

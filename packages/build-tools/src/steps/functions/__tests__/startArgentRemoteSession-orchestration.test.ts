@@ -9,11 +9,13 @@ import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
 import {
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -40,14 +42,14 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
-  ensureFfmpegInstalledAsync: jest.fn(),
+  ensureFfmpegInstalledOnceAsync: jest.fn(),
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   spawnDetached: jest.fn(),
+  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
-  startServeSimWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
@@ -58,6 +60,7 @@ const EXPECTED_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, 'tool-server-events.
 
 const mockStopAsync = jest.fn();
 const mockTunnelStopAsync = jest.fn();
+const mockPreviewStopAsync = jest.fn();
 
 describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
   beforeEach(async () => {
@@ -68,6 +71,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(pollArgentArtifactsForUploadAsync).mockResolvedValue(undefined);
     mockStopAsync.mockResolvedValue(undefined);
     mockTunnelStopAsync.mockResolvedValue(undefined);
+    mockPreviewStopAsync.mockResolvedValue(undefined);
     jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({
       stopAsync: mockStopAsync,
       getLastEventObservedAt: () => undefined,
@@ -85,6 +89,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://argent-abc.tunnel.example.com',
       stopAsync: mockTunnelStopAsync,
+    });
+    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
+      previewUrl: 'https://web-preview.tunnel.example.com',
+      stopAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -120,18 +128,31 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       } as never
     );
 
-    // (1) The event log flag is enabled, before the tool-server is launched.
+    // (1) FFmpeg setup starts in the background before Argent setup.
+    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledWith({
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: { EXISTING: 'value' },
+      logger: expect.anything(),
+    });
+    expect(jest.mocked(ensureFfmpegInstalledOnceAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(spawn).mock.invocationCallOrder[0]
+    );
+
+    // (2) The event log flag is enabled, before the tool-server is launched.
     const spawnCalls = jest.mocked(spawn).mock.calls;
     const enableEventLogIndex = spawnCalls.findIndex(
       ([command, args]) =>
-        command === 'bunx' && Array.isArray(args) && args.includes('tool-server-event-log')
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('tool-server-event-log')
     );
     expect(enableEventLogIndex).toBeGreaterThanOrEqual(0);
     expect(jest.mocked(spawn).mock.invocationCallOrder[enableEventLogIndex]).toBeLessThan(
       jest.mocked(spawnDetached).mock.invocationCallOrder[0]
     );
 
-    // (2) The tool-server and the collector are pinned to the exact same event log path.
+    // (3) The tool-server and the collector are pinned to the exact same event log path.
     const serverEnv = jest.mocked(spawnDetached).mock.calls[0][0].env;
     expect(serverEnv.ARGENT_EVENT_LOG).toBe(EXPECTED_EVENT_LOG_PATH);
     expect(serverEnv.EXISTING).toBe('value');
@@ -140,7 +161,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       eventLogPath: EXPECTED_EVENT_LOG_PATH,
     });
 
-    // (3) Collection starts (before we wait for the session to stop) and (4) is torn down
+    // (4) Collection starts (before we wait for the session to stop) and (5) is torn down
     // afterwards, exactly once.
     expect(startArgentEventCollectionAsync).toHaveBeenCalledTimes(1);
     expect(mockStopAsync).toHaveBeenCalledTimes(1);
@@ -151,5 +172,17 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
     );
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
+    );
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: 'https://web-preview.tunnel.example.com',
+        }),
+      })
+    );
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 });

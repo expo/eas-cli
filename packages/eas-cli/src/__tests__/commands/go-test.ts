@@ -1,17 +1,17 @@
 import { getConfigFilePaths } from '@expo/config';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
-import Go from '../../commands/go';
+import Go, { toRepackTargetSdkVersion } from '../../commands/go';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
+import { detectProjectSdkVersionAsync } from '../../project/detectProjectSdkVersionAsync';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { ensureActorHasPrimaryAccount } from '../../user/actions';
-import { detectProjectSdkVersionAsync, toRepackTargetSdkVersion } from '../../commands/go';
 import { mockTestCommand } from './utils';
 
 jest.mock('@expo/config', () => ({

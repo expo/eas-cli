@@ -125,6 +125,7 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync(
     channelName: channel.name,
     channelId: channel.id,
     isPaused: channel.isPaused,
+    isProtected: channel.isProtected,
   });
 
   if (paginatedQueryOptions.nonInteractive) {
@@ -186,6 +187,7 @@ function renderPageOfChannels(
         channelName: channel.name,
         channelId: channel.id,
         isPaused: channel.isPaused,
+        isProtected: channel.isProtected,
       });
       Log.addNewLineIfNone();
       logChannelDetails(channel);
@@ -212,14 +214,16 @@ function renderPageOfBranchesOnChannel(
   }
 }
 
-function renderChannelHeaderContent({
+export function renderChannelHeaderContent({
   channelName,
   channelId,
   isPaused,
+  isProtected,
 }: {
   channelName: string;
   channelId: string;
   isPaused: boolean;
+  isProtected: boolean;
 }): void {
   Log.addNewLineIfNone();
   Log.log(chalk.bold('Channel:'));
@@ -228,6 +232,7 @@ function renderChannelHeaderContent({
       { label: 'Name', value: channelName },
       { label: 'ID', value: channelId },
       { label: 'Status', value: isPaused ? 'Paused' : 'Active' },
+      { label: 'Protection', value: isProtected ? 'Protected' : 'Unprotected' },
     ])
   );
   Log.addNewLineIfNone();

@@ -42,19 +42,26 @@ export type WorkflowRunWithJobsResult = WorkflowRunResult & {
   logs?: string;
 };
 
-export type WorkflowLogLine = {
-  time: string;
-  msg: string;
+export type WorkflowRawLogLine = {
+  logId?: string;
+  buildStepId?: string;
+  buildStepDisplayName?: string;
+  phase?: string;
+  time?: string;
+  msg?: string;
   result?: string;
   marker?: string;
   err?: any;
 };
 
-export type WorkflowLogs = Map<
-  string,
-  {
-    key: string;
-    label: string;
-    logLines: WorkflowLogLine[];
-  }
->;
+export type WorkflowLogLine = Pick<WorkflowRawLogLine, 'time' | 'result' | 'marker' | 'err'> &
+  Required<Pick<WorkflowRawLogLine, 'msg'>>;
+
+export type StepLogs = {
+  key: string;
+  label: string;
+  result?: string;
+  logLines: WorkflowLogLine[];
+};
+
+export type WorkflowLogs = Map<string, StepLogs>;

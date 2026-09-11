@@ -272,6 +272,10 @@ export type AscApiClientPostApi = {
   };
 };
 
+// https://developer.apple.com/documentation/appstoreconnectapi/platform
+export type AscPlatform =
+  AscApiClientPostApi['/v1/buildUploads']['request']['data']['attributes']['platform'];
+
 export type AscApiClientPatchApi = {
   [Path in keyof typeof PatchApi]: {
     request: z.input<(typeof PatchApi)[Path]['request']>;

@@ -11,16 +11,20 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import {
+  createExpoDeviceHubArgs,
   createServeSimArgs,
-  ensureFfmpegInstalledAsync,
-  fetchServeSimTurnArgsAsync,
+  ensureFfmpegInstalledOnceAsync,
+  fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  startDeviceWebPreviewWithTunnelAsync,
+  startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
-  turnIceServersToServeSimArgs,
+  turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
-  waitForServeSimReadyAsync,
+  waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
@@ -30,6 +34,11 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
+// Spyable so a test can stand in for the serve-sim state directory, which a local serve-sim owns.
+jest.mock('../serveSimMetricsRecorder', () => {
+  const actual = jest.requireActual('../serveSimMetricsRecorder');
+  return { ...actual, readServeSimServersAsync: jest.fn(actual.readServeSimServersAsync) };
+});
 
 function createLoggerMock(): bunyan {
   return {
@@ -127,16 +136,17 @@ describe(createServeSimArgs, () => {
       '4321',
       '--host',
       '127.0.0.1',
+      '--require-token',
       '--transport',
       'webrtc',
       '--webrtc-codec',
       'vp8',
       '--max-dimension',
-      '1280',
+      '960',
       '--mjpeg-quality',
       '0.55',
       '--video-bitrate',
-      '3000000',
+      '6000000',
       '--video-fps',
       '60',
       '--turn-url',
@@ -155,6 +165,63 @@ describe(createServeSimArgs, () => {
       'turns:turn.example.test:443',
       '--metrics-cors-origin',
       'https://expo.dev',
+    ]);
+  });
+
+  it('pins the requested package version', () => {
+    expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' }).slice(0, 2)).toEqual([
+      '--yes',
+      '@expo/serve-sim@0.1.38',
+    ]);
+  });
+
+  it('pins a dist-tag', () => {
+    expect(createServeSimArgs({ port: 4321, packageVersion: 'next' }).slice(0, 2)).toEqual([
+      '--yes',
+      '@expo/serve-sim@next',
+    ]);
+  });
+});
+
+describe(createExpoDeviceHubArgs, () => {
+  it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
+    expect(
+      createExpoDeviceHubArgs({
+        port: 4321,
+        turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      })
+    ).toEqual([
+      '--yes',
+      'expo-device-hub@latest',
+      '--port',
+      '4321',
+      '--host',
+      '127.0.0.1',
+      '--platform',
+      'android',
+      '--transport',
+      'webrtc',
+      '--webrtc-codec',
+      'h264',
+      '--webrtc-ice-policy',
+      'all',
+      '--max-dimension',
+      '960',
+      '--video-bitrate',
+      '6000000',
+      '--video-fps',
+      '60',
+      '--hide-sidebar',
+      '--hide-boot-device',
+      '--turn-url',
+      'turns:turn.example.test:443',
+    ]);
+  });
+
+  it('pins the requested package version', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' }).slice(0, 2)).toEqual([
+      '--yes',
+      'expo-device-hub@0.7.0',
     ]);
   });
 });
@@ -186,7 +253,7 @@ describe(metricsCorsOriginToServeSimArgs, () => {
   });
 });
 
-describe(waitForServeSimReadyAsync, () => {
+describe(waitForWebPreviewReadyAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
     jest.mocked(sleepAsync).mockReset();
@@ -201,8 +268,9 @@ describe(waitForServeSimReadyAsync, () => {
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    await waitForServeSimReadyAsync({
-      serveSim: { pid: undefined, getOutput: () => '' },
+    await waitForWebPreviewReadyAsync({
+      previewServer: { pid: undefined, getOutput: () => '' },
+      serverName: 'expo-device-hub',
       port: 4321,
       timeoutMs: 10_000,
     });
@@ -247,14 +315,239 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
-describe(turnIceServersToServeSimArgs, () => {
+describe(startDeviceWebPreviewWithTunnelAsync, () => {
+  const baseDomain = 'eas-simulator.ngrok.dev';
+  const turnArgs = [
+    '--turn-url',
+    'turns:turn.example.test:443',
+    '--turn-username',
+    'turn-user',
+    '--turn-credential',
+    'turn-credential',
+  ];
+  const metricsCorsArgs = ['--metrics-cors-origin', 'https://metrics.expo.test'];
+  const env = {
+    DEVICE_RUN_SESSION_ID: 'drs-id',
+    EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
+    NGROK_AUTHTOKEN: 'ngrok-token',
+  } as unknown as BuildStepEnv;
+
+  beforeEach(() => {
+    jest.mocked(spawn).mockReset();
+    jest.mocked(ngrok.forward).mockReset();
+    jest.mocked(turtleFetch).mockReset();
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1', token: 'tok-1' }]);
+
+    const spawnPromise = Object.assign(Promise.resolve(undefined), {
+      child: {
+        pid: undefined,
+        unref: jest.fn(),
+      },
+    });
+    jest.mocked(spawn).mockReturnValue(spawnPromise as never);
+
+    jest.mocked(turtleFetch).mockImplementation(async url => {
+      if (url.endsWith('/turn-ice-servers')) {
+        return {
+          json: async () => ({
+            data: {
+              iceServers: [
+                {
+                  urls: ['turns:turn.example.test:443'],
+                  username: 'turn-user',
+                  credential: 'turn-credential',
+                },
+              ],
+            },
+          }),
+        } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+      }
+      return {
+        json: async () => ({ status: 'ready', device: 'device-id' }),
+      } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+    });
+  });
+
+  it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
+    const packageVersion = '1.2.3';
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close,
+    } as never);
+    jest
+      .mocked(spawn)
+      .mockReturnValueOnce(
+        Promise.reject(new Error('ffmpeg is missing')) as ReturnType<typeof spawn>
+      )
+      .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
+      .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      packageVersion,
+    });
+
+    const spawnCalls = jest.mocked(spawn).mock.calls;
+    expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
+    expect(spawnCalls[1]).toEqual([
+      'sudo',
+      ['apt-get', 'update'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      }),
+    ]);
+    expect(spawnCalls[2]).toEqual([
+      'sudo',
+      ['apt-get', 'install', '-y', 'ffmpeg'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      }),
+    ]);
+    const expoDeviceHubCallIndex = spawnCalls.findIndex(([command]) => command === 'npx');
+    expect(expoDeviceHubCallIndex).toBeGreaterThan(2);
+    expect(jest.mocked(spawn).mock.invocationCallOrder[2]).toBeLessThan(
+      jest.mocked(spawn).mock.invocationCallOrder[expoDeviceHubCallIndex]
+    );
+    const [command, args] = spawnCalls[expoDeviceHubCallIndex];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(port).toBeGreaterThan(0);
+    expect(command).toBe('npx');
+    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs, packageVersion }));
+    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(preview.previewUrl).toBe('https://android-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries the serve-sim session token for Darwin', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewToken).toBe('tok-1');
+    expect(preview.previewUrl).toBe('https://preview.example.test');
+  });
+
+  // serve-sim is always launched with --require-token, so a missing token means it is running
+  // ungated on a public tunnel. Failing beats handing out a preview that is dead or unprotected.
+  it('fails for Darwin when serve-sim reports no token', async () => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1' }]);
+
+    await expect(
+      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        baseDomain,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+      })
+    ).rejects.toThrow(/wrote no session token/);
+  });
+
+  // expo-device-hub mints no token, so the Android preview must not require one.
+  it('starts for Linux without a token, and does not gate expo-device-hub', async () => {
+    jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewToken).toBeUndefined();
+    const [, args] = jest.mocked(spawn).mock.calls[0];
+    expect(args).not.toContain('--require-token');
+  });
+
+  it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
+    const packageVersion = '4.5.6';
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      packageVersion,
+    });
+
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(port).toBeGreaterThan(0);
+    expect(command).toBe('npx');
+    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
+    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://android-preview.example.test',
+      close,
+    } as never);
+
+    const preview = await startExpoDeviceHubWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
+    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
+      'ffmpeg',
+      expect.anything(),
+      expect.anything()
+    );
+
+    await preview.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe(turnIceServersToWebPreviewArgs, () => {
   it('returns no args for an empty ICE server list', () => {
-    expect(turnIceServersToServeSimArgs([])).toEqual([]);
+    expect(turnIceServersToWebPreviewArgs([])).toEqual([]);
   });
 
   it('builds --stun-url and --turn-url flags from Cloudflare ICE servers', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
         {
           urls: [
@@ -279,7 +572,7 @@ describe(turnIceServersToServeSimArgs, () => {
 
   it('emits only --turn-url flags when no credential-less (STUN) entry is present', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         {
           urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
           username: 'u',
@@ -297,19 +590,19 @@ describe(turnIceServersToServeSimArgs, () => {
   });
 
   it('emits only --stun-url when there is no credentialed TURN entry', () => {
-    expect(turnIceServersToServeSimArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
+    expect(turnIceServersToWebPreviewArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
       '--stun-url',
       'stun:stun.cloudflare.com:3478',
     ]);
   });
 });
 
-describe(fetchServeSimTurnArgsAsync, () => {
+describe(fetchWebPreviewTurnArgsAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns serve-sim args', async () => {
+  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
     jest.mocked(turtleFetch).mockResolvedValue({
       json: async () => ({
         data: {
@@ -325,7 +618,7 @@ describe(fetchServeSimTurnArgsAsync, () => {
       }),
     } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger: createLoggerMock(),
     });
@@ -349,11 +642,11 @@ describe(fetchServeSimTurnArgsAsync, () => {
     );
   });
 
-  it('returns [] and warns when the request fails so serve-sim falls back to P2P/STUN', async () => {
+  it('returns [] and warns when the request fails so the web preview falls back to P2P/STUN', async () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger,
     });
@@ -614,7 +907,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 });
 
-describe(ensureFfmpegInstalledAsync, () => {
+describe(ensureFfmpegInstalledOnceAsync, () => {
   const spawnMock = jest.mocked(spawn);
 
   function spawnResolved(): ReturnType<typeof spawn> {
@@ -633,7 +926,7 @@ describe(ensureFfmpegInstalledAsync, () => {
   it('does not install when ffmpeg is on PATH', async () => {
     spawnMock.mockReturnValueOnce(spawnResolved());
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -646,7 +939,7 @@ describe(ensureFfmpegInstalledAsync, () => {
   it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
     spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnResolved());
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -667,7 +960,7 @@ describe(ensureFfmpegInstalledAsync, () => {
       .mockReturnValueOnce(spawnResolved()) // apt-get update
       .mockReturnValueOnce(spawnResolved()); // apt-get install
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: createEnvMock(),
       logger: createLoggerMock(),
@@ -689,6 +982,33 @@ describe(ensureFfmpegInstalledAsync, () => {
     );
   });
 
+  it('shares an in-flight ffmpeg setup between callers', async () => {
+    let finishInstall: (() => void) | undefined;
+    const pendingInstall = new Promise<void>(resolve => {
+      finishInstall = resolve;
+    });
+    spawnMock
+      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
+      .mockReturnValueOnce(spawnResolved()) // apt-get update
+      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>); // apt-get install
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    };
+
+    const firstSetup = ensureFfmpegInstalledOnceAsync(options);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+
+    const secondSetup = ensureFfmpegInstalledOnceAsync(options);
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+
+    finishInstall?.();
+    await Promise.all([firstSetup, secondSetup]);
+    expect(spawnMock).toHaveBeenCalledTimes(3);
+  });
+
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
       .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
@@ -696,7 +1016,7 @@ describe(ensureFfmpegInstalledAsync, () => {
       .mockReturnValueOnce(spawnResolved()); // apt-get install
     const logger = createLoggerMock();
 
-    await ensureFfmpegInstalledAsync({
+    await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: createEnvMock(),
       logger,
@@ -715,7 +1035,7 @@ describe(ensureFfmpegInstalledAsync, () => {
     const logger = createLoggerMock();
 
     await expect(
-      ensureFfmpegInstalledAsync({
+      ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: createEnvMock(),
         logger,
@@ -736,7 +1056,7 @@ describe(ensureFfmpegInstalledAsync, () => {
     const logger = createLoggerMock();
 
     await expect(
-      ensureFfmpegInstalledAsync({
+      ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: createEnvMock(),
         logger,

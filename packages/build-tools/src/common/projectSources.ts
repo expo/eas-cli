@@ -1,5 +1,5 @@
 import downloadFile from '@expo/downloader';
-import { ArchiveSource, ArchiveSourceSchemaZ, ArchiveSourceType, Job } from '@expo/eas-build-job';
+import { ArchiveSourceType, Job, SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
@@ -19,33 +19,26 @@ export async function prepareProjectSourcesAsync<TJob extends Job>(
   destinationDirectory: string
 ): // Return type required to make switch exhaustive.
 Promise<{ handled: boolean }> {
-  let projectArchive: ArchiveSource = ctx.job.projectArchive;
   if (ctx.isLocal) {
-    console.warn('Local build, skipping project archive refresh');
-  } else {
-    const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
-
-    if (!projectArchiveResult.ok) {
-      ctx.logger.error(
-        { err: projectArchiveResult.reason },
-        'Failed to refresh project archive, falling back to the original one'
+    if (ctx.job.projectArchive.type !== ArchiveSourceType.PATH) {
+      throw new SystemError(
+        `Expected a PATH project source for a local build, received ${ctx.job.projectArchive.type}.`,
+        { trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE' }
       );
     }
-
-    projectArchive = projectArchiveResult.value ?? ctx.job.projectArchive;
+    await prepareProjectSourcesLocallyAsync(ctx, ctx.job.projectArchive.path, destinationDirectory);
+    return { handled: true };
   }
 
+  const projectArchiveResult = await asyncResult(fetchProjectArchiveSourceAsync(ctx));
+  if (!projectArchiveResult.ok) {
+    throw new SystemError('Failed to fetch project sources. Re-run the job.', {
+      cause: projectArchiveResult.reason,
+    });
+  }
+  const projectArchive = projectArchiveResult.value;
+
   switch (projectArchive.type) {
-    case ArchiveSourceType.R2:
-    case ArchiveSourceType.GCS: {
-      throw new Error('Remote project sources should be resolved earlier to URL');
-    }
-
-    case ArchiveSourceType.PATH: {
-      await prepareProjectSourcesLocallyAsync(ctx, projectArchive.path, destinationDirectory); // used in eas build --local
-      return { handled: true };
-    }
-
     case ArchiveSourceType.NONE: {
       // May be used in no-sources jobs like submission jobs.
       return { handled: true };
@@ -110,7 +103,7 @@ async function prepareProjectSourcesLocallyAsync<TJob extends Job>(
   });
 }
 
-async function unpackTarGzAsync({
+export async function unpackTarGzAsync({
   logger,
   source,
   destination,
@@ -122,6 +115,8 @@ async function unpackTarGzAsync({
   await spawn('tar', ['-C', destination, '--strip-components', '1', '-zxf', source], {
     logger,
   });
+  logger.info('Normalizing project source permissions');
+  await spawn('chmod', ['-R', 'u+rwX', destination], { logger });
 }
 
 function uploadProjectMetadataAsFireAndForget(
@@ -247,7 +242,7 @@ async function uploadProjectMetadataAsync(
   }
 }
 
-async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>): Promise<ArchiveSource> {
+async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
   const taskId = nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
   const expoApiServerURL = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
   const robotAccessToken = nullthrows(
@@ -285,7 +280,20 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>): Promise<A
     );
   }
 
-  const dataResult = z.object({ data: ArchiveSourceSchemaZ }).safeParse(jsonResult.value);
+  const dataResult = z
+    .object({
+      data: z.discriminatedUnion('type', [
+        z.object({
+          type: z.literal(ArchiveSourceType.GIT),
+          repositoryUrl: z.string().url(),
+          gitRef: z.string().nullable(),
+          gitCommitHash: z.string(),
+        }),
+        z.object({ type: z.literal(ArchiveSourceType.URL), url: z.string().url() }),
+        z.object({ type: z.literal(ArchiveSourceType.NONE) }),
+      ]),
+    })
+    .safeParse(jsonResult.value);
   if (!dataResult.success) {
     throw new Error(
       `Unexpected data from server (${response.status}): ${z.prettifyError(dataResult.error)}`

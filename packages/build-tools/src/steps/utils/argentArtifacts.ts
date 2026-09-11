@@ -18,11 +18,11 @@ const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
 const ARGENT_ARTIFACT_FETCH_TIMEOUT_MS = 10_000;
 
-// Kinds the EAS dashboard groups device run session artifacts by. Only media types the dashboard
-// renders specially are mapped; anything else stays unclassified and lands in its "Other" group.
-// Note that these kinds only affect grouping and labelling. The dashboard gates its inline video
-// player on the `__eas_screen_recording` metadata flag, which Argent artifacts deliberately do not
-// set, so a `screen-recording` kind here does not add a player to the session page.
+// Fallback kinds for Argent versions that do not include a semantic artifact kind. Only media types
+// the EAS dashboard renders specially can be inferred safely. Note that these kinds only affect
+// grouping and labelling. The dashboard gates its inline video player on the
+// `__eas_screen_recording` metadata flag, which Argent artifacts deliberately do not set, so a
+// `screen-recording` kind here does not add a player to the session page.
 const ARGENT_ARTIFACT_KIND_BY_MIME_TYPE = new Map<string, string>([
   ['image/png', 'screenshot'],
   ['image/jpeg', 'screenshot'],
@@ -32,6 +32,9 @@ const ARGENT_ARTIFACT_KIND_BY_MIME_TYPE = new Map<string, string>([
 
 const ArgentArtifactSchema = z.object({
   id: z.string(),
+  // Optional for compatibility with older Argent tool servers. Keep this open to new kinds so a
+  // newer Argent version can add a category without requiring an EAS worker release first.
+  kind: z.string().optional(),
   filename: z.string(),
   mimeType: z.string(),
   isDirectory: z.boolean().optional(),
@@ -43,8 +46,12 @@ const ArgentArtifactsListResponseSchema = z.object({
 type ArgentArtifact = z.infer<typeof ArgentArtifactSchema>;
 
 function getArgentArtifactKind(artifact: ArgentArtifact): string | undefined {
+  if (artifact.kind) {
+    return artifact.kind;
+  }
   // Directories are repackaged as a tarball before upload, so the reported media type describes the
-  // contents rather than the file we actually store.
+  // contents rather than the file we actually store. A semantic kind above remains valid because it
+  // describes what the artifact represents, not its transport format.
   if (artifact.isDirectory) {
     return undefined;
   }

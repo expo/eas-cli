@@ -34,6 +34,7 @@ export * from './compositeFunction';
 export * from './submission-config';
 export * from './projectPackage';
 export * from './deviceRunSession';
+export * from './sandbox';
 
 const version = require('../package.json').version;
 export { version };

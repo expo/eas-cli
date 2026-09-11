@@ -19,8 +19,10 @@ import { generateGymfileFromTemplateFunction } from './functions/generateGymfile
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallBuildFunction } from './functions/installBuild';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
+import { createLaunchApplicationFunction } from './functions/launchApplication';
 import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
@@ -49,8 +51,10 @@ import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAp
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
-import { createStartServeSimRemoteSessionBuildFunction } from './functions/startServeSimRemoteSession';
+import { createStartLocalEgressBuildFunction } from './functions/startLocalEgress';
+import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
@@ -74,6 +78,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(ctx),
+    createInstallBuildFunction(),
+    createLaunchApplicationFunction(),
     createEasExportBuildFunction(),
     createEasDeployBuildFunction(),
     createRepackBuildFunction(),
@@ -99,11 +105,13 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
+    createStartLocalEgressBuildFunction(),
     createStartIosSimulatorRecordingsBuildFunction(),
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
-    createStartServeSimRemoteSessionBuildFunction(ctx),
+    createStartWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
+    createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 

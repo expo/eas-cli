@@ -48,6 +48,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
   return {
     id: 'session-123',
     name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -122,7 +123,13 @@ describe(SimulatorGet, () => {
   }
 
   it('emits JSON when --json is passed', async () => {
-    const session = makeDeviceRunSession();
+    const session = makeDeviceRunSession({
+      type: DeviceRunSessionType.ServeSim,
+      remoteConfig: {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    });
     mockByIdAsync.mockResolvedValue(session);
 
     const { command, getContextAsync } = createCommand(['--id', 'session-123', '--json']);
@@ -137,7 +144,8 @@ describe(SimulatorGet, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
       name: undefined,
-      type: 'agent-device',
+      tags: [],
+      type: 'web-preview-only',
       status: DeviceRunSessionStatus.InProgress,
       platform: AppPlatform.Ios,
       createdAt: '2025-01-01T00:00:00.000Z',

@@ -4,6 +4,7 @@ import { Hooks, Step } from '@expo/eas-build-job';
 
 import { makeCatalog } from './StepsConfigParser-composite-functions-test-utils';
 import { createGlobalContextMock } from './utils/context';
+import { createRecordingLogger } from './utils/logger';
 import { BuildFunction } from '../BuildFunction';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
 import { BuildStepStatus } from '../BuildStep';
@@ -13,17 +14,20 @@ import { BuildStepOutput } from '../BuildStepOutput';
 import { BuildWorkflow } from '../BuildWorkflow';
 import { StepsConfigParser } from '../StepsConfigParser';
 import { WorkflowHookMetric } from '../StepMetrics';
-import { BuildStepRuntimeError } from '../errors';
+import { BuildStepConditionEvaluationError, BuildStepRuntimeError } from '../errors';
 
 describe('BuildWorkflow hook execution', () => {
   let ctx: BuildStepGlobalContext;
   let executionLog: string[];
   let metrics: WorkflowHookMetric[];
+  let loggedMessages: string[];
 
   beforeEach(async () => {
     executionLog = [];
     metrics = [];
+    loggedMessages = [];
     ctx = createGlobalContextMock({
+      logger: createRecordingLogger(loggedMessages),
       reportWorkflowHookMetric: metric => metrics.push(metric),
     });
     await fs.mkdir(ctx.defaultWorkingDirectory, { recursive: true });
@@ -648,6 +652,44 @@ describe('BuildWorkflow hook execution', () => {
       expect(metrics).toEqual([
         { anchor: 'install_node_modules', timing: 'before', result: 'success' },
       ]);
+    });
+
+    it('attributes a broken composite call-site if: to the call, logs it once, and skips the anchor', async () => {
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [
+            {
+              uses: './.eas/functions/setup',
+              id: 'setup',
+              if: '${{ nonexistent.object.property }}',
+            },
+          ],
+        },
+        externalFunctions: [anchorFunction(), recordingFunction('one'), recordingFunction('two')],
+        compositeFunctionCatalog: {
+          './.eas/functions/setup': {
+            runs: {
+              steps: [
+                { id: 'first', uses: 'test/one' },
+                { id: 'second', uses: 'test/two', if: '${{ always() }}' },
+              ],
+            },
+          },
+        },
+      });
+      await expect(workflow.executeAsync()).rejects.toThrow(BuildStepConditionEvaluationError);
+      expect(executionLog).toEqual([]);
+      expect(hookStepStatuses(workflow)['setup__first']).toBe(BuildStepStatus.SKIPPED);
+      expect(hookStepStatuses(workflow)['setup__second']).toBe(BuildStepStatus.SKIPPED);
+      expect(workflow.buildSteps[0].status).toBe(BuildStepStatus.SKIPPED);
+      expect(metrics).toEqual([]);
+
+      const gateMessages = loggedMessages.filter(m => m.includes('Runner failed to evaluate'));
+      expect(gateMessages).toHaveLength(1);
+      expect(gateMessages[0]).toContain('composite function call "./.eas/functions/setup"');
+      expect(gateMessages[0]).toContain('${{ nonexistent.object.property }}');
+      expect(loggedMessages.join('\n')).not.toContain('${{ always() }}');
     });
 
     it('skips every step of a composite call whose if condition is false and reports no metric', async () => {

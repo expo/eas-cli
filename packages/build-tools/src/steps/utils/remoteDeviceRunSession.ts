@@ -17,14 +17,19 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@latest';
-const SERVE_SIM_HOST = '127.0.0.1';
-const SERVE_SIM_MAX_DIMENSION = '1280';
+const WEB_PREVIEW_HOST = '127.0.0.1';
+const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
+const SERVE_SIM_MAX_DIMENSION = '960';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
-const SERVE_SIM_VIDEO_BITRATE = '3000000';
+const SERVE_SIM_VIDEO_BITRATE = '6000000';
 const SERVE_SIM_VIDEO_FPS = '60';
+const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
+const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
+const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
+const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -293,10 +298,9 @@ async function sleepUntilAbortedAsync(
   }
 }
 
-// Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
-// which it resolves from PATH. The tool-server inherits this step's env, so
-// spawning ffmpeg resolves against the same PATH argent will search: it rejects
-// with ENOENT when the binary is absent, and running it also proves it works.
+// Device-session tools resolve `ffmpeg` from PATH. Spawning it with the step's
+// environment rejects with ENOENT when the binary is absent, and running it also
+// proves that the installed binary works.
 async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
   return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
 }
@@ -329,14 +333,15 @@ async function installFfmpegWithAptAsync({
   await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
 }
 
+let ffmpegSetupPromise: Promise<void> | undefined;
+
 /**
- * Install ffmpeg when the runtime does not already provide it, so argent's
- * `screen-recording-start` tool can encode a video. The worker images do not
- * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
- * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
+ * Install ffmpeg when the runtime does not already provide it. Device-session
+ * tools use it for video encoding on macOS (iOS simulators) and Linux (Android
+ * emulators) alike, but the worker images do not ship it yet.
  *
- * Best-effort by design: screen recording is one optional argent tool, so a
- * failure here is logged and the session continues without it.
+ * Best-effort by design: a failure here is logged and the session continues
+ * without FFmpeg-dependent features.
  *
  * The whole body is wrapped because the caller runs this in the background with
  * `void`. There is no unhandledRejection handler in the worker, so a rejection
@@ -344,7 +349,7 @@ async function installFfmpegWithAptAsync({
  * `spawn` is not an async function and can throw synchronously, which
  * `asyncResult` cannot catch — it only wraps an already-created promise.
  */
-export async function ensureFfmpegInstalledAsync({
+async function ensureFfmpegInstalledAsync({
   runtimePlatform,
   env,
   logger,
@@ -363,7 +368,7 @@ export async function ensureFfmpegInstalledAsync({
     logger.info(
       `ffmpeg is not installed, installing it with ${
         isDarwin ? 'Homebrew' : 'apt'
-      } for argent screen recording.`
+      } for the device session.`
     );
     if (isDarwin) {
       await installFfmpegWithHomebrewAsync({ env, logger });
@@ -373,13 +378,38 @@ export async function ensureFfmpegInstalledAsync({
     logger.info('Installed ffmpeg.');
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    Sentry.capture('Could not install ffmpeg for argent screen recording', error, {
+    Sentry.capture('Could not install ffmpeg for the device session', error, {
       level: 'warning',
     });
     logger.warn(
       { err: error },
-      'Could not install ffmpeg. Argent screen recording will not work in this session.'
+      'Could not install ffmpeg. FFmpeg-dependent features may not work in this session.'
     );
+  }
+}
+
+export async function ensureFfmpegInstalledOnceAsync({
+  runtimePlatform,
+  env,
+  logger,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (ffmpegSetupPromise) {
+    await ffmpegSetupPromise;
+    return;
+  }
+
+  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+  ffmpegSetupPromise = setupPromise;
+  try {
+    await setupPromise;
+  } finally {
+    if (ffmpegSetupPromise === setupPromise) {
+      ffmpegSetupPromise = undefined;
+    }
   }
 }
 
@@ -390,11 +420,12 @@ const TurnIceServersResponseSchema = z.object({
 });
 
 /**
- * Translate Cloudflare ICE servers into serve-sim CLI flags: `--stun-url` (the
+ * Translate Cloudflare ICE servers into web preview CLI flags: `--stun-url` (the
  * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
- * (the entry carrying the short-lived credentials).
+ * (the entry carrying the short-lived credentials). serve-sim and expo-device-hub
+ * intentionally expose the same ICE flag contract.
  */
-export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string[] {
+export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): string[] {
   const stunUrls = iceServers
     .filter(server => !server.username && !server.credential)
     .flatMap(server => server.urls);
@@ -420,14 +451,14 @@ export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string
 /**
  * Fetch short-lived Cloudflare TURN ICE servers for this job run from www
  * (minted on demand, mirroring how the worker fetches project clone URLs) and
- * translate them into serve-sim CLI flags.
+ * translate them into web preview CLI flags.
  *
- * Best-effort: on any failure we log and return [] so serve-sim falls back to
- * its built-in P2P/STUN behavior. The credential is passed to serve-sim as a
- * process arg and deliberately not logged (turtle-spawn never logs argv and the
- * worker is single-tenant).
+ * Best-effort: on any failure we log and return [] so the preview server falls
+ * back to its built-in P2P/STUN behavior. The credential is passed as a process
+ * arg and deliberately not logged (turtle-spawn never logs argv and the worker
+ * is single-tenant).
  */
-export async function fetchServeSimTurnArgsAsync(
+export async function fetchWebPreviewTurnArgsAsync(
   ctx: CustomBuildContext,
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<string[]> {
@@ -456,9 +487,9 @@ export async function fetchServeSimTurnArgsAsync(
     );
 
     const { data } = TurnIceServersResponseSchema.parse(await response.json());
-    const args = turnIceServersToServeSimArgs(data.iceServers);
+    const args = turnIceServersToWebPreviewArgs(data.iceServers);
     if (args.length > 0) {
-      logger.info('Configured serve-sim with Cloudflare TURN ICE servers.');
+      logger.info('Configured the web preview with Cloudflare TURN ICE servers.');
     }
     return args;
   } catch (err) {
@@ -466,7 +497,7 @@ export async function fetchServeSimTurnArgsAsync(
     Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
     logger.warn(
       { err: error },
-      'Could not fetch Cloudflare TURN ICE servers; serve-sim will fall back to P2P/STUN.'
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
     );
     return [];
   }
@@ -596,22 +627,33 @@ export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
   return args;
 }
 
+function createServeSimPackageSpec(packageVersion: string | undefined): string {
+  return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
+}
+
+function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): string {
+  return `${EXPO_DEVICE_HUB_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
   metricsCorsArgs = [],
+  packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
+  packageVersion?: string;
 }): string[] {
   return [
     '--yes',
-    SERVE_SIM_PACKAGE_SPEC,
+    createServeSimPackageSpec(packageVersion),
     '--port',
     String(port),
     '--host',
-    SERVE_SIM_HOST,
+    WEB_PREVIEW_HOST,
+    '--require-token',
     '--transport',
     'webrtc',
     '--webrtc-codec',
@@ -629,44 +671,84 @@ export function createServeSimArgs({
   ];
 }
 
-async function findAvailablePortAsync(): Promise<number> {
+export function createExpoDeviceHubArgs({
+  port,
+  turnArgs = [],
+  packageVersion,
+}: {
+  port: number;
+  turnArgs?: string[];
+  packageVersion?: string;
+}): string[] {
+  return [
+    '--yes',
+    createExpoDeviceHubPackageSpec(packageVersion),
+    '--port',
+    String(port),
+    '--host',
+    WEB_PREVIEW_HOST,
+    '--platform',
+    'android',
+    '--transport',
+    'webrtc',
+    '--webrtc-codec',
+    'h264',
+    '--webrtc-ice-policy',
+    'all',
+    '--max-dimension',
+    EXPO_DEVICE_HUB_MAX_DIMENSION,
+    '--video-bitrate',
+    EXPO_DEVICE_HUB_VIDEO_BITRATE,
+    '--video-fps',
+    EXPO_DEVICE_HUB_VIDEO_FPS,
+    '--hide-sidebar',
+    '--hide-boot-device',
+    ...turnArgs,
+  ];
+}
+
+export async function findAvailablePortAsync(): Promise<number> {
   const server = createServer();
   server.unref();
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, SERVE_SIM_HOST, () => resolve());
+    server.listen(0, WEB_PREVIEW_HOST, () => resolve());
   });
   const address = server.address();
   await new Promise<void>((resolve, reject) => {
     server.close(err => (err ? reject(err) : resolve()));
   });
   if (!address || typeof address === 'string') {
-    throw new SystemError('Could not allocate a local port for serve-sim.');
+    throw new SystemError('Could not allocate a local port for the web preview.');
   }
   return address.port;
 }
 
-const ServeSimReadyResponseSchema = z.object({
+const WebPreviewReadyResponseSchema = z.object({
   status: z.literal('ready'),
   device: z.string(),
 });
 
-export async function waitForServeSimReadyAsync({
-  serveSim,
+export async function waitForWebPreviewReadyAsync({
+  previewServer,
+  serverName,
   port,
   timeoutMs,
 }: {
-  serveSim: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
+  previewServer: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
+  serverName: string;
   port: number;
   timeoutMs: number;
-}): Promise<void> {
-  const readyUrl = `http://${SERVE_SIM_HOST}:${port}/readyz`;
+}): Promise<string> {
+  const readyUrl = `http://${WEB_PREVIEW_HOST}:${port}/readyz`;
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   while (Date.now() < deadline) {
-    if (serveSim.pid !== undefined && !isProcessRunning(serveSim.pid)) {
+    if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
       throw new SystemError(
-        `serve-sim exited before becoming ready. Last output:\n${serveSim.getOutput() || '<empty>'}`
+        `${serverName} exited before becoming ready. Last output:\n${
+          previewServer.getOutput() || '<empty>'
+        }`
       );
     }
     try {
@@ -674,52 +756,69 @@ export async function waitForServeSimReadyAsync({
         retries: 0,
         timeout: 2_000,
       });
-      ServeSimReadyResponseSchema.parse(await response.json());
-      return;
+      const ready = WebPreviewReadyResponseSchema.parse(await response.json());
+      return ready.device;
     } catch (error) {
       lastError = error;
     }
     await sleepAsync(1_000);
   }
   throw new SystemError(
-    `Timed out waiting for serve-sim readiness at ${readyUrl}${
+    `Timed out waiting for ${serverName} readiness at ${readyUrl}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${serveSim.getOutput() || '<empty>'}`
+    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
   );
 }
 
-export type ServeSimPreviewHandle = {
+export type DeviceWebPreviewHandle = {
   previewUrl: string;
+  /** Session token gating the preview. Only serve-sim mints one. */
+  previewToken?: string;
   stopAsync: () => Promise<void>;
 };
 
-export async function startServeSimWithTunnelAsync(
+export type ServeSimPreviewHandle = DeviceWebPreviewHandle;
+
+async function startWebPreviewWithTunnelAsync(
   ctx: CustomBuildContext,
   {
     baseDomain,
     env,
     logger,
     timeoutMs,
+    serverName,
+    packageSpec,
+    createArgs,
+    readPreviewTokenAsync,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
+    serverName: string;
+    packageSpec: string;
+    createArgs: (port: number, turnArgs: string[]) => string[];
+    readPreviewTokenAsync?: (device: string) => Promise<string>;
   }
-): Promise<ServeSimPreviewHandle> {
+): Promise<DeviceWebPreviewHandle> {
   const port = await findAvailablePortAsync();
-  logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
-  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const serveSim = spawnDetached({
+  logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
+  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const previewServer = spawnDetached({
     command: 'npx',
-    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs }),
+    args: createArgs(port, turnArgs),
     env,
   });
 
   try {
-    logger.info('Waiting for serve-sim to become ready.');
-    await waitForServeSimReadyAsync({ serveSim, port, timeoutMs });
+    logger.info(`Waiting for ${serverName} to become ready.`);
+    const device = await waitForWebPreviewReadyAsync({
+      previewServer,
+      serverName,
+      port,
+      timeoutMs,
+    });
+    const previewToken = await readPreviewTokenAsync?.(device);
     const tunnel = await startNgrokTunnelAsync({
       port,
       subdomainPrefix: 'web-preview',
@@ -729,18 +828,124 @@ export async function startServeSimWithTunnelAsync(
     });
     return {
       previewUrl: tunnel.url,
+      previewToken,
       stopAsync: async () => {
-        const results = await Promise.allSettled([tunnel.stopAsync(), serveSim.stopAsync()]);
+        const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
           if (result.status === 'rejected') {
-            logger.warn({ err: result.reason }, 'Could not stop a serve-sim preview resource.');
+            logger.warn({ err: result.reason }, `Could not stop a ${serverName} preview resource.`);
           }
         }
       },
     };
   } catch (error) {
-    await serveSim.stopAsync();
+    await previewServer.stopAsync();
     throw error;
+  }
+}
+
+export async function readServeSimPreviewTokenAsync(
+  udid: string,
+  stateDir: string = SERVE_SIM_STATE_DIR
+): Promise<string | undefined> {
+  const servers = await readServeSimServersAsync(stateDir);
+  return servers.find(server => server.udid === udid)?.token;
+}
+
+export async function startServeSimWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    packageVersion,
+  }: {
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    packageVersion?: string;
+  }
+): Promise<ServeSimPreviewHandle> {
+  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
+  return await startWebPreviewWithTunnelAsync(ctx, {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    serverName: 'serve-sim',
+    packageSpec: createServeSimPackageSpec(packageVersion),
+    createArgs: (port, turnArgs) =>
+      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+    readPreviewTokenAsync: async device => {
+      const previewToken = await readServeSimPreviewTokenAsync(device);
+      if (!previewToken) {
+        // A serve-sim that does not know --require-token fails earlier, in the readiness check, so
+        // reaching here means it started and left no token in its state file.
+        throw new SystemError(
+          `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
+            'on a public tunnel and would be reachable without one, so the session cannot continue. ' +
+            'This usually means the state file was not written as expected; retry the session, and ' +
+            'report it if it repeats.'
+        );
+      }
+      return previewToken;
+    },
+  });
+}
+
+export async function startExpoDeviceHubWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    runtimePlatform,
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    packageVersion,
+  }: {
+    runtimePlatform: BuildRuntimePlatform;
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    packageVersion?: string;
+  }
+): Promise<DeviceWebPreviewHandle> {
+  if (runtimePlatform === BuildRuntimePlatform.LINUX) {
+    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+  }
+  return await startWebPreviewWithTunnelAsync(ctx, {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    serverName: 'expo-device-hub',
+    packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
+    createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
+  });
+}
+
+export async function startDeviceWebPreviewWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    runtimePlatform,
+    ...options
+  }: {
+    runtimePlatform: BuildRuntimePlatform;
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    packageVersion?: string;
+  }
+): Promise<DeviceWebPreviewHandle> {
+  switch (runtimePlatform) {
+    case BuildRuntimePlatform.DARWIN:
+      return await startServeSimWithTunnelAsync(ctx, options);
+    case BuildRuntimePlatform.LINUX:
+      return await startExpoDeviceHubWithTunnelAsync(ctx, { ...options, runtimePlatform });
   }
 }
 

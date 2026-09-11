@@ -2,10 +2,13 @@ import {
   ArchiveSourceType,
   BuildMode,
   BuildTrigger,
+  ErrorCode,
   Job,
   Platform,
+  SystemError,
   Workflow,
 } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import fetch, { Response } from 'node-fetch';
@@ -14,7 +17,7 @@ import { setTimeout } from 'timers/promises';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { shallowCloneRepositoryAsync } from '../git';
-import { prepareProjectSourcesAsync } from '../projectSources';
+import { prepareProjectSourcesAsync, unpackTarGzAsync } from '../projectSources';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('node-fetch');
@@ -23,7 +26,28 @@ jest.mock('@expo/downloader');
 jest.mock('@urql/core');
 
 describe('projectSources', () => {
-  it('should use the refreshed repository URL', async () => {
+  it('makes extracted project sources readable and writable by the worker', async () => {
+    const logger = createMockLogger();
+
+    await unpackTarGzAsync({
+      source: '/workingdir/project.tar.gz',
+      destination: '/workingdir/build',
+      logger,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      'tar',
+      ['-C', '/workingdir/build', '--strip-components', '1', '-zxf', '/workingdir/project.tar.gz'],
+      { logger }
+    );
+    expect(spawn).toHaveBeenNthCalledWith(2, 'chmod', ['-R', 'u+rwX', '/workingdir/build'], {
+      logger,
+    });
+    expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
+  });
+
+  it.each([true, false])('uses the refreshed URL (legacy URL: %s)', async includeRepositoryUrl => {
     const robotAccessToken = randomUUID();
     const buildId = randomUUID();
     await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
@@ -39,7 +63,9 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
+          ...(includeRepositoryUrl
+            ? { repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git' }
+            : {}),
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -89,102 +115,88 @@ describe('projectSources', () => {
     );
   });
 
-  it('should fallback to the original repository URL if the refresh fails', async () => {
-    const robotAccessToken = randomUUID();
-    const buildId = randomUUID();
-    await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
+  it.each(['http', 'network', 'json', 'schema', 'missing-url', 'PATH', 'GCS', 'R2'])(
+    'throws a system error if refresh fails (%s)',
+    async failure => {
+      const robotAccessToken = randomUUID();
+      const buildId = randomUUID();
+      await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
 
-    const ctx = new BuildContext(
-      {
-        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
-        type: Workflow.MANAGED,
-        mode: BuildMode.BUILD,
-        initiatingUserId: randomUUID(),
-        appId: randomUUID(),
-        projectArchive: {
-          type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
-          gitRef: 'refs/heads/main',
-          gitCommitHash: randomBytes(20).toString('hex'),
-        },
-        platform: Platform.IOS,
-        secrets: {
-          robotAccessToken,
-          environmentSecrets: [],
-        },
-      } as Job,
-      {
-        env: {
-          __API_SERVER_URL: 'https://api.expo.dev',
-          EXPO_TOKEN: robotAccessToken,
-          EAS_BUILD_ID: buildId,
-          EAS_BUILD_RUNNER: 'eas-build',
-        },
-        workingdir: '/workingdir',
-        logger: createMockLogger(),
-        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-        uploadArtifact: jest.fn(),
+      const ctx = new BuildContext(
+        {
+          triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+          type: Workflow.MANAGED,
+          mode: BuildMode.BUILD,
+          initiatingUserId: randomUUID(),
+          appId: randomUUID(),
+          projectArchive: {
+            type: ArchiveSourceType.GIT,
+            gitRef: 'refs/heads/main',
+            gitCommitHash: randomBytes(20).toString('hex'),
+          },
+          platform: Platform.IOS,
+          secrets: {
+            robotAccessToken,
+            environmentSecrets: [],
+          },
+        } as Job,
+        {
+          env: {
+            __API_SERVER_URL: 'https://api.expo.dev',
+            EXPO_TOKEN: robotAccessToken,
+            EAS_BUILD_ID: buildId,
+            EAS_BUILD_RUNNER: 'eas-build',
+          },
+          workingdir: '/workingdir',
+          logger: createMockLogger(),
+          logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+          uploadArtifact: jest.fn(),
+        }
+      );
+      const fetchMock = jest.mocked(fetch);
+      const cause = new Error('Source request failed');
+      fetchMock.mockImplementation(async () => {
+        if (failure === 'network') {
+          throw cause;
+        }
+        return {
+          ok: failure !== 'http',
+          status: failure === 'http' ? 500 : 200,
+          json: async () => {
+            if (failure === 'json') {
+              throw cause;
+            }
+            if (['PATH', 'GCS', 'R2'].includes(failure)) {
+              return { data: { type: failure, path: '/project.tar.gz', bucketKey: 'project' } };
+            }
+            if (failure === 'missing-url') {
+              return {
+                data: {
+                  type: ArchiveSourceType.GIT,
+                  gitRef: 'refs/heads/main',
+                  gitCommitHash: randomBytes(20).toString('hex'),
+                },
+              };
+            }
+            return { data: { repository_url: 'https://github.com/expo/eas-cli.git' } };
+          },
+        } as Response;
+      });
+
+      const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+      await expect(result).rejects.toBeInstanceOf(SystemError);
+      await expect(result).rejects.toMatchObject({
+        errorCode: ErrorCode.SERVER_ERROR,
+        cause: expect.any(Error),
+      });
+      if (failure === 'network') {
+        await expect(result).rejects.toMatchObject({ cause });
       }
-    );
-    const fetchMock = jest.mocked(fetch);
-    fetchMock.mockImplementation(
-      async () =>
-        ({
-          ok: false,
-          text: async () => 'Failed to generate repository URL',
-        }) as Response
-    );
-
-    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-    expect(shallowCloneRepositoryAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        archiveSource: {
-          ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
-        },
-      })
-    );
-    fetchMock.mockImplementation(
-      async () =>
-        ({
-          ok: false,
-          json: async () => ({
-            // repositoryUrl is the right key
-            repository_url: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
-          }),
-        }) as Response
-    );
-
-    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-    expect(shallowCloneRepositoryAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        archiveSource: {
-          ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
-        },
-      })
-    );
-
-    fetchMock.mockImplementation(
-      async () =>
-        ({
-          ok: false,
-          json: () => Promise.reject(new Error('Failed to generate repository URL')),
-        }) as Response
-    );
-
-    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-    expect(shallowCloneRepositoryAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        archiveSource: {
-          ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
-        },
-      })
-    );
-
-    expect(shallowCloneRepositoryAsync).toHaveBeenCalledTimes(3);
-  }, 15_000);
+      expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
+    },
+    15_000
+  );
 
   it('should retry fetching the repository URL', async () => {
     const robotAccessToken = randomUUID();
@@ -202,7 +214,6 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -259,7 +270,7 @@ describe('projectSources', () => {
     );
   }, 15_000);
 
-  it(`should fallback to the original repository URL if we're missing some config`, async () => {
+  it(`throws a system error if refresh configuration is missing`, async () => {
     const robotAccessToken = randomUUID();
     await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
     const logger = createMockLogger();
@@ -273,7 +284,6 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash: randomBytes(20).toString('hex'),
         },
@@ -297,12 +307,11 @@ describe('projectSources', () => {
       }
     );
 
-    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-
-    expect(logger.error).toHaveBeenCalledWith(
-      { err: expect.any(Error) },
-      'Failed to refresh project archive, falling back to the original one'
-    );
+    await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).rejects.toMatchObject({
+      errorCode: ErrorCode.SERVER_ERROR,
+      cause: new Error('EAS_BUILD_ID is not set'),
+    });
+    expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
   });
 
   describe('uploadProjectMetadataAsFireAndForget', () => {
@@ -382,6 +391,10 @@ describe('projectSources', () => {
 
       const fetchMock = jest.mocked(fetch);
       fetchMock.mockImplementation(async () => ({ ok: true }) as Response);
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: ctx.job.projectArchive }),
+      } as Response);
 
       // Call prepareProjectSourcesAsync and don't await metadata upload
       await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
@@ -495,6 +508,10 @@ describe('projectSources', () => {
 
       const fetchMock = jest.mocked(fetch);
       fetchMock.mockResolvedValue({ ok: true } as Response);
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: ctx.job.projectArchive }),
+      } as Response);
 
       const startTime = Date.now();
       await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
@@ -559,6 +576,10 @@ describe('projectSources', () => {
 
       const fetchMock = jest.mocked(fetch);
       fetchMock.mockResolvedValue({ ok: true } as Response);
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: ctx.job.projectArchive }),
+      } as Response);
 
       // Should not throw even though upload will fail
       await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).resolves.not.toThrow();
@@ -572,4 +593,56 @@ describe('projectSources', () => {
       );
     });
   });
+});
+
+describe('local project sources', () => {
+  function createContext(type: ArchiveSourceType): BuildContext<Job> {
+    return new BuildContext(
+      {
+        platform: Platform.IOS,
+        projectArchive: { type, path: '/source.tar.gz' },
+      } as Job,
+      {
+        env: { EAS_BUILD_RUNNER: 'local-build-plugin', __API_SERVER_URL: 'https://api.expo.dev' },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+  }
+
+  it('copies and unpacks a PATH source without fetching from www', async () => {
+    await vol.promises.mkdir('/workingdir', { recursive: true });
+    await vol.promises.writeFile('/source.tar.gz', 'local archive');
+    const ctx = createContext(ArchiveSourceType.PATH);
+    await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).resolves.toEqual({
+      handled: true,
+    });
+    expect(await vol.promises.readFile('/workingdir/project.tar.gz', 'utf8')).toBe('local archive');
+    expect(spawn).toHaveBeenCalledWith(
+      'tar',
+      ['-C', ctx.buildDirectory, '--strip-components', '1', '-zxf', '/workingdir/project.tar.gz'],
+      { logger: ctx.logger }
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(Object.values(ArchiveSourceType).filter(type => type !== ArchiveSourceType.PATH))(
+    'rejects local %s sources before fetching or unpacking',
+    async type => {
+      const ctx = createContext(type);
+      const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+      await expect(result).rejects.toBeInstanceOf(SystemError);
+      await expect(result).rejects.toMatchObject({
+        errorCode: 'SERVER_ERROR',
+        trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE',
+        message: `Expected a PATH project source for a local build, received ${type}.`,
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
+      expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+    }
+  );
 });

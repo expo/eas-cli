@@ -1,5 +1,16 @@
-import { DeviceRunSessionByIdQuery, DeviceRunSessionType } from '../graphql/generated';
+import {
+  DeviceRunSessionByIdQuery,
+  DeviceRunSessionResourceClass,
+  DeviceRunSessionType,
+} from '../graphql/generated';
 import { link } from '../log';
+import {
+  EAS_SIMULATOR_EGRESS_ALLOW,
+  EAS_SIMULATOR_EGRESS_FINGERPRINT,
+  EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_TOKEN,
+  EAS_SIMULATOR_EGRESS_URL,
+} from './env';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
@@ -24,7 +35,8 @@ export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, s
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
   [DeviceRunSessionType.Appium]: 'appium',
   [DeviceRunSessionType.Argent]: 'argent',
-  [DeviceRunSessionType.ServeSim]: 'serve-sim',
+  [DeviceRunSessionType.ServeSim]: 'web-preview-only',
+  [DeviceRunSessionType.WebPreviewOnly]: 'web-preview-only',
 };
 
 export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
@@ -37,7 +49,146 @@ export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): str
   return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
 }
 
+export const DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES: Record<
+  DeviceRunSessionResourceClass,
+  string
+> = {
+  [DeviceRunSessionResourceClass.Large]: 'large',
+  [DeviceRunSessionResourceClass.Medium]: 'medium',
+};
+
+export const DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE = Object.fromEntries(
+  (
+    Object.entries(DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES) as [
+      DeviceRunSessionResourceClass,
+      string,
+    ][]
+  ).map(([resourceClass, value]) => [value, resourceClass])
+) as Record<string, DeviceRunSessionResourceClass>;
+
+export type LocalEgressConfig = {
+  url: string;
+  /** Secret for the tunnel server; the client pairs it with the fixed egress username. */
+  token: string;
+  fingerprint: string;
+  port: number;
+  /**
+   * Normalized `host:port` destinations on the developer's machine or network
+   * that the simulator may reach through the proxy (`--egress-allow`).
+   */
+  allow: string[];
+};
+
+export type LocalEgressOptions = {
+  egressAllow?: readonly string[];
+  /**
+   * Whether the calling command runs the egress client itself in the current
+   * terminal, as interactive `simulator:start` does. When false the reader must
+   * start `eas simulator:egress` in another process.
+   */
+  egressClientRunsInline?: boolean;
+};
+
+/**
+ * Connection details for the local egress client, present only for sessions
+ * started with `--egress local`. `allow` comes from the developer's flags, not
+ * from the worker.
+ */
+export function getLocalEgressConfig(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  allow: readonly string[] = []
+): LocalEgressConfig | null {
+  const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
+  if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
+    return null;
+  }
+  return {
+    url: egressUrl,
+    token: egressToken,
+    fingerprint: egressFingerprint,
+    port: egressPort,
+    allow: [...allow],
+  };
+}
+
+export type LoopbackForwardPlan = {
+  /** Ports the tunnel client forwards on the device host's loopback interface. */
+  ports: number[];
+  /** Loopback allow entries that stay reachable by name through the proxy only. */
+  skipped: string[];
+};
+
+/**
+ * Which `--egress-allow` entries also become loopback port forwards. iOS never
+ * sends loopback-literal requests to the system proxy, and Expo CLI rewrites
+ * `localhost` to `127.0.0.1` in manifests, so the proxy alone cannot serve a dev
+ * server allowed as `localhost:<port>`. For each entry naming `localhost` or
+ * `127.0.0.1`, the tunnel client opens a reverse remote that makes
+ * `127.0.0.1:<port>` on the device host reach the same port here, like
+ * `adb reverse`. The device host only permits unprivileged ports, and the proxy
+ * port is already taken by the tunnel server, so those entries are skipped.
+ */
+export function getLoopbackForwardPlan(
+  allow: readonly string[],
+  proxyPort: number
+): LoopbackForwardPlan {
+  const ports = new Set<number>();
+  const skipped: string[] = [];
+  for (const destination of allow) {
+    const match = /^(?:localhost|127\.0\.0\.1):(\d+)$/.exec(destination);
+    if (!match) {
+      continue;
+    }
+    const port = Number(match[1]);
+    if (port < 1024 || port === proxyPort) {
+      skipped.push(destination);
+      continue;
+    }
+    ports.add(port);
+  }
+  return { ports: [...ports].sort((a, b) => a - b), skipped };
+}
+
+/**
+ * Only the exception is worth a line: forwarded ports just work, but an entry
+ * the device host will not forward changes what the reader would expect.
+ */
+export function formatLoopbackForwardNotice({ skipped }: LoopbackForwardPlan): string[] {
+  if (skipped.length === 0) {
+    return [];
+  }
+  return [
+    `${skipped.join(', ')} ${skipped.length === 1 ? 'is' : 'are'} reachable by name only: ` +
+      'privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.',
+  ];
+}
+
+export function getLocalEgressEnvironmentVariables(
+  egress: LocalEgressConfig | null
+): Record<string, string> {
+  if (!egress) {
+    return {};
+  }
+  return {
+    [EAS_SIMULATOR_EGRESS_URL]: egress.url,
+    [EAS_SIMULATOR_EGRESS_TOKEN]: egress.token,
+    [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
+    [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
+    [EAS_SIMULATOR_EGRESS_ALLOW]: egress.allow.join(','),
+  };
+}
+
 export function getRemoteSessionEnvironmentVariables(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  { egressAllow }: LocalEgressOptions = {}
+): Record<string, string> {
+  return {
+    ...getControllerEnvironmentVariables(remoteConfig),
+    ...getLocalEgressEnvironmentVariables(getLocalEgressConfig(remoteConfig, egressAllow)),
+  };
+}
+
+function getControllerEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): Record<string, string> {
   switch (remoteConfig.__typename) {
@@ -57,19 +208,100 @@ export function getRemoteSessionEnvironmentVariables(
         APPIUM_CAPS: JSON.stringify(remoteConfig.capabilities),
       };
     case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
       return {};
   }
 }
 
 type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
+/**
+ * Preview link for a session. A gated serve-sim needs the session token, and a browser cannot send
+ * a header on a page load, so it rides the query. serve-sim swaps it for a cookie on the first load.
+ */
+export function formatPreviewUrl(url: string, token: string | null | undefined): string {
+  if (!token) {
+    return url;
+  }
+  const withToken = new URL(url);
+  withToken.searchParams.set('token', token);
+  return withToken.toString();
+}
+
+/**
+ * Remote config for `--json`. The preview URL carries the token and the standalone token field is
+ * dropped, so a consumer gets one URL that works rather than a bare URL that 401s next to a secret
+ * it has to know to combine.
+ */
+export function sanitizeRemoteConfigForJson(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): DeviceRunSessionRemoteConfig {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig': {
+      const { previewToken, ...rest } = remoteConfig;
+      return { ...rest, previewUrl: formatPreviewUrl(remoteConfig.previewUrl, previewToken) };
+    }
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig': {
+      const { webPreviewToken, ...rest } = remoteConfig;
+      return {
+        ...rest,
+        webPreviewUrl: remoteConfig.webPreviewUrl
+          ? formatPreviewUrl(remoteConfig.webPreviewUrl, webPreviewToken)
+          : remoteConfig.webPreviewUrl,
+      };
+    }
+  }
+}
+
 export function formatRemoteSessionInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  configType: RemoteSessionInstructionsConfigType,
+  { egressAllow, egressClientRunsInline = false }: LocalEgressOptions = {}
+): string {
+  const instructions = formatControllerInstructions(remoteConfig, configType);
+  const egress = getLocalEgressConfig(remoteConfig, egressAllow);
+  if (!egress) {
+    return instructions;
+  }
+  const egressCommand =
+    configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress';
+  const summary =
+    "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine." +
+    (egress.allow.length > 0 ? ` It can also reach ${egress.allow.join(', ')}.` : '');
+  return [
+    instructions,
+    '',
+    summary,
+    ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
+    // In interactive mode the client starts in this terminal once the session is
+    // ready and stops with it, so there is nothing for the reader to run.
+    ...(egressClientRunsInline
+      ? []
+      : [
+          ...(configType === 'env'
+            ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
+                ([key, value]) => `export ${key}='${value}'`
+              )
+            : []),
+          'Run the egress client to connect the tunnel:',
+          '',
+          egressCommand,
+          '',
+          'Keep it running for the life of the session.',
+        ]),
+  ].join('\n');
+}
+
+function formatControllerInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -89,13 +321,13 @@ export function formatRemoteSessionInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          remoteConfig.webPreviewUrl
+          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
       return lines.join('\n');
     }
     case 'ArgentRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -127,13 +359,13 @@ export function formatRemoteSessionInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          remoteConfig.webPreviewUrl
+          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
       return lines.join('\n');
     }
     case 'AppiumRunSessionRemoteConfig': {
-      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const environmentVariables = getControllerEnvironmentVariables(remoteConfig);
       const lines =
         configType === 'dotenv'
           ? [
@@ -151,7 +383,12 @@ export function formatRemoteSessionInstructions(
               '<appium-client> [args...]',
             ];
       if (remoteConfig.webPreviewUrl) {
-        lines.push('', 'Open the iOS simulator preview:', '', remoteConfig.webPreviewUrl);
+        lines.push(
+          '',
+          'Open the simulator preview:',
+          '',
+          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+        );
       }
       return lines.join('\n');
     }
@@ -159,7 +396,13 @@ export function formatRemoteSessionInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        remoteConfig.previewUrl,
+        formatPreviewUrl(remoteConfig.previewUrl, remoteConfig.previewToken),
+      ].join('\n');
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
+      return [
+        '🌐 Open the following URL in your browser to access the simulator:',
+        '',
+        formatPreviewUrl(remoteConfig.previewUrl, remoteConfig.previewToken),
       ].join('\n');
   }
 }

@@ -9,6 +9,7 @@ import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
   generateEasConfigAsync,
+  removeTemplateFilesAsync,
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../projectFiles';
@@ -239,17 +240,24 @@ describe('projectFiles', () => {
   });
 
   describe('updatePackageJsonAsync', () => {
-    it('should update the package.json', async () => {
+    it('should replace template metadata and add workflow scripts', async () => {
       jest.mocked(fs.readJson).mockResolvedValue({
-        name: 'test-app',
-        version: '1.0.0',
+        name: 'expo-template-default',
+        version: '57.0.19',
+        license: '0BSD',
+        description: 'A starter template',
+        repository: 'https://github.com/expo/expo-template-default',
+        tags: ['expo'],
+        main: 'expo-router/entry',
       });
       const projectDir = '/test/project-dir';
-      await updatePackageJsonAsync(projectDir);
+      await updatePackageJsonAsync(projectDir, 'My App');
 
       const expectedPackageJson = {
-        name: 'test-app',
+        name: 'myapp',
         version: '1.0.0',
+        private: true,
+        main: 'expo-router/entry',
         scripts: {
           draft: 'npx eas-cli@latest workflow:run create-draft.yml',
           'development-builds': 'npx eas-cli@latest workflow:run create-development-builds.yml',
@@ -260,6 +268,28 @@ describe('projectFiles', () => {
       expect(fs.writeJson).toHaveBeenCalledWith(`${projectDir}/package.json`, expectedPackageJson, {
         spaces: 2,
       });
+    });
+
+    it('should keep a non-template license', async () => {
+      jest.mocked(fs.readJson).mockResolvedValue({
+        name: 'some-template',
+        license: 'MIT',
+      });
+      await updatePackageJsonAsync('/test/project-dir', 'my-app');
+
+      expect(fs.writeJson).toHaveBeenCalledWith(
+        '/test/project-dir/package.json',
+        expect.objectContaining({ license: 'MIT' }),
+        { spaces: 2 }
+      );
+    });
+  });
+
+  describe('removeTemplateFilesAsync', () => {
+    it('should remove the template LICENSE file', async () => {
+      await removeTemplateFilesAsync('/test/project-dir');
+
+      expect(fs.remove).toHaveBeenCalledWith('/test/project-dir/LICENSE');
     });
   });
 

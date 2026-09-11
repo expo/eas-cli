@@ -7,6 +7,8 @@ export interface ContextOptions {
   analytics: Analytics;
   nonInteractive: boolean;
   vcsClientOverride?: Client;
+  /** Short-circuits project ID resolution. */
+  projectIdOverride?: string;
   /**
    * If specified, env variables from the selected environment will be fetched from the server and used to evaluate the dynamic config.
    */

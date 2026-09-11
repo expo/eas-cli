@@ -105,7 +105,8 @@ export const distributionCertificateSchema: CredentialSchema<DistributionCertifi
 export type MinimalAscApiKey = {
   keyP8: string;
   keyId: string;
-  issuerId: string;
+  // Absent for individual API keys, which are valid only for submissions.
+  issuerId?: string;
   teamId?: string;
   teamName?: string;
   roles?: UserRole[];
@@ -115,7 +116,7 @@ export type MinimalAscApiKey = {
 export interface AscApiKeyPath {
   keyP8Path: string;
   keyId: string;
-  issuerId: string;
+  issuerId?: string;
 }
 
 export const ascApiKeyIdSchema: CredentialSchema<Pick<MinimalAscApiKey, 'keyId'>> = {
@@ -129,7 +130,7 @@ export const ascApiKeyIdSchema: CredentialSchema<Pick<MinimalAscApiKey, 'keyId'>
   ],
 };
 
-export const ascApiKeyIssuerIdSchema: CredentialSchema<Pick<MinimalAscApiKey, 'issuerId'>> = {
+export const ascApiKeyIssuerIdSchema: CredentialSchema<{ issuerId: string }> = {
   name: 'App Store Connect API Key',
   questions: [
     {

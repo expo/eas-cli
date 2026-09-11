@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import * as fs from 'node:fs';
 
-import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
+import { fetchAndProcessLogsFromJobAsync } from './logs/parseLogs';
 import {
   WorkflowJobResult,
   WorkflowLogLine,
@@ -11,20 +11,22 @@ import {
 } from './types';
 import {
   WorkflowJobStatus,
-  WorkflowJobType,
   WorkflowRunByIdQuery,
   WorkflowRunByIdWithJobsQuery,
   WorkflowRunFragment,
   WorkflowRunStatus,
   WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
+import { WorkflowRunLogsWatcher } from './logs/watcher';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
-import { ora } from '../../ora';
+import { ora, updateSpinnerText } from '../../ora';
 import { Choice } from '../../prompts';
 import formatFields from '../../utils/formatFields';
+import { createRealtimeLogsClient } from '../../utils/centrifuge';
 import { sleepAsync } from '../../utils/promise';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
+import nullthrows from 'nullthrows';
 
 export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
   triggerType: WorkflowTriggerType;
@@ -85,19 +87,13 @@ export function choicesFromWorkflowLogs(
   logs: WorkflowLogs
 ): (Choice & { name: string; status: string; logLines: WorkflowLogLine[] | undefined })[] {
   return Array.from(logs.values())
-    .map(({ key, label, logLines }) => {
-      const stepStatus =
-        logLines?.filter(
-          (line: WorkflowLogLine) => line.marker === 'end-step' || line.marker === 'END_PHASE'
-        )[0]?.result ?? '';
-      return {
-        title: `${label} - ${stepStatus}`,
-        name: label,
-        status: stepStatus,
-        value: key,
-        logLines,
-      };
-    })
+    .map(({ key, label, result, logLines }) => ({
+      title: `${label} - ${result ?? ''}`,
+      name: label,
+      status: result ?? '',
+      value: key,
+      logLines,
+    }))
     .filter(step => step.status !== 'skipped');
 }
 
@@ -121,52 +117,6 @@ export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunRes
   });
 }
 
-export async function fetchAndProcessLogsFromJobAsync(
-  state: { graphqlClient: ExpoGraphqlClient },
-  job: WorkflowJobResult
-): Promise<WorkflowLogs | null> {
-  let rawLogs: string | null;
-  switch (job.type) {
-    case WorkflowJobType.Build:
-    case WorkflowJobType.Repack:
-      rawLogs = await fetchRawLogsForBuildJobAsync(state, job);
-      break;
-    default:
-      rawLogs = await fetchRawLogsForCustomJobAsync(job);
-      break;
-  }
-  if (!rawLogs) {
-    return null;
-  }
-  Log.debug(`rawLogs = ${JSON.stringify(rawLogs, null, 2)}`);
-  const logs: WorkflowLogs = new Map();
-  rawLogs.split('\n').forEach((line, index) => {
-    Log.debug(`line ${index} = ${JSON.stringify(line, null, 2)}`);
-    try {
-      const parsedLine = JSON.parse(line);
-      const { buildStepDisplayName, buildStepId, phase, time, msg, result, marker, err } =
-        parsedLine;
-      const stepKey = buildStepId ?? buildStepDisplayName ?? phase;
-      const stepLabel = buildStepDisplayName ?? buildStepId ?? phase;
-      if (stepKey && stepLabel) {
-        if (!logs.has(stepKey)) {
-          logs.set(stepKey, {
-            key: stepKey,
-            label: stepLabel,
-            logLines: [],
-          });
-        }
-        const logGroup = logs.get(stepKey)!;
-        if (buildStepDisplayName) {
-          logGroup.label = buildStepDisplayName;
-        }
-        logGroup.logLines.push({ time, msg, result, marker, err });
-      }
-    } catch {}
-  });
-  return logs;
-}
-
 function descriptionForJobStatus(status: WorkflowJobStatus): string {
   switch (status) {
     case WorkflowJobStatus.New:
@@ -188,82 +138,106 @@ function descriptionForJobStatus(status: WorkflowJobStatus): string {
   }
 }
 
-export async function infoForActiveWorkflowRunAsync(
+function isJobCompleted(status: WorkflowJobStatus): boolean {
+  switch (status) {
+    case WorkflowJobStatus.Success:
+    case WorkflowJobStatus.Failure:
+    case WorkflowJobStatus.Canceled:
+    case WorkflowJobStatus.Skipped:
+      return true;
+    case WorkflowJobStatus.New:
+    case WorkflowJobStatus.InProgress:
+    case WorkflowJobStatus.ActionRequired:
+    case WorkflowJobStatus.PendingCancel:
+      return false;
+  }
+}
+
+type WorkflowRunWithJobs = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'];
+
+type JobWithLogs = {
+  job: WorkflowRunWithJobs['jobs'][number];
+  logs: WorkflowLogs;
+};
+
+function stepLogTail(
+  step: { logLines?: WorkflowLogLine[] },
+  maxLogLines: number // -1 means no limit
+): string[] {
+  const logLines = step.logLines ?? [];
+  const tail = maxLogLines === -1 ? logLines : logLines.slice(-maxLogLines);
+  return tail.map(line => line.msg);
+}
+
+export async function logsForFailedWorkflowRunAsync(
   graphqlClient: ExpoGraphqlClient,
-  workflowRun: WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'],
+  workflowRun: WorkflowRunWithJobs
+): Promise<JobWithLogs[]> {
+  const jobs = workflowRun.jobs.filter(job => job.status === WorkflowJobStatus.Failure);
+  return await Promise.all(
+    jobs.map(async job => {
+      const maybeLogs = await fetchAndProcessLogsFromJobAsync({ graphqlClient }, job);
+      return { job, logs: maybeLogs ?? new Map() };
+    })
+  );
+}
+
+export function formatActiveWorkflowRun(
+  jobLogs: JobWithLogs[],
   maxLogLines: number = 5 // -1 means no limit
-): Promise<string> {
-  const statusLines = [];
+): string {
   const statusValues = [];
-  for (const job of workflowRun.jobs) {
+
+  for (const { job, logs } of jobLogs) {
     statusValues.push({ label: '', value: '' });
     statusValues.push({ label: '  Job', value: job.name });
     statusValues.push({ label: '  Status', value: descriptionForJobStatus(job.status) });
     if (job.status !== WorkflowJobStatus.InProgress) {
       continue;
     }
-    const logs = await fetchAndProcessLogsFromJobAsync({ graphqlClient }, job);
-    const steps = logs ? choicesFromWorkflowLogs(logs) : [];
-    if (steps.length > 0) {
-      const currentStep = steps[steps.length - 1];
-      statusValues.push({ label: '  Current step', value: currentStep.name });
-      if (currentStep?.logLines?.length) {
-        statusValues.push({ label: '  Current logs', value: '' });
-        const currentLogs =
-          currentStep.logLines
-            ?.map(line => line.msg)
-            .filter((_, index) => {
-              if (maxLogLines === -1) {
-                return true;
-              }
-              return index > (currentStep.logLines?.length ?? 0) - maxLogLines;
-            }) ?? [];
-        for (const log of currentLogs) {
-          statusValues.push({ label: '', value: log });
-        }
-      }
-    }
-  }
-  statusValues.push({ label: '', value: '' });
-  statusLines.push(formatFields(statusValues));
-  return statusLines.join('\n');
-}
-
-export async function infoForFailedWorkflowRunAsync(
-  graphqlClient: ExpoGraphqlClient,
-  workflowRun: WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'],
-  maxLogLines: number = -1 // -1 means no limit
-): Promise<string> {
-  const statusLines = [];
-  const statusValues = [];
-  const logLinesToKeep = maxLogLines === -1 ? Infinity : maxLogLines;
-  for (const job of workflowRun.jobs) {
-    if (job.status !== WorkflowJobStatus.Failure) {
+    const steps = choicesFromWorkflowLogs(logs);
+    if (steps.length === 0) {
       continue;
     }
-    const logs = await fetchAndProcessLogsFromJobAsync({ graphqlClient }, job);
-    const steps = logs ? choicesFromWorkflowLogs(logs) : [];
-    statusValues.push({ label: '', value: '' });
-    statusValues.push({ label: '  Failed job', value: job.name });
-    if (steps.length > 0) {
-      const failedStep = steps.find(step => step.status === 'fail' || step.status === 'failed');
-      if (failedStep) {
-        const logs = failedStep.logLines?.map(line => line.msg).slice(-logLinesToKeep) ?? [];
-        statusValues.push({ label: '  Failed step', value: failedStep.name });
-        statusValues.push({
-          label: '  Logs for failed step',
-          value: '',
-        });
-        for (const log of logs) {
-          statusValues.push({ label: '', value: log });
-        }
+    const currentStep = steps[steps.length - 1];
+    statusValues.push({ label: '  Current step', value: currentStep.name });
+    if (currentStep.logLines?.length) {
+      statusValues.push({ label: '  Current logs', value: '' });
+      for (const log of stepLogTail(currentStep, maxLogLines)) {
+        statusValues.push({ label: '', value: log });
       }
     }
   }
+
   statusValues.push({ label: '', value: '' });
-  statusLines.push(formatFields(statusValues));
-  return statusLines.join('\n');
+  return formatFields(statusValues);
 }
+
+export function formatFailedWorkflowRun(
+  jobLogs: JobWithLogs[],
+  maxLogLines: number = -1 // -1 means no limit
+): string {
+  const statusValues = [];
+
+  for (const { job, logs } of jobLogs) {
+    statusValues.push({ label: '', value: '' });
+    statusValues.push({ label: '  Failed job', value: job.name });
+    const steps = choicesFromWorkflowLogs(logs);
+    const failedStep = steps.find(step => step.status === 'fail' || step.status === 'failed');
+    if (!failedStep) {
+      continue;
+    }
+    statusValues.push({ label: '  Failed step', value: failedStep.name });
+    statusValues.push({ label: '  Logs for failed step', value: '' });
+    for (const log of stepLogTail(failedStep, maxLogLines)) {
+      statusValues.push({ label: '', value: log });
+    }
+  }
+
+  statusValues.push({ label: '', value: '' });
+  return formatFields(statusValues);
+}
+
 export async function fileExistsAsync(filePath: string): Promise<boolean> {
   return await fs.promises
     .access(filePath, fs.constants.F_OK)
@@ -312,65 +286,111 @@ export async function showWorkflowStatusAsync(
     stream: spinnerUsesStdErr ? process.stderr : process.stdout,
     text: '',
   }).start();
-  spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
+  updateSpinnerText(spinner, {
+    prefixText: chalk`{bold.yellow Workflow run is waiting to start:}`,
+  });
 
-  let failedFetchesCount = 0;
-
-  while (true) {
-    try {
-      const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
-        useCache: false,
-      });
-
-      failedFetchesCount = 0;
-
-      switch (workflowRun.status) {
-        case WorkflowRunStatus.New:
-          break;
-        case WorkflowRunStatus.InProgress: {
-          spinner.prefixText = chalk`{bold.green Workflow run is in progress:}`;
-          spinner.text = await infoForActiveWorkflowRunAsync(graphqlClient, workflowRun, 5);
-          break;
-        }
-        case WorkflowRunStatus.ActionRequired:
-          spinner.prefixText = chalk`{bold.yellow Workflow run is waiting for action:}`;
-          break;
-
-        case WorkflowRunStatus.Canceled:
-          spinner.prefixText = chalk`{bold.yellow Workflow has been canceled.}`;
-          spinner.stopAndPersist();
-          return workflowRun;
-
-        case WorkflowRunStatus.Failure: {
-          spinner.prefixText = chalk`{bold.red Workflow has failed.}`;
-          const failedInfo = await infoForFailedWorkflowRunAsync(graphqlClient, workflowRun, 30);
-          spinner.fail(failedInfo);
-          return workflowRun;
-        }
-        case WorkflowRunStatus.Success:
-          spinner.prefixText = chalk`{bold.green Workflow has completed successfully.}`;
-          spinner.text = '';
-          spinner.succeed('');
-          return workflowRun;
-      }
-      if (!waitForCompletion) {
-        if (spinner.isSpinning) {
-          spinner.stopAndPersist();
-        }
-        return workflowRun;
-      }
-    } catch {
-      spinner.text = '⚠ Failed to fetch the workflow run status. Check your network connection.';
-
-      failedFetchesCount += 1;
-
-      if (failedFetchesCount > 6) {
-        spinner.fail('Failed to fetch the workflow run status 6 times in a row. Aborting wait.');
-        process.exit(workflowRunExitCodes.WAIT_ABORTED);
-      }
+  const watcher = new WorkflowRunLogsWatcher(
+    graphqlClient,
+    () => createRealtimeLogsClient(graphqlClient),
+    () => {
+      renderActiveWorkflowRun();
     }
+  );
+  let failedFetchesCount = 0;
+  let renderActiveWorkflowRun = (): void => {};
 
-    await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
+  try {
+    while (true) {
+      try {
+        const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
+          useCache: false,
+        });
+
+        failedFetchesCount = 0;
+
+        switch (workflowRun.status) {
+          case WorkflowRunStatus.New:
+            break;
+          case WorkflowRunStatus.InProgress: {
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.green Workflow run is in progress:}`,
+            });
+            const logsStates = await watcher.syncJobsAsync(workflowRun.jobs);
+            for (const job of workflowRun.jobs) {
+              if (isJobCompleted(job.status)) {
+                nullthrows(
+                  logsStates.get(job.id),
+                  'syncJobsAsync must have been called before markCompleted'
+                ).markCompleted();
+              }
+            }
+            renderActiveWorkflowRun = () => {
+              const text = formatActiveWorkflowRun(
+                workflowRun.jobs.map(job => ({
+                  job,
+                  logs: nullthrows(
+                    logsStates.get(job.id),
+                    'syncJobsAsync must have been called before getLogs'
+                  ).getLogs(),
+                }))
+              );
+              updateSpinnerText(spinner, { text });
+            };
+            renderActiveWorkflowRun();
+            break;
+          }
+          case WorkflowRunStatus.ActionRequired:
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.yellow Workflow run is waiting for action:}`,
+            });
+            break;
+
+          case WorkflowRunStatus.Canceled:
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.yellow Workflow has been canceled.}`,
+            });
+            spinner.stopAndPersist();
+            return workflowRun;
+
+          case WorkflowRunStatus.Failure: {
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.red Workflow has failed.}`,
+            });
+            const jobLogs = await logsForFailedWorkflowRunAsync(graphqlClient, workflowRun);
+            spinner.fail(formatFailedWorkflowRun(jobLogs, 30));
+            return workflowRun;
+          }
+          case WorkflowRunStatus.Success:
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.green Workflow has completed successfully.}`,
+            });
+            spinner.succeed('');
+            return workflowRun;
+        }
+        if (!waitForCompletion) {
+          if (spinner.isSpinning) {
+            spinner.stopAndPersist();
+          }
+          return workflowRun;
+        }
+      } catch {
+        updateSpinnerText(spinner, {
+          text: '⚠ Failed to fetch the workflow run status. Check your network connection.',
+        });
+
+        failedFetchesCount += 1;
+
+        if (failedFetchesCount > 6) {
+          spinner.fail('Failed to fetch the workflow run status 6 times in a row. Aborting wait.');
+          process.exit(workflowRunExitCodes.WAIT_ABORTED);
+        }
+      }
+
+      await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
+    }
+  } finally {
+    watcher.close();
   }
 }
 

@@ -55,6 +55,7 @@ export const DeviceRunSessionQuery = {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
                   name
+                  tags
                   status
                   type
                   platform
@@ -86,19 +87,47 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionUrl
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
+                      webPreviewToken
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                     }
                     ... on ArgentRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       toolsUrl
                       toolsAuthToken
                       webPreviewUrl
+                      webPreviewToken
                     }
                     ... on AppiumRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       appiumUrl
                       capabilities
                       webPreviewUrl
+                      webPreviewToken
                     }
                     ... on ServeSimRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       previewUrl
+                      previewToken
+                    }
+                    ... on WebPreviewOnlyRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
+                      previewUrl: webPreviewUrl
+                      previewToken: webPreviewToken
                     }
                   }
                   turtleJobRun {
@@ -149,6 +178,7 @@ export const DeviceRunSessionQuery = {
                       node {
                         id
                         name
+                        tags
                         status
                         type
                         platform

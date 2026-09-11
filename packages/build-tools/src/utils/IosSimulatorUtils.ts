@@ -44,6 +44,32 @@ export namespace IosSimulatorUtils {
     };
   };
 
+  export type IosSimulatorRuntime = {
+    identifier: string;
+    isAvailable?: boolean;
+    version?: string;
+  };
+
+  type XcrunSimctlListRuntimesJsonOutput = {
+    runtimes: (Omit<IosSimulatorRuntime, 'identifier'> & { identifier?: string })[];
+  };
+
+  export async function getAvailableRuntimesAsync({
+    env,
+  }: {
+    env: NodeJS.ProcessEnv;
+  }): Promise<IosSimulatorRuntime[]> {
+    const { stdout } = await spawn('xcrun', ['simctl', 'list', 'runtimes', '--json'], { env });
+    const { runtimes } = JSON.parse(stdout) as XcrunSimctlListRuntimesJsonOutput;
+
+    return runtimes.flatMap(runtime =>
+      runtime.isAvailable !== false &&
+      runtime.identifier?.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-')
+        ? [{ ...runtime, identifier: runtime.identifier }]
+        : []
+    );
+  }
+
   export async function getAvailableDevicesAsync({
     env,
     filter,

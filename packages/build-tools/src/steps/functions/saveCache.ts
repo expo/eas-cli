@@ -103,6 +103,7 @@ export async function uploadCacheAsync({
   archivePath,
   size,
   platform,
+  force = false,
 }: {
   logger: bunyan;
   jobId: string;
@@ -113,6 +114,7 @@ export async function uploadCacheAsync({
   archivePath: string;
   size: number;
   platform: Platform | undefined;
+  force?: boolean;
 }): Promise<void> {
   const routerURL = platform
     ? 'v2/turtle-builds/caches/upload-sessions'
@@ -127,12 +129,14 @@ export async function uploadCacheAsync({
           key,
           version: getCacheVersion(paths),
           size,
+          force,
         })
       : JSON.stringify({
           jobRunId: jobId,
           key,
           version: getCacheVersion(paths),
           size,
+          force,
         }),
     headers: {
       Authorization: `Bearer ${robotAccessToken}`,

@@ -1,4 +1,4 @@
-import { AppObserveCustomEvent, PageInfo } from '../../graphql/generated';
+import { AppObserveUserEvent, PageInfo } from '../../graphql/generated';
 import {
   buildObserveCustomEventNamesTable,
   buildObserveCustomEventsEmptyWithSuggestionsJson,
@@ -7,11 +7,11 @@ import {
   buildObserveCustomEventsTable,
 } from '../formatCustomEvents';
 
-function makeCustomEvent(overrides: Partial<AppObserveCustomEvent> = {}): AppObserveCustomEvent {
+function makeCustomEvent(overrides: Partial<AppObserveUserEvent> = {}): AppObserveUserEvent {
   return {
-    __typename: 'AppObserveCustomEvent' as const,
+    __typename: 'AppObserveUserEvent' as const,
     id: 'evt-1',
-    eventName: 'my_event',
+    name: 'my_event',
     timestamp: '2025-01-15T10:30:00.000Z',
     appVersion: '1.0.0',
     appBuildNumber: '42',
@@ -21,7 +21,7 @@ function makeCustomEvent(overrides: Partial<AppObserveCustomEvent> = {}): AppObs
     easClientId: 'client-1',
     properties: [],
     ...overrides,
-  } as AppObserveCustomEvent;
+  } as AppObserveUserEvent;
 }
 
 const noNextPage: PageInfo = { hasNextPage: false, hasPreviousPage: false };
@@ -35,7 +35,7 @@ describe(buildObserveCustomEventsTable, () => {
   it('formats events into aligned columns', () => {
     const events = [
       makeCustomEvent({
-        eventName: 'login',
+        name: 'login',
         appVersion: '1.2.0',
         appBuildNumber: '42',
         deviceOs: 'iOS',
@@ -46,7 +46,7 @@ describe(buildObserveCustomEventsTable, () => {
       }),
       makeCustomEvent({
         id: 'evt-2',
-        eventName: 'checkout',
+        name: 'checkout',
         appVersion: '1.1.0',
         appBuildNumber: '38',
         deviceOs: 'Android',
@@ -73,7 +73,7 @@ Jan 14, 2025, 08:15:00.000 AM  checkout  1.1.0 (38)   Android 14  Pixel 8    PL 
   });
 
   it('shows event name in summary header when an event name option is provided', () => {
-    const events = [makeCustomEvent({ eventName: 'login' })];
+    const events = [makeCustomEvent({ name: 'login' })];
     const output = buildObserveCustomEventsTable(events, noNextPage, {
       eventName: 'login',
       daysBack: 30,
@@ -137,7 +137,7 @@ Jan 14, 2025, 08:15:00.000 AM  checkout  1.1.0 (38)   Android 14  Pixel 8    PL 
   });
 
   it('omits the Event column when an event name option is provided (single-event view)', () => {
-    const events = [makeCustomEvent({ eventName: 'login' })];
+    const events = [makeCustomEvent({ name: 'login' })];
     const output = buildObserveCustomEventsTable(events, noNextPage, {
       eventName: 'login',
     });
@@ -212,7 +212,7 @@ describe(buildObserveCustomEventsJson, () => {
     const events = [
       makeCustomEvent({
         id: 'evt-1',
-        eventName: 'login',
+        name: 'login',
         timestamp: '2025-01-15T10:30:00.000Z',
         sessionId: 'session-1',
         severityText: 'INFO',
@@ -239,7 +239,7 @@ describe(buildObserveCustomEventsJson, () => {
       events: [
         {
           id: 'evt-1',
-          eventName: 'login',
+          name: 'login',
           timestamp: '2025-01-15T10:30:00.000Z',
           sessionId: 'session-1',
           severityText: 'INFO',
@@ -299,8 +299,8 @@ describe(buildObserveCustomEventNamesTable, () => {
 
   it('shows event names with counts', () => {
     const output = buildObserveCustomEventNamesTable([
-      { __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 },
-      { __typename: 'AppObserveCustomEventName', eventName: 'bar', count: 5 },
+      { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
+      { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
     ]);
     expect(output).toContain('foo');
     expect(output).toContain('10');
@@ -310,7 +310,7 @@ describe(buildObserveCustomEventNamesTable, () => {
 
   it('appends a truncation notice when isTruncated is true', () => {
     const output = buildObserveCustomEventNamesTable(
-      [{ __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 }],
+      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
       { isTruncated: true }
     );
     expect(output).toContain('Result is truncated');
@@ -320,8 +320,8 @@ describe(buildObserveCustomEventNamesTable, () => {
 describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('shows the filtered event name and the available event names', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable('login', [
-      { __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 },
-      { __typename: 'AppObserveCustomEventName', eventName: 'bar', count: 5 },
+      { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
+      { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
     ]);
 
     expect(output).toContain('No events found matching "login"');
@@ -342,7 +342,7 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('appends a truncation notice when isTruncated is set', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
       'login',
-      [{ __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 }],
+      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
       { isTruncated: true }
     );
 
@@ -352,7 +352,7 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('includes the time range description in the message when provided', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
       'login',
-      [{ __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 }],
+      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
       { daysBack: 7 }
     );
 
@@ -365,8 +365,8 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsJson, () => {
     const result = buildObserveCustomEventsEmptyWithSuggestionsJson(
       'login',
       [
-        { __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 },
-        { __typename: 'AppObserveCustomEventName', eventName: 'bar', count: 5 },
+        { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
+        { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
       ],
       false
     );
@@ -375,8 +375,8 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsJson, () => {
       filteredEventName: 'login',
       events: [],
       availableEventNames: [
-        { eventName: 'foo', count: 10 },
-        { eventName: 'bar', count: 5 },
+        { name: 'foo', count: 10 },
+        { name: 'bar', count: 5 },
       ],
       availableEventNamesIsTruncated: false,
     });

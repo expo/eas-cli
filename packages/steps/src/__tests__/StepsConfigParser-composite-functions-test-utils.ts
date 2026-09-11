@@ -2,6 +2,7 @@ import { CompositeFunctionCatalog, CompositeFunctionConfigZ, Step } from '@expo/
 
 import { createGlobalContextMock } from './utils/context';
 import { BuildFunction } from '../BuildFunction';
+import { BuildStepGlobalContext } from '../BuildStepContext';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
@@ -23,8 +24,9 @@ export async function parseCompositeFunctions(options: {
   steps: Step[];
   externalFunctions?: BuildFunction[];
   externalFunctionGroups?: BuildFunctionGroup[];
+  ctx?: BuildStepGlobalContext;
 }): Promise<BuildWorkflow> {
-  const ctx = createGlobalContextMock();
+  const ctx = options.ctx ?? createGlobalContextMock();
   const parser = new StepsConfigParser(ctx, {
     steps: options.steps,
     hooks: undefined,
