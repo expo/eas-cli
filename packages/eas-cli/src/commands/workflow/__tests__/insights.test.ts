@@ -113,14 +113,14 @@ describe(WorkflowInsights, () => {
     return { command, getContextAsync };
   }
 
-  it('queries the last 7 days by day with no filters and the default limit', async () => {
+  it('queries the last 7 days by whole days with no filters and the default limit', async () => {
     const { command } = createCommand([]);
     await command.runAsync();
 
     expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'app-1',
-      startTime: '2026-09-01T12:00:00.000Z',
-      endTime: '2026-09-08T12:00:00.000Z',
+      startTime: '2026-09-01T00:00:00.000Z',
+      endTime: '2026-09-09T00:00:00.000Z',
       filters: undefined,
       granularity: 'DAY',
       first: 50,
@@ -150,6 +150,40 @@ describe(WorkflowInsights, () => {
         granularity: 'MINUTE',
       })
     );
+  });
+
+  // Four days is exactly the longest window the server accepts hourly buckets for, so widening
+  // to whole hours would push it past that limit.
+  it('drops --days 4 to whole days when the clock is not on the hour', async () => {
+    jest.setSystemTime(new Date('2026-09-08T12:20:30.000Z'));
+    const { command } = createCommand(['--days', '4']);
+    await command.runAsync();
+
+    expect(mockByAppIdAsync).toHaveBeenLastCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        startTime: '2026-09-04T00:00:00.000Z',
+        endTime: '2026-09-09T00:00:00.000Z',
+        granularity: 'DAY',
+      })
+    );
+  });
+
+  // --json redirects stdout by swapping process.stdout.write, so it has to be in place before
+  // anything that can log — including the error this range triggers.
+  it('rejects a backwards explicit range after enabling JSON output and before resolving context', async () => {
+    const { command, getContextAsync } = createCommand([
+      '--json',
+      '--non-interactive',
+      '--start',
+      '2026-09-08T11:00:45.000Z',
+      '--end',
+      '2026-09-08T11:00:15.000Z',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(/requested time range is empty/);
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(getContextAsync).not.toHaveBeenCalled();
+    expect(mockByAppIdAsync).not.toHaveBeenCalled();
   });
 
   it('rejects --end without --start', async () => {
@@ -238,7 +272,10 @@ describe(WorkflowInsights, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     const json = mockPrintJsonOnlyOutput.mock.calls[0][0] as any;
     expect(json.project).toBe('@acme/app');
-    expect(json.timespan.daysBack).toBe(7);
+    expect(json.timespan).toEqual({
+      start: '2026-09-01T00:00:00.000Z',
+      end: '2026-09-09T00:00:00.000Z',
+    });
     expect(json.overview.totalRuns).toEqual({ current: 100, previous: 80 });
     expect(json.overview.successRatePercent).toEqual({ current: 75, previous: 80 });
     expect(json.runsOverTime.granularity).toBe('DAY');

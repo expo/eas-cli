@@ -20,7 +20,7 @@ import {
   buildWorkflowsInsightsTable,
   toWorkflowsInsightsSummary,
 } from '../../workflow/insights/formatInsights';
-import { granularityForTimespan } from '../../workflow/insights/granularity';
+import { alignInsightsTimespan } from '../../workflow/insights/granularity';
 import { withWorkflowsInsightsPlanGateHandlingAsync } from '../../workflow/insights/planGating';
 
 const DEFAULT_WORKFLOWS_LIMIT = 50;
@@ -90,8 +90,11 @@ export default class WorkflowInsights extends EasCommand {
     const { flags } = await this.parse(WorkflowInsights);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const timespan = resolveInsightsTimeRange(flags);
-    const granularity = granularityForTimespan(timespan.startTime, timespan.endTime);
+    if (json) {
+      enableJsonOutput();
+    }
+
+    const { timespan, granularity } = alignInsightsTimespan(resolveInsightsTimeRange(flags));
 
     const {
       projectId,
@@ -100,10 +103,6 @@ export default class WorkflowInsights extends EasCommand {
       nonInteractive,
       projectIdOverride: flags['project-id'],
     });
-
-    if (json) {
-      enableJsonOutput();
-    }
 
     const filters = await resolveWorkflowsInsightsFiltersInputAsync(
       graphqlClient,

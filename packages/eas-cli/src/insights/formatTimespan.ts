@@ -1,8 +1,11 @@
 import dateFormat from 'dateformat';
 
-export interface InsightsTimespanFields {
+export interface InsightsTimespanBounds {
   startTime: string;
   endTime: string;
+}
+
+export interface InsightsTimespanFields extends InsightsTimespanBounds {
   daysBack?: number;
 }
 

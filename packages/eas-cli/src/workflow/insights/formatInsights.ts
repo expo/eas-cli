@@ -292,7 +292,7 @@ function formatCount(
   metric: WorkflowsInsightsMetricSummary,
   options?: { lowerIsBetter?: boolean }
 ): string {
-  return `${metric.current.toLocaleString()}  ${formatTrend(metric, options)}`;
+  return `${metric.current.toLocaleString()} (${formatTrend(metric, options)})`;
 }
 
 function formatSuccessRate(
@@ -303,10 +303,10 @@ function formatSuccessRate(
     return chalk.dim('n/a');
   }
   if (totalRuns.previous === 0) {
-    return `${formatPercent(successRate.current)}  ${chalk.dim('n/a')}`;
+    return `${formatPercent(successRate.current)} (${chalk.dim('n/a')})`;
   }
   const delta = successRate.current - successRate.previous;
-  return `${formatPercent(successRate.current)}  ${formatSignedChange(delta, ' pts', delta > 0)}`;
+  return `${formatPercent(successRate.current)} (${formatSignedChange(delta, ' pts', delta > 0)})`;
 }
 
 /** `n/a` when the previous period had no data, since a change from zero has no meaningful percentage. */

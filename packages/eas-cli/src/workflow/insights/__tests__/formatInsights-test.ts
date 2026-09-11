@@ -103,10 +103,11 @@ function makeApp(
   };
 }
 
+// The command widens the requested window out to whole buckets and drops daysBack, so a summary
+// always carries bounds only.
 const TIMESPAN = {
   startTime: '2026-08-26T00:00:00.000Z',
   endTime: '2026-09-02T00:00:00.000Z',
-  daysBack: 7,
 };
 
 function makeSummary(
@@ -212,7 +213,6 @@ describe(buildWorkflowsInsightsJson, () => {
     expect(json.timespan).toEqual({
       start: TIMESPAN.startTime,
       end: TIMESPAN.endTime,
-      daysBack: 7,
     });
     expect(json.filters).toBeUndefined();
     expect(json.overview.successRatePercent).toEqual({ current: 75, previous: 80 });
@@ -232,9 +232,9 @@ describe(buildWorkflowsInsightsJson, () => {
     expect(json.hasMoreWorkflows).toBe(false);
   });
 
-  it('omits daysBack for explicit ranges and includes the applied filters', () => {
+  it('includes the applied filters', () => {
     const summary = toWorkflowsInsightsSummary(makeApp(), {
-      timespan: { startTime: TIMESPAN.startTime, endTime: TIMESPAN.endTime },
+      timespan: TIMESPAN,
       granularity: WorkflowsInsightsRunsOverTimeGranularity.Day,
       filters: { workflows: ['build.yml'], gitRef: 'refs/heads/main' },
     });
@@ -251,7 +251,7 @@ describe(buildWorkflowsInsightsTable, () => {
 
     expect(table).toContain('Workflows insights:');
     expect(table).toContain('@acme/app');
-    expect(table).toContain('last 7 days');
+    expect(table).toContain('2026-08-26 to 2026-09-02');
     expect(table).toContain('Total runs');
     expect(table).toContain('+25.0%');
     expect(table).toContain('Success rate');

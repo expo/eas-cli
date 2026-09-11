@@ -38,4 +38,16 @@ describe(resolveTimeRange, () => {
   it('rejects an invalid --start date', () => {
     expect(() => resolveTimeRange({ start: 'yesterday' })).toThrow(/Invalid --start date/);
   });
+
+  it('rejects a range that ends before it starts', () => {
+    expect(() =>
+      resolveTimeRange({ start: '2026-08-02T00:00:00.000Z', end: '2026-08-01T00:00:00.000Z' })
+    ).toThrow(/requested time range is empty/);
+  });
+
+  it('rejects a zero-length range', () => {
+    expect(() =>
+      resolveTimeRange({ start: '2026-08-01T00:00:00.000Z', end: '2026-08-01T00:00:00.000Z' })
+    ).toThrow(/requested time range is empty/);
+  });
 });

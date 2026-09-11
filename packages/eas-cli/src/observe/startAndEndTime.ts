@@ -48,5 +48,13 @@ export function resolveTimeRange(flags: { days?: number; start?: string; end?: s
     end: flags.end,
   });
 
+  // Reachable by swapping --start and --end, or by passing a --start in the future, since --end
+  // defaults to now.
+  if (new Date(startTime) >= new Date(endTime)) {
+    throw new EasCommandError(
+      `The requested time range is empty: --start (${startTime}) must be earlier than the end of the range (${endTime}). Pass a --start earlier than the end, or use --days instead.`
+    );
+  }
+
   return { daysBack, startTime, endTime };
 }
