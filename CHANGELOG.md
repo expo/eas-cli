@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Report the expo.dev preview page as a simulator session's preview URL, and the preview server behind it as `previewApiUrl`. ([#4353](https://github.com/expo/eas-cli/pull/4353) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
