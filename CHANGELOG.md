@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Regenerate GraphQL types and update Observe tests for the new `firstSeenAt` and `lastSeenAt` event-name fields. ([#4379](https://github.com/expo/eas-cli/pull/4379) by [@wschurman](https://github.com/wschurman))
+
 ## [24.3.0](https://github.com/expo/eas-cli/releases/tag/v24.3.0) - 2026-09-11
 
 ### 🎉 New features
