@@ -17,6 +17,7 @@ import {
   stopLocalEgressResourcesAsync,
   writeLocalEgressHandoffAsync,
 } from '../utils/localEgress';
+import { stopLocalEgressGuardRelaysAsync } from '../utils/localEgressGuard';
 import {
   type DetachedProcessHandle,
   type NgrokTunnelHandle,
@@ -75,10 +76,10 @@ function awaitLocalEgressAcquisitionAsync<T>(
 /**
  * Points the device host's system HTTP(S) proxy at the EAS CLI's egress client.
  * Must run before `eas/start_ios_simulator`: the simulator reads the system proxy
- * at boot. Once a simulator is ready, `eas/start_ios_simulator` also sets proxy
- * environment variables inside it for clients that read them (gRPC, libcurl).
- * Libraries that ignore both are not covered; the shared session monitor
- * reports them. The shared session cleanup releases the resources started here when
+ * at boot. Once a simulator boots, `eas/start_ios_simulator` also sets proxy
+ * environment variables inside it for clients that read them (gRPC, libcurl)
+ * and installs the local egress guard, which refuses connections that ignore
+ * both. The shared session cleanup releases the resources started here when
  * the session ends, with a job finalizer as a fallback.
  */
 export function createStartLocalEgressBuildFunction(): BuildFunction {
@@ -103,6 +104,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
       const lifetimeSignal = registerLocalEgressResources(async () => {
         await setupFinished;
         const results = await Promise.allSettled([
+          Promise.resolve().then(() => stopLocalEgressGuardRelaysAsync(logger)),
           Promise.resolve().then(() => tunnel?.stopAsync()),
           Promise.resolve().then(() => server?.stopAsync()),
         ]);
@@ -185,10 +187,9 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           `Local egress is configured on network service "${service}". HTTP(S) and WebSocket ` +
             'requests that honor the system proxy (WebKit, URLSession and other CFNetwork clients) ' +
             'fail until the EAS CLI egress client connects, then exit from that machine. Once the ' +
-            'Simulator is ready, proxy environment variables are set inside it for clients that read ' +
-            'them (gRPC, libcurl). Requests from libraries that ignore both are not covered and exit ' +
-            'from this worker. ' +
-            'Connection sampling may report these bypasses, but can miss short connections and unconnected UDP traffic.'
+            'Simulator boots, proxy environment variables are set inside it for clients that read ' +
+            'them (gRPC, libcurl), and the local egress guard is installed so that connections which ' +
+            'ignore both are refused in the process that makes them and reported here.'
         );
       } catch (error) {
         finishSetup();

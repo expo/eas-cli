@@ -8,6 +8,7 @@ import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
 
 import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
+import { installLocalEgressGuardAsync } from '../utils/localEgressGuard';
 
 import {
   IosSimulatorName,
@@ -79,6 +80,10 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         deviceIdentifier: originalDeviceIdentifier,
         env,
       });
+      // Right after boot, before anything else waits: processes launched from
+      // here on inherit launchd's environment, so the earlier the better.
+      await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
+      await installLocalEgressGuardAsync({ udid, env, logger });
 
       try {
         await IosSimulatorUtils.disableApsdAsync({ udid, env });
@@ -87,7 +92,6 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
 
       await IosSimulatorUtils.waitForReadyAsync({ udid, env });
-      await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
 
       logger.info('');
 
@@ -123,6 +127,8 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             deviceIdentifier: cloneDeviceName,
             env,
           });
+          await configureSimulatorProxyEnvironmentAsync({ udid: cloneUdid, env, logger });
+          await installLocalEgressGuardAsync({ udid: cloneUdid, env, logger });
 
           try {
             await IosSimulatorUtils.disableApsdAsync({ udid: cloneUdid, env });
@@ -134,7 +140,6 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             udid: cloneUdid,
             env,
           });
-          await configureSimulatorProxyEnvironmentAsync({ udid: cloneUdid, env, logger });
 
           logger.info(`${cloneDeviceName} is ready.`);
           logger.info('');

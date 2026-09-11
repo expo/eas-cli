@@ -24,6 +24,8 @@
     "prebuild": "yarn gql",
     "build": "tsc",
     "build:record-sim": "mkdir -p bin && record_sim_bin_path=$(swift build -c release --package-path resources/record-sim --build-path resources/record-sim/.build --show-bin-path) && swift build -c release --package-path resources/record-sim --build-path resources/record-sim/.build && cp \"$record_sim_bin_path/record-sim\" bin/record-sim && chmod +x bin/record-sim",
+    "build:egress-guard": "resources/egress-guard/build.sh",
+    "test:egress-guard": "resources/egress-guard/tests/run-policy-tests.sh",
     "typecheck": "tsc",
     "generate-appium-commands": "mise exec node@22.22.0 -- node scripts/generate-appium-commands.js",
     "prepack": "rimraf dist \"*.tsbuildinfo\" && yarn gql && tsc -p tsconfig.build.json",

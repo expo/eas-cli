@@ -4,6 +4,7 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { configureSimulatorProxyEnvironmentAsync } from '../../utils/localEgress';
+import { installLocalEgressGuardAsync } from '../../utils/localEgressGuard';
 import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -26,10 +27,14 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 jest.mock('../../utils/localEgress', () => ({
   configureSimulatorProxyEnvironmentAsync: jest.fn(),
 }));
+jest.mock('../../utils/localEgressGuard', () => ({
+  installLocalEgressGuardAsync: jest.fn(),
+}));
 
 const mockedSpawn = jest.mocked(spawn);
 const mockedUtils = jest.mocked(IosSimulatorUtils);
 const mockedConfigureProxyEnvironment = jest.mocked(configureSimulatorProxyEnvironmentAsync);
+const mockedInstallGuard = jest.mocked(installLocalEgressGuardAsync);
 
 function createStep(callInputs?: Record<string, unknown>) {
   const logger = createMockLogger();
@@ -51,6 +56,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     mockedUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedUtils.disableApsdAsync.mockResolvedValue(undefined);
     mockedConfigureProxyEnvironment.mockResolvedValue(false);
+    mockedInstallGuard.mockResolvedValue(false);
   });
 
   it('does not enable accessibility settings by default', async () => {
@@ -117,7 +123,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     });
   });
 
-  it('configures the local egress proxy environment once each device is ready', async () => {
+  it('configures the local egress proxy environment and guard as soon as each device boots, before readiness', async () => {
     mockedUtils.startAsync
       .mockResolvedValueOnce({ udid: 'base' as any })
       .mockResolvedValueOnce({ udid: 'clone-1' as any })
@@ -125,16 +131,20 @@ describe(createStartIosSimulatorBuildFunction, () => {
 
     await createStep({ device_identifier: 'iPhone 15', count: 2 }).executeAsync();
 
-    expect(mockedConfigureProxyEnvironment.mock.calls.map(([{ udid }]) => udid)).toEqual([
-      'base',
-      'clone-1',
-      'clone-2',
-    ]);
-    for (const [callIndex] of mockedConfigureProxyEnvironment.mock.calls.entries()) {
-      const readyCallOrder = mockedUtils.waitForReadyAsync.mock.invocationCallOrder[callIndex];
-      const configureCallOrder =
-        mockedConfigureProxyEnvironment.mock.invocationCallOrder[callIndex];
-      expect(configureCallOrder).toBeGreaterThan(readyCallOrder);
+    const udids = ['base', 'clone-1', 'clone-2'];
+    expect(mockedConfigureProxyEnvironment.mock.calls.map(([{ udid }]) => udid)).toEqual(udids);
+    expect(mockedInstallGuard.mock.calls.map(([{ udid }]) => udid)).toEqual(udids);
+    for (const [callIndex] of udids.entries()) {
+      const startOrder = mockedUtils.startAsync.mock.invocationCallOrder[callIndex];
+      const configureOrder = mockedConfigureProxyEnvironment.mock.invocationCallOrder[callIndex];
+      const guardOrder = mockedInstallGuard.mock.invocationCallOrder[callIndex];
+      const readyOrder = mockedUtils.waitForReadyAsync.mock.invocationCallOrder[callIndex];
+      // Daemons launched during boot inherit launchd's environment, so both run
+      // right after the boot returns and before anything else waits.
+      expect(configureOrder).toBeGreaterThan(startOrder);
+      expect(guardOrder).toBeGreaterThan(startOrder);
+      expect(configureOrder).toBeLessThan(readyOrder);
+      expect(guardOrder).toBeLessThan(readyOrder);
     }
   });
 
