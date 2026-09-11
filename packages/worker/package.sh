@@ -99,6 +99,7 @@ popd >/dev/null 2>&1
 
 if [[ "$PLATFORM" != "ios" ]]; then
   rm -f "$target_root_dir/packages/build-tools/bin/record-sim"
+  rm -f "$target_root_dir/packages/build-tools/bin/egress-guard.dylib"
 fi
 
 if [[ "$PLATFORM" == "ios" ]]; then
@@ -116,6 +117,10 @@ if [[ "$PLATFORM" == "ios" ]]; then
     --build-path "$record_sim_build_dir"
   cp "$record_sim_bin_path/record-sim" "$record_sim_bin_dir/record-sim"
   chmod +x "$record_sim_bin_dir/record-sim"
+
+  # The local egress guard, injected into simulator processes; see
+  # packages/build-tools/resources/egress-guard/README.md.
+  "$ROOT_DIR/packages/build-tools/resources/egress-guard/build.sh" "$record_sim_bin_dir"
 
   # build plugin
   pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1

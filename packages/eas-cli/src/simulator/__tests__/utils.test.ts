@@ -68,9 +68,26 @@ describe('local egress configuration', () => {
     expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Keep it running for the life of the session.');
     expect(instructions).not.toContain('It can also reach');
+    expect(instructions).toContain(
+      'Connections that bypass the proxy are refused inside the simulator. The Logs section of the session page lists what was refused and which library tried.'
+    );
     expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
       "export EAS_SIMULATOR_EGRESS_ALLOW=''"
     );
+  });
+
+  it('links the session page when it is known, so refusals can be found', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+      sessionUrl: 'https://expo.dev/accounts/a/projects/p/simulator-sessions/s',
+    });
+    // The link is rendered with terminal styling, so check the phrase and the URL apart.
+    expect(instructions).toContain('lists what was refused and which library tried: ');
+    expect(instructions).toContain('https://expo.dev/accounts/a/projects/p/simulator-sessions/s');
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv', {
+        sessionUrl: 'https://expo.dev/x',
+      })
+    ).not.toContain('refused');
   });
 
   it('says nothing about starting the client when it runs inline', () => {

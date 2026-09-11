@@ -4,10 +4,16 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
+import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
 
 import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
+import {
+  installLocalEgressGuardAsync,
+  resolveLocalEgressBootEnvironmentAsync,
+  verifyLocalEgressGuardAsync,
+} from '../utils/localEgressGuard';
 
 import {
   IosSimulatorName,
@@ -75,9 +81,10 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
           env,
         });
       }
-      const { udid } = await IosSimulatorUtils.startAsync({
+      const udid = await bootWithLocalEgressAsync({
         deviceIdentifier: originalDeviceIdentifier,
         env,
+        logger,
       });
 
       try {
@@ -87,7 +94,6 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
 
       await IosSimulatorUtils.waitForReadyAsync({ udid, env });
-      await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
 
       logger.info('');
 
@@ -119,9 +125,10 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
               env,
             });
           }
-          const { udid: cloneUdid } = await IosSimulatorUtils.startAsync({
+          const cloneUdid = await bootWithLocalEgressAsync({
             deviceIdentifier: cloneDeviceName,
             env,
+            logger,
           });
 
           try {
@@ -134,7 +141,6 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             udid: cloneUdid,
             env,
           });
-          await configureSimulatorProxyEnvironmentAsync({ udid: cloneUdid, env, logger });
 
           logger.info(`${cloneDeviceName} is ready.`);
           logger.info('');
@@ -142,6 +148,43 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+/**
+ * Boot a device with the local egress environment in place before anything
+ * inside it starts. `simctl boot` returns once the simulator's launchd is up
+ * and before it has spawned anything else, which is the only moment at which
+ * launchd environment reaches every process of the boot. The proxy variables
+ * and the guard are set in that gap; then the boot is waited for and the
+ * guard is verified in a fresh process. Nothing here applies when no local
+ * egress session is active.
+ */
+async function bootWithLocalEgressAsync({
+  deviceIdentifier,
+  env,
+  logger,
+}: {
+  deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<IosSimulatorUuid> {
+  const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
+  // The guard and proxy variables ride the boot itself, so launchd has them
+  // before it spawns its first process.
+  const launchdEnvironment = await resolveLocalEgressBootEnvironmentAsync();
+  await IosSimulatorUtils.bootAsync({
+    deviceIdentifier: udid,
+    env,
+    launchdEnvironment: launchdEnvironment ?? {},
+  });
+  // Also set them through launchctl, for a device that was already booted.
+  const guardInstalled = await installLocalEgressGuardAsync({ udid, env, logger });
+  await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
+  await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
+  if (guardInstalled) {
+    await verifyLocalEgressGuardAsync({ udid, env, logger });
+  }
+  return udid;
 }
 
 async function findMostGenericIphoneUuidAsync({

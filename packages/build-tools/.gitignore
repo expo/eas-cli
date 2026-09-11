@@ -8,3 +8,5 @@ bin/record-sim
 
 src/graphql-env.d.ts
 schema.graphql
+bin/egress-guard.dylib
+bin/egress-guard-check
