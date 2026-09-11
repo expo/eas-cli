@@ -6,18 +6,23 @@ import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../../../commandUtils/errors';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
+import { SupabaseMutation } from '../../../../graphql/mutations/SupabaseMutation';
 import { SupabaseQuery } from '../../../../graphql/queries/SupabaseQuery';
 import {
   SupabaseAdvisorLintData,
   SupabaseAdvisorLintLevel,
   SupabaseAdvisorLintsData,
+  SupabaseAdvisorType,
 } from '../../../../graphql/types/SupabaseConnection';
+import { authorizeViaBrowserAsync } from '../../../../integrations/supabase/provision';
+import { getOwnerAccountForProjectIdAsync } from '../../../../project/projectUtils';
 import Log from '../../../../log';
 import { confirmAsync } from '../../../../prompts';
 import { printJsonOnlyOutput } from '../../../../utils/json';
 import IntegrationsSupabaseAdvisors from '../advisors';
 
 jest.mock('../../../../graphql/queries/SupabaseQuery');
+jest.mock('../../../../graphql/mutations/SupabaseMutation');
 jest.mock('../../../../log', () => {
   const actual = jest.requireActual('../../../../log');
   return {
@@ -28,6 +33,8 @@ jest.mock('../../../../log', () => {
 });
 jest.mock('../../../../utils/json');
 jest.mock('../../../../prompts');
+jest.mock('../../../../integrations/supabase/provision');
+jest.mock('../../../../project/projectUtils');
 jest.mock('../../../../ora', () => ({
   ora: jest.fn(() => ({
     start: jest.fn().mockReturnThis(),
@@ -98,6 +105,16 @@ describe(IntegrationsSupabaseAdvisors, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .mocked(authorizeViaBrowserAsync)
+      .mockResolvedValue({ supabaseOrganizationSlug: 'original-org' } as never);
+    jest
+      .mocked(getOwnerAccountForProjectIdAsync)
+      .mockResolvedValue({ id: 'account-1', name: 'test' } as never);
+    jest.mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).mockResolvedValue({
+      updatedAt: '2024-01-01',
+      supabaseOrganizationSlug: 'original-org',
+    } as never);
     jest.spyOn(Log, 'log').mockImplementation(() => {});
     jest.spyOn(Log, 'warn').mockImplementation(() => {});
     jest.spyOn(Log, 'newLine').mockImplementation(() => {});
@@ -122,7 +139,8 @@ describe(IntegrationsSupabaseAdvisors, () => {
 
     expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledWith(
       graphqlClient,
-      testProjectId
+      testProjectId,
+      [SupabaseAdvisorType.Security, SupabaseAdvisorType.Performance]
     );
     const output = loggedOutput();
     expect(output).toContain('Security: 1 error');
@@ -144,6 +162,11 @@ describe(IntegrationsSupabaseAdvisors, () => {
     const output = loggedOutput();
     expect(output).toContain('Security: 1 error');
     expect(output).not.toContain('Performance');
+    expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      testProjectId,
+      [SupabaseAdvisorType.Security]
+    );
   });
 
   it('prints structured findings with --json', async () => {
@@ -173,7 +196,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('No Supabase project'));
   });
 
-  it('offers to re-authorize, runs connect --reauth, and retries when accepted', async () => {
+  it('offers to re-authorize, refreshes OAuth in place, and retries when accepted', async () => {
     mockReauthorizationRequiredOnce();
     jest.mocked(confirmAsync).mockResolvedValue(true);
 
@@ -182,13 +205,31 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(confirmAsync).toHaveBeenCalledWith(
       expect.objectContaining({ message: expect.stringContaining('Re-authorize Supabase') })
     );
-    expect(runCommand).toHaveBeenCalledWith('integrations:supabase:connect', [
-      '--reauth',
-      '--link',
-      'abcdefghijklmnop',
-    ]);
+    expect(authorizeViaBrowserAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      { id: 'account-1', name: 'test' },
+      false,
+      '2024-01-01'
+    );
+    expect(runCommand).not.toHaveBeenCalled();
     expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledTimes(2);
     expect(loggedOutput()).toContain('Security: 1 error');
+  });
+
+  it('preserves the selected organization when OAuth defaults to a different one', async () => {
+    mockReauthorizationRequiredOnce();
+    jest.mocked(confirmAsync).mockResolvedValue(true);
+    jest
+      .mocked(authorizeViaBrowserAsync)
+      .mockResolvedValue({ id: 'connection-1', supabaseOrganizationSlug: 'other-org' } as never);
+    await createCommand([]).runAsync();
+    expect(SupabaseMutation.setSupabaseConnectionOrganizationAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        supabaseConnectionId: 'connection-1',
+        organizationSlug: 'original-org',
+      }
+    );
   });
 
   it('stops with the reauth command when the user declines to re-authorize', async () => {
@@ -196,7 +237,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     jest.mocked(confirmAsync).mockResolvedValue(false);
 
     await expect(createCommand([]).runAsync()).rejects.toThrow(
-      'eas integrations:supabase:connect --reauth'
+      'eas integrations:supabase:advisors'
     );
     expect(runCommand).not.toHaveBeenCalled();
   });
@@ -207,5 +248,28 @@ describe(IntegrationsSupabaseAdvisors, () => {
     await expect(createCommand(['--non-interactive']).runAsync()).rejects.toThrow(EasCommandError);
     expect(confirmAsync).not.toHaveBeenCalled();
     expect(runCommand).not.toHaveBeenCalled();
+  });
+  it('distinguishes unavailable advisors from clean results', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync)
+      .mockResolvedValue({ ...mockResult, security: null, performance: [] });
+    await createCommand([]).runAsync();
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Security advisors are unavailable')
+    );
+    expect(loggedOutput()).toContain('Performance: no unresolved findings');
+    expect(loggedOutput()).not.toContain('Security: no unresolved findings');
+  });
+
+  it('does not reauthorize when the project is unlinked during the request', async () => {
+    jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockResolvedValue(null);
+    await createCommand(['--json']).runAsync();
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+      project: null,
+      security: null,
+      performance: null,
+    });
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(authorizeViaBrowserAsync).not.toHaveBeenCalled();
   });
 });

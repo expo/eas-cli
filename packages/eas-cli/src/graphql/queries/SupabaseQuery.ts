@@ -4,9 +4,13 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  SupabaseAdvisorLintData,
+  SupabaseAdvisorLintsByAppIdQuery,
+  SupabaseAdvisorLintsByAppIdQueryVariables,
+} from '../generated';
+import {
   SupabaseAdvisorLintFragmentNode,
   SupabaseAdvisorLintsData,
+  SupabaseAdvisorType,
   SupabaseConnectionData,
   SupabaseConnectionFragmentNode,
   SupabaseProjectData,
@@ -27,20 +31,6 @@ type SupabaseProjectByAppIdQuery = {
     byId: {
       id: string;
       supabaseProject?: SupabaseProjectData | null;
-    };
-  };
-};
-
-type SupabaseAdvisorLintsByAppIdQuery = {
-  app: {
-    byId: {
-      id: string;
-      supabaseProject?:
-        | (SupabaseProjectData & {
-            security?: SupabaseAdvisorLintData[] | null;
-            performance?: SupabaseAdvisorLintData[] | null;
-          })
-        | null;
     };
   };
 };
@@ -114,23 +104,31 @@ export const SupabaseQuery = {
 
   async getSupabaseAdvisorLintsByAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string
+    appId: string,
+    types: readonly SupabaseAdvisorType[] = [
+      SupabaseAdvisorType.Security,
+      SupabaseAdvisorType.Performance,
+    ]
   ): Promise<SupabaseAdvisorLintsData | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<SupabaseAdvisorLintsByAppIdQuery, { appId: string }>(
+        .query<SupabaseAdvisorLintsByAppIdQuery, SupabaseAdvisorLintsByAppIdQueryVariables>(
           gql`
-            query SupabaseAdvisorLintsByAppId($appId: String!) {
+            query SupabaseAdvisorLintsByAppId(
+              $appId: String!
+              $security: Boolean!
+              $performance: Boolean!
+            ) {
               app {
                 byId(appId: $appId) {
                   id
                   supabaseProject {
                     id
                     ...SupabaseProjectFragment
-                    security: advisorLints(type: SECURITY) {
+                    security: advisorLints(type: SECURITY) @include(if: $security) {
                       ...SupabaseAdvisorLintFragment
                     }
-                    performance: advisorLints(type: PERFORMANCE) {
+                    performance: advisorLints(type: PERFORMANCE) @include(if: $performance) {
                       ...SupabaseAdvisorLintFragment
                     }
                   }
@@ -140,7 +138,11 @@ export const SupabaseQuery = {
             ${print(SupabaseProjectFragmentNode)}
             ${print(SupabaseAdvisorLintFragmentNode)}
           `,
-          { appId },
+          {
+            appId,
+            security: types.includes(SupabaseAdvisorType.Security),
+            performance: types.includes(SupabaseAdvisorType.Performance),
+          },
           { additionalTypenames: ['App', 'SupabaseProject'], requestPolicy: 'network-only' }
         )
         .toPromise()

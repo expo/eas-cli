@@ -119,7 +119,7 @@ describe('SupabaseQuery', () => {
     ).resolves.toEqual({ project, security: [lint], performance: null });
     expect(client.query).toHaveBeenCalledWith(
       expect.anything(),
-      { appId: 'app-1' },
+      { appId: 'app-1', security: true, performance: true },
       expect.objectContaining({ requestPolicy: 'network-only' })
     );
   });
