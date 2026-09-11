@@ -215,11 +215,29 @@ function getControllerEnvironmentVariables(
 
 type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
+function previewUrlIsWebsitePage(remoteConfig: DeviceRunSessionRemoteConfig): boolean {
+  return remoteConfig.previewApiUrl != null;
+}
+
 /**
- * Preview link for a session. A gated serve-sim needs the session token, and a browser cannot send
- * a header on a page load, so it rides the query. serve-sim swaps it for a cookie on the first load.
+ * Preview link for a session. A gated preview needs the session token, and a browser cannot send
+ * a header on a page load. The expo.dev preview page reads it from the fragment, which no request
+ * carries; a preview server reads it from the query and swaps it for a cookie on the first load.
  */
-export function formatPreviewUrl(url: string, token: string | null | undefined): string {
+export function formatPreviewUrl(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined
+): string {
+  if (!token || !previewUrlIsWebsitePage(remoteConfig)) {
+    return formatPreviewApiUrl(url, token);
+  }
+  const withToken = new URL(url);
+  withToken.hash = new URLSearchParams({ token }).toString();
+  return withToken.toString();
+}
+
+function formatPreviewApiUrl(url: string, token: string | null | undefined): string {
   if (!token) {
     return url;
   }
@@ -229,9 +247,9 @@ export function formatPreviewUrl(url: string, token: string | null | undefined):
 }
 
 /**
- * Remote config for `--json`. The preview URL carries the token and the standalone token field is
- * dropped, so a consumer gets one URL that works rather than a bare URL that 401s next to a secret
- * it has to know to combine.
+ * Remote config for `--json`. Both URLs carry the token and the standalone token field is dropped,
+ * so a consumer gets URLs that work rather than bare URLs that 401 next to a secret it has to know
+ * to combine.
  */
 export function sanitizeRemoteConfigForJson(
   remoteConfig: DeviceRunSessionRemoteConfig
@@ -240,7 +258,13 @@ export function sanitizeRemoteConfigForJson(
     case 'ServeSimRunSessionRemoteConfig':
     case 'WebPreviewOnlyRunSessionRemoteConfig': {
       const { previewToken, ...rest } = remoteConfig;
-      return { ...rest, previewUrl: formatPreviewUrl(remoteConfig.previewUrl, previewToken) };
+      return {
+        ...rest,
+        previewUrl: formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, previewToken),
+        previewApiUrl: remoteConfig.previewApiUrl
+          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
+          : remoteConfig.previewApiUrl,
+      };
     }
     case 'AgentDeviceRunSessionRemoteConfig':
     case 'ArgentRunSessionRemoteConfig':
@@ -249,8 +273,11 @@ export function sanitizeRemoteConfigForJson(
       return {
         ...rest,
         webPreviewUrl: remoteConfig.webPreviewUrl
-          ? formatPreviewUrl(remoteConfig.webPreviewUrl, webPreviewToken)
+          ? formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, webPreviewToken)
           : remoteConfig.webPreviewUrl,
+        previewApiUrl: remoteConfig.previewApiUrl
+          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
+          : remoteConfig.previewApiUrl,
       };
     }
   }
@@ -321,7 +348,7 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
       return lines.join('\n');
@@ -359,7 +386,7 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
       return lines.join('\n');
@@ -387,7 +414,7 @@ function formatControllerInstructions(
           '',
           'Open the simulator preview:',
           '',
-          formatPreviewUrl(remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
         );
       }
       return lines.join('\n');
@@ -396,13 +423,13 @@ function formatControllerInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
       ].join('\n');
     case 'WebPreviewOnlyRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
       ].join('\n');
   }
 }

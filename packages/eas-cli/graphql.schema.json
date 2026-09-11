@@ -6681,6 +6681,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewToken",
             "description": "Session token gating the web preview. Null when the preview runs ungated.",
             "args": [],
@@ -33408,6 +33420,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewToken",
             "description": "Session token gating the web preview. Null when the preview runs ungated.",
             "args": [],
@@ -36259,6 +36283,18 @@
           {
             "name": "egressUrl",
             "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -78655,6 +78691,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "previewToken",
             "description": "Session token gating the preview. Null when the preview runs ungated.",
             "args": [],
@@ -93167,6 +93215,18 @@
           {
             "name": "egressUrl",
             "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
             "args": [],
             "type": {
               "kind": "SCALAR",
