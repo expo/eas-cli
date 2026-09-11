@@ -4,6 +4,13 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  SupabaseAdvisorLintsByAppIdQuery,
+  SupabaseAdvisorLintsByAppIdQueryVariables,
+} from '../generated';
+import {
+  SupabaseAdvisorLintFragmentNode,
+  SupabaseAdvisorLintsData,
+  SupabaseAdvisorType,
   SupabaseConnectionData,
   SupabaseConnectionFragmentNode,
   SupabaseProjectData,
@@ -93,5 +100,58 @@ export const SupabaseQuery = {
         .toPromise()
     );
     return data.app.byId.supabaseProject ?? null;
+  },
+
+  async getSupabaseAdvisorLintsByAppIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string,
+    types: readonly SupabaseAdvisorType[] = [
+      SupabaseAdvisorType.Security,
+      SupabaseAdvisorType.Performance,
+    ]
+  ): Promise<SupabaseAdvisorLintsData | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<SupabaseAdvisorLintsByAppIdQuery, SupabaseAdvisorLintsByAppIdQueryVariables>(
+          gql`
+            query SupabaseAdvisorLintsByAppId(
+              $appId: String!
+              $security: Boolean!
+              $performance: Boolean!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  supabaseProject {
+                    id
+                    ...SupabaseProjectFragment
+                    security: advisorLints(type: SECURITY) @include(if: $security) {
+                      ...SupabaseAdvisorLintFragment
+                    }
+                    performance: advisorLints(type: PERFORMANCE) @include(if: $performance) {
+                      ...SupabaseAdvisorLintFragment
+                    }
+                  }
+                }
+              }
+            }
+            ${print(SupabaseProjectFragmentNode)}
+            ${print(SupabaseAdvisorLintFragmentNode)}
+          `,
+          {
+            appId,
+            security: types.includes(SupabaseAdvisorType.Security),
+            performance: types.includes(SupabaseAdvisorType.Performance),
+          },
+          { additionalTypenames: ['App', 'SupabaseProject'], requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    const project = data.app.byId.supabaseProject;
+    if (!project) {
+      return null;
+    }
+    const { security, performance, ...projectData } = project;
+    return { project: projectData, security: security ?? null, performance: performance ?? null };
   },
 };

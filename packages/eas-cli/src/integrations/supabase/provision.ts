@@ -132,7 +132,8 @@ export async function pollProvisionReceiptAsync(
 export async function authorizeViaBrowserAsync(
   graphqlClient: ExpoGraphqlClient,
   account: { id: string; name: string },
-  nonInteractive: boolean
+  nonInteractive: boolean,
+  previousUpdatedAt?: string
 ): Promise<SupabaseConnectionData> {
   if (nonInteractive) {
     throw new Error(
@@ -154,7 +155,7 @@ export async function authorizeViaBrowserAsync(
     'Waiting for you to authorize in Supabase (up to 15 minutes; press Ctrl-C to cancel)'
   ).start();
   try {
-    const connection = await pollForConnectionAsync(graphqlClient, account.id);
+    const connection = await pollForConnectionAsync(graphqlClient, account.id, previousUpdatedAt);
     const organizations = await loadOrganizationsBestEffortAsync(graphqlClient, account.id);
     spinner.succeed(
       `Connected Supabase organization ${chalk.bold(
@@ -181,7 +182,8 @@ export async function loadOrganizationsBestEffortAsync(
 
 export async function pollForConnectionAsync(
   graphqlClient: ExpoGraphqlClient,
-  accountId: string
+  accountId: string,
+  previousUpdatedAt?: string
 ): Promise<SupabaseConnectionData> {
   const deadline = Date.now() + CONNECTION_POLL_TIMEOUT_MS;
   let consecutiveErrors = 0;
@@ -207,7 +209,11 @@ export async function pollForConnectionAsync(
         throw error;
       }
     }
-    if (connection) {
+    // Reauthorization updates the existing connection; its presence alone is not completion.
+    if (
+      connection &&
+      (previousUpdatedAt === undefined || connection.updatedAt !== previousUpdatedAt)
+    ) {
       return connection;
     }
     if (Date.now() >= deadline) {
