@@ -1,5 +1,12 @@
-import { WorkflowsInsightsRunsOverTimeGranularity } from '../../../graphql/generated';
-import { alignInsightsTimespan, granularityForTimespan } from '../granularity';
+import {
+  WorkflowDeviceTestCaseInsightsTimeSeriesGranularity,
+  WorkflowsInsightsRunsOverTimeGranularity,
+} from '../../../graphql/generated';
+import {
+  alignInsightsTimespan,
+  alignMaestroInsightsTimespan,
+  granularityForTimespan,
+} from '../granularity';
 
 describe(granularityForTimespan, () => {
   const start = '2026-09-01T00:00:00.000Z';
@@ -106,5 +113,28 @@ describe(alignInsightsTimespan, () => {
       endTime: '2026-09-11T15:20:30.000Z',
     });
     expect(alignInsightsTimespan(once.timespan)).toEqual(once);
+  });
+});
+
+describe(alignMaestroInsightsTimespan, () => {
+  it('maps the bucket size onto the Maestro enum and forwards the widened bounds', () => {
+    const start = '2026-09-01T00:00:00.000Z';
+    expect(
+      alignMaestroInsightsTimespan({ startTime: start, endTime: '2026-09-01T01:00:00.000Z' })
+        .granularity
+    ).toBe(WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Minute);
+    expect(
+      alignMaestroInsightsTimespan({ startTime: start, endTime: '2026-09-03T00:00:00.000Z' })
+        .granularity
+    ).toBe(WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Hour);
+    expect(
+      alignMaestroInsightsTimespan({
+        startTime: '2026-09-04T15:20:30.000Z',
+        endTime: '2026-09-11T15:20:30.000Z',
+      })
+    ).toEqual({
+      timespan: { startTime: '2026-09-04T00:00:00.000Z', endTime: '2026-09-12T00:00:00.000Z' },
+      granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Day,
+    });
   });
 });

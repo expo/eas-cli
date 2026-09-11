@@ -1,48 +1,40 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand from '../../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
-} from '../../commandUtils/flags';
-import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { WorkflowRunStatus, WorkflowRunTriggerEventType } from '../../graphql/generated';
-import { WorkflowsInsightsQuery } from '../../graphql/queries/WorkflowsInsightsQuery';
-import { INSIGHTS_DEFAULT_DAYS_BACK, resolveInsightsTimeRange } from '../../insights/timeRange';
-import Log from '../../log';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+} from '../../../commandUtils/flags';
+import { getLimitFlagWithCustomValues } from '../../../commandUtils/pagination';
+import { WorkflowRunTriggerEventType } from '../../../graphql/generated';
+import { WorkflowsInsightsQuery } from '../../../graphql/queries/WorkflowsInsightsQuery';
+import { InsightsTimeRangeFlags, resolveInsightsTimeRange } from '../../../insights/timeRange';
+import Log from '../../../log';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import {
+  INSIGHTS_RUN_STATUSES,
+  WorkflowsInsightsSharedFilterFlags,
   getAppliedWorkflowsInsightsFilters,
   resolveWorkflowsInsightsFiltersInputAsync,
-} from '../../workflow/insights/filters';
+} from '../../../workflow/insights/filters';
 import {
   buildWorkflowsInsightsJson,
   buildWorkflowsInsightsTable,
   toWorkflowsInsightsSummary,
-} from '../../workflow/insights/formatInsights';
-import { alignInsightsTimespan } from '../../workflow/insights/granularity';
-import { withWorkflowsInsightsPlanGateHandlingAsync } from '../../workflow/insights/planGating';
+} from '../../../workflow/insights/formatInsights';
+import { alignInsightsTimespan } from '../../../workflow/insights/granularity';
+import { withInsightsPlanGateHandlingAsync } from '../../../workflow/insights/planGating';
 
 const DEFAULT_WORKFLOWS_LIMIT = 50;
 const MAX_WORKFLOWS_LIMIT = 100;
-
-// Insights only cover finished runs, so the other run statuses would never match.
-const INSIGHTS_RUN_STATUSES = [
-  WorkflowRunStatus.Success,
-  WorkflowRunStatus.Failure,
-  WorkflowRunStatus.Canceled,
-] as const;
 
 export default class WorkflowInsights extends EasCommand {
   static override description =
     'display run counts, success rate, and per-workflow trends for a time range';
 
   static override flags = {
-    workflow: Flags.string({
-      description:
-        'Only include runs of this workflow file name (can be specified multiple times).',
-      multiple: true,
-    }),
+    ...WorkflowsInsightsSharedFilterFlags,
     status: Flags.option({
       description: 'Only include runs with this status (can be specified multiple times).',
       options: INSIGHTS_RUN_STATUSES,
@@ -53,31 +45,13 @@ export default class WorkflowInsights extends EasCommand {
       options: Object.values(WorkflowRunTriggerEventType),
       multiple: true,
     })(),
-    'git-ref': Flags.string({
-      description:
-        'Only include runs requested for this git ref, for example main or refs/heads/main.',
-    }),
-    days: Flags.integer({
-      description: `Show insights from the last N days (default ${INSIGHTS_DEFAULT_DAYS_BACK}, mutually exclusive with --start/--end).`,
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    start: Flags.string({
-      description: 'Start of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
+    ...InsightsTimeRangeFlags,
     limit: getLimitFlagWithCustomValues({
       defaultTo: DEFAULT_WORKFLOWS_LIMIT,
       limit: MAX_WORKFLOWS_LIMIT,
       description: `The number of workflows to list. Defaults to ${DEFAULT_WORKFLOWS_LIMIT} and is capped at ${MAX_WORKFLOWS_LIMIT}.`,
     }),
-    'project-id': Flags.string({
-      description: 'EAS project ID (defaults to the project ID of the current directory)',
-    }),
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -109,7 +83,7 @@ export default class WorkflowInsights extends EasCommand {
       projectId,
       flags
     );
-    const app = await withWorkflowsInsightsPlanGateHandlingAsync(() =>
+    const app = await withInsightsPlanGateHandlingAsync(() =>
       WorkflowsInsightsQuery.byAppIdAsync(graphqlClient, {
         appId: projectId,
         startTime: timespan.startTime,

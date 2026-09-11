@@ -5,6 +5,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { GraphqlError } from '../../graphql/client';
@@ -16,7 +17,6 @@ import {
 } from '../../observe/formatCustomEvents';
 import { buildObserveErrorDetail, buildObserveErrorJson } from '../../observe/formatErrors';
 import { buildObserveEventDetail, buildObserveEventJson } from '../../observe/formatEvents';
-import { ObserveProjectIdFlag } from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -32,7 +32,7 @@ export default class ObserveEvent extends EasCommand {
   };
 
   static override flags = {
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

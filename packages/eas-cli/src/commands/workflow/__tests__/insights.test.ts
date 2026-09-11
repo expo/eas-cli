@@ -3,7 +3,7 @@ import { GraphQLError } from 'graphql';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { WorkflowQuery } from '../../../graphql/queries/WorkflowQuery';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { WorkflowsInsightsQuery } from '../../../graphql/queries/WorkflowsInsightsQuery';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import WorkflowInsights from '../insights';
@@ -11,14 +11,12 @@ import WorkflowInsights from '../insights';
 jest.mock('../../../graphql/queries/WorkflowsInsightsQuery', () => ({
   WorkflowsInsightsQuery: { byAppIdAsync: jest.fn() },
 }));
-jest.mock('../../../graphql/queries/WorkflowQuery', () => ({
-  WorkflowQuery: { byAppIdAndFileNameAsync: jest.fn() },
-}));
+jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockByAppIdAsync = jest.mocked(WorkflowsInsightsQuery.byAppIdAsync);
-const mockByAppIdAndFileNameAsync = jest.mocked(WorkflowQuery.byAppIdAndFileNameAsync);
+const mockByIdWorkflowFileNamesAsync = jest.mocked(AppQuery.byIdWorkflowFileNamesAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
@@ -26,11 +24,13 @@ function metric(currentValue: number, previousValue: number): any {
   return { __typename: 'WorkflowsInsightsMetric', currentValue, previousValue };
 }
 
+const workflows = [{ __typename: 'Workflow', id: 'wf-build', fileName: 'build.yml' }];
+
 const appResponse: any = {
   __typename: 'App',
   id: 'app-1',
   fullName: '@acme/app',
-  workflows: [{ __typename: 'Workflow', id: 'wf-build', fileName: 'build.yml' }],
+  workflows,
   workflowsInsights: {
     __typename: 'AppWorkflowsInsights',
     overviewMetrics: {
@@ -90,9 +90,7 @@ describe(WorkflowInsights, () => {
     jest.clearAllMocks();
     jest.useFakeTimers({ now });
     mockByAppIdAsync.mockResolvedValue(appResponse);
-    mockByAppIdAndFileNameAsync.mockImplementation(async (_client, { fileName }) => ({
-      id: `id-of-${fileName}`,
-    }));
+    mockByIdWorkflowFileNamesAsync.mockResolvedValue(workflows);
   });
 
   afterEach(() => {
@@ -212,15 +210,12 @@ describe(WorkflowInsights, () => {
     ]);
     await command.runAsync();
 
-    expect(mockByAppIdAndFileNameAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'app-1',
-      fileName: 'build.yml',
-    });
+    expect(mockByIdWorkflowFileNamesAsync).toHaveBeenCalledWith(graphqlClient, 'app-1');
     expect(mockByAppIdAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({
         filters: {
-          workflowIds: ['id-of-build.yml'],
+          workflowIds: ['wf-build'],
           statuses: ['FAILURE', 'CANCELED'],
           triggerEventTypes: ['GITHUB_PUSH'],
           gitRefRequested: ['refs/heads/main'],

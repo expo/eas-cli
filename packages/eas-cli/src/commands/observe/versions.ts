@@ -1,6 +1,7 @@
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import Log from '../../log';
@@ -8,7 +9,6 @@ import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import {
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
 } from '../../observe/flags';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
@@ -23,7 +23,7 @@ export default class ObserveVersions extends EasCommand {
     ...ObservePlatformFlag,
     ...ObserveTimeRangeFlags,
     ...ObserveEnvironmentFlag,
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

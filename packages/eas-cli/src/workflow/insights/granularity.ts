@@ -1,4 +1,7 @@
-import { WorkflowsInsightsRunsOverTimeGranularity } from '../../graphql/generated';
+import {
+  WorkflowDeviceTestCaseInsightsTimeSeriesGranularity,
+  WorkflowsInsightsRunsOverTimeGranularity,
+} from '../../graphql/generated';
 import { InsightsTimespanBounds } from '../../insights/formatTimespan';
 
 const MINUTE_MS = 60 * 1000;
@@ -79,5 +82,29 @@ function widenToWholeBuckets(
   return {
     startTime: new Date(Math.floor(startMs / interval) * interval).toISOString(),
     endTime: new Date(Math.ceil(endMs / interval) * interval).toISOString(),
+  };
+}
+
+// Maestro insights use their own enum for the same three bucket sizes.
+const MAESTRO_GRANULARITY: Record<
+  WorkflowsInsightsRunsOverTimeGranularity,
+  WorkflowDeviceTestCaseInsightsTimeSeriesGranularity
+> = {
+  [WorkflowsInsightsRunsOverTimeGranularity.Minute]:
+    WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Minute,
+  [WorkflowsInsightsRunsOverTimeGranularity.Hour]:
+    WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Hour,
+  [WorkflowsInsightsRunsOverTimeGranularity.Day]:
+    WorkflowDeviceTestCaseInsightsTimeSeriesGranularity.Day,
+};
+
+export function alignMaestroInsightsTimespan(timespan: InsightsTimespanBounds): {
+  timespan: InsightsTimespanBounds;
+  granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
+} {
+  const aligned = alignInsightsTimespan(timespan);
+  return {
+    timespan: aligned.timespan,
+    granularity: MAESTRO_GRANULARITY[aligned.granularity],
   };
 }

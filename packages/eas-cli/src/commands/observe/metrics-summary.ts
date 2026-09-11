@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import Log from '../../log';
@@ -10,7 +11,6 @@ import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
   ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
 } from '../../observe/flags';
 import {
@@ -63,7 +63,7 @@ export default class ObserveMetricsSummary extends EasCommand {
     })(),
     ...ObserveTimeRangeFlags,
     ...ObserveEnvironmentFlag,
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

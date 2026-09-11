@@ -7,8 +7,6 @@ import {
   WorkflowsInsightsSummary,
   buildWorkflowsInsightsJson,
   buildWorkflowsInsightsTable,
-  formatTrend,
-  successRatePercent,
   toWorkflowsInsightsSummary,
 } from '../formatInsights';
 
@@ -21,7 +19,6 @@ function makeApp(
     labels?: string[];
     datasets?: { id: string; data: (number | null)[] }[];
     workflows?: any[];
-    appWorkflows?: { id: string; fileName: string }[];
     hasNextPage?: boolean;
   } = {}
 ): AppWithWorkflowsInsightsObject {
@@ -29,12 +26,10 @@ function makeApp(
     __typename: 'App',
     id: 'app-1',
     fullName: '@acme/app',
-    workflows: (
-      overrides.appWorkflows ?? [
-        { id: 'wf-1', fileName: 'build.yml' },
-        { id: 'wf-2', fileName: 'tests.yml' },
-      ]
-    ).map(workflow => ({ __typename: 'Workflow', ...workflow })),
+    workflows: [
+      { __typename: 'Workflow', id: 'wf-1', fileName: 'build.yml' },
+      { __typename: 'Workflow', id: 'wf-2', fileName: 'tests.yml' },
+    ],
     workflowsInsights: {
       __typename: 'AppWorkflowsInsights',
       overviewMetrics: {
@@ -176,32 +171,15 @@ describe(toWorkflowsInsightsSummary, () => {
     expect(summary.hasMoreWorkflows).toBe(true);
   });
 
-  it('keys each workflow by file name and leaves it null for an unknown workflow', () => {
-    const summary = makeSummary({ appWorkflows: [{ id: 'wf-1', fileName: 'build.yml' }] });
+  it('keys each workflow by file name, falling back to the ID for one the app no longer lists', () => {
+    const app = makeApp();
+    app.workflows = app.workflows.filter(workflow => workflow.id !== 'wf-2');
+    const summary = toWorkflowsInsightsSummary(app, {
+      timespan: TIMESPAN,
+      granularity: WorkflowsInsightsRunsOverTimeGranularity.Day,
+    });
 
-    expect(summary.workflows.map(w => w.fileName)).toEqual(['build.yml', null]);
-  });
-});
-
-describe(successRatePercent, () => {
-  it('returns 0 when there are no runs', () => {
-    expect(successRatePercent(0, 0)).toBe(0);
-  });
-
-  it('returns the share of successful runs as a percentage', () => {
-    expect(successRatePercent(3, 4)).toBe(75);
-  });
-});
-
-describe(formatTrend, () => {
-  it('is n/a when the previous period had no data', () => {
-    expect(formatTrend({ current: 10, previous: 0 })).toContain('n/a');
-  });
-
-  it('formats the percentage change with a sign', () => {
-    expect(formatTrend({ current: 125, previous: 100 })).toContain('+25.0%');
-    expect(formatTrend({ current: 50, previous: 100 })).toContain('-50.0%');
-    expect(formatTrend({ current: 100, previous: 100 })).toContain('0.0%');
+    expect(summary.workflows.map(w => w.fileName)).toEqual(['build.yml', 'wf-2']);
   });
 });
 
@@ -276,7 +254,7 @@ describe(buildWorkflowsInsightsTable, () => {
 
     expect(table).toContain('Filters');
     expect(table).toContain('statuses: FAILURE; git ref: refs/heads/main');
-    expect(table).toContain('Workflows (the 2 with the most runs):');
+    expect(table).toContain('Workflows (showing the 2 with the most runs):');
   });
 
   it('labels hourly buckets with the time', () => {
@@ -314,7 +292,6 @@ describe(buildWorkflowsInsightsTable, () => {
   });
 
   it('skips the runs-over-time table when no bucket has a run', () => {
-    // The server fills the whole window with zero buckets, so this is what a quiet project returns.
     const zero = (id: string): { id: string; data: number[] } => ({ id, data: [0, 0] });
     const summary = makeSummary({
       workflows: [],
@@ -343,7 +320,7 @@ describe(buildWorkflowsInsightsTable, () => {
       })
     );
 
-    // Chalk styles the label and value separately, so strip the escape codes first.
+    // Chalk styles the label and the value separately.
     expect(table.replace(/\x1b\[[0-9;]*m/g, '')).toMatch(/Success rate\s+n\/a/);
     expect(table).not.toContain('0.0 pts');
   });

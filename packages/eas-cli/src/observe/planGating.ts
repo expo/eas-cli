@@ -1,5 +1,5 @@
 import { EasCommandError } from '../commandUtils/errors';
-import { GraphqlError } from '../graphql/client';
+import { findPlanGateError } from '../commandUtils/planGating';
 
 // Must match the server's Observe plan-gate error codes (`ExpoErrorCode`). Both
 // signal "this Observe feature is not available on the account's current plan";
@@ -14,12 +14,7 @@ const OBSERVE_PLAN_GATE_ERROR_CODES: ReadonlySet<string> = new Set([
 ]);
 
 function findObservePlanGateMessage(error: unknown): string | undefined {
-  if (!(error instanceof GraphqlError)) {
-    return undefined;
-  }
-  return error.graphQLErrors.find(e =>
-    OBSERVE_PLAN_GATE_ERROR_CODES.has(e?.extensions?.errorCode as string)
-  )?.message;
+  return findPlanGateError(error, OBSERVE_PLAN_GATE_ERROR_CODES)?.message;
 }
 
 /**
