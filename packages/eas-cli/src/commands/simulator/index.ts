@@ -139,7 +139,7 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) exit from this machine and fail while the egress client is disconnected. Connections that ignore both are refused inside the simulator and reported in the session log. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) exit from this machine and fail while the egress client is disconnected. Connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. The egress client must keep running for the life of the session. Only supported with --platform ios.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
@@ -422,6 +422,7 @@ export default class Simulator extends EasCommand {
       formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
+        sessionUrl: deviceRunSessionUrl,
       })
     );
     Log.newLine();
