@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Make command descriptions in `eas --help` consistently lowercase without trailing periods. ([#4385](https://github.com/expo/eas-cli/pull/4385) by [@brentvatne](https://github.com/brentvatne))
+
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
 
 ### 🐛 Bug fixes

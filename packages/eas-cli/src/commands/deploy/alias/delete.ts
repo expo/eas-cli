@@ -22,7 +22,7 @@ interface DeployAliasDeleteFlags {
 }
 
 export default class WorkerAliasDelete extends EasCommand {
-  static override description = 'Delete deployment aliases.';
+  static override description = 'delete deployment aliases';
   static override aliases = ['worker:alias:delete'];
   static override state = 'preview';
 

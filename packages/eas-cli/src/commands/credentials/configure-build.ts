@@ -7,7 +7,7 @@ import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/Se
 import { selectPlatformAsync } from '../../platform';
 
 export default class InitializeBuildCredentials extends EasCommand {
-  static override description = 'Set up credentials for building your project.';
+  static override description = 'set up credentials for building your project';
 
   static override flags = {
     platform: Flags.option({

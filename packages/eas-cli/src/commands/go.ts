@@ -99,7 +99,7 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
 /* eslint-enable no-console */
 
 export default class Go extends EasCommand {
-  static override description = 'Create a custom Expo Go and submit to TestFlight';
+  static override description = 'create a custom Expo Go and submit to TestFlight';
   static override hidden = true;
 
   static override flags = {
