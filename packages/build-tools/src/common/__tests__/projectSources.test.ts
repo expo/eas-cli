@@ -47,7 +47,7 @@ describe('projectSources', () => {
     expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
   });
 
-  it.each([false, true])('uses the correct repository URL (local: %s)', async isLocal => {
+  it('uses the refreshed repository URL', async () => {
     const robotAccessToken = randomUUID();
     const buildId = randomUUID();
     await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
@@ -78,7 +78,7 @@ describe('projectSources', () => {
           __API_SERVER_URL: 'https://api.expo.dev',
           EXPO_TOKEN: robotAccessToken,
           EAS_BUILD_ID: buildId,
-          EAS_BUILD_RUNNER: isLocal ? 'local-build-plugin' : 'eas-build',
+          EAS_BUILD_RUNNER: 'eas-build',
         },
         workingdir: '/workingdir',
         logger: createMockLogger(),
@@ -107,15 +107,10 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: isLocal
-            ? 'https://x-access-token:1234567890@github.com/expo/eas-cli.git'
-            : 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
+          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
         },
       })
     );
-    if (isLocal) {
-      expect(fetchMock).not.toHaveBeenCalled();
-    }
   });
 
   it.each(['http', 'network', 'json', 'schema'])(
@@ -587,4 +582,56 @@ describe('projectSources', () => {
       );
     });
   });
+});
+
+describe('local project sources', () => {
+  function createContext(type: ArchiveSourceType): BuildContext<Job> {
+    return new BuildContext(
+      {
+        platform: Platform.IOS,
+        projectArchive: { type, path: '/source.tar.gz' },
+      } as Job,
+      {
+        env: { EAS_BUILD_RUNNER: 'local-build-plugin', __API_SERVER_URL: 'https://api.expo.dev' },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+  }
+
+  it('copies and unpacks a PATH source without fetching from www', async () => {
+    await vol.promises.mkdir('/workingdir', { recursive: true });
+    await vol.promises.writeFile('/source.tar.gz', 'local archive');
+    const ctx = createContext(ArchiveSourceType.PATH);
+    await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).resolves.toEqual({
+      handled: true,
+    });
+    expect(await vol.promises.readFile('/workingdir/project.tar.gz', 'utf8')).toBe('local archive');
+    expect(spawn).toHaveBeenCalledWith(
+      'tar',
+      ['-C', ctx.buildDirectory, '--strip-components', '1', '-zxf', '/workingdir/project.tar.gz'],
+      { logger: ctx.logger }
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(Object.values(ArchiveSourceType).filter(type => type !== ArchiveSourceType.PATH))(
+    'rejects local %s sources before fetching or unpacking',
+    async type => {
+      const ctx = createContext(type);
+      const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+      await expect(result).rejects.toBeInstanceOf(SystemError);
+      await expect(result).rejects.toMatchObject({
+        errorCode: 'SERVER_ERROR',
+        trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE',
+        message: `Expected a PATH project source for a local build, received ${type}.`,
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
+      expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+    }
+  );
 });
