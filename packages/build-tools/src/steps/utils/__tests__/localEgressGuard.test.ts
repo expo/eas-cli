@@ -18,6 +18,7 @@ import {
   mergeGuardCoverageSamples,
   parseGuardCoverage,
   parseGuardLogLine,
+  rebindLocalEgressGuardRelays,
   resolveEgressGuardLibraryAsync,
   resolveLocalEgressBootEnvironmentAsync,
   stopLocalEgressGuardRelaysAsync,
@@ -336,6 +337,36 @@ describe(installLocalEgressGuardAsync, () => {
 
     await stopLocalEgressGuardRelaysAsync(logger);
     expect(logger.lines.at(-1)?.msg).toContain('refused 1 connection attempt(s)');
+  });
+
+  it('attributes later events and the summary to a rebound logger', async () => {
+    const handoffPath = path.join(dir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    const libraryPath = path.join(dir, 'egress-guard.dylib');
+    await fs.promises.writeFile(libraryPath, '');
+    const logPath = path.join(dir, 'guard.log');
+    await installLocalEgressGuardAsync({
+      udid: 'u' as any,
+      env: process.env,
+      logger,
+      handoffPath,
+      libraryPath,
+      logPath,
+      tailIntervalMs: 20,
+    });
+
+    const sessionLogger = createLogger();
+    rebindLocalEgressGuardRelays(sessionLogger);
+    await fs.promises.appendFile(
+      logPath,
+      'eas-egress-guard\tMyApp\t4242\tconnect\tblocked\t1.1.1.1:443\tNetwork\n'
+    );
+    await sleep(80);
+    expect(sessionLogger.lines.some(l => /refused connect from MyApp/.test(l.msg))).toBe(true);
+    expect(logger.lines.some(l => /refused connect from MyApp/.test(l.msg))).toBe(false);
+
+    await stopLocalEgressGuardRelaysAsync(logger);
+    expect(sessionLogger.lines.at(-1)?.msg).toContain('refused 1 connection attempt(s)');
   });
 
   it('fails the session when launchctl fails', async () => {

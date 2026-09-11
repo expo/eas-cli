@@ -119,11 +119,23 @@ export class GuardEventRelay {
   private blocked = 0;
   private logged = 0;
   private suppressed = 0;
+  private logger: bunyan;
 
   constructor(
-    private readonly logger: bunyan,
+    logger: bunyan,
     private readonly limit: number = GUARD_RELAY_LOG_LIMIT
-  ) {}
+  ) {
+    this.logger = logger;
+  }
+
+  /**
+   * Log through a different step's logger from now on. Refusals happen for
+   * the life of the session, so they belong to the step that runs the
+   * session, not the one that booted the simulator minutes earlier.
+   */
+  setLogger(logger: bunyan): void {
+    this.logger = logger;
+  }
 
   handle(event: GuardEvent): void {
     if (event.process === EGRESS_GUARD_CHECK_FILE) {
@@ -645,6 +657,19 @@ export async function verifyLocalEgressGuardAsync({
   }
   logger.info(`Local egress guard verified in the Simulator: ${output || 'self-check passed'}.`);
   await reportLocalEgressGuardCoverageAsync({ env, logger });
+}
+
+/**
+ * Attribute guard events to the step that runs the session from now on. The
+ * relay starts under the simulator boot step's logger; once the session step
+ * takes over, its lines should appear under that step in the job log, next
+ * to the rest of the session's output, rather than under a step that already
+ * finished.
+ */
+export function rebindLocalEgressGuardRelays(logger: bunyan): void {
+  for (const { relay } of activeRelays.values()) {
+    relay.setLogger(logger);
+  }
 }
 
 /** Stop relaying and write each relay's summary; called from the session cleanup. */
