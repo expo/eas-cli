@@ -72,7 +72,7 @@ export const SandboxDaemonRequestZ = z.object({
 export type SandboxDaemonRequest = z.output<typeof SandboxDaemonRequestZ>;
 
 export const SandboxDaemonResponseZ = z.union([
-  z.strictObject({ jsonrpc: z.literal('2.0'), id: z.string(), result: z.unknown() }),
+  z.strictObject({ jsonrpc: z.literal('2.0'), id: z.string(), result: z.unknown().nonoptional() }),
   z.strictObject({
     jsonrpc: z.literal('2.0'),
     id: z.string(),
