@@ -15,6 +15,8 @@ import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createServer } from 'node:net';
 import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
@@ -559,7 +561,10 @@ function isProcessRunning(pid: number): boolean {
   }
 }
 
-async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> {
+async function stopDetachedProcessAsync(
+  pid: number | undefined,
+  gracePeriodMs = 5_000
+): Promise<void> {
   if (pid === undefined || !isProcessRunning(pid)) {
     return;
   }
@@ -575,7 +580,7 @@ async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> 
     }
   }
 
-  const deadline = Date.now() + 5_000;
+  const deadline = Date.now() + gracePeriodMs;
   while (Date.now() < deadline && isProcessRunning(pid)) {
     await sleepAsync(100);
   }
@@ -596,11 +601,13 @@ export function spawnDetached({
   args,
   cwd,
   env,
+  stopGracePeriodMs,
 }: {
   command: string;
   args: string[];
   cwd?: string;
   env: BuildStepEnv;
+  stopGracePeriodMs?: number;
 }): DetachedProcessHandle {
   const promise = spawn(command, args, {
     cwd,
@@ -624,7 +631,7 @@ export function spawnDetached({
   return {
     pid,
     getOutput: () => output,
-    stopAsync: async () => await stopDetachedProcessAsync(pid),
+    stopAsync: async () => await stopDetachedProcessAsync(pid, stopGracePeriodMs),
   };
 }
 
@@ -790,10 +797,12 @@ export function createExpoDeviceHubArgs({
   port,
   turnArgs = [],
   packageVersion,
+  recordingDirectory,
 }: {
   port: number;
   turnArgs?: string[];
   packageVersion?: string;
+  recordingDirectory?: string;
 }): string[] {
   return [
     createExpoDeviceHubPackageSpec(packageVersion),
@@ -817,6 +826,7 @@ export function createExpoDeviceHubArgs({
     EXPO_DEVICE_HUB_VIDEO_FPS,
     '--hide-sidebar',
     '--hide-boot-device',
+    ...(recordingDirectory ? ['--android-recording-directory', recordingDirectory] : []),
     ...turnArgs,
   ];
 }
@@ -905,6 +915,8 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec,
     createArgs,
     readPreviewTokenAsync,
+    stopGracePeriodMs,
+    beforeStopAsync,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -914,6 +926,8 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[], previewPageUrl: string) => string[];
     readPreviewTokenAsync?: (device: string) => Promise<string>;
+    stopGracePeriodMs?: number;
+    beforeStopAsync?: (port: number) => Promise<void>;
   }
 ): Promise<DeviceWebPreviewHandle> {
   const subdomainId = randomBytes(16).toString('hex');
@@ -931,6 +945,7 @@ async function startWebPreviewWithTunnelAsync(
     command: previewExec.command,
     args: previewExec.args,
     env,
+    stopGracePeriodMs,
   });
 
   try {
@@ -955,6 +970,11 @@ async function startWebPreviewWithTunnelAsync(
       apiUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
+        try {
+          await beforeStopAsync?.(port);
+        } catch (err) {
+          logger.warn({ err }, `Could not finalize ${serverName} before shutdown.`);
+        }
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
           if (result.status === 'rejected') {
@@ -1053,15 +1073,64 @@ export async function startExpoDeviceHubWithTunnelAsync(
   if (runtimePlatform === BuildRuntimePlatform.LINUX) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
-  return await startWebPreviewWithTunnelAsync(ctx, {
+  const recordingDirectory =
+    env.EAS_ANDROID_SESSION_RECORDING === '1'
+      ? await fs.promises.mkdtemp(path.join(os.tmpdir(), 'android-session-recordings-'))
+      : undefined;
+  const recordingControlToken = recordingDirectory ? randomBytes(32).toString('hex') : undefined;
+  const preview = await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
-    env,
+    env: recordingControlToken
+      ? { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recordingControlToken }
+      : env,
     logger,
     timeoutMs,
     serverName: 'expo-device-hub',
     packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
-    createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
+    createArgs: (port, turnArgs) =>
+      createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+    stopGracePeriodMs: recordingDirectory ? 70_000 : undefined,
+    beforeStopAsync: recordingControlToken
+      ? async port => {
+          const response = await turtleFetch(
+            `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
+            'POST',
+            {
+              headers: { Authorization: `Bearer ${recordingControlToken}` },
+              timeout: 60_000,
+              retries: 0,
+            }
+          );
+          if (!response.ok) {
+            throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+          }
+        }
+      : undefined,
   });
+  let stopTask: Promise<void> | undefined;
+  return {
+    ...preview,
+    stopAsync: () =>
+      (stopTask ??= (async () => {
+        await preview.stopAsync();
+        if (!recordingDirectory) {
+          return;
+        }
+        try {
+          const recordings: unknown = JSON.parse(
+            await fs.promises.readFile(path.join(recordingDirectory, 'recordings.json'), 'utf8')
+          );
+          const { uploadDeviceRunSessionScreenRecordingsAsync } =
+            await import('../functions/uploadDeviceRunSessionScreenRecordings');
+          await uploadDeviceRunSessionScreenRecordingsAsync(ctx, { env, logger, recordings });
+        } catch (err) {
+          logger.warn(
+            { err, recordingDirectory },
+            'Could not finalize or upload the Android session recording.'
+          );
+        }
+      })()),
+  };
 }
 
 export async function startDeviceWebPreviewWithTunnelAsync(
