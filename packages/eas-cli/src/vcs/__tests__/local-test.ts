@@ -1,6 +1,7 @@
+import path from 'path';
 import { vol } from 'memfs';
 
-import { Ignore } from '../local';
+import { Ignore, resolveEasignorePathAsync } from '../local';
 
 jest.mock('fs');
 
@@ -110,5 +111,97 @@ describe(Ignore, () => {
 
     const ignore = await Ignore.createForCopyingAsync('/root');
     expect(() => ignore.ignores('dir/test')).not.toThrowError();
+  });
+
+  it('reads .easignore from the project directory when it is not at the copy root', async () => {
+    vol.fromJSON(
+      {
+        'apps/app-a/.easignore': 'secret.txt\n',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root', '/root/apps/app-a');
+    expect(ignore.ignores('secret.txt')).toBe(true);
+  });
+
+  it('prefers the project directory .easignore over the root .easignore', async () => {
+    vol.fromJSON(
+      {
+        '.easignore': 'from-root.txt\n',
+        'apps/app-a/.easignore': 'from-app.txt\n',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root', '/root/apps/app-a');
+    expect(ignore.ignores('from-app.txt')).toBe(true);
+    expect(ignore.ignores('from-root.txt')).toBe(false);
+  });
+
+  it('falls back to the root .easignore when the project directory has none', async () => {
+    vol.fromJSON(
+      {
+        '.easignore': 'from-root.txt\n',
+        'apps/app-a/eas.json': '{}',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root', '/root/apps/app-a');
+    expect(ignore.ignores('from-root.txt')).toBe(true);
+  });
+});
+
+describe(resolveEasignorePathAsync, () => {
+  it('returns the project directory .easignore when it exists', async () => {
+    vol.fromJSON(
+      {
+        'apps/app-a/.easignore': 'secret.txt\n',
+      },
+      '/root'
+    );
+
+    await expect(resolveEasignorePathAsync('/root', '/root/apps/app-a')).resolves.toBe(
+      path.join('/root/apps/app-a', '.easignore')
+    );
+  });
+
+  it('returns the root .easignore when the project directory has none', async () => {
+    vol.fromJSON(
+      {
+        '.easignore': 'from-root.txt\n',
+      },
+      '/root'
+    );
+
+    await expect(resolveEasignorePathAsync('/root', '/root/apps/app-a')).resolves.toBe(
+      path.join('/root', '.easignore')
+    );
+  });
+
+  it('prefers the project directory .easignore when both exist', async () => {
+    vol.fromJSON(
+      {
+        '.easignore': 'from-root.txt\n',
+        'apps/app-a/.easignore': 'from-app.txt\n',
+      },
+      '/root'
+    );
+
+    await expect(resolveEasignorePathAsync('/root', '/root/apps/app-a')).resolves.toBe(
+      path.join('/root/apps/app-a', '.easignore')
+    );
+  });
+
+  it('returns null when neither file exists', async () => {
+    vol.fromJSON(
+      {
+        'apps/app-a/eas.json': '{}',
+      },
+      '/root'
+    );
+
+    await expect(resolveEasignorePathAsync('/root', '/root/apps/app-a')).resolves.toBeNull();
   });
 });

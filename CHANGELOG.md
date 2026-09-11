@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Read `.easignore` from the project directory (next to `eas.json`) when present, falling back to the repository root. ([178a7b65](https://github.com/expo/eas-cli/commit/178a7b65f9051b2864c8790515a0e93434530f8b) by [@cpruijsen](https://github.com/cpruijsen))
+
 ### 🧹 Chores
 
 ## [24.3.0](https://github.com/expo/eas-cli/releases/tag/v24.3.0) - 2026-09-11
