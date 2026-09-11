@@ -3,6 +3,7 @@ import spawn from '@expo/turtle-spawn';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { configureSimulatorProxyEnvironmentAsync } from '../../utils/localEgress';
 import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -22,8 +23,13 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
   },
 }));
 
+jest.mock('../../utils/localEgress', () => ({
+  configureSimulatorProxyEnvironmentAsync: jest.fn(),
+}));
+
 const mockedSpawn = jest.mocked(spawn);
 const mockedUtils = jest.mocked(IosSimulatorUtils);
+const mockedConfigureProxyEnvironment = jest.mocked(configureSimulatorProxyEnvironmentAsync);
 
 function createStep(callInputs?: Record<string, unknown>) {
   const logger = createMockLogger();
@@ -44,6 +50,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     mockedUtils.startAsync.mockResolvedValue({ udid: 'test-udid' as any });
     mockedUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedUtils.disableApsdAsync.mockResolvedValue(undefined);
+    mockedConfigureProxyEnvironment.mockResolvedValue(false);
   });
 
   it('does not enable accessibility settings by default', async () => {
@@ -108,6 +115,27 @@ describe(createStartIosSimulatorBuildFunction, () => {
       udid: 'clone-2',
       env: expect.any(Object),
     });
+  });
+
+  it('configures the local egress proxy environment once each device is ready', async () => {
+    mockedUtils.startAsync
+      .mockResolvedValueOnce({ udid: 'base' as any })
+      .mockResolvedValueOnce({ udid: 'clone-1' as any })
+      .mockResolvedValueOnce({ udid: 'clone-2' as any });
+
+    await createStep({ device_identifier: 'iPhone 15', count: 2 }).executeAsync();
+
+    expect(mockedConfigureProxyEnvironment.mock.calls.map(([{ udid }]) => udid)).toEqual([
+      'base',
+      'clone-1',
+      'clone-2',
+    ]);
+    for (const [callIndex] of mockedConfigureProxyEnvironment.mock.calls.entries()) {
+      const readyCallOrder = mockedUtils.waitForReadyAsync.mock.invocationCallOrder[callIndex];
+      const configureCallOrder =
+        mockedConfigureProxyEnvironment.mock.invocationCallOrder[callIndex];
+      expect(configureCallOrder).toBeGreaterThan(readyCallOrder);
+    }
   });
 
   it('continues when disabling apsd fails', async () => {

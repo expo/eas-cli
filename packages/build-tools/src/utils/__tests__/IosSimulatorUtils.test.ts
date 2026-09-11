@@ -340,4 +340,54 @@ describe('IosSimulatorUtils', () => {
       ).rejects.toThrow(SystemError);
     });
   });
+  describe(IosSimulatorUtils.setLaunchdEnvironmentAsync, () => {
+    it('sets each variable in the simulator launchd, in order', async () => {
+      await IosSimulatorUtils.setLaunchdEnvironmentAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+        variables: { https_proxy: 'http://127.0.0.1:8899', no_proxy: 'localhost,127.0.0.1' },
+      });
+
+      expect(mockedSpawn.mock.calls).toEqual([
+        [
+          'xcrun',
+          [
+            'simctl',
+            'spawn',
+            'test-udid',
+            'launchctl',
+            'setenv',
+            'https_proxy',
+            'http://127.0.0.1:8899',
+          ],
+          { env: process.env },
+        ],
+        [
+          'xcrun',
+          [
+            'simctl',
+            'spawn',
+            'test-udid',
+            'launchctl',
+            'setenv',
+            'no_proxy',
+            'localhost,127.0.0.1',
+          ],
+          { env: process.env },
+        ],
+      ]);
+    });
+
+    it('propagates a launchctl failure', async () => {
+      mockedSpawn.mockRejectedValueOnce(new Error('launchctl failed'));
+
+      await expect(
+        IosSimulatorUtils.setLaunchdEnvironmentAsync({
+          udid: 'test-udid' as any,
+          env: process.env,
+          variables: { https_proxy: 'http://127.0.0.1:8899' },
+        })
+      ).rejects.toThrow('launchctl failed');
+    });
+  });
 });

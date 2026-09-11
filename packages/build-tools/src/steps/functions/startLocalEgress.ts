@@ -75,9 +75,10 @@ function awaitLocalEgressAcquisitionAsync<T>(
 /**
  * Points the device host's system HTTP(S) proxy at the EAS CLI's egress client.
  * Must run before `eas/start_ios_simulator`: the simulator reads the system proxy
- * at boot. Nothing else on the host changes, so requests from libraries that
- * bypass the system proxy are not covered; the shared session monitor reports
- * them. The shared session cleanup releases the resources started here when
+ * at boot. Once a simulator is ready, `eas/start_ios_simulator` also sets proxy
+ * environment variables inside it for clients that read them (gRPC, libcurl).
+ * Libraries that ignore both are not covered; the shared session monitor
+ * reports them. The shared session cleanup releases the resources started here when
  * the session ends, with a job finalizer as a fallback.
  */
 export function createStartLocalEgressBuildFunction(): BuildFunction {
@@ -183,8 +184,10 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
         logger.info(
           `Local egress is configured on network service "${service}". HTTP(S) and WebSocket ` +
             'requests that honor the system proxy (WebKit, URLSession and other CFNetwork clients) ' +
-            'fail until the EAS CLI egress client connects, then exit from that machine. Requests ' +
-            'from libraries that bypass the system proxy are not covered and exit from this worker. ' +
+            'fail until the EAS CLI egress client connects, then exit from that machine. Once the ' +
+            'Simulator is ready, proxy environment variables are set inside it for clients that read ' +
+            'them (gRPC, libcurl). Requests from libraries that ignore both are not covered and exit ' +
+            'from this worker. ' +
             'Connection sampling may report these bypasses, but can miss short connections and unconnected UDP traffic.'
         );
       } catch (error) {
