@@ -1,3 +1,4 @@
+import { Config } from '@oclif/core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
@@ -24,17 +25,24 @@ jest.mock('../../analytics/AnalyticsManager', () => {
 });
 jest.mock('../../log');
 
-let originalProcessArgv: string[];
 const mockRequestId = uuidv4();
 
-beforeAll(() => {
-  originalProcessArgv = process.argv;
-  process.argv = [];
-});
+/**
+ * A Config that is never loaded. Letting oclif load one discovers and requires
+ * every command in the package, which takes seconds under coverage with a cold
+ * transform cache and has timed out on slow CI runners. Nothing here needs the
+ * command table or hooks.
+ */
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({
+    failures: [],
+    successes: [],
+  });
+  return config;
+}
 
-afterAll(() => {
-  process.argv = originalProcessArgv;
-});
+let mockConfig: Config;
 
 const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
@@ -44,7 +52,16 @@ const analytics: AnalyticsWithOrchestration = {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockConfig = getMockOclifConfig();
 });
+
+/**
+ * The config oclif handed to the most recently run command. Command.run returns
+ * a pre-built Config untouched only when it was created by the same @oclif/core
+ * copy the command extends; otherwise it silently builds and fully loads a new
+ * one, bringing back the command discovery this suite avoids.
+ */
+let lastCommandConfig: Config | undefined;
 
 const createTestEasCommand = (): any => {
   const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
@@ -52,34 +69,40 @@ const createTestEasCommand = (): any => {
   const EasCommand = require('../EasCommand').default;
 
   class TestEasCommand extends EasCommand {
-    async runAsync(): Promise<void> {}
+    async runAsync(): Promise<void> {
+      lastCommandConfig = this.config;
+    }
   }
 
   TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
   return TestEasCommand;
 };
 
+// These tests go through the static Command.run rather than constructing an
+// instance and calling run() like other command tests, because they cover
+// oclif's catch and finally wiring, which only runs inside the static path.
 describe('EasCommand', () => {
   describe('without exceptions', () => {
-    // The first test in this suite should have an increased timeout
-    // because of the implementation of Command from @oclif/command.
-    // It seems that loading config takes significant amount of time
-    // and I'm not sure how to mock it.
-    //
-    // See https://github.com/oclif/command/blob/master/src/command.ts#L80
-    // and look for "Config.load"
     it('ensures the user data is read', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const SessionManager = jest.requireMock('../../user/SessionManager').default;
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
-    }, 60_000);
+    });
+
+    it('runs with the unloaded config instead of loading one', async () => {
+      const TestEasCommand = createTestEasCommand();
+      await TestEasCommand.run([], mockConfig);
+
+      expect(lastCommandConfig).toBe(mockConfig);
+      expect(mockConfig.plugins.size).toBe(0);
+    });
 
     it('initializes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
       expect(createAnalyticsAsync).toHaveBeenCalled();
@@ -87,14 +110,14 @@ describe('EasCommand', () => {
 
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.flushAsync).toHaveBeenCalled();
     });
 
     it('flushes Sentry', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       const Sentry = jest.requireMock('../../sentry').default;
       expect(Sentry.flush).toHaveBeenCalled();
@@ -102,7 +125,7 @@ describe('EasCommand', () => {
 
     it('logs events', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
@@ -114,7 +137,7 @@ describe('EasCommand', () => {
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
       try {
-        await TestEasCommand.run().then(() => {
+        await TestEasCommand.run([], mockConfig).then(() => {
           throw new Error('foo');
         });
       } catch {}
@@ -140,7 +163,7 @@ describe('EasCommand', () => {
         });
 
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(sentryScope.setTag).toHaveBeenCalledWith('command', TestEasCommand.id);
@@ -167,7 +190,7 @@ describe('EasCommand', () => {
         });
 
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(Sentry.captureException).toHaveBeenCalledTimes(1);
@@ -184,7 +207,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
@@ -204,7 +227,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
@@ -237,7 +260,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -273,7 +296,7 @@ describe('EasCommand', () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -294,7 +317,7 @@ describe('EasCommand', () => {
           throw new Error('Error message');
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
@@ -310,7 +333,7 @@ describe('EasCommand', () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
@@ -340,7 +363,7 @@ describe('EasCommand', () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
