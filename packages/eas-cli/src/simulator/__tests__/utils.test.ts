@@ -61,33 +61,35 @@ describe('local egress configuration', () => {
       EAS_SIMULATOR_EGRESS_ALLOW: '',
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
-    expect(instructions).toContain('eas simulator:egress');
+    expect(instructions).toContain(
+      "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine.\n"
+    );
     expect(instructions).toContain('Run the egress client to connect the tunnel');
+    expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Keep it running for the life of the session.');
-    expect(instructions).not.toContain('may reach');
+    expect(instructions).not.toContain('It can also reach');
     expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
       "export EAS_SIMULATOR_EGRESS_ALLOW=''"
     );
   });
 
-  it('describes the inline egress client instead of asking the reader to start one', () => {
-    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
-      egressClientRunsInline: true,
-    });
-    expect(instructions).toContain(
-      'The egress client runs in this terminal. Press Ctrl+C to stop it together with the simulator session.'
-    );
-    expect(instructions).toContain(
-      'If this terminal closes any other way, the session keeps running. Reconnect the tunnel from another shell with:\n\neas simulator:egress\n\nor stop the session with eas simulator:stop.'
-    );
-    expect(instructions).not.toContain('Run the egress client to connect the tunnel');
-    expect(instructions).not.toContain('Keep it running');
-
-    expect(
-      formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env', {
-        egressClientRunsInline: true,
-      })
-    ).toContain('eas simulator:egress --config-type env');
+  it('says nothing about starting the client when it runs inline', () => {
+    for (const configType of ['dotenv', 'env'] as const) {
+      const instructions = formatRemoteSessionInstructions(
+        agentDeviceConfigWithEgress,
+        configType,
+        {
+          egressClientRunsInline: true,
+        }
+      );
+      expect(instructions).toContain(
+        "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine."
+      );
+      expect(instructions).not.toContain('eas simulator:egress');
+      expect(instructions).not.toContain('Run the egress client');
+      expect(instructions).not.toContain('Keep it running');
+      expect(instructions).not.toContain('export EAS_SIMULATOR_EGRESS');
+    }
   });
 
   it('carries the allowed local destinations into the config, env file and instructions', () => {
@@ -105,19 +107,19 @@ describe('local egress configuration', () => {
       egressAllow,
     });
     expect(instructions).toContain(
-      "The simulator may reach localhost:3000, 192.168.1.20:8080 on this machine's network."
+      "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine. It can also reach localhost:3000, 192.168.1.20:8080."
     );
-    expect(instructions).toContain(
-      '127.0.0.1:3000 in the simulator reaches the same port on this machine (like adb reverse)'
-    );
+    expect(instructions).not.toContain('reachable by name only');
   });
 
-  it('omits the loopback forwarding notice when no allowed destination is loopback', () => {
+  it('warns only about loopback entries the device host will not forward', () => {
     expect(
       formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
-        egressAllow: ['192.168.1.20:8080'],
+        egressAllow: ['localhost:80', 'localhost:3000'],
       })
-    ).not.toContain('adb reverse');
+    ).toContain(
+      'localhost:80 is reachable by name only: privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.'
+    );
   });
 });
 
@@ -143,13 +145,13 @@ describe(getLoopbackForwardPlan, () => {
 });
 
 describe(formatLoopbackForwardNotice, () => {
-  it('describes forwarded ports and name-only entries', () => {
+  it('describes name-only entries and stays silent about forwarded ports', () => {
     expect(formatLoopbackForwardNotice({ ports: [3000, 8082], skipped: ['localhost:80'] })).toEqual(
       [
-        '127.0.0.1:3000, 127.0.0.1:8082 in the simulator reach the same ports on this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work.',
         'localhost:80 is reachable by name only: privileged ports and the egress proxy port are not forwarded to 127.0.0.1 in the simulator.',
       ]
     );
+    expect(formatLoopbackForwardNotice({ ports: [3000], skipped: [] })).toEqual([]);
     expect(formatLoopbackForwardNotice({ ports: [], skipped: [] })).toEqual([]);
   });
 });

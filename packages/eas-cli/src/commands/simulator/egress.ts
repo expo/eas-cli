@@ -59,9 +59,7 @@ export default class SimulatorEgress extends EasCommand {
         ...egress,
         signal: abortController.signal,
         onConnected: () => {
-          Log.succeed(
-            "Egress tunnel connected. Proxied HTTP(S) requests can use this machine's network."
-          );
+          Log.succeed('Egress tunnel connected.');
         },
         onDisconnected: () => {
           Log.warn(
