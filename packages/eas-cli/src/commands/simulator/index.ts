@@ -447,8 +447,6 @@ export default class Simulator extends EasCommand {
     let egressError: Error | undefined;
     const egressAbortController = new AbortController();
     if (localEgress) {
-      Log.log('Press Ctrl+C to stop both the egress client and the simulator session.');
-      Log.newLine();
       sessionInterrupt.signal.addEventListener(
         'abort',
         () => {
