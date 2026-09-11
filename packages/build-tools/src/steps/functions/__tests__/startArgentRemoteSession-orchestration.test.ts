@@ -88,10 +88,12 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     });
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://argent-abc.tunnel.example.com',
+      subdomainId: 'argent-abc',
       stopAsync: mockTunnelStopAsync,
     });
     jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewUrl: 'https://web-preview.tunnel.example.com',
+      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+      apiUrl: 'https://web-preview.tunnel.example.com',
       stopAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
@@ -179,7 +181,8 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
-          webPreviewUrl: 'https://web-preview.tunnel.example.com',
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+          previewApiUrl: 'https://web-preview.tunnel.example.com',
         }),
       })
     );

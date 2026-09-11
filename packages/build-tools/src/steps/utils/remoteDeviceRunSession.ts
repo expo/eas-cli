@@ -612,6 +612,14 @@ export function spawnDetached({
   };
 }
 
+export function websiteOrigin(env: BuildStepEnv): string {
+  return env.EXPO_LOCAL
+    ? 'https://expo.test'
+    : env.EXPO_STAGING
+      ? 'https://staging.expo.dev'
+      : 'https://expo.dev';
+}
+
 export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
   const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
   if (!origin) {
@@ -639,11 +647,13 @@ export function createServeSimArgs({
   port,
   turnArgs = [],
   metricsCorsArgs = [],
+  frameAncestorArgs = [],
   packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
+  frameAncestorArgs?: string[];
   packageVersion?: string;
 }): string[] {
   return [
@@ -668,6 +678,7 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...metricsCorsArgs,
+    ...frameAncestorArgs,
   ];
 }
 
@@ -771,7 +782,8 @@ export async function waitForWebPreviewReadyAsync({
 }
 
 export type DeviceWebPreviewHandle = {
-  previewUrl: string;
+  previewPageUrl: string;
+  apiUrl: string;
   /** Session token gating the preview. Only serve-sim mints one. */
   previewToken?: string;
   stopAsync: () => Promise<void>;
@@ -827,7 +839,11 @@ async function startWebPreviewWithTunnelAsync(
       logger,
     });
     return {
-      previewUrl: tunnel.url,
+      previewPageUrl: new URL(
+        `/simulator-preview/${tunnel.subdomainId}`,
+        websiteOrigin(env)
+      ).toString(),
+      apiUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
@@ -869,6 +885,7 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
+  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -877,7 +894,7 @@ export async function startServeSimWithTunnelAsync(
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
-      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+      createServeSimArgs({ port, turnArgs, metricsCorsArgs, frameAncestorArgs, packageVersion }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
@@ -951,6 +968,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
 
 export type NgrokTunnelHandle = {
   url: string;
+  subdomainId: string;
   stopAsync: () => Promise<void>;
 };
 
@@ -969,7 +987,8 @@ export async function startNgrokTunnelAsync({
   rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<NgrokTunnelHandle> {
-  const domain = `${subdomainPrefix}-${randomBytes(16).toString('hex')}.${baseDomain}`;
+  const subdomainId = randomBytes(16).toString('hex');
+  const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
@@ -987,6 +1006,7 @@ export async function startNgrokTunnelAsync({
   let stopped = false;
   return {
     url,
+    subdomainId,
     stopAsync: async () => {
       if (stopped) {
         return;
