@@ -1003,7 +1003,10 @@ export async function runLocalEgressAsync({
         case 'disconnected':
           if (connected) {
             connected = false;
-            onDisconnected?.(line);
+            // A disconnect we caused by stopping is not something to warn about.
+            if (!signal.aborted) {
+              onDisconnected?.(line);
+            }
           }
           break;
         case 'other':
