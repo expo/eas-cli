@@ -185,6 +185,57 @@ export namespace IosSimulatorUtils {
     }
   }
 
+  const UDID_PATTERN = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+
+  /**
+   * The UDID for a device name or UDID. A name picks the first available
+   * device with that name, as `simctl` itself does.
+   */
+  export async function resolveUdidAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<IosSimulatorUuid> {
+    if (UDID_PATTERN.test(deviceIdentifier)) {
+      return deviceIdentifier as IosSimulatorUuid;
+    }
+    const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
+    const device = devices.find(candidate => candidate.name === deviceIdentifier);
+    if (!device) {
+      throw new UserError(
+        'EAS_IOS_SIMULATOR_NOT_FOUND',
+        `No available iOS Simulator is named "${deviceIdentifier}". Run \`xcrun simctl list devices available\` on the device host to see the devices it offers.`
+      );
+    }
+    return device.udid;
+  }
+
+  /**
+   * Start booting without waiting for boot to complete. Returns as soon as the
+   * simulator's launchd is up, before it has spawned anything else, which is
+   * the moment to set launchd environment that every later process must
+   * inherit. Follow with `startAsync` to wait for the boot to finish.
+   */
+  export async function bootAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    try {
+      await spawn('xcrun', ['simctl', 'boot', deviceIdentifier], { env, stdio: 'pipe' });
+    } catch (err) {
+      const failed = err as { stderr?: string };
+      if (/current state: Booted/.test(failed.stderr ?? '')) {
+        return;
+      }
+      throw err;
+    }
+  }
+
   export async function startAsync({
     deviceIdentifier,
     env,

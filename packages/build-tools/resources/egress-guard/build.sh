@@ -17,3 +17,14 @@ for arch in arm64 x86_64; do
 done
 lipo -create -output "$bin_dir/egress-guard.dylib" "$out/egress-guard-arm64.dylib" "$out/egress-guard-x86_64.dylib"
 lipo -info "$bin_dir/egress-guard.dylib"
+
+# The self-check the worker runs inside the simulator after installing the guard.
+for arch in arm64 x86_64; do
+  xcrun --sdk iphonesimulator clang \
+    -std=c11 -Wall -Wextra -Werror -O2 \
+    -target "$arch-apple-ios15.0-simulator" -isysroot "$sdk" \
+    -o "$out/egress-guard-check-$arch" check.c
+done
+lipo -create -output "$bin_dir/egress-guard-check" "$out/egress-guard-check-arm64" "$out/egress-guard-check-x86_64"
+chmod +x "$bin_dir/egress-guard-check"
+lipo -info "$bin_dir/egress-guard-check"

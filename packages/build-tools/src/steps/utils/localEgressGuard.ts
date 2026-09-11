@@ -1,11 +1,17 @@
+import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 
-import { LOCAL_EGRESS_HANDOFF_PATH, readLocalEgressHandoffAsync } from './localEgress';
+import {
+  LOCAL_EGRESS_HANDOFF_PATH,
+  collectSimulatorProcessIds,
+  readLocalEgressHandoffAsync,
+} from './localEgress';
 
 /**
  * Worker side of the local egress guard: a dylib injected into every process
@@ -17,6 +23,7 @@ import { LOCAL_EGRESS_HANDOFF_PATH, readLocalEgressHandoffAsync } from './localE
  */
 
 export const EGRESS_GUARD_LIBRARY_FILE = 'egress-guard.dylib';
+export const EGRESS_GUARD_CHECK_FILE = 'egress-guard-check';
 export const EGRESS_GUARD_LOG_ENV = 'EAS_EGRESS_GUARD_LOG';
 export const EGRESS_GUARD_MODE_ENV = 'EAS_EGRESS_GUARD_MODE';
 export const LOCAL_EGRESS_GUARD_LOG_PATH = path.join(os.tmpdir(), 'eas-local-egress-guard.log');
@@ -73,17 +80,30 @@ export function parseGuardLogLine(line: string): GuardEvent | null {
   };
 }
 
-/** The packaged library, next to the compiled package like record-sim. */
-export async function resolveEgressGuardLibraryAsync(
-  binDir: string = path.join(__dirname, '..', '..', '..', 'bin')
-): Promise<string | null> {
-  const libraryPath = path.join(binDir, EGRESS_GUARD_LIBRARY_FILE);
+const PACKAGED_BIN_DIR = path.join(__dirname, '..', '..', '..', 'bin');
+
+async function resolvePackagedFileAsync(binDir: string, file: string): Promise<string | null> {
+  const filePath = path.join(binDir, file);
   try {
-    await fs.promises.access(libraryPath);
-    return libraryPath;
+    await fs.promises.access(filePath);
+    return filePath;
   } catch {
     return null;
   }
+}
+
+/** The packaged library, next to the compiled package like record-sim. */
+export async function resolveEgressGuardLibraryAsync(
+  binDir: string = PACKAGED_BIN_DIR
+): Promise<string | null> {
+  return await resolvePackagedFileAsync(binDir, EGRESS_GUARD_LIBRARY_FILE);
+}
+
+/** The packaged self-check binary, built alongside the library. */
+export async function resolveEgressGuardCheckAsync(
+  binDir: string = PACKAGED_BIN_DIR
+): Promise<string | null> {
+  return await resolvePackagedFileAsync(binDir, EGRESS_GUARD_CHECK_FILE);
 }
 
 /**
@@ -105,6 +125,10 @@ export class GuardEventRelay {
   ) {}
 
   handle(event: GuardEvent): void {
+    if (event.process === EGRESS_GUARD_CHECK_FILE) {
+      // The self-check deliberately trips the guard once; not a bypass.
+      return;
+    }
     if (event.action === 'blocked') {
       this.blocked++;
     } else {
@@ -233,11 +257,16 @@ type ActiveRelay = { tailer: GuardLogTailer; relay: GuardEventRelay };
 const activeRelays = new Map<string, ActiveRelay>();
 
 /**
- * Install the guard into a booted simulator when a local egress session is
- * active, and start relaying its events into the session log. Returns false
- * when there is no local egress session, the library is not packaged, or
- * launchd could not be configured. Every failure is a warning that names the
- * consequence; the session itself is never failed here.
+ * Install the guard into a simulator when a local egress session is active,
+ * and start relaying its events into the session log. Returns false when
+ * there is no local egress session. Throws when the library is not packaged
+ * or launchd could not be configured: a local egress session without the
+ * guard would silently leak, so it must not start. Only an unwritable event
+ * log is a warning, since refusals still happen and only reporting is lost.
+ *
+ * Call this as soon as `simctl boot` returns: launchd is up and nothing else
+ * has started, so every process the boot spawns inherits the guard. Verify
+ * with `verifyLocalEgressGuardAsync` once boot completes.
  */
 export async function installLocalEgressGuardAsync({
   udid,
@@ -277,12 +306,14 @@ export async function installLocalEgressGuardAsync({
   const resolvedLibrary =
     libraryPath === undefined ? await resolveEgressGuardLibraryAsync() : libraryPath;
   if (!resolvedLibrary) {
-    logger.warn(
-      'Local egress guard: the guard library is not available on this device host, so connections that ' +
-        'bypass the system proxy will not be refused; they exit from this worker. The session is otherwise unaffected.'
+    throw new SystemError(
+      'The local egress guard library is not available on this device host, so this local egress session ' +
+        'cannot guarantee that connections bypassing the system proxy are refused. The device host image is ' +
+        'missing bin/egress-guard.dylib; this is a service problem, please contact support.'
     );
-    return false;
   }
+
+  await logAlreadyRunningProcessesAsync({ env, logger });
 
   let logWritable = true;
   try {
@@ -303,12 +334,12 @@ export async function installLocalEgressGuardAsync({
       variables: buildGuardLaunchdEnvironment({ libraryPath: resolvedLibrary, logPath, mode }),
     });
   } catch (err) {
-    logger.warn(
-      { err },
-      'Local egress guard: could not install the guard in the Simulator, so connections that bypass the ' +
-        'system proxy will not be refused; they exit from this worker. The session is otherwise unaffected.'
+    throw new SystemError(
+      'Could not install the local egress guard in the Simulator (launchctl setenv failed), so this local ' +
+        'egress session cannot guarantee that connections bypassing the system proxy are refused. Retry the ' +
+        'session; if it keeps failing, please contact support.',
+      { cause: err }
     );
-    return false;
   }
 
   if (logWritable && !activeRelays.has(logPath)) {
@@ -333,6 +364,95 @@ export async function installLocalEgressGuardAsync({
     } in the process that makes them and reported here as they happen.`
   );
   return true;
+}
+
+/**
+ * Processes the simulator already runs when the guard is installed never get
+ * it. Right after `simctl boot` that is nothing; later it is SpringBoard and
+ * the early daemons, which follow the system proxy anyway. Log them so the
+ * uncovered set is visible rather than assumed.
+ */
+async function logAlreadyRunningProcessesAsync({
+  env,
+  logger,
+}: {
+  env: NodeJS.ProcessEnv;
+  logger: bunyan;
+}): Promise<void> {
+  let psOutput = '';
+  try {
+    psOutput = (await spawn('ps', ['-axo', 'pid=,ppid=,comm='], { env, stdio: 'pipe' })).stdout;
+  } catch {
+    return;
+  }
+  const pids = new Set(collectSimulatorProcessIds(psOutput));
+  const names = new Set<string>();
+  for (const line of psOutput.split('\n')) {
+    const match = /^\s*(\d+)\s+\d+\s+(\S.*)$/.exec(line);
+    if (match && pids.has(Number(match[1]))) {
+      names.add(path.basename(match[2].trim()));
+    }
+  }
+  if (names.size === 0) {
+    logger.info(
+      'Local egress guard: no simulator process was running before the guard was installed.'
+    );
+    return;
+  }
+  const listed = [...names].sort();
+  const shown =
+    listed.slice(0, 20).join(', ') + (listed.length > 20 ? `, and ${listed.length - 20} more` : '');
+  logger.info(
+    `Local egress guard: ${names.size} simulator process(es) were already running before the guard was installed and are not covered by it: ${shown}.`
+  );
+}
+
+/**
+ * Run the packaged self-check inside the simulator: it must find the guard
+ * loaded in a fresh process and see it behave as `mode` says. Throws when the
+ * check binary is missing or the check fails, which fails the session.
+ */
+export async function verifyLocalEgressGuardAsync({
+  udid,
+  env,
+  logger,
+  mode = 'block',
+  checkPath,
+}: {
+  udid: IosSimulatorUuid;
+  env: NodeJS.ProcessEnv;
+  logger: bunyan;
+  mode?: EgressGuardMode;
+  /** Explicit check binary path, `null` for "not available"; resolved from the package when omitted. */
+  checkPath?: string | null;
+}): Promise<void> {
+  const resolvedCheck = checkPath === undefined ? await resolveEgressGuardCheckAsync() : checkPath;
+  if (!resolvedCheck) {
+    throw new SystemError(
+      'The local egress guard self-check is not available on this device host, so this session cannot ' +
+        'verify that the guard is in effect. The device host image is missing bin/egress-guard-check; ' +
+        'this is a service problem, please contact support.'
+    );
+  }
+  let output: string;
+  try {
+    const result = await spawn('xcrun', ['simctl', 'spawn', udid, resolvedCheck, '--mode', mode], {
+      env,
+      stdio: 'pipe',
+    });
+    output = result.stdout.trim();
+  } catch (err) {
+    const failed = err as { status?: number | null; stdout?: string; stderr?: string };
+    const detail = [failed.stdout, failed.stderr].filter(Boolean).join('\n').trim();
+    throw new SystemError(
+      'The local egress guard is not in effect in the Simulator: the self-check run right after boot ' +
+        `failed${failed.status != null ? ` (exit ${failed.status})` : ''}. Connections that bypass the ` +
+        'system proxy would leave from the device host, so the session was stopped. Retry the session; if it ' +
+        `keeps failing, please contact support.${detail ? ` Self-check output: ${detail}` : ''}`,
+      { cause: err }
+    );
+  }
+  logger.info(`Local egress guard verified in the Simulator: ${output || 'self-check passed'}.`);
 }
 
 /** Stop relaying and write each relay's summary; called from the session cleanup. */

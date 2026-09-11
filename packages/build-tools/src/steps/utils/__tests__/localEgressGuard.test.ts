@@ -1,4 +1,6 @@
+import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,6 +18,7 @@ import {
   parseGuardLogLine,
   resolveEgressGuardLibraryAsync,
   stopLocalEgressGuardRelaysAsync,
+  verifyLocalEgressGuardAsync,
 } from '../localEgressGuard';
 
 jest.mock('@expo/turtle-spawn');
@@ -24,6 +27,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 }));
 
 const mockedSetEnv = jest.mocked(IosSimulatorUtils.setLaunchdEnvironmentAsync);
+const mockedSpawn = jest.mocked(spawn);
 
 function createLogger(): bunyan & { lines: { level: string; msg: string }[] } {
   const lines: { level: string; msg: string }[] = [];
@@ -126,6 +130,14 @@ describe(GuardEventRelay, () => {
     expect(relay.summary()).toEqual({ blocked: 0, logged: 2, distinct: 2, suppressed: 1 });
   });
 
+  it('ignores the self-check probe, which trips the guard on purpose', () => {
+    const logger = createLogger();
+    const relay = new GuardEventRelay(logger);
+    relay.handle(blocked('egress-guard-check', '192.0.2.1:9'));
+    expect(logger.lines).toHaveLength(0);
+    expect(relay.summary()).toEqual({ blocked: 0, logged: 0, distinct: 0, suppressed: 0 });
+  });
+
   it('writes a summary line', () => {
     const logger = createLogger();
     const relay = new GuardEventRelay(logger);
@@ -206,6 +218,8 @@ describe(installLocalEgressGuardAsync, () => {
   beforeEach(async () => {
     mockedSetEnv.mockReset();
     mockedSetEnv.mockResolvedValue(undefined);
+    mockedSpawn.mockReset();
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'guard-install-'));
     logger = createLogger();
   });
@@ -228,7 +242,7 @@ describe(installLocalEgressGuardAsync, () => {
     expect(mockedSetEnv).not.toHaveBeenCalled();
   });
 
-  it('warns and continues when the library is not available', async () => {
+  it('fails the session when the library is not available', async () => {
     const handoffPath = path.join(dir, 'handoff.json');
     await writeLocalEgressHandoffAsync(handoff, handoffPath);
     await expect(
@@ -240,9 +254,42 @@ describe(installLocalEgressGuardAsync, () => {
         libraryPath: null,
         logPath: path.join(dir, 'guard.log'),
       })
-    ).resolves.toBe(false);
+    ).rejects.toThrow(SystemError);
     expect(mockedSetEnv).not.toHaveBeenCalled();
-    expect(logger.lines.some(l => l.level === 'warn' && /not available/.test(l.msg))).toBe(true);
+  });
+
+  it('logs the simulator processes that were already running and are not covered', async () => {
+    const handoffPath = path.join(dir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    const libraryPath = path.join(dir, 'egress-guard.dylib');
+    await fs.promises.writeFile(libraryPath, '');
+    mockedSpawn.mockResolvedValue({
+      stdout: [
+        '    1     0 /sbin/launchd',
+        ' 4000     1 /Library/Developer/CoreSimulator/Volumes/iOS/Runtimes/x/sbin/launchd_sim',
+        ' 4001  4000 /Library/Developer/CoreSimulator/Volumes/iOS/Runtimes/x/System/Library/CoreServices/SpringBoard.app/SpringBoard',
+        ' 4002  4000 /Library/Developer/CoreSimulator/Volumes/iOS/Runtimes/x/usr/libexec/backboardd',
+        ' 3758     1 node',
+      ].join('\n'),
+      stderr: '',
+    } as any);
+
+    await installLocalEgressGuardAsync({
+      udid: 'u' as any,
+      env: process.env,
+      logger,
+      handoffPath,
+      libraryPath,
+      logPath: path.join(dir, 'guard.log'),
+    });
+
+    expect(
+      logger.lines.some(l =>
+        /2 simulator process\(es\) were already running .* not covered by it: SpringBoard, backboardd\./.test(
+          l.msg
+        )
+      )
+    ).toBe(true);
   });
 
   it('sets the launchd environment, creates the log file, and relays events into the session log', async () => {
@@ -288,7 +335,7 @@ describe(installLocalEgressGuardAsync, () => {
     expect(logger.lines.at(-1)?.msg).toContain('refused 1 connection attempt(s)');
   });
 
-  it('warns and continues when launchctl fails', async () => {
+  it('fails the session when launchctl fails', async () => {
     const handoffPath = path.join(dir, 'handoff.json');
     await writeLocalEgressHandoffAsync(handoff, handoffPath);
     const libraryPath = path.join(dir, 'egress-guard.dylib');
@@ -304,9 +351,63 @@ describe(installLocalEgressGuardAsync, () => {
         libraryPath,
         logPath: path.join(dir, 'guard.log'),
       })
-    ).resolves.toBe(false);
-    expect(logger.lines.some(l => l.level === 'warn' && /could not install/.test(l.msg))).toBe(
-      true
+    ).rejects.toThrow(/Could not install the local egress guard/);
+  });
+});
+
+describe(verifyLocalEgressGuardAsync, () => {
+  let logger: ReturnType<typeof createLogger>;
+  beforeEach(() => {
+    mockedSpawn.mockReset();
+    logger = createLogger();
+  });
+
+  it('runs the packaged self-check inside the simulator and logs its verdict', async () => {
+    mockedSpawn.mockResolvedValue({
+      stdout: 'egress-guard-check: guard loaded; non-loopback connections are refused\n',
+      stderr: '',
+    } as any);
+
+    await verifyLocalEgressGuardAsync({
+      udid: 'u' as any,
+      env: process.env,
+      logger,
+      checkPath: '/w/bin/egress-guard-check',
+    });
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'xcrun',
+      ['simctl', 'spawn', 'u', '/w/bin/egress-guard-check', '--mode', 'block'],
+      expect.objectContaining({ stdio: 'pipe' })
     );
+    expect(logger.lines.at(-1)?.msg).toContain(
+      'verified in the Simulator: egress-guard-check: guard loaded'
+    );
+  });
+
+  it('fails the session with the self-check output when the check fails', async () => {
+    mockedSpawn.mockRejectedValue(
+      Object.assign(new Error('exited with non-zero code: 2'), {
+        status: 2,
+        stdout: 'egress-guard-check: the guard library is not loaded in this process\n',
+        stderr: '',
+      })
+    );
+
+    await expect(
+      verifyLocalEgressGuardAsync({
+        udid: 'u' as any,
+        env: process.env,
+        logger,
+        checkPath: '/w/bin/egress-guard-check',
+      })
+    ).rejects.toThrow(/not in effect .*\(exit 2\).*guard library is not loaded/);
+  });
+
+  it('fails the session when the self-check binary is missing', async () => {
+    await expect(
+      verifyLocalEgressGuardAsync({ udid: 'u' as any, env: process.env, logger, checkPath: null })
+    ).rejects.toThrow(/self-check is not available/);
+    expect(mockedSpawn).not.toHaveBeenCalled();
   });
 });

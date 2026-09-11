@@ -4,7 +4,10 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { configureSimulatorProxyEnvironmentAsync } from '../../utils/localEgress';
-import { installLocalEgressGuardAsync } from '../../utils/localEgressGuard';
+import {
+  installLocalEgressGuardAsync,
+  verifyLocalEgressGuardAsync,
+} from '../../utils/localEgressGuard';
 import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -18,6 +21,8 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
     getDeviceAsync: jest.fn(),
     cloneAsync: jest.fn(),
     enableAccessibilitySettingsAsync: jest.fn(),
+    resolveUdidAsync: jest.fn(),
+    bootAsync: jest.fn(),
     startAsync: jest.fn(),
     waitForReadyAsync: jest.fn(),
     disableApsdAsync: jest.fn(),
@@ -29,12 +34,21 @@ jest.mock('../../utils/localEgress', () => ({
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
   installLocalEgressGuardAsync: jest.fn(),
+  verifyLocalEgressGuardAsync: jest.fn(),
 }));
 
 const mockedSpawn = jest.mocked(spawn);
 const mockedUtils = jest.mocked(IosSimulatorUtils);
 const mockedConfigureProxyEnvironment = jest.mocked(configureSimulatorProxyEnvironmentAsync);
 const mockedInstallGuard = jest.mocked(installLocalEgressGuardAsync);
+const mockedVerifyGuard = jest.mocked(verifyLocalEgressGuardAsync);
+
+// Names resolve to udids the way the step expects; udids pass through.
+const UDIDS: Record<string, string> = {
+  'iPhone 15': 'base',
+  'eas-simulator-1': 'clone-1',
+  'eas-simulator-2': 'clone-2',
+};
 
 function createStep(callInputs?: Record<string, unknown>) {
   const logger = createMockLogger();
@@ -52,29 +66,39 @@ describe(createStartIosSimulatorBuildFunction, () => {
     mockedUtils.getDeviceAsync.mockResolvedValue(null);
     mockedUtils.cloneAsync.mockResolvedValue(undefined);
     mockedUtils.enableAccessibilitySettingsAsync.mockResolvedValue(undefined);
-    mockedUtils.startAsync.mockResolvedValue({ udid: 'test-udid' as any });
+    mockedUtils.resolveUdidAsync.mockImplementation(
+      async ({ deviceIdentifier }) => (UDIDS[deviceIdentifier] ?? deviceIdentifier) as any
+    );
+    mockedUtils.bootAsync.mockResolvedValue(undefined);
+    mockedUtils.startAsync.mockImplementation(async ({ deviceIdentifier }) => ({
+      udid: deviceIdentifier as any,
+    }));
     mockedUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedUtils.disableApsdAsync.mockResolvedValue(undefined);
     mockedConfigureProxyEnvironment.mockResolvedValue(false);
     mockedInstallGuard.mockResolvedValue(false);
+    mockedVerifyGuard.mockResolvedValue(undefined);
   });
 
   it('does not enable accessibility settings by default', async () => {
     await createStep({ device_identifier: 'iPhone 15' }).executeAsync();
 
     expect(mockedUtils.enableAccessibilitySettingsAsync).not.toHaveBeenCalled();
-    expect(mockedUtils.startAsync).toHaveBeenCalledWith({
+    expect(mockedUtils.resolveUdidAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'iPhone 15',
+      env: expect.any(Object),
+    });
+    expect(mockedUtils.bootAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'base',
+      env: expect.any(Object),
+    });
+    expect(mockedUtils.startAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'base',
       env: expect.any(Object),
     });
   });
 
   it('enables accessibility settings before starting the main device and every clone when requested', async () => {
-    mockedUtils.startAsync
-      .mockResolvedValueOnce({ udid: 'base' as any })
-      .mockResolvedValueOnce({ udid: 'clone-1' as any })
-      .mockResolvedValueOnce({ udid: 'clone-2' as any });
-
     await createStep({
       device_identifier: 'iPhone 15',
       count: 2,
@@ -102,11 +126,6 @@ describe(createStartIosSimulatorBuildFunction, () => {
   });
 
   it('disables apsd on the main device and every clone', async () => {
-    mockedUtils.startAsync
-      .mockResolvedValueOnce({ udid: 'base' as any })
-      .mockResolvedValueOnce({ udid: 'clone-1' as any })
-      .mockResolvedValueOnce({ udid: 'clone-2' as any });
-
     await createStep({ device_identifier: 'iPhone 15', count: 2 }).executeAsync();
 
     expect(mockedUtils.disableApsdAsync).toHaveBeenCalledWith({
@@ -123,29 +142,56 @@ describe(createStartIosSimulatorBuildFunction, () => {
     });
   });
 
-  it('configures the local egress proxy environment and guard as soon as each device boots, before readiness', async () => {
-    mockedUtils.startAsync
-      .mockResolvedValueOnce({ udid: 'base' as any })
-      .mockResolvedValueOnce({ udid: 'clone-1' as any })
-      .mockResolvedValueOnce({ udid: 'clone-2' as any });
+  it('installs the proxy environment and guard between boot and boot completion, then verifies the guard', async () => {
+    mockedInstallGuard.mockResolvedValue(true);
 
     await createStep({ device_identifier: 'iPhone 15', count: 2 }).executeAsync();
 
     const udids = ['base', 'clone-1', 'clone-2'];
+    expect(
+      mockedUtils.bootAsync.mock.calls.map(([{ deviceIdentifier }]) => deviceIdentifier)
+    ).toEqual(udids);
     expect(mockedConfigureProxyEnvironment.mock.calls.map(([{ udid }]) => udid)).toEqual(udids);
     expect(mockedInstallGuard.mock.calls.map(([{ udid }]) => udid)).toEqual(udids);
+    expect(mockedVerifyGuard.mock.calls.map(([{ udid }]) => udid)).toEqual(udids);
     for (const [callIndex] of udids.entries()) {
-      const startOrder = mockedUtils.startAsync.mock.invocationCallOrder[callIndex];
+      const bootOrder = mockedUtils.bootAsync.mock.invocationCallOrder[callIndex];
       const configureOrder = mockedConfigureProxyEnvironment.mock.invocationCallOrder[callIndex];
       const guardOrder = mockedInstallGuard.mock.invocationCallOrder[callIndex];
+      const bootCompleteOrder = mockedUtils.startAsync.mock.invocationCallOrder[callIndex];
+      const verifyOrder = mockedVerifyGuard.mock.invocationCallOrder[callIndex];
       const readyOrder = mockedUtils.waitForReadyAsync.mock.invocationCallOrder[callIndex];
-      // Daemons launched during boot inherit launchd's environment, so both run
-      // right after the boot returns and before anything else waits.
-      expect(configureOrder).toBeGreaterThan(startOrder);
-      expect(guardOrder).toBeGreaterThan(startOrder);
-      expect(configureOrder).toBeLessThan(readyOrder);
-      expect(guardOrder).toBeLessThan(readyOrder);
+      // launchd is up when boot returns and has spawned nothing yet: that is the
+      // only moment at which its environment reaches every process of the boot.
+      expect(configureOrder).toBeGreaterThan(bootOrder);
+      expect(guardOrder).toBeGreaterThan(bootOrder);
+      expect(configureOrder).toBeLessThan(bootCompleteOrder);
+      expect(guardOrder).toBeLessThan(bootCompleteOrder);
+      // The self-check needs a completed boot and runs before anything else.
+      expect(verifyOrder).toBeGreaterThan(bootCompleteOrder);
+      expect(verifyOrder).toBeLessThan(readyOrder);
     }
+  });
+
+  it('skips the guard verification when no local egress session is active', async () => {
+    mockedInstallGuard.mockResolvedValue(false);
+
+    await createStep({ device_identifier: 'iPhone 15' }).executeAsync();
+
+    expect(mockedVerifyGuard).not.toHaveBeenCalled();
+  });
+
+  it('fails the step when the guard cannot be installed or verified', async () => {
+    mockedInstallGuard.mockRejectedValueOnce(new Error('guard library missing'));
+    await expect(createStep({ device_identifier: 'iPhone 15' }).executeAsync()).rejects.toThrow(
+      'guard library missing'
+    );
+
+    mockedInstallGuard.mockResolvedValue(true);
+    mockedVerifyGuard.mockRejectedValueOnce(new Error('self-check failed'));
+    await expect(createStep({ device_identifier: 'iPhone 15' }).executeAsync()).rejects.toThrow(
+      'self-check failed'
+    );
   });
 
   it('continues when disabling apsd fails', async () => {

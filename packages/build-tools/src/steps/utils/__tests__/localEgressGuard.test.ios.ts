@@ -19,8 +19,10 @@ import {
   type GuardEvent,
   installLocalEgressGuardAsync,
   parseGuardLogLine,
+  resolveEgressGuardCheckAsync,
   resolveEgressGuardLibraryAsync,
   stopLocalEgressGuardRelaysAsync,
+  verifyLocalEgressGuardAsync,
 } from '../localEgressGuard';
 
 jest.unmock('fs');
@@ -76,6 +78,7 @@ describeE2E('local egress guard in a booted simulator', () => {
   let udid: IosSimulatorUuid;
   let bootedByTest = false;
   let libraryPath: string;
+  let checkPath: string;
   let nettestPath: string;
   let handoffPath: string;
   let proxyServer: http.Server;
@@ -85,7 +88,7 @@ describeE2E('local egress guard in a booted simulator', () => {
   const logger = createLogger();
 
   async function installAsync(mode: 'block' | 'log', logPath: string): Promise<boolean> {
-    return await installLocalEgressGuardAsync({
+    const installed = await installLocalEgressGuardAsync({
       udid,
       env,
       logger,
@@ -95,6 +98,9 @@ describeE2E('local egress guard in a booted simulator', () => {
       mode,
       tailIntervalMs: 100,
     });
+    // The same self-check the worker runs once boot completes.
+    await verifyLocalEgressGuardAsync({ udid, env, logger, mode, checkPath });
+    return installed;
   }
 
   async function runNettestAsync(): Promise<Record<string, string>> {
@@ -129,6 +135,11 @@ describeE2E('local egress guard in a booted simulator', () => {
       throw new Error('egress-guard.dylib is not available and could not be built.');
     }
     libraryPath = resolved;
+    const resolvedCheck = await resolveEgressGuardCheckAsync();
+    if (!resolvedCheck) {
+      throw new Error('egress-guard-check is not available and could not be built.');
+    }
+    checkPath = resolvedCheck;
 
     // The probe binary, compiled for the simulator running on this host.
     nettestPath = path.join(workDir, 'nettest');
@@ -313,6 +324,24 @@ describeE2E('local egress guard in a booted simulator', () => {
     const events = (await readEventsAsync(logPath)).filter(e => e.process === 'nettest');
     expect(events.length).toBeGreaterThan(0);
     expect(events.every(e => e.action === 'logged')).toBe(true);
+  });
+
+  it('reports a missing guard through the self-check', async () => {
+    // Point launchd at a library path that does not exist: dyld ignores it, so
+    // a fresh process runs unguarded, which the check must catch.
+    await IosSimulatorUtils.setLaunchdEnvironmentAsync({
+      udid,
+      env,
+      variables: { DYLD_INSERT_LIBRARIES: path.join(workDir, 'missing.dylib') },
+    });
+    await expect(
+      verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath })
+    ).rejects.toThrow(/not in effect/);
+    await IosSimulatorUtils.setLaunchdEnvironmentAsync({
+      udid,
+      env,
+      variables: { DYLD_INSERT_LIBRARIES: libraryPath },
+    });
   });
 
   it('keeps refusing when the log file cannot be written', async () => {

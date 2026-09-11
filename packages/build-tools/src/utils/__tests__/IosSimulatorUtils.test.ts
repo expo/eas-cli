@@ -390,4 +390,68 @@ describe('IosSimulatorUtils', () => {
       ).rejects.toThrow('launchctl failed');
     });
   });
+  describe(IosSimulatorUtils.resolveUdidAsync, () => {
+    it('passes a udid through without listing devices', async () => {
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: '8027F627-9534-4679-85BF-0F14AFF228E8' as any,
+          env: process.env,
+        })
+      ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('resolves a device name to the first available device with that name', async () => {
+      mockedSpawn.mockResolvedValue({
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-26-5': [
+              { udid: 'AAAA', name: 'iPhone 17', isAvailable: true, state: 'Shutdown' },
+              { udid: 'BBBB', name: 'iPhone Air', isAvailable: true, state: 'Shutdown' },
+            ],
+          },
+        }),
+        stderr: '',
+      } as any);
+
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: 'iPhone Air' as any,
+          env: process.env,
+        })
+      ).resolves.toBe('BBBB');
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: 'iPhone 99' as any,
+          env: process.env,
+        })
+      ).rejects.toThrow(UserError);
+    });
+  });
+
+  describe(IosSimulatorUtils.bootAsync, () => {
+    it('boots without waiting and tolerates an already booted device', async () => {
+      await IosSimulatorUtils.bootAsync({ deviceIdentifier: 'AAAA' as any, env: process.env });
+      expect(mockedSpawn).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'AAAA'], {
+        env: process.env,
+        stdio: 'pipe',
+      });
+
+      mockedSpawn.mockRejectedValueOnce(
+        Object.assign(new Error('boot failed'), {
+          stderr: 'Unable to boot device in current state: Booted',
+        })
+      );
+      await expect(
+        IosSimulatorUtils.bootAsync({ deviceIdentifier: 'AAAA' as any, env: process.env })
+      ).resolves.toBeUndefined();
+
+      mockedSpawn.mockRejectedValueOnce(
+        Object.assign(new Error('boot failed'), { stderr: 'other' })
+      );
+      await expect(
+        IosSimulatorUtils.bootAsync({ deviceIdentifier: 'AAAA' as any, env: process.env })
+      ).rejects.toThrow('boot failed');
+    });
+  });
 });
