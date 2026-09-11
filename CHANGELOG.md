@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Set proxy environment variables inside the iOS Simulator for `--egress local` sessions, so clients that read them (gRPC, libcurl) also exit from the egress client. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@brentvatne](https://github.com/brentvatne))
+- [build-tools] Set proxy environment variables inside the iOS Simulator for `--egress local` sessions, so clients that read them (gRPC, libcurl) also exit from the egress client. ([#4390](https://github.com/expo/eas-cli/pull/4390) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 
