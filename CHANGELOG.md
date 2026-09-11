@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Stop telling interactive `eas simulator:start --egress local` users to run `eas simulator:egress` when the egress client already runs in the same terminal. ([#4382](https://github.com/expo/eas-cli/pull/4382) by [@brentvatne](https://github.com/brentvatne))
-
 ### 🧹 Chores
+
+## [24.1.1](https://github.com/expo/eas-cli/releases/tag/v24.1.1) - 2026-09-11
+
+### 🐛 Bug fixes
+
+- [eas-cli] Stop telling interactive `eas simulator:start --egress local` users to run `eas simulator:egress` when the egress client already runs in the same terminal. ([#4382](https://github.com/expo/eas-cli/pull/4382) by [@brentvatne](https://github.com/brentvatne))
 
 ## [24.1.0](https://github.com/expo/eas-cli/releases/tag/v24.1.0) - 2026-09-10
 
