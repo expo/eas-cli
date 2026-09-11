@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.2.0](https://github.com/expo/eas-cli/releases/tag/v24.2.0) - 2026-09-11
+
+### 🎉 New features
+
 - [eas-build-job] Remove repository URLs from Git job inputs and fetch them when resolving project sources. ([#4360](https://github.com/expo/eas-cli/pull/4360) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Add `eas workflow:insights` to display Workflows Insights for a time range: run counts and success rate compared with the previous period, runs over time, and a per-workflow breakdown, with `--json` output for scripts. ([#4367](https://github.com/expo/eas-cli/pull/4367) by [@hSATAC](https://github.com/hSATAC))
 - [eas-cli] Add `eas workflow:insights:maestro` to display Maestro test insights for a time range: pass and flake rates, a sortable per-flow table, and a single flow's history with error patterns and recent runs, with `--json` output for scripts. ([#4370](https://github.com/expo/eas-cli/pull/4370) by [@hSATAC](https://github.com/hSATAC))
