@@ -10,14 +10,16 @@ import { downloadCacheAsync } from './restoreCache';
 import { uploadCacheAsync } from './saveCache';
 import { TurtleFetchError } from '../../utils/turtleFetch';
 
-// Enabled with EAS_METRO_CACHE=1. Requires the two-store support in @expo/metro-config.
+// Enabled with EAS_METRO_CACHE=1. Requires BuildCacheStore support in @expo/metro-config.
+// The server scopes this key by project and branch, with default-branch fallback.
+// Metro validates individual transforms, so the archive can span platforms and hosts.
 // Stable logical paths keep the cache version independent of job directories.
 const CACHE_PATHS = ['metro-transform-cache-v1'];
 const CACHE_ENTRY = /^[0-9a-f]{2}\/[0-9a-f]+\.mp$/;
 
 type CacheOptions = {
   logger: bunyan;
-  platform: Platform;
+  platform?: Platform;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 };
@@ -29,8 +31,9 @@ function getCacheRequest({ platform, env, secrets, logger }: CacheOptions) {
     jobId: nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set'),
     expoApiServerURL: nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set'),
     robotAccessToken: nullthrows(secrets?.robotAccessToken, 'Robot access token is required'),
-    key: `${platform}-metro-transform-v1`,
+    key: 'metro-transform-v1',
     paths: CACHE_PATHS,
+    cacheVersion: 'metro-transform-v1',
   };
 }
 
@@ -44,11 +47,11 @@ export async function restoreMetroCacheAsync(
   const output = path.resolve(cacheDirectory, 'output');
   const restored = path.resolve(cacheDirectory, 'restored');
   const cacheEnv = {
-    EAS_METRO_CACHE_OUTPUT_DIR: output,
-    EAS_METRO_CACHE_RESTORE_DIR: restored,
+    EXPO_METRO_CACHE_OUTPUT_DIR: output,
+    EXPO_METRO_CACHE_RESTORE_DIR: restored,
   };
   // Repeated restore steps must keep results from earlier bundle commands.
-  if (env.EAS_METRO_CACHE_OUTPUT_DIR === output && env.EAS_METRO_CACHE_RESTORE_DIR === restored) {
+  if (env.EXPO_METRO_CACHE_OUTPUT_DIR === output && env.EXPO_METRO_CACHE_RESTORE_DIR === restored) {
     return cacheEnv;
   }
 
@@ -98,8 +101,8 @@ export async function restoreMetroCacheAsync(
 
 export async function saveMetroCacheAsync(options: CacheOptions): Promise<void> {
   const { env, logger } = options;
-  const output = env.EAS_METRO_CACHE_OUTPUT_DIR;
-  if (env.EAS_METRO_CACHE !== '1' || !output || !env.EAS_METRO_CACHE_RESTORE_DIR) {
+  const output = env.EXPO_METRO_CACHE_OUTPUT_DIR;
+  if (env.EAS_METRO_CACHE !== '1' || !output || !env.EXPO_METRO_CACHE_RESTORE_DIR) {
     return;
   }
   let archivePath: string | undefined;
@@ -111,7 +114,7 @@ export async function saveMetroCacheAsync(options: CacheOptions): Promise<void> 
       logger.info('No Metro transform cache entries to save');
       return;
     }
-    // Run after bundling processes exit. Archive only the first store: reused and
+    // Run after bundling processes exit. Archive only output entries: reused and
     // new transforms. Unused restored entries are excluded from the next archive.
     archivePath = path.join(path.dirname(output), 'cache.tar.gz');
     await tar.create({ file: archivePath, cwd: output, gzip: true }, files);

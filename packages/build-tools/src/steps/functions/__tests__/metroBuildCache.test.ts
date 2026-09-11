@@ -52,9 +52,9 @@ describe('Metro build cache', () => {
     await writeEntry(path.join(root, 'output'), 'aa/bb.mp', 'old output');
     await writeEntry(path.join(root, 'restored'), 'aa/cc.mp', 'old restored');
     const cacheEnv = await restoreMetroCacheAsync({ ...options, cacheDirectory: root });
-    expect(await fs.readdir(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
-    expect(await fs.readdir(cacheEnv.EAS_METRO_CACHE_RESTORE_DIR)).toEqual([]);
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'first bundle');
+    expect(await fs.readdir(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
+    expect(await fs.readdir(cacheEnv.EXPO_METRO_CACHE_RESTORE_DIR)).toEqual([]);
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'first bundle');
     await restoreMetroCacheAsync({
       ...options,
       env: { ...options.env, ...cacheEnv },
@@ -66,10 +66,10 @@ describe('Metro build cache', () => {
 
   it('archives only completed output entries and restores into a different job directory', async () => {
     const cacheEnv = await restoreMetroCacheAsync({ ...options, cacheDirectory: root });
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'reused');
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR, 'aa/cc.mp', 'new');
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR, 'aa/bb.tmp123.mp', 'incomplete');
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_RESTORE_DIR, 'aa/dd.mp', 'unused');
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'reused');
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR, 'aa/cc.mp', 'new');
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR, 'aa/bb.tmp123.mp', 'incomplete');
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_RESTORE_DIR, 'aa/dd.mp', 'unused');
     const downloadPath = path.join(os.tmpdir(), 'download.tar.gz');
     jest.mocked(uploadCacheAsync).mockImplementation(async ({ archivePath }) => {
       await fs.copyFile(archivePath, downloadPath);
@@ -77,7 +77,7 @@ describe('Metro build cache', () => {
     await saveMetroCacheAsync({ ...options, env: { ...options.env, ...cacheEnv } });
     expect(uploadCacheAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        key: 'ios-metro-transform-v1',
+        key: 'metro-transform-v1',
         force: true,
         paths: ['metro-transform-cache-v1'],
       })
@@ -85,22 +85,22 @@ describe('Metro build cache', () => {
     const archivePath = downloadPath;
     jest
       .mocked(downloadCacheAsync)
-      .mockResolvedValue({ archivePath, matchedKey: 'ios-metro-transform-v1' });
+      .mockResolvedValue({ archivePath, matchedKey: 'metro-transform-v1' });
     const next = await restoreMetroCacheAsync({
       ...options,
       cacheDirectory: path.join(root, 'next-job'),
     });
-    expect(await fs.readdir(path.join(next.EAS_METRO_CACHE_RESTORE_DIR, 'aa'))).toEqual([
+    expect(await fs.readdir(path.join(next.EXPO_METRO_CACHE_RESTORE_DIR, 'aa'))).toEqual([
       'bb.mp',
       'cc.mp',
     ]);
-    expect(await fs.readFile(path.join(next.EAS_METRO_CACHE_RESTORE_DIR, 'aa/bb.mp'), 'utf8')).toBe(
-      'reused'
-    );
-    expect(await fs.readdir(next.EAS_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
+    expect(
+      await fs.readFile(path.join(next.EXPO_METRO_CACHE_RESTORE_DIR, 'aa/bb.mp'), 'utf8')
+    ).toBe('reused');
+    expect(await fs.readdir(next.EXPO_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
     expect(downloadCacheAsync).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        key: 'ios-metro-transform-v1',
+        key: 'metro-transform-v1',
         paths: ['metro-transform-cache-v1'],
       })
     );
@@ -116,7 +116,7 @@ describe('Metro build cache', () => {
       ...options,
       cacheDirectory: path.join(root, 'cache'),
     });
-    expect(await fs.readdir(cacheEnv.EAS_METRO_CACHE_RESTORE_DIR)).toEqual([]);
+    expect(await fs.readdir(cacheEnv.EXPO_METRO_CACHE_RESTORE_DIR)).toEqual([]);
     await saveMetroCacheAsync({ ...options, env: { ...options.env, ...cacheEnv } });
     expect(uploadCacheAsync).not.toHaveBeenCalled();
   });
@@ -129,38 +129,48 @@ describe('Metro build cache', () => {
       ...options,
       cacheDirectory: path.join(root, 'cache'),
     });
-    expect(await fs.readdir(cacheEnv.EAS_METRO_CACHE_RESTORE_DIR)).toEqual([]);
-    expect(await fs.readdir(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
+    expect(await fs.readdir(cacheEnv.EXPO_METRO_CACHE_RESTORE_DIR)).toEqual([]);
+    expect(await fs.readdir(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR)).toEqual([]);
   });
 
-  it('passes cache directories from the restore step to later steps', async () => {
-    const globalCtx = createGlobalContextMock({
-      logger,
-      projectTargetDirectory: root,
-      staticContextContent: { job: { platform: Platform.IOS, secrets: options.secrets } },
-    });
-    globalCtx.updateEnv({ ...options.env, PRESERVED_ENV: 'value' });
-    const restoreStep = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
-      globalCtx,
-      {}
-    );
-    await restoreStep.executeAsync();
-    expect(globalCtx.env.PRESERVED_ENV).toBe('value');
-    const output = globalCtx.env.EAS_METRO_CACHE_OUTPUT_DIR!;
-    expect(path.isAbsolute(output)).toBe(true);
-    expect(globalCtx.env.EAS_METRO_CACHE_RESTORE_DIR).not.toBe(output);
-    await writeEntry(output, 'aa/bb.mp', 'bundle result');
-    const saveStep = createSaveBuildCacheFunction(new Date()).createBuildStepFromFunctionCall(
-      globalCtx,
-      {}
-    );
-    await saveStep.executeAsync();
-    expect(uploadCacheAsync).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
-  });
+  it.each([Platform.IOS, Platform.ANDROID, undefined])(
+    'passes cache directories between steps with platform=%s',
+    async platform => {
+      const globalCtx = createGlobalContextMock({
+        logger,
+        projectTargetDirectory: root,
+        staticContextContent: { job: { platform, secrets: options.secrets } },
+      });
+      globalCtx.updateEnv({ ...options.env, PRESERVED_ENV: 'value' });
+      const restoreStep = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
+        globalCtx,
+        {}
+      );
+      await restoreStep.executeAsync();
+      expect(globalCtx.env.PRESERVED_ENV).toBe('value');
+      const output = globalCtx.env.EXPO_METRO_CACHE_OUTPUT_DIR!;
+      expect(path.isAbsolute(output)).toBe(true);
+      expect(globalCtx.env.EXPO_METRO_CACHE_RESTORE_DIR).not.toBe(output);
+      await writeEntry(output, 'aa/bb.mp', 'bundle result');
+      const saveStep = createSaveBuildCacheFunction(new Date()).createBuildStepFromFunctionCall(
+        globalCtx,
+        {}
+      );
+      await saveStep.executeAsync();
+      expect(uploadCacheAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          force: true,
+          platform,
+          key: 'metro-transform-v1',
+          cacheVersion: 'metro-transform-v1',
+        })
+      );
+    }
+  );
 
   it('does not fail the build if upload fails', async () => {
     const cacheEnv = await restoreMetroCacheAsync({ ...options, cacheDirectory: root });
-    await writeEntry(cacheEnv.EAS_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'new');
+    await writeEntry(cacheEnv.EXPO_METRO_CACHE_OUTPUT_DIR, 'aa/bb.mp', 'new');
     jest.mocked(uploadCacheAsync).mockRejectedValue(new Error('network failure'));
     await expect(
       saveMetroCacheAsync({ ...options, env: { ...options.env, ...cacheEnv } })
