@@ -18,6 +18,10 @@ import {
   writeLocalEgressHandoffAsync,
 } from '../utils/localEgress';
 import {
+  type LocalEgressInventoryHandle,
+  startLocalEgressInventoryAsync,
+} from '../utils/localEgressInventory';
+import {
   type DetachedProcessHandle,
   type NgrokTunnelHandle,
   findAvailablePortAsync,
@@ -94,6 +98,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
       let workDir: string | undefined;
       let server: DetachedProcessHandle | undefined;
       let tunnel: NgrokTunnelHandle | undefined;
+      let inventory: LocalEgressInventoryHandle | undefined;
       let finishSetup!: () => void;
       const setupFinished = new Promise<void>(resolve => {
         finishSetup = resolve;
@@ -103,6 +108,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
       const lifetimeSignal = registerLocalEgressResources(async () => {
         await setupFinished;
         const results = await Promise.allSettled([
+          Promise.resolve().then(() => inventory?.stopAsync()),
           Promise.resolve().then(() => tunnel?.stopAsync()),
           Promise.resolve().then(() => server?.stopAsync()),
         ]);
@@ -180,6 +186,21 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           fingerprint: started.fingerprint,
           port: LOCAL_EGRESS_PROXY_PORT,
         });
+        startupSignal.throwIfAborted();
+        if (process.env.ENVIRONMENT !== 'development') {
+          // Observation only: a log-only pf anchor and a sampler of the worker's
+          // own connections, to measure which hosts a future block rule must
+          // keep open. Never fails the session.
+          try {
+            inventory = await startLocalEgressInventoryAsync({ env, logger });
+          } catch (err) {
+            logger.warn(
+              { err },
+              'Local egress inventory could not start, so this session will not report which ' +
+                'destinations bypass the proxy. The session itself is unaffected.'
+            );
+          }
+        }
         startupSignal.throwIfAborted();
         logger.info(
           `Local egress is configured on network service "${service}". HTTP(S) and WebSocket ` +

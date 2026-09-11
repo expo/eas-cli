@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [build-tools] Log which destinations the device host's own processes and the simulator reach during `--egress local` sessions, through a log-only pf anchor, to size the host list for a fail-closed mode. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@brentvatne](https://github.com/brentvatne))
+
 ## [24.3.0](https://github.com/expo/eas-cli/releases/tag/v24.3.0) - 2026-09-11
 
 ### 🎉 New features

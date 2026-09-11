@@ -20,6 +20,9 @@ jest.mock('../../utils/localEgress', () => ({
   startChiselServerAsync: jest.fn(),
   writeLocalEgressHandoffAsync: jest.fn(),
 }));
+jest.mock('../../utils/localEgressInventory', () => ({
+  startLocalEgressInventoryAsync: jest.fn().mockResolvedValue({ stopAsync: jest.fn() }),
+}));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   findAvailablePortAsync: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
