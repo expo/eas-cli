@@ -9,10 +9,12 @@ let hasWarnedAboutEasProjectRoot = false;
 
 export default class NoVcsClient extends Client {
   private readonly cwdOverride?: string;
+  private readonly projectDir?: string;
 
-  constructor(options: { cwdOverride?: string } = {}) {
+  constructor(options: { cwdOverride?: string; projectDir?: string } = {}) {
     super();
     this.cwdOverride = options.cwdOverride;
+    this.projectDir = options.projectDir ?? options.cwdOverride;
   }
 
   public async getRootPathAsync(): Promise<string> {
@@ -47,12 +49,12 @@ export default class NoVcsClient extends Client {
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     const srcPath = path.normalize(await this.getRootPathAsync());
-    await makeShallowCopyAsync(srcPath, destinationPath);
+    await makeShallowCopyAsync(srcPath, destinationPath, this.projectDir);
   }
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     const rootPath = path.normalize(await this.getRootPathAsync());
-    const ignore = await Ignore.createForCheckingAsync(rootPath);
+    const ignore = await Ignore.createForCheckingAsync(rootPath, this.projectDir);
     return ignore.ignores(filePath);
   }
 
