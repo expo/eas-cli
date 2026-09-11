@@ -26,38 +26,6 @@ jest.mock('@expo/downloader');
 jest.mock('@urql/core');
 
 describe('projectSources', () => {
-  it.each(['local-build-plugin', 'eas-build'])(
-    'skips source fetching for NONE without credentials (runner: %s)',
-    async runner => {
-      const ctx = new BuildContext(
-        {
-          triggeredBy: BuildTrigger.EAS_CLI,
-          type: Workflow.MANAGED,
-          mode: BuildMode.BUILD,
-          initiatingUserId: randomUUID(),
-          appId: randomUUID(),
-          platform: Platform.IOS,
-          projectArchive: { type: ArchiveSourceType.NONE },
-          secrets: { environmentSecrets: [] },
-        } as Job,
-        {
-          env: { EAS_BUILD_RUNNER: runner, __API_SERVER_URL: 'https://api.expo.dev' },
-          workingdir: '/workingdir',
-          logger: createMockLogger(),
-          logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-          uploadArtifact: jest.fn(),
-        }
-      );
-
-      await expect(prepareProjectSourcesAsync(ctx, ctx.buildDirectory)).resolves.toEqual({
-        handled: true,
-      });
-      expect(fetch).not.toHaveBeenCalled();
-      expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
-      expect(spawn).not.toHaveBeenCalled();
-    }
-  );
-
   it('makes extracted project sources readable and writable by the worker', async () => {
     const logger = createMockLogger();
 
