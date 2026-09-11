@@ -134,7 +134,7 @@ export default class New extends EasCommand {
   static override aliases = ['new'];
 
   static override description =
-    'Create a new project configured with Expo Application Services (EAS)';
+    'create a new project configured with Expo Application Services (EAS)';
 
   static override args = {
     path: Args.string({
