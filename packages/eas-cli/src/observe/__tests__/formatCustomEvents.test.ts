@@ -299,8 +299,20 @@ describe(buildObserveCustomEventNamesTable, () => {
 
   it('shows event names with counts', () => {
     const output = buildObserveCustomEventNamesTable([
-      { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
-      { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
+      {
+        __typename: 'AppObserveUserEventName',
+        name: 'foo',
+        count: 10,
+        firstSeenAt: '2024-01-01T00:00:00.000Z',
+        lastSeenAt: '2024-01-02T00:00:00.000Z',
+      },
+      {
+        __typename: 'AppObserveUserEventName',
+        name: 'bar',
+        count: 5,
+        firstSeenAt: '2024-01-01T00:00:00.000Z',
+        lastSeenAt: '2024-01-02T00:00:00.000Z',
+      },
     ]);
     expect(output).toContain('foo');
     expect(output).toContain('10');
@@ -310,7 +322,15 @@ describe(buildObserveCustomEventNamesTable, () => {
 
   it('appends a truncation notice when isTruncated is true', () => {
     const output = buildObserveCustomEventNamesTable(
-      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
+      [
+        {
+          __typename: 'AppObserveUserEventName',
+          name: 'foo',
+          count: 10,
+          firstSeenAt: '2024-01-01T00:00:00.000Z',
+          lastSeenAt: '2024-01-02T00:00:00.000Z',
+        },
+      ],
       { isTruncated: true }
     );
     expect(output).toContain('Result is truncated');
@@ -320,8 +340,20 @@ describe(buildObserveCustomEventNamesTable, () => {
 describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('shows the filtered event name and the available event names', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable('login', [
-      { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
-      { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
+      {
+        __typename: 'AppObserveUserEventName',
+        name: 'foo',
+        count: 10,
+        firstSeenAt: '2024-01-01T00:00:00.000Z',
+        lastSeenAt: '2024-01-02T00:00:00.000Z',
+      },
+      {
+        __typename: 'AppObserveUserEventName',
+        name: 'bar',
+        count: 5,
+        firstSeenAt: '2024-01-01T00:00:00.000Z',
+        lastSeenAt: '2024-01-02T00:00:00.000Z',
+      },
     ]);
 
     expect(output).toContain('No events found matching "login"');
@@ -342,7 +374,15 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('appends a truncation notice when isTruncated is set', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
       'login',
-      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
+      [
+        {
+          __typename: 'AppObserveUserEventName',
+          name: 'foo',
+          count: 10,
+          firstSeenAt: '2024-01-01T00:00:00.000Z',
+          lastSeenAt: '2024-01-02T00:00:00.000Z',
+        },
+      ],
       { isTruncated: true }
     );
 
@@ -352,7 +392,15 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
   it('includes the time range description in the message when provided', () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
       'login',
-      [{ __typename: 'AppObserveUserEventName', name: 'foo', count: 10 }],
+      [
+        {
+          __typename: 'AppObserveUserEventName',
+          name: 'foo',
+          count: 10,
+          firstSeenAt: '2024-01-01T00:00:00.000Z',
+          lastSeenAt: '2024-01-02T00:00:00.000Z',
+        },
+      ],
       { daysBack: 7 }
     );
 
@@ -365,8 +413,20 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsJson, () => {
     const result = buildObserveCustomEventsEmptyWithSuggestionsJson(
       'login',
       [
-        { __typename: 'AppObserveUserEventName', name: 'foo', count: 10 },
-        { __typename: 'AppObserveUserEventName', name: 'bar', count: 5 },
+        {
+          __typename: 'AppObserveUserEventName',
+          name: 'foo',
+          count: 10,
+          firstSeenAt: '2024-01-01T00:00:00.000Z',
+          lastSeenAt: '2024-01-02T00:00:00.000Z',
+        },
+        {
+          __typename: 'AppObserveUserEventName',
+          name: 'bar',
+          count: 5,
+          firstSeenAt: '2024-01-01T00:00:00.000Z',
+          lastSeenAt: '2024-01-02T00:00:00.000Z',
+        },
       ],
       false
     );
