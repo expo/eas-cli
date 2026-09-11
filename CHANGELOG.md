@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Stream iOS Simulator previews with H.264. ([#4416](https://github.com/expo/eas-cli/pull/4416) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Report the expo.dev preview page as a simulator session's preview URL, and the preview server behind it as `previewApiUrl`. ([#4353](https://github.com/expo/eas-cli/pull/4353) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--runtime-version` flag to `eas build:run` to filter builds by runtime version. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@AndrewJack](https://github.com/AndrewJack))
 
 ### 🐛 Bug fixes
 
