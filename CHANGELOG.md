@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Accept template expressions such as `${{ env.SLACK_WEBHOOK_URL }}` in `eas workflow:validate` for fields the workflow schema declares with a string format, like a `slack` job's `webhook_url`. Values without a template expression are still checked against the format. ([#4184](https://github.com/expo/eas-cli/pull/4184) by [@giaBaoJS](https://github.com/giaBaoJS))
+
 ### 🧹 Chores
 
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
