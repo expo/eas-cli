@@ -10,11 +10,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Shorten the local egress banner printed by `eas simulator:start` and stop mentioning `eas simulator:egress` in interactive mode, where the client runs in the same terminal. ([#4383](https://github.com/expo/eas-cli/pull/4383) by [@brentvatne](https://github.com/brentvatne))
-
 ### 🧹 Chores
 
 - [eas-cli] Make command descriptions in `eas --help` consistently lowercase without trailing periods. ([#4385](https://github.com/expo/eas-cli/pull/4385) by [@brentvatne](https://github.com/brentvatne))
+
+## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
+
+### 🐛 Bug fixes
+
+- [eas-cli] Shorten the local egress banner printed by `eas simulator:start` and stop mentioning `eas simulator:egress` in interactive mode, where the client runs in the same terminal. ([#4383](https://github.com/expo/eas-cli/pull/4383) by [@brentvatne](https://github.com/brentvatne))
 
 ## [24.1.1](https://github.com/expo/eas-cli/releases/tag/v24.1.1) - 2026-09-11
 
