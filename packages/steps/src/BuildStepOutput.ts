@@ -92,6 +92,14 @@ export class BuildStepOutput<R extends boolean = boolean> {
   }
 }
 
+export function createBuildStepOutputProviderFromDefinition(
+  entry: string | { name: string; required?: boolean }
+): BuildStepOutputProvider {
+  return typeof entry === 'string'
+    ? BuildStepOutput.createProvider({ id: entry, required: true })
+    : BuildStepOutput.createProvider({ id: entry.name, required: entry.required ?? true });
+}
+
 export function makeBuildStepOutputByIdMap(outputs?: BuildStepOutput[]): BuildStepOutputById {
   if (outputs === undefined) {
     return {};
