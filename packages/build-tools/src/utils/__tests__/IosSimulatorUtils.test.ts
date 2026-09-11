@@ -452,5 +452,24 @@ describe('IosSimulatorUtils', () => {
         IosSimulatorUtils.bootAsync({ deviceIdentifier: 'AAAA' as any, env: process.env })
       ).rejects.toThrow('boot failed');
     });
+
+    it('hands launchd environment to the boot through SIMCTL_CHILD_ variables', async () => {
+      await IosSimulatorUtils.bootAsync({
+        deviceIdentifier: 'AAAA' as any,
+        env: { PATH: '/usr/bin' },
+        launchdEnvironment: {
+          DYLD_INSERT_LIBRARIES: '/w/guard.dylib',
+          https_proxy: 'http://127.0.0.1:8899',
+        },
+      });
+      expect(mockedSpawn).toHaveBeenCalledWith('xcrun', ['simctl', 'boot', 'AAAA'], {
+        env: {
+          PATH: '/usr/bin',
+          SIMCTL_CHILD_DYLD_INSERT_LIBRARIES: '/w/guard.dylib',
+          SIMCTL_CHILD_https_proxy: 'http://127.0.0.1:8899',
+        },
+        stdio: 'pipe',
+      });
+    });
   });
 });

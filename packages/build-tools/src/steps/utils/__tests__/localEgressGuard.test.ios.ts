@@ -1,7 +1,11 @@
 /**
  * End-to-end test of the local egress guard against a real iOS Simulator.
- * Needs Xcode with a simulator runtime and network access. Opt in with
- * EAS_LOCAL_EGRESS_E2E=1; the test-egress-guard EAS workflow runs it on macOS.
+ * Needs Xcode with a simulator runtime, a shut-down iPhone simulator, and
+ * network access. Opt in with EAS_LOCAL_EGRESS_E2E=1; the test-egress-guard
+ * EAS workflow runs it on macOS.
+ *
+ * Variables handed to launchd at boot cannot be changed afterwards with
+ * `launchctl setenv`, so each configuration gets its own boot.
  */
 import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
@@ -19,8 +23,10 @@ import {
   type GuardEvent,
   installLocalEgressGuardAsync,
   parseGuardLogLine,
+  reportLocalEgressGuardCoverageAsync,
   resolveEgressGuardCheckAsync,
   resolveEgressGuardLibraryAsync,
+  resolveLocalEgressBootEnvironmentAsync,
   stopLocalEgressGuardRelaysAsync,
   verifyLocalEgressGuardAsync,
 } from '../localEgressGuard';
@@ -73,10 +79,9 @@ async function waitForAsync<T>(
   return undefined;
 }
 
-describeE2E('local egress guard in a booted simulator', () => {
+describeE2E('local egress guard in a simulator', () => {
   let workDir: string;
   let udid: IosSimulatorUuid;
-  let bootedByTest = false;
   let libraryPath: string;
   let checkPath: string;
   let nettestPath: string;
@@ -87,20 +92,27 @@ describeE2E('local egress guard in a booted simulator', () => {
   let udpPort: number;
   const logger = createLogger();
 
-  async function installAsync(mode: 'block' | 'log', logPath: string): Promise<boolean> {
-    const installed = await installLocalEgressGuardAsync({
-      udid,
-      env,
-      logger,
+  /** Shut the device down and boot it again with the given launchd environment. */
+  async function rebootAsync(launchdEnvironment: Record<string, string>): Promise<void> {
+    await spawn('xcrun', ['simctl', 'shutdown', udid], { env, stdio: 'pipe' }).catch(() => {});
+    await IosSimulatorUtils.bootAsync({ deviceIdentifier: udid, env, launchdEnvironment });
+    await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
+  }
+
+  async function bootEnvironmentAsync(
+    mode: 'block' | 'log',
+    logPath: string
+  ): Promise<Record<string, string>> {
+    const variables = await resolveLocalEgressBootEnvironmentAsync({
       handoffPath,
       libraryPath,
       logPath,
       mode,
-      tailIntervalMs: 100,
     });
-    // The same self-check the worker runs once boot completes.
-    await verifyLocalEgressGuardAsync({ udid, env, logger, mode, checkPath });
-    return installed;
+    if (!variables) {
+      throw new Error('The handoff was not written.');
+    }
+    return variables;
   }
 
   async function runNettestAsync(): Promise<Record<string, string>> {
@@ -125,7 +137,7 @@ describeE2E('local egress guard in a booted simulator', () => {
   beforeAll(async () => {
     workDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'egress-guard-e2e-'));
 
-    // The guard library, built on demand.
+    // The guard library and self-check, built on demand.
     let resolved = await resolveEgressGuardLibraryAsync();
     if (!resolved) {
       await spawn('bash', [path.join(GUARD_DIR, 'build.sh')], { env, stdio: 'pipe' });
@@ -158,28 +170,28 @@ describeE2E('local egress guard in a booted simulator', () => {
       { env, stdio: 'pipe' }
     );
 
-    // A device. Reuse a booted iPhone when there is one; otherwise boot one and
-    // shut it down afterwards. Never delete anything.
-    const booted = await IosSimulatorUtils.getAvailableDevicesAsync({ env, filter: 'booted' });
-    const bootedIphone = booted.find(d => /^iPhone/.test(d.name));
-    if (bootedIphone) {
-      udid = bootedIphone.udid;
-    } else {
-      const available = await IosSimulatorUtils.getAvailableDevicesAsync({
-        env,
-        filter: 'available',
-      });
-      const iphone =
-        available.find(d => /^iPhone \d/.test(d.name)) ??
-        available.find(d => /^iPhone/.test(d.name));
-      if (!iphone) {
-        throw new Error('No iPhone simulator is available.');
-      }
-      udid = iphone.udid;
-      await spawn('xcrun', ['simctl', 'boot', udid], { env, stdio: 'pipe' });
-      bootedByTest = true;
+    handoffPath = path.join(workDir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(
+      { url: 'https://egress.example', token: 'pw', fingerprint: 'fp=', port: 8899 },
+      handoffPath
+    );
+
+    // A shut-down iPhone the test can boot as many times as it needs. A device
+    // someone else booted is left alone. Nothing is ever deleted.
+    const booted = new Set(
+      (await IosSimulatorUtils.getAvailableDevicesAsync({ env, filter: 'booted' })).map(d => d.udid)
+    );
+    const available = await IosSimulatorUtils.getAvailableDevicesAsync({
+      env,
+      filter: 'available',
+    });
+    const iphone =
+      available.find(d => /^iPhone \d/.test(d.name) && !booted.has(d.udid)) ??
+      available.find(d => /^iPhone/.test(d.name) && !booted.has(d.udid));
+    if (!iphone) {
+      throw new Error('No shut-down iPhone simulator is available for the test to boot.');
     }
-    await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
+    udid = iphone.udid;
 
     // Loopback stand-ins for the egress proxy and for a local UDP service.
     proxyServer = http.createServer((_req, res) => {
@@ -208,19 +220,13 @@ describeE2E('local egress guard in a booted simulator', () => {
     );
     await new Promise<void>(resolve => udpServer.bind(0, '127.0.0.1', () => resolve()));
     udpPort = udpServer.address().port;
-
-    handoffPath = path.join(workDir, 'handoff.json');
-    await writeLocalEgressHandoffAsync(
-      { url: 'https://egress.example', token: 'pw', fingerprint: 'fp=', port: 8899 },
-      handoffPath
-    );
   });
 
   afterAll(async () => {
     await stopLocalEgressGuardRelaysAsync(logger);
     proxyServer?.close();
     udpServer?.close();
-    if (bootedByTest && udid) {
+    if (udid) {
       await spawn('xcrun', ['simctl', 'shutdown', udid], { env, stdio: 'pipe' }).catch(() => {});
     }
     if (workDir) {
@@ -228,130 +234,186 @@ describeE2E('local egress guard in a booted simulator', () => {
     }
   });
 
-  it('refuses every direct path and leaves loopback and DNS alone', async () => {
-    const logPath = path.join(workDir, 'block.log');
-    expect(await installAsync('block', logPath)).toBe(true);
+  describe('booted with the guard in launchd, as the worker boots', () => {
+    let logPath: string;
 
-    const results = await runNettestAsync();
-
-    expect(results).toMatchObject({
-      urlsessionDirect: 'refused',
-      urlsessionProxied: 'ok(200)',
-      bsdConnectDirect: 'refused',
-      dns: 'ok',
-      udpDirect: 'refused',
-      udpLoopback: 'ok',
-      literalFirst: 'refused',
-      literalSecond: 'refused',
-    });
-    expect(results.nwconnectionDirect).not.toMatch(/^ok|^timeout/);
-
-    const events = (await readEventsAsync(logPath)).filter(e => e.process === 'nettest');
-    expect(events.length).toBeGreaterThanOrEqual(4);
-    expect(events.every(e => e.action === 'blocked')).toBe(true);
-    // URLSession and Network.framework connects are caught inside Apple's frameworks.
-    expect(
-      events.some(e => e.function === 'connect' && e.callers.some(c => /CFNetwork/.test(c)))
-    ).toBe(true);
-    expect(
-      events.some(
-        e =>
-          e.function === 'connect' && e.callers.some(c => /Network/.test(c) && !/CFNetwork/.test(c))
-      )
-    ).toBe(true);
-    // UDP is covered.
-    expect(events.some(e => e.function === 'sendto' && e.peer === '8.8.8.8:53')).toBe(true);
-    // One line per destination per process, even when the process retries.
-    expect(events.filter(e => e.function === 'connect' && e.peer === '1.1.1.1:443')).toHaveLength(
-      1
-    );
-    // Nothing on loopback is ever reported.
-    expect(events.some(e => /^127\./.test(e.peer))).toBe(false);
-  });
-
-  it('guards processes the simulator launches on its own', async () => {
-    const logPath = path.join(workDir, 'daemons.log');
-    expect(await installAsync('block', logPath)).toBe(true);
-
-    await spawn('xcrun', ['simctl', 'openurl', udid, 'https://example.net/'], {
-      env,
-      stdio: 'pipe',
+    beforeAll(async () => {
+      logPath = path.join(workDir, 'boot.log');
+      await rebootAsync(await bootEnvironmentAsync('block', logPath));
+      await verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath });
     });
 
-    const daemonEvent = await waitForAsync(
-      async () =>
-        (await readEventsAsync(logPath)).find(
-          e => e.process !== 'nettest' && e.action === 'blocked'
-        ),
-      { timeoutMs: 60_000 }
-    );
-    expect(daemonEvent).toBeDefined();
-  });
-
-  it('does not interfere with the simulator tooling the worker relies on', async () => {
-    const screenshot = path.join(workDir, 'screenshot.png');
-    for (const args of [
-      ['simctl', 'spawn', udid, 'launchctl', 'list'],
-      [
-        'simctl',
-        'spawn',
-        udid,
-        'defaults',
-        'write',
-        'dev.expo.egress-guard-test',
-        'key',
-        '-string',
-        'value',
-      ],
-      ['simctl', 'spawn', udid, '/usr/bin/env'],
-      ['simctl', 'launch', udid, 'com.apple.Preferences'],
-      ['simctl', 'io', udid, 'screenshot', screenshot],
-    ]) {
-      await expect(spawn('xcrun', args, { env, stdio: 'pipe' })).resolves.toBeDefined();
-    }
-    expect(fs.existsSync(screenshot)).toBe(true);
-  });
-
-  it('observes without refusing in log mode', async () => {
-    const logPath = path.join(workDir, 'log-mode.log');
-    expect(await installAsync('log', logPath)).toBe(true);
-
-    const results = await runNettestAsync();
-
-    expect(results.urlsessionDirect).toBe('ok(200)');
-    expect(results.bsdConnectDirect).toBe('ok');
-    expect(results.udpDirect).toBe('sent');
-    const events = (await readEventsAsync(logPath)).filter(e => e.process === 'nettest');
-    expect(events.length).toBeGreaterThan(0);
-    expect(events.every(e => e.action === 'logged')).toBe(true);
-  });
-
-  it('reports a missing guard through the self-check', async () => {
-    // Point launchd at a library path that does not exist: dyld ignores it, so
-    // a fresh process runs unguarded, which the check must catch.
-    await IosSimulatorUtils.setLaunchdEnvironmentAsync({
-      udid,
-      env,
-      variables: { DYLD_INSERT_LIBRARIES: path.join(workDir, 'missing.dylib') },
+    it('covers every process of the boot', async () => {
+      const coverage = await reportLocalEgressGuardCoverageAsync({ env, logger });
+      expect(coverage).not.toBeNull();
+      expect(coverage!.covered.length).toBeGreaterThan(50);
+      expect(coverage!.uncovered).toEqual([]);
+      // Refusals were recorded by processes that started during the boot, before
+      // any launchctl call could have reached them.
+      expect((await readEventsAsync(logPath)).length).toBeGreaterThan(0);
     });
-    await expect(
-      verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath })
-    ).rejects.toThrow(/not in effect/);
-    await IosSimulatorUtils.setLaunchdEnvironmentAsync({
-      udid,
-      env,
-      variables: { DYLD_INSERT_LIBRARIES: libraryPath },
+
+    it('refuses every direct path and leaves loopback and DNS alone', async () => {
+      const results = await runNettestAsync();
+
+      expect(results).toMatchObject({
+        urlsessionDirect: 'refused',
+        urlsessionProxied: 'ok(200)',
+        bsdConnectDirect: 'refused',
+        dns: 'ok',
+        udpDirect: 'refused',
+        udpLoopback: 'ok',
+        literalFirst: 'refused',
+        literalSecond: 'refused',
+      });
+      expect(results.nwconnectionDirect).not.toMatch(/^ok|^timeout/);
+
+      const events = (await readEventsAsync(logPath)).filter(e => e.process === 'nettest');
+      expect(events.length).toBeGreaterThanOrEqual(4);
+      expect(events.every(e => e.action === 'blocked')).toBe(true);
+      // URLSession and Network.framework connects are caught inside Apple's frameworks.
+      expect(
+        events.some(e => e.function === 'connect' && e.callers.some(c => /CFNetwork/.test(c)))
+      ).toBe(true);
+      expect(
+        events.some(
+          e =>
+            e.function === 'connect' &&
+            e.callers.some(c => /Network/.test(c) && !/CFNetwork/.test(c))
+        )
+      ).toBe(true);
+      // UDP is covered.
+      expect(events.some(e => e.function === 'sendto' && e.peer === '8.8.8.8:53')).toBe(true);
+      // One line per destination per process, even when the process retries.
+      expect(events.filter(e => e.function === 'connect' && e.peer === '1.1.1.1:443')).toHaveLength(
+        1
+      );
+      // Nothing on loopback is ever reported.
+      expect(events.some(e => /^127\./.test(e.peer))).toBe(false);
+    });
+
+    it('guards processes the simulator launches on its own', async () => {
+      await spawn('xcrun', ['simctl', 'openurl', udid, 'https://example.net/'], {
+        env,
+        stdio: 'pipe',
+      });
+      const daemonEvent = await waitForAsync(
+        async () =>
+          (await readEventsAsync(logPath)).find(
+            e => e.process !== 'nettest' && e.action === 'blocked'
+          ),
+        { timeoutMs: 60_000 }
+      );
+      expect(daemonEvent).toBeDefined();
+    });
+
+    it('does not interfere with the simulator tooling the worker relies on', async () => {
+      const screenshot = path.join(workDir, 'screenshot.png');
+      for (const args of [
+        ['simctl', 'spawn', udid, 'launchctl', 'list'],
+        [
+          'simctl',
+          'spawn',
+          udid,
+          'defaults',
+          'write',
+          'dev.expo.egress-guard-test',
+          'key',
+          '-string',
+          'value',
+        ],
+        ['simctl', 'spawn', udid, '/usr/bin/env'],
+        ['simctl', 'launch', udid, 'com.apple.Preferences'],
+        ['simctl', 'io', udid, 'screenshot', screenshot],
+      ]) {
+        await expect(spawn('xcrun', args, { env, stdio: 'pipe' })).resolves.toBeDefined();
+      }
+      expect(fs.existsSync(screenshot)).toBe(true);
     });
   });
 
-  it('keeps refusing when the log file cannot be written', async () => {
-    const logPath = path.join(workDir, 'no-such-dir', 'guard.log');
-    expect(await installAsync('block', logPath)).toBe(true);
+  describe('booted in log mode', () => {
+    let logPath: string;
 
-    const results = await runNettestAsync();
+    beforeAll(async () => {
+      logPath = path.join(workDir, 'log-mode.log');
+      await rebootAsync(await bootEnvironmentAsync('log', logPath));
+      await verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'log', checkPath });
+    });
 
-    expect(results.urlsessionDirect).toBe('refused');
-    expect(results.bsdConnectDirect).toBe('refused');
-    expect(results.urlsessionProxied).toBe('ok(200)');
+    it('observes without refusing', async () => {
+      const results = await runNettestAsync();
+
+      expect(results.urlsessionDirect).toBe('ok(200)');
+      expect(results.bsdConnectDirect).toBe('ok');
+      expect(results.udpDirect).toBe('sent');
+      const events = (await readEventsAsync(logPath)).filter(e => e.process === 'nettest');
+      expect(events.length).toBeGreaterThan(0);
+      expect(events.every(e => e.action === 'logged')).toBe(true);
+    });
+  });
+
+  describe('booted without the guard, as a device that was already running', () => {
+    beforeAll(async () => {
+      await rebootAsync({});
+    });
+
+    it('is reported as not in effect by the self-check', async () => {
+      await expect(
+        verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath })
+      ).rejects.toThrow(/not in effect/);
+    });
+
+    it('can be installed after boot through launchctl for processes started from then on', async () => {
+      const logPath = path.join(workDir, 'install.log');
+      expect(
+        await installLocalEgressGuardAsync({
+          udid,
+          env,
+          logger,
+          handoffPath,
+          libraryPath,
+          logPath,
+          mode: 'block',
+          tailIntervalMs: 100,
+        })
+      ).toBe(true);
+      await verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath });
+
+      const results = await runNettestAsync();
+      expect(results.urlsessionDirect).toBe('refused');
+      expect(results.bsdConnectDirect).toBe('refused');
+
+      // The relay turns the guard's events into session log lines.
+      const relayed = await waitForAsync(
+        async () =>
+          logger.lines.find(l =>
+            /refused connect from nettest \(pid \d+\) to 1\.1\.1\.1:443/.test(l)
+          ),
+        { timeoutMs: 5_000, intervalMs: 200 }
+      );
+      expect(relayed).toBeDefined();
+
+      // Processes from before the install are the uncovered set the coverage
+      // report names; nettest itself was covered.
+      const coverage = await reportLocalEgressGuardCoverageAsync({ env, logger });
+      expect(coverage!.uncovered.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('booted with an unwritable event log', () => {
+    beforeAll(async () => {
+      await rebootAsync(
+        await bootEnvironmentAsync('block', path.join(workDir, 'no-such-dir', 'guard.log'))
+      );
+    });
+
+    it('still refuses', async () => {
+      await verifyLocalEgressGuardAsync({ udid, env, logger, mode: 'block', checkPath });
+      const results = await runNettestAsync();
+      expect(results.urlsessionDirect).toBe('refused');
+      expect(results.bsdConnectDirect).toBe('refused');
+      expect(results.urlsessionProxied).toBe('ok(200)');
+    });
   });
 });

@@ -15,9 +15,11 @@ import {
   GuardLogTailer,
   buildGuardLaunchdEnvironment,
   installLocalEgressGuardAsync,
+  mergeGuardCoverageSamples,
   parseGuardCoverage,
   parseGuardLogLine,
   resolveEgressGuardLibraryAsync,
+  resolveLocalEgressBootEnvironmentAsync,
   stopLocalEgressGuardRelaysAsync,
   verifyLocalEgressGuardAsync,
 } from '../localEgressGuard';
@@ -356,6 +358,54 @@ describe(installLocalEgressGuardAsync, () => {
   });
 });
 
+describe(resolveLocalEgressBootEnvironmentAsync, () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'guard-bootenv-'));
+  });
+  afterEach(async () => {
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  });
+
+  it('returns null without a local egress session', async () => {
+    await expect(
+      resolveLocalEgressBootEnvironmentAsync({ handoffPath: path.join(dir, 'missing.json') })
+    ).resolves.toBeNull();
+  });
+
+  it('fails when the guard library is not available', async () => {
+    const handoffPath = path.join(dir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    await expect(
+      resolveLocalEgressBootEnvironmentAsync({ handoffPath, libraryPath: null })
+    ).rejects.toThrow(SystemError);
+  });
+
+  it('combines the guard variables with the proxy variables for the handoff port', async () => {
+    const handoffPath = path.join(dir, 'handoff.json');
+    await writeLocalEgressHandoffAsync({ ...handoff, port: 8899 }, handoffPath);
+    await expect(
+      resolveLocalEgressBootEnvironmentAsync({
+        handoffPath,
+        libraryPath: '/w/bin/egress-guard.dylib',
+        logPath: '/tmp/guard.log',
+        mode: 'block',
+      })
+    ).resolves.toEqual({
+      DYLD_INSERT_LIBRARIES: '/w/bin/egress-guard.dylib',
+      [EGRESS_GUARD_LOG_ENV]: '/tmp/guard.log',
+      [EGRESS_GUARD_MODE_ENV]: 'block',
+      http_proxy: 'http://127.0.0.1:8899',
+      https_proxy: 'http://127.0.0.1:8899',
+      HTTP_PROXY: 'http://127.0.0.1:8899',
+      HTTPS_PROXY: 'http://127.0.0.1:8899',
+      grpc_proxy: 'http://127.0.0.1:8899',
+      no_proxy: 'localhost,127.0.0.1,::1',
+      NO_PROXY: 'localhost,127.0.0.1,::1',
+    });
+  });
+});
+
 describe(parseGuardCoverage, () => {
   const ps = [
     '    1     0 /sbin/launchd',
@@ -380,7 +430,30 @@ describe(parseGuardCoverage, () => {
     expect(parseGuardCoverage(ps, lsof)).toEqual({
       covered: ['Expo Go'],
       uncovered: ['SpringBoard', 'backboardd'],
+      uncoveredPids: [4001, 4002],
     });
+  });
+
+  it('only keeps processes uncovered in both samples, so exec-in-progress ones drop out', () => {
+    const first = parseGuardCoverage(ps, lsof);
+    const secondPs = ps + '\n 4009  4000 /Runtimes/x/usr/libexec/newlystarted';
+    const second = parseGuardCoverage(
+      secondPs,
+      lsof + '\np4002\nn/Users/expo/bin/egress-guard.dylib'
+    );
+    expect(mergeGuardCoverageSamples(first, second)).toEqual({
+      covered: ['Expo Go', 'backboardd'],
+      uncovered: ['SpringBoard'],
+      uncoveredPids: [4001],
+    });
+  });
+
+  it("ignores launchd's exec trampoline, which has nothing mapped yet", () => {
+    const withTrampoline = ps + '\n 4004  4000 /Runtimes/x/usr/libexec/xpcproxy_sim';
+    expect(parseGuardCoverage(withTrampoline, lsof).uncovered).toEqual([
+      'SpringBoard',
+      'backboardd',
+    ]);
   });
 });
 

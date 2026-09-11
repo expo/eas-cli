@@ -9,6 +9,7 @@ import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulat
 
 import {
   LOCAL_EGRESS_HANDOFF_PATH,
+  buildLocalEgressSimulatorEnvironment,
   collectSimulatorProcessIds,
   readLocalEgressHandoffAsync,
 } from './localEgress';
@@ -253,6 +254,45 @@ export class GuardLogTailer {
   }
 }
 
+/**
+ * The environment the simulator's launchd must have from its first process:
+ * the guard and the proxy variables. Pass it to `IosSimulatorUtils.bootAsync`,
+ * which hands it to launchd before anything is spawned; `launchctl setenv`
+ * after boot only reaches later processes. Returns null when no local egress
+ * session is active. Throws when the guard library is not packaged, since a
+ * local egress session without it would silently leak.
+ */
+export async function resolveLocalEgressBootEnvironmentAsync({
+  handoffPath = LOCAL_EGRESS_HANDOFF_PATH,
+  libraryPath,
+  logPath = LOCAL_EGRESS_GUARD_LOG_PATH,
+  mode = 'block',
+}: {
+  handoffPath?: string;
+  /** Explicit library path, `null` for "not available"; resolved from the package when omitted. */
+  libraryPath?: string | null;
+  logPath?: string;
+  mode?: EgressGuardMode;
+} = {}): Promise<Record<string, string> | null> {
+  const handoff = await readLocalEgressHandoffAsync(handoffPath);
+  if (!handoff) {
+    return null;
+  }
+  const resolvedLibrary =
+    libraryPath === undefined ? await resolveEgressGuardLibraryAsync() : libraryPath;
+  if (!resolvedLibrary) {
+    throw new SystemError(
+      'The local egress guard library is not available on this device host, so this local egress session ' +
+        'cannot guarantee that connections bypassing the system proxy are refused. The device host image is ' +
+        'missing bin/egress-guard.dylib; this is a service problem, please contact support.'
+    );
+  }
+  return {
+    ...buildGuardLaunchdEnvironment({ libraryPath: resolvedLibrary, logPath, mode }),
+    ...buildLocalEgressSimulatorEnvironment(handoff.port),
+  };
+}
+
 type ActiveRelay = { tailer: GuardLogTailer; relay: GuardEventRelay };
 const activeRelays = new Map<string, ActiveRelay>();
 
@@ -407,11 +447,19 @@ async function logAlreadyRunningProcessesAsync({
   );
 }
 
+/**
+ * launchd's trampoline exists for milliseconds between fork and exec of the
+ * real service, with nothing mapped yet; it never makes a connection itself.
+ */
+const COVERAGE_IGNORED_PROCESSES = new Set(['xpcproxy_sim']);
+
 export type GuardCoverage = {
   /** Simulator processes with the guard library mapped. */
   covered: string[];
   /** Simulator processes without it: started before the guard was installed. */
   uncovered: string[];
+  /** Pids behind `uncovered`, for comparing samples. */
+  uncoveredPids: number[];
 };
 
 /**
@@ -439,13 +487,44 @@ export function parseGuardCoverage(psOutput: string, lsofOutput: string): GuardC
   }
   const covered: string[] = [];
   const uncovered: string[] = [];
+  const uncoveredPids: number[] = [];
   for (const simulatorPid of simulatorPids) {
     const name = commandsByPid.get(simulatorPid) ?? String(simulatorPid);
-    (loaded.has(simulatorPid) ? covered : uncovered).push(name);
+    if (COVERAGE_IGNORED_PROCESSES.has(name)) {
+      continue;
+    }
+    if (loaded.has(simulatorPid)) {
+      covered.push(name);
+    } else {
+      uncovered.push(name);
+      uncoveredPids.push(simulatorPid);
+    }
   }
   covered.sort();
   uncovered.sort();
-  return { covered, uncovered };
+  return { covered, uncovered, uncoveredPids };
+}
+
+/**
+ * A process caught between fork and exec has nothing mapped yet and looks
+ * uncovered for an instant. Two samples a moment apart separate those from
+ * processes that really run without the guard: only pids uncovered in both
+ * count, reported with the later sample's names.
+ */
+export function mergeGuardCoverageSamples(
+  first: GuardCoverage,
+  second: GuardCoverage
+): GuardCoverage {
+  const persistent = new Set(first.uncoveredPids.filter(pid => second.uncoveredPids.includes(pid)));
+  const uncovered: string[] = [];
+  const uncoveredPids: number[] = [];
+  second.uncoveredPids.forEach((pid, index) => {
+    if (persistent.has(pid)) {
+      uncovered.push(second.uncovered[index]);
+      uncoveredPids.push(pid);
+    }
+  });
+  return { covered: second.covered, uncovered, uncoveredPids };
 }
 
 /**
@@ -456,9 +535,39 @@ export function parseGuardCoverage(psOutput: string, lsofOutput: string): GuardC
 export async function reportLocalEgressGuardCoverageAsync({
   env,
   logger,
+  sampleIntervalMs = 1_000,
 }: {
   env: NodeJS.ProcessEnv;
   logger: bunyan;
+  sampleIntervalMs?: number;
+}): Promise<GuardCoverage | null> {
+  const first = await sampleGuardCoverageAsync({ env });
+  if (!first) {
+    return null;
+  }
+  await new Promise(resolve => setTimeout(resolve, sampleIntervalMs));
+  const second = await sampleGuardCoverageAsync({ env });
+  const coverage = second ? mergeGuardCoverageSamples(first, second) : first;
+  const total = coverage.covered.length + coverage.uncovered.length;
+  if (coverage.uncovered.length === 0) {
+    logger.info(
+      `Local egress guard coverage: all ${total} simulator process(es) have the guard loaded.`
+    );
+  } else {
+    const shown =
+      coverage.uncovered.slice(0, 20).join(', ') +
+      (coverage.uncovered.length > 20 ? `, and ${coverage.uncovered.length - 20} more` : '');
+    logger.info(
+      `Local egress guard coverage: ${coverage.covered.length} of ${total} simulator process(es) have the guard loaded. Not covered, started before the guard was installed: ${shown}.`
+    );
+  }
+  return coverage;
+}
+
+async function sampleGuardCoverageAsync({
+  env,
+}: {
+  env: NodeJS.ProcessEnv;
 }): Promise<GuardCoverage | null> {
   let psOutput: string;
   try {
@@ -486,21 +595,7 @@ export async function reportLocalEgressGuardCoverageAsync({
     }
     lsofOutput = result.stdout ?? '';
   }
-  const coverage = parseGuardCoverage(psOutput, lsofOutput);
-  const total = coverage.covered.length + coverage.uncovered.length;
-  if (coverage.uncovered.length === 0) {
-    logger.info(
-      `Local egress guard coverage: all ${total} simulator process(es) have the guard loaded.`
-    );
-  } else {
-    const shown =
-      coverage.uncovered.slice(0, 20).join(', ') +
-      (coverage.uncovered.length > 20 ? `, and ${coverage.uncovered.length - 20} more` : '');
-    logger.info(
-      `Local egress guard coverage: ${coverage.covered.length} of ${total} simulator process(es) have the guard loaded. Not covered, started before the guard was installed: ${shown}.`
-    );
-  }
-  return coverage;
+  return parseGuardCoverage(psOutput, lsofOutput);
 }
 
 /**

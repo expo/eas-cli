@@ -6,6 +6,7 @@ import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { configureSimulatorProxyEnvironmentAsync } from '../../utils/localEgress';
 import {
   installLocalEgressGuardAsync,
+  resolveLocalEgressBootEnvironmentAsync,
   verifyLocalEgressGuardAsync,
 } from '../../utils/localEgressGuard';
 import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
@@ -34,6 +35,7 @@ jest.mock('../../utils/localEgress', () => ({
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
   installLocalEgressGuardAsync: jest.fn(),
+  resolveLocalEgressBootEnvironmentAsync: jest.fn(),
   verifyLocalEgressGuardAsync: jest.fn(),
 }));
 
@@ -42,6 +44,7 @@ const mockedUtils = jest.mocked(IosSimulatorUtils);
 const mockedConfigureProxyEnvironment = jest.mocked(configureSimulatorProxyEnvironmentAsync);
 const mockedInstallGuard = jest.mocked(installLocalEgressGuardAsync);
 const mockedVerifyGuard = jest.mocked(verifyLocalEgressGuardAsync);
+const mockedResolveBootEnvironment = jest.mocked(resolveLocalEgressBootEnvironmentAsync);
 
 // Names resolve to udids the way the step expects; udids pass through.
 const UDIDS: Record<string, string> = {
@@ -78,6 +81,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     mockedConfigureProxyEnvironment.mockResolvedValue(false);
     mockedInstallGuard.mockResolvedValue(false);
     mockedVerifyGuard.mockResolvedValue(undefined);
+    mockedResolveBootEnvironment.mockResolvedValue(null);
   });
 
   it('does not enable accessibility settings by default', async () => {
@@ -91,6 +95,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     expect(mockedUtils.bootAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'base',
       env: expect.any(Object),
+      launchdEnvironment: {},
     });
     expect(mockedUtils.startAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'base',
@@ -170,6 +175,33 @@ describe(createStartIosSimulatorBuildFunction, () => {
       expect(verifyOrder).toBeGreaterThan(bootCompleteOrder);
       expect(verifyOrder).toBeLessThan(readyOrder);
     }
+  });
+
+  it('boots with the local egress environment so the first processes inherit it', async () => {
+    mockedResolveBootEnvironment.mockResolvedValue({
+      DYLD_INSERT_LIBRARIES: '/w/bin/egress-guard.dylib',
+      https_proxy: 'http://127.0.0.1:8899',
+    });
+
+    await createStep({ device_identifier: 'iPhone 15', count: 2 }).executeAsync();
+
+    for (const [{ deviceIdentifier, launchdEnvironment }] of mockedUtils.bootAsync.mock.calls) {
+      expect(['base', 'clone-1', 'clone-2']).toContain(deviceIdentifier);
+      expect(launchdEnvironment).toEqual({
+        DYLD_INSERT_LIBRARIES: '/w/bin/egress-guard.dylib',
+        https_proxy: 'http://127.0.0.1:8899',
+      });
+    }
+  });
+
+  it('boots with an empty launchd environment when no local egress session is active', async () => {
+    await createStep({ device_identifier: 'iPhone 15' }).executeAsync();
+
+    expect(mockedUtils.bootAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'base',
+      env: expect.any(Object),
+      launchdEnvironment: {},
+    });
   });
 
   it('skips the guard verification when no local egress session is active', async () => {

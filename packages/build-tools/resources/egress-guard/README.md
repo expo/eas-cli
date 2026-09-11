@@ -41,10 +41,14 @@ Layout:
   a device; exercises URLSession, Network.framework, BSD TCP and UDP, DNS.
 - `build.sh`: universal simulator dylib into `packages/build-tools/bin/`.
 
-Installation order matters: the worker sets the launchd environment right
-after `simctl boot` returns, when launchd is up but nothing else has started,
-so every process the boot then spawns inherits the guard. The self-check runs
-once boot completes. Both the dylib and the check binary are built by
+Installation order matters. `simctl` forwards every `SIMCTL_CHILD_`-prefixed
+variable of its own environment to the process it starts, and for `simctl
+boot` that process is the simulator's launchd, so the worker boots with the
+guard and proxy variables in that form and every process of the boot inherits
+them (measured: 176 of 176). `launchctl setenv` after boot is kept for a
+device that was already booted, but by then the boot's own processes have
+started without it. The self-check runs once boot completes and is followed
+by a coverage report from `lsof`, listing any process without the library. Both the dylib and the check binary are built by
 `packages/worker/package.sh` for the iOS worker tarball and by the
 `test-egress-guard` EAS workflow, not committed.
 

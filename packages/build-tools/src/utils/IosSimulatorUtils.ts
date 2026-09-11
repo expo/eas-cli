@@ -213,20 +213,30 @@ export namespace IosSimulatorUtils {
   }
 
   /**
-   * Start booting without waiting for boot to complete. Returns as soon as the
-   * simulator's launchd is up, before it has spawned anything else, which is
-   * the moment to set launchd environment that every later process must
-   * inherit. Follow with `startAsync` to wait for the boot to finish.
+   * Start booting without waiting for boot to complete; follow with
+   * `startAsync` to wait for it. `launchdEnvironment` is handed to the
+   * simulator's launchd before it spawns anything: `simctl` forwards every
+   * `SIMCTL_CHILD_`-prefixed variable of its own environment to the process
+   * it starts, and for `boot` that process is launchd itself. This is the only
+   * way to give the first processes of a boot an environment; `launchctl
+   * setenv` after boot only reaches processes started later. A device that is
+   * already booted keeps its environment.
    */
   export async function bootAsync({
     deviceIdentifier,
     env,
+    launchdEnvironment = {},
   }: {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
+    launchdEnvironment?: Record<string, string>;
   }): Promise<void> {
+    const bootEnv = { ...env };
+    for (const [name, value] of Object.entries(launchdEnvironment)) {
+      bootEnv[`SIMCTL_CHILD_${name}`] = value;
+    }
     try {
-      await spawn('xcrun', ['simctl', 'boot', deviceIdentifier], { env, stdio: 'pipe' });
+      await spawn('xcrun', ['simctl', 'boot', deviceIdentifier], { env: bootEnv, stdio: 'pipe' });
     } catch (err) {
       const failed = err as { stderr?: string };
       if (/current state: Booted/.test(failed.stderr ?? '')) {

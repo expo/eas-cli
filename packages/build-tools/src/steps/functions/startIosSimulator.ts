@@ -11,6 +11,7 @@ import { minBy } from 'lodash';
 import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
 import {
   installLocalEgressGuardAsync,
+  resolveLocalEgressBootEnvironmentAsync,
   verifyLocalEgressGuardAsync,
 } from '../utils/localEgressGuard';
 
@@ -168,9 +169,15 @@ async function bootWithLocalEgressAsync({
   logger: bunyan;
 }): Promise<IosSimulatorUuid> {
   const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
-  await IosSimulatorUtils.bootAsync({ deviceIdentifier: udid, env });
-  // The guard goes first: it is the enforcement, and every process launchd
-  // spawns from here on must inherit it. The proxy variables follow.
+  // The guard and proxy variables ride the boot itself, so launchd has them
+  // before it spawns its first process.
+  const launchdEnvironment = await resolveLocalEgressBootEnvironmentAsync();
+  await IosSimulatorUtils.bootAsync({
+    deviceIdentifier: udid,
+    env,
+    launchdEnvironment: launchdEnvironment ?? {},
+  });
+  // Also set them through launchctl, for a device that was already booted.
   const guardInstalled = await installLocalEgressGuardAsync({ udid, env, logger });
   await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
   await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
