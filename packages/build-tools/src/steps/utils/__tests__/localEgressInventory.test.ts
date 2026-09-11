@@ -1,6 +1,7 @@
 import {
   LOCAL_EGRESS_PF_ANCHOR,
   LocalEgressInventoryTracker,
+  PFLOG_ATTRIBUTION_GRACE_MS,
   buildInventoryAnchorRules,
   collectDescendantProcessIds,
   parsePflogLine,
@@ -124,64 +125,55 @@ describe(parseWorkerConnections, () => {
 
 describe(LocalEgressInventoryTracker, () => {
   const ps = [' 3758     1 node', ' 4001  4000 /path/to/SpringBoard'].join('\n');
+  const workerFlow = {
+    action: 'pass',
+    protocol: 'TCP' as const,
+    remote: '34.120.1.1:443',
+    uid: 501,
+    pid: null,
+  };
+  const connection = { pid: 3758, command: 'node', protocol: 'TCP', remote: '34.120.1.1:443' };
 
-  it('logs a worker connection once and then treats pf flows to the same peer as attributed', () => {
+  it('logs a worker connection once and drops pf flows to a peer the worker already holds', () => {
     const tracker = new LocalEgressInventoryTracker();
-    const connection = { pid: 3758, command: 'node', protocol: 'TCP', remote: '34.120.1.1:443' };
     expect(tracker.recordWorkerConnections([connection])).toHaveLength(1);
     expect(tracker.recordWorkerConnections([connection])).toHaveLength(0);
-    expect(
-      tracker.recordPflogFlow({
-        action: 'pass',
-        protocol: 'TCP',
-        remote: '34.120.1.1:443',
-        uid: 501,
-        pid: 3758,
-      })
-    ).toBeNull();
+    tracker.recordPflogFlow(workerFlow, 1_000);
+    expect(tracker.drainPflogFlows(1_000 + PFLOG_ATTRIBUTION_GRACE_MS)).toEqual([]);
     expect(tracker.workerPeerList()).toEqual(['TCP 34.120.1.1:443']);
   });
 
-  it('reports a pf flow the worker tree does not hold, with the process name when pid is known', () => {
+  it('credits a flow to the worker when the sampler catches up within the grace period', () => {
+    const tracker = new LocalEgressInventoryTracker();
+    tracker.recordPflogFlow(workerFlow, 1_000);
+    // Before the grace period nothing is decided.
+    expect(tracker.drainPflogFlows(1_000 + PFLOG_ATTRIBUTION_GRACE_MS - 1)).toEqual([]);
+    tracker.recordWorkerConnections([connection]);
+    expect(tracker.drainPflogFlows(1_000 + PFLOG_ATTRIBUTION_GRACE_MS)).toEqual([]);
+  });
+
+  it('reports a flow the worker never held once the grace period passes, naming the process when the pid is known', () => {
     const tracker = new LocalEgressInventoryTracker();
     tracker.recordProcessNames(ps);
-    const flow = {
-      action: 'pass',
-      protocol: 'TCP' as const,
-      remote: '17.253.1.1:443',
-      uid: 501,
-      pid: 4001,
-    };
-    expect(tracker.recordPflogFlow(flow)).toEqual({
-      source: 'pf',
-      protocol: 'TCP',
-      remote: '17.253.1.1:443',
-      command: 'SpringBoard',
-      pid: 4001,
-    });
-    expect(tracker.recordPflogFlow(flow)).toBeNull();
+    const flow = { ...workerFlow, remote: '17.253.1.1:443', pid: 4001 };
+    tracker.recordPflogFlow(flow, 1_000);
+    tracker.recordPflogFlow(flow, 1_500);
+    expect(tracker.drainPflogFlows(Infinity)).toEqual([
+      {
+        source: 'pf',
+        protocol: 'TCP',
+        remote: '17.253.1.1:443',
+        command: 'SpringBoard',
+        pid: 4001,
+      },
+    ]);
   });
 
   it('stops logging past the limit and counts what it dropped', () => {
     const tracker = new LocalEgressInventoryTracker(1);
-    expect(
-      tracker.recordPflogFlow({
-        action: 'pass',
-        protocol: 'TCP' as const,
-        remote: '1.1.1.1:443',
-        uid: 501,
-        pid: null,
-      })
-    ).not.toBeNull();
-    expect(
-      tracker.recordPflogFlow({
-        action: 'pass',
-        protocol: 'TCP' as const,
-        remote: '1.1.1.2:443',
-        uid: 501,
-        pid: null,
-      })
-    ).toBeNull();
+    tracker.recordPflogFlow({ ...workerFlow, remote: '1.1.1.1:443' }, 0);
+    tracker.recordPflogFlow({ ...workerFlow, remote: '1.1.1.2:443' }, 0);
+    expect(tracker.drainPflogFlows(Infinity)).toHaveLength(1);
     expect(tracker.suppressedCount()).toBe(1);
   });
 });

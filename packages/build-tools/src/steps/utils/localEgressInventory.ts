@@ -24,8 +24,14 @@ import readline from 'node:readline';
  */
 
 export const LOCAL_EGRESS_PF_ANCHOR = 'com.apple/eas-local-egress';
-const INVENTORY_SAMPLE_INTERVAL_MS = 10_000;
+const INVENTORY_SAMPLE_INTERVAL_MS = 2_000;
 const INVENTORY_LOG_LIMIT = 300;
+/**
+ * pflog reports a flow on its first packet, before the sampler can have seen
+ * the socket. Flows wait this long before being called unattributed, so a
+ * worker connection that lives a couple of seconds is still credited to it.
+ */
+export const PFLOG_ATTRIBUTION_GRACE_MS = 5_000;
 
 /**
  * Rules for the inventory anchor. `pass ... log (user)` logs the packet that
@@ -143,6 +149,7 @@ export class LocalEgressInventoryTracker {
   private readonly seen = new Set<string>();
   private readonly workerPeers = new Set<string>();
   private readonly commandsByPid = new Map<number, string>();
+  private readonly pendingFlows: { flow: PflogFlow; at: number }[] = [];
   private logged = 0;
   private suppressed = 0;
 
@@ -175,17 +182,38 @@ export class LocalEgressInventoryTracker {
     return entries;
   }
 
-  recordPflogFlow(flow: PflogFlow): InventoryEntry | null {
-    const key = `${flow.protocol} ${flow.remote}`;
-    if (this.workerPeers.has(key)) {
-      // Already attributed to the worker by the sampler; nothing new to say.
-      return null;
+  /** Queue a pflog flow; `drainPflogFlows` decides on it after the grace period. */
+  recordPflogFlow(flow: PflogFlow, at: number = Date.now()): void {
+    this.pendingFlows.push({ flow, at });
+  }
+
+  /**
+   * Flows older than the grace period that the sampler has not credited to
+   * the worker by now. Pass `Infinity` to decide on everything, at shutdown.
+   */
+  drainPflogFlows(
+    now: number = Date.now(),
+    graceMs: number = PFLOG_ATTRIBUTION_GRACE_MS
+  ): InventoryEntry[] {
+    const entries: InventoryEntry[] = [];
+    while (this.pendingFlows.length > 0 && now - this.pendingFlows[0].at >= graceMs) {
+      const { flow } = this.pendingFlows.shift()!;
+      const key = `${flow.protocol} ${flow.remote}`;
+      if (this.workerPeers.has(key)) {
+        continue;
+      }
+      const command = flow.pid === null ? null : (this.commandsByPid.get(flow.pid) ?? null);
+      if (this.admit(`pf ${key}`)) {
+        entries.push({
+          source: 'pf',
+          protocol: flow.protocol,
+          remote: flow.remote,
+          command,
+          pid: flow.pid,
+        });
+      }
     }
-    const command = flow.pid === null ? null : (this.commandsByPid.get(flow.pid) ?? null);
-    if (!this.admit(`pf ${key}`)) {
-      return null;
-    }
-    return { source: 'pf', protocol: flow.protocol, remote: flow.remote, command, pid: flow.pid };
+    return entries;
   }
 
   /** Distinct peers the worker tree held, for the closing summary. */
@@ -366,15 +394,16 @@ export async function startLocalEgressInventoryAsync({
     const lines = readline.createInterface({ input: tcpdump.child.stdout });
     lines.on('line', line => {
       const flow = parsePflogLine(line);
-      if (!flow || stopped) {
-        return;
-      }
-      const entry = tracker.recordPflogFlow(flow);
-      if (entry) {
-        void logEntryAsync(entry);
+      if (flow && !stopped) {
+        tracker.recordPflogFlow(flow);
       }
     });
   }
+  const drainAsync = async (now?: number): Promise<void> => {
+    for (const entry of tracker.drainPflogFlows(now)) {
+      await logEntryAsync(entry);
+    }
+  };
 
   const sampleAsync = async (): Promise<void> => {
     const ps = await spawn('ps', ['-axo', 'pid=,ppid=,comm='], { env, stdio: 'pipe' });
@@ -401,11 +430,18 @@ export async function startLocalEgressInventoryAsync({
       await logEntryAsync(entry);
     }
   };
-  let sampling: Promise<void> = Promise.resolve();
+  // Sample once right away so flows logged during boot have a baseline, then
+  // keep sampling; decide on queued pflog flows after each sample.
+  let sampling: Promise<void> = sampleAsync().catch(err => {
+    logger.debug({ err }, 'Local egress inventory: sampling the worker process tree failed.');
+  });
   const timer = setInterval(() => {
-    sampling = sampling.then(sampleAsync).catch(err => {
-      logger.debug({ err }, 'Local egress inventory: sampling the worker process tree failed.');
-    });
+    sampling = sampling
+      .then(sampleAsync)
+      .catch(err => {
+        logger.debug({ err }, 'Local egress inventory: sampling the worker process tree failed.');
+      })
+      .then(() => drainAsync());
   }, INVENTORY_SAMPLE_INTERVAL_MS);
   timer.unref();
 
@@ -421,6 +457,9 @@ export async function startLocalEgressInventoryAsync({
       stopped = true;
       clearInterval(timer);
       await sampling.catch(() => {});
+      // One last sample, then decide on everything still queued.
+      await sampleAsync().catch(() => {});
+      await drainAsync(Infinity);
       if (tcpdump.child.pid !== undefined) {
         await runSudoAsync(['kill', String(tcpdump.child.pid)], env).catch(() => {});
       }
