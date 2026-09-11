@@ -57,7 +57,6 @@ import {
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
-  validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
   ensureAppVersionSourceIsSetAsync,
@@ -481,7 +480,6 @@ async function prepareAndStartBuildAsync({
     }
   }
 
-  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (
     easJsonCliConfig?.appVersionSource === undefined &&
     buildProfile.profile.autoIncrement !== 'version'

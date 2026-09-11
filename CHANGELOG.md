@@ -62,6 +62,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Report a system error when project source refresh fails for a remote build. ([#4359](https://github.com/expo/eas-cli/pull/4359) by [@sjchmiela](https://github.com/sjchmiela))
 
+- [eas-cli] Remove the obsolete `appVersion` runtime policy warning that referenced SDK 46 and expo-updates 0.14.4. ([#4375](https://github.com/expo/eas-cli/pull/4375) by [@brentvatne](https://github.com/brentvatne))
+
 ## [24.0.0](https://github.com/expo/eas-cli/releases/tag/v24.0.0) - 2026-09-09
 
 ### 🛠 Breaking changes
