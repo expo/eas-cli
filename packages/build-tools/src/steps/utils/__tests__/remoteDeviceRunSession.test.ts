@@ -2,6 +2,8 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
   clearTimeout as clearTimeoutCallback,
   setTimeout as setTimeoutCallback,
@@ -13,6 +15,7 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
+import { uploadDeviceRunSessionScreenRecordingsAsync } from '../../functions/uploadDeviceRunSessionScreenRecordings';
 import {
   createExpoDeviceHubArgs,
   createServeSimArgs,
@@ -35,6 +38,9 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../functions/uploadDeviceRunSessionScreenRecordings', () => ({
+  uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
+}));
 // Spyable so a test can stand in for the serve-sim state directory, which a local serve-sim owns.
 jest.mock('../serveSimMetricsRecorder', () => {
   const actual = jest.requireActual('../serveSimMetricsRecorder');
@@ -182,6 +188,12 @@ describe(createServeSimArgs, () => {
 });
 
 describe(createExpoDeviceHubArgs, () => {
+  it('opts in to recording only when a directory is provided', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321 })).not.toContain('--android-recording-directory');
+    expect(
+      createExpoDeviceHubArgs({ port: 4321, recordingDirectory: '/tmp/recordings' }).slice(-2)
+    ).toEqual(['--android-recording-directory', '/tmp/recordings']);
+  });
   it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
     expect(
       createExpoDeviceHubArgs({
@@ -334,6 +346,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
   } as unknown as BuildStepEnv;
 
   beforeEach(() => {
+    jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
     jest.mocked(spawn).mockReset();
     jest.mocked(ngrok.forward).mockReset();
     jest.mocked(turtleFetch).mockReset();
@@ -369,6 +382,72 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
+  });
+
+  it('finalizes Android recording before stopping the preview and uploads once', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest
+      .mocked(ngrok.forward)
+      .mockResolvedValue({ url: () => 'https://preview.example.test', close } as never);
+    const logger = createLoggerMock();
+    const recordingEnv = { ...env, EAS_ANDROID_SESSION_RECORDING: '1' };
+    const ctx = createCtxMock();
+    const preview = await startExpoDeviceHubWithTunnelAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env: recordingEnv,
+      logger,
+      timeoutMs: 10_000,
+    });
+    const [, args, spawnOptions] = jest.mocked(spawn).mock.calls[0];
+    const directory = args[args.indexOf('--android-recording-directory') + 1];
+    const token = spawnOptions?.env?.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN;
+    expect(token).toMatch(/^[a-f0-9]{64}$/);
+    const recordings = [
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android 16',
+        directory: path.join(directory, 'session'),
+      },
+    ];
+    try {
+      await fs.writeFile(path.join(directory, 'recordings.json'), JSON.stringify(recordings));
+      let acknowledge: (response: Awaited<ReturnType<typeof turtleFetch>>) => void = () => {};
+      jest.mocked(turtleFetch).mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            acknowledge = resolve;
+          })
+      );
+      const stopping = preview.stopAsync();
+      expect(close).not.toHaveBeenCalled();
+      expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+      expect(turtleFetch).toHaveBeenLastCalledWith(
+        expect.stringMatching(/\/_eas\/android-recording\/stop$/),
+        'POST',
+        expect.objectContaining({
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 60_000,
+          retries: 0,
+        })
+      );
+      acknowledge({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
+      await stopping;
+      await preview.stopAsync();
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
+      expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledWith(ctx, {
+        env: recordingEnv,
+        logger,
+        recordings,
+      });
+      expect(close.mock.invocationCallOrder[0]).toBeLessThan(
+        jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.invocationCallOrder[0]
+      );
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
