@@ -10,7 +10,7 @@ export async function shallowCloneRepositoryAsync({
   destinationDirectory,
 }: {
   logger: bunyan;
-  archiveSource: ArchiveSource & { type: ArchiveSourceType.GIT };
+  archiveSource: ArchiveSource & { type: ArchiveSourceType.GIT; repositoryUrl: string };
   destinationDirectory: string;
 }): Promise<void> {
   const { repositoryUrl } = archiveSource;
