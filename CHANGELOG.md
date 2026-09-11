@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add opt-in Metro transform cache restore and save support. ([#4386](https://github.com/expo/eas-cli/pull/4386) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

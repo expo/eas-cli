@@ -13,6 +13,7 @@ import os from 'os';
 import path from 'path';
 
 import { sendCcacheStatsAsync } from './ccacheStats';
+import { restoreMetroCacheAsync } from './metroBuildCache';
 import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
 import {
   CcacheBuildTarget,
@@ -58,6 +59,15 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
           `Unsupported platform: ${platform}. Platform must be "${Platform.ANDROID}" or "${Platform.IOS}"`
         );
       }
+
+      const cacheEnv = await restoreMetroCacheAsync({
+        logger,
+        platform,
+        cacheDirectory: path.join(stepCtx.global.stepsInternalBuildDirectory, 'metro-cache'),
+        env,
+        secrets: stepCtx.global.staticContext.job.secrets,
+      });
+      stepCtx.global.updateEnv({ ...stepCtx.global.env, ...cacheEnv });
 
       const target: CcacheBuildTarget =
         platform === Platform.IOS

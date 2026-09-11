@@ -13,6 +13,7 @@ import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 
+import { saveMetroCacheAsync } from './metroBuildCache';
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
 import { formatBytes } from '../../utils/artifacts';
 import {
@@ -56,6 +57,13 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
           `Unsupported platform: ${platform}. Platform must be "${Platform.ANDROID}" or "${Platform.IOS}"`
         );
       }
+
+      await saveMetroCacheAsync({
+        logger,
+        platform,
+        env,
+        secrets: stepCtx.global.staticContext.job.secrets,
+      });
 
       const target: CcacheBuildTarget =
         platform === Platform.IOS
