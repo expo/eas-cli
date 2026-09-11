@@ -1,9 +1,9 @@
 import {
   BuildJob,
-  CompositeFunctionCatalog,
   ErrorCode,
   HookAnchorId,
   HookKey,
+  LocalFunctionCatalog,
   UserError,
   parseHookKey,
   validateSteps,
@@ -98,7 +98,7 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
   // outputs accumulate across keys.
   const hookEntriesByKey: Partial<Record<HookKey, HookEntry[]>> = {};
   const orderedSteps: BuildStep[] = [];
-  const compositeFunctionCatalog: CompositeFunctionCatalog = {};
+  const compositeFunctionCatalog: LocalFunctionCatalog = {};
   const loadCompositeFunction = createLocalCompositeFunctionLoader(
     ctx.getReactNativeProjectDirectory(),
     { logger: ctx.logger }

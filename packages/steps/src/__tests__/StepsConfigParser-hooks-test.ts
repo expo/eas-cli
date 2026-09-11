@@ -1,8 +1,8 @@
 import {
-  CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
   Hooks,
+  LocalFunctionCatalog,
   Step,
 } from '@expo/eas-build-job';
 
@@ -53,7 +53,7 @@ async function parseWorkflowAsync({
   hooks: Hooks | undefined;
   externalFunctions?: BuildFunction[];
   externalFunctionGroups?: BuildFunctionGroup[];
-  compositeFunctionCatalog?: CompositeFunctionCatalog;
+  compositeFunctionCatalog?: LocalFunctionCatalog;
   loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<BuildWorkflow> {
   const parser = new StepsConfigParser(ctx, {
