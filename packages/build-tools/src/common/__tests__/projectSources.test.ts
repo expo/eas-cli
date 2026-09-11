@@ -629,20 +629,21 @@ describe('local project sources', () => {
     expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
   });
 
-  it.each(Object.values(ArchiveSourceType).filter(type => type !== ArchiveSourceType.PATH))(
-    'rejects local %s sources before fetching or unpacking',
-    async type => {
-      const ctx = createContext(type);
-      const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-      await expect(result).rejects.toBeInstanceOf(SystemError);
-      await expect(result).rejects.toMatchObject({
-        errorCode: 'SERVER_ERROR',
-        trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE',
-        message: `Expected a PATH project source for a local build, received ${type}.`,
-      });
-      expect(fetch).not.toHaveBeenCalled();
-      expect(spawn).not.toHaveBeenCalled();
-      expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
-    }
-  );
+  it.each(
+    Object.values(ArchiveSourceType).filter(
+      type => type !== ArchiveSourceType.PATH && type !== ArchiveSourceType.NONE
+    )
+  )('rejects local %s sources before fetching or unpacking', async type => {
+    const ctx = createContext(type);
+    const result = prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+    await expect(result).rejects.toBeInstanceOf(SystemError);
+    await expect(result).rejects.toMatchObject({
+      errorCode: 'SERVER_ERROR',
+      trackingCode: 'INVALID_LOCAL_PROJECT_SOURCE',
+      message: `Expected a PATH project source for a local build, received ${type}.`,
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(shallowCloneRepositoryAsync).not.toHaveBeenCalled();
+  });
 });
