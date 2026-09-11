@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import nullthrows from 'nullthrows';
 
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from './active-rollout';
 import { UpdatePublishPlatform, getUpdateJsonInfosForUpdates } from './utils';
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -8,7 +9,7 @@ import fetch from '../fetch';
 import { PublishUpdateGroupInput, UpdatePublishMutation } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import Log, { link } from '../log';
-import { ora } from '../ora';
+import { Ora, ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import {
   RuntimeVersionInfo,
@@ -34,6 +35,7 @@ export async function publishRollBackToEmbeddedUpdateAsync({
   platforms,
   runtimeVersion,
   json,
+  activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
@@ -44,6 +46,7 @@ export async function publishRollBackToEmbeddedUpdateAsync({
   platforms: UpdatePublishPlatform[];
   runtimeVersion: string;
   json: boolean;
+  activeRollout?: { forceEndActiveRollout: boolean; nonInteractive: boolean };
 }): Promise<void> {
   const runtimeToPlatformsAndFingerprintInfoMapping =
     getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
@@ -58,7 +61,7 @@ export async function publishRollBackToEmbeddedUpdateAsync({
     );
 
   let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
-  const publishSpinner = ora('Publishing...').start();
+  const publishSpinner = ora('Publishing...');
   try {
     newUpdates = await publishRollbacksAsync({
       graphqlClient,
@@ -67,10 +70,16 @@ export async function publishRollBackToEmbeddedUpdateAsync({
       codeSigningInfo,
       runtimeToPlatformsAndFingerprintInfoMapping,
       platforms,
+      projectId,
+      branchName: branch.name,
+      activeRollout,
+      publishSpinner,
     });
     publishSpinner.succeed('Published!');
   } catch (e) {
-    publishSpinner.fail('Failed to publish updates');
+    if (publishSpinner.isSpinning) {
+      publishSpinner.fail('Failed to publish updates');
+    }
     throw e;
   }
 
@@ -127,6 +136,10 @@ async function publishRollbacksAsync({
   codeSigningInfo,
   runtimeToPlatformsAndFingerprintInfoMapping,
   platforms,
+  projectId,
+  branchName,
+  activeRollout,
+  publishSpinner,
 }: {
   graphqlClient: ExpoGraphqlClient;
   updateMessage: string | undefined;
@@ -136,6 +149,10 @@ async function publishRollbacksAsync({
     platforms: UpdatePublishPlatform[];
   })[];
   platforms: UpdatePublishPlatform[];
+  projectId: string;
+  branchName: string;
+  activeRollout?: { forceEndActiveRollout: boolean; nonInteractive: boolean };
+  publishSpinner: Ora;
 }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
   const rollbackInfoGroups = Object.fromEntries(platforms.map(platform => [platform, true]));
 
@@ -156,7 +173,20 @@ async function publishRollbacksAsync({
     }
   );
 
-  const newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+  const updateGroupsToPublish = activeRollout
+    ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
+        appId: projectId,
+        branchName,
+        nonInteractive: activeRollout.nonInteractive,
+        forceEndActiveRollout: activeRollout.forceEndActiveRollout,
+      })
+    : updateGroups;
+
+  publishSpinner.start();
+  const newUpdates = await PublishMutation.publishUpdateGroupAsync(
+    graphqlClient,
+    updateGroupsToPublish
+  );
 
   if (codeSigningInfo) {
     Log.log('🔒 Signing roll back');

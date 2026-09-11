@@ -19,8 +19,10 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { resolveVcsClient } from '../../../vcs';
+import { publishRollBackToEmbeddedUpdateAsync } from '../../../update/roll-back-to-embedded';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
@@ -56,9 +58,25 @@ jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
 jest.mock('../../../ora', () => ({
-  ora: () => ({
-    start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
-  }),
+  ora: () => {
+    const spinner = {
+      isSpinning: false,
+      start: () => {
+        spinner.isSpinning = true;
+        return spinner;
+      },
+      succeed: () => {
+        spinner.isSpinning = false;
+      },
+      fail: () => {
+        spinner.isSpinning = false;
+      },
+      stop: () => {
+        spinner.isSpinning = false;
+      },
+    };
+    return spinner;
+  },
 }));
 jest.mock('../../../project/publish', () => ({
   ...jest.requireActual('../../../project/publish'),
@@ -71,6 +89,7 @@ jest.mock('../../../project/publish', () => ({
 describe(UpdateRollBackToEmbedded.name, () => {
   afterEach(() => {
     vol.reset();
+    jest.clearAllMocks();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -110,6 +129,58 @@ describe(UpdateRollBackToEmbedded.name, () => {
     await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('publishes without checking rollouts when no caller opts in', async () => {
+    mockTestProject();
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([
+        { ...updateStub, platform: 'ios', runtime: { id: 'r1', version: runtimeVersion } },
+      ]);
+
+    await publishRollBackToEmbeddedUpdateAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      projectId: '1234',
+      exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig,
+      updateMessage: 'no rollout check',
+      branch: { id: 'branch123', name: 'main' },
+      codeSigningInfo: undefined,
+      platforms: ['ios'],
+      runtimeVersion,
+      json: false,
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(expect.any(Object), [
+      expect.not.objectContaining({
+        previousRolloutUpdateToClobberIdGroup: expect.anything(),
+      }),
+    ]);
+  });
+
+  it('reports a failed publish and rethrows', async () => {
+    const flags = [
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--runtime-version=exposdk:47.0.0',
+    ];
+
+    mockTestProject();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: { id: 'branch123', name: 'wat' },
+      createdBranch: false,
+    });
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockRejectedValue(new Error('publish exploded'));
+
+    await expect(new UpdateRollBackToEmbedded(flags, commandOptions).run()).rejects.toThrow(
+      'publish exploded'
+    );
   });
 
   it('creates a roll back to embedded with --non-interactive, --channel, --message, and --runtime-version', async () => {
