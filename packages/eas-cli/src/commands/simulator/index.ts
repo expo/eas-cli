@@ -430,11 +430,7 @@ export default class Simulator extends EasCommand {
 
     if (nonInteractive) {
       sessionInterrupt.dispose();
-      if (localEgress) {
-        Log.log(
-          `Start \`eas simulator:egress${flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env ? ' --config-type env' : ''}\` in another process to connect the tunnel for proxied HTTP(S) requests.`
-        );
-      }
+      // The instructions above already tell the reader to run eas simulator:egress.
       Log.log(
         `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
       );

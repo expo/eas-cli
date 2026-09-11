@@ -976,11 +976,17 @@ describe(Simulator, () => {
     await command.runAsync();
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith(
-      expect.stringContaining('Start `eas simulator:egress --config-type env` in another process')
+      expect.stringContaining(
+        'Run the egress client to connect the tunnel:\n\neas simulator:egress --config-type env\n'
+      )
     );
     expect(Log.log).not.toHaveBeenCalledWith(
-      expect.stringContaining('Start `eas simulator:egress` in another process')
+      expect.stringContaining(
+        'Run the egress client to connect the tunnel:\n\neas simulator:egress\n'
+      )
     );
+    // The instructions block is the only place the command is mentioned.
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('in another process'));
   });
 
   it.each(localEgressSessions)(
