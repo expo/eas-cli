@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix `eas account:view` printing `Role: undefined` for the new Release Manager role. ([#4300](https://github.com/expo/eas-cli/pull/4300) by [@byronkarlen](https://github.com/byronkarlen))
+- [eas-cli] Read `.easignore` from the project directory (next to `eas.json`) when present, falling back to the repository root. ([#4387](https://github.com/expo/eas-cli/pull/4387) by [@cpruijsen](https://github.com/cpruijsen))
 
 ### 🧹 Chores
 
