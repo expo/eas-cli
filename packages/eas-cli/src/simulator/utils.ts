@@ -284,9 +284,12 @@ export function formatRemoteSessionInstructions(
       : []),
     ...(egressClientRunsInline
       ? [
-          'The egress client runs in this terminal for the life of the session. If this process exits, reconnect the tunnel from another shell with:',
+          'The egress client runs in this terminal. Press Ctrl+C to stop it together with the simulator session.',
+          'If this terminal closes any other way, the session keeps running. Reconnect the tunnel from another shell with:',
           '',
           egressCommand,
+          '',
+          'or stop the session with eas simulator:stop.',
         ]
       : [
           'Run the egress client to connect the tunnel:',

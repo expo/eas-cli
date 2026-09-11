@@ -74,9 +74,11 @@ describe('local egress configuration', () => {
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
       egressClientRunsInline: true,
     });
-    expect(instructions).toContain('The egress client runs in this terminal');
     expect(instructions).toContain(
-      'reconnect the tunnel from another shell with:\n\neas simulator:egress'
+      'The egress client runs in this terminal. Press Ctrl+C to stop it together with the simulator session.'
+    );
+    expect(instructions).toContain(
+      'If this terminal closes any other way, the session keeps running. Reconnect the tunnel from another shell with:\n\neas simulator:egress\n\nor stop the session with eas simulator:stop.'
     );
     expect(instructions).not.toContain('Run the egress client to connect the tunnel');
     expect(instructions).not.toContain('Keep it running');
