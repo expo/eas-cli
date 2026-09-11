@@ -447,8 +447,6 @@ export default class Simulator extends EasCommand {
     let egressError: Error | undefined;
     const egressAbortController = new AbortController();
     if (localEgress) {
-      Log.log('Press Ctrl+C to stop both the egress client and the simulator session.');
-      Log.newLine();
       sessionInterrupt.signal.addEventListener(
         'abort',
         () => {
@@ -460,9 +458,7 @@ export default class Simulator extends EasCommand {
         ...localEgress,
         signal: egressAbortController.signal,
         onConnected: () => {
-          Log.succeed(
-            "Egress tunnel connected. Proxied HTTP(S) requests can use this machine's network."
-          );
+          Log.succeed('Egress tunnel connected.');
         },
         onDisconnected: () => {
           Log.warn(
