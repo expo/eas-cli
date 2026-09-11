@@ -9,7 +9,7 @@ import { promptAsync } from '../../prompts';
 
 export default class WorkflowRunCancel extends EasCommand {
   static override description =
-    'Cancel one or more workflow runs. If no workflow run IDs are provided, you will be prompted to select IN_PROGRESS runs to cancel.';
+    'cancel one or more workflow runs. If no workflow run IDs are provided, you will be prompted to select IN_PROGRESS runs to cancel';
 
   static override strict = false;
 

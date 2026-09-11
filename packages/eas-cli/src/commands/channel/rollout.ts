@@ -50,7 +50,7 @@ type ChannelRolloutArgsAndFlags = {
   Partial<CreateRolloutNonInteractiveOptions>;
 
 export default class ChannelRollout extends EasCommand {
-  static override description = 'Roll a new branch out on a channel incrementally.';
+  static override description = 'roll a new branch out on a channel incrementally';
 
   static override args = {
     channel: Args.string({

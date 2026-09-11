@@ -23,7 +23,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ObserveEvent extends EasCommand {
   static override description =
-    'display a single Observe event (metric, log, or error) by its ID. IDs are included in event data when the `--json` flag is passed to `eas observe:session`, `eas observe:metrics`, or `eas observe:events`.';
+    'display a single Observe event (metric, log, or error) by its ID. IDs are included in event data when the `--json` flag is passed to `eas observe:session`, `eas observe:metrics`, or `eas observe:events`';
 
   static override args = {
     id: Args.string({

@@ -26,7 +26,7 @@ function printLogsForAllSteps(logs: WorkflowLogs): void {
 
 export default class WorkflowLogView extends EasCommand {
   static override description =
-    'view logs for a workflow run, selecting a job and step to view. You can pass in either a workflow run ID or a job ID. If no ID is passed in, you will be prompted to select from recent workflow runs for the current project.';
+    'view logs for a workflow run, selecting a job and step to view. You can pass in either a workflow run ID or a job ID. If no ID is passed in, you will be prompted to select from recent workflow runs for the current project';
 
   static override flags = {
     ...EasJsonOnlyFlag,

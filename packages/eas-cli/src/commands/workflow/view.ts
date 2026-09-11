@@ -59,7 +59,7 @@ const processedOutputs: (job: WorkflowJobResult) => FormatFieldsItem[] = job => 
 
 export default class WorkflowView extends EasCommand {
   static override description =
-    'view details for a workflow run, including jobs. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project.';
+    'view details for a workflow run, including jobs. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project';
 
   static override flags = {
     ...EasJsonOnlyFlag,

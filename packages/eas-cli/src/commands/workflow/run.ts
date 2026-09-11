@@ -93,7 +93,7 @@ export function resolveWorkflowRunSshInput({
 
 export default class WorkflowRun extends EasCommand {
   static override description =
-    'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used.';
+    'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used';
 
   static override args = {
     file: Args.string({
