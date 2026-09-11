@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Add a shared protocol for sandbox daemon commands. ([#4346](https://github.com/expo/eas-cli/pull/4346) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
