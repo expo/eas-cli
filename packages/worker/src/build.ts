@@ -26,6 +26,26 @@ import { prepareRuntimeEnvironment } from './runtimeEnvironment';
 import { startSshSessionPhaseAsync } from './sshSession';
 import { cleanUpWorkingdir } from './workingdir';
 
+const KNOWN_BUILD_ENVIRONMENTS = ['development', 'preview', 'production'];
+
+type EnvironmentWarningContext = {
+  metadata?: { environment?: string };
+  logger: Pick<bunyan, 'warn'>;
+  markBuildPhaseHasWarnings: () => void;
+};
+
+export function warnOnUnknownEnvironment(ctx: EnvironmentWarningContext): void {
+  const environment = ctx.metadata?.environment;
+  if (environment && !KNOWN_BUILD_ENVIRONMENTS.includes(environment)) {
+    ctx.markBuildPhaseHasWarnings();
+    ctx.logger.warn(
+      `Unknown environment "${environment}". Expected one of: ${KNOWN_BUILD_ENVIRONMENTS.join(
+        ', '
+      )}. No environment variables were added for it.`
+    );
+  }
+}
+
 export async function build({
   ctx,
   buildId,
@@ -49,6 +69,7 @@ export async function build({
           { job: omit(ctx.job, 'secrets', 'projectArchive') },
           'Builder is ready, starting build'
         );
+        warnOnUnknownEnvironment(ctx);
       },
       { doNotMarkStart: true }
     );
