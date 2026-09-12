@@ -122,6 +122,10 @@ export default class Simulator extends EasCommand {
       description:
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'network-capture': Flags.boolean({
+      description:
+        'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
+    }),
     'max-duration-minutes': Flags.integer({
       description:
         'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
@@ -244,6 +248,12 @@ export default class Simulator extends EasCommand {
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    if (flags['network-capture'] && platform !== AppPlatform.Ios) {
+      throw new EasCommandError(
+        'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
+      );
+    }
+
     if (platform === AppPlatform.Android) {
       Log.warn(
         'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
@@ -275,6 +285,7 @@ export default class Simulator extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
+        networkCapture: flags['network-capture'],
         ...(deviceIdentifier
           ? platform === AppPlatform.Ios
             ? { ios: { deviceIdentifier } }
@@ -311,6 +322,11 @@ export default class Simulator extends EasCommand {
           simulatorEnvWritten ? `, saved to ${SIMULATOR_DOTENV_FILE_NAME}` : ''
         }) ${link(deviceRunSessionUrl)}`
       );
+      if (flags['network-capture']) {
+        Log.warn(
+          'Network capture was requested. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an installed app to record its traffic.'
+        );
+      }
     } catch (err) {
       createSpinner.fail('Failed to create simulator session');
       sessionInterrupt?.dispose();
@@ -375,7 +391,6 @@ export default class Simulator extends EasCommand {
         spinner: pollSpinner,
         sessionInterrupt,
       });
-      return;
     }
 
     if (!remoteConfig) {
@@ -402,7 +417,6 @@ export default class Simulator extends EasCommand {
         spinner: pollSpinner,
         sessionInterrupt,
       });
-      return;
     }
 
     if (jsonFlag) {
@@ -654,7 +668,7 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   projectDir: string;
   spinner: ReturnType<typeof ora>;
   sessionInterrupt: SessionInterrupt;
-}): Promise<void> {
+}): Promise<never> {
   try {
     spinner.text = 'Stopping simulator session...';
     const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
