@@ -505,6 +505,97 @@ describe(IntegrationsPostHogConnect, () => {
     });
   });
 
+  it('confirms before creating a new organization and project', async () => {
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValue(null);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+
+    await createCommand(['--region', 'US']).runAsync();
+
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining('Create a new PostHog organization and project'),
+    });
+    expect(PostHogMutation.startPostHogConnectionAsync).toHaveBeenCalled();
+  });
+
+  it('creates nothing when the confirmation is declined', async () => {
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValue(null);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(confirmAsync).mockResolvedValue(false);
+
+    await createCommand(['--region', 'US']).runAsync();
+
+    // The organization cannot be removed by the CLI once it exists, so declining
+    // has to stop before the mutation rather than clean up after it.
+    expect(PostHogMutation.startPostHogConnectionAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.setupPostHogProjectAsync).not.toHaveBeenCalled();
+    expect(spawnAsync).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not ask about an organization when one is reused', async () => {
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).not.toHaveBeenCalledWith({
+      message: expect.stringContaining('Create a new PostHog organization and project'),
+    });
+    expect(PostHogMutation.setupPostHogProjectAsync).toHaveBeenCalled();
+  });
+
+  it('confirms before creating a project when the organization is reused', async () => {
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+
+    await createCommand([]).runAsync();
+
+    // Reusing an organization still provisions a project, which the CLI cannot remove either.
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining('There is no PostHog project for this app'),
+    });
+  });
+
+  it('creates nothing when the project confirmation is declined', async () => {
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(confirmAsync).mockResolvedValue(false);
+
+    await createCommand([]).runAsync();
+
+    expect(PostHogMutation.setupPostHogProjectAsync).not.toHaveBeenCalled();
+    expect(spawnAsync).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('asks once, not twice, when it creates both the organization and the project', async () => {
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValue(null);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+
+    await createCommand(['--region', 'US']).runAsync();
+
+    expect(confirmAsync).toHaveBeenCalledTimes(1);
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining('Create a new PostHog organization and project'),
+    });
+    expect(PostHogMutation.setupPostHogProjectAsync).toHaveBeenCalled();
+  });
+
+  it('provisions non-interactively without a confirmation prompt', async () => {
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValue(null);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+
+    await createCommand(['--non-interactive', '--region', 'US']).runAsync();
+
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.startPostHogConnectionAsync).toHaveBeenCalled();
+  });
+
   it('rethrows a non-dead-end provisioning failure', async () => {
     jest
       .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
