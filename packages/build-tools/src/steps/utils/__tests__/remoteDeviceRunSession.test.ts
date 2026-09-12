@@ -181,6 +181,17 @@ describe(createServeSimArgs, () => {
       '@expo/serve-sim@next',
     ]);
   });
+
+  it('omits --network-capture by default', () => {
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
+      '--network-capture'
+    );
+  });
+
+  it('appends --network-capture when enabled', () => {
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).toContain('--network-capture');
+  });
 });
 
 describe(createExpoDeviceHubArgs, () => {

@@ -60,6 +60,11 @@ export function createStartAppiumRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'network_capture',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_idle_time_minutes',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -70,6 +75,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
       const packageVersion = inputs.package_version.value as string | undefined;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
       const versionSpec = resolveAppium3VersionSpec(packageVersion);
@@ -139,6 +145,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+          networkCapture,
         });
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
