@@ -1,5 +1,6 @@
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
+import { createEmptyRecord } from './utils/record';
 
 export type BuildStepOutputById = Record<string, BuildStepOutput>;
 export type BuildStepOutputProvider = (
@@ -92,12 +93,10 @@ export class BuildStepOutput<R extends boolean = boolean> {
   }
 }
 
-export function makeBuildStepOutputByIdMap(outputs?: BuildStepOutput[]): BuildStepOutputById {
-  if (outputs === undefined) {
-    return {};
+export function makeBuildStepOutputById(outputs?: BuildStepOutput[]): BuildStepOutputById {
+  const outputById = createEmptyRecord<BuildStepOutputById>();
+  for (const output of outputs ?? []) {
+    outputById[output.id] = output;
   }
-  return outputs.reduce((acc, output) => {
-    acc[output.id] = output;
-    return acc;
-  }, {} as BuildStepOutputById);
+  return outputById;
 }

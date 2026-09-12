@@ -28,23 +28,16 @@ describe('runCustomFunction', () => {
       projectSourceDirectory,
       logger,
     });
-    const outputs = {
-      name: new BuildStepOutput(ctx.global, {
-        id: 'name',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-      num: new BuildStepOutput(ctx.global, {
-        id: 'num',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-      obj: new BuildStepOutput(ctx.global, {
-        id: 'obj',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-    };
+    const outputs = Object.fromEntries(
+      ['name', 'num', 'obj', '__proto__'].map(id => [
+        id,
+        new BuildStepOutput(ctx.global, {
+          id,
+          stepDisplayName: 'test',
+          required: true,
+        }),
+      ])
+    );
     const inputs = {
       name: new BuildStepInput(ctx.global, {
         id: 'name',
@@ -68,6 +61,18 @@ describe('runCustomFunction', () => {
     inputs.name.set('foo');
     inputs.num.set(123);
     inputs.obj.set({ foo: 'bar' });
+    const inputsWithSpecialName = Object.fromEntries([
+      ...Object.entries(inputs),
+      [
+        '__proto__',
+        new BuildStepInput(ctx.global, {
+          id: '__proto__',
+          stepDisplayName: 'test',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }).set('prototype input'),
+      ],
+    ]);
 
     try {
       const outputsDir = getTemporaryOutputsDirPath(ctx.global, 'test');
@@ -89,7 +94,7 @@ describe('runCustomFunction', () => {
           PATH: newPath,
         },
         inputs: Object.fromEntries(
-          Object.entries(inputs).map(([id, input]) => [
+          Object.entries(inputsWithSpecialName).map(([id, input]) => [
             id,
             {
               value: input.getValue({
@@ -101,6 +106,8 @@ describe('runCustomFunction', () => {
         outputs,
       });
       await expect(promise).resolves.not.toThrow();
+      const rawPrototypeOutput = await fs.readFile(path.join(outputsDir, '__proto__'), 'utf-8');
+      expect(Buffer.from(rawPrototypeOutput, 'base64').toString('utf-8')).toBe('prototype input');
     } finally {
       await cleanUpStepTemporaryDirectoriesAsync(ctx.global, 'test');
     }

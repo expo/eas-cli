@@ -412,6 +412,34 @@ describe(BuildStep, () => {
         expect(step.getOutputValueByName('foo2')).toBe('bar  linux {"foo":"bar","baz":[1,"aaa"]}');
       });
 
+      it('interpolates an input named __proto__ in a command template', async () => {
+        const step = new BuildStep(baseStepCtx, {
+          id: 'test1',
+          displayName: 'test1',
+          inputs: [
+            new BuildStepInput(baseStepCtx, {
+              id: '__proto__',
+              stepDisplayName: 'test1',
+              defaultValue: 'prototype input',
+              required: true,
+              allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+            }),
+          ],
+          outputs: [
+            new BuildStepOutput(baseStepCtx, {
+              id: 'result',
+              stepDisplayName: 'test1',
+              required: true,
+            }),
+          ],
+          command: "set-output result '${inputs.__proto__}'",
+        });
+
+        await step.executeAsync();
+
+        expect(step.getOutputValueByName('result')).toBe('prototype input');
+      });
+
       it('interpolates the outputs in command template', async () => {
         const stepWithOutput = new BuildFunction({
           id: 'func',
@@ -812,6 +840,29 @@ describe(BuildStep, () => {
 
         expect(step.getOutputValueByName('abc')).toBe('bar1 bar2 true 27');
       });
+
+      it('passes an input named __proto__ to the function', async () => {
+        const input = new BuildStepInput(baseStepCtx, {
+          id: '__proto__',
+          stepDisplayName: 'test1',
+          defaultValue: 'prototype input',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        });
+        const fn = jest.fn<BuildStepFunction>((_ctx, { inputs }) => {
+          expect(inputs.__proto__.value).toBe('prototype input');
+        });
+        const step = new BuildStep(baseStepCtx, {
+          id: 'test1',
+          displayName: 'test1',
+          inputs: [input],
+          fn,
+        });
+
+        await step.executeAsync();
+
+        expect(fn).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
@@ -1159,6 +1210,46 @@ describe(BuildStep.deserialize, () => {
     expect(step.displayName).toBe('Test 1');
     expect(step.getOutputValueByName('abc')).toBe('123');
   });
+
+  it('preserves serialized output keys when they differ from embedded output ids', () => {
+    const step = BuildStep.deserialize({
+      id: 'test1',
+      displayName: 'Test 1',
+      executed: true,
+      outputById: {
+        serialized_key: {
+          id: 'embedded_id',
+          stepDisplayName: 'Test 1',
+          required: true,
+          value: '123',
+        },
+      },
+    });
+
+    expect(step.getOutputValueByName('serialized_key')).toBe('123');
+    expect(step.hasOutputParameter('embedded_id')).toBe(false);
+  });
+
+  it('deserializes an output keyed by __proto__', () => {
+    const step = BuildStep.deserialize({
+      id: 'test1',
+      displayName: 'Test 1',
+      executed: true,
+      outputById: Object.fromEntries([
+        [
+          '__proto__',
+          {
+            id: '__proto__',
+            stepDisplayName: 'Test 1',
+            required: true,
+            value: '123',
+          },
+        ],
+      ]),
+    });
+
+    expect(step.getOutputValueByName('__proto__')).toBe('123');
+  });
 });
 
 describe(BuildStep.prototype.shouldExecuteStep, () => {
@@ -1283,6 +1374,27 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ifCondition: 'inputs.foo1 === "bar"',
     });
     expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
+  });
+
+  it('returns true when an input named __proto__ matches', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      inputs: [
+        new BuildStepInput(ctx, {
+          id: '__proto__',
+          stepDisplayName: 'Test 1',
+          defaultValue: 'prototype input',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+      ifCondition: 'inputs.__proto__ === "prototype input"',
+    });
+
+    expect(step.shouldExecuteStep()).toBe(true);
   });
 
   it('returns true when an eas value matches', () => {

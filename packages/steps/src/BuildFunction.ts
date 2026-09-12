@@ -138,7 +138,7 @@ export class BuildFunction {
 
     const inputs = this.inputProviders?.map(inputProvider => {
       const input = inputProvider(ctx, buildStepId);
-      if (input.id in callInputs) {
+      if (Object.hasOwn(callInputs, input.id)) {
         input.set(callInputs[input.id]);
       }
       return input;
