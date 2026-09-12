@@ -61,6 +61,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Report a system error when project source refresh fails for a remote build. ([#4359](https://github.com/expo/eas-cli/pull/4359) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Record a build uploaded to the build cache under the same development-client value its lookup searches by, so a locally built dev client is found again instead of missing the cache forever. Adds `--dev-client` / `--no-dev-client` to `eas upload`. ([#4377](https://github.com/expo/eas-cli/pull/4377) by [@LizunovSergey](https://github.com/LizunovSergey))
 
 ## [24.0.0](https://github.com/expo/eas-cli/releases/tag/v24.0.0) - 2026-09-09
 

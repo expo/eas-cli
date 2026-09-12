@@ -48,6 +48,11 @@ export default class BuildUpload extends EasCommand {
     fingerprint: Flags.string({
       description: 'Fingerprint hash of the local build',
     }),
+    'dev-client': Flags.boolean({
+      description:
+        'Record the build as a development client build. Overrides what is detected from the build archive.',
+      allowNo: true,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -58,7 +63,11 @@ export default class BuildUpload extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildUpload);
-    const { 'build-path': buildPath, fingerprint: manualFingerprintHash } = flags;
+    const {
+      'build-path': buildPath,
+      fingerprint: manualFingerprintHash,
+      'dev-client': developmentClientOverride,
+    } = flags;
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
@@ -80,10 +89,15 @@ export default class BuildUpload extends EasCommand {
 
     const {
       fingerprintHash: buildFingerprintHash,
-      developmentClient,
+      developmentClient: detectedDevelopmentClient,
       simulator,
       ...otherMetadata
     } = await extractAppMetadataAsync(localBuildPath, platform);
+    // The archive probe below only recognizes a dev client by a file the dev menu
+    // leaves in the build, so a caller that already knows what it built has to be
+    // able to say so — `build:download --dev-client` filters on this same field,
+    // and a build recorded under the other value can never be found again.
+    const developmentClient = developmentClientOverride ?? detectedDevelopmentClient;
 
     let fingerprint = manualFingerprintHash ?? buildFingerprintHash;
     if (fingerprint) {
