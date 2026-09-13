@@ -125,7 +125,7 @@ const ADVISOR_LINT_LEVEL_LABELS: Record<
 > = {
   [SupabaseAdvisorLintLevel.Error]: ['error', 'errors'],
   [SupabaseAdvisorLintLevel.Warn]: ['warning', 'warnings'],
-  [SupabaseAdvisorLintLevel.Info]: ['suggestion', 'suggestions'],
+  [SupabaseAdvisorLintLevel.Info]: ['info', 'info'],
 };
 
 const ADVISOR_LINT_LEVEL_MARKERS: Record<SupabaseAdvisorLintLevel, string> = {
@@ -136,7 +136,7 @@ const ADVISOR_LINT_LEVEL_MARKERS: Record<SupabaseAdvisorLintLevel, string> = {
 
 export function summarizeSupabaseAdvisorLints(lints: readonly SupabaseAdvisorLintData[]): string {
   if (lints.length === 0) {
-    return 'no unresolved findings';
+    return 'No unresolved findings';
   }
   return (Object.keys(ADVISOR_LINT_LEVEL_LABELS) as SupabaseAdvisorLintLevel[])
     .map(level => [level, lints.filter(lint => lint.level === level).length] as const)
@@ -158,16 +158,21 @@ export function formatSupabaseAdvisorLints(
   type: SupabaseAdvisorType,
   lints: readonly SupabaseAdvisorLintData[]
 ): string {
-  const heading = `${chalk.bold(type === SupabaseAdvisorType.Security ? 'Security' : 'Performance')}: ${summarizeSupabaseAdvisorLints(lints)}`;
+  const heading = `${chalk.bold(type === SupabaseAdvisorType.Security ? 'Security' : 'Performance')} · ${summarizeSupabaseAdvisorLints(lints)}`;
   const dashboardUrl = getSupabaseAdvisorsDashboardUrl(project, type);
-  const rows = lints.flatMap(lint => [
-    `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${chalk.bold(lint.title)}${lint.entity ? `  ${chalk.dim(lint.entity)}` : ''}`,
-    `      ${formatInlineCode(lint.detail)}`,
-    ...(lint.remediation
-      ? [`      ${chalk.dim('Fix:')} ${link(lint.remediation, { dim: false })}`]
-      : []),
-    `      ${chalk.dim('View:')} ${link(`${dashboardUrl}?id=${encodeURIComponent(lint.cacheKey)}`, { dim: false })}`,
-  ]);
-  const dashboard = `  ${chalk.dim('Dashboard:')} ${link(dashboardUrl, { dim: false })}`;
-  return [heading, ...rows, dashboard].join('\n');
+  const rows = lints.map(lint =>
+    [
+      `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${lint.level === SupabaseAdvisorLintLevel.Warn ? 'WARNING' : lint.level}  ${link(`${dashboardUrl}?id=${encodeURIComponent(lint.cacheKey)}`, { text: chalk.bold.underline(`${lint.title} ↗`), dim: false })}`,
+      ...(lint.entity ? [`    ${chalk.dim(lint.entity)}`] : []),
+      '',
+      `    ${formatInlineCode(lint.detail)}`,
+      ...(lint.remediation
+        ? [
+            '',
+            `    ${link(lint.remediation, { text: chalk.underline('How to fix ↗'), dim: false })}`,
+          ]
+        : []),
+    ].join('\n')
+  );
+  return [heading, ...rows].join('\n\n');
 }
