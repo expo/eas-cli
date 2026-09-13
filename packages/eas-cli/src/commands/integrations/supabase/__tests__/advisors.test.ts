@@ -21,6 +21,7 @@ import { confirmAsync } from '../../../../prompts';
 import { printJsonOnlyOutput } from '../../../../utils/json';
 import IntegrationsSupabaseAdvisors from '../advisors';
 
+jest.mock('supports-hyperlinks', () => ({ stdout: false, stderr: false }));
 jest.mock('../../../../graphql/queries/SupabaseQuery');
 jest.mock('../../../../graphql/mutations/SupabaseMutation');
 jest.mock('../../../../log', () => {
@@ -105,6 +106,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.requireMock('supports-hyperlinks').stdout = false;
     jest
       .mocked(authorizeViaBrowserAsync)
       .mockResolvedValue({ supabaseOrganizationSlug: 'original-org' } as never);
@@ -143,24 +145,60 @@ describe(IntegrationsSupabaseAdvisors, () => {
       [SupabaseAdvisorType.Security, SupabaseAdvisorType.Performance]
     );
     const output = loggedOutput();
-    expect(output).toContain('Security: 1 error');
-    expect(output).toContain('RLS Disabled in Public');
+    expect(output).toContain('Security · 1 error');
+    expect(output).toContain('RLS Disabled in Public ↗: https://supabase.com/dashboard/project/');
+    expect(output).toContain('How to fix ↗: https://supabase.com/docs/');
     expect(output).toContain('Table public.todos is public, but RLS has not been enabled.');
     expect(output).toContain('https://supabase.com/docs/guides/database/database-linter?lint=0013');
     expect(output).toContain(
       'https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
     );
-    expect(output).toContain('Performance: 1 suggestion');
+    expect(output).toContain('Performance · 1 info');
     expect(output).toContain(
       'https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/performance'
     );
+  });
+
+  it('links issue titles and remediation text without visible URLs when hyperlinks are supported', async () => {
+    jest.requireMock('supports-hyperlinks').stdout = true;
+    await createCommand([]).runAsync();
+    const rawOutput = jest
+      .mocked(Log.log)
+      .mock.calls.map(([line]) => String(line))
+      .join('\n');
+    const output = loggedOutput();
+    expect(rawOutput).toContain(
+      ']8;;https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
+    );
+    expect(rawOutput).toContain(
+      ']8;;https://supabase.com/docs/guides/database/database-linter?lint=0013'
+    );
+    expect(output).toContain('✖ ERROR  RLS Disabled in Public ↗\n    public.todos');
+    expect(output).toContain('How to fix ↗');
+    expect(output).not.toContain('https://');
+    expect(output).not.toContain('Dashboard:');
+  });
+
+  it('separates multiple findings and keeps clean sections compact', async () => {
+    jest.requireMock('supports-hyperlinks').stdout = true;
+    jest.mocked(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).mockResolvedValue({
+      ...mockResult,
+      security: [rlsLint, { ...unindexedForeignKeyLint, level: SupabaseAdvisorLintLevel.Warn }],
+      performance: [],
+    });
+    await createCommand([]).runAsync();
+    const output = loggedOutput();
+    expect(output).toContain('Security · 1 error, 1 warning');
+    expect(output).toContain('How to fix ↗\n\n  ▲ WARNING  Unindexed foreign keys ↗');
+    expect(output).toContain('Performance · No unresolved findings');
+    expect(output).not.toContain('Dashboard:');
   });
 
   it('limits the output to one advisor with --type', async () => {
     await createCommand(['--type', 'security']).runAsync();
 
     const output = loggedOutput();
-    expect(output).toContain('Security: 1 error');
+    expect(output).toContain('Security · 1 error');
     expect(output).not.toContain('Performance');
     expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledWith(
       graphqlClient,
@@ -213,7 +251,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
     expect(runCommand).not.toHaveBeenCalled();
     expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledTimes(2);
-    expect(loggedOutput()).toContain('Security: 1 error');
+    expect(loggedOutput()).toContain('Security · 1 error');
   });
 
   it('preserves the selected organization when OAuth defaults to a different one', async () => {
@@ -257,8 +295,8 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(Log.warn).toHaveBeenCalledWith(
       expect.stringContaining('Security advisors are unavailable')
     );
-    expect(loggedOutput()).toContain('Performance: no unresolved findings');
-    expect(loggedOutput()).not.toContain('Security: no unresolved findings');
+    expect(loggedOutput()).toContain('Performance · No unresolved findings');
+    expect(loggedOutput()).not.toContain('Security · No unresolved findings');
   });
 
   it('does not reauthorize when the project is unlinked during the request', async () => {
