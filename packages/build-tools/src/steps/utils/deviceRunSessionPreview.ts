@@ -12,7 +12,6 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 
 const PREVIEW_INTERVAL_MS = 60_000;
-const UPLOAD_SESSION_DURATION_MS = 110 * 60_000;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 const CREATE_PREVIEW_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateDeviceRunSessionPreviewUploadSession($deviceRunSessionId: ID!) {
@@ -40,7 +39,7 @@ export function startDeviceRunSessionPreview({
 }): { stopAsync: () => Promise<void> } {
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
-  let uploadSession: { url: string; headers: Record<string, string>; renewAt: number } | undefined;
+  let uploadSession: { url: string; headers: Record<string, string> } | undefined;
   let pending: Promise<void>;
 
   const uploadAsync = async (): Promise<void> => {
@@ -53,7 +52,7 @@ export function startDeviceRunSessionPreview({
       if (image.length === 0 || image.length > MAX_PREVIEW_SIZE_BYTES) {
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
-      if (!uploadSession || Date.now() >= uploadSession.renewAt) {
+      if (!uploadSession) {
         const result = await ctx.graphqlClient
           .mutation(
             CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
@@ -71,7 +70,6 @@ export function startDeviceRunSessionPreview({
         uploadSession = {
           url: session.url,
           headers: session.headers as Record<string, string>,
-          renewAt: Date.now() + UPLOAD_SESSION_DURATION_MS,
         };
       }
       if (controller.signal.aborted) {
@@ -85,7 +83,6 @@ export function startDeviceRunSessionPreview({
         timeout: 30_000,
       });
       if (!response.ok) {
-        uploadSession = undefined;
         throw new Error(`Session preview upload failed: ${response.status} ${response.statusText}`);
       }
     } catch (err) {

@@ -94,18 +94,18 @@ describe(startDeviceRunSessionPreview, () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('renews a rejected upload URL on the next refresh', async () => {
+  it('retries a failed upload with the same URL', async () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 403 }));
     start();
     await jest.advanceTimersByTimeAsync(60_000);
-    expect(mutation).toHaveBeenCalledTimes(2);
+    expect(mutation).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('renews the upload URL before its two-hour expiry', async () => {
+  it('reuses the upload URL for the full session', async () => {
     start();
-    await jest.advanceTimersByTimeAsync(110 * 60_000);
-    expect(mutation).toHaveBeenCalledTimes(2);
+    await jest.advanceTimersByTimeAsync(119 * 60_000);
+    expect(mutation).toHaveBeenCalledTimes(1);
   });
 
   it('does not overlap captures and aborts pending work when stopped', async () => {
