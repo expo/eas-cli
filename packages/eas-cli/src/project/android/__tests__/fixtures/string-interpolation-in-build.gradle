@@ -1,0 +1,62 @@
+apply plugin: "com.android.application"
+
+import com.android.build.OutputFile
+
+def enableProguardInReleaseBuilds = false
+def jscFlavor = 'org.webkit:android-jsc:+'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId "com.testapp"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+
+        buildConfigField "String", "API_KEY", "\"${System.getenv("API_KEY")}\""
+        buildConfigField "String", "BUILD_LABEL", "\"${System.getenv("FLAVOR")}-${System.getenv("STAGE")}\""
+        resValue "string", "app_id", "\"${System.getenv("APP_ID")}\""
+    }
+    flavorDimensions "env"
+    productFlavors {
+        staging {
+            dimension "env"
+            applicationId "com.testapp.staging"
+            versionCode 123
+        }
+        production {
+            dimension "env"
+            applicationId "com.testapp"
+            versionCode 124
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def abi = output.getFilter(OutputFile.ABI)
+            if (abi != null) {
+                output.versionCodeOverride = defaultConfig.versionCode
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation "com.facebook.react:react-native:+"
+    debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}") {
+      exclude group:'com.facebook.fbjni'
+    }
+    implementation jscFlavor
+}

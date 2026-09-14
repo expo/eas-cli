@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Fix flavor detection in `build.gradle` files that use string interpolation, such as `buildConfigField "String", "KEY", "\"${System.getenv("KEY")}\""`, which made `eas build` fail with "Failed to autodetect applicationId in multi-flavor project". ([#4260](https://github.com/expo/eas-cli/pull/4260) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
