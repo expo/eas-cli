@@ -11,6 +11,7 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import zlib from 'node:zlib';
 
+import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { sleepAsync } from '../../utils/retry';
 
 import { type DetachedProcessHandle, spawnDetached } from './remoteDeviceRunSession';
@@ -342,6 +343,82 @@ export async function configureSystemProxyAsync({
   }
   logger.info(`System proxy for "${service}" set to ${LOCAL_EGRESS_PROXY_HOST}:${port}.`);
   return { service };
+}
+
+export const LOCAL_EGRESS_NO_PROXY = 'localhost,127.0.0.1,::1';
+
+/**
+ * Proxy environment for processes inside the simulator. CFNetwork ignores these
+ * variables and follows the system proxy, but clients with their own network
+ * stack that read them (gRPC and therefore Firestore, libcurl, Go) then send
+ * HTTP CONNECT requests to the same loopback port. Loopback is excluded so the
+ * ports forwarded for `--egress-allow` behave the same on both paths. Lowercase
+ * and uppercase forms are both set because clients differ in which they read.
+ */
+export function buildLocalEgressSimulatorEnvironment(port: number): Record<string, string> {
+  const proxyUrl = `http://${LOCAL_EGRESS_PROXY_HOST}:${port}`;
+  return {
+    http_proxy: proxyUrl,
+    https_proxy: proxyUrl,
+    HTTP_PROXY: proxyUrl,
+    HTTPS_PROXY: proxyUrl,
+    grpc_proxy: proxyUrl,
+    no_proxy: LOCAL_EGRESS_NO_PROXY,
+    NO_PROXY: LOCAL_EGRESS_NO_PROXY,
+  };
+}
+
+/**
+ * Set the local egress proxy environment in a booted simulator when a local
+ * egress session is active. Returns false when local egress is not configured
+ * or the environment could not be set. Failure is a warning, not an error: the
+ * session still works, but clients that read these variables then exit from
+ * this worker instead of the egress client, which the warning spells out.
+ */
+export async function configureSimulatorProxyEnvironmentAsync({
+  udid,
+  env,
+  logger,
+  handoffPath = LOCAL_EGRESS_HANDOFF_PATH,
+}: {
+  udid: IosSimulatorUuid;
+  env: NodeJS.ProcessEnv;
+  logger: bunyan;
+  handoffPath?: string;
+}): Promise<boolean> {
+  let handoff: LocalEgressHandoff | null;
+  try {
+    handoff = await readLocalEgressHandoffAsync(handoffPath);
+  } catch (err) {
+    logger.warn(
+      { err },
+      'Local egress: could not read the local egress handoff, so proxy environment variables were ' +
+        'not set in the Simulator. Clients that read http_proxy/https_proxy (for example gRPC and ' +
+        'libcurl) will bypass local egress and exit from this worker.'
+    );
+    return false;
+  }
+  if (!handoff) {
+    return false;
+  }
+  const variables = buildLocalEgressSimulatorEnvironment(handoff.port);
+  try {
+    await IosSimulatorUtils.setLaunchdEnvironmentAsync({ udid, env, variables });
+  } catch (err) {
+    logger.warn(
+      { err },
+      'Local egress: could not set proxy environment variables in the Simulator. Clients that read ' +
+        'http_proxy/https_proxy (for example gRPC and libcurl) will bypass local egress and exit from ' +
+        'this worker. CFNetwork clients (WebKit, URLSession) still follow the system proxy.'
+    );
+    return false;
+  }
+  logger.info(
+    `Local egress: proxy environment variables set in the Simulator (${Object.keys(variables).join(
+      ', '
+    )}), so clients that read them, such as gRPC and libcurl, also exit from the egress client.`
+  );
+  return true;
 }
 
 export async function writeLocalEgressHandoffAsync(
