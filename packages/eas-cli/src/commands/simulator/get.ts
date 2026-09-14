@@ -111,7 +111,11 @@ export default class SimulatorGet extends EasCommand {
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();
       if (session.remoteConfig) {
-        Log.log(formatRemoteSessionInstructions(session.remoteConfig, 'env'));
+        Log.log(
+          formatRemoteSessionInstructions(session.remoteConfig, 'env', {
+            sessionUrl: deviceRunSessionUrl,
+          })
+        );
       } else {
         Log.log(
           '⏳ Session is starting up — remote config is not available yet. Re-run this command in a moment.'

@@ -82,6 +82,12 @@ export type LocalEgressConfig = {
 export type LocalEgressOptions = {
   egressAllow?: readonly string[];
   /**
+   * Link to the session on expo.dev. Its Logs section lists every connection
+   * the local egress guard refused inside the simulator, with the process and
+   * the calling frameworks, so the banner points readers there.
+   */
+  sessionUrl?: string;
+  /**
    * Whether the calling command runs the egress client itself in the current
    * terminal, as interactive `simulator:start` does. When false the reader must
    * start `eas simulator:egress` in another process.
@@ -259,7 +265,7 @@ export function sanitizeRemoteConfigForJson(
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType,
-  { egressAllow, egressClientRunsInline = false }: LocalEgressOptions = {}
+  { egressAllow, egressClientRunsInline = false, sessionUrl }: LocalEgressOptions = {}
 ): string {
   const instructions = formatControllerInstructions(remoteConfig, configType);
   const egress = getLocalEgressConfig(remoteConfig, egressAllow);
@@ -271,10 +277,14 @@ export function formatRemoteSessionInstructions(
   const summary =
     "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine." +
     (egress.allow.length > 0 ? ` It can also reach ${egress.allow.join(', ')}.` : '');
+  const guardNotice =
+    'Connections that bypass the proxy are refused inside the simulator. The Logs section of the ' +
+    `session page lists what was refused and which library tried${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`;
   return [
     instructions,
     '',
     summary,
+    guardNotice,
     ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
     // In interactive mode the client starts in this terminal once the session is
     // ready and stops with it, so there is nothing for the reader to run.

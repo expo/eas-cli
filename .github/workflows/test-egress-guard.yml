@@ -1,0 +1,31 @@
+name: test-egress-guard
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - packages/build-tools/resources/egress-guard/**
+      - packages/build-tools/src/steps/utils/localEgressGuard.ts
+      - packages/build-tools/src/steps/utils/__tests__/localEgressGuard*.ts
+      - packages/build-tools/src/steps/functions/startIosSimulator.ts
+      - packages/worker/.eas/workflows/test-egress-guard.yml
+      - .github/workflows/test-egress-guard.yml
+
+jobs:
+  test-egress-guard:
+    # The simulator tests need macOS with Xcode, which the EAS macOS workers have.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+      - uses: ./.github/actions/setup-mise
+      - name: Install eas-cli
+        run: npm install --global eas-cli@latest
+      - name: Run the test-egress-guard EAS workflow on macOS
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          eas workflow:run test-egress-guard.yml \
+            --ref ${{ github.event.pull_request.head.sha || github.sha }} \
+            --non-interactive \
+            --wait

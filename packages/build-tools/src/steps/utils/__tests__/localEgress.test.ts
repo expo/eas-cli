@@ -377,18 +377,16 @@ describe(configureSimulatorProxyEnvironmentAsync, () => {
       })
     ).resolves.toBe(true);
 
-    const setenvCalls = mockedSpawn.mock.calls.map(([, args]) => args);
-    expect(setenvCalls).toEqual(
-      Object.entries(buildLocalEgressSimulatorEnvironment(8899)).map(([name, value]) => [
+    expect(mockedSpawn.mock.calls.map(([, args]) => args)).toEqual([
+      [
         'simctl',
         'spawn',
         'test-udid',
         'launchctl',
         'setenv',
-        name,
-        value,
-      ])
-    );
+        ...Object.entries(buildLocalEgressSimulatorEnvironment(8899)).flat(),
+      ],
+    ]);
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining('proxy environment variables set')
     );
