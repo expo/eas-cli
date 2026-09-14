@@ -175,8 +175,12 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(output).not.toContain('How to fix');
     expect(output).toContain('has not been enabled.\n\n    View in Supabase ↗');
     expect(output).not.toContain('RLS Disabled in Public ↗');
-    expect(output).not.toContain('https://');
-    expect(output).not.toContain('Dashboard:');
+    expect(output.split('\n').filter(line => line.includes('https://'))).toEqual([
+      'Dashboard: https://supabase.com/dashboard/project/abcdefghijklmnop',
+    ]);
+    expect(output).toMatch(
+      /^Dashboard: https:\/\/supabase.com\/dashboard\/project\/abcdefghijklmnop\nSecurity/
+    );
   });
 
   it('separates multiple findings and keeps clean sections compact', async () => {
@@ -191,7 +195,9 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(output).toContain('Security · 1 error, 1 warning');
     expect(output).toContain('View in Supabase ↗\n\n  ▲ WARNING  Unindexed foreign keys');
     expect(output).toContain('Performance · No unresolved findings');
-    expect(output).not.toContain('Dashboard:');
+    expect(output).toMatch(
+      /^Dashboard: https:\/\/supabase.com\/dashboard\/project\/abcdefghijklmnop\nSecurity/
+    );
   });
 
   it('limits the output to one advisor with --type', async () => {
