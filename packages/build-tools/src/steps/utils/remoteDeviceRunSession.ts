@@ -17,6 +17,10 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import {
+  captureDeviceRunSessionPreviewAsync,
+  startDeviceRunSessionPreview,
+} from './deviceRunSessionPreview';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
@@ -782,6 +786,7 @@ export type ServeSimPreviewHandle = DeviceWebPreviewHandle;
 async function startWebPreviewWithTunnelAsync(
   ctx: CustomBuildContext,
   {
+    runtimePlatform,
     baseDomain,
     env,
     logger,
@@ -791,6 +796,7 @@ async function startWebPreviewWithTunnelAsync(
     createArgs,
     readPreviewTokenAsync,
   }: {
+    runtimePlatform: BuildRuntimePlatform;
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
@@ -801,6 +807,7 @@ async function startWebPreviewWithTunnelAsync(
     readPreviewTokenAsync?: (device: string) => Promise<string>;
   }
 ): Promise<DeviceWebPreviewHandle> {
+  const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
   const port = await findAvailablePortAsync();
   logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
@@ -826,10 +833,19 @@ async function startWebPreviewWithTunnelAsync(
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
     });
+    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+    const preview = startDeviceRunSessionPreview({
+      ctx,
+      deviceRunSessionId,
+      logger,
+      captureAsync: signal =>
+        captureDeviceRunSessionPreviewAsync({ runtimePlatform, device, env, signal }),
+    });
     return {
       previewUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
+        await preview.stopAsync();
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
           if (result.status === 'rejected') {
@@ -874,6 +890,7 @@ export async function startServeSimWithTunnelAsync(
     env,
     logger,
     timeoutMs,
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
@@ -921,6 +938,7 @@ export async function startExpoDeviceHubWithTunnelAsync(
     env,
     logger,
     timeoutMs,
+    runtimePlatform,
     serverName: 'expo-device-hub',
     packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
     createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),

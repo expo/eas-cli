@@ -11,6 +11,7 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { startDeviceRunSessionPreview } from '../deviceRunSessionPreview';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import {
@@ -27,6 +28,11 @@ import {
   waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
 
+jest.mock('../deviceRunSessionPreview', () => ({
+  startDeviceRunSessionPreview: jest.fn(() => ({
+    stopAsync: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
@@ -508,12 +514,18 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+    expect(startDeviceRunSessionPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceRunSessionId: 'drs-id',
+        captureAsync: expect.any(Function),
+      })
+    );
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
+  it('prepares ffmpeg for session thumbnails on macOS', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -529,11 +541,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
 
     expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
-    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
-      'ffmpeg',
-      expect.anything(),
-      expect.anything()
-    );
+    expect(jest.mocked(spawn)).toHaveBeenCalledWith('ffmpeg', expect.anything(), expect.anything());
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
