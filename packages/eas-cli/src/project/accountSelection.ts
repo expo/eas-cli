@@ -1,6 +1,6 @@
 import { Role } from '../graphql/generated';
 import { Choice } from '../prompts';
-import { Actor } from '../user/User';
+import { Actor, getPersonalAccount } from '../user/User';
 
 export function getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(
   actor: Actor
@@ -16,15 +16,8 @@ export function getAccountChoices(
 ): Choice[] {
   const allAccounts = actor.accounts;
 
-  const sortedAccounts =
-    actor.__typename === 'Robot'
-      ? allAccounts
-      : [...allAccounts].sort((a, _b) =>
-          actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-        );
-
   if (actor.__typename !== 'Robot') {
-    const personalAccount = allAccounts?.find(account => account?.ownerUserActor?.id === actor.id);
+    const personalAccount = getPersonalAccount(actor);
 
     const personalAccountChoice = personalAccount
       ? {
@@ -37,7 +30,7 @@ export function getAccountChoices(
       : undefined;
 
     const userAccounts = allAccounts
-      ?.filter(account => account.ownerUserActor && account.name !== actor.username)
+      ?.filter(account => account.ownerUserActor && account.id !== personalAccount?.id)
       .map(account => ({
         title: account.name,
         value: account,
@@ -47,7 +40,7 @@ export function getAccountChoices(
       }));
 
     const organizationAccounts = allAccounts
-      ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
+      ?.filter(account => account.id !== personalAccount?.id && !account.ownerUserActor)
       .map(account => ({
         title: account.name,
         value: account,
@@ -62,11 +55,11 @@ export function getAccountChoices(
     }
 
     return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
-      actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
+      a.value.id === personalAccount?.id ? -1 : 1
     );
   }
 
-  return sortedAccounts.map(account => ({
+  return allAccounts.map(account => ({
     title: account.name,
     value: account,
     description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,

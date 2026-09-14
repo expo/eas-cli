@@ -103,7 +103,7 @@ describe(getProjectIdAsync, () => {
       fullName: '@notnotbrent/test',
       name: 'test',
       slug: 'test',
-      ownerAccount: { name: 'notnotbrent' } as any,
+      ownerAccount: { id: 'account_id_1', name: 'notnotbrent' } as any,
     });
 
     await expect(
@@ -130,7 +130,7 @@ describe(getProjectIdAsync, () => {
       fullName: '@notnotbrent/test',
       name: 'test',
       slug: 'test',
-      ownerAccount: { name: 'notnotbrent' } as any,
+      ownerAccount: { id: 'account_id_1', name: 'notnotbrent' } as any,
     });
 
     await expect(
@@ -167,7 +167,7 @@ describe(getProjectIdAsync, () => {
         fullName: '@totallybrent/test',
         name: 'test',
         slug: 'test',
-        ownerAccount: { name: 'totallybrent' } as any,
+        ownerAccount: { id: 'account_id_totallybrent', name: 'totallybrent' } as any,
       });
 
       await expect(
@@ -226,7 +226,7 @@ describe(getProjectIdAsync, () => {
         fullName: '@totallybrent/test',
         name: 'test',
         slug: 'test',
-        ownerAccount: { name: 'totallybrent' } as any,
+        ownerAccount: { id: 'account_id_totallybrent', name: 'totallybrent' } as any,
       });
 
       await expect(
@@ -263,7 +263,7 @@ describe(getProjectIdAsync, () => {
         fullName: '@totallybrent/test',
         name: 'test',
         slug: 'test',
-        ownerAccount: { name: 'totallybrent' } as any,
+        ownerAccount: { id: 'account_id_totallybrent', name: 'totallybrent' } as any,
       });
 
       await expect(
@@ -295,7 +295,7 @@ describe(getProjectIdAsync, () => {
       fullName: '@notnotbrent/test',
       name: 'test',
       slug: 'test',
-      ownerAccount: { name: 'notnotbrent' } as any,
+      ownerAccount: { id: 'account_id_1', name: 'notnotbrent' } as any,
     });
 
     await expect(
@@ -306,6 +306,90 @@ describe(getProjectIdAsync, () => {
       )
     ).rejects.toThrow(
       `Project config: Slug for project identified by "extra.eas.projectId" (test) does not match the "slug" field (wat). ${learnMore(
+        'https://expo.fyi/eas-project-id'
+      )}`
+    );
+  });
+
+  it('recognizes the personal account by id even when its name differs from the username', async () => {
+    const sessionManagerMock = mock<SessionManager>();
+    when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+      actor: {
+        __typename: 'User',
+        id: 'user_id',
+        email: 'notnotbrent@example.com',
+        username: 'notnotbrent',
+        primaryAccount: {
+          id: 'account_id_1',
+          name: 'renamed-personal',
+          viewerUserPermission: { role: Role.Owner },
+        },
+        accounts: [
+          {
+            id: 'account_id_1',
+            name: 'renamed-personal',
+            viewerUserPermission: { role: Role.Owner },
+          },
+        ],
+        isExpoAdmin: false,
+        featureGates: {},
+      },
+      authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+    });
+    const sessionManagerRenamed = instance(sessionManagerMock);
+
+    jest.mocked(getConfig).mockReturnValue({
+      exp: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'test',
+        extra: { eas: { projectId: '1234' } },
+      },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@renamed-personal/test',
+      name: 'test',
+      slug: 'test',
+      // Same account as the personal account (by id), even though its name != username.
+      ownerAccount: { id: 'account_id_1', name: 'renamed-personal' } as any,
+    });
+
+    await expect(
+      getProjectIdAsync(
+        sessionManagerRenamed,
+        { sdkVersion: '52.0.0', name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
+    ).resolves.toEqual('1234');
+  });
+
+  it('does not treat a non-personal account as the user just because its name equals the username', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      exp: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'test',
+        extra: { eas: { projectId: '1234' } },
+      },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@notnotbrent/test',
+      name: 'test',
+      slug: 'test',
+      // A different account that coincidentally shares the username as its name.
+      ownerAccount: { id: 'some_other_account', name: 'notnotbrent' } as any,
+    });
+
+    await expect(
+      getProjectIdAsync(
+        sessionManager,
+        { sdkVersion: '52.0.0', name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
+    ).rejects.toThrow(
+      `Project config: Owner of project identified by "extra.eas.projectId" (notnotbrent) does not match the logged in user (notnotbrent) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "notnotbrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
         'https://expo.fyi/eas-project-id'
       )}`
     );
@@ -527,13 +611,13 @@ describe(getProjectIdAsync, () => {
           primaryAccount: {
             id: 'account_id_1',
             name: 'notnotbrent',
-            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+            viewerUserPermission: { role: Role.Owner },
           },
           accounts: [
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+              viewerUserPermission: { role: Role.Owner },
             },
           ],
           isExpoAdmin: false,
@@ -607,7 +691,7 @@ describe(getProjectIdAsync, () => {
       fullName: '@notnotbrent/test',
       name: 'test',
       slug: 'test',
-      ownerAccount: { name: 'notnotbrent' } as any,
+      ownerAccount: { id: 'account_id_1', name: 'notnotbrent' } as any,
     });
 
     await expect(

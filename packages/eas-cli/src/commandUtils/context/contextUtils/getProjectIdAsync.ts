@@ -20,7 +20,7 @@ import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../
 import { getUnconfiguredProjectError } from '../../../project/projectNotConfiguredError';
 import { promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
-import { Actor, getActorUsername } from '../../../user/User';
+import { Actor, getActorUsername, getPersonalAccount } from '../../../user/User';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
@@ -138,7 +138,8 @@ export async function validateOrSetProjectIdAsync({
     // SDK 53 and above no longer require owner field in app config
     if (sdkVersion && semver.satisfies(sdkVersion, '< 53.0.0')) {
       const actorUsername = getActorUsername(actor);
-      if (!exp.owner && appForProjectId.ownerAccount.name !== actorUsername) {
+      const personalAccount = getPersonalAccount(actor);
+      if (!exp.owner && appForProjectId.ownerAccount.id !== personalAccount?.id) {
         if (actorUsername) {
           throw new Error(
             `Project config: Owner of project identified by "extra.eas.projectId" (${
