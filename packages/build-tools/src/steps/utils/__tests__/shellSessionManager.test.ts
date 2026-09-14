@@ -86,13 +86,15 @@ describe('ShellSessionManager', () => {
     });
     try {
       const firstId = await first.startAsync({ cmd: 'printf first' });
-      const secondId = await second.startAsync({ cmd: 'printf second' });
+      const secondId = await second.startAsync({ cmd: 'read value; printf "%s" "$value"' });
       expect(await first.readAsync(firstId, 1_000)).toEqual({ output: 'first', exitCode: 0 });
       firstController.abort();
       await first.stoppedPromise;
       await expect(first.startAsync({ cmd: 'printf stopped' })).rejects.toMatchObject({
         name: 'AbortError',
       });
+      expect(await second.readAsync(secondId, 0)).toEqual({ output: '', sessionId: secondId });
+      second.write(secondId, 'second\n');
       expect(await second.readAsync(secondId, 1_000)).toEqual({ output: 'second', exitCode: 0 });
     } finally {
       firstController.abort();

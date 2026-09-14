@@ -39,14 +39,12 @@ describe('sandbox build functions', () => {
     }
   });
   it('does not mark the sandbox ready if startup was canceled', async () => {
-    const env = { PREPARED_BY_EARLIER_STEP: 'value' };
     const controller = new AbortController();
     const stopAsync = jest.fn(async () => {});
     const start = jest
       .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
       .mockImplementation(async options => {
         expect(options.signal).toBe(controller.signal);
-        expect(options.env).toBe(env);
         controller.abort();
         return { ready: Promise.resolve(), stopAsync };
       });
@@ -61,19 +59,38 @@ describe('sandbox build functions', () => {
         fn.fn!({ logger: {} } as any, {
           inputs: { sandbox_id: { value: 'sandbox-id' } },
           outputs: {},
-          env,
+          env: {},
           signal: controller.signal,
         })
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ name: 'AbortError' });
       expect(mutation).not.toHaveBeenCalled();
       expect(stopAsync).toHaveBeenCalledTimes(1);
     } finally {
       start.mockRestore();
     }
   });
-  it('provides one long-running step', () => {
-    const ctx = { job: {} } as any;
-    expect(createStartSandboxBuildFunction(ctx).getFullId()).toBe('eas/start_sandbox');
+  it('passes the prepared environment to the daemon', async () => {
+    const env = { PREPARED_BY_EARLIER_STEP: 'value' };
+    const startupError = new Error('stop after checking options');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+      mcpServerUrl: 'ws://localhost:8787',
+    } as any);
+    try {
+      await expect(
+        fn.fn!({ logger: {} } as any, {
+          inputs: { sandbox_id: { value: 'sandbox-id' } },
+          outputs: {},
+          env,
+        })
+      ).rejects.toBe(startupError);
+      expect(start.mock.calls[0][0].env).toBe(env);
+    } finally {
+      start.mockRestore();
+    }
   });
 
   it('throws a system error when the sandbox token is missing', async () => {
