@@ -1101,6 +1101,8 @@ export type AgentDeviceRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
+  /** URL of the preview server, for reaching its API rather than its page. */
+  previewApiUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
@@ -4719,6 +4721,8 @@ export type AppiumRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
+  /** URL of the preview server, for reaching its API rather than its page. */
+  previewApiUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
@@ -5147,6 +5151,8 @@ export type ArgentRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
+  /** URL of the preview server, for reaching its API rather than its page. */
+  previewApiUrl?: Maybe<Scalars['String']['output']>;
   toolsAuthToken?: Maybe<Scalars['String']['output']>;
   toolsUrl: Scalars['String']['output'];
   /** Session token gating the web preview. Null when the preview runs ungated. */
@@ -10329,6 +10335,7 @@ export type PublishUpdateGroupInput = {
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
   manifestHostOverride?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
+  previousRolloutUpdateToClobberIdGroup?: InputMaybe<UpdateIdGroup>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
   runtimeVersion: Scalars['String']['input'];
@@ -11213,6 +11220,8 @@ export type ServeSimRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
+  /** URL of the preview server, for reaching its API rather than its page. */
+  previewApiUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the preview. Null when the preview runs ungated. */
   previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
@@ -12380,6 +12389,12 @@ export type UpdateGroupsConnection = {
   pageInfo: PageInfo;
 };
 
+export type UpdateIdGroup = {
+  android?: InputMaybe<Scalars['ID']['input']>;
+  ios?: InputMaybe<Scalars['ID']['input']>;
+  web?: InputMaybe<Scalars['ID']['input']>;
+};
+
 export type UpdateInfoGroup = {
   android?: InputMaybe<PartialManifest>;
   ios?: InputMaybe<PartialManifest>;
@@ -13336,6 +13351,8 @@ export type WebPreviewOnlyRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
+  /** URL of the preview server, for reaching its API rather than its page. */
+  previewApiUrl?: Maybe<Scalars['String']['output']>;
   /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   webPreviewUrl: Scalars['String']['output'];

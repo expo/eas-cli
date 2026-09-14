@@ -6681,6 +6681,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewToken",
             "description": "Session token gating the web preview. Null when the preview runs ungated.",
             "args": [],
@@ -33440,6 +33452,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "webPreviewToken",
             "description": "Session token gating the web preview. Null when the preview runs ungated.",
             "args": [],
@@ -36291,6 +36315,18 @@
           {
             "name": "egressUrl",
             "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -72422,6 +72458,18 @@
             "deprecationReason": null
           },
           {
+            "name": "previousRolloutUpdateToClobberIdGroup",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "UpdateIdGroup",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "rollBackToEmbeddedInfoGroup",
             "description": null,
             "type": {
@@ -78919,6 +78967,18 @@
           {
             "name": "egressUrl",
             "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -87184,6 +87244,53 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "UpdateIdGroup",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "android",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ios",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "web",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "UpdateInfoGroup",
         "description": null,
         "fields": null,
@@ -93661,6 +93768,18 @@
           {
             "name": "egressUrl",
             "description": "Reverse-tunnel endpoint the local egress client connects to. Null when the\nsession does not use local egress.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previewApiUrl",
+            "description": "URL of the preview server, for reaching its API rather than its page.",
             "args": [],
             "type": {
               "kind": "SCALAR",
