@@ -7,6 +7,7 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   monitorLocalEgressAsync,
   readLocalEgressHandoffAsync,
@@ -14,7 +15,6 @@ import {
   stopLocalEgressResourcesAsync,
 } from '../../utils/localEgress';
 import {
-  startDeviceWebPreviewWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
@@ -27,6 +27,7 @@ jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../../utils/processes');
 jest.mock('../../../utils/turtleFetch');
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceArtifacts');
 jest.mock('../../utils/argentArtifacts');
 jest.mock('../../utils/agentDeviceEvents', () => ({
@@ -57,7 +58,6 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
     subdomainId: 'controller-id',
     stopAsync: jest.fn(),
   }),
-  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
@@ -81,6 +81,7 @@ const controllers = [
 
 describe.each(controllers)('%s local egress', (_name, createFunction, controllerField) => {
   const stopPreview = jest.fn();
+  const openPreview = jest.fn();
   const stopEgress = jest.fn();
   let lifetime: AbortSignal;
   async function run(signal?: AbortSignal): Promise<void> {
@@ -118,11 +119,15 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as never);
     jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue(handoff);
     jest.mocked(monitorLocalEgressAsync).mockResolvedValue(undefined);
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
+    openPreview.mockResolvedValue({
       previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
       apiUrl: 'https://preview.test',
       previewToken: 'preview-secret',
-      stopAsync: stopPreview,
+      closeAsync: jest.fn(),
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: openPreview,
+      finishAsync: stopPreview,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
@@ -168,12 +173,14 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     expect(monitorLocalEgressAsync).not.toHaveBeenCalled();
     expect(stopEgress).not.toHaveBeenCalled();
   });
-  it.each(['startup', 'report', 'wait', 'teardown'])(
+  it.each(['startup', 'preview', 'report', 'wait', 'teardown'])(
     'releases egress after %s fails',
     async phase => {
       const error = new Error(`${phase} failed`);
       if (phase === 'startup') {
-        jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockRejectedValue(error);
+        jest.mocked(startDeviceSessionHostAsync).mockRejectedValue(error);
+      } else if (phase === 'preview') {
+        openPreview.mockRejectedValue(error);
       } else if (phase === 'report') {
         jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValue(error);
       } else if (phase === 'wait') {
@@ -185,7 +192,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
       expect(lifetime.aborted).toBe(true);
       expect(stopEgress).toHaveBeenCalledTimes(1);
       expect(monitorLocalEgressAsync).toHaveBeenCalledTimes(
-        phase === 'startup' || phase === 'report' ? 0 : 1
+        phase === 'startup' || phase === 'preview' || phase === 'report' ? 0 : 1
       );
     }
   );

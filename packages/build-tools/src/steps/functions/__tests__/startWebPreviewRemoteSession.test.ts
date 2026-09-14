@@ -2,16 +2,17 @@ import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepContext, type BuildStepEnv } from '@expo/steps';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
-  startDeviceWebPreviewWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession');
 
 const ctx = {} as CustomBuildContext;
@@ -43,10 +44,13 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(getDeviceRunSessionIdOrThrow).mockReturnValue('device-run-session-id');
     jest.mocked(getNgrokTunnelDomainOrThrow).mockReturnValue('tunnel.example.com');
     jest.mocked(selectXcodeDeveloperDirectoryAsync).mockResolvedValue(undefined);
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.example.test',
-      stopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -54,11 +58,14 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
   });
 
   it('reports the session token when serve-sim minted one', async () => {
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.example.test',
-      previewToken: 'tok-1',
-      stopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        previewToken: 'tok-1',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
     });
 
     await runAsync(BuildRuntimePlatform.DARWIN);
@@ -74,6 +81,22 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it.each(['preview', 'config', 'wait'])('finishes the session after %s fails', async phase => {
+    const error = new Error(`${phase} failed`);
+    if (phase === 'preview') {
+      jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+        openPreviewAsync: jest.fn().mockRejectedValue(error),
+        finishAsync: stopAsync,
+      });
+    } else if (phase === 'config') {
+      jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
+    } else {
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+    }
+    await expect(runAsync(BuildRuntimePlatform.LINUX)).rejects.toBe(error);
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [BuildRuntimePlatform.DARWIN, true],
     [BuildRuntimePlatform.LINUX, false],
@@ -81,9 +104,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     await runAsync(runtimePlatform);
 
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(selectsXcode ? 1 : 0);
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(ctx, {
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, {
       runtimePlatform,
-      baseDomain: 'tunnel.example.com',
       env,
       logger,
       timeoutMs: 60_000,

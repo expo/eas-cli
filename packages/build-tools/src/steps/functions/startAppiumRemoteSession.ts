@@ -19,6 +19,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -35,7 +36,6 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -126,7 +126,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -138,13 +138,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
 
         // expo-device-hub has no serial-selection flag. Device run session workflows must expose
         // a single booted Android emulator so the Hub and Appium resolve the same device.
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -179,9 +179,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
+        await sessionHost?.finishAsync();
         if (appiumTunnel) {
           await appiumTunnel.stopAsync();
         }

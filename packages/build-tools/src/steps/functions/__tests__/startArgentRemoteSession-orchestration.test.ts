@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
@@ -15,7 +16,6 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -41,6 +41,7 @@ jest.mock('../../utils/argentEvents', () => ({
   ...jest.requireActual('../../utils/argentEvents'),
   startArgentEventCollectionAsync: jest.fn(),
 }));
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   getDeviceRunSessionIdOrThrow: jest.fn(),
@@ -48,7 +49,6 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   spawnDetached: jest.fn(),
-  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
@@ -91,10 +91,13 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       subdomainId: 'argent-abc',
       stopAsync: mockTunnelStopAsync,
     });
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.tunnel.example.com',
-      stopAsync: mockPreviewStopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.tunnel.example.com',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -110,6 +113,44 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
   afterEach(async () => {
     await fs.promises.rm(TEST_HOME, { recursive: true, force: true });
   });
+
+  it.each(['preview', 'config', 'wait'])(
+    'finishes the host and tools after %s fails',
+    async phase => {
+      const error = new Error(`${phase} failed`);
+      if (phase === 'preview') {
+        jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+          openPreviewAsync: jest.fn().mockRejectedValue(error),
+          finishAsync: mockPreviewStopAsync,
+        });
+      } else if (phase === 'config') {
+        jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
+      } else {
+        jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+      }
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      await expect(
+        buildFunction.fn!(
+          {
+            logger: { info: jest.fn(), warn: jest.fn() },
+            global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      ).rejects.toBe(error);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockStopAsync).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(spawnDetached).mock.results[0].value.stopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('enables the event log flag, shares one path, and starts/stops the collector', async () => {
     const ctx = {} as unknown as CustomBuildContext;
@@ -174,7 +215,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
     );
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
     );
