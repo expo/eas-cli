@@ -34,6 +34,7 @@ import {
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
+import { parseNetworkCaptureFieldsInput } from '../utils/networkCaptureFields';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 // 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
@@ -72,6 +73,16 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'network_capture',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
+        id: 'network_capture_fields',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_idle_time_minutes',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -92,6 +103,10 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
+      const networkCaptureFields = parseNetworkCaptureFieldsInput(
+        inputs.network_capture_fields?.value
+      );
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
@@ -215,6 +230,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          networkCapture,
+          networkCaptureFields,
         });
         logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
