@@ -17,25 +17,27 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
-import { uploadDeviceRunSessionScreenRecordingsAsync } from '../../functions/uploadDeviceRunSessionScreenRecordings';
+import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
-  createExpoDeviceHubArgs,
-  createServeSimArgs,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   parseServeSimLaunchInputs,
-  simulatorPreviewPageUrl,
-  startDeviceWebPreviewWithTunnelAsync,
-  startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
+} from '../remoteDeviceRunSession';
+
+import {
+  createExpoDeviceHubArgs,
+  createServeSimArgs,
+  simulatorPreviewPageUrl,
+  startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
   websiteOrigin,
   websiteOriginServeSimArgs,
-} from '../remoteDeviceRunSession';
+} from '../deviceSessionHost';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
@@ -44,7 +46,8 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
-jest.mock('../../functions/uploadDeviceRunSessionScreenRecordings', () => ({
+jest.mock('../deviceRunSessionScreenRecordings', () => ({
+  ...jest.requireActual('../deviceRunSessionScreenRecordings'),
   uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
 }));
 // Spyable so a test can stand in for the serve-sim state directory, which a local serve-sim owns.
@@ -543,7 +546,7 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
-describe(startDeviceWebPreviewWithTunnelAsync, () => {
+describe(startDeviceSessionHostAsync, () => {
   const baseDomain = 'eas-simulator.ngrok.dev';
   const turnArgs = [
     '--turn-url',
@@ -598,71 +601,6 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
   });
 
-  it('records Android by default and finalizes before stopping the preview and uploads once', async () => {
-    const close = jest.fn().mockResolvedValue(undefined);
-    jest
-      .mocked(ngrok.forward)
-      .mockResolvedValue({ url: () => 'https://preview.example.test', close } as never);
-    const logger = createLoggerMock();
-    const ctx = createCtxMock();
-    const preview = await startExpoDeviceHubWithTunnelAsync(ctx, {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
-      env,
-      logger,
-      timeoutMs: 10_000,
-    });
-    const [, args, spawnOptions] = jest.mocked(spawn).mock.calls[0];
-    const directory = args[args.indexOf('--android-recording-directory') + 1];
-    const token = spawnOptions?.env?.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN;
-    expect(token).toMatch(/^[a-f0-9]{64}$/);
-    const recordings = [
-      {
-        udid: 'emulator-5554',
-        deviceName: 'Pixel',
-        runtimeDisplayName: 'Android 16',
-        directory: path.join(directory, 'session'),
-      },
-    ];
-    try {
-      await fs.writeFile(path.join(directory, 'recordings.json'), JSON.stringify(recordings));
-      let acknowledge: (response: Awaited<ReturnType<typeof turtleFetch>>) => void = () => {};
-      jest.mocked(turtleFetch).mockImplementationOnce(
-        () =>
-          new Promise(resolve => {
-            acknowledge = resolve;
-          })
-      );
-      const stopping = preview.stopAsync();
-      expect(close).not.toHaveBeenCalled();
-      expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
-      expect(turtleFetch).toHaveBeenLastCalledWith(
-        expect.stringMatching(/\/_eas\/android-recording\/stop$/),
-        'POST',
-        expect.objectContaining({
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 60_000,
-          retries: 0,
-        })
-      );
-      acknowledge({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
-      await stopping;
-      await preview.stopAsync();
-      expect(close).toHaveBeenCalledTimes(1);
-      expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
-      expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledWith(ctx, {
-        env,
-        logger,
-        recordings,
-      });
-      expect(close.mock.invocationCallOrder[0]).toBeLessThan(
-        jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.invocationCallOrder[0]
-      );
-    } finally {
-      await fs.rm(directory, { recursive: true, force: true });
-    }
-  });
-
   it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
     const packageVersion = '1.2.3';
     const close = jest.fn().mockResolvedValue(undefined);
@@ -678,14 +616,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
     expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
@@ -721,7 +659,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
-    await preview.stopAsync();
+    await host.finishAsync();
     await fs.rm(recordingDirectory, { recursive: true, force: true });
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -732,13 +670,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
@@ -761,13 +699,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env: { ...env, EXPO_STAGING: '1' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     expect(preview.previewPageUrl).toMatch(
       /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
@@ -786,9 +724,8 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1' }]);
 
     await expect(
-      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      startDeviceSessionHostAsync(createCtxMock(), {
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        baseDomain,
         env,
         logger: createLoggerMock(),
         timeoutMs: 10_000,
@@ -804,13 +741,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     expect(preview.previewToken).toBeUndefined();
     const [, args] = jest.mocked(spawn).mock.calls[0];
@@ -825,14 +762,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close,
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -851,33 +788,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
-    await preview.stopAsync();
-    expect(close).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
-    const close = jest.fn().mockResolvedValue(undefined);
-    jest.mocked(ngrok.forward).mockResolvedValue({
-      url: () => 'https://android-preview.example.test',
-      close,
-    } as never);
-
-    const preview = await startExpoDeviceHubWithTunnelAsync(createCtxMock(), {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
-      env,
-      logger: createLoggerMock(),
-      timeoutMs: 10_000,
-    });
-
-    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
-    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
-      'ffmpeg',
-      expect.anything(),
-      expect.anything()
-    );
-
-    await preview.stopAsync();
+    await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -889,14 +800,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     } as never);
 
     const bunEnv = { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' };
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env: bunEnv,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion: '4.5.6',
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -912,7 +823,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       }),
     ]);
 
-    await preview.stopAsync();
+    await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -923,13 +834,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close,
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env: { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -944,7 +855,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       }),
     ]);
 
-    await preview.stopAsync();
+    await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -954,9 +865,8 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
@@ -964,6 +874,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
       openUrl: 'exp://127.0.0.1:8081',
     });
+    await host.finishAsync();
 
     const [, args] = jest.mocked(spawn).mock.calls[0];
     expect(args.slice(-8)).toEqual([
@@ -980,9 +891,8 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
 
   it('refuses to launch an application on Linux, where expo-device-hub cannot', async () => {
     await expect(
-      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      startDeviceSessionHostAsync(createCtxMock(), {
         runtimePlatform: BuildRuntimePlatform.LINUX,
-        baseDomain,
         env,
         logger: createLoggerMock(),
         timeoutMs: 10_000,

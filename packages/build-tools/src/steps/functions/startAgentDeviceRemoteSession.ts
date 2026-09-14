@@ -17,6 +17,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -36,7 +37,6 @@ import {
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
@@ -128,7 +128,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
@@ -137,9 +137,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
@@ -147,6 +146,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
@@ -194,9 +194,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
+        await sessionHost?.finishAsync();
         await agentDeviceTunnel.stopAsync();
         if (eventCollection) {
           await stopAgentDeviceEventCollectionSafelyAsync({

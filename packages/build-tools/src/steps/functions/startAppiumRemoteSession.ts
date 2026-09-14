@@ -19,6 +19,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -38,7 +39,6 @@ import {
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -138,7 +138,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -154,9 +154,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
@@ -164,6 +163,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -198,9 +198,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
+        await sessionHost?.finishAsync();
         if (appiumTunnel) {
           await appiumTunnel.stopAsync();
         }
