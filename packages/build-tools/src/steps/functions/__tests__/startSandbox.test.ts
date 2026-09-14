@@ -39,12 +39,14 @@ describe('sandbox build functions', () => {
     }
   });
   it('does not mark the sandbox ready if startup was canceled', async () => {
+    const env = { PREPARED_BY_EARLIER_STEP: 'value' };
     const controller = new AbortController();
     const stopAsync = jest.fn(async () => {});
     const start = jest
       .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
       .mockImplementation(async options => {
         expect(options.signal).toBe(controller.signal);
+        expect(options.env).toBe(env);
         controller.abort();
         return { ready: Promise.resolve(), stopAsync };
       });
@@ -59,7 +61,7 @@ describe('sandbox build functions', () => {
         fn.fn!({ logger: {} } as any, {
           inputs: { sandbox_id: { value: 'sandbox-id' } },
           outputs: {},
-          env: {},
+          env,
           signal: controller.signal,
         })
       ).rejects.toThrow();

@@ -52,6 +52,7 @@ describe('sandbox daemon commands', () => {
     const controller = new AbortController();
     const commands = createSandboxCommandImplementations({
       workingDirectory,
+      env: process.env,
       signal: controller.signal,
     });
     const command = commands.commandImplementations.execCommand({ cmd: 'printf should-not-run' });
@@ -299,6 +300,7 @@ async function startTestDaemonAsync(workingDirectory: string): Promise<{
     reconnectDelayMs: 10,
     logger: Log,
     workingDirectory,
+    env: process.env,
   });
   const socket = await connection;
   await daemon.ready;

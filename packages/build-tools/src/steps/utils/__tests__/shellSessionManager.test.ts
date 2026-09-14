@@ -4,10 +4,40 @@ import { ShellSessionManager } from '../shellSessionManager';
 import * as processes from '../../../utils/processes';
 
 describe('ShellSessionManager', () => {
+  it.each([false, true])('uses only the supplied environment (tty: %s)', async tty => {
+    const controller = new AbortController();
+    const previous = process.env.SANDBOX_WORKER_ONLY;
+    process.env.SANDBOX_WORKER_ONLY = 'worker-secret';
+    const manager = new ShellSessionManager({
+      workingDirectory: process.cwd(),
+      env: { SHELL: '/bin/sh', SANDBOX_PREPARED: 'prepared-value' },
+      signal: controller.signal,
+    });
+    try {
+      const sessionId = await manager.startAsync({
+        cmd: 'printf "%s:%s" "$SANDBOX_PREPARED" "${SANDBOX_WORKER_ONLY-unset}"',
+        tty,
+      });
+      expect(await manager.readAsync(sessionId, 10_000)).toEqual({
+        output: 'prepared-value:unset',
+        exitCode: 0,
+      });
+    } finally {
+      controller.abort();
+      await manager.stoppedPromise;
+      if (previous === undefined) {
+        delete process.env.SANDBOX_WORKER_ONLY;
+      } else {
+        process.env.SANDBOX_WORKER_ONLY = previous;
+      }
+    }
+  });
+
   it.each([false, true])('does not signal an exited leader (tty: %s)', async tty => {
     const controller = new AbortController();
     const manager = new ShellSessionManager({
       workingDirectory: process.cwd(),
+      env: process.env,
       signal: controller.signal,
     });
     const kill = jest.spyOn(processes, 'killProcessGroup');
@@ -28,6 +58,7 @@ describe('ShellSessionManager', () => {
     const controller = new AbortController();
     const manager = new ShellSessionManager({
       workingDirectory: process.cwd(),
+      env: process.env,
       signal: controller.signal,
     });
     try {
@@ -45,10 +76,12 @@ describe('ShellSessionManager', () => {
     const secondController = new AbortController();
     const first = new ShellSessionManager({
       workingDirectory: process.cwd(),
+      env: process.env,
       signal: firstController.signal,
     });
     const second = new ShellSessionManager({
       workingDirectory: process.cwd(),
+      env: process.env,
       signal: secondController.signal,
     });
     try {

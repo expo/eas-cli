@@ -22,6 +22,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 10,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -46,6 +47,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 60_000,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       const socket = await connection;
@@ -79,6 +81,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 10,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -108,6 +111,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       signal: controller.signal,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     const connectionError = daemon.ready.catch(error => error);
 
@@ -135,6 +139,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 60_000,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
 
     await expect(daemon.ready).rejects.toThrow('Sandbox MCP server connection failed');
@@ -167,6 +172,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 10,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     const daemon = await daemonPromise;
@@ -197,6 +203,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 10,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     await daemon.ready;
@@ -239,6 +246,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 10,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     await daemon.ready;
@@ -306,6 +314,7 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 60_000,
       logger,
       workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     const daemon = await daemonPromise;

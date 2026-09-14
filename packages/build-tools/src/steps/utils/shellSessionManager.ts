@@ -19,7 +19,13 @@ export class ShellSessionManager {
   private nextSessionId = 1;
   public readonly stoppedPromise: Promise<void>;
 
-  public constructor(private readonly options: { workingDirectory: string; signal: AbortSignal }) {
+  public constructor(
+    private readonly options: {
+      workingDirectory: string;
+      env: NodeJS.ProcessEnv;
+      signal: AbortSignal;
+    }
+  ) {
     this.stoppedPromise = (async () => {
       if (!options.signal.aborted) {
         await new Promise<void>(resolve => {
@@ -49,8 +55,8 @@ export class ShellSessionManager {
     this.throwIfStopped();
     const sessionId = this.nextSessionId++;
     const session = tty
-      ? startPtyCommand({ command: cmd, workingDirectory })
-      : startPipeCommand({ command: cmd, workingDirectory });
+      ? startPtyCommand({ command: cmd, workingDirectory, env: this.options.env })
+      : startPipeCommand({ command: cmd, workingDirectory, env: this.options.env });
     this.sessions.set(sessionId, session);
     return sessionId;
   }
@@ -132,6 +138,7 @@ type CommandSession = {
   resolveCompleted: () => void;
   isCompleted: boolean;
   hasLeaderExited: boolean;
+  // Unread output is intentionally unlimited for now and can exhaust memory. Reading clears it.
   output: string;
   exitCode?: number;
   terminationSignal?: string;
@@ -142,14 +149,16 @@ type CommandSession = {
 function startPipeCommand({
   command,
   workingDirectory,
+  env,
 }: {
   command: string;
   workingDirectory: string;
+  env: NodeJS.ProcessEnv;
 }): CommandSession {
   const child = spawn(command, {
     cwd: workingDirectory,
-    env: process.env,
-    shell: process.env.SHELL ?? true,
+    env,
+    shell: env.SHELL ?? true,
     detached: true,
   });
   const session = createSession(child);
@@ -193,14 +202,16 @@ function startPipeCommand({
 function startPtyCommand({
   command,
   workingDirectory,
+  env,
 }: {
   command: string;
   workingDirectory: string;
+  env: NodeJS.ProcessEnv;
 }): CommandSession {
-  const shell = process.env.SHELL ?? '/bin/sh';
+  const shell = env.SHELL ?? '/bin/sh';
   const terminal = pty.spawn(shell, ['-c', command], {
     cwd: workingDirectory,
-    env: process.env,
+    env,
     name: 'xterm-256color',
     cols: 80,
     rows: 24,

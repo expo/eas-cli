@@ -18,15 +18,17 @@ export type SandboxDaemonCommandImplementations = {
 
 export function createSandboxCommandImplementations({
   workingDirectory,
+  env,
   signal,
 }: {
   workingDirectory: string;
+  env: NodeJS.ProcessEnv;
   signal: AbortSignal;
 }): {
   commandImplementations: SandboxDaemonCommandImplementations;
   stoppedPromise: Promise<void>;
 } {
-  const sessions = new ShellSessionManager({ workingDirectory, signal });
+  const sessions = new ShellSessionManager({ workingDirectory, env, signal });
   return {
     commandImplementations: {
       async execCommand(params) {

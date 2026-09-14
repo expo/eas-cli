@@ -22,6 +22,7 @@ export interface SandboxDaemonOptions {
   logger: bunyan;
   signal?: AbortSignal;
   workingDirectory: string;
+  env: NodeJS.ProcessEnv;
 }
 
 export interface SandboxDaemon {
@@ -41,6 +42,7 @@ export async function startSandboxDaemonAsync(
   const { commandImplementations, stoppedPromise: commandsStoppedPromise } =
     createSandboxCommandImplementations({
       workingDirectory: options.workingDirectory,
+      env: options.env,
       signal: abortController.signal,
     });
   const connected = new Promise<void>((resolve, reject) => {
