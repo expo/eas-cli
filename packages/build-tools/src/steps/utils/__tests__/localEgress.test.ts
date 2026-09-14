@@ -561,7 +561,7 @@ describe(ExitIpCheck, () => {
     return { check, logger, clock };
   }
 
-  it('keeps trying while attempts fail inside the window, then reports the first success once', async () => {
+  it('says once that it is waiting, keeps trying inside the window, then reports the first success once', async () => {
     const { check, logger, clock } = createCheck();
     const fetchExitIp = jest
       .fn<Promise<string>, []>()
@@ -574,19 +574,24 @@ describe(ExitIpCheck, () => {
     await check.attemptAsync(fetchExitIp);
     expect(check.pending).toBe(true);
     expect(logger.warn).not.toHaveBeenCalled();
-    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info.mock.calls[0][0]).toContain(
+      'the egress client is connected; waiting for a first request through the tunnel'
+    );
 
     clock.now += 10_000;
     await check.attemptAsync(fetchExitIp);
     expect(check.pending).toBe(false);
-    expect(logger.info).toHaveBeenCalledTimes(1);
-    expect(logger.info.mock.calls[0][0]).toContain('proxied requests exit from 64.114.211.10');
+    expect(logger.info).toHaveBeenCalledTimes(2);
+    expect(logger.info.mock.calls[1][0]).toContain(
+      'reached the internet from 64.114.211.10, the public address of the machine running `eas simulator:egress`'
+    );
 
     await check.attemptAsync(fetchExitIp);
     expect(fetchExitIp).toHaveBeenCalledTimes(3);
   });
 
-  it('warns once, naming the likely cause, when the whole window passes without a success', async () => {
+  it('warns once, blaming the tunnel rather than a missing client, when the window passes without a success', async () => {
     const { check, logger, clock } = createCheck(30_000);
     const fetchExitIp = jest.fn<Promise<string>, []>().mockRejectedValue(new Error('exit 28'));
 
@@ -600,12 +605,14 @@ describe(ExitIpCheck, () => {
     expect(check.pending).toBe(false);
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn.mock.calls[0][1]).toContain(
-      'no proxied request completed within 30 seconds of the proxy listener appearing. Check that `eas simulator:egress` is running and connected'
+      'the egress client is connected, but no request through the tunnel reached the internet in 30 seconds'
     );
+    expect(logger.warn.mock.calls[0][1]).not.toContain('running and connected');
 
     await check.attemptAsync(fetchExitIp);
     expect(fetchExitIp).toHaveBeenCalledTimes(3);
     expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledTimes(1);
   });
 
   it('re-arms with a fresh window after reset', async () => {
@@ -622,6 +629,22 @@ describe(ExitIpCheck, () => {
 
     await check.attemptAsync(fetchExitIp);
     expect(logger.warn).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores the outcome of an attempt that was in flight across a reset', async () => {
+    const { check, logger, clock } = createCheck(30_000);
+    let reject: (err: Error) => void = () => {};
+    const inFlight = check.attemptAsync(
+      () => new Promise<string>((_resolve, rejectPromise) => (reject = rejectPromise))
+    );
+    clock.now += 60_000;
+    check.reset();
+    reject(new Error('exit 28'));
+    await inFlight;
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(check.pending).toBe(true);
   });
 });
