@@ -6,12 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Require Node `^20.18.3 || >=22.0.0`. ([#4279](https://github.com/expo/eas-cli/pull/4279) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ### 🎉 New features
 
 - [build-tools] Inject a guard into every iOS Simulator process during `--egress local` sessions that refuses connections which bypass the system proxy and reports them, with the calling frameworks, in the session log. ([#4393](https://github.com/expo/eas-cli/pull/4393) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Set proxy environment variables inside the iOS Simulator for `--egress local` sessions, so clients that read them (gRPC, libcurl) also exit from the egress client. ([#4390](https://github.com/expo/eas-cli/pull/4390) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
+
+- [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 

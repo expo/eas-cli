@@ -19,6 +19,10 @@ export async function prepareProjectSourcesAsync<TJob extends Job>(
   destinationDirectory: string
 ): // Return type required to make switch exhaustive.
 Promise<{ handled: boolean }> {
+  if (ctx.job.projectArchive.type === ArchiveSourceType.NONE) {
+    return { handled: true };
+  }
+
   if (ctx.isLocal) {
     if (ctx.job.projectArchive.type !== ArchiveSourceType.PATH) {
       throw new SystemError(
