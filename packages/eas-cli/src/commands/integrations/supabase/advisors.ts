@@ -12,6 +12,7 @@ import {
   formatSupabaseAdvisorLints,
   formatSupabaseProjectLabel,
   getSupabaseAdvisorsDashboardUrl,
+  getSupabaseProjectDashboardUrl,
   isSupabaseReauthorizationRequiredError,
   logNoSupabaseProject,
 } from '../../../commandUtils/supabase';
@@ -22,7 +23,7 @@ import {
   SupabaseAdvisorType,
 } from '../../../graphql/types/SupabaseConnection';
 import { authorizeViaBrowserAsync } from '../../../integrations/supabase/provision';
-import Log from '../../../log';
+import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { confirmAsync } from '../../../prompts';
@@ -161,6 +162,11 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
       });
       return;
     }
+
+    Log.newLine();
+    Log.log(
+      `${chalk.bold('Dashboard')}: ${link(getSupabaseProjectDashboardUrl(result.project), { dim: false })}`
+    );
 
     for (const type of types) {
       const lints = type === SupabaseAdvisorType.Security ? result.security : result.performance;
