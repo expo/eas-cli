@@ -1,6 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import { Client, fetchExchange } from '@urql/core';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import os from 'node:os';
@@ -136,6 +137,116 @@ describe(startDeviceRunSessionPreview, () => {
     finish(image);
     await stopping;
     expect(mutation).not.toHaveBeenCalled();
+  });
+});
+
+describe('session preview with the real GraphQL client', () => {
+  const uploadSession = {
+    url: 'https://uploads.expo.test/preview',
+    headers: { 'content-type': 'image/webp' },
+  };
+  let graphqlFetch: jest.SpyInstance;
+  let preview: ReturnType<typeof startDeviceRunSessionPreview> | undefined;
+  let logger: bunyan;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    graphqlFetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new globalThis.Response(
+        JSON.stringify({
+          data: { deviceRunSession: { createPreviewUploadSession: { uploadSession } } },
+        }),
+        { headers: { 'content-type': 'application/json' } }
+      )
+    );
+    logger = { warn: jest.fn() } as unknown as bunyan;
+    jest
+      .mocked(fetch)
+      .mockReset()
+      .mockResolvedValue(new Response('', { status: 200 }));
+  });
+
+  afterEach(async () => {
+    await preview?.stopAsync();
+    preview = undefined;
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  const start = () => {
+    const graphqlClient = new Client({
+      url: 'https://api.expo.test/graphql',
+      exchanges: [fetchExchange],
+      fetchOptions: { headers: { Authorization: 'Bearer worker-token' } },
+    });
+    preview = startDeviceRunSessionPreview({
+      ctx: { graphqlClient } as CustomBuildContext,
+      deviceRunSessionId: 'session-id',
+      captureAsync: async () => Buffer.from('webp-image'),
+      logger,
+    });
+    return preview;
+  };
+
+  it('preserves the worker authentication when creating the upload session', async () => {
+    start();
+    await jest.advanceTimersByTimeAsync(0);
+    const [, options] = graphqlFetch.mock.calls[0];
+    expect(new Headers(options.headers).get('authorization')).toBe('Bearer worker-token');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['shutdown', 'timeout'])('aborts a stalled GraphQL request on %s', async reason => {
+    const timeout = new AbortController();
+    jest.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout.signal);
+    let requestSignal: AbortSignal | undefined;
+    let rejectRequest!: (error: Error) => void;
+    graphqlFetch.mockImplementation(
+      (_url, options) =>
+        new Promise((_, reject) => {
+          rejectRequest = reject;
+          requestSignal = options.signal;
+          requestSignal!.addEventListener('abort', () => reject(requestSignal!.reason), {
+            once: true,
+          });
+        })
+    );
+    const handle = start();
+    await jest.advanceTimersByTimeAsync(0);
+    let stopped = false;
+    let stopping: Promise<void> | undefined;
+    if (reason === 'shutdown') {
+      stopping = handle.stopAsync().then(() => {
+        stopped = true;
+      });
+    } else {
+      timeout.abort(new Error('preview attempt timed out'));
+    }
+    await jest.advanceTimersByTimeAsync(0);
+    const aborted = requestSignal!.aborted;
+    const stoppedAfterAbort = stopped;
+    // Always release the fake transport so a regression cannot hang test cleanup.
+    rejectRequest(new Error('test cleanup'));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(aborted).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+    if (stopping) {
+      expect(stoppedAfterAbort).toBe(true);
+      await stopping;
+    } else {
+      expect(logger.warn).toHaveBeenCalled();
+      graphqlFetch.mockResolvedValue(
+        new globalThis.Response(
+          JSON.stringify({
+            data: { deviceRunSession: { createPreviewUploadSession: { uploadSession } } },
+          }),
+          { headers: { 'content-type': 'application/json' } }
+        )
+      );
+      jest.spyOn(AbortSignal, 'timeout').mockReturnValue(new AbortController().signal);
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
   });
 });
 

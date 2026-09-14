@@ -57,7 +57,14 @@ export function startDeviceRunSessionPreview({
           .mutation(
             CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
             { deviceRunSessionId },
-            { fetchOptions: { signal } }
+            {
+              // Keep the client's auth headers and combine cancellation after URQL sets its signal.
+              fetch: (url, options) =>
+                globalThis.fetch(url, {
+                  ...options,
+                  signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
+                }),
+            }
           )
           .toPromise();
         if (result.error) {

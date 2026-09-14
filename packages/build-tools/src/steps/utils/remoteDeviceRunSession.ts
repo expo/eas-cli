@@ -833,19 +833,29 @@ async function startWebPreviewWithTunnelAsync(
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
     });
-    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
-    const preview = startDeviceRunSessionPreview({
-      ctx,
-      deviceRunSessionId,
-      logger,
-      captureAsync: signal =>
-        captureDeviceRunSessionPreviewAsync({ runtimePlatform, device, env, signal }),
-    });
+    let stopped = false;
+    let preview: ReturnType<typeof startDeviceRunSessionPreview> | undefined;
+    // Android already prepared FFmpeg for streaming. Optional macOS thumbnails must not delay readiness.
+    void (async () => {
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+      }
+      if (!stopped) {
+        preview = startDeviceRunSessionPreview({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          captureAsync: signal =>
+            captureDeviceRunSessionPreviewAsync({ runtimePlatform, device, env, signal }),
+        });
+      }
+    })();
     return {
       previewUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
-        await preview.stopAsync();
+        stopped = true;
+        await preview?.stopAsync();
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
           if (result.status === 'rejected') {
