@@ -52,7 +52,7 @@
     "prompts": "^2.4.2",
     "rimraf": "3.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "update-check": "^1.5.4"
   }
 }

@@ -59,7 +59,7 @@
     "fast-glob": "^3.3.2",
     "fast-xml-parser": "^4.4.1",
     "fs-extra": "^11.2.0",
-    "gql.tada": "^1.8.13",
+    "gql.tada": "^1.11.3",
     "joi": "^17.13.1",
     "jose": "5.10.0",
     "lodash": "^4.18.1",
@@ -98,10 +98,10 @@
     "memfs": "^4.17.1",
     "nock": "13.4.0",
     "rimraf": "3.0.2",
-    "ts-jest": "^29.1.4",
+    "ts-jest": "^29.4.12",
     "ts-mockito": "^2.6.1",
     "tslib": "^2.6.3",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "uuid": "^9.0.1"
   }
 }
