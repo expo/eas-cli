@@ -14,7 +14,7 @@ const SIGNAL_NAMES = new Map(
 );
 
 export class ShellSessionManager {
-  // Keep completed sessions until shutdown so their process groups can also be cleaned up.
+  // Keep completed sessions so callers can still read their output and exit status.
   private readonly sessions = new Map<number, CommandSession>();
   private nextSessionId = 1;
   public readonly stoppedPromise: Promise<void>;
@@ -96,12 +96,18 @@ export class ShellSessionManager {
 
   private async stopAsync(): Promise<void> {
     const sessions = [...this.sessions.values()];
+    // Only signal groups while their leaders are alive. After a leader exits, its PID may
+    // be reused. Any surviving descendants are left to VM teardown.
     for (const session of sessions) {
-      killProcessGroup(session.process, 'SIGTERM');
+      if (!session.hasLeaderExited) {
+        killProcessGroup(session.process, 'SIGTERM');
+      }
     }
     await waitForSessionsAsync(sessions, PROCESS_STOP_GRACE_PERIOD_MS);
     for (const session of sessions) {
-      killProcessGroup(session.process, 'SIGKILL');
+      if (!session.hasLeaderExited) {
+        killProcessGroup(session.process, 'SIGKILL');
+      }
     }
     await waitForSessionsAsync(sessions, PROCESS_STOP_GRACE_PERIOD_MS);
     this.sessions.clear();
@@ -120,17 +126,18 @@ export class ShellSessionManager {
   }
 }
 
-interface CommandSession {
+type CommandSession = {
   process: ChildProcess | pty.IPty;
   completed: Promise<void>;
   resolveCompleted: () => void;
   isCompleted: boolean;
+  hasLeaderExited: boolean;
   output: string;
   exitCode?: number;
   terminationSignal?: string;
   error?: Error;
   write(chars: string): void;
-}
+};
 
 function startPipeCommand({
   command,
@@ -158,8 +165,12 @@ function startPipeCommand({
     session.output += data;
   });
   child.stdin.on('error', () => {});
+  child.once('exit', () => {
+    session.hasLeaderExited = true;
+  });
   child.once('error', error => {
     if (!session.isCompleted) {
+      session.hasLeaderExited = true;
       session.isCompleted = true;
       session.error = error;
       session.resolveCompleted();
@@ -202,6 +213,7 @@ function startPtyCommand({
     session.output += data;
   });
   terminal.onExit(({ exitCode, signal }) => {
+    session.hasLeaderExited = true;
     session.isCompleted = true;
     if (signal) {
       session.terminationSignal = SIGNAL_NAMES.get(signal) ?? `SIGNAL_${signal}`;
@@ -223,6 +235,7 @@ function createSession(process: CommandSession['process']): CommandSession {
     completed,
     resolveCompleted,
     isCompleted: false,
+    hasLeaderExited: false,
     output: '',
     write: () => {},
   };

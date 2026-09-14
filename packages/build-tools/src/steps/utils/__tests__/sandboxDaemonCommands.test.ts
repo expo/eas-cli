@@ -81,13 +81,18 @@ describe('sandbox daemon commands', () => {
 
   it('returns only output produced since the previous call', async () => {
     const started = await sendCommandAsync('execCommand', {
-      cmd: `node -e "console.log('first'); setTimeout(() => console.log('second'), 100)"`,
+      cmd: `node -e "process.stdin.once('data', () => process.stdout.write('second\\n', () => process.exit(0))); console.log('first')"`,
       yieldTimeMs: 50,
     });
     const sessionId = getSessionId(started);
 
-    expect(started).toMatchObject({ output: 'first\n' });
-    const completed = await sendCommandAsync('writeStdin', { sessionId, yieldTimeMs: 1_000 });
+    expect(await readUntilAsync(started, output => output.includes('first\n'))).toMatchObject({
+      output: 'first\n',
+    });
+    const completed = await readUntilAsync(
+      await sendCommandAsync('writeStdin', { sessionId, chars: 'continue', yieldTimeMs: 100 }),
+      (_, result) => !('sessionId' in result)
+    );
 
     expect(completed).toMatchObject({ output: 'second\n', exitCode: 0 });
   });
@@ -109,16 +114,20 @@ describe('sandbox daemon commands', () => {
 
   it('sends Ctrl+C to the foreground PTY process', async () => {
     const started = await sendCommandAsync('execCommand', {
-      cmd: `node -e "process.on('SIGINT', () => { console.log('interrupted'); process.exit(0); }); setInterval(() => {}, 1000)"`,
+      cmd: `exec node -e "process.on('SIGINT', () => process.stdout.write('interrupted\\n', () => process.exit(0))); console.log('ready'); setInterval(() => {}, 1000)"`,
       tty: true,
       yieldTimeMs: 50,
     });
 
-    const completed = await sendCommandAsync('writeStdin', {
-      sessionId: getSessionId(started),
-      chars: '\u0003',
-      yieldTimeMs: 1_000,
-    });
+    await readUntilAsync(started, output => output.includes('ready'));
+    const completed = await readUntilAsync(
+      await sendCommandAsync('writeStdin', {
+        sessionId: getSessionId(started),
+        chars: '\u0003',
+        yieldTimeMs: 1_000,
+      }),
+      (_, result) => !('sessionId' in result)
+    );
 
     expect(completed.output).toContain('interrupted');
     expect(completed).toMatchObject({ exitCode: 0 });
@@ -126,15 +135,18 @@ describe('sandbox daemon commands', () => {
 
   it('writes U+0003 as literal input in pipe mode', async () => {
     const started = await sendCommandAsync('execCommand', {
-      cmd: `node -e "process.stdin.once('data', data => { console.log(data[0]); process.exit(0); })"`,
+      cmd: `node -e "process.stdin.once('data', data => process.stdout.write(data[0] + '\\n', () => process.exit(0)))"`,
       yieldTimeMs: 10,
     });
 
-    const completed = await sendCommandAsync('writeStdin', {
-      sessionId: getSessionId(started),
-      chars: '\u0003',
-      yieldTimeMs: 1_000,
-    });
+    const completed = await readUntilAsync(
+      await sendCommandAsync('writeStdin', {
+        sessionId: getSessionId(started),
+        chars: '\u0003',
+        yieldTimeMs: 1_000,
+      }),
+      (_, result) => !('sessionId' in result)
+    );
 
     expect(completed).toMatchObject({ output: '3\n', exitCode: 0 });
   });
@@ -151,7 +163,7 @@ describe('sandbox daemon commands', () => {
       cmd: `node -e "setTimeout(() => {}, 100)"`,
       yieldTimeMs: 1,
     });
-    await setTimeoutAsync(200);
+    await readUntilAsync(started, (_, result) => !('sessionId' in result));
 
     const completed = await sendCommandAsync('writeStdin', {
       sessionId: getSessionId(started),
@@ -208,7 +220,8 @@ describe('sandbox daemon commands', () => {
       tty,
       yieldTimeMs: 100,
     });
-    const childPid = Number(/\d+/.exec(started.output)?.[0]);
+    const ready = await readUntilAsync(started, output => /\d+\r?\n/.test(output));
+    const childPid = Number(/\d+/.exec(ready.output)?.[0]);
     expect(childPid).toBeGreaterThan(0);
 
     await stopAsync();
@@ -216,6 +229,27 @@ describe('sandbox daemon commands', () => {
 
     expect(isProcessRunning(childPid)).toBe(false);
   });
+  async function readUntilAsync(
+    initial: SandboxDaemonCommandResult<SandboxDaemonMethod>,
+    isReady: (output: string, result: SandboxDaemonCommandResult<SandboxDaemonMethod>) => boolean
+  ): Promise<SandboxDaemonCommandResult<SandboxDaemonMethod>> {
+    let result = initial;
+    let output = result.output;
+    const deadline = Date.now() + 10_000;
+    while (!isReady(output, result)) {
+      if (!('sessionId' in result) || Date.now() >= deadline) {
+        throw new Error(
+          `Command did not reach the expected state: ${JSON.stringify({ ...result, output })}`
+        );
+      }
+      result = await sendCommandAsync('writeStdin', {
+        sessionId: result.sessionId,
+        yieldTimeMs: 100,
+      });
+      output += result.output;
+    }
+    return { ...result, output };
+  }
 });
 
 function getSessionId(result: unknown): number {

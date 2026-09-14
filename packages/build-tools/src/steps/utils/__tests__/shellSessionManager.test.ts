@@ -1,8 +1,29 @@
 jest.unmock('node:fs/promises');
 
 import { ShellSessionManager } from '../shellSessionManager';
+import * as processes from '../../../utils/processes';
 
 describe('ShellSessionManager', () => {
+  it.each([false, true])('does not signal an exited leader (tty: %s)', async tty => {
+    const controller = new AbortController();
+    const manager = new ShellSessionManager({
+      workingDirectory: process.cwd(),
+      signal: controller.signal,
+    });
+    const kill = jest.spyOn(processes, 'killProcessGroup');
+    try {
+      const sessionId = await manager.startAsync({ cmd: 'exit 0', tty });
+      expect(await manager.readAsync(sessionId, 10_000)).toMatchObject({ exitCode: 0 });
+      controller.abort();
+      await manager.stoppedPromise;
+      expect(kill).not.toHaveBeenCalled();
+    } finally {
+      controller.abort();
+      await manager.stoppedPromise;
+      kill.mockRestore();
+    }
+  });
+
   it('keeps completed sessions without repeating their output', async () => {
     const controller = new AbortController();
     const manager = new ShellSessionManager({
