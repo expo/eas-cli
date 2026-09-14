@@ -18,6 +18,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -35,7 +36,6 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -204,7 +204,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -217,13 +217,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         const publicToolsUrl = toolsTunnel.url;
         logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
@@ -258,9 +258,7 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
+        await sessionHost?.finishAsync();
         if (toolsTunnel) {
           await toolsTunnel.stopAsync();
         }
