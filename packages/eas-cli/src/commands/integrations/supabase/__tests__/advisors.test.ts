@@ -146,7 +146,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
     const output = loggedOutput();
     expect(output).toContain('Security · 1 error');
-    expect(output).toContain('RLS Disabled in Public ↗: https://supabase.com/dashboard/project/');
+    expect(output).toContain('View in Supabase ↗: https://supabase.com/dashboard/project/');
     expect(output).not.toContain('How to fix');
     expect(output).toContain('Table public.todos is public, but RLS has not been enabled.');
     expect(output).not.toContain(rlsLint.remediation);
@@ -159,7 +159,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
   });
 
-  it('links issue titles without visible URLs when hyperlinks are supported', async () => {
+  it('links below issue descriptions without visible URLs when hyperlinks are supported', async () => {
     jest.requireMock('supports-hyperlinks').stdout = true;
     await createCommand([]).runAsync();
     const rawOutput = jest
@@ -171,8 +171,10 @@ describe(IntegrationsSupabaseAdvisors, () => {
       ']8;;https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
     );
     expect(rawOutput).not.toContain(rlsLint.remediation);
-    expect(output).toContain('✖ ERROR  RLS Disabled in Public ↗\n    public.todos');
+    expect(output).toContain('✖ ERROR  RLS Disabled in Public\n    public.todos');
     expect(output).not.toContain('How to fix');
+    expect(output).toContain('has not been enabled.\n\n    View in Supabase ↗');
+    expect(output).not.toContain('RLS Disabled in Public ↗');
     expect(output).not.toContain('https://');
     expect(output).not.toContain('Dashboard:');
   });
@@ -187,7 +189,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     await createCommand([]).runAsync();
     const output = loggedOutput();
     expect(output).toContain('Security · 1 error, 1 warning');
-    expect(output).toContain('has not been enabled.\n\n  ▲ WARNING  Unindexed foreign keys ↗');
+    expect(output).toContain('View in Supabase ↗\n\n  ▲ WARNING  Unindexed foreign keys');
     expect(output).toContain('Performance · No unresolved findings');
     expect(output).not.toContain('Dashboard:');
   });

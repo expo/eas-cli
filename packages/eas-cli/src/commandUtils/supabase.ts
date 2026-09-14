@@ -162,10 +162,12 @@ export function formatSupabaseAdvisorLints(
   const dashboardUrl = getSupabaseAdvisorsDashboardUrl(project, type);
   const rows = lints.map(lint =>
     [
-      `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${lint.level === SupabaseAdvisorLintLevel.Warn ? 'WARNING' : lint.level}  ${link(`${dashboardUrl}?id=${encodeURIComponent(lint.cacheKey)}`, { text: chalk.bold.underline(`${lint.title} ↗`), dim: false })}`,
+      `  ${ADVISOR_LINT_LEVEL_MARKERS[lint.level]} ${lint.level === SupabaseAdvisorLintLevel.Warn ? 'WARNING' : lint.level}  ${chalk.bold(lint.title)}`,
       ...(lint.entity ? [`    ${chalk.dim(lint.entity)}`] : []),
       '',
       `    ${formatInlineCode(lint.detail)}`,
+      '',
+      `    ${link(`${dashboardUrl}?id=${encodeURIComponent(lint.cacheKey)}`, { text: chalk.underline('View in Supabase ↗'), dim: false })}`,
     ].join('\n')
   );
   return [heading, ...rows].join('\n\n');
