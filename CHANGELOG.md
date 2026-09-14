@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.4.0](https://github.com/expo/eas-cli/releases/tag/v24.4.0) - 2026-09-14
+
+### 🛠 Breaking changes
+
 - [eas-cli] Require Node `^20.18.3 || >=22.0.0`. ([#4279](https://github.com/expo/eas-cli/pull/4279) by [@ramonclaudio](https://github.com/ramonclaudio))
 
 ### 🎉 New features
@@ -16,8 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
-
-### 🧹 Chores
 
 ## [24.3.0](https://github.com/expo/eas-cli/releases/tag/v24.3.0) - 2026-09-11
 
