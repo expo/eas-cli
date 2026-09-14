@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Retry the local egress exit-IP check for 90 seconds after the proxy listener appears instead of warning after a single attempt, since the first proxied request over a fresh tunnel can outlast one timeout, and say what a failure most likely means. ([#4395](https://github.com/expo/eas-cli/pull/4395) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
 
 ## [24.4.0](https://github.com/expo/eas-cli/releases/tag/v24.4.0) - 2026-09-14

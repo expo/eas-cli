@@ -55,6 +55,7 @@ const CHISEL_STARTUP_TIMEOUT_MS = 15_000;
 const EGRESS_MONITOR_INTERVAL_MS = 2_000;
 const EGRESS_ESCAPE_SCAN_INTERVAL_MS = 5_000;
 const EGRESS_ESCAPE_LOG_LIMIT = 50;
+export const EGRESS_EXIT_IP_CHECK_WINDOW_MS = 90_000;
 
 export type LocalEgressHandoff = {
   /** Public URL of the reverse tunnel server, reachable through ngrok. */
@@ -719,6 +720,61 @@ async function findDirectSimulatorConnectionsAsync({
 }
 
 /**
+ * The worker's own request through the proxy, used to confirm the tunnel
+ * exits from the egress client's network. The proxy port on the worker is the
+ * reverse end of the client's tunnel, so it starts listening the instant the
+ * client connects, and the first request over a fresh tunnel can take longer
+ * than one curl timeout. One failed attempt therefore proves nothing: keep
+ * trying on every monitor tick for a bounded window, report the address once
+ * on the first success, and warn only when the whole window passes without
+ * one. `reset` re-arms it when the listener comes back after going away.
+ */
+export class ExitIpCheck {
+  private startedAt: number | null = null;
+  private done = false;
+
+  constructor(
+    private readonly logger: bunyan,
+    private readonly windowMs: number = EGRESS_EXIT_IP_CHECK_WINDOW_MS,
+    private readonly now: () => number = Date.now
+  ) {}
+
+  get pending(): boolean {
+    return !this.done;
+  }
+
+  reset(): void {
+    this.startedAt = null;
+    this.done = false;
+  }
+
+  async attemptAsync(fetchExitIp: () => Promise<string>): Promise<void> {
+    if (this.done) {
+      return;
+    }
+    this.startedAt ??= this.now();
+    try {
+      const exitIp = await fetchExitIp();
+      this.done = true;
+      this.logger.info(
+        `Local egress: proxied requests exit from ${exitIp}, the egress client's network. Routing inside the Simulator is enforced by the system proxy and the guard.`
+      );
+    } catch (err) {
+      if (this.now() - this.startedAt < this.windowMs) {
+        return;
+      }
+      this.done = true;
+      this.logger.warn(
+        { err },
+        `Local egress: no proxied request completed within ${Math.round(
+          this.windowMs / 1000
+        )} seconds of the proxy listener appearing. Check that \`eas simulator:egress\` is running and connected; proxied HTTP(S) requests fail until it is.`
+      );
+    }
+  }
+}
+
+/**
  * Log proxy listener availability, the exit IP observed by a worker request
  * through it, and simulator connections that bypassed the proxy. Neither check
  * verifies that proxied simulator requests reach the egress client. Never
@@ -739,6 +795,7 @@ export async function monitorLocalEgressAsync({
   let lastEscapeScanAt = 0;
   let escapeScanBroken = false;
   const reportedEscapes = new Set<string>();
+  const exitIpCheck = new ExitIpCheck(logger);
   const lifetimeSignal = activeLocalEgressResources?.controller.signal;
   try {
     while (!signal.aborted && !lifetimeSignal?.aborted) {
@@ -746,22 +803,15 @@ export async function monitorLocalEgressAsync({
       if (listening && !connected) {
         connected = true;
         logger.info('Local egress proxy listener is available.');
-        try {
-          const exitIp = await fetchExitIpThroughProxyAsync({ port, env });
-          logger.info(
-            `Worker proxy exit-IP check observed ${exitIp}. This does not verify simulator routing.`
-          );
-        } catch (err) {
-          logger.warn(
-            { err },
-            'The local egress proxy listener is available, but the worker exit-IP check through it failed.'
-          );
-        }
+        exitIpCheck.reset();
       } else if (!listening && connected) {
         connected = false;
         logger.warn(
           'Local egress proxy listener is unavailable. Proxied HTTP(S) requests fail until it returns.'
         );
+      }
+      if (connected && exitIpCheck.pending) {
+        await exitIpCheck.attemptAsync(() => fetchExitIpThroughProxyAsync({ port, env }));
       }
 
       if (!escapeScanBroken && Date.now() - lastEscapeScanAt >= EGRESS_ESCAPE_SCAN_INTERVAL_MS) {
