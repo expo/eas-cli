@@ -170,7 +170,7 @@ async function uploadWithSignedUrlWithProgressAsync(
   });
 
   let currentSize = 0;
-  readStream.addListener('data', (chunk: Buffer) => {
+  readStream.addListener('data', (chunk: Buffer | string) => {
     currentSize += Buffer.byteLength(chunk);
     handleProgressEvent({
       progress: {
