@@ -87,8 +87,7 @@ export async function createBuildContextAsync<T extends Platform>({
     buildProfile.developmentClient ??
     (platform === Platform.ANDROID
       ? (buildProfile as BuildProfile<Platform.ANDROID>)?.gradleCommand === ':app:assembleDebug'
-      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
-    false;
+      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug');
 
   const requiredPackageManager = resolvePackageManager(projectDir);
 

@@ -2316,7 +2316,7 @@ __metadata:
     "@types/fs-extra": "npm:^11.0.4"
     "@types/jest": "npm:^29.5.12"
     "@types/lodash": "npm:^4.17.4"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     "@types/node-fetch": "npm:^2.6.11"
     "@types/node-forge": "npm:^1.3.11"
     "@types/plist": "npm:^3.0.5"
@@ -2353,7 +2353,7 @@ __metadata:
     ts-jest: "npm:^29.1.4"
     ts-mockito: "npm:^2.6.1"
     tslib: "npm:^2.6.3"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
     uuid: "npm:^9.0.1"
     ws: "npm:8.21.1"
     yaml: "npm:^2.8.1"
@@ -2549,13 +2549,13 @@ __metadata:
   dependencies:
     "@types/fs-extra": "npm:^11.0.4"
     "@types/jest": "npm:^29.5.12"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     fs-extra: "npm:^11.2.0"
     got: "npm:11.8.5"
     jest: "npm:^29.7.0"
     rimraf: "npm:3.0.2"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -2567,13 +2567,13 @@ __metadata:
     "@expo/results": "npm:1.0.0"
     "@expo/turtle-spawn": "npm:24.0.0"
     "@types/jest": "npm:^29.5.12"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     jest: "npm:^29.7.0"
     joi: "npm:^17.13.1"
     rimraf: "npm:3.0.2"
     semver: "npm:^7.6.2"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
     zod: "npm:^4.3.5"
   languageName: unknown
   linkType: soft
@@ -2599,7 +2599,7 @@ __metadata:
     semver: "npm:7.5.2"
     terminal-link: "npm:2.1.1"
     tslib: "npm:2.4.1"
-    typescript: "npm:5.5.4"
+    typescript: "npm:5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -2703,12 +2703,12 @@ __metadata:
   dependencies:
     "@types/bunyan": "npm:^1.8.11"
     "@types/jest": "npm:^29.5.12"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     bunyan: "npm:^1.8.15"
     jest: "npm:^29.7.0"
     rimraf: "npm:3.0.2"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -2907,7 +2907,7 @@ __metadata:
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
     "@types/lodash.clonedeep": "npm:^4.5.9"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     arg: "npm:^5.0.2"
     bunyan: "npm:^1.8.15"
     eslint-plugin-async-protect: "npm:^3.1.0"
@@ -2921,7 +2921,7 @@ __metadata:
     ts-jest: "npm:^29.1.4"
     ts-mockito: "npm:^2.6.1"
     ts-node: "npm:^10.9.2"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
     uuid: "npm:^11.1.1"
     yaml: "npm:^2.4.3"
     zod: "npm:^4.3.5"
@@ -2935,12 +2935,12 @@ __metadata:
     "@types/jest": "npm:^29.5.12"
     "@types/lodash": "npm:^4.17.4"
     "@types/lodash.template": "npm:^4.5.3"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     jest: "npm:^29.7.0"
     lodash: "npm:^4.18.1"
     rimraf: "npm:3.0.2"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -2958,11 +2958,11 @@ __metadata:
     "@expo/logger": "npm:24.0.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@types/jest": "npm:^29.5.12"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     jest: "npm:^29.7.0"
     rimraf: "npm:3.0.2"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -2989,7 +2989,7 @@ __metadata:
     "@types/koa-router": "npm:7.4.9"
     "@types/lodash": "npm:4.17.4"
     "@types/micromatch": "npm:4.0.7"
-    "@types/node": "npm:20.14.8"
+    "@types/node": "npm:20.19.43"
     "@types/node-fetch": "npm:2.6.7"
     "@types/node-os-utils": "npm:1.3.0"
     "@types/semver": "npm:7.5.8"
@@ -3017,7 +3017,7 @@ __metadata:
     supertest: "npm:7.2.2"
     tar: "npm:7.5.19"
     ts-jest: "npm:29.1.4"
-    typescript: "npm:5.5.4"
+    typescript: "npm:5.9.3"
     uuid: "npm:3.4.0"
     uuidv7: "npm:1.1.0"
     ws: "npm:8.21.1"
@@ -7579,21 +7579,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:20.14.2":
-  version: 20.14.2
-  resolution: "@types/node@npm:20.14.2"
+"@types/node@npm:20.19.43":
+  version: 20.19.43
+  resolution: "@types/node@npm:20.19.43"
   dependencies:
-    undici-types: "npm:~5.26.4"
-  checksum: 10c0/2d86e5f2227aaa42212e82ea0affe72799111b888ff900916376450b02b09b963ca888b20d9c332d8d2b833ed4781987867a38eaa2e4863fa8439071468b0a6f
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:20.14.8":
-  version: 20.14.8
-  resolution: "@types/node@npm:20.14.8"
-  dependencies:
-    undici-types: "npm:~5.26.4"
-  checksum: 10c0/06d4643fa3b179b41fe19f9c75c240278ca1f7a313b3b837bc36ea119499c7ad77f06bbe72694ac04aa91ec77fe747baa09b889f4c435450c1724a26bd55f160
+    undici-types: "npm:~6.21.0"
+  checksum: 10c0/9bcec3b5295bdd77ff0b44a528a69f7e22028c347507ba2c69be47ec84e30299f45043b222e9c86c510e138c9c53b2419dd5cd34920602a4a5a381c288075318
   languageName: node
   linkType: hard
 
@@ -9833,7 +9824,7 @@ __metadata:
     "@expo/steps": "npm:24.3.0"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
-    "@types/node": "npm:20.14.2"
+    "@types/node": "npm:20.19.43"
     "@types/prompts": "npm:^2.4.9"
     "@vercel/ncc": "npm:^0.38.1"
     arg: "npm:^5.0.2"
@@ -9844,7 +9835,7 @@ __metadata:
     prompts: "npm:^2.4.2"
     rimraf: "npm:3.0.2"
     ts-node: "npm:^10.9.2"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
     update-check: "npm:^1.5.4"
   bin:
     create-eas-build-function: ./build/index.js
@@ -10406,7 +10397,7 @@ __metadata:
     semver: "npm:7.5.2"
     terminal-link: "npm:2.1.1"
     tslib: "npm:2.4.1"
-    typescript: "npm:5.5.4"
+    typescript: "npm:5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -10436,7 +10427,7 @@ __metadata:
     semver: "npm:^7.6.2"
     tar: "npm:7.5.19"
     ts-jest: "npm:^29.1.4"
-    typescript: "npm:^5.5.4"
+    typescript: "npm:^5.9.3"
     uuid: "npm:^9.0.1"
   bin:
     eas-cli-local-build-plugin: ./bin/run
@@ -10448,7 +10439,7 @@ __metadata:
   resolution: "eas-cli-root@workspace:."
   dependencies:
     "@types/jest": "npm:29.5.11"
-    "@types/node": "npm:20.14.8"
+    "@types/node": "npm:20.19.43"
     eslint-plugin-async-protect: "npm:3.1.0"
     jest: "npm:29.7.0"
     jest-watch-typeahead: "npm:2.2.2"
@@ -10459,7 +10450,7 @@ __metadata:
     oxlint-tsgolint: "npm:0.11.1"
     rimraf: "npm:3.0.2"
     ts-jest: "npm:29.1.1"
-    typescript: "npm:5.5.4"
+    typescript: "npm:5.9.3"
   languageName: unknown
   linkType: soft
 
@@ -10507,6 +10498,7 @@ __metadata:
     "@types/getenv": "npm:^1.0.0"
     "@types/invariant": "npm:^2.2.37"
     "@types/mime": "npm:3.0.1"
+    "@types/node": "npm:20.19.43"
     "@types/node-fetch": "npm:2.6.12"
     "@types/node-forge": "npm:1.3.1"
     "@types/pngjs": "npm:6.0.4"
@@ -10545,7 +10537,7 @@ __metadata:
     gradle-to-js: "npm:2.0.1"
     graphql: "npm:16.8.1"
     graphql-tag: "npm:2.12.6"
-    https-proxy-agent: "npm:5.0.1"
+    https-proxy-agent: "npm:7.0.6"
     ignore: "npm:5.3.0"
     indent-string: "npm:4.0.0"
     invariant: "npm:^2.2.2"
@@ -10587,7 +10579,7 @@ __metadata:
     ts-node: "npm:10.9.2"
     tslib: "npm:2.6.2"
     turndown: "npm:7.1.2"
-    typescript: "npm:5.5.4"
+    typescript: "npm:5.9.3"
     untildify: "npm:4.0.0"
     uuid: "npm:11.1.1"
     wrap-ansi: "npm:7.0.0"
@@ -12368,13 +12360,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"https-proxy-agent@npm:5.0.1, https-proxy-agent@npm:^5.0.1":
-  version: 5.0.1
-  resolution: "https-proxy-agent@npm:5.0.1"
+"https-proxy-agent@npm:7.0.6, https-proxy-agent@npm:^7.0.1":
+  version: 7.0.6
+  resolution: "https-proxy-agent@npm:7.0.6"
   dependencies:
-    agent-base: "npm:6"
+    agent-base: "npm:^7.1.2"
     debug: "npm:4"
-  checksum: 10c0/6dd639f03434003577c62b27cafdb864784ef19b2de430d8ae2a1d45e31c4fd60719e5637b44db1a88a046934307da7089e03d6089ec3ddacc1189d8de8897d1
+  checksum: 10c0/f729219bc735edb621fa30e6e84e60ee5d00802b8247aac0d7b79b0bd6d4b3294737a337b93b86a0bd9e68099d031858a39260c976dc14cdbba238ba1f8779ac
   languageName: node
   linkType: hard
 
@@ -12388,13 +12380,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"https-proxy-agent@npm:^7.0.1":
-  version: 7.0.6
-  resolution: "https-proxy-agent@npm:7.0.6"
+"https-proxy-agent@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "https-proxy-agent@npm:5.0.1"
   dependencies:
-    agent-base: "npm:^7.1.2"
+    agent-base: "npm:6"
     debug: "npm:4"
-  checksum: 10c0/f729219bc735edb621fa30e6e84e60ee5d00802b8247aac0d7b79b0bd6d4b3294737a337b93b86a0bd9e68099d031858a39260c976dc14cdbba238ba1f8779ac
+  checksum: 10c0/6dd639f03434003577c62b27cafdb864784ef19b2de430d8ae2a1d45e31c4fd60719e5637b44db1a88a046934307da7089e03d6089ec3ddacc1189d8de8897d1
   languageName: node
   linkType: hard
 
@@ -19260,13 +19252,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:5.5.4":
-  version: 5.5.4
-  resolution: "typescript@npm:5.5.4"
+"typescript@npm:5.9.3, typescript@npm:^5.9.3":
+  version: 5.9.3
+  resolution: "typescript@npm:5.9.3"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/422be60f89e661eab29ac488c974b6cc0a660fb2228003b297c3d10c32c90f3bcffc1009b43876a082515a3c376b1eefcce823d6e78982e6878408b9a923199c
+  checksum: 10c0/6bd7552ce39f97e711db5aa048f6f9995b53f1c52f7d8667c1abdc1700c68a76a308f579cd309ce6b53646deb4e9a1be7c813a93baaf0a28ccd536a30270e1c5
   languageName: node
   linkType: hard
 
@@ -19280,23 +19272,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.5.4":
+"typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@npm:5.9.3"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/6bd7552ce39f97e711db5aa048f6f9995b53f1c52f7d8667c1abdc1700c68a76a308f579cd309ce6b53646deb4e9a1be7c813a93baaf0a28ccd536a30270e1c5
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>":
-  version: 5.5.4
-  resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/73409d7b9196a5a1217b3aaad929bf76294d3ce7d6e9766dd880ece296ee91cf7d7db6b16c6c6c630ee5096eccde726c0ef17c7dfa52b01a243e57ae1f09ef07
+  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
   languageName: node
   linkType: hard
 
@@ -19307,16 +19289,6 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/1d0a5f4ce496c42caa9a30e659c467c5686eae15d54b027ee7866744952547f1be1262f2d40de911618c242b510029d51d43ff605dba8fb740ec85ca2d3f9500
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A^5.5.4#optional!builtin<compat/typescript>":
-  version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
   languageName: node
   linkType: hard
 
