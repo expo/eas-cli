@@ -147,9 +147,9 @@ describe(IntegrationsSupabaseAdvisors, () => {
     const output = loggedOutput();
     expect(output).toContain('Security · 1 error');
     expect(output).toContain('RLS Disabled in Public ↗: https://supabase.com/dashboard/project/');
-    expect(output).toContain('How to fix ↗: https://supabase.com/docs/');
+    expect(output).not.toContain('How to fix');
     expect(output).toContain('Table public.todos is public, but RLS has not been enabled.');
-    expect(output).toContain('https://supabase.com/docs/guides/database/database-linter?lint=0013');
+    expect(output).not.toContain(rlsLint.remediation);
     expect(output).toContain(
       'https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
     );
@@ -159,7 +159,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
   });
 
-  it('links issue titles and remediation text without visible URLs when hyperlinks are supported', async () => {
+  it('links issue titles without visible URLs when hyperlinks are supported', async () => {
     jest.requireMock('supports-hyperlinks').stdout = true;
     await createCommand([]).runAsync();
     const rawOutput = jest
@@ -170,11 +170,9 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(rawOutput).toContain(
       ']8;;https://supabase.com/dashboard/project/abcdefghijklmnop/advisors/security?id=rls_disabled_in_public_public_todos'
     );
-    expect(rawOutput).toContain(
-      ']8;;https://supabase.com/docs/guides/database/database-linter?lint=0013'
-    );
+    expect(rawOutput).not.toContain(rlsLint.remediation);
     expect(output).toContain('✖ ERROR  RLS Disabled in Public ↗\n    public.todos');
-    expect(output).toContain('How to fix ↗');
+    expect(output).not.toContain('How to fix');
     expect(output).not.toContain('https://');
     expect(output).not.toContain('Dashboard:');
   });
@@ -189,7 +187,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     await createCommand([]).runAsync();
     const output = loggedOutput();
     expect(output).toContain('Security · 1 error, 1 warning');
-    expect(output).toContain('How to fix ↗\n\n  ▲ WARNING  Unindexed foreign keys ↗');
+    expect(output).toContain('has not been enabled.\n\n  ▲ WARNING  Unindexed foreign keys ↗');
     expect(output).toContain('Performance · No unresolved findings');
     expect(output).not.toContain('Dashboard:');
   });

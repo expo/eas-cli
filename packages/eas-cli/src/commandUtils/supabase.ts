@@ -166,12 +166,6 @@ export function formatSupabaseAdvisorLints(
       ...(lint.entity ? [`    ${chalk.dim(lint.entity)}`] : []),
       '',
       `    ${formatInlineCode(lint.detail)}`,
-      ...(lint.remediation
-        ? [
-            '',
-            `    ${link(lint.remediation, { text: chalk.underline('How to fix ↗'), dim: false })}`,
-          ]
-        : []),
     ].join('\n')
   );
   return [heading, ...rows].join('\n\n');
