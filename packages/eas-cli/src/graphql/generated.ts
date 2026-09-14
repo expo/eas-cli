@@ -6410,6 +6410,18 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Record HTTP(S) traffic from apps on the device for the whole session. iOS only.
+   * HTTPS is decrypted, so recordings contain credentials and cookies in cleartext.
+   * If omitted, no traffic is recorded.
+   */
+  networkCapture?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * What network capture may keep beyond method, URL, status, timing and size: header, query,
+   * request-body, response-body. Each can carry credentials, so nothing here is recorded unless
+   * it is asked for. Ignored when networkCapture is not set.
+   */
+  networkCaptureFields?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
    * Expo or development-client URL to open after launching the installed application. Requires
    * buildId, applicationArchiveUrl, or expoGo.
    */
