@@ -10,18 +10,34 @@ static int is_v4_local(uint32_t host_order) {
   return (host_order >> 24) == 127 || host_order == 0;
 }
 
+// XNU accepts a sockaddr whose family is AF_UNSPEC as the family its length
+// implies: TCP connect() translates it on both socket families and IPv4
+// sendto()/sendmsg() deliver with it. Classify it the way the kernel uses it.
+static sa_family_t eg_family(const struct sockaddr *sa, socklen_t len) {
+  if (sa->sa_family == AF_UNSPEC) {
+    if (len == sizeof(struct sockaddr_in)) {
+      return AF_INET;
+    }
+    if (len == sizeof(struct sockaddr_in6)) {
+      return AF_INET6;
+    }
+  }
+  return sa->sa_family;
+}
+
 eg_class_t eg_classify(const struct sockaddr *sa, socklen_t len) {
   if (sa == NULL || len < 2) {
     return EG_PASSTHROUGH;
   }
-  if (sa->sa_family == AF_INET) {
+  sa_family_t family = eg_family(sa, len);
+  if (family == AF_INET) {
     if (len < sizeof(struct sockaddr_in)) {
       return EG_PASSTHROUGH;
     }
     const struct sockaddr_in *in = (const struct sockaddr_in *)sa;
     return is_v4_local(ntohl(in->sin_addr.s_addr)) ? EG_LOOPBACK : EG_REMOTE;
   }
-  if (sa->sa_family == AF_INET6) {
+  if (family == AF_INET6) {
     if (len < sizeof(struct sockaddr_in6)) {
       return EG_PASSTHROUGH;
     }
@@ -53,16 +69,17 @@ int eg_should_deny(eg_mode_t mode, eg_class_t cls) {
 int eg_format_peer(const struct sockaddr *sa, socklen_t len, char *out, size_t n) {
   char ip[INET6_ADDRSTRLEN];
   int written;
-  if (sa == NULL) {
+  if (sa == NULL || len < 2) {
     return -1;
   }
-  if (sa->sa_family == AF_INET && len >= sizeof(struct sockaddr_in)) {
+  sa_family_t family = eg_family(sa, len);
+  if (family == AF_INET && len >= sizeof(struct sockaddr_in)) {
     const struct sockaddr_in *in = (const struct sockaddr_in *)sa;
     if (inet_ntop(AF_INET, &in->sin_addr, ip, sizeof ip) == NULL) {
       return -1;
     }
     written = snprintf(out, n, "%s:%d", ip, ntohs(in->sin_port));
-  } else if (sa->sa_family == AF_INET6 && len >= sizeof(struct sockaddr_in6)) {
+  } else if (family == AF_INET6 && len >= sizeof(struct sockaddr_in6)) {
     const struct sockaddr_in6 *in6 = (const struct sockaddr_in6 *)sa;
     if (inet_ntop(AF_INET6, &in6->sin6_addr, ip, sizeof ip) == NULL) {
       return -1;

@@ -52,6 +52,23 @@ static void test_classify(void) {
   CHECK(eg_classify((struct sockaddr *)&un, sizeof un) == EG_PASSTHROUGH);
   CHECK(eg_classify(NULL, 0) == EG_PASSTHROUGH);
   a4 = v4("93.184.216.34", 443); CHECK(eg_classify((struct sockaddr *)&a4, 4) == EG_PASSTHROUGH);  // too short to read
+
+  // AF_UNSPEC is what the kernel makes of it: the family the exact length implies.
+  a4 = v4("93.184.216.34", 443); a4.sin_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a4, sizeof a4) == EG_REMOTE);
+  CHECK(eg_classify((struct sockaddr *)&a4, sizeof a4 + 8) == EG_PASSTHROUGH);  // kernel: EINVAL
+  a4 = v4("127.0.0.1", 8899); a4.sin_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a4, sizeof a4) == EG_LOOPBACK);
+  a4 = v4("0.0.0.0", 0); a4.sin_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a4, sizeof a4) == EG_LOOPBACK);  // UDP disconnect shape
+  a6 = v6("2606:4700::1", 443); a6.sin6_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a6, sizeof a6) == EG_REMOTE);
+  a6 = v6("::ffff:93.184.216.34", 443); a6.sin6_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a6, sizeof a6) == EG_REMOTE);
+  a6 = v6("::1", 443); a6.sin6_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&a6, sizeof a6) == EG_LOOPBACK);
+  memset(&un, 0, sizeof un); un.sun_family = AF_UNSPEC;
+  CHECK(eg_classify((struct sockaddr *)&un, sizeof un) == EG_PASSTHROUGH);
 }
 
 static void test_mode(void) {
@@ -79,6 +96,12 @@ static void test_format_peer(void) {
   CHECK(eg_format_peer((struct sockaddr *)&a4, sizeof a4, out, 8) != 0);
   struct sockaddr_un un; memset(&un, 0, sizeof un); un.sun_family = AF_UNIX;
   CHECK(eg_format_peer((struct sockaddr *)&un, sizeof un, out, sizeof out) != 0);
+  a4.sin_family = AF_UNSPEC;
+  CHECK(eg_format_peer((struct sockaddr *)&a4, sizeof a4, out, sizeof out) == 0);
+  CHECK(strcmp(out, "93.184.216.34:443") == 0);
+  a6.sin6_family = AF_UNSPEC;
+  CHECK(eg_format_peer((struct sockaddr *)&a6, sizeof a6, out, sizeof out) == 0);
+  CHECK(strcmp(out, "[2606:4700::1]:443") == 0);
 }
 
 static void test_seen(void) {
