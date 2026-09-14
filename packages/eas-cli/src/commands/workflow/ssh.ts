@@ -105,7 +105,7 @@ export default class WorkflowSsh extends EasCommand {
   static override hidden = true;
 
   static override description =
-    '[EXPERIMENTAL] open an ssh session on the worker running a workflow job';
+    '[EXPERIMENTAL] open an ssh session on the runner executing a workflow job';
 
   static override strict = false;
 
@@ -221,7 +221,7 @@ async function waitForSessionToOpenAsync(
   graphqlClient: ExpoGraphqlClient,
   workflowJobId: string
 ): Promise<NonNullable<WorkflowJobSshSession['connectionConfig']> | null> {
-  const spinner = ora('Waiting for the worker to open the ssh session').start();
+  const spinner = ora('Waiting for the runner to open the ssh session').start();
   const deadline = Date.now() + SESSION_OPEN_TIMEOUT_MS;
   try {
     while (Date.now() < deadline) {
@@ -242,7 +242,7 @@ async function waitForSessionToOpenAsync(
       await sleepAsync(SESSION_OPEN_POLL_INTERVAL_MS);
     }
     spinner.fail(
-      'Timed out waiting for the ssh session to open. The worker may still be starting up; try again in a moment.'
+      'Timed out waiting for the ssh session to open. The runner may still be starting up; try again in a moment.'
     );
     return null;
   } catch (err) {
