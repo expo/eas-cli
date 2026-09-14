@@ -1,6 +1,6 @@
 import cliProgress from 'cli-progress';
 import * as https from 'https';
-import createHttpsProxyAgent from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch, { BodyInit, Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -119,7 +119,7 @@ const getAgent = (): https.Agent => {
   if (sharedAgent) {
     return sharedAgent;
   } else if (process.env.https_proxy) {
-    return (sharedAgent = createHttpsProxyAgent(process.env.https_proxy));
+    return (sharedAgent = new HttpsProxyAgent(process.env.https_proxy));
   } else {
     return (sharedAgent = new https.Agent({
       keepAlive: true,
