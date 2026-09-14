@@ -218,6 +218,23 @@ static int udp_disconnect(void) {
   return failures ? 1 : 0;
 }
 
+// Past 128 distinct destinations a process writes one overflow line and
+// nothing more; refusal continues.
+static int overflow(const char *log_path) {
+  for (int port = 1; port <= 140; port++) {
+    if (!refused_sendto(port)) {
+      return 2;
+    }
+  }
+  int listed = count_lines(log_path, "\tsendto\tblocked\t192.0.2.1:");
+  int overflow_lines = count_lines(log_path, "\toverflow\tblocked\t128 distinct destinations\t");
+  if (listed != 128 || overflow_lines != 1) {
+    printf("FAIL overflow: %d destinations listed, %d overflow line(s)\n", listed, overflow_lines);
+    return 1;
+  }
+  return 0;
+}
+
 // The event names the images above the guard, not the guard itself.
 static int callers(const char *log_path) {
   if (!refused_sendto(9)) {
@@ -266,6 +283,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(name, "callers") == 0) {
     return callers(log_path);
+  }
+  if (strcmp(name, "overflow") == 0) {
+    return overflow(log_path);
   }
   return 2;
 }

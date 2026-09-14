@@ -29,6 +29,8 @@ export const EGRESS_GUARD_LOG_ENV = 'EAS_EGRESS_GUARD_LOG';
 export const EGRESS_GUARD_MODE_ENV = 'EAS_EGRESS_GUARD_MODE';
 export const LOCAL_EGRESS_GUARD_LOG_PATH = path.join(os.tmpdir(), 'eas-local-egress-guard.log');
 const GUARD_EVENT_PREFIX = 'eas-egress-guard';
+/** Written once by a process whose per-process table of destinations is full; see policy.h. */
+const GUARD_OVERFLOW_FUNCTION = 'overflow';
 const GUARD_RELAY_LOG_LIMIT = 200;
 const GUARD_TAIL_INTERVAL_MS = 1_000;
 
@@ -140,6 +142,13 @@ export class GuardEventRelay {
   handle(event: GuardEvent): void {
     if (event.process === EGRESS_GUARD_CHECK_FILE) {
       // The self-check deliberately trips the guard once; not a bypass.
+      return;
+    }
+    if (event.function === GUARD_OVERFLOW_FUNCTION) {
+      const verb = event.action === 'blocked' ? 'refused' : 'observed';
+      this.logger.info(
+        `Local egress guard: ${event.process} (pid ${event.pid}) reached the limit of ${event.peer} listed per process; further distinct destinations from it are ${verb} but not listed.`
+      );
       return;
     }
     if (event.action === 'blocked') {

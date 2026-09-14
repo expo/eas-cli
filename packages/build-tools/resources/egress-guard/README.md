@@ -32,6 +32,10 @@ Each event is one tab-separated line:
 eas-egress-guard\t<process>\t<pid>\t<function>\t<blocked|logged>\t<peer>\t<caller>,<caller>...
 ```
 
+A process lists each `(function, peer)` once, up to 128 of them. When that
+table fills it writes one more line with function `overflow` and the limit as
+the peer; further distinct destinations are still refused but not listed.
+
 Layout:
 
 - `policy.c` / `policy.h`: classification, mode, formatting, per-process

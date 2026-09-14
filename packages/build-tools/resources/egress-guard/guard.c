@@ -28,6 +28,7 @@ static void *eg_own_image = NULL;
 static char eg_log_path[1024];
 static eg_mode_t eg_mode = EG_MODE_BLOCK;
 static eg_seen_t eg_seen;
+static int eg_overflow_reported = 0;
 static os_unfair_lock eg_lock = OS_UNFAIR_LOCK_INIT;
 
 static void eg_init(void) {
@@ -95,6 +96,33 @@ static int eg_lock_bounded(void) {
   return 0;
 }
 
+// One line in the event log. O_APPEND keeps whole lines intact across
+// processes writing concurrently; the log is opened per event, at most
+// EG_SEEN_CAPACITY + 1 times per process.
+__attribute__((noinline)) static void eg_write_event(const char *function, const char *action,
+                                                     const char *peer, int with_callers) {
+  if (eg_log_path[0] == '\0') {
+    return;
+  }
+  char names[EG_MAX_CALLERS][EG_CALLER_LENGTH];
+  const char *callers[EG_MAX_CALLERS];
+  int caller_count = with_callers ? eg_collect_callers(names) : 0;
+  for (int i = 0; i < caller_count; i++) {
+    callers[i] = names[i];
+  }
+  char line[1024];
+  int n = eg_format_event(line, sizeof line, getprogname(), getpid(), function, action, peer,
+                          callers, caller_count);
+  if (n <= 0) {
+    return;
+  }
+  int fd = open(eg_log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
+  if (fd >= 0) {
+    (void)write(fd, line, (size_t)n);
+    close(fd);
+  }
+}
+
 // Returns 1 when the call must be refused.
 __attribute__((noinline)) static int eg_handle(const char *function, const struct sockaddr *sa,
                                               socklen_t len) {
@@ -112,30 +140,25 @@ __attribute__((noinline)) static int eg_handle(const char *function, const struc
   char key[EG_SEEN_KEY_LENGTH];
   snprintf(key, sizeof key, "%s %s", function, peer);
   int fresh = 0;
+  int overflowed = 0;
   if (eg_lock_bounded()) {
     fresh = eg_seen_insert(&eg_seen, key);
+    if (!fresh && eg_seen.overflow > 0 && !eg_overflow_reported) {
+      eg_overflow_reported = 1;
+      overflowed = 1;
+    }
     os_unfair_lock_unlock(&eg_lock);
   }
 
-  if (fresh && eg_log_path[0] != '\0') {
-    char names[EG_MAX_CALLERS][EG_CALLER_LENGTH];
-    int caller_count = eg_collect_callers(names);
-    const char *callers[EG_MAX_CALLERS];
-    for (int i = 0; i < caller_count; i++) {
-      callers[i] = names[i];
-    }
-    char line[1024];
-    int n = eg_format_event(line, sizeof line, getprogname(), getpid(), function,
-                            deny ? "blocked" : "logged", peer, callers, caller_count);
-    if (n > 0) {
-      // O_APPEND keeps whole lines intact across processes writing
-      // concurrently. At most EG_SEEN_CAPACITY opens per process.
-      int fd = open(eg_log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
-      if (fd >= 0) {
-        (void)write(fd, line, (size_t)n);
-        close(fd);
-      }
-    }
+  const char *action = deny ? "blocked" : "logged";
+  if (fresh) {
+    eg_write_event(function, action, peer, 1);
+  } else if (overflowed) {
+    // Once per process: the table is full, so further distinct destinations
+    // are still refused but no longer listed.
+    char limit[64];
+    snprintf(limit, sizeof limit, "%d distinct destinations", EG_SEEN_CAPACITY);
+    eg_write_event(EG_OVERFLOW_FUNCTION, action, limit, 0);
   }
   return deny;
 }

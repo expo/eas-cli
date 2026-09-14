@@ -47,7 +47,7 @@ EAS_EGRESS_GUARD_LOG="$out/low-fd.log" \
   "$out/guard-insert-test" low-fd "$out/low-fd.log" 1>&- || status=$?
 report low-fd "$status"
 
-for name in nocancel unspec udp-disconnect callers; do
+for name in nocancel unspec udp-disconnect callers overflow; do
   status=0
   : > "$out/$name.log"
   EAS_EGRESS_GUARD_LOG="$out/$name.log" \

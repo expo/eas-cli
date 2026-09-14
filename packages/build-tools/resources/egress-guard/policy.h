@@ -45,6 +45,10 @@ int eg_seen_insert(eg_seen_t *seen, const char *key);
 
 #define EG_EVENT_PREFIX "eas-egress-guard"
 
+// Function name of the one event a process writes when its seen table fills:
+// from then on distinct destinations are still refused but no longer listed.
+#define EG_OVERFLOW_FUNCTION "overflow"
+
 // One tab-separated line, newline terminated:
 //   eas-egress-guard\t<progname>\t<pid>\t<function>\t<action>\t<peer>\t<caller>,<caller>...\n
 // Tabs and newlines inside fields are replaced with spaces. Returns the length
