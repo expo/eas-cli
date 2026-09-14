@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Accept template expressions such as `${{ env.SLACK_WEBHOOK_URL }}` in `eas workflow:validate` for fields the workflow schema declares with a string format, like a `slack` job's `webhook_url`. Values without a template expression are still checked against the format. ([#4184](https://github.com/expo/eas-cli/pull/4184) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
