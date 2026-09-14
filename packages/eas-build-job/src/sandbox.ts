@@ -75,8 +75,11 @@ export const SandboxDaemonResponseZ = z.union([
   z.strictObject({ jsonrpc: z.literal('2.0'), id: z.string(), result: z.unknown().nonoptional() }),
   z.strictObject({
     jsonrpc: z.literal('2.0'),
-    id: z.string(),
-    error: z.strictObject({ code: z.number().int(), message: z.string() }),
+    id: z.string().nullable(),
+    error: z.strictObject({
+      code: z.number().int(),
+      message: z.string(),
+    }),
   }),
 ]);
 

@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SandboxDaemonResponseZ, SystemError } from '@expo/eas-build-job';
 import Log from '@expo/logger';
 import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
@@ -247,12 +247,16 @@ describe(startSandboxDaemonAsync.name, () => {
         socket.once('message', data => resolve(`${data}`))
       );
       socket.send(message);
-      return JSON.parse(await response);
+      return SandboxDaemonResponseZ.parse(JSON.parse(await response));
     };
 
     await expect(sendAsync('{')).resolves.toMatchObject({
       id: null,
       error: { code: -32700, message: 'Parse error' },
+    });
+    await expect(sendAsync('{}')).resolves.toMatchObject({
+      id: null,
+      error: { code: -32600, message: 'Invalid request' },
     });
     await expect(
       sendAsync(JSON.stringify({ jsonrpc: '2.0', id: '1', method: 'unknown' }))
@@ -265,6 +269,19 @@ describe(startSandboxDaemonAsync.name, () => {
     ).resolves.toMatchObject({
       id: '2',
       error: { code: -32602, message: 'Invalid params' },
+    });
+    await expect(
+      sendAsync(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: '3',
+          method: 'writeStdin',
+          params: { sessionId: 999 },
+        })
+      )
+    ).resolves.toMatchObject({
+      id: '3',
+      error: { code: -32603, message: 'Command session 999 does not exist.' },
     });
 
     await daemon.stopAsync();

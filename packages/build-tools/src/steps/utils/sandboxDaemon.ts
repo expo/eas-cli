@@ -1,4 +1,5 @@
 import {
+  type SandboxDaemonCommandResult,
   SandboxDaemonCommands,
   type SandboxDaemonMethod,
   SandboxDaemonRequestZ,
@@ -11,7 +12,7 @@ import WebSocket from 'ws';
 
 import {
   type SandboxDaemonCommandImplementations,
-  createSandboxDaemonCommandImplementations,
+  createSandboxCommandImplementations,
 } from './sandboxCommandImplementations';
 
 export interface SandboxDaemonOptions {
@@ -37,8 +38,11 @@ export async function startSandboxDaemonAsync(
   let hasConnected = false;
   let resolveConnected!: () => void;
   let rejectConnected!: (error: Error) => void;
-  const { commandImplementations, stopAsync: stopCommandImplementationsAsync } =
-    createSandboxDaemonCommandImplementations(options.workingDirectory);
+  const { commandImplementations, stoppedPromise: commandsStoppedPromise } =
+    createSandboxCommandImplementations({
+      workingDirectory: options.workingDirectory,
+      signal: abortController.signal,
+    });
   const connected = new Promise<void>((resolve, reject) => {
     resolveConnected = resolve;
     rejectConnected = reject;
@@ -59,12 +63,28 @@ export async function startSandboxDaemonAsync(
         socket = connectedSocket;
         await waitForOpen(connectedSocket);
         options.logger.info('Sandbox MCP server connected.');
-        connectedSocket.on('message', message => {
-          void handleMessageAsync(commandImplementations, message.toString(), response => {
-            if (connectedSocket.readyState === WebSocket.OPEN) {
-              connectedSocket.send(JSON.stringify(response));
+        connectedSocket.on('message', async message => {
+          try {
+            const response = await handleMessageAsync(commandImplementations, message.toString());
+            // MCP fails pending calls on disconnect. Responses belong to this socket only.
+            if (connectedSocket.readyState !== WebSocket.OPEN) {
+              options.logger.warn(
+                'Sandbox command response was lost after disconnect. The command may have run and output may have been consumed.'
+              );
+              return;
             }
-          });
+            await new Promise<void>((resolve, reject) => {
+              connectedSocket.send(JSON.stringify(response), error => {
+                if (error) {
+                  reject(error);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (error) {
+            options.logger.warn({ err: error }, 'Could not send sandbox command response.');
+          }
         });
         hasConnected = true;
         resolveConnected();
@@ -104,7 +124,7 @@ export async function startSandboxDaemonAsync(
     async stopAsync(): Promise<void> {
       options.signal?.removeEventListener('abort', stop);
       stop();
-      await stopCommandImplementationsAsync();
+      await commandsStoppedPromise;
       await connectionLoop;
     },
   };
@@ -128,67 +148,47 @@ function waitForClose(socket: WebSocket): Promise<void> {
   });
 }
 
-type JsonRpcResponse =
-  | SandboxDaemonResponse
-  | {
-      jsonrpc: '2.0';
-      id: string | null;
-      error: { code: number; message: string; data?: unknown };
-    };
-
 async function handleMessageAsync(
   commandImplementations: SandboxDaemonCommandImplementations,
-  message: string,
-  send: (response: JsonRpcResponse) => void
-): Promise<void> {
+  message: string
+): Promise<SandboxDaemonResponse> {
   let rawRequest: unknown;
   try {
     rawRequest = JSON.parse(message);
   } catch {
-    sendError(send, null, -32700, 'Parse error');
-    return;
+    return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } };
   }
 
   const request = SandboxDaemonRequestZ.safeParse(rawRequest);
   if (!request.success) {
-    sendError(send, null, -32600, 'Invalid request', request.error.flatten());
-    return;
+    return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } };
   }
 
   const { id, method, params } = request.data;
   if (!Object.hasOwn(SandboxDaemonCommands, method)) {
-    sendError(send, id, -32601, 'Method not found');
-    return;
+    return { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
   }
   const commandMethod = method as SandboxDaemonMethod;
 
   const parsedParams = SandboxDaemonCommands[commandMethod].params.safeParse(params);
   if (!parsedParams.success) {
-    sendError(send, id, -32602, 'Invalid params', parsedParams.error.flatten());
-    return;
+    return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Invalid params' } };
   }
   try {
-    const result = await commandImplementations[commandMethod](parsedParams.data as never);
-    send({
+    return {
       jsonrpc: '2.0',
       id,
-      result: SandboxDaemonCommands[commandMethod].result.parse(result),
-    });
+      result: await (
+        commandImplementations[commandMethod] as (
+          params: typeof parsedParams.data
+        ) => Promise<SandboxDaemonCommandResult<typeof commandMethod>>
+      )(parsedParams.data),
+    };
   } catch (error) {
-    sendError(send, id, -32603, error instanceof Error ? error.message : 'Internal error');
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: { code: -32603, message: error instanceof Error ? error.message : 'Internal error' },
+    };
   }
-}
-
-function sendError(
-  send: (response: JsonRpcResponse) => void,
-  id: string | null,
-  code: number,
-  message: string,
-  data?: unknown
-): void {
-  send({
-    jsonrpc: '2.0',
-    id,
-    error: { code, message, ...(data === undefined ? {} : { data }) },
-  });
 }

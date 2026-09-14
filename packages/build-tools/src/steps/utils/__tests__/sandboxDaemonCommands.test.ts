@@ -19,6 +19,7 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket, { WebSocketServer } from 'ws';
 
 import { startSandboxDaemonAsync } from '../sandboxDaemon';
+import { createSandboxCommandImplementations } from '../sandboxCommandImplementations';
 
 describe('sandbox daemon commands', () => {
   let sendCommandAsync: (
@@ -44,6 +45,21 @@ describe('sandbox daemon commands', () => {
 
     expect(result).toMatchObject({ output: 'hello', exitCode: 0 });
     expect('sessionId' in result).toBe(false);
+  });
+
+  it('rejects a command canceled during directory validation', async () => {
+    const controller = new AbortController();
+    const commands = createSandboxCommandImplementations({
+      workingDirectory,
+      signal: controller.signal,
+    });
+    const command = commands.commandImplementations.execCommand({ cmd: 'printf should-not-run' });
+    controller.abort();
+    await commands.stoppedPromise;
+    await expect(command).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(
+      commands.commandImplementations.writeStdin({ sessionId: 1 })
+    ).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('returns a session id and accepts stdin for a running command', async () => {
@@ -260,6 +276,9 @@ async function startTestDaemonAsync(workingDirectory: string): Promise<{
   >();
   socket.on('message', message => {
     const response = SandboxDaemonResponseZ.parse(JSON.parse(message.toString()));
+    if (response.id === null) {
+      throw new Error('Expected a response ID for a valid command request.');
+    }
     const request = pending.get(response.id);
     if (!request) {
       return;
