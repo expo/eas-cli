@@ -8,6 +8,8 @@ import { spawnDetached } from '../remoteDeviceRunSession';
 
 import {
   CHISEL_VERSION,
+  EGRESS_EXIT_IP_CHECK_WINDOW_MS,
+  ExitIpCheck,
   LOCAL_EGRESS_NO_PROXY,
   LOCAL_EGRESS_PROXY_PORT,
   buildEgressRemoteConfigFields,
@@ -544,5 +546,105 @@ describe('local egress resource lifetime', () => {
       { err: error },
       'Could not stop a local egress resource.'
     );
+  });
+});
+
+describe(ExitIpCheck, () => {
+  function createCheck(windowMs = EGRESS_EXIT_IP_CHECK_WINDOW_MS): {
+    check: ExitIpCheck;
+    logger: { info: jest.Mock; warn: jest.Mock };
+    clock: { now: number };
+  } {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const clock = { now: 1_000 };
+    const check = new ExitIpCheck(logger as unknown as bunyan, windowMs, () => clock.now);
+    return { check, logger, clock };
+  }
+
+  it('says once that it is waiting, keeps trying inside the window, then reports the first success once', async () => {
+    const { check, logger, clock } = createCheck();
+    const fetchExitIp = jest
+      .fn<Promise<string>, []>()
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValue('64.114.211.10');
+
+    await check.attemptAsync(fetchExitIp);
+    clock.now += 10_000;
+    await check.attemptAsync(fetchExitIp);
+    expect(check.pending).toBe(true);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info.mock.calls[0][0]).toContain(
+      'the egress client is connected; waiting for a first request through the tunnel'
+    );
+
+    clock.now += 10_000;
+    await check.attemptAsync(fetchExitIp);
+    expect(check.pending).toBe(false);
+    expect(logger.info).toHaveBeenCalledTimes(2);
+    expect(logger.info.mock.calls[1][0]).toContain(
+      'reached the internet from 64.114.211.10, the public address of the machine running `eas simulator:egress`'
+    );
+
+    await check.attemptAsync(fetchExitIp);
+    expect(fetchExitIp).toHaveBeenCalledTimes(3);
+  });
+
+  it('warns once, blaming the tunnel rather than a missing client, when the window passes without a success', async () => {
+    const { check, logger, clock } = createCheck(30_000);
+    const fetchExitIp = jest.fn<Promise<string>, []>().mockRejectedValue(new Error('exit 28'));
+
+    await check.attemptAsync(fetchExitIp);
+    clock.now += 20_000;
+    await check.attemptAsync(fetchExitIp);
+    expect(logger.warn).not.toHaveBeenCalled();
+
+    clock.now += 10_000;
+    await check.attemptAsync(fetchExitIp);
+    expect(check.pending).toBe(false);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn.mock.calls[0][1]).toContain(
+      'the egress client is connected, but no request through the tunnel reached the internet in 30 seconds'
+    );
+    expect(logger.warn.mock.calls[0][1]).not.toContain('running and connected');
+
+    await check.attemptAsync(fetchExitIp);
+    expect(fetchExitIp).toHaveBeenCalledTimes(3);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-arms with a fresh window after reset', async () => {
+    const { check, logger, clock } = createCheck(30_000);
+    const fetchExitIp = jest
+      .fn<Promise<string>, []>()
+      .mockRejectedValueOnce(new Error('exit 28'))
+      .mockResolvedValue('64.114.211.10');
+
+    await check.attemptAsync(fetchExitIp);
+    clock.now += 60_000;
+    check.reset();
+    expect(check.pending).toBe(true);
+
+    await check.attemptAsync(fetchExitIp);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores the outcome of an attempt that was in flight across a reset', async () => {
+    const { check, logger, clock } = createCheck(30_000);
+    let reject: (err: Error) => void = () => {};
+    const inFlight = check.attemptAsync(
+      () => new Promise<string>((_resolve, rejectPromise) => (reject = rejectPromise))
+    );
+    clock.now += 60_000;
+    check.reset();
+    reject(new Error('exit 28'));
+    await inFlight;
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(check.pending).toBe(true);
   });
 });
