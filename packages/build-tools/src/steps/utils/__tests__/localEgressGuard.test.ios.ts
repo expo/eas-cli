@@ -265,6 +265,9 @@ describeE2E('local egress guard in a simulator', () => {
         udpLoopback: 'ok',
         literalFirst: 'refused',
         literalSecond: 'refused',
+        unspecConnect: 'refused',
+        udpDisconnect: 'ok',
+        nocancelSendto: 'refused',
       });
       expect(results.nwconnectionDirect).not.toMatch(/^ok|^timeout/);
 
@@ -282,8 +285,12 @@ describeE2E('local egress guard in a simulator', () => {
             e.callers.some(c => /Network/.test(c) && !/CFNetwork/.test(c))
         )
       ).toBe(true);
-      // UDP is covered.
+      // UDP is covered, through the cancelable and non-cancelable entry points.
       expect(events.some(e => e.function === 'sendto' && e.peer === '8.8.8.8:53')).toBe(true);
+      // An AF_UNSPEC sockaddr is recorded as what the kernel would have used.
+      expect(events.some(e => e.function === 'connect' && e.peer === '1.0.0.1:443')).toBe(true);
+      // The callers name the process and frameworks, never the guard itself.
+      expect(events.every(e => !e.callers.some(c => /egress-guard/.test(c)))).toBe(true);
       // One line per destination per process, even when the process retries.
       expect(events.filter(e => e.function === 'connect' && e.peer === '1.1.1.1:443')).toHaveLength(
         1

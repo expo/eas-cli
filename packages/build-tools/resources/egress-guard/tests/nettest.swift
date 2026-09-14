@@ -118,5 +118,55 @@ func bsdConnectLiteral(_ key: String) {
 bsdConnectLiteral("literalFirst")
 bsdConnectLiteral("literalSecond")
 
+// 8. A sockaddr_in whose family was left AF_UNSPEC: the kernel connects it as
+// IPv4, so the guard must refuse it. 9. connect(AF_UNSPEC) on a UDP socket
+// dissolves the association; the guard must leave that to the kernel.
+func unspecConnect() {
+  var to = sockaddr_in(); to.sin_family = sa_family_t(AF_UNSPEC); to.sin_port = in_port_t(UInt16(443)).bigEndian
+  inet_pton(AF_INET, "1.0.0.1", &to.sin_addr)
+  let fd = socket(AF_INET, SOCK_STREAM, 0)
+  let rc = withUnsafePointer(to: &to) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+    connect(fd, sa, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+  results["unspecConnect"] = rc == 0 ? "ok" : (errno == ECONNREFUSED ? "refused" : "errno(\(errno))")
+  close(fd)
+}
+func udpDisconnect() {
+  let fd = socket(AF_INET, SOCK_DGRAM, 0)
+  var to = sockaddr_in(); to.sin_family = sa_family_t(AF_INET); to.sin_port = in_port_t(UInt16(udpPort)).bigEndian
+  inet_pton(AF_INET, "127.0.0.1", &to.sin_addr)
+  let associated = withUnsafePointer(to: &to) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+    connect(fd, sa, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+  var dissolve = sockaddr_in(); dissolve.sin_family = sa_family_t(AF_UNSPEC); dissolve.sin_port = in_port_t(UInt16(443)).bigEndian
+  inet_pton(AF_INET, "1.1.1.1", &dissolve.sin_addr)
+  let rc = withUnsafePointer(to: &dissolve) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+    connect(fd, sa, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+  let err = errno
+  var peer = sockaddr_in(); var peerLength = socklen_t(MemoryLayout<sockaddr_in>.size)
+  let stillConnected = withUnsafeMutablePointer(to: &peer) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+    getpeername(fd, sa, &peerLength) } } == 0
+  results["udpDisconnect"] = associated != 0 ? "associate-failed"
+    : (rc == -1 && err == EAFNOSUPPORT && !stillConnected) ? "ok" : "errno(\(err)),connected=\(stillConnected)"
+  close(fd)
+}
+// 10. The non-cancelable variant of sendto, as libsystem exports it. Blocked.
+func nocancelSendto() {
+  typealias SendtoFn = @convention(c) (Int32, UnsafeRawPointer?, Int, Int32, UnsafePointer<sockaddr>?, socklen_t) -> Int
+  guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "sendto$NOCANCEL") else {
+    results["nocancelSendto"] = "no-symbol"; return
+  }
+  let nocancelSendto = unsafeBitCast(symbol, to: SendtoFn.self)
+  let fd = socket(AF_INET, SOCK_DGRAM, 0)
+  var to = sockaddr_in(); to.sin_family = sa_family_t(AF_INET); to.sin_port = in_port_t(UInt16(53)).bigEndian
+  inet_pton(AF_INET, "8.8.8.8", &to.sin_addr)
+  var payload: [UInt8] = Array("ping".utf8)
+  let sent = withUnsafePointer(to: &to) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+    nocancelSendto(fd, &payload, payload.count, 0, sa, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+  results["nocancelSendto"] = sent < 0 ? (errno == ECONNREFUSED ? "refused" : "errno(\(errno))") : "sent"
+  close(fd)
+}
+unspecConnect()
+udpDisconnect()
+nocancelSendto()
+
 let json = try! JSONSerialization.data(withJSONObject: results, options: [.sortedKeys])
 print(String(data: json, encoding: .utf8)!)
