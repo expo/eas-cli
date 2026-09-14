@@ -217,7 +217,7 @@ describe('sandbox daemon commands', () => {
 
   it.each([false, true])('stops command descendants when tty is %s', async tty => {
     const started = await sendCommandAsync('execCommand', {
-      cmd: `node -e "const { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); console.log(child.pid); setInterval(() => {}, 1000)"`,
+      cmd: `node -e "const { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); process.stdout.write(String(child.pid) + '\\n'); setInterval(() => {}, 1000)"`,
       tty,
       yieldTimeMs: 100,
     });
