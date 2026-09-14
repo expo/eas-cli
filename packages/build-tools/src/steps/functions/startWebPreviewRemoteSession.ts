@@ -20,6 +20,7 @@ import {
   startDeviceWebPreviewWithTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
+import { parseNetworkCaptureFieldsInput } from '../utils/networkCaptureFields';
 
 const STARTUP_TIMEOUT_MS = 60_000;
 
@@ -39,6 +40,16 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'network_capture',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
+        id: 'network_capture_fields',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_duration_seconds',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -49,6 +60,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
+      const networkCaptureFields = parseNetworkCaptureFieldsInput(
+        inputs.network_capture_fields?.value
+      );
       const { runtimePlatform } = global;
       const launch = parseServeSimLaunchInputs(
         {
@@ -79,6 +94,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,
+        networkCapture,
+        networkCaptureFields,
       });
       logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
 

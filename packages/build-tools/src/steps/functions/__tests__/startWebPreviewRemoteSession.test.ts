@@ -104,6 +104,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
+      networkCapture: undefined,
+      networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
@@ -135,6 +137,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'launch_args',
       'open_url',
       'package_version',
+      'network_capture',
+      'network_capture_fields',
       'max_duration_seconds',
     ]);
   });

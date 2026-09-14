@@ -751,12 +751,16 @@ export function createServeSimArgs({
   launchAppIdentifier,
   launchArgs = [],
   openUrl,
+  networkCapture = false,
+  networkCaptureFields = [],
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -783,6 +787,13 @@ export function createServeSimArgs({
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
     ...(openUrl ? ['--open-url', openUrl] : []),
+    // Repeated, not comma-joined, so serve-sim's error names the bad value.
+    ...(networkCapture
+      ? [
+          '--network-capture',
+          ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
+        ]
+      : []),
   ];
 }
 
@@ -988,12 +999,16 @@ export async function startServeSimWithTunnelAsync(
     launchAppIdentifier,
     launchArgs,
     openUrl,
+    networkCapture = false,
+    networkCaptureFields = [],
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
   const websiteArgs = websiteOriginServeSimArgs(env);
@@ -1014,6 +1029,8 @@ export async function startServeSimWithTunnelAsync(
         launchAppIdentifier,
         launchArgs,
         openUrl,
+        networkCapture,
+        networkCaptureFields,
       }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
@@ -1079,6 +1096,8 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
