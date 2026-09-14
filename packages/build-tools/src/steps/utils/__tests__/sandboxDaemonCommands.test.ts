@@ -11,6 +11,7 @@ import {
 } from '@expo/eas-build-job';
 import fs from 'node:fs/promises';
 import Log from '@expo/logger';
+import { spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -265,15 +266,16 @@ function getSessionId(result: unknown): number {
 }
 
 function isProcessRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error: any) {
-    if (error?.code === 'ESRCH') {
-      return false;
-    }
-    throw error;
+  const result = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' });
+  if (result.error) {
+    throw result.error;
   }
+  if (result.status === 1 && !result.stdout.trim()) {
+    return false;
+  }
+  expect(result.status).toBe(0);
+  // A zombie has exited, but its parent has not yet collected its exit status.
+  return !result.stdout.trim().startsWith('Z');
 }
 
 async function startTestDaemonAsync(workingDirectory: string): Promise<{
