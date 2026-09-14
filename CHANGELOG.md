@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Fix `eas credentials` failing with "A simulator distribution does not require credentials to be configured." when managing push keys or App Store Connect API keys on a build profile with `ios.simulator: true`. These are app-level credentials and do not depend on the build distribution type, so the distribution type is now only resolved for the actions that actually use it. ([#4183](https://github.com/expo/eas-cli/pull/4183) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
