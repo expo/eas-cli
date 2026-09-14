@@ -5,6 +5,7 @@ import { BuildStep } from '../BuildStep';
 import {
   BuildStepInput,
   BuildStepInputValueTypeName,
+  getDisallowedInputValueError,
   makeBuildStepInputByIdMap,
 } from '../BuildStepInput';
 import { BuildStepRuntimeError } from '../errors';
@@ -938,6 +939,36 @@ describe(BuildStepInput, () => {
       i.set(undefined);
     }).toThrowError(
       new BuildStepRuntimeError('Input parameter "foo" for step "test1" is required.')
+    );
+  });
+
+  test('accepts a json value structurally equal to an allowed value', () => {
+    const ctx = createGlobalContextMock();
+    const i = new BuildStepInput(ctx, {
+      id: 'foo',
+      stepDisplayName: 'test1',
+      required: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      allowedValues: [{ a: 1 }, { b: 2 }],
+    });
+    i.set({ a: 1 });
+    expect(i.isRawValueOneOfAllowedValues()).toBe(true);
+    expect(getDisallowedInputValueError(i, 'test1')).toBeUndefined();
+  });
+
+  test('rejects a json value not among the allowed values', () => {
+    const ctx = createGlobalContextMock();
+    const i = new BuildStepInput(ctx, {
+      id: 'foo',
+      stepDisplayName: 'test1',
+      required: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      allowedValues: [{ a: 1 }],
+    });
+    i.set({ a: 2 });
+    expect(i.isRawValueOneOfAllowedValues()).toBe(false);
+    expect(getDisallowedInputValueError(i, 'test1')).toBe(
+      'Input parameter "foo" for step "test1" is set to "{"a":2}" which is not one of the allowed values: {"a":1}.'
     );
   });
 });

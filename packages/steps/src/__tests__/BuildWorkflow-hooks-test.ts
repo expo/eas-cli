@@ -125,7 +125,7 @@ describe('BuildWorkflow hook execution', () => {
       hooks,
       externalFunctions,
       externalFunctionGroups,
-      compositeFunctionCatalog: compositeFunctionCatalog
+      localFunctionCatalog: compositeFunctionCatalog
         ? makeCatalog(compositeFunctionCatalog)
         : undefined,
     });

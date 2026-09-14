@@ -173,17 +173,24 @@ describe(parseJobHooksAsync, () => {
     );
     const result = parseJobHooksAsync(ctx, INSTALL);
     await expect(result).rejects.toThrow(
-      'Failed to parse hooks.before_install_node_modules: Local composite function "./.eas/functions/missing" was referenced by a step but no such composite function exists'
+      'Failed to parse hooks.before_install_node_modules: Local function "./.eas/functions/missing" was referenced by a step but no such local function exists'
     );
     await expect(result).rejects.toMatchObject({ errorCode: ErrorCode.HOOKS_ERROR });
   });
 
   it('reports the hook key when a composite function call sets working_directory', async () => {
-    const { ctx } = createCtx({
-      before_install_node_modules: [
-        { uses: './.eas/functions/setup', working_directory: 'subdir' },
-      ],
-    });
+    const workingdir = await makeWorkingdirWithCompositeFunctionAsync(
+      'setup',
+      ['runs:', '  steps:', '    - run: echo setup'].join('\n')
+    );
+    const { ctx } = createCtx(
+      {
+        before_install_node_modules: [
+          { uses: './.eas/functions/setup', working_directory: 'subdir' },
+        ],
+      },
+      { workingdir }
+    );
     const result = parseJobHooksAsync(ctx, INSTALL);
     await expect(result).rejects.toThrow(
       'Failed to parse hooks.before_install_node_modules: "working_directory" is not supported'

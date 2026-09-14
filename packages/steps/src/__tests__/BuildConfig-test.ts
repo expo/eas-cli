@@ -1052,7 +1052,7 @@ describe(validateAllFunctionsExist, () => {
     expect(() => {
       validateAllFunctionsExist(buildConfig, { externalFunctionIds: [] });
     }).toThrowError(
-      /Local composite functions \("\.\/\.eas\/functions\/my-function"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local composite functions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
+      /Local functions \("\.\/\.eas\/functions\/my-function"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local functions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
     );
   });
   test('rejects object-form local composite function references with a dedicated error', () => {
@@ -1073,7 +1073,7 @@ describe(validateAllFunctionsExist, () => {
     expect(() => {
       validateAllFunctionsExist(buildConfig, { externalFunctionIds: [] });
     }).toThrow(
-      /Local composite functions \("\.\/\.eas\/functions\/my-function"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local composite functions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
+      /Local functions \("\.\/\.eas\/functions\/my-function"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local functions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
     );
   });
   test('non-existent namespaced functions with skipNamespacedFunctionsOrFunctionGroupsCheck = false', () => {

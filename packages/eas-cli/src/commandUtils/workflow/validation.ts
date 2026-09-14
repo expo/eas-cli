@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import * as YAML from 'yaml';
 
-import { validateWorkflowLocalCompositeFunctionsAsync } from './compositeFunctions';
+import { validateWorkflowLocalFunctionsAsync } from './localFunctions';
 import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
@@ -47,8 +47,8 @@ export async function validateWorkflowFileAsync(
   Log.debug(`Validating workflow structure...`);
   validateWorkflowStructure(parsedYaml, workflowSchema);
 
-  Log.debug(`Validating workflow local composite functions...`);
-  await validateWorkflowLocalCompositeFunctionsAsync(parsedYaml, projectDir);
+  Log.debug(`Validating workflow local functions...`);
+  await validateWorkflowLocalFunctionsAsync(parsedYaml, projectDir);
 
   // Check for other errors using the server-side validation
   Log.debug(`Validating workflow on server...`);

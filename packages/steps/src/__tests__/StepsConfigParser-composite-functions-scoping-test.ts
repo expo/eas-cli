@@ -625,7 +625,7 @@ describe('StepsConfigParser local composite functions', () => {
       const parser = new StepsConfigParser(ctx, {
         steps: [{ uses: SETUP, id: 'setup', if: "${{ env.DEPLOY == 'true' }}" }],
         hooks: undefined,
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           [SETUP]: {
             runs: { steps: [{ id: 'inner', uses: 'eas/echo', env: { DEPLOY: 'false' } }] },
           },
@@ -785,7 +785,7 @@ describe('StepsConfigParser local composite functions', () => {
       const parser = new StepsConfigParser(ctx, {
         steps: [{ uses: SETUP, id: 'setup', with: { msg: '${{ env.SECRET }}' } }],
         hooks: undefined,
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           [SETUP]: {
             inputs: [{ name: 'msg', type: 'string', required: false }],
             runs: {
@@ -828,7 +828,7 @@ describe('StepsConfigParser local composite functions', () => {
       const parser = new StepsConfigParser(ctx, {
         steps: [{ uses: SETUP, id: 'setup' }],
         hooks: undefined,
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           [SETUP]: {
             inputs: [{ name: 'label', type: 'string', default_value: '${{ env.NAME }}' }],
             runs: {
