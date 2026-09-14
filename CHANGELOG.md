@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Skip project source refresh for jobs with no sources. ([#4389](https://github.com/expo/eas-cli/pull/4389) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Stop `eas workflow:run` from hanging forever when stdin is an open pipe that never delivers data, which is what CI agents hand the process. ([#4261](https://github.com/expo/eas-cli/pull/4261) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
