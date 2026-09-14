@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "target": "es2022",
     "module": "commonjs",
     "strict": true,
@@ -8,6 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
+    "types": ["node", "jest"],
     "composite": true,
     "rootDir": "./src",
     "outDir": "./dist"

@@ -1101,9 +1101,9 @@ export type AgentDeviceRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when a web preview is
@@ -2949,6 +2949,8 @@ export type AppObserveErrorOccurrencesFilter = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   easClientId?: InputMaybe<Scalars['String']['input']>;
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -3131,6 +3133,8 @@ export type AppObserveErrorsBreakdownInput = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   dimension: AppObserveErrorBreakdownDimension;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -3150,6 +3154,8 @@ export type AppObserveErrorsGroupsInput = {
   appVersion?: InputMaybe<Scalars['String']['input']>;
   /** Bucket size for each group's timeSeries. Defaults to daily. */
   bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   /** Restrict to one error group. */
@@ -3170,6 +3176,8 @@ export type AppObserveErrorsStatsInput = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3186,6 +3194,8 @@ export type AppObserveErrorsTimeSeriesInput = {
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
   bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   /** Restrict to one error group. */
@@ -4721,9 +4731,9 @@ export type AppiumRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when a web preview is
@@ -6593,6 +6603,14 @@ export type CreatePostHogDeepLinkInput = {
   posthogOrganizationConnectionId: Scalars['ID']['input'];
   /** Which EAS surface opened the link; omitted lets PostHog apply its own default. */
   purpose?: InputMaybe<PostHogDeepLinkPurpose>;
+};
+
+export type CreateSandboxInput = {
+  appId: Scalars['ID']['input'];
+  image?: InputMaybe<Scalars['String']['input']>;
+  operatingSystem: SandboxOperatingSystem;
+  projectArchive?: InputMaybe<SandboxProjectArchiveInput>;
+  resourceClass: SandboxResourceClass;
 };
 
 export type CreateSentryProjectInput = {
@@ -10127,6 +10145,7 @@ export enum Permission {
   Admin = 'ADMIN',
   Own = 'OWN',
   Publish = 'PUBLISH',
+  PublishProtected = 'PUBLISH_PROTECTED',
   View = 'VIEW'
 }
 
@@ -10280,7 +10299,6 @@ export type ProjectArchiveSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   gitRef?: InputMaybe<Scalars['String']['input']>;
   metadataLocation?: InputMaybe<Scalars['String']['input']>;
-  repositoryUrl?: InputMaybe<Scalars['String']['input']>;
   type: ProjectArchiveSourceType;
   url?: InputMaybe<Scalars['String']['input']>;
 };
@@ -10335,6 +10353,7 @@ export type PublishUpdateGroupInput = {
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
   manifestHostOverride?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
+  previousRolloutUpdateToClobberIdGroup?: InputMaybe<UpdateIdGroup>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
   runtimeVersion: Scalars['String']['input'];
@@ -10660,6 +10679,7 @@ export type RootMutation = {
   realtimeLogs: RealtimeLogsMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  sandbox: SandboxMutation;
   /** Mutations for Sentry installations */
   sentryInstallation: SentryInstallationMutation;
   /** Mutations for Sentry projects */
@@ -10675,6 +10695,7 @@ export type RootMutation = {
   updateBranch: UpdateBranchMutation;
   updateChannel: UpdateChannelMutation;
   uploadSession: UploadSession;
+  usageBudget: UsageBudgetMutation;
   /** Mutations that create, update, and delete pinned apps */
   userAppPins: UserAppPinMutation;
   userAuditLog: UserAuditLogMutation;
@@ -11063,15 +11084,86 @@ export type Sandbox = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type SandboxConnection = {
+  __typename?: 'SandboxConnection';
+  edges: Array<SandboxEdge>;
+  pageInfo: PageInfo;
+};
+
+export type SandboxEdge = {
+  __typename?: 'SandboxEdge';
+  cursor: Scalars['String']['output'];
+  node: Sandbox;
+};
+
+export type SandboxFilterInput = {
+  statuses?: InputMaybe<Array<SandboxStatus>>;
+};
+
+export type SandboxMutation = {
+  __typename?: 'SandboxMutation';
+  createSandbox: Sandbox;
+  markSandboxReady: Sandbox;
+  stopSandbox: Sandbox;
+  touchSandbox: Sandbox;
+};
+
+
+export type SandboxMutation_CreateSandboxArgs = {
+  input: CreateSandboxInput;
+};
+
+
+export type SandboxMutation_MarkSandboxReadyArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+
+export type SandboxMutation_StopSandboxArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+
+export type SandboxMutation_TouchSandboxArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+export enum SandboxOperatingSystem {
+  Linux = 'LINUX',
+  Macos = 'MACOS'
+}
+
+export type SandboxProjectArchiveInput = {
+  gitRef?: InputMaybe<Scalars['String']['input']>;
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type SandboxQuery = {
   __typename?: 'SandboxQuery';
+  /** Project sandboxes, newest first. An omitted or empty status filter includes all statuses. */
+  byAppIdPaginated: SandboxConnection;
   byId: Sandbox;
+};
+
+
+export type SandboxQuery_ByAppIdPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  appId: Scalars['ID']['input'];
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<SandboxFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
 export type SandboxQuery_ByIdArgs = {
   sandboxId: Scalars['ID']['input'];
 };
+
+export enum SandboxResourceClass {
+  Large = 'LARGE',
+  Medium = 'MEDIUM'
+}
 
 export enum SandboxStatus {
   Errored = 'ERRORED',
@@ -11219,9 +11311,9 @@ export type ServeSimRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the preview. Null when the preview runs ungated. */
   previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
   /** @deprecated Use previewUrl instead. */
@@ -12388,6 +12480,12 @@ export type UpdateGroupsConnection = {
   pageInfo: PageInfo;
 };
 
+export type UpdateIdGroup = {
+  android?: InputMaybe<Scalars['ID']['input']>;
+  ios?: InputMaybe<Scalars['ID']['input']>;
+  web?: InputMaybe<Scalars['ID']['input']>;
+};
+
 export type UpdateInfoGroup = {
   android?: InputMaybe<PartialManifest>;
   ios?: InputMaybe<PartialManifest>;
@@ -12584,6 +12682,31 @@ export enum UploadSessionType {
   EasUpdateAssetsMetadata = 'EAS_UPDATE_ASSETS_METADATA',
   EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT'
 }
+
+export type UsageBudget = {
+  __typename?: 'UsageBudget';
+  id: Scalars['ID']['output'];
+  limits: UsageBudgetLimits;
+};
+
+export type UsageBudgetLimits = {
+  __typename?: 'UsageBudgetLimits';
+  builds?: Maybe<Scalars['Int']['output']>;
+};
+
+export type UsageBudgetLimitsInput = {
+  builds?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type UsageBudgetMutation = {
+  __typename?: 'UsageBudgetMutation';
+  createUsageBudget: UsageBudget;
+};
+
+
+export type UsageBudgetMutation_CreateUsageBudgetArgs = {
+  limits: UsageBudgetLimitsInput;
+};
 
 export type UsageMetricTotal = {
   __typename?: 'UsageMetricTotal';
@@ -13344,9 +13467,9 @@ export type WebPreviewOnlyRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   webPreviewUrl: Scalars['String']['output'];
 };
