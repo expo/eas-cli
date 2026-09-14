@@ -173,7 +173,9 @@ describe(IntegrationsSupabaseAdvisors, () => {
     expect(rawOutput).not.toContain(rlsLint.remediation);
     expect(output).toContain('✖ ERROR  RLS Disabled in Public\n    public.todos');
     expect(output).not.toContain('How to fix');
-    expect(output).toContain('has not been enabled.\n\n    View in Supabase ↗');
+    expect(output).toContain(
+      '✖ ERROR  RLS Disabled in Public\n    public.todos\n    Table public.todos is public, but RLS has not been enabled.\n    View in Supabase ↗'
+    );
     expect(output).not.toContain('RLS Disabled in Public ↗');
     expect(output.split('\n').filter(line => line.includes('https://'))).toEqual([
       'Dashboard: https://supabase.com/dashboard/project/abcdefghijklmnop',
