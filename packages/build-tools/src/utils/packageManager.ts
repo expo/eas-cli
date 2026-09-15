@@ -91,6 +91,41 @@ export function resolvePackageExec(
   }
 }
 
+export function resolvePackageAdd(
+  manager: PackageManager,
+  packageSpec: string
+): { command: string; args: string[] } {
+  switch (manager) {
+    case PackageManager.NPM:
+      return { command: 'npm', args: ['install', '--no-audit', packageSpec] };
+    case PackageManager.BUN:
+      return { command: 'bun', args: ['add', packageSpec] };
+    case PackageManager.YARN:
+      return { command: 'yarn', args: ['add', packageSpec] };
+    case PackageManager.PNPM:
+      return { command: 'pnpm', args: ['add', packageSpec] };
+  }
+}
+
+export function resolvePackageInstall(
+  manager: PackageManager,
+  { production }: { production?: boolean } = {}
+): { command: string; args: string[] } {
+  switch (manager) {
+    case PackageManager.NPM:
+      return {
+        command: 'npm',
+        args: production ? ['install', '--no-audit', '--omit=dev'] : ['install', '--no-audit'],
+      };
+    case PackageManager.BUN:
+      return { command: 'bun', args: production ? ['install', '--production'] : ['install'] };
+    case PackageManager.YARN:
+      return { command: 'yarn', args: production ? ['install', '--production'] : ['install'] };
+    case PackageManager.PNPM:
+      return { command: 'pnpm', args: production ? ['install', '--prod'] : ['install'] };
+  }
+}
+
 /**
  * Get the version of a package from the dist-tags.
  * Returns null if the version cannot be resolved.

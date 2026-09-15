@@ -12,7 +12,9 @@ import {
   resolveConfiguredPackageManager,
   resolveFallbackPackageManager,
   resolveOverridePackageManager,
+  resolvePackageAdd,
   resolvePackageExec,
+  resolvePackageInstall,
   resolvePackageManager,
   resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
@@ -211,6 +213,52 @@ describe(resolvePackageExec, () => {
     expect(resolvePackageExec(PackageManager.PNPM, packageArgs)).toEqual({
       command: 'pnpm',
       args: ['dlx', ...packageArgs],
+    });
+  });
+});
+
+describe(resolvePackageAdd, () => {
+  it('maps npm to npm install --no-audit', () => {
+    expect(resolvePackageAdd(PackageManager.NPM, 'appium@^3')).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', 'appium@^3'],
+    });
+  });
+
+  it('maps bun to bun add', () => {
+    expect(resolvePackageAdd(PackageManager.BUN, 'agent-device@latest')).toEqual({
+      command: 'bun',
+      args: ['add', 'agent-device@latest'],
+    });
+  });
+
+  it('maps yarn to yarn add', () => {
+    expect(resolvePackageAdd(PackageManager.YARN, 'appium@^3')).toEqual({
+      command: 'yarn',
+      args: ['add', 'appium@^3'],
+    });
+  });
+
+  it('maps pnpm to pnpm add', () => {
+    expect(resolvePackageAdd(PackageManager.PNPM, 'appium@^3')).toEqual({
+      command: 'pnpm',
+      args: ['add', 'appium@^3'],
+    });
+  });
+});
+
+describe(resolvePackageInstall, () => {
+  it('maps bun production install', () => {
+    expect(resolvePackageInstall(PackageManager.BUN, { production: true })).toEqual({
+      command: 'bun',
+      args: ['install', '--production'],
+    });
+  });
+
+  it('maps npm production install without audit', () => {
+    expect(resolvePackageInstall(PackageManager.NPM, { production: true })).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', '--omit=dev'],
     });
   });
 });
