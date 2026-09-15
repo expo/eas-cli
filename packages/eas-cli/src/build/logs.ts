@@ -10,6 +10,7 @@ import Log from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
 import formatFields, { FormatFieldsItem } from '../utils/formatFields';
 
+const LOGS_FETCH_TIMEOUT_MS = 5_000;
 const SINGLE_BUILD_MAX_LOG_LINES = 5;
 const MULTIPLE_BUILDS_MAX_LOG_LINES = 3;
 
@@ -18,7 +19,7 @@ async function fetchAndParseLogsForBuildAsync(build: BuildFragment): Promise<Raw
   if (!logFileUrl) {
     return null;
   }
-  const response = await fetch(logFileUrl);
+  const response = await fetch(logFileUrl, { timeout: LOGS_FETCH_TIMEOUT_MS });
   const rawLogs = await response.text();
   if (!rawLogs) {
     return null;

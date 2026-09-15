@@ -35,6 +35,8 @@ function createWebSocketConstructor(): WebSocketConstructor {
   return httpsProxyAgent ? createProxiedWebSocketConstructor(httpsProxyAgent) : WebSocket;
 }
 
+const LOGS_WEBSOCKET_TIMEOUT_MS = 5_000;
+
 export function createRealtimeLogsClient(
   graphqlClient: ExpoGraphqlClient
 ): RealtimeLogsClient | null {
@@ -49,6 +51,7 @@ export function createRealtimeLogsClient(
     client = new Centrifuge(getEASLogsWebsocketUrl(), {
       websocket: createWebSocketConstructor(),
       getToken: getTokenAsync,
+      timeout: LOGS_WEBSOCKET_TIMEOUT_MS,
     });
     client.on('error', ({ error }) => {
       Log.debug(`Realtime logs connection error: ${error.message}`);

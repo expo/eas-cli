@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 
 import { groupLogLinesIntoSteps } from '../../commandUtils/logs/parseLogs';
 import { JobLogs, RawLogLine } from '../../commandUtils/logs/types';
+import fetch from '../../fetch';
 import {
   AppPlatform,
   BuildFragment,
@@ -16,6 +17,8 @@ import {
   isBuildCompleted,
   logSourceForBuild,
 } from '../logs';
+
+jest.mock('../../fetch');
 
 function createBuildFragment(overrides: Partial<BuildFragment> = {}): BuildFragment {
   return {
@@ -81,21 +84,18 @@ describe(logSourceForBuild, () => {
   });
 
   describe('fetchRawLogLinesAsync', () => {
-    const originalFetch = global.fetch;
-
     afterEach(() => {
-      global.fetch = originalFetch;
+      jest.mocked(fetch).mockReset();
     });
 
     it('parses the first log file of the build', async () => {
-      const fetchMock = jest.fn().mockResolvedValue({
+      jest.mocked(fetch).mockResolvedValueOnce({
         text: async () =>
           [
             '{"logId":"1","phase":"INSTALL_DEPENDENCIES","msg":"npm ci"}',
             '{"logId":"2","phase":"INSTALL_DEPENDENCIES","msg":"done"}',
           ].join('\n'),
-      });
-      global.fetch = fetchMock as unknown as typeof global.fetch;
+      } as any);
 
       const source = logSourceForBuild(
         createBuildFragment({ logFiles: ['https://logs.test/first', 'https://logs.test/second'] })
@@ -105,18 +105,17 @@ describe(logSourceForBuild, () => {
         { logId: '1', phase: 'INSTALL_DEPENDENCIES', msg: 'npm ci' },
         { logId: '2', phase: 'INSTALL_DEPENDENCIES', msg: 'done' },
       ]);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith('https://logs.test/first');
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledWith('https://logs.test/first', {
+        timeout: expect.any(Number),
+      });
     });
 
     it('returns null when the build has no log file', async () => {
-      const fetchMock = jest.fn();
-      global.fetch = fetchMock as unknown as typeof global.fetch;
-
       await expect(
         logSourceForBuild(createBuildFragment({ logFiles: [] })).fetchRawLogLinesAsync()
       ).resolves.toBeNull();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
     });
   });
 });
