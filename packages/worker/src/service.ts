@@ -325,7 +325,8 @@ export default class BuildService {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
           errorCode: err.trackingCode ?? err.errorCode,
-          ...('type' in job ? { workflow: job.type } : {}),
+          // `type` is the workflow on build jobs and the job family on session jobs.
+          ...(job.platform ? { workflow: job.type } : job.type ? { jobType: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
