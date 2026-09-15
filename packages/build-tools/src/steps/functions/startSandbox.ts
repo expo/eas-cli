@@ -33,7 +33,8 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }),
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
-      const sandboxToken = ctx.env.__EAS_SANDBOX_MCP_TOKEN;
+      // The daemon needs this credential, but shell commands do not.
+      const { __EAS_SANDBOX_MCP_TOKEN: sandboxToken, ...commandEnv } = env;
       if (!sandboxToken) {
         throw new SystemError('__EAS_SANDBOX_MCP_TOKEN is required to start the sandbox daemon.');
       }
@@ -49,7 +50,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
-        env,
+        env: commandEnv,
       });
       try {
         await daemon.ready;

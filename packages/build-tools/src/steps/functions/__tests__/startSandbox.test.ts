@@ -59,7 +59,7 @@ describe('sandbox build functions', () => {
         fn.fn!({ logger: {} } as any, {
           inputs: { sandbox_id: { value: 'sandbox-id' } },
           outputs: {},
-          env: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
           signal: controller.signal,
         })
       ).rejects.toMatchObject({ name: 'AbortError' });
@@ -69,8 +69,12 @@ describe('sandbox build functions', () => {
       start.mockRestore();
     }
   });
-  it('passes the prepared environment to the daemon', async () => {
-    const env = { PREPARED_BY_EARLIER_STEP: 'value' };
+  it('excludes the MCP token from the command environment', async () => {
+    const env = {
+      PREPARED_BY_EARLIER_STEP: 'value',
+      EXPO_TOKEN: 'expo-token',
+      __EAS_SANDBOX_MCP_TOKEN: 'token',
+    };
     const startupError = new Error('stop after checking options');
     const start = jest
       .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
@@ -87,7 +91,12 @@ describe('sandbox build functions', () => {
           env,
         })
       ).rejects.toBe(startupError);
-      expect(start.mock.calls[0][0].env).toBe(env);
+      expect(start.mock.calls[0][0]).toMatchObject({ credential: 'token' });
+      expect(start.mock.calls[0][0].env).toEqual({
+        PREPARED_BY_EARLIER_STEP: 'value',
+        EXPO_TOKEN: 'expo-token',
+      });
+      expect(env.__EAS_SANDBOX_MCP_TOKEN).toBe('token');
     } finally {
       start.mockRestore();
     }
@@ -119,9 +128,9 @@ describe('sandbox build functions', () => {
       fn.fn!({} as any, {
         inputs: { sandbox_id: { value: 'sandbox-id' } },
         outputs: {},
-        env: {},
+        env: { __EAS_SANDBOX_MCP_TOKEN: 'sandbox-token' },
       })
-    ).rejects.toBeInstanceOf(SystemError);
+    ).rejects.toThrow('MCP server URL is required to start the sandbox daemon.');
   });
 
   it('marks the sandbox as ready', async () => {
