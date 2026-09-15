@@ -8,8 +8,8 @@ import { Action } from './HelperActions';
 import { ManageIos } from './ManageIos';
 import { AccountFragment } from '../../graphql/generated';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
-import { ensureActorHasPrimaryAccount } from '../../user/actions';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 
 export class SetUpIosBuildCredentials extends ManageIos {
   constructor(
@@ -56,7 +56,7 @@ export class SetUpIosBuildCredentials extends ManageIos {
 
     const account = ctx.hasProjectContext
       ? await getAccountForProjectAsync(await ctx.getProjectIdAsync())
-      : ensureActorHasPrimaryAccount(ctx.user);
+      : await UserQuery.requireCurrentUserPrimaryAccountAsync(ctx.graphqlClient);
 
     let app = null;
     let targets = null;
