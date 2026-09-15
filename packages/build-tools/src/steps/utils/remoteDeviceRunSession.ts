@@ -557,7 +557,7 @@ async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> 
   }
   try {
     // spawnDetached creates a dedicated process group. Signaling the group also
-    // terminates package-runner descendants instead of leaving the actual daemon alive.
+    // terminates npx/bun descendants instead of leaving the actual daemon alive.
     process.kill(-pid, 'SIGTERM');
   } catch {
     try {
