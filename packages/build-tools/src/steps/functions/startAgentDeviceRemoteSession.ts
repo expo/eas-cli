@@ -18,6 +18,12 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { Sentry } from '../../sentry';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageAdd,
+  resolvePackageInstall,
+} from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
@@ -183,6 +189,74 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
   });
 }
 
+export async function startAgentDeviceDaemonAsync({
+  packageVersion,
+  env,
+  logger,
+}: {
+  packageVersion: string | undefined;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<DetachedProcessHandle> {
+  const packageSpec = createAgentDevicePackageSpec(packageVersion);
+  const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+  const installDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-agent-device-'));
+  await fs.promises.writeFile(
+    path.join(installDir, 'package.json'),
+    `${JSON.stringify({ name: 'eas-agent-device', private: true })}\n`
+  );
+
+  try {
+    const add = resolvePackageAdd(packageManager, packageSpec);
+    logger.info(`Installing ${packageSpec} with ${add.command}.`);
+    await spawn(add.command, add.args, { cwd: installDir, env, logger });
+
+    const daemonPath = getInstalledAgentDeviceDaemonPath(installDir);
+    if (!fs.existsSync(daemonPath)) {
+      throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
+    }
+
+    logger.info(`Launching daemon from ${daemonPath} after ${add.command} install.`);
+    const daemonProcess = spawnDetached({
+      command: 'node',
+      args: [daemonPath],
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+    });
+    return {
+      ...daemonProcess,
+      stopAsync: async () => {
+        await daemonProcess.stopAsync();
+        await fs.promises.rm(installDir, { recursive: true, force: true });
+      },
+    };
+  } catch (err) {
+    await fs.promises.rm(installDir, { recursive: true, force: true });
+    const error = err instanceof Error ? err : new Error(String(err));
+    const bunVersion = await getBunVersionForDiagnosticsAsync(env);
+    Sentry.capture(
+      'Failed to start agent-device daemon from the configured package manager; falling back to git clone',
+      error,
+      {
+        level: 'warning',
+        tags: {
+          phase: 'agent-device-daemon-start',
+          fallback: 'git-clone',
+        },
+        extras: {
+          packageSpec,
+          packageVersion: packageVersion ?? 'latest',
+          packageManager,
+          bunVersion,
+        },
+      }
+    );
+    logger.warn(
+      `Failed to start daemon from ${packageSpec} via ${packageManager}; falling back to git clone: ${error.message}`
+    );
+    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
+  }
+}
+
 export async function stopAgentDeviceEventCollectionSafelyAsync({
   eventCollection,
   deviceRunSessionId,
@@ -205,61 +279,6 @@ export async function stopAgentDeviceEventCollectionSafelyAsync({
   }
 }
 
-async function startAgentDeviceDaemonAsync({
-  packageVersion,
-  env,
-  logger,
-}: {
-  packageVersion: string | undefined;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<DetachedProcessHandle> {
-  const packageSpec = createAgentDevicePackageSpec(packageVersion);
-  try {
-    logger.info(`Installing ${packageSpec} globally with Bun.`);
-    await spawn('bun', ['add', '--global', packageSpec], {
-      env,
-      logger,
-    });
-
-    const daemonPath = getGlobalAgentDeviceDaemonPath(env);
-    if (!fs.existsSync(daemonPath)) {
-      throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
-    }
-
-    logger.info(`Launching daemon from ${daemonPath}.`);
-    return spawnDetached({
-      command: 'node',
-      args: [daemonPath],
-      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
-    });
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    const bunVersion = await getBunVersionForDiagnosticsAsync(env);
-    Sentry.capture(
-      'Failed to start agent-device daemon from global Bun package; falling back to git clone',
-      error,
-      {
-        level: 'warning',
-        tags: {
-          phase: 'agent-device-daemon-start',
-          fallback: 'git-clone',
-        },
-        extras: {
-          packageSpec,
-          packageVersion: packageVersion ?? 'latest',
-          bunVersion,
-          bunInstallConfigured: Boolean(env.BUN_INSTALL?.trim()),
-        },
-      }
-    );
-    logger.warn(
-      `Failed to start daemon from global ${packageSpec}; falling back to git clone: ${error.message}`
-    );
-    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
-  }
-}
-
 async function startAgentDeviceDaemonFromGitAsync({
   packageVersion,
   env,
@@ -276,8 +295,10 @@ async function startAgentDeviceDaemonFromGitAsync({
   );
   await cloneAgentDeviceAsync({ packageVersion, env, logger });
 
-  logger.info('Installing agent-device dependencies.');
-  await spawn('bun', ['install', '--production'], {
+  const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+  const install = resolvePackageInstall(packageManager, { production: true });
+  logger.info(`Installing agent-device dependencies with ${install.command}.`);
+  await spawn(install.command, install.args, {
     cwd: SRC_DIR,
     env,
     logger,
@@ -346,11 +367,9 @@ function createAgentDevicePackageSpec(packageVersion: string | undefined): strin
   return `${AGENT_DEVICE_PACKAGE_NAME}@${versionSpec}`;
 }
 
-function getGlobalAgentDeviceDaemonPath(env: BuildStepEnv): string {
+function getInstalledAgentDeviceDaemonPath(installDir: string): string {
   return path.join(
-    getBunInstallDirectory(env),
-    'install',
-    'global',
+    installDir,
     'node_modules',
     AGENT_DEVICE_PACKAGE_NAME,
     'dist',
@@ -358,11 +377,6 @@ function getGlobalAgentDeviceDaemonPath(env: BuildStepEnv): string {
     'internal',
     'daemon.js'
   );
-}
-
-function getBunInstallDirectory(env: BuildStepEnv): string {
-  const bunInstall = env.BUN_INSTALL?.trim();
-  return bunInstall ? bunInstall : path.join(os.homedir(), '.bun');
 }
 
 function parseDaemonInfo(raw: string): { port: number; token: string } {
