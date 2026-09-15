@@ -22,6 +22,9 @@ import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetrics
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const WEB_PREVIEW_HOST = '127.0.0.1';
 const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
+// Pinned while H.264 is known to stall at larger encode sizes without recovering.
+// Passing this explicitly also overrides serve-sim's own default H.264 cap, so raising it
+// loses that guard too.
 const SERVE_SIM_MAX_DIMENSION = '960';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
 const SERVE_SIM_VIDEO_BITRATE = '6000000';
@@ -657,7 +660,7 @@ export function createServeSimArgs({
     '--transport',
     'webrtc',
     '--webrtc-codec',
-    'vp8',
+    'h264',
     '--max-dimension',
     SERVE_SIM_MAX_DIMENSION,
     '--mjpeg-quality',
