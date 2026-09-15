@@ -7,11 +7,11 @@ import {
   WorkflowCommandSelectionStateValue,
   executeWorkflowSelectionActionsAsync,
 } from '../../commandUtils/workflow/stateMachine';
-import { WorkflowLogLine, WorkflowLogs } from '../../commandUtils/workflow/types';
+import { JobLogs, LogLine } from '../../commandUtils/logs/types';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-function printLogsForAllSteps(logs: WorkflowLogs): void {
+function printLogsForAllSteps(logs: JobLogs): void {
   [...logs.values()].forEach(({ label, logLines }) => {
     if (logLines.length === 0) {
       return;
@@ -85,7 +85,7 @@ export default class WorkflowLogView extends EasCommand {
       return;
     }
 
-    const logs = finalSelectionState?.logs as unknown as WorkflowLogs | null;
+    const logs = finalSelectionState?.logs;
     if (allSteps) {
       if (logs) {
         if (flags.json) {
@@ -103,7 +103,7 @@ export default class WorkflowLogView extends EasCommand {
       const logGroup = logs?.get(selectedStep);
       if (logGroup) {
         if (flags.json) {
-          const output: { [key: string]: WorkflowLogLine[] | null } = {};
+          const output: { [key: string]: LogLine[] | null } = {};
           output[selectedStep] = logGroup.logLines;
           printJsonOnlyOutput(output);
         } else {

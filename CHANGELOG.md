@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Display logs in `eas build --wait`. ([#4303](https://github.com/expo/eas-cli/pull/4303) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
