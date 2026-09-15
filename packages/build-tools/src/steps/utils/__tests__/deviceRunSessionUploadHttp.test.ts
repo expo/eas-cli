@@ -2,9 +2,11 @@ import { Client, fetchExchange } from '@urql/core';
 import { createReadStream } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
+import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -155,6 +157,44 @@ it('cancels an active PUT socket and destroys its source without retrying', asyn
   expect(reopenStream).not.toHaveBeenCalled();
   expect(puts).toBe(1);
 });
+
+it.each([200, 400, 503])(
+  'closes a stalled HTTP %s response before leaving or retrying the PUT',
+  async status => {
+    const sockets = new Set<Socket>();
+    let puts = 0;
+    let maxOpenSockets = 0;
+    handle = (request, response) => {
+      puts++;
+      sockets.add(request.socket);
+      maxOpenSockets = Math.max(maxOpenSockets, sockets.size);
+      request.socket.once('close', () => sockets.delete(request.socket));
+      request.resume();
+      request.on('end', () => {
+        response.writeHead(status, { 'Content-Length': '1000' });
+        response.flushHeaders();
+        response.write('partial response');
+      });
+    };
+    const upload = uploadDeviceRunSessionArtifactAsync(ctx, {
+      ...metadata,
+      stream: Readable.from('recording'),
+      reopenStream: () => Readable.from('recording'),
+    });
+    if (status === 200) {
+      await expect(upload).resolves.toBeUndefined();
+    } else {
+      await expect(upload).rejects.toThrow(`HTTP ${status}`);
+    }
+    for (let i = 0; i < 100 && sockets.size > 0; i++) {
+      await delay(10);
+    }
+    expect(creates).toBe(1);
+    expect(puts).toBe(status === 503 ? 3 : 1);
+    expect(maxOpenSockets).toBe(1);
+    expect(sockets.size).toBe(0);
+  }
+);
 
 it('cancels urql session creation with auth intact and never starts a PUT', async () => {
   stallCreation = true;

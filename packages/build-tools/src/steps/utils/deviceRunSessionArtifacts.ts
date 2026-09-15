@@ -1,7 +1,7 @@
 import { SystemError } from '@expo/eas-build-job';
 import { graphql } from 'gql.tada';
 import fetch, { Headers } from 'node-fetch';
-import { Readable } from 'node:stream';
+import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -58,6 +58,7 @@ export async function uploadDeviceRunSessionArtifactAsync(
             await withDeviceRunSessionTimeoutAsync(
               { name: 'Artifact PUT', timeoutMs: 90_000, signal },
               async putSignal => {
+                const requestController = new AbortController();
                 const destroy = () => {
                   stream.destroy();
                 };
@@ -67,16 +68,15 @@ export async function uploadDeviceRunSessionArtifactAsync(
                     method: 'PUT',
                     headers: new Headers(uploadSession.headers as Record<string, string>),
                     body: stream,
-                    signal: putSignal,
+                    signal: AbortSignal.any([putSignal, requestController.signal]),
                   });
-                  if (response.body instanceof Readable) {
-                    response.body.destroy();
-                  }
                   putSignal.throwIfAborted();
                   if (!response.ok) {
                     throw new ArtifactPutError(response.status);
                   }
                 } finally {
+                  // node-fetch's response stream is a PassThrough; destroying it leaves the socket open.
+                  requestController.abort();
                   putSignal.removeEventListener('abort', destroy);
                   stream.destroy();
                 }
