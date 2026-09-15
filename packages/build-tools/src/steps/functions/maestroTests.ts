@@ -213,7 +213,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
       const testsDirectory = path.join(home, '.maestro', 'tests');
       const junitReportDirectory = path.join(testsDirectory, 'junit-reports');
-      const finalReportPath =
+      let finalReportPath =
         outputFormat === 'junit'
           ? path.join(testsDirectory, `${platform}-maestro-junit.xml`)
           : undefined;
@@ -262,11 +262,21 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           undefined,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
-      if (backend === 'maestro-runner' && outputFormat !== undefined && outputFormat !== 'junit') {
+      if (
+        backend === 'maestro-runner' &&
+        outputFormat !== undefined &&
+        !['junit', 'html', 'allure'].includes(outputFormat)
+      ) {
         throw new UserError(
           'ERR_MAESTRO_INVALID_INPUT',
-          `maestro-runner only supports the "junit" output_format, but received "${outputFormat}".`
+          `maestro-runner supports "junit", "html", and "allure" output_format values, but received "${outputFormat}".`
         );
+      }
+      // The runner writes all three reports for every attempt. Keep its JUnit report for
+      // EAS test results and failure screenshots even when HTML or Allure is selected.
+      if (backend === 'maestro-runner' && finalReportPath === undefined) {
+        finalReportPath = path.join(testsDirectory, `${platform}-maestro-junit.xml`);
+        outputs.final_report_path.set(finalReportPath);
       }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
@@ -291,6 +301,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       // through to dumb retry (re-run everything).
       let flowsToRun: string[] = flowPaths;
       let lastAttemptExitCode: number | null = null;
+      let lastRunnerOutputDirectory: string | undefined;
       const harvested: HarvestedScreenshot[] = [];
       const reportDirectories = backend === 'maestro' ? [junitReportDirectory] : [];
 
@@ -343,7 +354,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           `${platform}-maestro-runner-attempt-${attempt}`
         );
         const outputPath =
-          outputFormat === 'junit'
+          outputFormat === 'junit' || backend === 'maestro-runner'
             ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
             : backend === 'maestro' && outputFormat
               ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
@@ -410,12 +421,13 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
 
         if (backend === 'maestro-runner') {
           reportDirectories.push(runnerOutputDirectory);
+          lastRunnerOutputDirectory = runnerOutputDirectory;
         }
 
-        // Harvest this attempt's failure screenshots before any retry subsetting. Gated on
-        // junit: test-case-result rows (and therefore the summary icons) only exist for junit
-        // runs, so harvesting other formats would just create orphan artifacts the website hides.
-        if (outputFormat === 'junit') {
+        // Harvest this attempt's failure screenshots before any retry subsetting. The runner
+        // always writes JUnit, even when HTML or Allure is selected. Official Maestro needs
+        // output_format=junit for test-case-result rows and summary icons.
+        if (outputFormat === 'junit' || backend === 'maestro-runner') {
           let screenshots: HarvestedScreenshot[];
           switch (backend) {
             case 'maestro': {
@@ -536,8 +548,8 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       // Upload before the ERR_MAESTRO_TESTS_FAILED throw below so fully-failed runs (which need
-      // screenshots most) still upload. Harvest only ran for junit, so guard the same way.
-      if (outputFormat === 'junit') {
+      // screenshots most) still upload. The runner always supplies JUnit flow results.
+      if (outputFormat === 'junit' || backend === 'maestro-runner') {
         await uploadFailureScreenshotsAsync({
           harvested,
           backend,
@@ -545,6 +557,33 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           ctx,
           logger,
         });
+      }
+
+      if (backend === 'maestro-runner' && lastRunnerOutputDirectory) {
+        let selectedReport: { name: string; path: string } | undefined;
+        switch (outputFormat) {
+          case 'html':
+            // HTML references screenshot files beside report.html, so upload the full directory.
+            selectedReport = { name: 'Maestro Runner HTML Report', path: '' };
+            break;
+          case 'allure':
+            selectedReport = { name: 'Maestro Runner Allure Results', path: 'allure-results' };
+            break;
+        }
+        if (selectedReport) {
+          try {
+            await ctx.runtimeApi.uploadArtifact({
+              artifact: {
+                type: GenericArtifactType.OTHER,
+                name: selectedReport.name,
+                paths: [path.join(lastRunnerOutputDirectory, selectedReport.path)],
+              },
+              logger,
+            });
+          } catch (err: any) {
+            logger.warn({ err }, `Failed to upload ${selectedReport.name}.`);
+          }
+        }
       }
 
       // The retry loop exits via success (0), numeric status (retryable),
