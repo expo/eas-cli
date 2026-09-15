@@ -33,6 +33,11 @@ The follow-up keeps capture in the same process and makes the longer session
 lifetime explicit. No ngrok tunnel is needed to start the host or its recording.
 Closing a tunnel does not finalize, upload, or restart capture.
 
+The Appium, Agent Device, and Argent callers stop their automation resources
+concurrently with host finalization. Recording upload cannot postpone closing tool
+tunnels or stopping tool processes. Both cleanup tasks settle before the caller exits,
+including when either task fails.
+
 This rationale comes from those unpublished commits, their callers, and the PoC
 discussion. No external incident, tracker entry, or production behavior is claimed
 as evidence for the original choice.
