@@ -43,10 +43,10 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
   ];
 
   static override flags = {
-    type: Flags.string({
+    type: Flags.option({
       description: 'Only show one advisor',
-      options: ['security', 'performance'],
-    }),
+      options: ['security', 'performance'] as const,
+    })(),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -85,7 +85,7 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
       return;
     }
 
-    let result = await this.fetchLintsAsync(graphqlClient, projectId, types);
+    let result = await this.fetchLintsAsync(graphqlClient, projectId, types, nonInteractive);
     if (result === undefined) {
       if (nonInteractive) {
         throw new EasCommandError(
@@ -99,9 +99,8 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
         message: 'Re-authorize Supabase in your browser now?',
       });
       if (!confirmed) {
-        throw new EasCommandError(
-          `Run ${chalk.bold(REAUTH_COMMAND)} when you are ready to re-authorize.`
-        );
+        Log.warn(`Run ${chalk.bold(REAUTH_COMMAND)} when you are ready to re-authorize.`);
+        return;
       }
       const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
       const connection = await SupabaseQuery.getSupabaseConnectionByAccountIdAsync(
@@ -125,7 +124,7 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
         });
       }
       Log.newLine();
-      result = await this.fetchLintsAsync(graphqlClient, projectId, types);
+      result = await this.fetchLintsAsync(graphqlClient, projectId, types, nonInteractive);
       if (result === undefined) {
         throw new EasCommandError(
           `Supabase still denies access to the advisors after re-authorizing. Check that the Expo integration is allowed to read the database for ${chalk.bold(formatSupabaseProjectLabel(project))}.`
@@ -134,11 +133,10 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
     }
 
     if (result === null) {
-      if (!jsonFlag) {
-        logNoSupabaseProject(exp.slug);
-      }
       if (jsonFlag) {
         printJsonOnlyOutput({ project: null, security: null, performance: null });
+      } else {
+        logNoSupabaseProject(exp.slug);
       }
       return;
     }
@@ -184,9 +182,10 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
   private async fetchLintsAsync(
     graphqlClient: ExpoGraphqlClient,
     projectId: string,
-    types: SupabaseAdvisorType[]
+    types: SupabaseAdvisorType[],
+    nonInteractive: boolean
   ): Promise<SupabaseAdvisorLintsData | null | undefined> {
-    const spinner = ora('Fetching Supabase advisor findings').start();
+    const spinner = nonInteractive ? null : ora('Fetching Supabase advisor findings').start();
     try {
       const result = await SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync(
         graphqlClient,
@@ -194,19 +193,19 @@ export default class IntegrationsSupabaseAdvisors extends EasCommand {
         types
       );
       if (result) {
-        spinner.succeed(
+        spinner?.succeed(
           `Fetched Supabase advisor findings for ${formatSupabaseProjectLabel(result.project)}`
         );
       } else {
-        spinner.stop();
+        spinner?.stop();
       }
       return result;
     } catch (error) {
       if (isSupabaseReauthorizationRequiredError(error)) {
-        spinner.fail('Supabase needs to be re-authorized');
+        spinner?.fail('Supabase needs to be re-authorized');
         return undefined;
       }
-      spinner.fail('Failed to fetch Supabase advisor findings');
+      spinner?.fail('Failed to fetch Supabase advisor findings');
       throw error;
     }
   }
