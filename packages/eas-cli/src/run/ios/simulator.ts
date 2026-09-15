@@ -138,11 +138,15 @@ export async function openSimulatorAppAsync(simulatorUdid: string): Promise<void
       args.push('--args', '-CurrentDeviceUDID', simulatorUdid);
     }
     await spawnAsync('open', args);
-  } catch {
+  } catch (error) {
     const deviceHubArgs = simulatorUdid
       ? [`devices://device/open?id=${simulatorUdid}`]
       : ['-a', 'DeviceHub'];
-    await spawnAsync('open', deviceHubArgs);
+    try {
+      await spawnAsync('open', deviceHubArgs);
+    } catch {
+      throw error;
+    }
   }
 }
 
@@ -218,7 +222,7 @@ const XCODE_DEVICE_HUB_INFO_PLIST_PATH = '../Applications/DeviceHub.app/Contents
 
 export async function getSimulatorAppIdAsync(): Promise<string | undefined> {
   const launchServicesAppId =
-    (await osascript.safeIdOfAppAsync('Simulator')) ??
+    (await osascript.safeIdOfAppAsync('Simulator')) ||
     (await osascript.safeIdOfAppAsync('DeviceHub'));
   if (launchServicesAppId) {
     return launchServicesAppId;
@@ -229,7 +233,7 @@ export async function getSimulatorAppIdAsync(): Promise<string | undefined> {
     return undefined;
   }
   return (
-    (await getInfoPlistBundleIdAsync(path.join(xcodePath, XCODE_SIMULATOR_INFO_PLIST_PATH))) ??
+    (await getInfoPlistBundleIdAsync(path.join(xcodePath, XCODE_SIMULATOR_INFO_PLIST_PATH))) ||
     (await getInfoPlistBundleIdAsync(path.join(xcodePath, XCODE_DEVICE_HUB_INFO_PLIST_PATH)))
   );
 }

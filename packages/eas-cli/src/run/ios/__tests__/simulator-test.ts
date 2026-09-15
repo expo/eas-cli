@@ -43,6 +43,15 @@ describe(getSimulatorAppIdAsync, () => {
     expect(spawnAsync).not.toHaveBeenCalled();
   });
 
+  it('still checks DeviceHub when the Simulator lookup returns an empty id', async () => {
+    jest
+      .mocked(osascript.safeIdOfAppAsync)
+      .mockResolvedValueOnce('')
+      .mockResolvedValueOnce('com.apple.dt.Devices');
+
+    await expect(getSimulatorAppIdAsync()).resolves.toBe('com.apple.dt.Devices');
+  });
+
   it('falls back to the Simulator.app Info.plist inside the selected Xcode', async () => {
     jest.mocked(osascript.safeIdOfAppAsync).mockResolvedValue(null);
     jest
@@ -123,10 +132,15 @@ describe(openSimulatorAppAsync, () => {
     expect(spawnAsync).toHaveBeenNthCalledWith(2, 'open', ['-a', 'DeviceHub']);
   });
 
-  it('rethrows when Device Hub cannot be opened either', async () => {
-    jest.mocked(spawnAsync).mockRejectedValue(new Error('Unable to find application'));
+  it('rethrows the Simulator.app error when Device Hub cannot be opened either', async () => {
+    jest
+      .mocked(spawnAsync)
+      .mockRejectedValueOnce(new Error('LaunchServices failed to open Simulator'))
+      .mockRejectedValueOnce(new Error('Unable to find application named DeviceHub'));
 
-    await expect(openSimulatorAppAsync(UDID)).rejects.toThrow('Unable to find application');
+    await expect(openSimulatorAppAsync(UDID)).rejects.toThrow(
+      'LaunchServices failed to open Simulator'
+    );
   });
 });
 
