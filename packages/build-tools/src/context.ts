@@ -23,6 +23,7 @@ import { Datadog } from './datadog';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
+import { getWorkflowInterpolationContext } from './utils/workflowInterpolationContext';
 
 export type Artifacts = Partial<Record<ManagedArtifactType, string>>;
 
@@ -271,7 +272,7 @@ export class BuildContext<TJob extends Job = Job> {
       ...this._job,
       ...job,
       workflowInterpolationContext:
-        job.workflowInterpolationContext ?? this.job.workflowInterpolationContext,
+        getWorkflowInterpolationContext(job) ?? getWorkflowInterpolationContext(this.job),
       triggeredBy: this._job.triggeredBy,
       secrets: {
         ...this.job.secrets,
