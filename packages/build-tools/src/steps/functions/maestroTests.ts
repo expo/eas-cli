@@ -238,12 +238,13 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         input: inputs.backend.value,
         env,
       });
-      // The runner writes JUnit alongside HTML and Allure. output_format selects the
-      // extra report artifact; it does not disable EAS results or screenshots.
-      const collectJUnit = outputFormat === 'junit' || backend === 'maestro-runner';
-      if (collectJUnit && outputFormat !== 'junit') {
+      // Runner exposes JUnit results to EAS regardless of output_format.
+      if (backend === 'maestro-runner') {
         outputs.final_report_path.set(junitFinalReportPath);
       }
+      // The runner emits JUnit for every format. Official Maestro emits it only
+      // when output_format is junit.
+      const shouldProcessJUnitReports = backend === 'maestro-runner' || outputFormat === 'junit';
 
       const flowPaths = parseInput(
         FlowPathSchema,
@@ -351,7 +352,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           testsDirectory,
           `${platform}-maestro-runner-attempt-${attempt}`
         );
-        const outputPath = collectJUnit
+        const outputPath = shouldProcessJUnitReports
           ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
           : backend === 'maestro' && outputFormat
             ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
@@ -421,7 +422,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         }
 
         // Harvest failure screenshots before retry subsetting when JUnit results are available.
-        if (collectJUnit) {
+        if (shouldProcessJUnitReports) {
           let screenshots: HarvestedScreenshot[];
           switch (backend) {
             case 'maestro': {
@@ -513,7 +514,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       // Smart merge first; on data errors (bad XML, missing input) fall back
       // to copy-latest so the caller still gets a single JUnit file.
       // Filesystem errors short-circuit straight to SystemError.
-      if (collectJUnit) {
+      if (shouldProcessJUnitReports) {
         try {
           await mergeJUnitReports({
             sourceDir: junitReportDirectory,
@@ -542,7 +543,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       // Upload before the failure verdict so fully-failed runs still get screenshots.
-      if (collectJUnit) {
+      if (shouldProcessJUnitReports) {
         await uploadFailureScreenshotsAsync({
           harvested,
           backend,
