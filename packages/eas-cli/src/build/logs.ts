@@ -4,6 +4,7 @@ import { choicesFromJobLogs, stepLogTail } from '../commandUtils/logs/format';
 import { parseLogLines } from '../commandUtils/logs/parseLogs';
 import { JobLogs, RawLogLine } from '../commandUtils/logs/types';
 import { LogSource } from '../commandUtils/logs/watcher';
+import fetch from '../fetch';
 import { BuildFragment, BuildStatus, RealtimeLogsTargetType } from '../graphql/generated';
 import Log from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
