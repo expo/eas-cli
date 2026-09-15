@@ -59,6 +59,8 @@ export function createPrebuildBuildFunction(): BuildFunction {
         await spawn('pnpm', argsWithExpo, options);
       } else if (packageManager === PackageManager.BUN) {
         await spawn('bun', argsWithExpo, options);
+      } else if (packageManager === PackageManager.DENO) {
+        await spawn('deno', ['run', '-A', 'npm:expo', ...prebuildCommandArgs], options);
       } else {
         throw new Error(`Unsupported package manager: ${packageManager}`);
       }

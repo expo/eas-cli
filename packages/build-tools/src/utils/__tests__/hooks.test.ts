@@ -98,6 +98,28 @@ describe(runHookIfPresent, () => {
     expect(true).toBe(true);
   });
 
+  it('runs the hook with `deno task` when the project uses deno', async () => {
+    vol.fromJSON(
+      {
+        './package.json': JSON.stringify({
+          scripts: {
+            [Hook.POST_INSTALL]: 'echo post_install',
+          },
+        }),
+        './deno.lock': 'fakelockfile',
+      },
+      '/workingdir/build'
+    );
+
+    await runHookIfPresent(ctx, Hook.POST_INSTALL);
+
+    expect(spawn).toBeCalledWith(
+      PackageManager.DENO,
+      ['task', Hook.POST_INSTALL],
+      expect.anything()
+    );
+  });
+
   it('does not run the hook if not present in package.json', async () => {
     vol.fromJSON(
       {

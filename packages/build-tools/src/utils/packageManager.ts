@@ -1,8 +1,11 @@
+import path from 'path';
+
 import { errors } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { type BuildStepEnv } from '@expo/steps';
 import spawnAsync from '@expo/turtle-spawn';
+import fs from 'fs-extra';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -11,6 +14,17 @@ export enum PackageManager {
   NPM = 'npm',
   PNPM = 'pnpm',
   BUN = 'bun',
+  DENO = 'deno',
+}
+
+export const DENO_LOCK_FILE = 'deno.lock';
+
+function isUsingDeno(directory: string): boolean {
+  if (fs.existsSync(path.join(directory, DENO_LOCK_FILE))) {
+    return true;
+  }
+  const workspaceRoot = PackageManagerUtils.resolveWorkspaceRoot(directory);
+  return workspaceRoot ? fs.existsSync(path.join(workspaceRoot, DENO_LOCK_FILE)) : false;
 }
 
 export function resolvePackageManager(
@@ -29,6 +43,12 @@ export function resolvePackageManager(
       return PackageManager.YARN;
     }
   } catch {}
+
+  // `@expo/package-manager` does not know about deno (yet), so a Node package
+  // manager lockfile always wins; deno.lock only decides when none is present.
+  if (isUsingDeno(directory)) {
+    return PackageManager.DENO;
+  }
 
   const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
   if (fallback) {

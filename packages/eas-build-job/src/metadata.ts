@@ -153,7 +153,7 @@ export type Metadata = {
   /**
    * Which package manager will be used for the build. Determined based on lockfiles in the project directory.
    */
-  requiredPackageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun';
+  requiredPackageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun' | 'deno';
 
   /**
    * Indicates if this is an iOS build for a simulator
@@ -203,7 +203,7 @@ export const MetadataSchema = Joi.object({
   runWithNoWaitFlag: Joi.boolean(),
   customWorkflowName: Joi.string(),
   developmentClient: Joi.boolean(),
-  requiredPackageManager: Joi.string().valid('npm', 'pnpm', 'yarn', 'bun'),
+  requiredPackageManager: Joi.string().valid('npm', 'pnpm', 'yarn', 'bun', 'deno'),
   simulator: Joi.boolean(),
   selectedImage: Joi.string(),
   customNodeVersion: Joi.string(),

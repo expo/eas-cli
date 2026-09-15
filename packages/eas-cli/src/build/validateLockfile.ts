@@ -9,12 +9,16 @@ import {
 import { pathExists } from 'fs-extra';
 import path from 'path';
 
+// Not exported by @expo/package-manager, which has no deno support (yet).
+const DENO_LOCK_FILE = 'deno.lock';
+
 const LOCKFILE_NAMES = [
   NPM_LOCK_FILE,
   YARN_LOCK_FILE,
   PNPM_LOCK_FILE,
   BUN_LOCK_FILE,
   BUN_TEXT_LOCK_FILE,
+  DENO_LOCK_FILE,
 ];
 
 async function hasLockfileAsync(dir: string): Promise<boolean> {
