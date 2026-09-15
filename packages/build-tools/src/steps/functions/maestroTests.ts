@@ -563,25 +563,28 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       switch (outputFormat) {
         case 'html': {
           switch (backend) {
-            case 'maestro':
-              if (maestroCliOutputPath) {
-                selectedReport = {
-                  name: 'Maestro HTML Report',
-                  artifactPath: maestroCliOutputPath,
-                  finalReportPath: maestroCliOutputPath,
-                };
+            case 'maestro': {
+              if (!maestroCliOutputPath) {
+                break;
               }
+              selectedReport = {
+                name: 'Maestro HTML Report',
+                artifactPath: maestroCliOutputPath,
+                finalReportPath: maestroCliOutputPath,
+              };
               break;
+            }
             case 'maestro-runner': {
               const reportDirectory = reportDirectories.at(-1);
-              if (reportDirectory) {
-                // HTML references nearby screenshots, so keep its whole attempt directory.
-                selectedReport = {
-                  name: 'Maestro Runner HTML Report',
-                  artifactPath: reportDirectory,
-                  finalReportPath: path.join(reportDirectory, 'report.html'),
-                };
+              if (!reportDirectory) {
+                break;
               }
+              // HTML references nearby screenshots, so keep its whole attempt directory.
+              selectedReport = {
+                name: 'Maestro Runner HTML Report',
+                artifactPath: reportDirectory,
+                finalReportPath: path.join(reportDirectory, 'report.html'),
+              };
               break;
             }
           }
@@ -590,17 +593,21 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         case 'allure': {
           switch (backend) {
             case 'maestro':
+              logger.warn(
+                'Maestro CLI does not support Allure reports; no Allure artifact was uploaded.'
+              );
               break;
             case 'maestro-runner': {
               const reportDirectory = reportDirectories.at(-1);
-              if (reportDirectory) {
-                const allureResultsDirectory = path.join(reportDirectory, 'allure-results');
-                selectedReport = {
-                  name: 'Maestro Runner Allure Results',
-                  artifactPath: allureResultsDirectory,
-                  finalReportPath: allureResultsDirectory,
-                };
+              if (!reportDirectory) {
+                break;
               }
+              const allureResultsDirectory = path.join(reportDirectory, 'allure-results');
+              selectedReport = {
+                name: 'Maestro Runner Allure Results',
+                artifactPath: allureResultsDirectory,
+                finalReportPath: allureResultsDirectory,
+              };
               break;
             }
           }
