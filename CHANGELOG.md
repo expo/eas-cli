@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Bump `@expo/apple-utils` to `2.2.1`. ([#TBD](https://github.com/expo/eas-cli/pull/TBD) by [@brentvatne](https://github.com/brentvatne))
+
 ## [24.4.0](https://github.com/expo/eas-cli/releases/tag/v24.4.0) - 2026-09-14
 
 ### 🛠 Breaking changes
