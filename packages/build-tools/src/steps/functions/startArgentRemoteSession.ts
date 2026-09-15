@@ -258,20 +258,36 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        await sessionHost?.finishAsync();
-        if (toolsTunnel) {
-          await toolsTunnel.stopAsync();
+        const cleanup = await Promise.allSettled([
+          (async () => {
+            if (toolsTunnel) {
+              await toolsTunnel.stopAsync();
+            }
+            await stopArgentEventCollectionSafelyAsync({
+              eventCollection,
+              deviceRunSessionId,
+              logger,
+            });
+            artifactPollAbortController.abort();
+            try {
+              await artifactPollingPromise;
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error(String(err));
+              Sentry.capture('Could not finish Argent remote session artifact polling', error);
+              logger.warn(
+                { err: error },
+                'Could not finish Argent remote session artifact polling.'
+              );
+            }
+            await argentServer.stopAsync();
+          })(),
+          sessionHost?.finishAsync(),
+        ]);
+        for (const result of cleanup) {
+          if (result.status === 'rejected') {
+            throw result.reason;
+          }
         }
-        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
-        artifactPollAbortController.abort();
-        try {
-          await artifactPollingPromise;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not finish Argent remote session artifact polling', error);
-          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
-        }
-        await argentServer.stopAsync();
       }
     }),
   });

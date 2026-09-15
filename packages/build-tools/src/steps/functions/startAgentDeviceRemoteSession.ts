@@ -175,16 +175,25 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        await sessionHost?.finishAsync();
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
-            deviceRunSessionId,
-            logger,
-          });
+        const cleanup = await Promise.allSettled([
+          (async () => {
+            await agentDeviceTunnel.stopAsync();
+            if (eventCollection) {
+              await stopAgentDeviceEventCollectionSafelyAsync({
+                eventCollection,
+                deviceRunSessionId,
+                logger,
+              });
+            }
+            await daemonProcess.stopAsync();
+          })(),
+          sessionHost?.finishAsync(),
+        ]);
+        for (const result of cleanup) {
+          if (result.status === 'rejected') {
+            throw result.reason;
+          }
         }
-        await daemonProcess.stopAsync();
       }
     }),
   });
