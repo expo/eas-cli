@@ -1118,6 +1118,27 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
+  it('warns that Maestro CLI does not support Allure reports', async () => {
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        output_format: 'allure',
+        platform: 'android',
+      },
+      { logger }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Maestro CLI does not support Allure reports; no Allure artifact was uploaded.'
+    );
+    expect(mockUploadArtifact).not.toHaveBeenCalled();
+  });
+
   it('uses lowercase extension for non-junit formats regardless of input casing', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
