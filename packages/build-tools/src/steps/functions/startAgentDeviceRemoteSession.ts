@@ -305,6 +305,7 @@ async function startAgentDeviceDaemonFromGitAsync({
   });
 
   logger.info('Launching daemon from cloned agent-device source.');
+  // Git fallback is TypeScript source. The published path runs node on dist JS.
   return spawnDetached({
     command: 'bun',
     args: ['run', 'src/daemon.ts'],

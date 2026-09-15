@@ -152,7 +152,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
       );
       // Keep Argent itself in foreground mode under the detached process. This preserves
-      // the package runner -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
         command: startServer.command,
         args: startServer.args,
