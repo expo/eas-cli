@@ -256,7 +256,9 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('rejects sharding with maestro-runner', async () => {
+  it('passes shards to maestro-runner as parallel devices', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
     const step = createStep({
       flow_path: ['flows/a.yaml'],
       platform: 'android',
@@ -264,10 +266,9 @@ describe('createMaestroTestsBuildFunction', () => {
       shards: 2,
     });
 
-    await expect(step.executeAsync()).rejects.toThrow(
-      'maestro-runner does not support EAS Maestro test sharding'
-    );
-    expect(mockedSpawn).not.toHaveBeenCalled();
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0][1]).toContain('--parallel=2');
   });
 
   it('rejects a non-junit output_format with maestro-runner', async () => {
