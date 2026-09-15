@@ -122,7 +122,9 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
+        logger.info(
+          `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+        );
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -132,7 +134,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           remoteConfig: {
             agentDeviceRemoteSessionUrl,
             agentDeviceRemoteSessionToken: daemonToken,
-            webPreviewUrl: webPreview.previewUrl,
+            webPreviewUrl: webPreview.previewPageUrl,
+            previewApiUrl: webPreview.apiUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
           logger,

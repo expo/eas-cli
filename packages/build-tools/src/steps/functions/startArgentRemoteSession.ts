@@ -216,7 +216,9 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
+        logger.info(
+          `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+        );
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -226,7 +228,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           remoteConfig: {
             toolsUrl: publicToolsUrl,
             ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
-            webPreviewUrl: webPreview.previewUrl,
+            webPreviewUrl: webPreview.previewPageUrl,
+            previewApiUrl: webPreview.apiUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
           logger,
