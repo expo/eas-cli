@@ -11,6 +11,7 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { startDeviceRunSessionPreview } from '../deviceRunSessionPreview';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import {
@@ -27,6 +28,11 @@ import {
   waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
 
+jest.mock('../deviceRunSessionPreview', () => ({
+  startDeviceRunSessionPreview: jest.fn(() => ({
+    stopAsync: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
@@ -411,6 +417,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       }),
     ]);
     const expoDeviceHubCallIndex = spawnCalls.findIndex(([command]) => command === 'npx');
+    expect(spawnCalls.filter(([command]) => command === 'ffmpeg')).toHaveLength(1);
     expect(expoDeviceHubCallIndex).toBeGreaterThan(2);
     expect(jest.mocked(spawn).mock.invocationCallOrder[2]).toBeLessThan(
       jest.mocked(spawn).mock.invocationCallOrder[expoDeviceHubCallIndex]
@@ -508,12 +515,76 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(startDeviceRunSessionPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceRunSessionId: 'drs-id',
+        captureAsync: expect.any(Function),
+      })
+    );
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
+  it.each([false, true])(
+    'does not block macOS readiness on ffmpeg setup (stop early: %s)',
+    async stopEarly => {
+      const close = jest.fn().mockResolvedValue(undefined);
+      jest.mocked(ngrok.forward).mockResolvedValue({
+        url: () => 'https://ios-preview.example.test',
+        close,
+      } as never);
+      let finishInstall!: () => void;
+      const installed = new Promise<void>(resolve => {
+        finishInstall = resolve;
+      });
+      const defaultSpawn = jest.mocked(spawn).getMockImplementation()!;
+      jest.mocked(spawn).mockImplementation((command, ...args) => {
+        if (command === 'ffmpeg') {
+          return Promise.reject(new Error('ffmpeg is missing')) as ReturnType<typeof spawn>;
+        }
+        if (command === 'brew') {
+          return installed as unknown as ReturnType<typeof spawn>;
+        }
+        return defaultSpawn(command, ...args);
+      });
+      jest.mocked(startDeviceRunSessionPreview).mockClear();
+      let ready = false;
+      const starting = startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        baseDomain,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+      }).then(preview => {
+        ready = true;
+        return preview;
+      });
+      // Allow local port discovery and the asynchronous setup chain to finish.
+      await new Promise(resolve => setImmediate(resolve));
+      const readyBeforeInstall = ready;
+      if (!readyBeforeInstall) {
+        finishInstall();
+        await starting;
+      }
+      expect(readyBeforeInstall).toBe(true);
+      const preview = await starting;
+      expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+      if (stopEarly) {
+        await preview.stopAsync();
+        expect(close).toHaveBeenCalledTimes(1);
+      }
+      finishInstall();
+      await new Promise(resolve => setImmediate(resolve));
+      expect(startDeviceRunSessionPreview).toHaveBeenCalledTimes(stopEarly ? 0 : 1);
+      if (!stopEarly) {
+        await preview.stopAsync();
+      }
+    }
+  );
+
+  it('prepares ffmpeg for session thumbnails on macOS', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -529,11 +600,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
 
     expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
-    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
-      'ffmpeg',
-      expect.anything(),
-      expect.anything()
-    );
+    expect(jest.mocked(spawn)).toHaveBeenCalledWith('ffmpeg', expect.anything(), expect.anything());
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
