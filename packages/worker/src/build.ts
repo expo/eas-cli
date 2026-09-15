@@ -3,6 +3,7 @@ import {
   BuildContext,
   Builders,
   TurtleSshSession,
+  runDeviceRunSessionJobAsync,
   runGenericJobAsync,
 } from '@expo/build-tools';
 import {
@@ -11,6 +12,7 @@ import {
   BuildMode,
   BuildPhase,
   BuildPhaseResult,
+  DeviceRunSession,
   Generic,
   Ios,
   LogMarker,
@@ -80,6 +82,12 @@ export async function build({
       }
       case undefined: {
         artifacts = {};
+        if (job.type === DeviceRunSession.JobType.DEVICE_RUN_SESSION) {
+          // EAS Simulator sessions: the runner owns the lifecycle, validates the
+          // payload, and rejects with the error to report on the job run.
+          await runDeviceRunSessionJobAsync(ctx as BuildContext<DeviceRunSession.Job>);
+          break;
+        }
         const buildCtx = ctx as BuildContext<Generic.Job>;
         const { runResult } = await runGenericJobAsync(buildCtx);
 
