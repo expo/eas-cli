@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress.
+
 ### 🧹 Chores
 
 ## [24.5.0](https://github.com/expo/eas-cli/releases/tag/v24.5.0) - 2026-09-15
