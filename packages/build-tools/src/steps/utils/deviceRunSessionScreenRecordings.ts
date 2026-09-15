@@ -58,25 +58,31 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
     logger,
     deviceRunSessionId,
     recordings,
+    signal,
   }: {
     logger: bunyan;
     deviceRunSessionId: string;
     recordings: z.infer<typeof RecordingsSchema>;
+    signal?: AbortSignal;
   }
-): Promise<void> {
+): Promise<boolean> {
   if (recordings.length === 0) {
     logger.info('No device screen recordings found; skipping uploads.');
-    return;
+    return true;
   }
 
   const limit = limitFactory(5);
-  await Promise.all(
+  const uploaded = await Promise.all(
     recordings.map(recording =>
       limit(async () => {
         try {
+          signal?.throwIfAborted();
           const metadata = RecordingManifestSchema.parse(
             JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
           );
+          if (path.basename(metadata.recording) !== metadata.recording) {
+            throw new Error('Recording filename must not contain a directory.');
+          }
           const startedAt = recordingStartTimeFormatter.format(
             new Date(metadata.firstFrameWallClock.iso8601)
           );
@@ -106,7 +112,11 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
             },
             size,
             stream: createReadStream(recordingPath),
+            reopenStream: () => createReadStream(recordingPath),
+            signal,
           });
+          signal?.throwIfAborted();
+          return true;
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
           Sentry.capture('Could not upload device screen recording', error);
@@ -114,8 +124,10 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
             { err: error },
             `Could not upload screen recording for ${recording.deviceName}.`
           );
+          return false;
         }
       })
     )
   );
+  return uploaded.every(Boolean);
 }
