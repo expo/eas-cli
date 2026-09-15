@@ -17,6 +17,7 @@ import {
 import { authorizeViaBrowserAsync } from '../../../../integrations/supabase/provision';
 import { getOwnerAccountForProjectIdAsync } from '../../../../project/projectUtils';
 import Log from '../../../../log';
+import { ora } from '../../../../ora';
 import { confirmAsync } from '../../../../prompts';
 import { printJsonOnlyOutput } from '../../../../utils/json';
 import IntegrationsSupabaseAdvisors from '../advisors';
@@ -215,6 +216,16 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
   });
 
+  it.each(['--json', '--non-interactive'])('does not start a spinner with %s', async flag => {
+    await createCommand([flag]).runAsync();
+    expect(ora).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unsupported advisor type before making requests', async () => {
+    await expect(createCommand(['--type', 'other']).runAsync()).rejects.toThrow();
+    expect(SupabaseQuery.getSupabaseProjectByAppIdAsync).not.toHaveBeenCalled();
+  });
+
   it('prints structured findings with --json', async () => {
     await createCommand(['--json']).runAsync();
 
@@ -258,6 +269,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
       '2024-01-01'
     );
     expect(runCommand).not.toHaveBeenCalled();
+    expect(SupabaseMutation.disconnectSupabaseAsync).not.toHaveBeenCalled();
     expect(SupabaseQuery.getSupabaseAdvisorLintsByAppIdAsync).toHaveBeenCalledTimes(2);
     expect(loggedOutput()).toContain('Security · 1 error');
   });
@@ -278,14 +290,17 @@ describe(IntegrationsSupabaseAdvisors, () => {
     );
   });
 
-  it('stops with the reauth command when the user declines to re-authorize', async () => {
+  it('warns and returns when the user declines to re-authorize', async () => {
     mockReauthorizationRequiredOnce();
     jest.mocked(confirmAsync).mockResolvedValue(false);
 
-    await expect(createCommand([]).runAsync()).rejects.toThrow(
-      'eas integrations:supabase:advisors'
+    await expect(createCommand([]).runAsync()).resolves.toBeUndefined();
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('eas integrations:supabase:advisors')
     );
+    expect(authorizeViaBrowserAsync).not.toHaveBeenCalled();
     expect(runCommand).not.toHaveBeenCalled();
+    expect(SupabaseMutation.disconnectSupabaseAsync).not.toHaveBeenCalled();
   });
 
   it('fails with the reauth command in non-interactive mode', async () => {
@@ -294,6 +309,7 @@ describe(IntegrationsSupabaseAdvisors, () => {
     await expect(createCommand(['--non-interactive']).runAsync()).rejects.toThrow(EasCommandError);
     expect(confirmAsync).not.toHaveBeenCalled();
     expect(runCommand).not.toHaveBeenCalled();
+    expect(SupabaseMutation.disconnectSupabaseAsync).not.toHaveBeenCalled();
   });
   it('distinguishes unavailable advisors from clean results', async () => {
     jest
