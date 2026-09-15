@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Support Xcode 27, which replaces Simulator.app with Device Hub, in `build:dev`, `build:run`, and `run` for iOS simulator builds. ([#TBD](https://github.com/expo/eas-cli/pull/TBD) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Support Xcode 27, which replaces Simulator.app with Device Hub, in `build:dev`, `build:run`, and `run` for iOS simulator builds. ([#4405](https://github.com/expo/eas-cli/pull/4405) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
