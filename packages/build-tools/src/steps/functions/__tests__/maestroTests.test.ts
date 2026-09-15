@@ -315,6 +315,20 @@ describe('createMaestroTestsBuildFunction', () => {
     }
   );
 
+  it('sets the runner JUnit output before rejecting an invalid flow_path', async () => {
+    const step = createStep({
+      flow_path: [],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'html',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(step.getOutputValueByName('final_report_path')).toBe(
+      '/home/expo/.maestro/tests/android-maestro-junit.xml'
+    );
+  });
+
   it('rejects an unknown output_format with maestro-runner', async () => {
     const step = createStep({
       flow_path: ['flows/a.yaml'],
