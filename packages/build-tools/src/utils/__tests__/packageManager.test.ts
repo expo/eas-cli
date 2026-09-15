@@ -261,6 +261,36 @@ describe(resolvePackageInstall, () => {
       args: ['install', '--no-audit', '--omit=dev'],
     });
   });
+
+  it('maps yarn and pnpm production installs', () => {
+    expect(resolvePackageInstall(PackageManager.YARN, { production: true })).toEqual({
+      command: 'yarn',
+      args: ['install', '--production'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM, { production: true })).toEqual({
+      command: 'pnpm',
+      args: ['install', '--prod'],
+    });
+  });
+
+  it('maps non-production installs', () => {
+    expect(resolvePackageInstall(PackageManager.NPM)).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit'],
+    });
+    expect(resolvePackageInstall(PackageManager.BUN)).toEqual({
+      command: 'bun',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.YARN)).toEqual({
+      command: 'yarn',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM)).toEqual({
+      command: 'pnpm',
+      args: ['install'],
+    });
+  });
 });
 
 describe(resolvePackageVersionAsync, () => {
