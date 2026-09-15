@@ -1,5 +1,5 @@
 import { type SignedUrl } from '@expo/build-tools';
-import { BuildJob, Generic, Metadata, errors } from '@expo/eas-build-job';
+import { BuildJob, DeviceRunSession, Generic, Metadata, errors } from '@expo/eas-build-job';
 
 export const androidImagesWithJavaVersionLowerThen11 = [
   'ubuntu-20.04-jdk-8-ndk-r19c',
@@ -113,7 +113,7 @@ export namespace LauncherMessage {
       }
     | {
         jobType: 'jobRun';
-        job: Generic.Job;
+        job: Generic.Job | DeviceRunSession.Job;
         jobRunId: string;
       }
   );
