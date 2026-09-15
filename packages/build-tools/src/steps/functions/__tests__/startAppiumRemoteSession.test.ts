@@ -7,9 +7,9 @@ import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 
 import {
+  installAppiumAsync,
   resolveAppium3VersionSpec,
   resolveAppiumDeviceAsync,
-  installAppiumAsync,
 } from '../startAppiumRemoteSession';
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
