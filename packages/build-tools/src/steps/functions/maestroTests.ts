@@ -108,6 +108,9 @@ function buildMaestroArgs({
     }
     case 'maestro-runner': {
       const args = [`--platform=${platform}`, 'test', `--output=${output}`, '--flatten'];
+      if (shards !== undefined && shards > 1) {
+        args.push(`--parallel=${shards}`);
+      }
       if (includeTags) {
         args.push(`--include-tags=${includeTags}`);
       }
@@ -259,12 +262,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           undefined,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
-      if (backend === 'maestro-runner' && shards !== undefined && shards > 1) {
-        throw new UserError(
-          'ERR_MAESTRO_INVALID_INPUT',
-          'maestro-runner does not support EAS Maestro test sharding. Remove shards or set it to 1.'
-        );
-      }
       if (backend === 'maestro-runner' && outputFormat !== undefined && outputFormat !== 'junit') {
         throw new UserError(
           'ERR_MAESTRO_INVALID_INPUT',
