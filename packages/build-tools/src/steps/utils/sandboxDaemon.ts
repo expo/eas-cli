@@ -1,7 +1,19 @@
-import { SystemError } from '@expo/eas-build-job';
+import {
+  type SandboxDaemonCommandResult,
+  SandboxDaemonCommands,
+  type SandboxDaemonMethod,
+  SandboxDaemonRequestZ,
+  type SandboxDaemonResponse,
+  SystemError,
+} from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket from 'ws';
+
+import {
+  type SandboxDaemonCommandImplementations,
+  createSandboxCommandImplementations,
+} from './sandboxCommandImplementations';
 
 export interface SandboxDaemonOptions {
   credential: string;
@@ -9,6 +21,8 @@ export interface SandboxDaemonOptions {
   reconnectDelayMs: number;
   logger: bunyan;
   signal?: AbortSignal;
+  workingDirectory: string;
+  env: NodeJS.ProcessEnv;
 }
 
 export interface SandboxDaemon {
@@ -25,6 +39,12 @@ export async function startSandboxDaemonAsync(
   let hasConnected = false;
   let resolveConnected!: () => void;
   let rejectConnected!: (error: Error) => void;
+  const { commandImplementations, stoppedPromise: commandsStoppedPromise } =
+    createSandboxCommandImplementations({
+      workingDirectory: options.workingDirectory,
+      env: options.env,
+      signal: abortController.signal,
+    });
   const connected = new Promise<void>((resolve, reject) => {
     resolveConnected = resolve;
     rejectConnected = reject;
@@ -38,15 +58,39 @@ export async function startSandboxDaemonAsync(
   const connectionLoop = (async () => {
     while (!abortController.signal.aborted) {
       try {
-        socket = new WebSocket(new URL('/sandbox/connect', options.serverUrl), {
+        const connectedSocket = new WebSocket(new URL('/sandbox/connect', options.serverUrl), {
           handshakeTimeout: 10_000,
           headers: { Authorization: `Bearer ${options.credential}` },
         });
-        await waitForOpen(socket);
+        socket = connectedSocket;
+        await waitForOpen(connectedSocket);
         options.logger.info('Sandbox MCP server connected.');
+        connectedSocket.on('message', async message => {
+          try {
+            const response = await handleMessageAsync(commandImplementations, message.toString());
+            // MCP fails pending calls on disconnect. Responses belong to this socket only.
+            if (connectedSocket.readyState !== WebSocket.OPEN) {
+              options.logger.warn(
+                'Sandbox command response was lost after disconnect. The command may have run and output may have been consumed.'
+              );
+              return;
+            }
+            await new Promise<void>((resolve, reject) => {
+              connectedSocket.send(JSON.stringify(response), error => {
+                if (error) {
+                  reject(error);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (error) {
+            options.logger.warn({ err: error }, 'Could not send sandbox command response.');
+          }
+        });
         hasConnected = true;
         resolveConnected();
-        await waitForClose(socket);
+        await waitForClose(connectedSocket);
       } catch (error: any) {
         if (!hasConnected) {
           const message = `Sandbox MCP server connection failed: ${error?.message ?? 'unknown error'}`;
@@ -82,6 +126,7 @@ export async function startSandboxDaemonAsync(
     async stopAsync(): Promise<void> {
       options.signal?.removeEventListener('abort', stop);
       stop();
+      await commandsStoppedPromise;
       await connectionLoop;
     },
   };
@@ -103,4 +148,49 @@ function waitForClose(socket: WebSocket): Promise<void> {
     socket.once('close', resolve);
     socket.once('error', reject);
   });
+}
+
+async function handleMessageAsync(
+  commandImplementations: SandboxDaemonCommandImplementations,
+  message: string
+): Promise<SandboxDaemonResponse> {
+  let rawRequest: unknown;
+  try {
+    rawRequest = JSON.parse(message);
+  } catch {
+    return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } };
+  }
+
+  const request = SandboxDaemonRequestZ.safeParse(rawRequest);
+  if (!request.success) {
+    return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } };
+  }
+
+  const { id, method, params } = request.data;
+  if (!Object.hasOwn(SandboxDaemonCommands, method)) {
+    return { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
+  }
+  const commandMethod = method as SandboxDaemonMethod;
+
+  const parsedParams = SandboxDaemonCommands[commandMethod].params.safeParse(params);
+  if (!parsedParams.success) {
+    return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Invalid params' } };
+  }
+  try {
+    return {
+      jsonrpc: '2.0',
+      id,
+      result: await (
+        commandImplementations[commandMethod] as (
+          params: typeof parsedParams.data
+        ) => Promise<SandboxDaemonCommandResult<typeof commandMethod>>
+      )(parsedParams.data),
+    };
+  } catch (error) {
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: { code: -32603, message: error instanceof Error ? error.message : 'Internal error' },
+    };
+  }
 }

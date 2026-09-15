@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SandboxDaemonResponseZ, SystemError } from '@expo/eas-build-job';
 import Log from '@expo/logger';
 import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
@@ -7,6 +7,10 @@ import WebSocket, { WebSocketServer } from 'ws';
 import { startSandboxDaemonAsync } from '../sandboxDaemon';
 
 jest.unmock('@expo/logger');
+jest.unmock('fs');
+jest.unmock('fs/promises');
+jest.unmock('node:fs');
+jest.unmock('node:fs/promises');
 
 describe(startSandboxDaemonAsync.name, () => {
   const logger = Log.child({ buildStepId: 'sandbox-test' });
@@ -17,6 +21,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl,
       reconnectDelayMs: 10,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -40,6 +46,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl: `ws://127.0.0.1:${(server.address() as AddressInfo).port}`,
       reconnectDelayMs: 60_000,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       const socket = await connection;
@@ -72,6 +80,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 10,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -100,6 +110,8 @@ describe(startSandboxDaemonAsync.name, () => {
       reconnectDelayMs: 60_000,
       logger,
       signal: controller.signal,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     const connectionError = daemon.ready.catch(error => error);
 
@@ -126,6 +138,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 60_000,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
 
     await expect(daemon.ready).rejects.toThrow('Sandbox MCP server connection failed');
@@ -157,6 +171,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 10,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     const daemon = await daemonPromise;
@@ -166,6 +182,117 @@ describe(startSandboxDaemonAsync.name, () => {
     await daemon.stopAsync();
     await socketClosed;
 
+    mcpServer.close();
+    await new Promise<void>(resolve => httpServer.close(() => resolve()));
+  });
+
+  it('executes command messages', async () => {
+    const httpServer = http.createServer();
+    const mcpServer = new WebSocketServer({ noServer: true });
+    httpServer.on('upgrade', (request, socket, head) => {
+      mcpServer.handleUpgrade(request, socket, head, client =>
+        mcpServer.emit('connection', client)
+      );
+    });
+    await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve));
+    const address = httpServer.address() as AddressInfo;
+    const connection = new Promise<WebSocket>(resolve => mcpServer.once('connection', resolve));
+    const daemon = await startSandboxDaemonAsync({
+      credential: 'secret-token',
+      serverUrl: `ws://127.0.0.1:${address.port}`,
+      reconnectDelayMs: 10,
+      logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
+    });
+    const socket = await connection;
+    await daemon.ready;
+    const commandResponse = new Promise<string>(resolve =>
+      socket.once('message', data => resolve(`${data}`))
+    );
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'command-1',
+        method: 'execCommand',
+        params: { cmd: 'printf hello' },
+      })
+    );
+
+    expect(JSON.parse(await commandResponse)).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'command-1',
+      result: { output: 'hello', exitCode: 0 },
+    });
+    await daemon.stopAsync();
+    mcpServer.close();
+    await new Promise<void>(resolve => httpServer.close(() => resolve()));
+  });
+
+  it('returns JSON-RPC errors for invalid messages', async () => {
+    const httpServer = http.createServer();
+    const mcpServer = new WebSocketServer({ noServer: true });
+    httpServer.on('upgrade', (request, socket, head) => {
+      mcpServer.handleUpgrade(request, socket, head, client =>
+        mcpServer.emit('connection', client)
+      );
+    });
+    await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve));
+    const address = httpServer.address() as AddressInfo;
+    const connection = new Promise<WebSocket>(resolve => mcpServer.once('connection', resolve));
+    const daemon = await startSandboxDaemonAsync({
+      credential: 'secret-token',
+      serverUrl: `ws://127.0.0.1:${address.port}`,
+      reconnectDelayMs: 10,
+      logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
+    });
+    const socket = await connection;
+    await daemon.ready;
+    const sendAsync = async (message: string): Promise<unknown> => {
+      const response = new Promise<string>(resolve =>
+        socket.once('message', data => resolve(`${data}`))
+      );
+      socket.send(message);
+      return SandboxDaemonResponseZ.parse(JSON.parse(await response));
+    };
+
+    await expect(sendAsync('{')).resolves.toMatchObject({
+      id: null,
+      error: { code: -32700, message: 'Parse error' },
+    });
+    await expect(sendAsync('{}')).resolves.toMatchObject({
+      id: null,
+      error: { code: -32600, message: 'Invalid request' },
+    });
+    await expect(
+      sendAsync(JSON.stringify({ jsonrpc: '2.0', id: '1', method: 'unknown' }))
+    ).resolves.toMatchObject({
+      id: '1',
+      error: { code: -32601, message: 'Method not found' },
+    });
+    await expect(
+      sendAsync(JSON.stringify({ jsonrpc: '2.0', id: '2', method: 'execCommand', params: {} }))
+    ).resolves.toMatchObject({
+      id: '2',
+      error: { code: -32602, message: 'Invalid params' },
+    });
+    await expect(
+      sendAsync(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: '3',
+          method: 'writeStdin',
+          params: { sessionId: 999 },
+        })
+      )
+    ).resolves.toMatchObject({
+      id: '3',
+      error: { code: -32603, message: 'Command session 999 does not exist.' },
+    });
+
+    await daemon.stopAsync();
     mcpServer.close();
     await new Promise<void>(resolve => httpServer.close(() => resolve()));
   });
@@ -186,6 +313,8 @@ describe(startSandboxDaemonAsync.name, () => {
       serverUrl: `ws://127.0.0.1:${address.port}`,
       reconnectDelayMs: 60_000,
       logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
     });
     const socket = await connection;
     const daemon = await daemonPromise;

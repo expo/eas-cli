@@ -10,14 +10,20 @@ export function isChildProcessAlive(child: ChildProcess): boolean {
  * Kill a detached spawn's process group. Negated pid targets the group so bash/sleep
  * children cannot survive after the parent is gone (e.g. across upterm redial).
  */
-export function killProcessGroup(child: ChildProcess): void {
+export function killProcessGroup(
+  child: { pid?: number; kill(signal?: NodeJS.Signals): void },
+  signal: NodeJS.Signals = 'SIGTERM'
+): void {
   if (child.pid == null) {
     return;
   }
   try {
-    process.kill(-child.pid, 'SIGTERM');
-  } catch {
-    child.kill();
+    process.kill(-child.pid, signal);
+  } catch (error: any) {
+    // ESRCH means the process group no longer exists, so there is nothing left to stop.
+    if (error?.code !== 'ESRCH') {
+      child.kill(signal);
+    }
   }
 }
 
