@@ -229,4 +229,48 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
+
+  it('stops automation without waiting for recording upload', async () => {
+    let release!: () => void;
+    let stopped!: () => void;
+    const pendingFinish = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const toolStopped = new Promise<void>(resolve => {
+      stopped = resolve;
+    });
+    mockPreviewStopAsync.mockReturnValueOnce(pendingFinish);
+    const stopServer = jest.fn(async () => {
+      stopped();
+    });
+    jest.mocked(spawnDetached).mockReturnValueOnce({
+      pid: 4242,
+      getOutput: () => '',
+      stopAsync: stopServer,
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    try {
+      await toolStopped;
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(stopServer).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await running;
+    }
+  });
 });

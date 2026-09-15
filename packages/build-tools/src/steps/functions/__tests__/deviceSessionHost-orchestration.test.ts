@@ -130,6 +130,65 @@ describe.each([
     expect(stopTunnel).toHaveBeenCalledTimes(1);
   });
 
+  it('stops automation while recording finalization or upload is pending', async () => {
+    let release!: () => void;
+    let stopped!: () => void;
+    const pendingFinish = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const toolStopped = new Promise<void>(resolve => {
+      stopped = resolve;
+    });
+    finishHost.mockReturnValueOnce(pendingFinish);
+    stopTool.mockImplementationOnce(async () => {
+      stopped();
+    });
+    let completed = false;
+    const running = runAsync().then(() => {
+      completed = true;
+    });
+    try {
+      await toolStopped;
+      expect(stopTunnel).toHaveBeenCalledTimes(1);
+      expect(finishHost).toHaveBeenCalledTimes(1);
+      expect(completed).toBe(false);
+    } finally {
+      release();
+      await running;
+    }
+  });
+
+  it('finalizes recording even while automation tunnel close is pending', async () => {
+    let release!: () => void;
+    let finished!: () => void;
+    const pendingClose = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const hostFinished = new Promise<void>(resolve => {
+      finished = resolve;
+    });
+    stopTunnel.mockReturnValueOnce(pendingClose);
+    finishHost.mockImplementationOnce(async () => {
+      finished();
+    });
+    const running = runAsync();
+    try {
+      await hostFinished;
+      expect(stopTunnel).toHaveBeenCalledTimes(1);
+      expect(stopTool).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await running;
+    }
+  });
+
+  it('still stops automation when recording finalization rejects', async () => {
+    finishHost.mockRejectedValueOnce(new Error('recording cleanup failed'));
+    await expect(runAsync()).rejects.toThrow('recording cleanup failed');
+    expect(stopTool).toHaveBeenCalledTimes(1);
+    expect(stopTunnel).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['preview', 'config', 'wait'])('finishes the host after %s fails', async phase => {
     const error = new Error(`${phase} failed`);
     if (phase === 'preview') {

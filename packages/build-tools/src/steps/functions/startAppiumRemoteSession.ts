@@ -179,13 +179,22 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        await sessionHost?.finishAsync();
-        if (appiumTunnel) {
-          await appiumTunnel.stopAsync();
+        const cleanup = await Promise.allSettled([
+          (async () => {
+            if (appiumTunnel) {
+              await appiumTunnel.stopAsync();
+            }
+            await eventCollection.stopAsync();
+            await appiumProcess.stopAsync();
+            await fs.promises.rm(appiumHome, { recursive: true, force: true });
+          })(),
+          sessionHost?.finishAsync(),
+        ]);
+        for (const result of cleanup) {
+          if (result.status === 'rejected') {
+            throw result.reason;
+          }
         }
-        await eventCollection.stopAsync();
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
       }
     }),
   });
