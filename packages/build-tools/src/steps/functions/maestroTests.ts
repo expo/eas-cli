@@ -558,29 +558,43 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       // Upload the selected runner report from the last attempt, even when tests failed.
       const latestRunnerReportDirectory =
         backend === 'maestro-runner' ? reportDirectories.at(-1) : undefined;
-      if (latestRunnerReportDirectory && (outputFormat === 'html' || outputFormat === 'allure')) {
-        const isHtml = outputFormat === 'html';
-        const artifactName = isHtml
-          ? 'Maestro Runner HTML Report'
-          : 'Maestro Runner Allure Results';
-        // HTML references nearby screenshots, so keep its whole attempt directory.
-        const artifactPath = isHtml
-          ? latestRunnerReportDirectory
-          : path.join(latestRunnerReportDirectory, 'allure-results');
-        outputs.final_report_path.set(
-          isHtml ? path.join(latestRunnerReportDirectory, 'report.html') : artifactPath
-        );
-        try {
-          await ctx.runtimeApi.uploadArtifact({
-            artifact: {
-              type: GenericArtifactType.OTHER,
-              name: artifactName,
-              paths: [artifactPath],
-            },
-            logger,
-          });
-        } catch (err: any) {
-          logger.warn({ err }, `Failed to upload ${artifactName}.`);
+      if (latestRunnerReportDirectory) {
+        let selectedReport:
+          | { name: string; artifactPath: string; finalReportPath: string }
+          | undefined;
+        switch (outputFormat) {
+          case 'html':
+            // HTML references nearby screenshots, so keep its whole attempt directory.
+            selectedReport = {
+              name: 'Maestro Runner HTML Report',
+              artifactPath: latestRunnerReportDirectory,
+              finalReportPath: path.join(latestRunnerReportDirectory, 'report.html'),
+            };
+            break;
+          case 'allure': {
+            const allureResultsDirectory = path.join(latestRunnerReportDirectory, 'allure-results');
+            selectedReport = {
+              name: 'Maestro Runner Allure Results',
+              artifactPath: allureResultsDirectory,
+              finalReportPath: allureResultsDirectory,
+            };
+            break;
+          }
+        }
+        if (selectedReport) {
+          outputs.final_report_path.set(selectedReport.finalReportPath);
+          try {
+            await ctx.runtimeApi.uploadArtifact({
+              artifact: {
+                type: GenericArtifactType.OTHER,
+                name: selectedReport.name,
+                paths: [selectedReport.artifactPath],
+              },
+              logger,
+            });
+          } catch (err: any) {
+            logger.warn({ err }, `Failed to upload ${selectedReport.name}.`);
+          }
         }
       }
 
