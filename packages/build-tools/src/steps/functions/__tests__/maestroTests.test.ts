@@ -1069,7 +1069,7 @@ describe('createMaestroTestsBuildFunction', () => {
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
-  it('uses $HOME/.maestro/tests output path for non-junit formats (e.g. html)', async () => {
+  it('uses $HOME/.maestro/tests output path and uploads the Maestro CLI HTML report', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
@@ -1080,13 +1080,41 @@ describe('createMaestroTestsBuildFunction', () => {
     await step.executeAsync();
 
     const args = mockedSpawn.mock.calls[0][1] as string[];
-    // Non-JUnit uses a fixed path inside $HOME/.maestro/tests so the
-    // whole-directory upload picks it up.
+    // Non-JUnit uses a fixed path inside $HOME/.maestro/tests.
     const outputArg = args.find(a => a.startsWith('--output='));
     expect(outputArg).toMatch(/\.maestro\/tests\/android-maestro-html\.html$/);
     expect(outputArg).not.toMatch(/junit-reports/);
     expect(step.getOutputValueByName('final_report_path')).toBe(
       '/home/expo/.maestro/tests/android-maestro-html.html'
+    );
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.objectContaining({
+          type: GenericArtifactType.OTHER,
+          name: 'Maestro HTML Report',
+          paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
+        }),
+      })
+    );
+  });
+
+  it('uploads the Maestro CLI HTML report even when tests fail', async () => {
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'html',
+      platform: 'android',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.objectContaining({
+          name: 'Maestro HTML Report',
+          paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
+        }),
+      })
     );
   });
 
@@ -1407,14 +1435,15 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledTimes(30);
   });
 
-  it('does not harvest or upload screenshots when output_format is not junit', async () => {
+  it('does not harvest or upload screenshots for Maestro CLI HTML', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({ flow_path: ['a.yaml'], platform: 'android', output_format: 'html' });
     await step.executeAsync();
 
     expect(mockedHarvest).not.toHaveBeenCalled();
-    expect(mockUploadArtifact).not.toHaveBeenCalled();
+    expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
+    expect(mockUploadArtifact.mock.calls[0][0].artifact.name).toBe('Maestro HTML Report');
   });
 
   it('uploads only the final attempt for a pure-failure flow, but every attempt for a flaky flow', async () => {

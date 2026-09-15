@@ -555,46 +555,54 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         });
       }
 
-      // Upload the selected runner report from the last attempt, even when tests failed.
+      // Upload the selected non-JUnit report before the failure verdict. The pre-packaged
+      // job also uploads testsDirectory, but a named artifact makes the report easy to find.
       const latestRunnerReportDirectory =
         backend === 'maestro-runner' ? reportDirectories.at(-1) : undefined;
-      if (latestRunnerReportDirectory) {
-        let selectedReport:
-          | { name: string; artifactPath: string; finalReportPath: string }
-          | undefined;
-        switch (outputFormat) {
-          case 'html':
+      let selectedReport:
+        | { name: string; artifactPath: string; finalReportPath: string }
+        | undefined;
+      switch (outputFormat) {
+        case 'html':
+          if (backend === 'maestro' && maestroCliOutputPath) {
+            selectedReport = {
+              name: 'Maestro HTML Report',
+              artifactPath: maestroCliOutputPath,
+              finalReportPath: maestroCliOutputPath,
+            };
+          } else if (latestRunnerReportDirectory) {
             // HTML references nearby screenshots, so keep its whole attempt directory.
             selectedReport = {
               name: 'Maestro Runner HTML Report',
               artifactPath: latestRunnerReportDirectory,
               finalReportPath: path.join(latestRunnerReportDirectory, 'report.html'),
             };
-            break;
-          case 'allure': {
-            const allureResultsDirectory = path.join(latestRunnerReportDirectory, 'allure-results');
+          }
+          break;
+        case 'allure':
+          if (latestRunnerReportDirectory) {
+            const directory = path.join(latestRunnerReportDirectory, 'allure-results');
             selectedReport = {
               name: 'Maestro Runner Allure Results',
-              artifactPath: allureResultsDirectory,
-              finalReportPath: allureResultsDirectory,
+              artifactPath: directory,
+              finalReportPath: directory,
             };
-            break;
           }
-        }
-        if (selectedReport) {
-          outputs.final_report_path.set(selectedReport.finalReportPath);
-          try {
-            await ctx.runtimeApi.uploadArtifact({
-              artifact: {
-                type: GenericArtifactType.OTHER,
-                name: selectedReport.name,
-                paths: [selectedReport.artifactPath],
-              },
-              logger,
-            });
-          } catch (err: any) {
-            logger.warn({ err }, `Failed to upload ${selectedReport.name}.`);
-          }
+          break;
+      }
+      if (selectedReport) {
+        outputs.final_report_path.set(selectedReport.finalReportPath);
+        try {
+          await ctx.runtimeApi.uploadArtifact({
+            artifact: {
+              type: GenericArtifactType.OTHER,
+              name: selectedReport.name,
+              paths: [selectedReport.artifactPath],
+            },
+            logger,
+          });
+        } catch (err: any) {
+          logger.warn({ err }, `Failed to upload ${selectedReport.name}.`);
         }
       }
 
