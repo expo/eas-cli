@@ -360,7 +360,7 @@ export default class Simulator extends EasCommand {
 
         if (jobRunStatus === JobRunStatus.New || jobRunStatus === JobRunStatus.InQueue) {
           startupDeadline = undefined;
-          pollSpinner.text = '⏳ Simulator session queued. Waiting for available concurrency';
+          pollSpinner.text = '⏳ Simulator session queued or waiting for available concurrency';
         } else {
           startupDeadline ??= Date.now() + STARTUP_TIMEOUT_MS;
           pollSpinner.text = `⏳ Waiting for ${flags.type} session to start`;

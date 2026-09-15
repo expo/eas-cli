@@ -855,7 +855,9 @@ describe(Simulator, () => {
             });
           }
           expect(mockOra.mock.results[1].value.text).toContain(
-            elapsedMs === 20 * 60 * 1_000 ? 'Waiting for available concurrency' : 'session to start'
+            elapsedMs === 20 * 60 * 1_000
+              ? '⏳ Simulator session queued or waiting for available concurrency'
+              : 'session to start'
           );
           return makeDeviceRunSession({
             ...(elapsedMs < 30 * 60 * 1_000 ? { remoteConfig: null } : {}),
