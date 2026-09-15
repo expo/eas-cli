@@ -381,6 +381,17 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
             logger.warn({ err }, `Failed to clear ${runnerOutputDirectory} before the attempt.`);
           }
         }
+        // Maestro CLI uses the same HTML path for every retry. Remove the previous report
+        // before spawning so an attempt that fails before report generation cannot upload it.
+        if (backend === 'maestro' && outputFormat === 'html' && maestroCliOutputPath) {
+          try {
+            await fs.rm(maestroCliOutputPath, { force: true });
+          } catch (err) {
+            throw new SystemError('Failed to clear the previous Maestro HTML report', {
+              cause: err,
+            });
+          }
+        }
 
         const attemptStartedAtMs = Date.now();
 
