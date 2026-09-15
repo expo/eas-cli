@@ -640,11 +640,15 @@ export function createServeSimArgs({
   turnArgs = [],
   metricsCorsArgs = [],
   packageVersion,
+  networkCapture = false,
+  networkCaptureFields = [],
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
   packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
 }): string[] {
   return [
     '--yes',
@@ -668,6 +672,13 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...metricsCorsArgs,
+    // Repeated, not comma-joined, so serve-sim's error names the bad value.
+    ...(networkCapture
+      ? [
+          '--network-capture',
+          ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
+        ]
+      : []),
   ];
 }
 
@@ -860,12 +871,16 @@ export async function startServeSimWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
+    networkCapture = false,
+    networkCaptureFields = [],
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
@@ -877,7 +892,14 @@ export async function startServeSimWithTunnelAsync(
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
-      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+      createServeSimArgs({
+        port,
+        turnArgs,
+        metricsCorsArgs,
+        packageVersion,
+        networkCapture,
+        networkCaptureFields,
+      }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
@@ -939,6 +961,8 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   }
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {

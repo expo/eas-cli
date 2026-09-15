@@ -85,6 +85,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       logger,
       timeoutMs: 60_000,
       packageVersion: '1.2.3',
+      networkCapture: undefined,
+      networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,

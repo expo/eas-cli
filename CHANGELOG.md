@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add the `eas/install_mitmproxy` step. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Start serve-sim with `--network-capture`, and with `--network-capture-field` for each requested field, when a simulator session requests network capture. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
