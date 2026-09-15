@@ -103,7 +103,7 @@ async function validateAndroidPNGsAsync(ctx: CommonContext<Platform.ANDROID>): P
     },
     {
       configPath: 'exp.splash.image',
-      pngPath: ctx.exp.splash?.image,
+      pngPath: (ctx.exp as Record<string, any>).splash?.image,
     },
     {
       configPath: 'exp.notification.icon',
