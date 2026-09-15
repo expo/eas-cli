@@ -294,8 +294,11 @@ describe('createMaestroTestsBuildFunction', () => {
         '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/junit-report.xml',
         '/home/expo/.maestro/tests/junit-reports/android-maestro-junit-attempt-0.xml'
       );
+      expect(parser.mergeJUnitReports).not.toHaveBeenCalled();
       expect(step.getOutputValueByName('final_report_path')).toBe(
-        '/home/expo/.maestro/tests/android-maestro-junit.xml'
+        format === 'html'
+          ? '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/report.html'
+          : '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/allure-results'
       );
       expect(mockedRunnerHarvest).toHaveBeenCalledTimes(1);
       expect(mockUploadArtifact).toHaveBeenCalledWith(
@@ -315,7 +318,7 @@ describe('createMaestroTestsBuildFunction', () => {
     }
   );
 
-  it('sets the runner JUnit output before rejecting an invalid flow_path', async () => {
+  it('does not expose a selected runner report before an attempt starts', async () => {
     const step = createStep({
       flow_path: [],
       platform: 'android',
@@ -324,8 +327,9 @@ describe('createMaestroTestsBuildFunction', () => {
     });
 
     await expect(step.executeAsync()).rejects.toThrow(UserError);
-    expect(step.getOutputValueByName('final_report_path')).toBe(
-      '/home/expo/.maestro/tests/android-maestro-junit.xml'
+    expect(step.getOutputValueByName('final_report_path')).toBeUndefined();
+    expect(step.getOutputValueByName('junit_report_directory')).toBe(
+      '/home/expo/.maestro/tests/junit-reports'
     );
   });
 
@@ -364,6 +368,9 @@ describe('createMaestroTestsBuildFunction', () => {
           paths: ['/home/expo/.maestro/tests/android-maestro-runner-attempt-1'],
         }),
       })
+    );
+    expect(step.getOutputValueByName('final_report_path')).toBe(
+      '/home/expo/.maestro/tests/android-maestro-runner-attempt-1/report.html'
     );
   });
 
@@ -1078,6 +1085,9 @@ describe('createMaestroTestsBuildFunction', () => {
     const outputArg = args.find(a => a.startsWith('--output='));
     expect(outputArg).toMatch(/\.maestro\/tests\/android-maestro-html\.html$/);
     expect(outputArg).not.toMatch(/junit-reports/);
+    expect(step.getOutputValueByName('final_report_path')).toBe(
+      '/home/expo/.maestro/tests/android-maestro-html.html'
+    );
   });
 
   it('uses lowercase extension for non-junit formats regardless of input casing', async () => {

@@ -222,9 +222,9 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       // the uploaded dir.
       const spawnEnv: NodeJS.ProcessEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
 
-      // Publish paths before backend validation so `if: always()` upload steps can
-      // use them after an early failure. Runner HTML/Allure also gets a JUnit path
-      // once its backend is known.
+      // Publish known paths before backend validation so `if: always()` upload
+      // steps can use them after an early failure. final_report_path names the
+      // report selected by output_format, not every report the backend produces.
       outputs.tests_directory.set(testsDirectory);
       outputs.junit_report_directory.set(junitReportDirectory);
       if (outputFormat === 'junit') {
@@ -238,13 +238,16 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         input: inputs.backend.value,
         env,
       });
-      // Runner exposes JUnit results to EAS regardless of output_format.
-      if (backend === 'maestro-runner') {
-        outputs.final_report_path.set(junitFinalReportPath);
+      // The runner can write JUnit regardless of output_format; Maestro CLI only
+      // writes it when JUnit is selected. Either command may fail before it writes a file.
+      const mayHaveJUnitReports = backend === 'maestro-runner' || outputFormat === 'junit';
+      const maestroCliOutputPath =
+        backend === 'maestro' && outputFormat && outputFormat !== 'junit'
+          ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
+          : null;
+      if (backend === 'maestro' && outputFormat === 'html' && maestroCliOutputPath) {
+        outputs.final_report_path.set(maestroCliOutputPath);
       }
-      // The runner emits JUnit for every format. Official Maestro emits it only
-      // when output_format is junit.
-      const shouldProcessJUnitReports = backend === 'maestro-runner' || outputFormat === 'junit';
 
       const flowPaths = parseInput(
         FlowPathSchema,
@@ -352,11 +355,9 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           testsDirectory,
           `${platform}-maestro-runner-attempt-${attempt}`
         );
-        const outputPath = shouldProcessJUnitReports
+        const outputPath = mayHaveJUnitReports
           ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
-          : backend === 'maestro' && outputFormat
-            ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
-            : null;
+          : maestroCliOutputPath;
         const { executable, args: maestroArgs } = buildMaestroArgs({
           backend,
           platform,
@@ -422,7 +423,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         }
 
         // Harvest failure screenshots before retry subsetting when JUnit results are available.
-        if (shouldProcessJUnitReports) {
+        if (mayHaveJUnitReports) {
           let screenshots: HarvestedScreenshot[];
           switch (backend) {
             case 'maestro': {
@@ -511,10 +512,11 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         await sleepAsync(2000);
       }
 
-      // Smart merge first; on data errors (bad XML, missing input) fall back
-      // to copy-latest so the caller still gets a single JUnit file.
+      // Only JUnit is merged into final_report_path. Runner HTML/Allure keeps its
+      // per-attempt JUnit files, but final_report_path names the selected report.
+      // On data errors (bad XML, missing input), fall back to copy-latest.
       // Filesystem errors short-circuit straight to SystemError.
-      if (shouldProcessJUnitReports) {
+      if (outputFormat === 'junit') {
         try {
           await mergeJUnitReports({
             sourceDir: junitReportDirectory,
@@ -543,7 +545,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       // Upload before the failure verdict so fully-failed runs still get screenshots.
-      if (shouldProcessJUnitReports) {
+      if (mayHaveJUnitReports) {
         await uploadFailureScreenshotsAsync({
           harvested,
           backend,
@@ -565,6 +567,9 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         const artifactPath = isHtml
           ? latestRunnerReportDirectory
           : path.join(latestRunnerReportDirectory, 'allure-results');
+        outputs.final_report_path.set(
+          isHtml ? path.join(latestRunnerReportDirectory, 'report.html') : artifactPath
+        );
         try {
           await ctx.runtimeApi.uploadArtifact({
             artifact: {
