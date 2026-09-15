@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [24.6.0](https://github.com/expo/eas-cli/releases/tag/v24.6.0) - 2026-09-15
