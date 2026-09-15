@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Add `launch_app_identifier`, `launch_args`, and `open_url` inputs to the serve-sim, agent-device, argent, and Appium remote sessions, so serve-sim launches an installed app before the stream starts. The inputs are iOS only, and Android sessions keep using `eas/launch_application`. ([#4324](https://github.com/expo/eas-cli/pull/4324) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Stream iOS Simulator previews at 1600px and 10 Mbps. ([#4439](https://github.com/expo/eas-cli/pull/4439) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add the `DeviceRunSession.Job` payload for EAS Simulator sessions. ([#4412](https://github.com/expo/eas-cli/pull/4412) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Add a device run session runner that plans EAS Simulator sessions as a task graph, so device-independent work overlaps the boot. ([#4413](https://github.com/expo/eas-cli/pull/4413) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

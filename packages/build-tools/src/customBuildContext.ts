@@ -22,6 +22,7 @@ import path from 'path';
 import { ArtifactToUpload, BuildContext } from './context';
 import { reportWorkflowHookMetricToDatadog } from './utils/hookMetrics';
 import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
+import { getWorkflowInterpolationContext } from './utils/workflowInterpolationContext';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
   [Platform.ANDROID]: BuildRuntimePlatform.LINUX,
@@ -117,7 +118,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   // We omit steps, because CustomBuildContext does not have steps.
   public staticContext(): Omit<StaticJobInterpolationContext, 'steps'> {
     return {
-      ...this.job.workflowInterpolationContext,
+      ...getWorkflowInterpolationContext(this.job),
       expoApiServerURL: this.env.__API_SERVER_URL,
       job: this.job,
       metadata: this.metadata ?? null,
@@ -138,7 +139,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       ...this.job,
       ...job,
       workflowInterpolationContext:
-        job.workflowInterpolationContext ?? this.job.workflowInterpolationContext,
+        getWorkflowInterpolationContext(job) ?? getWorkflowInterpolationContext(this.job),
       triggeredBy: this.job.triggeredBy,
       secrets: {
         ...this.job.secrets,

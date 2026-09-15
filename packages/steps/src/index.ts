@@ -11,7 +11,7 @@ export { BuildStepGlobalContext, ExternalBuildContextProvider } from './BuildSte
 export { BuildWorkflow, executeHookStepsAsync } from './BuildWorkflow';
 export { BuildStepEnv } from './BuildStepEnv';
 export { BuildFunctionGroup } from './BuildFunctionGroup';
-export { BuildStep } from './BuildStep';
+export { BuildStep, BuildStepLogMarker, BuildStepStatus } from './BuildStep';
 export * as errors from './errors';
 export * from './interpolation';
 export * from './utils/shell/spawn';

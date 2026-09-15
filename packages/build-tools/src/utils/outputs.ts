@@ -9,7 +9,8 @@ export async function uploadJobOutputsToWwwAsync(
   ctx: BuildStepGlobalContext,
   { logger, expoApiV2BaseUrl }: { logger: bunyan; expoApiV2BaseUrl: string }
 ): Promise<void> {
-  if (!ctx.staticContext.job.outputs) {
+  const { job } = ctx.staticContext;
+  if (!('outputs' in job) || !job.outputs) {
     logger.info('Job defines no outputs, skipping upload');
     return;
   }
@@ -22,7 +23,7 @@ export async function uploadJobOutputsToWwwAsync(
     logger.debug({ dynamicValues: interpolationContext }, 'Using dynamic values');
 
     const outputs = collectJobOutputs({
-      jobOutputDefinitions: ctx.staticContext.job.outputs,
+      jobOutputDefinitions: job.outputs,
       interpolationContext,
     });
     logger.info('Uploading outputs');

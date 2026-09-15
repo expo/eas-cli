@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -78,56 +79,82 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
       }
 
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-
-      const limit = limitFactory(5);
-      await Promise.all(
-        recordings.map(recording =>
-          limit(async () => {
-            try {
-              const metadata = RecordingManifestSchema.parse(
-                JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
-              );
-              const startedAt = recordingStartTimeFormatter.format(
-                new Date(metadata.firstFrameWallClock.iso8601)
-              );
-              const shortUdid = `${recording.udid.slice(0, 8)}-…`;
-              const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt})`;
-              const recordingPath = path.join(recording.directory, metadata.recording);
-              const { size } = await stat(recordingPath);
-              const recordingId = path.basename(recording.directory);
-              logger.info(
-                `Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`
-              );
-              await uploadDeviceRunSessionArtifactAsync(ctx, {
-                deviceRunSessionId,
-                artifactId: recordingId,
-                name: displayName,
-                filename: `${recordingId}.mp4`,
-                kind: 'screen-recording',
-                metadata: {
-                  __eas_type: 'screen-recording',
-                  __eas_screen_recording: '1',
-                  udid: recording.udid,
-                  deviceName: recording.deviceName,
-                  runtimeDisplayName: recording.runtimeDisplayName,
-                  firstFrameAt: metadata.firstFrameWallClock.iso8601,
-                  width: metadata.width,
-                  height: metadata.height,
-                },
-                size,
-                stream: createReadStream(recordingPath),
-              });
-            } catch (err) {
-              const error = err instanceof Error ? err : new Error(String(err));
-              Sentry.capture('Could not upload iOS Simulator screen recording', error);
-              logger.warn(
-                { err: error },
-                `Could not upload screen recording for ${recording.deviceName}.`
-              );
-            }
-          })
-        )
-      );
+      await uploadIosSimulatorRecordingsAsync(ctx, { deviceRunSessionId, recordings, logger });
     },
   });
+}
+
+export type IosSimulatorRecording = z.infer<typeof RecordingsSchema>[number];
+
+/**
+ * Uploads finished iOS Simulator screen recordings as session artifacts, at most
+ * five at a time. Failures are reported and logged per recording; they never
+ * fail the session. Shared by the `eas/upload_device_run_session_screen_recordings`
+ * step and the device run session runner.
+ */
+export async function uploadIosSimulatorRecordingsAsync(
+  ctx: CustomBuildContext,
+  {
+    deviceRunSessionId,
+    recordings,
+    logger,
+  }: {
+    deviceRunSessionId: string;
+    recordings: IosSimulatorRecording[];
+    logger: bunyan;
+  }
+): Promise<void> {
+  if (recordings.length === 0) {
+    logger.info('No iOS Simulator recordings found; skipping uploads.');
+    return;
+  }
+  const limit = limitFactory(5);
+  await Promise.all(
+    recordings.map(recording =>
+      limit(async () => {
+        try {
+          const metadata = RecordingManifestSchema.parse(
+            JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
+          );
+          const startedAt = recordingStartTimeFormatter.format(
+            new Date(metadata.firstFrameWallClock.iso8601)
+          );
+          const shortUdid = `${recording.udid.slice(0, 8)}-…`;
+          const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt})`;
+          const recordingPath = path.join(recording.directory, metadata.recording);
+          const { size } = await stat(recordingPath);
+          const recordingId = path.basename(recording.directory);
+          logger.info(
+            `Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`
+          );
+          await uploadDeviceRunSessionArtifactAsync(ctx, {
+            deviceRunSessionId,
+            artifactId: recordingId,
+            name: displayName,
+            filename: `${recordingId}.mp4`,
+            kind: 'screen-recording',
+            metadata: {
+              __eas_type: 'screen-recording',
+              __eas_screen_recording: '1',
+              udid: recording.udid,
+              deviceName: recording.deviceName,
+              runtimeDisplayName: recording.runtimeDisplayName,
+              firstFrameAt: metadata.firstFrameWallClock.iso8601,
+              width: metadata.width,
+              height: metadata.height,
+            },
+            size,
+            stream: createReadStream(recordingPath),
+          });
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          Sentry.capture('Could not upload iOS Simulator screen recording', error);
+          logger.warn(
+            { err: error },
+            `Could not upload screen recording for ${recording.deviceName}.`
+          );
+        }
+      })
+    )
+  );
 }
