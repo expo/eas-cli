@@ -74,7 +74,7 @@ describe(warnIfArgentPackageVersionCannotBeVerified, () => {
     ).not.toThrow();
     expect(warn).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('Continuing and letting bun x resolve it.')
+      expect.stringContaining('Continuing and letting the package manager resolve it.')
     );
   });
 });

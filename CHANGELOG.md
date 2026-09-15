@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Honor `EAS_OVERRIDE_PACKAGE_MANAGER` and `EAS_FALLBACK_PACKAGE_MANAGER` when installing and launching simulator packages (serve-sim, device-hub, Argent, agent-device, Appium) so they can use bun instead of stalling on npm audit. ([#4343](https://github.com/expo/eas-cli/pull/4343) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [24.6.0](https://github.com/expo/eas-cli/releases/tag/v24.6.0) - 2026-09-15
