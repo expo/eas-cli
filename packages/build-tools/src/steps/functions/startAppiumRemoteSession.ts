@@ -72,65 +72,19 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const packageVersion = inputs.package_version.value as string | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
-      const versionSpec = resolveAppium3VersionSpec(packageVersion);
 
-      logger.info(
-        `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
-      );
-      const device = await resolveAppiumDeviceAsync({ runtimePlatform, env, logger });
-      const { appiumHome, appiumBinPath, appiumEnv } = await installAppiumAsync({
-        versionSpec,
-        driverName: device.driverName,
+      const controller = await startAppiumControllerAsync(ctx, {
+        deviceRunSessionId,
+        packageVersion,
+        runtimePlatform,
+        ngrokTunnelDomain,
+        ngrokAuthtoken,
         env,
         logger,
       });
 
-      const appiumProcess = spawnDetached({
-        command: appiumBinPath,
-        args: [
-          '--address',
-          APPIUM_HOST,
-          '--port',
-          String(APPIUM_PORT),
-          '--base-path',
-          '/',
-          '--log-level',
-          'error',
-          // Appium 3 gates session listing (GET /appium/sessions) behind the
-          // session_discovery insecure feature. We rely on it to poll for
-          // Appium Event Timings, so enable it for all drivers.
-          '--allow-insecure',
-          '*:session_discovery',
-          '--default-capabilities',
-          JSON.stringify({ 'appium:eventTimings': true }),
-        ],
-        env: appiumEnv,
-      });
-      try {
-        await waitForAppiumReadyAsync({ appiumProcess, logger });
-      } catch (error) {
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
-        throw error;
-      }
-
-      const eventCollection = await startAppiumEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
-        logger,
-      });
-      let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       try {
-        appiumTunnel = await startNgrokTunnelAsync({
-          port: APPIUM_PORT,
-          subdomainPrefix: 'appium',
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-          logger,
-        });
-
         // expo-device-hub has no serial-selection flag. Device run session workflows must expose
         // a single booted Android emulator so the Hub and Appium resolve the same device.
         webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
@@ -147,12 +101,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           remoteConfig: {
-            appiumUrl: appiumTunnel.url,
-            capabilities: {
-              platformName: device.platformName,
-              'appium:automationName': device.automationName,
-              'appium:udid': device.udid,
-            },
+            ...controller.remoteConfig,
             webPreviewUrl: webPreview.previewUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
@@ -168,7 +117,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
               ? {
                   maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastEventObservedAt: controller.getLastEventObservedAt,
                 }
               : undefined,
         });
@@ -176,15 +125,156 @@ export function createStartAppiumRemoteSessionBuildFunction(
         if (webPreview) {
           await webPreview.stopAsync();
         }
-        if (appiumTunnel) {
-          await appiumTunnel.stopAsync();
-        }
-        await eventCollection.stopAsync();
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
+        await controller.stopAsync();
       }
     }),
   });
+}
+
+export type AppiumInstallation = Awaited<ReturnType<typeof installAppiumAsync>>;
+
+export type AppiumControllerHandle = {
+  remoteConfig: {
+    appiumUrl: string;
+    capabilities: {
+      platformName: AppiumDevice['platformName'];
+      'appium:automationName': AppiumDevice['automationName'];
+      'appium:udid': string;
+    };
+  };
+  /** Arrival time of the newest collected Appium command, for idle detection. */
+  getLastEventObservedAt: () => Date | undefined;
+  /** Closes the tunnel, stops event collection, stops the server, and removes its home. */
+  stopAsync: () => Promise<void>;
+};
+
+/** Appium driver for the runtime platform; the device itself is resolved after it boots. */
+export function resolveAppiumDriverName(
+  runtimePlatform: BuildRuntimePlatform
+): AppiumDevice['driverName'] {
+  return runtimePlatform === BuildRuntimePlatform.DARWIN ? 'xcuitest' : 'uiautomator2';
+}
+
+/**
+ * Installs Appium (unless a prepared installation is passed), starts its server
+ * against the booted device, exposes it through an ngrok tunnel, and starts event
+ * collection. Shared by the `eas/start_appium_remote_session` step and the device
+ * run session runner.
+ */
+export async function startAppiumControllerAsync(
+  ctx: CustomBuildContext,
+  {
+    deviceRunSessionId,
+    packageVersion,
+    runtimePlatform,
+    ngrokTunnelDomain,
+    ngrokAuthtoken,
+    env,
+    logger,
+    installation,
+  }: {
+    deviceRunSessionId: string;
+    packageVersion: string | undefined;
+    runtimePlatform: BuildRuntimePlatform;
+    ngrokTunnelDomain: string;
+    ngrokAuthtoken: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    /** An installation prepared earlier, for example while the device was booting. */
+    installation?: AppiumInstallation;
+  }
+): Promise<AppiumControllerHandle> {
+  const versionSpec = resolveAppium3VersionSpec(packageVersion);
+
+  logger.info(
+    `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
+  );
+  const device = await resolveAppiumDeviceAsync({ runtimePlatform, env, logger });
+  const { appiumHome, appiumBinPath, appiumEnv } =
+    installation ??
+    (await installAppiumAsync({
+      versionSpec,
+      driverName: device.driverName,
+      env,
+      logger,
+    }));
+  const removeAppiumHomeAsync = async (): Promise<void> => {
+    await fs.promises.rm(appiumHome, { recursive: true, force: true });
+  };
+
+  const appiumProcess = spawnDetached({
+    command: appiumBinPath,
+    args: [
+      '--address',
+      APPIUM_HOST,
+      '--port',
+      String(APPIUM_PORT),
+      '--base-path',
+      '/',
+      '--log-level',
+      'error',
+      // Appium 3 gates session listing (GET /appium/sessions) behind the
+      // session_discovery insecure feature. We rely on it to poll for
+      // Appium Event Timings, so enable it for all drivers.
+      '--allow-insecure',
+      '*:session_discovery',
+      '--default-capabilities',
+      JSON.stringify({ 'appium:eventTimings': true }),
+    ],
+    env: appiumEnv,
+  });
+  try {
+    await waitForAppiumReadyAsync({ appiumProcess, logger });
+  } catch (error) {
+    await appiumProcess.stopAsync();
+    await removeAppiumHomeAsync();
+    throw error;
+  }
+
+  let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
+  let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+  try {
+    eventCollection = await startAppiumEventCollectionAsync({
+      ctx,
+      deviceRunSessionId,
+      appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
+      logger,
+    });
+    const collection = eventCollection;
+
+    appiumTunnel = await startNgrokTunnelAsync({
+      port: APPIUM_PORT,
+      subdomainPrefix: 'appium',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      logger,
+    });
+    const tunnel = appiumTunnel;
+
+    return {
+      remoteConfig: {
+        appiumUrl: tunnel.url,
+        capabilities: {
+          platformName: device.platformName,
+          'appium:automationName': device.automationName,
+          'appium:udid': device.udid,
+        },
+      },
+      getLastEventObservedAt: collection.getLastEventObservedAt,
+      stopAsync: async () => {
+        await tunnel.stopAsync();
+        await collection.stopAsync();
+        await appiumProcess.stopAsync();
+        await removeAppiumHomeAsync();
+      },
+    };
+  } catch (error) {
+    await appiumTunnel?.stopAsync();
+    await eventCollection?.stopAsync();
+    await appiumProcess.stopAsync();
+    await removeAppiumHomeAsync();
+    throw error;
+  }
 }
 
 export function resolveAppium3VersionSpec(packageVersion: string | undefined): string {
@@ -247,7 +337,7 @@ export async function resolveAppiumDeviceAsync({
   }
 }
 
-async function installAppiumAsync({
+export async function installAppiumAsync({
   versionSpec,
   driverName,
   env,

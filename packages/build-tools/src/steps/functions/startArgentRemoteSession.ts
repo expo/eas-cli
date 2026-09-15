@@ -3,6 +3,7 @@ import { type bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
+  type BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
@@ -35,7 +36,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
-const ARGENT_PACKAGE_NAME = '@swmansion/argent';
+export const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 // 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
 // here lets us enable it (and the artifacts list endpoint) unconditionally below.
 export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
@@ -95,120 +96,28 @@ export function createStartArgentRemoteSessionBuildFunction(
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
-      const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
       logger.info(
-        `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
+        `Starting argent remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      // Start the potentially slow installation while Argent is being prepared.
-      // On Linux expo-device-hub calls this again and awaits the same in-flight
-      // setup before launching. On macOS this remains non-blocking, so only a
-      // recording started in the first moments may miss ffmpeg.
-      // Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
-
-      logger.info('Enabling the Argent artifacts list endpoint flag.');
-      await spawn(
-        'bun',
-        [
-          'x',
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-          'enable',
-          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
-        ],
-        { env, logger }
-      );
-
-      logger.info('Enabling the Argent tool-server event log flag.');
-      await spawn(
-        'bun',
-        ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
-        { env, logger }
-      );
-
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bun x.`);
-      // Keep Argent itself in foreground mode under the detached bun process. This preserves
-      // the bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
-      const argentServer = spawnDetached({
-        command: 'bun',
-        args: [
-          'x',
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-          'server',
-          'start',
-          '--port',
-          '0',
-          '--idle-timeout',
-          '0',
-          '--force',
-        ],
-        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
-      });
-      if (argentServer.pid === undefined) {
-        throw new SystemError(
-          'Failed to start Argent: could not determine the PID of the launched process.'
-        );
-      }
-
-      logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
-      let toolServerPort: number;
-      let toolServerToken: string | undefined;
-      try {
-        const toolServerState = await waitForArgentToolServerStateAsync({
-          stateDir: ARGENT_STATE_DIR,
-          ancestorPid: argentServer.pid,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-        });
-        toolServerPort = toolServerState.port;
-        toolServerToken = toolServerState.token;
-      } catch (err) {
-        const output = argentServer.getOutput();
-        throw new SystemError(
-          `${
-            err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
-          }${output ? `\nArgent tool-server output:\n${output}` : ''}`
-        );
-      }
-      logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
-      const artifactPollAbortController = new AbortController();
-      const artifactPollSignal = signal
-        ? AbortSignal.any([signal, artifactPollAbortController.signal])
-        : artifactPollAbortController.signal;
-      const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
+      const controller = await startArgentControllerAsync(ctx, {
         deviceRunSessionId,
-        toolsUrl: `http://127.0.0.1:${toolServerPort}`,
-        toolsAuthToken: toolServerToken,
+        packageVersion,
+        runtimePlatform,
+        ngrokTunnelDomain,
+        ngrokAuthtoken,
+        env,
         logger,
-        signal: artifactPollSignal,
+        signal,
       });
 
-      const eventCollection = await startArgentEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        eventLogPath: ARGENT_EVENT_LOG_PATH,
-        logger,
-      });
-
-      let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       try {
-        toolsTunnel = await startNgrokTunnelAsync({
-          port: toolServerPort,
-          subdomainPrefix: 'argent',
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-          rewriteHostHeader: true,
-          logger,
-        });
-        const publicToolsUrl = toolsTunnel.url;
-        logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
-
         webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
           runtimePlatform,
           baseDomain: ngrokTunnelDomain,
@@ -224,8 +133,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           remoteConfig: {
-            toolsUrl: publicToolsUrl,
-            ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
+            ...controller.remoteConfig,
             webPreviewUrl: webPreview.previewUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
@@ -242,7 +150,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
               ? {
                   maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastEventObservedAt: controller.getLastEventObservedAt,
                 }
               : undefined,
         });
@@ -250,22 +158,193 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (webPreview) {
           await webPreview.stopAsync();
         }
-        if (toolsTunnel) {
-          await toolsTunnel.stopAsync();
-        }
-        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
-        artifactPollAbortController.abort();
-        try {
-          await artifactPollingPromise;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not finish Argent remote session artifact polling', error);
-          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
-        }
-        await argentServer.stopAsync();
+        await controller.stopAsync();
       }
     }),
   });
+}
+
+export type ArgentControllerHandle = {
+  remoteConfig: {
+    toolsUrl: string;
+    toolsAuthToken?: string;
+  };
+  /** Arrival time of the newest collected session event, for idle detection. */
+  getLastEventObservedAt: () => Date | undefined;
+  /** Closes the tunnel, stops event and artifact collection, and stops the tool server. */
+  stopAsync: () => Promise<void>;
+};
+
+/**
+ * Starts the Argent tool server, exposes it through an ngrok tunnel, and starts
+ * artifact and event collection for the session. Shared by the
+ * `eas/start_argent_remote_session` step and the device run session runner.
+ */
+export async function startArgentControllerAsync(
+  ctx: CustomBuildContext,
+  {
+    deviceRunSessionId,
+    packageVersion,
+    runtimePlatform,
+    ngrokTunnelDomain,
+    ngrokAuthtoken,
+    env,
+    logger,
+    signal,
+  }: {
+    deviceRunSessionId: string;
+    packageVersion: string | undefined;
+    runtimePlatform: BuildRuntimePlatform;
+    ngrokTunnelDomain: string;
+    ngrokAuthtoken: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    signal?: AbortSignal;
+  }
+): Promise<ArgentControllerHandle> {
+  warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
+  const versionSpec = packageVersion ?? 'latest';
+
+  // Start the potentially slow installation while Argent is being prepared.
+  // On Linux expo-device-hub calls this again and awaits the same in-flight
+  // setup before launching. On macOS this remains non-blocking, so only a
+  // recording started in the first moments may miss ffmpeg.
+  // Never rejects, so `void` is safe.
+  void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+
+  logger.info('Enabling the Argent artifacts list endpoint flag.');
+  await spawn(
+    'bun',
+    ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+    { env, logger }
+  );
+
+  logger.info('Enabling the Argent tool-server event log flag.');
+  await spawn(
+    'bun',
+    ['x', `${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+    {
+      env,
+      logger,
+    }
+  );
+
+  logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bun x.`);
+  // Keep Argent itself in foreground mode under the detached bun process. This preserves
+  // the bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+  const argentServer = spawnDetached({
+    command: 'bun',
+    args: [
+      'x',
+      `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+      'server',
+      'start',
+      '--port',
+      '0',
+      '--idle-timeout',
+      '0',
+      '--force',
+    ],
+    env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
+  });
+  if (argentServer.pid === undefined) {
+    throw new SystemError(
+      'Failed to start Argent: could not determine the PID of the launched process.'
+    );
+  }
+
+  logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
+  let toolServerPort: number;
+  let toolServerToken: string | undefined;
+  try {
+    const toolServerState = await waitForArgentToolServerStateAsync({
+      stateDir: ARGENT_STATE_DIR,
+      ancestorPid: argentServer.pid,
+      timeoutMs: STARTUP_TIMEOUT_MS,
+    });
+    toolServerPort = toolServerState.port;
+    toolServerToken = toolServerState.token;
+  } catch (err) {
+    const output = argentServer.getOutput();
+    await argentServer.stopAsync();
+    throw new SystemError(
+      `${
+        err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
+      }${output ? `\nArgent tool-server output:\n${output}` : ''}`
+    );
+  }
+  logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
+
+  const artifactPollAbortController = new AbortController();
+  const artifactPollSignal = signal
+    ? AbortSignal.any([signal, artifactPollAbortController.signal])
+    : artifactPollAbortController.signal;
+  const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
+    deviceRunSessionId,
+    toolsUrl: `http://127.0.0.1:${toolServerPort}`,
+    toolsAuthToken: toolServerToken,
+    logger,
+    signal: artifactPollSignal,
+  });
+  const stopArtifactPollingAsync = async (): Promise<void> => {
+    artifactPollAbortController.abort();
+    try {
+      await artifactPollingPromise;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture('Could not finish Argent remote session artifact polling', error);
+      logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
+    }
+  };
+
+  let eventCollection: Awaited<ReturnType<typeof startArgentEventCollectionAsync>> | undefined;
+  let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+  try {
+    eventCollection = await startArgentEventCollectionAsync({
+      ctx,
+      deviceRunSessionId,
+      eventLogPath: ARGENT_EVENT_LOG_PATH,
+      logger,
+    });
+    const collection = eventCollection;
+
+    toolsTunnel = await startNgrokTunnelAsync({
+      port: toolServerPort,
+      subdomainPrefix: 'argent',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      rewriteHostHeader: true,
+      logger,
+    });
+    const tunnel = toolsTunnel;
+    logger.info(`Tunnel is ready at ${tunnel.url}.`);
+
+    return {
+      remoteConfig: {
+        toolsUrl: tunnel.url,
+        ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
+      },
+      getLastEventObservedAt: collection.getLastEventObservedAt,
+      stopAsync: async () => {
+        await tunnel.stopAsync();
+        await stopArgentEventCollectionSafelyAsync({
+          eventCollection: collection,
+          deviceRunSessionId,
+          logger,
+        });
+        await stopArtifactPollingAsync();
+        await argentServer.stopAsync();
+      },
+    };
+  } catch (error) {
+    await toolsTunnel?.stopAsync();
+    if (eventCollection) {
+      await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
+    }
+    await stopArtifactPollingAsync();
+    await argentServer.stopAsync();
+    throw error;
+  }
 }
 
 export async function stopArgentEventCollectionSafelyAsync({

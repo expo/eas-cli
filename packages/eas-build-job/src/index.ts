@@ -18,6 +18,7 @@ export {
   Workflow,
   Platform,
   Cache,
+  StaticWorkflowInterpolationContext,
   WorkflowInterpolationContext,
 } from './common';
 export { Metadata, sanitizeMetadata } from './metadata';
