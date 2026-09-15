@@ -1139,6 +1139,62 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).not.toHaveBeenCalled();
   });
 
+  it('clears the Maestro CLI HTML report before every retry attempt', async () => {
+    const removeSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'html',
+      platform: 'android',
+      retries: 1,
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(
+      removeSpy.mock.calls.filter(
+        ([target]) => target === '/home/expo/.maestro/tests/android-maestro-html.html'
+      )
+    ).toHaveLength(2);
+    expect(removeSpy).toHaveBeenNthCalledWith(
+      1,
+      '/home/expo/.maestro/tests/android-maestro-html.html',
+      {
+        force: true,
+      }
+    );
+    expect(removeSpy).toHaveBeenNthCalledWith(
+      2,
+      '/home/expo/.maestro/tests/android-maestro-html.html',
+      {
+        force: true,
+      }
+    );
+    expect(removeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedSpawn.mock.invocationCallOrder[0]
+    );
+    expect(removeSpy.mock.invocationCallOrder[1]).toBeLessThan(
+      mockedSpawn.mock.invocationCallOrder[1]
+    );
+  });
+
+  it('does not run Maestro CLI or upload old HTML if the report cannot be cleared', async () => {
+    jest.spyOn(fs, 'rm').mockImplementation(async target => {
+      if (target === '/home/expo/.maestro/tests/android-maestro-html.html') {
+        throw new Error('permission denied');
+      }
+    });
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'html',
+      platform: 'android',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(SystemError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockUploadArtifact).not.toHaveBeenCalled();
+  });
+
   it('uses lowercase extension for non-junit formats regardless of input casing', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
