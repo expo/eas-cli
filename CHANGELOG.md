@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Let connected sandboxes run shell commands through the Expo MCP server. ([#4347](https://github.com/expo/eas-cli/pull/4347) by [@sjchmiela](https://github.com/sjchmiela))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [24.5.0](https://github.com/expo/eas-cli/releases/tag/v24.5.0) - 2026-09-15
+
+### 🎉 New features
+
+- [build-tools] Let connected sandboxes run shell commands through the Expo MCP server. ([#4347](https://github.com/expo/eas-cli/pull/4347) by [@sjchmiela](https://github.com/sjchmiela))
 
 ## [24.4.2](https://github.com/expo/eas-cli/releases/tag/v24.4.2) - 2026-09-15
 
