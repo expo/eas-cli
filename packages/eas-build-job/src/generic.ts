@@ -13,7 +13,7 @@ import {
 import { StepZ } from './step';
 
 export namespace Generic {
-  const BuilderEnvironmentSchemaZ = z.object({
+  export const BuilderEnvironmentSchemaZ = z.object({
     image: z.string(),
     node: z.string().optional(),
     corepack: z.boolean().optional(),
@@ -38,7 +38,8 @@ export namespace Generic {
     }),
     expoDevUrl: z.string().url(),
     builderEnvironment: BuilderEnvironmentSchemaZ,
-    // We use this to discern between Android.Job, Ios.Job and Generic.Job.
+    // We use these to discern between Android.Job, Ios.Job, Generic.Job and DeviceRunSession.Job:
+    // build jobs set both, generic jobs set neither, and session jobs set only `type`.
     platform: z.never().optional(),
     type: z.never().optional(),
     triggeredBy: z.literal(BuildTrigger.GIT_BASED_INTEGRATION),
