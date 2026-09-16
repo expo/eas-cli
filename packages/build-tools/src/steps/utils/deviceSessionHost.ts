@@ -291,6 +291,8 @@ export async function startDeviceSessionHostAsync(
       logger.warn({ err }, `Could not close the ${serverName} preview tunnel.`);
     }
     if (recording) {
+      // stopAsync signals the whole process group, including capture's encoder.
+      // Finalize the MP4 first; the token protects this route on the preview server.
       try {
         const response = await turtleFetch(
           `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
