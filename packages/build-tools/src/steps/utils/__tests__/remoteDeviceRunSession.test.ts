@@ -25,6 +25,7 @@ import {
   turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
   waitForWebPreviewReadyAsync,
+  websiteOrigin,
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
@@ -304,6 +305,11 @@ describe(startNgrokTunnelAsync, () => {
       })
     );
     expect(tunnel.url).toBe('https://web-preview.example.test');
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        domain: `web-preview-${tunnel.subdomainId}.eas-simulator.ngrok.dev`,
+      })
+    );
     await tunnel.stopAsync();
     await tunnel.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
@@ -416,7 +422,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(command).toBe('npx');
     expect(args).toEqual(['--yes', ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion })]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
-    expect(preview.previewUrl).toBe('https://android-preview.example.test');
+    expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
@@ -437,7 +443,38 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
 
     expect(preview.previewToken).toBe('tok-1');
-    expect(preview.previewUrl).toBe('https://preview.example.test');
+    expect(preview.apiUrl).toBe('https://preview.example.test');
+  });
+
+  it.each([
+    [{}, 'https://expo.dev'],
+    [{ EXPO_STAGING: '1' }, 'https://staging.expo.dev'],
+    [{ EXPO_LOCAL: '1' }, 'https://expo.test'],
+  ])('points the preview page at the website for the stage the worker runs in', (stage, origin) => {
+    expect(websiteOrigin({ ...env, ...stage })).toBe(origin);
+  });
+
+  it('points the preview URL at the website page for the tunnel', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      baseDomain,
+      env: { ...env, EXPO_STAGING: '1' },
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    const previewId = preview.previewPageUrl.split('/').at(-1);
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: `web-preview-${previewId}.${baseDomain}` })
+    );
   });
 
   // serve-sim is always launched with --require-token, so a missing token means it is running
@@ -502,10 +539,16 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(command).toBe('npx');
     expect(args).toEqual([
       '--yes',
-      ...createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        metricsCorsArgs,
+        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        packageVersion,
+      }),
     ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
-    expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+    expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
@@ -559,7 +602,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     expect(command).toBe('bun');
     expect(args).toEqual([
       'x',
-      ...createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion: '4.5.6' }),
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        metricsCorsArgs,
+        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        packageVersion: '4.5.6',
+      }),
     ]);
 
     await preview.stopAsync();
@@ -584,7 +633,15 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(command).toBe('bun');
-    expect(args).toEqual(['x', ...createServeSimArgs({ port, turnArgs, metricsCorsArgs })]);
+    expect(args).toEqual([
+      'x',
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        metricsCorsArgs,
+        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+      }),
+    ]);
 
     await preview.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);

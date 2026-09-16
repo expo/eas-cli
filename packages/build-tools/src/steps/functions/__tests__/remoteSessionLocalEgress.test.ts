@@ -52,7 +52,11 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   spawnDetached: () => ({ pid: 123, getOutput: () => '', stopAsync: jest.fn() }),
   waitForFileAsync: async () => ({ port: 1234, token: 'controller-token' }),
-  startNgrokTunnelAsync: async () => ({ url: 'https://controller.test', stopAsync: jest.fn() }),
+  startNgrokTunnelAsync: async () => ({
+    url: 'https://controller.test',
+    subdomainId: 'controller-id',
+    stopAsync: jest.fn(),
+  }),
   startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
@@ -115,7 +119,8 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue(handoff);
     jest.mocked(monitorLocalEgressAsync).mockResolvedValue(undefined);
     jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewUrl: 'https://preview.test',
+      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+      apiUrl: 'https://preview.test',
       previewToken: 'preview-secret',
       stopAsync: stopPreview,
     });
