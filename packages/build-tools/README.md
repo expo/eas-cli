@@ -6,7 +6,7 @@
 
 [DeviceSessionHost](src/steps/utils/deviceSessionHost.ts) owns the local Device Hub server on Android and the serve-sim server on iOS. A web preview handle owns only its ngrok tunnel. Closing or replacing a preview does not stop the host or its recording.
 
-Android recording is opt-in through `EAS_ANDROID_SESSION_RECORDING=1` and requires a Device Hub version with recording support. Capture starts with the host, even without a preview. The runner supplies the recording-control token automatically.
+Android sessions record by default and require a Device Hub version with recording support. Deploy that Hub release before deploying the worker changes. Capture starts with the host, even without a preview. The runner supplies the recording-control token automatically.
 
 Callers await `host.finishAsync()` when the session ends, including error paths. It finalizes Android recording before stopping the host, then uploads the resulting files. Repeated calls share the same completion promise. Automation resources are cleaned up concurrently so recording upload does not delay their shutdown.
 
