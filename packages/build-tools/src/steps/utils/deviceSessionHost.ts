@@ -218,6 +218,12 @@ export type DeviceSessionHost = {
   finishAsync(): Promise<void>;
 };
 
+type AndroidSessionRecording = {
+  deviceRunSessionId: string;
+  directory: string;
+  controlToken: string;
+};
+
 export async function startDeviceSessionHostAsync(
   ctx: CustomBuildContext,
   {
@@ -238,7 +244,7 @@ export async function startDeviceSessionHostAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
-  const recording = isAndroid
+  const recording: AndroidSessionRecording | null = isAndroid
     ? {
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
         directory: await fs.promises.mkdtemp(path.join(os.tmpdir(), 'android-session-recordings-')),
@@ -283,58 +289,6 @@ export async function startDeviceSessionHostAsync(
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
   let finishTask: Promise<void> | null = null;
-
-  async function finishHostAsync(): Promise<void> {
-    try {
-      await (await previewTask)?.closeAsync();
-    } catch (err) {
-      logger.warn({ err }, `Could not close the ${serverName} preview tunnel.`);
-    }
-    if (recording) {
-      // stopAsync signals the whole process group, including capture's encoder.
-      // Finalize the MP4 first; the token protects this route on the preview server.
-      try {
-        const response = await turtleFetch(
-          `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
-          'POST',
-          {
-            headers: { Authorization: `Bearer ${recording.controlToken}` },
-            timeout: 60_000,
-            retries: 0,
-          }
-        );
-        if (!response.ok) {
-          throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
-      }
-    }
-    try {
-      await previewServer.stopAsync();
-    } catch (err) {
-      logger.warn({ err }, `Could not stop the ${serverName} session host.`);
-    }
-    if (recording) {
-      try {
-        const recordings = parseDeviceScreenRecordings(
-          JSON.parse(
-            await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
-          )
-        );
-        await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
-          logger,
-          deviceRunSessionId: recording.deviceRunSessionId,
-          recordings,
-        });
-      } catch (err) {
-        logger.warn(
-          { err, recordingDirectory: recording.directory },
-          'Could not upload the Android session recording.'
-        );
-      }
-    }
-  }
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain }) {
@@ -385,7 +339,14 @@ export async function startDeviceSessionHostAsync(
       return opening;
     },
     finishAsync() {
-      return (finishTask ??= finishHostAsync());
+      return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
+        previewTask,
+        previewServer,
+        serverName,
+        port,
+        recording,
+        logger,
+      }));
     },
   };
   try {
@@ -411,5 +372,93 @@ export async function startDeviceSessionHostAsync(
   } catch (error) {
     await host.finishAsync();
     throw error;
+  }
+}
+
+async function finishDeviceSessionHostAsync(
+  ctx: CustomBuildContext,
+  {
+    previewTask,
+    previewServer,
+    serverName,
+    port,
+    recording,
+    logger,
+  }: {
+    previewTask: Promise<DeviceWebPreview> | null;
+    previewServer: DetachedProcessHandle;
+    serverName: string;
+    port: number;
+    recording: AndroidSessionRecording | null;
+    logger: bunyan;
+  }
+): Promise<void> {
+  try {
+    await (await previewTask)?.closeAsync();
+  } catch (err) {
+    logger.warn({ err }, `Could not close the ${serverName} preview tunnel.`);
+  }
+  if (recording) {
+    // stopAsync signals the whole process group, including capture's encoder.
+    // Finalize the MP4 first; the token protects this route on the preview server.
+    await finalizeAndroidRecordingAsync({ port, controlToken: recording.controlToken, logger });
+  }
+  try {
+    await previewServer.stopAsync();
+  } catch (err) {
+    logger.warn({ err }, `Could not stop the ${serverName} session host.`);
+  }
+  if (recording) {
+    await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+  }
+}
+
+async function finalizeAndroidRecordingAsync({
+  port,
+  controlToken,
+  logger,
+}: {
+  port: number;
+  controlToken: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    const response = await turtleFetch(
+      `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
+      'POST',
+      {
+        headers: { Authorization: `Bearer ${controlToken}` },
+        timeout: 60_000,
+        retries: 0,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
+  }
+}
+
+async function uploadFinishedAndroidRecordingAsync(
+  ctx: CustomBuildContext,
+  { recording, logger }: { recording: AndroidSessionRecording; logger: bunyan }
+): Promise<void> {
+  try {
+    const recordings = parseDeviceScreenRecordings(
+      JSON.parse(
+        await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
+      )
+    );
+    await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
+      logger,
+      deviceRunSessionId: recording.deviceRunSessionId,
+      recordings,
+    });
+  } catch (err) {
+    logger.warn(
+      { err, recordingDirectory: recording.directory },
+      'Could not upload the Android session recording.'
+    );
   }
 }
