@@ -34,6 +34,7 @@ interface RawRunFlags {
   limit?: number;
   offset?: number;
   profile?: string;
+  'runtime-version'?: string;
   simulator?: string;
 }
 
@@ -43,6 +44,7 @@ interface RunCommandFlags {
   limit?: number;
   offset?: number;
   profile?: string;
+  runtimeVersion?: string;
   simulator?: SimulatorRunTarget;
 }
 
@@ -75,6 +77,12 @@ export default class Run extends EasCommand {
       description:
         'Name of the build profile used to create the build to run. When specified, only builds created with the specified build profile will be queried.',
       helpValue: 'PROFILE_NAME',
+    }),
+    'runtime-version': Flags.string({
+      aliases: ['runtimeVersion'],
+      description:
+        'Runtime version of the build to run. When specified, only builds created with the specified runtime version will be queried.',
+      helpValue: 'RUNTIME_VERSION',
     }),
     simulator: Flags.string({
       description:
@@ -112,7 +120,15 @@ export default class Run extends EasCommand {
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
-    const { platform, limit, offset, profile, simulator, ...runArchiveFlags } = flags;
+    const {
+      platform,
+      limit,
+      offset,
+      profile,
+      'runtime-version': runtimeVersion,
+      simulator,
+      ...runArchiveFlags
+    } = flags;
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
@@ -139,8 +155,19 @@ export default class Run extends EasCommand {
       });
     }
 
-    if (profile && (runArchiveFlags.id || runArchiveFlags.path || runArchiveFlags.url)) {
-      Log.warn('The --profile flag is ignored when using --id, --path, or --url flags.');
+    const ignoredQueryFlags = [
+      ...(profile ? ['--profile'] : []),
+      ...(runtimeVersion ? ['--runtime-version'] : []),
+    ];
+    if (
+      ignoredQueryFlags.length > 0 &&
+      (runArchiveFlags.id || runArchiveFlags.path || runArchiveFlags.url)
+    ) {
+      Log.warn(
+        `The ${ignoredQueryFlags.join(' and ')} ${
+          ignoredQueryFlags.length > 1 ? 'flags are' : 'flag is'
+        } ignored when using --id, --path, or --url flags.`
+      );
     }
 
     return {
@@ -149,6 +176,7 @@ export default class Run extends EasCommand {
       limit,
       offset,
       profile,
+      runtimeVersion,
       simulator: simulator === '' ? true : simulator,
     };
   }
@@ -230,6 +258,7 @@ async function maybeGetBuildAsync(
         platform: flags.selectedPlatform,
         status: BuildStatus.Finished,
         buildProfile: flags.profile,
+        runtimeVersion: flags.runtimeVersion,
         simulator,
       },
       paginatedQueryOptions,
@@ -246,6 +275,7 @@ async function maybeGetBuildAsync(
         platform: flags.selectedPlatform,
         status: BuildStatus.Finished,
         buildProfile: flags.profile,
+        runtimeVersion: flags.runtimeVersion,
         simulator,
       },
     });
