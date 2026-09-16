@@ -11,6 +11,11 @@ import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../serveSimMetricsRecorder', () => ({
+  readServeSimServersAsync: jest
+    .fn()
+    .mockResolvedValue([{ udid: 'emulator-5554', token: 'preview-token' }]),
+}));
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
@@ -83,7 +88,7 @@ afterEach(async () => {
   );
 });
 
-it('records with no preview and finalizes before process stop, uploading exactly once', async () => {
+it('records by default with no preview and finalizes before process stop, uploading exactly once', async () => {
   const host = await startHostAsync();
   expect(ngrok.forward).not.toHaveBeenCalled();
   const directory = directories[0];
@@ -258,7 +263,7 @@ it.each([true, false])(
 );
 
 it('finishes despite a stalled tunnel close', async () => {
-  const host = await startHostAsync(false);
+  const host = await startHostAsync();
   await host.openPreviewAsync({ baseDomain });
   const closing = deferred<void>();
   closeTunnel.mockReturnValueOnce(closing.promise);
@@ -338,7 +343,7 @@ it('retains recordings without uploading if the host cannot be stopped', async (
 });
 
 it('closes a listener that arrives after finish has already timed out waiting for it', async () => {
-  const host = await startHostAsync(false);
+  const host = await startHostAsync();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
   const opening = host.openPreviewAsync({ baseDomain });
@@ -351,4 +356,20 @@ it('closes a listener that arrives after finish has already timed out waiting fo
   tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
   await rejected;
   expect(closeTunnel).toHaveBeenCalledTimes(1);
+});
+
+it('leaves iOS recording to its existing build steps', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.args).not.toContain('--android-recording-directory');
+  expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
+  await host.finishAsync();
+  expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
 });
