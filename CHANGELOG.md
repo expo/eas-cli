@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Keep Android session recordings running independently of the web preview connection. ([#4419](https://github.com/expo/eas-cli/pull/4419) by [@vonovak](https://github.com/vonovak))
+
 ### 🧹 Chores
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16
