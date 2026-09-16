@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add opt-in screen recording and artifact uploads for Android device sessions. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
