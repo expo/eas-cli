@@ -34,6 +34,9 @@ type ArtifactMetadata = {
 };
 
 type ArtifactSource = { stream: Readable; reopenStream?: () => Readable };
+type ArtifactUploadSession = Awaited<
+  ReturnType<typeof createDeviceRunSessionArtifactUploadSessionAsync>
+>;
 
 export async function uploadDeviceRunSessionArtifactAsync(
   ctx: CustomBuildContext,
@@ -49,62 +52,83 @@ export async function uploadDeviceRunSessionArtifactAsync(
             await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, createSignal)
         );
         signal.throwIfAborted();
-        const attempts = options.reopenStream ? 3 : 1;
-        for (let attempt = 0; attempt < attempts; attempt++) {
-          signal.throwIfAborted();
-          const stream =
-            attempt > 0 && options.reopenStream ? options.reopenStream() : options.stream;
-          try {
-            await withDeviceRunSessionTimeoutAsync(
-              { name: 'Artifact PUT', timeoutMs: 90_000, signal },
-              async putSignal => {
-                const requestController = new AbortController();
-                const destroy = () => {
-                  stream.destroy();
-                };
-                putSignal.addEventListener('abort', destroy, { once: true });
-                try {
-                  const response = await fetch(uploadSession.url, {
-                    method: 'PUT',
-                    headers: new Headers(uploadSession.headers as Record<string, string>),
-                    body: stream,
-                    signal: AbortSignal.any([putSignal, requestController.signal]),
-                  });
-                  putSignal.throwIfAborted();
-                  if (!response.ok) {
-                    throw new ArtifactPutError(response.status);
-                  }
-                } finally {
-                  // node-fetch's response stream is a PassThrough; destroying it leaves the socket open.
-                  requestController.abort();
-                  putSignal.removeEventListener('abort', destroy);
-                  stream.destroy();
-                }
-              }
-            );
-            return;
-          } catch (error) {
-            signal.throwIfAborted();
-            const retryable =
-              error instanceof ArtifactPutError
-                ? [408, 429, 500, 502, 503, 504].includes(error.status)
-                : error instanceof Error &&
-                  (error.name === 'FetchError' ||
-                    error.name === 'AbortError' ||
-                    error.message.startsWith('Artifact PUT timed out'));
-            if (!retryable || attempt + 1 === attempts) {
-              throw error;
-            }
-            await delay(500 * (attempt + 1), undefined, { signal });
-          } finally {
-            stream.destroy();
-          }
-        }
+        await putArtifactWithRetriesAsync({ uploadSession, source: options, signal });
       }
     );
   } finally {
     // One-shot callers may have opened their stream before upload-session creation failed.
     options.stream.destroy();
+  }
+}
+
+async function putArtifactWithRetriesAsync({
+  uploadSession,
+  source,
+  signal,
+}: {
+  uploadSession: ArtifactUploadSession;
+  source: ArtifactSource;
+  signal: AbortSignal;
+}): Promise<void> {
+  const attempts = source.reopenStream ? 3 : 1;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    signal.throwIfAborted();
+    const stream = attempt > 0 && source.reopenStream ? source.reopenStream() : source.stream;
+    try {
+      await withDeviceRunSessionTimeoutAsync(
+        { name: 'Artifact PUT', timeoutMs: 90_000, signal },
+        async putSignal => await putArtifactAsync({ uploadSession, stream, signal: putSignal })
+      );
+      return;
+    } catch (error) {
+      signal.throwIfAborted();
+      const retryable =
+        error instanceof ArtifactPutError
+          ? [408, 429, 500, 502, 503, 504].includes(error.status)
+          : error instanceof Error &&
+            (error.name === 'FetchError' ||
+              error.name === 'AbortError' ||
+              error.message.startsWith('Artifact PUT timed out'));
+      if (!retryable || attempt + 1 === attempts) {
+        throw error;
+      }
+      await delay(500 * (attempt + 1), undefined, { signal });
+    } finally {
+      stream.destroy();
+    }
+  }
+}
+
+async function putArtifactAsync({
+  uploadSession,
+  stream,
+  signal,
+}: {
+  uploadSession: ArtifactUploadSession;
+  stream: Readable;
+  signal: AbortSignal;
+}): Promise<void> {
+  const requestController = new AbortController();
+  const destroy = () => {
+    stream.destroy();
+  };
+  signal.addEventListener('abort', destroy, { once: true });
+  try {
+    const response = await fetch(uploadSession.url, {
+      method: 'PUT',
+      headers: new Headers(uploadSession.headers as Record<string, string>),
+      body: stream,
+      signal: AbortSignal.any([signal, requestController.signal]),
+    });
+    signal.throwIfAborted();
+    if (!response.ok) {
+      throw new ArtifactPutError(response.status);
+    }
+  } finally {
+    // node-fetch's response stream is a PassThrough; destroying it leaves the socket open.
+    requestController.abort();
+    signal.removeEventListener('abort', destroy);
+    stream.destroy();
   }
 }
 
