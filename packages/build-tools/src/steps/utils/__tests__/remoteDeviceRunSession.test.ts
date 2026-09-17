@@ -19,6 +19,7 @@ import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  simulatorPreviewPageUrl,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
@@ -466,6 +467,9 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     [{ EXPO_LOCAL: '1' }, 'https://expo.test'],
   ])('points the preview page at the website for the stage the worker runs in', (stage, origin) => {
     expect(websiteOrigin({ ...env, ...stage })).toBe(origin);
+    expect(simulatorPreviewPageUrl({ ...env, ...stage }, 'abc')).toBe(
+      `${origin}/simulator-preview/abc`
+    );
   });
 
   it('points the preview URL at the website page for the tunnel', async () => {

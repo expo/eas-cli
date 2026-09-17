@@ -628,6 +628,10 @@ export function websiteOrigin(env: BuildStepEnv): string {
       : 'https://expo.dev';
 }
 
+export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string): string {
+  return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
+}
+
 export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
   const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
   if (!origin) {
@@ -811,7 +815,6 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec,
     createArgs,
     readPreviewTokenAsync,
-    subdomainId,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -819,16 +822,17 @@ async function startWebPreviewWithTunnelAsync(
     timeoutMs: number;
     serverName: string;
     packageSpec: string;
-    createArgs: (port: number, turnArgs: string[]) => string[];
+    createArgs: (port: number, turnArgs: string[], previewPageUrl: string) => string[];
     readPreviewTokenAsync?: (device: string) => Promise<string>;
-    subdomainId?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
+  const subdomainId = randomBytes(16).toString('hex');
+  const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
   const port = await findAvailablePortAsync();
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
-    createArgs(port, turnArgs)
+    createArgs(port, turnArgs, previewPageUrl)
   );
   logger.info(
     `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
@@ -857,10 +861,7 @@ async function startWebPreviewWithTunnelAsync(
       logger,
     });
     return {
-      previewPageUrl: new URL(
-        `/simulator-preview/${tunnel.subdomainId}`,
-        websiteOrigin(env)
-      ).toString(),
+      previewPageUrl,
       apiUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
@@ -903,10 +904,7 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const origin = websiteOrigin(env);
-  const subdomainId = randomBytes(16).toString('hex');
-  const shareUrl = new URL(`/simulator-preview/${subdomainId}`, origin).toString();
-  const frameAncestorArgs = ['--frame-ancestor', origin];
+  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -914,14 +912,13 @@ export async function startServeSimWithTunnelAsync(
     timeoutMs,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
-    subdomainId,
-    createArgs: (port, turnArgs) =>
+    createArgs: (port, turnArgs, previewPageUrl) =>
       createServeSimArgs({
         port,
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs,
-        shareUrl,
+        shareUrl: previewPageUrl,
         packageVersion,
       }),
     readPreviewTokenAsync: async device => {
