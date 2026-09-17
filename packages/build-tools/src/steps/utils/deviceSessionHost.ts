@@ -44,6 +44,7 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+const HOST_OUTPUT_TAIL_CHARS = 8_000;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -423,10 +424,15 @@ async function finishDeviceSessionHostAsync(
   ).catch(err => {
     logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
   });
+  let finalized = false;
   if (recording) {
     // stopAsync signals the whole process group, including capture's encoder.
     // Finalize the MP4 first; the token protects this route on the preview server.
-    await finalizeAndroidRecordingAsync({ port, controlToken: recording.controlToken, logger });
+    finalized = await finalizeAndroidRecordingAsync({
+      port,
+      controlToken: recording.controlToken,
+      logger,
+    });
   }
   let hostStopped = false;
   try {
@@ -439,8 +445,16 @@ async function finishDeviceSessionHostAsync(
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
   await retirePreview;
+  let uploaded = false;
   if (recording && hostStopped) {
-    await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+    uploaded = await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+  }
+  if (recording && (!finalized || !uploaded)) {
+    // The Hub reports capture failures on stderr; the stop route answers with only a summary.
+    logger.warn(
+      { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
+      'Session host output around the recording failure.'
+    );
   }
 }
 
@@ -452,7 +466,7 @@ async function finalizeAndroidRecordingAsync({
   port: number;
   controlToken: string;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     const response = await withDeviceRunSessionTimeoutAsync(
       { name: 'Android recording finalization', timeoutMs: 60_000 },
@@ -475,15 +489,17 @@ async function finalizeAndroidRecordingAsync({
         `Android recording finalization returned HTTP ${response.status}: ${await response.text()}`
       );
     }
+    return true;
   } catch (err) {
     logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
+    return false;
   }
 }
 
 async function uploadFinishedAndroidRecordingAsync(
   ctx: CustomBuildContext,
   { recording, logger }: { recording: AndroidSessionRecording; logger: bunyan }
-): Promise<void> {
+): Promise<boolean> {
   try {
     let recordings = parseDeviceScreenRecordings(
       JSON.parse(
@@ -513,11 +529,14 @@ async function uploadFinishedAndroidRecordingAsync(
     });
     if (recordings.length > 0 && uploaded) {
       await fs.promises.rm(recording.directory, { recursive: true });
+      return true;
     }
+    return false;
   } catch (err) {
     logger.warn(
       { err, recordingDirectory: recording.directory },
       'Could not upload the Android session recording.'
     );
+    return false;
   }
 }

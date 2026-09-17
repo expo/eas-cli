@@ -205,6 +205,14 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
 });
 
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    return {
+      pid: undefined,
+      getOutput: () => '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255',
+      stopAsync: stopServer,
+    };
+  });
   const host = await startHostAsync();
   await writeFile(path.join(directories[0], 'recordings.json'), '[]');
   await host.openPreviewAsync({ baseDomain });
@@ -227,6 +235,10 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
     'Could not finalize Android recording before shutdown.'
   );
   expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { hostOutput: '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255' },
+    'Session host output around the recording failure.'
+  );
 });
 
 it('rolls back failed host startup without replacing the original error', async () => {
