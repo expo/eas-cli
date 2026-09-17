@@ -16,7 +16,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import {
-  findPartialDeviceScreenRecordingsAsync,
+  findUnlistedDeviceScreenRecordingsAsync,
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
@@ -491,7 +491,8 @@ async function uploadFinishedAndroidRecordingAsync(
       )
     );
     if (recordings.length === 0) {
-      recordings = await findPartialDeviceScreenRecordingsAsync({
+      // recordings.json is written at finish; a killed Hub leaves what it had on disk unlisted.
+      recordings = await findUnlistedDeviceScreenRecordingsAsync({
         root: recording.directory,
         env: recording.env,
         logger,
