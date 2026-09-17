@@ -632,19 +632,9 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
-  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
-  if (!origin) {
-    return [];
-  }
-  const args: string[] = [];
-  for (const value of origin.split(',')) {
-    const trimmed = value.trim();
-    if (trimmed) {
-      args.push('--metrics-cors-origin', trimmed);
-    }
-  }
-  return args;
+export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
+  const origin = websiteOrigin(env);
+  return ['--cors-origin', origin, '--frame-ancestor', origin];
 }
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
@@ -658,15 +648,13 @@ function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): str
 export function createServeSimArgs({
   port,
   turnArgs = [],
-  metricsCorsArgs = [],
-  frameAncestorArgs = [],
+  websiteArgs = [],
   shareUrl,
   packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
-  metricsCorsArgs?: string[];
-  frameAncestorArgs?: string[];
+  websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
 }): string[] {
@@ -690,8 +678,7 @@ export function createServeSimArgs({
     '--video-fps',
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
-    ...metricsCorsArgs,
-    ...frameAncestorArgs,
+    ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
   ];
 }
@@ -903,8 +890,7 @@ export async function startServeSimWithTunnelAsync(
     packageVersion?: string;
   }
 ): Promise<ServeSimPreviewHandle> {
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
+  const websiteArgs = websiteOriginServeSimArgs(env);
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -916,8 +902,7 @@ export async function startServeSimWithTunnelAsync(
       createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs,
+        websiteArgs,
         shareUrl: previewPageUrl,
         packageVersion,
       }),
