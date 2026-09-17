@@ -22,7 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Skip the managed-workflow Expo SDK and Metro config checks for builds that use a custom build config, since those builds run their own steps instead of the standard managed pipeline. (by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Skip the managed-workflow Expo SDK and Metro config checks for builds that use a custom build config, since those builds run their own steps instead of the standard managed pipeline. ([#4424](https://github.com/expo/eas-cli/pull/4424) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Honor `EAS_OVERRIDE_PACKAGE_MANAGER` and `EAS_FALLBACK_PACKAGE_MANAGER` when installing and launching simulator packages (serve-sim, device-hub, Argent, agent-device, Appium) so they can use bun instead of stalling on npm audit. ([#4343](https://github.com/expo/eas-cli/pull/4343) by [@gwdp](https://github.com/gwdp))
 
 ## [24.6.0](https://github.com/expo/eas-cli/releases/tag/v24.6.0) - 2026-09-15
