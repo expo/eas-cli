@@ -633,8 +633,14 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
 }
 
 export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
-  const origin = websiteOrigin(env);
-  return ['--cors-origin', origin, '--frame-ancestor', origin];
+  const origins = [websiteOrigin(env)];
+  // Staging is where website branches get tested, and each one is served from its own
+  // pr-<number>.expo.dev. Production names one origin so a subdomain cannot stand in for it.
+  // Same precedence as websiteOrigin, so a local run never also trusts *.expo.dev.
+  if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
+    origins.push('https://*.expo.dev');
+  }
+  return origins.flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
