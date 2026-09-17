@@ -19,6 +19,7 @@ import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  simulatorPreviewPageUrl,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
@@ -178,6 +179,20 @@ describe(createServeSimArgs, () => {
     expect(createServeSimArgs({ port: 4321, packageVersion: 'next' })[0]).toBe(
       '@expo/serve-sim@next'
     );
+  });
+
+  it('appends --share-url after the frame ancestor args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+      shareUrl: 'https://expo.dev/simulator-preview/abc',
+    });
+    expect(args.slice(-4)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--share-url',
+      'https://expo.dev/simulator-preview/abc',
+    ]);
   });
 });
 
@@ -452,6 +467,9 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     [{ EXPO_LOCAL: '1' }, 'https://expo.test'],
   ])('points the preview page at the website for the stage the worker runs in', (stage, origin) => {
     expect(websiteOrigin({ ...env, ...stage })).toBe(origin);
+    expect(simulatorPreviewPageUrl({ ...env, ...stage }, 'abc')).toBe(
+      `${origin}/simulator-preview/abc`
+    );
   });
 
   it('points the preview URL at the website page for the tunnel', async () => {
@@ -544,6 +562,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
         packageVersion,
       }),
     ]);
@@ -607,6 +626,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
         packageVersion: '4.5.6',
       }),
     ]);
@@ -640,6 +660,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
       }),
     ]);
 
