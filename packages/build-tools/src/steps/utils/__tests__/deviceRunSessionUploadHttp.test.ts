@@ -129,6 +129,45 @@ it('replays the full file after a transient PUT failure without recreating the u
   expect(streams.every(stream => stream.destroyed)).toBe(true);
 });
 
+it('keeps a slow PUT alive while its body is still flowing', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+  let received = 0;
+  let onChunk = () => {};
+  handle = (request, response) => {
+    request.on('data', chunk => {
+      received += chunk.length;
+      onChunk();
+    });
+    request.on('end', () => {
+      response.statusCode = 200;
+      response.end();
+    });
+  };
+  const waitForBytes = (total: number) =>
+    new Promise<void>(resolve => {
+      onChunk = () => {
+        if (received >= total) {
+          resolve();
+        }
+      };
+      onChunk();
+    });
+  const stream = new Readable({ read() {} });
+  const upload = uploadDeviceRunSessionArtifactAsync(ctx, { ...metadata, size: 3, stream });
+  const settled = expect(upload).resolves.toBeUndefined();
+  stream.push('a');
+  await waitForBytes(1);
+  await jest.advanceTimersByTimeAsync(60_000);
+  stream.push('b');
+  await waitForBytes(2);
+  await jest.advanceTimersByTimeAsync(60_000);
+  stream.push('c');
+  stream.push(null);
+  await settled;
+  expect(received).toBe(3);
+  jest.useRealTimers();
+});
+
 it('cancels an active PUT socket and destroys its source without retrying', async () => {
   const started = deferred<void>();
   const closed = deferred<void>();

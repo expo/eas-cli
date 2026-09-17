@@ -41,3 +41,22 @@ it('clears the deadline when an operation succeeds', async () => {
   ).resolves.toBe(42);
   expect(jest.getTimerCount()).toBe(0);
 });
+
+it('keeps an operation alive while it reports progress', async () => {
+  jest.useFakeTimers();
+  const operation = withDeviceRunSessionTimeoutAsync(
+    { name: 'test operation', timeoutMs: 100 },
+    async (signal, resetDeadline) => {
+      await new Promise<void>(resolve => setTimeout(resolve, 80));
+      resetDeadline();
+      await new Promise<void>(resolve => setTimeout(resolve, 80));
+      resetDeadline();
+      await new Promise<void>(resolve => setTimeout(resolve, 80));
+      return signal.aborted;
+    }
+  );
+  const settled = expect(operation).resolves.toBe(false);
+  await jest.advanceTimersByTimeAsync(240);
+  await settled;
+  expect(jest.getTimerCount()).toBe(0);
+});
