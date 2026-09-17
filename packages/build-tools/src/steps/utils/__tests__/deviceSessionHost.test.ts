@@ -135,7 +135,6 @@ it('records by default with no preview and finalizes before process stop, upload
     logger,
     deviceRunSessionId: 'drs-id',
     recordings,
-    signal: expect.any(AbortSignal),
   });
   expect(stopServer.mock.invocationCallOrder[0]).toBeLessThan(
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.invocationCallOrder[0]
@@ -288,29 +287,6 @@ it('aborts a stalled finalization request before stopping the host', async () =>
   expect(options?.signal?.aborted).toBe(true);
   expect(stopServer).toHaveBeenCalledTimes(1);
   response.resolve({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
-});
-
-it('retains files when an upload resolves after its deadline', async () => {
-  const host = await startHostAsync();
-  const directory = directories[0];
-  await writeRecordingDescriptorAsync(directory);
-  const started = deferred<void>();
-  const upload = deferred<boolean>();
-  jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockImplementationOnce(async () => {
-    started.resolve();
-    return await upload.promise;
-  });
-  jest.useFakeTimers();
-  const finishing = host.finishAsync();
-  await started.promise;
-  await jest.advanceTimersByTimeAsync(305_000);
-  await finishing;
-  expect(
-    jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.calls[0][1].signal?.aborted
-  ).toBe(true);
-  upload.resolve(true);
-  await jest.advanceTimersByTimeAsync(0);
-  await expect(access(directory)).resolves.toBeUndefined();
 });
 
 it('rejects descriptors outside its recording root', async () => {

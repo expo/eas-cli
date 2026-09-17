@@ -43,18 +43,12 @@ export async function uploadDeviceRunSessionArtifactAsync(
   options: ArtifactMetadata & ArtifactSource & { signal?: AbortSignal }
 ): Promise<void> {
   try {
-    await withDeviceRunSessionTimeoutAsync(
-      { name: 'Artifact upload', timeoutMs: 300_000, signal: options.signal },
-      async signal => {
-        const uploadSession = await withDeviceRunSessionTimeoutAsync(
-          { name: 'Artifact upload session creation', timeoutMs: 15_000, signal },
-          async createSignal =>
-            await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, createSignal)
-        );
-        signal.throwIfAborted();
-        await putArtifactWithRetriesAsync({ uploadSession, source: options, signal });
-      }
+    const uploadSession = await withDeviceRunSessionTimeoutAsync(
+      { name: 'Artifact upload session creation', timeoutMs: 15_000, signal: options.signal },
+      async signal => await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, signal)
     );
+    options.signal?.throwIfAborted();
+    await putArtifactWithRetriesAsync({ uploadSession, source: options, signal: options.signal });
   } finally {
     // One-shot callers may have opened their stream before upload-session creation failed.
     options.stream.destroy();
@@ -68,20 +62,27 @@ async function putArtifactWithRetriesAsync({
 }: {
   uploadSession: ArtifactUploadSession;
   source: ArtifactSource;
-  signal: AbortSignal;
+  signal?: AbortSignal;
 }): Promise<void> {
   const attempts = source.reopenStream ? 3 : 1;
   for (let attempt = 0; attempt < attempts; attempt++) {
-    signal.throwIfAborted();
+    signal?.throwIfAborted();
     const stream = attempt > 0 && source.reopenStream ? source.reopenStream() : source.stream;
     try {
+      // Upload time scales with file size, so the deadline bounds stalls, not the whole request.
       await withDeviceRunSessionTimeoutAsync(
         { name: 'Artifact PUT', timeoutMs: 90_000, signal },
-        async putSignal => await putArtifactAsync({ uploadSession, stream, signal: putSignal })
+        async (putSignal, resetDeadline) =>
+          await putArtifactAsync({
+            uploadSession,
+            stream,
+            signal: putSignal,
+            onProgress: resetDeadline,
+          })
       );
       return;
     } catch (error) {
-      signal.throwIfAborted();
+      signal?.throwIfAborted();
       const retryable =
         error instanceof ArtifactPutError
           ? [408, 429, 500, 502, 503, 504].includes(error.status)
@@ -103,10 +104,12 @@ async function putArtifactAsync({
   uploadSession,
   stream,
   signal,
+  onProgress,
 }: {
   uploadSession: ArtifactUploadSession;
   stream: Readable;
   signal: AbortSignal;
+  onProgress: () => void;
 }): Promise<void> {
   const requestController = new AbortController();
   const destroy = () => {
@@ -114,12 +117,15 @@ async function putArtifactAsync({
   };
   signal.addEventListener('abort', destroy, { once: true });
   try {
-    const response = await fetch(uploadSession.url, {
+    const responding = fetch(uploadSession.url, {
       method: 'PUT',
       headers: new Headers(uploadSession.headers as Record<string, string>),
       body: stream,
       signal: AbortSignal.any([signal, requestController.signal]),
     });
+    // fetch has piped the body already, so this listener observes flow without starting it.
+    stream.on('data', onProgress);
+    const response = await responding;
     signal.throwIfAborted();
     if (!response.ok) {
       throw new ArtifactPutError(response.status);
