@@ -41,7 +41,7 @@
     "@expo/package-manager": "1.9.10",
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
-    "@types/node": "20.14.2",
+    "@types/node": "20.19.43",
     "@types/prompts": "^2.4.9",
     "@vercel/ncc": "^0.38.1",
     "arg": "^5.0.2",
@@ -52,7 +52,7 @@
     "prompts": "^2.4.2",
     "rimraf": "3.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4",
+    "typescript": "^5.9.3",
     "update-check": "^1.5.4"
   }
 }
