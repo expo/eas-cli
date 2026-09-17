@@ -385,7 +385,7 @@ describe(androidBuilder, () => {
       expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
     });
 
-    it('honors the deprecated EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE name', async () => {
+    it('runs on SDK 57 and earlier when the experimental EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is 1', async () => {
       const ctx = createContext({
         sdkVersion: '57.0.0',
         env: { EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1' },

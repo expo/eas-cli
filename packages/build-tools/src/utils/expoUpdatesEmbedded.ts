@@ -13,9 +13,6 @@ import { resolveArtifactPath } from '../ios/resolve';
 import { BuildContext } from '../context';
 import { isEASUpdateConfigured } from './expoUpdates';
 
-const EMBEDDED_BUNDLE_UPLOAD_ENV_VAR = 'EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE';
-const DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR = 'EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE';
-
 function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
   if (!value) {
     return undefined;
@@ -24,21 +21,18 @@ function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
 }
 
 /**
- * Uploading the embedded bundle is enabled by default for projects on SDK 58 and later.
- * Set EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE to "0" to disable it, or to "1" to enable it on earlier SDKs.
+ * Uploading the embedded bundle is enabled by default for projects on SDK 58 and later, and can be
+ * disabled by setting EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE to "0".
+ *
+ * On SDK 57 and below the feature is still experimental and off by default. Projects opt in by
+ * setting EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE to "1".
  */
 export function shouldUploadEmbeddedBundle(ctx: BuildContext<BuildJob>): boolean {
-  const flag = parseBooleanEnvVar(ctx.env[EMBEDDED_BUNDLE_UPLOAD_ENV_VAR]);
-  if (flag !== undefined) {
-    return flag;
-  }
-
-  const deprecatedFlag = parseBooleanEnvVar(ctx.env[DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR]);
-  if (deprecatedFlag !== undefined) {
-    ctx.logger.warn(
-      `${DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR} is deprecated and will be removed in a future release. Use ${EMBEDDED_BUNDLE_UPLOAD_ENV_VAR} instead.`
-    );
-    return deprecatedFlag;
+  const explicitFlag =
+    parseBooleanEnvVar(ctx.env.EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE) ??
+    parseBooleanEnvVar(ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE);
+  if (explicitFlag !== undefined) {
+    return explicitFlag;
   }
 
   const sdkVersion = ctx.metadata?.sdkVersion;
