@@ -433,18 +433,32 @@ describe(websiteOriginServeSimArgs, () => {
   });
 
   it('follows the stage, so staging and local never name production', () => {
-    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual([
-      '--cors-origin',
-      'https://staging.expo.dev',
-      '--frame-ancestor',
-      'https://staging.expo.dev',
-    ]);
+    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual(
+      expect.arrayContaining(['--cors-origin', 'https://staging.expo.dev'])
+    );
     expect(websiteOriginServeSimArgs({ EXPO_LOCAL: '1' } as BuildStepEnv)).toEqual([
       '--cors-origin',
       'https://expo.test',
       '--frame-ancestor',
       'https://expo.test',
     ]);
+  });
+
+  it('adds the deploy-preview wildcard on staging only', () => {
+    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual([
+      '--cors-origin',
+      'https://staging.expo.dev',
+      '--frame-ancestor',
+      'https://staging.expo.dev',
+      '--cors-origin',
+      'https://*.expo.dev',
+      '--frame-ancestor',
+      'https://*.expo.dev',
+    ]);
+    // EXPO_LOCAL wins in websiteOrigin, so it has to win here too.
+    for (const env of [{}, { EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
+      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).not.toContain('https://*.expo.dev');
+    }
   });
 });
 
