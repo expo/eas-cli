@@ -416,7 +416,9 @@ async function finishDeviceSessionHostAsync(
   const retirePreview = withDeviceRunSessionTimeoutAsync(
     { name: 'Preview tunnel retirement', timeoutMs: 5_000 },
     async () => {
-      await (await previewTask)?.closeAsync();
+      // A preview that failed to open, or was closed by its opener after finish began, has no tunnel left.
+      const preview = await previewTask?.catch(() => null);
+      await preview?.closeAsync();
     }
   ).catch(err => {
     logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
