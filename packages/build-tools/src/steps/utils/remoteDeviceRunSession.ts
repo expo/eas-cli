@@ -564,6 +564,11 @@ async function stopDetachedProcessAsync(
       process.kill(pid, 'SIGKILL');
     } catch {}
   }
+  // kill(pid, 0) succeeds on the zombie until libuv reaps it on a later loop turn.
+  const killDeadline = Date.now() + 5_000;
+  while (Date.now() < killDeadline && isProcessRunning(pid)) {
+    await sleepAsync(100);
+  }
 }
 
 export function spawnDetached({
