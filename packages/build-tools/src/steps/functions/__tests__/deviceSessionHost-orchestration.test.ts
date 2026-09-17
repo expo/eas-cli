@@ -65,13 +65,11 @@ beforeEach(() => {
   jest
     .mocked(spawnDetached)
     .mockReturnValue({ pid: undefined, getOutput: () => '', stopAsync: stopTool });
-  jest
-    .mocked(startNgrokTunnelAsync)
-    .mockResolvedValue({
-      url: 'https://tool.example.test',
-      subdomainId: 'tool-id',
-      stopAsync: stopTunnel,
-    });
+  jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
+    url: 'https://tool.example.test',
+    subdomainId: 'tool-id',
+    stopAsync: stopTunnel,
+  });
   const events = { stopAsync: stopEvents, getLastEventObservedAt: () => undefined };
   jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(startAppiumEventCollectionAsync).mockResolvedValue(events);
