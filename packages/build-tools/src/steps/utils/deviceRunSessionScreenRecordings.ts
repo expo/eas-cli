@@ -34,11 +34,11 @@ const RecordingManifestSchema = z.object({
   error: z.string().optional(),
 });
 
-const PartialRecordingManifestSchema = z.object({
+const UnlistedRecordingManifestSchema = z.object({
   udid: z.string(),
   deviceName: z.string(),
   runtimeDisplayName: z.string(),
-  status: z.enum(['recording', 'failed']),
+  status: z.enum(['recording', 'failed', 'complete']),
   recording: z.string(),
 });
 
@@ -66,11 +66,11 @@ export function parseDeviceScreenRecordings(input: unknown): z.infer<typeof Reco
 }
 
 /**
- * A Hub that was killed or could not finalize never lists its recording. It leaves session.json
- * at "recording" or "failed" and a fragmented .partial that plays up to its last keyframe.
- * Return the ones ffprobe can read.
+ * A Hub that was killed never lists its recording, even one it had already completed at the
+ * duration limit. session.json is at "recording" or "failed" with a fragmented .partial that plays
+ * up to its last keyframe, or at "complete" with the finished file. Return the ones ffprobe can read.
  */
-export async function findPartialDeviceScreenRecordingsAsync({
+export async function findUnlistedDeviceScreenRecordingsAsync({
   root,
   env,
   logger,
@@ -85,7 +85,7 @@ export async function findPartialDeviceScreenRecordingsAsync({
       continue;
     }
     const directory = path.join(root, entry.name);
-    const manifest = PartialRecordingManifestSchema.safeParse(
+    const manifest = UnlistedRecordingManifestSchema.safeParse(
       await readFile(path.join(directory, 'session.json'), 'utf-8')
         .then(text => JSON.parse(text))
         .catch(() => null)
@@ -105,7 +105,7 @@ export async function findPartialDeviceScreenRecordingsAsync({
       )
     );
     if (!probe.ok || !(Number(probe.value.stdout.trim()) > 0)) {
-      logger.warn(`Partial recording ${file} does not decode; skipping it.`);
+      logger.warn(`Unlisted recording ${file} does not decode; skipping it.`);
       continue;
     }
     const { udid, deviceName, runtimeDisplayName } = manifest.data;

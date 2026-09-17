@@ -7,7 +7,7 @@ import path from 'node:path';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
-  findPartialDeviceScreenRecordingsAsync,
+  findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
@@ -28,7 +28,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
   ...jest.requireActual('../deviceRunSessionScreenRecordings'),
-  findPartialDeviceScreenRecordingsAsync: jest.fn(),
+  findUnlistedDeviceScreenRecordingsAsync: jest.fn(),
   uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
 }));
 
@@ -65,7 +65,7 @@ beforeEach(() => {
   stopServer.mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
-  jest.mocked(findPartialDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
+  jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const flag = options.args.indexOf('--android-recording-directory');
     if (flag >= 0) {
@@ -312,10 +312,10 @@ it('uploads the partial recording a killed host left behind and then removes the
   const partial = [
     { udid: 'emulator-5554', deviceName: 'Pixel', runtimeDisplayName: 'Android', directory: child },
   ];
-  jest.mocked(findPartialDeviceScreenRecordingsAsync).mockResolvedValueOnce(partial);
+  jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockResolvedValueOnce(partial);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
   await host.finishAsync();
-  expect(findPartialDeviceScreenRecordingsAsync).toHaveBeenCalledWith({
+  expect(findUnlistedDeviceScreenRecordingsAsync).toHaveBeenCalledWith({
     root: directory,
     env,
     logger,

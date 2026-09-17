@@ -14,7 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
-  findPartialDeviceScreenRecordingsAsync,
+  findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
 
@@ -312,16 +312,18 @@ it('cancels urql session creation with auth intact and never starts a PUT', asyn
 const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool]).status === 0);
 
 (hasFfmpeg ? it : it.skip)(
-  'recovers a decodable partial recording from a killed host and uploads it flagged as partial',
+  'recovers unlisted recordings from a killed host and flags the unfinished ones as partial',
   async () => {
     const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
     const env = process.env as BuildStepEnv;
     const cut = path.join(directory, 'cut');
     const empty = path.join(directory, 'empty');
     const failed = path.join(directory, 'failed');
+    const done = path.join(directory, 'done');
     await mkdir(cut);
     await mkdir(empty);
     await mkdir(failed);
+    await mkdir(done);
     const manifest = {
       udid: 'emulator-5554',
       deviceName: 'Pixel',
@@ -369,7 +371,13 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
       })
     );
 
-    const recordings = await findPartialDeviceScreenRecordingsAsync({
+    await copyFile(path.join(cut, 'recording.mp4.partial'), path.join(done, 'recording.mp4'));
+    await writeFile(
+      path.join(done, 'session.json'),
+      JSON.stringify({ ...manifest, status: 'complete', recording: 'recording.mp4' })
+    );
+
+    const recordings = await findUnlistedDeviceScreenRecordingsAsync({
       root: directory,
       env,
       logger,
@@ -380,6 +388,12 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
         deviceName: 'Pixel',
         runtimeDisplayName: 'Android 16',
         directory: cut,
+      },
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android 16',
+        directory: done,
       },
       {
         udid: 'emulator-5554',
@@ -407,19 +421,20 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
         recordings,
       })
     ).resolves.toBe(true);
-    expect(putBytes).toBe(2 * (await stat(path.join(cut, 'recording.mp4.partial'))).size);
+    expect(putBytes).toBe(3 * (await stat(path.join(cut, 'recording.mp4.partial'))).size);
     const inputs = creationBodies
       .map(body => JSON.parse(body).variables.input)
       .sort((a, b) => a.filename.localeCompare(b.filename));
-    expect(inputs.map(input => input.filename)).toEqual(['cut.mp4', 'failed.mp4']);
-    expect(inputs.every(input => input.name.includes(', partial)'))).toBe(true);
+    expect(inputs.map(input => input.filename)).toEqual(['cut.mp4', 'done.mp4', 'failed.mp4']);
+    expect(inputs.map(input => input.name.includes(', partial)'))).toEqual([true, false, true]);
+    expect(inputs[1].metadata).not.toHaveProperty('partial');
     expect(inputs[0].metadata).toMatchObject({
       partial: true,
       partialReason: 'The Device Hub stopped before it could finalize the recording.',
       width: 128,
       height: 96,
     });
-    expect(inputs[1].metadata).toMatchObject({
+    expect(inputs[2].metadata).toMatchObject({
       partial: true,
       partialReason: 'Recording finalization exceeded 30000 ms.',
     });
