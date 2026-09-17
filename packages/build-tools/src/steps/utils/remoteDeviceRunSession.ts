@@ -656,12 +656,14 @@ export function createServeSimArgs({
   turnArgs = [],
   metricsCorsArgs = [],
   frameAncestorArgs = [],
+  shareUrl,
   packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
   frameAncestorArgs?: string[];
+  shareUrl?: string;
   packageVersion?: string;
 }): string[] {
   return [
@@ -686,6 +688,7 @@ export function createServeSimArgs({
     ...turnArgs,
     ...metricsCorsArgs,
     ...frameAncestorArgs,
+    ...(shareUrl ? ['--share-url', shareUrl] : []),
   ];
 }
 
@@ -808,6 +811,7 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec,
     createArgs,
     readPreviewTokenAsync,
+    subdomainId,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -817,6 +821,7 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[]) => string[];
     readPreviewTokenAsync?: (device: string) => Promise<string>;
+    subdomainId?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
   const port = await findAvailablePortAsync();
@@ -846,6 +851,7 @@ async function startWebPreviewWithTunnelAsync(
     const tunnel = await startNgrokTunnelAsync({
       port,
       subdomainPrefix: 'web-preview',
+      subdomainId,
       baseDomain,
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
@@ -897,7 +903,10 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
+  const origin = websiteOrigin(env);
+  const subdomainId = randomBytes(16).toString('hex');
+  const shareUrl = new URL(`/simulator-preview/${subdomainId}`, origin).toString();
+  const frameAncestorArgs = ['--frame-ancestor', origin];
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -905,8 +914,16 @@ export async function startServeSimWithTunnelAsync(
     timeoutMs,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
+    subdomainId,
     createArgs: (port, turnArgs) =>
-      createServeSimArgs({ port, turnArgs, metricsCorsArgs, frameAncestorArgs, packageVersion }),
+      createServeSimArgs({
+        port,
+        turnArgs,
+        metricsCorsArgs,
+        frameAncestorArgs,
+        shareUrl,
+        packageVersion,
+      }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
@@ -987,6 +1004,7 @@ export type NgrokTunnelHandle = {
 export async function startNgrokTunnelAsync({
   port,
   subdomainPrefix,
+  subdomainId: subdomainIdArg,
   baseDomain,
   authtoken,
   rewriteHostHeader,
@@ -994,12 +1012,13 @@ export async function startNgrokTunnelAsync({
 }: {
   port: number;
   subdomainPrefix: string;
+  subdomainId?: string;
   baseDomain: string;
   authtoken: string;
   rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<NgrokTunnelHandle> {
-  const subdomainId = randomBytes(16).toString('hex');
+  const subdomainId = subdomainIdArg ?? randomBytes(16).toString('hex');
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until

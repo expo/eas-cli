@@ -179,6 +179,20 @@ describe(createServeSimArgs, () => {
       '@expo/serve-sim@next'
     );
   });
+
+  it('appends --share-url after the frame ancestor args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+      shareUrl: 'https://expo.dev/simulator-preview/abc',
+    });
+    expect(args.slice(-4)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--share-url',
+      'https://expo.dev/simulator-preview/abc',
+    ]);
+  });
 });
 
 describe(createExpoDeviceHubArgs, () => {
@@ -544,6 +558,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
         packageVersion,
       }),
     ]);
@@ -607,6 +622,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
         packageVersion: '4.5.6',
       }),
     ]);
@@ -640,6 +656,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
         turnArgs,
         metricsCorsArgs,
         frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        shareUrl: preview.previewPageUrl,
       }),
     ]);
 
