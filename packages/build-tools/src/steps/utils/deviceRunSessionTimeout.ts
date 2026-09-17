@@ -1,3 +1,10 @@
+export class DeviceRunSessionTimeoutError extends Error {
+  constructor(name: string, timeoutMs: number) {
+    super(`${name} timed out after ${timeoutMs}ms.`);
+    this.name = 'DeviceRunSessionTimeoutError';
+  }
+}
+
 /**
  * Bounds waiting and signals cancellation. Operations must check the signal before later effects.
  * Calling resetDeadline restarts the timer, so the bound applies to stalls instead of total time.
@@ -15,7 +22,7 @@ export async function withDeviceRunSessionTimeoutAsync<T>(
   });
   const onAbort = () => rejectAbort(signal.reason);
   signal.addEventListener('abort', onAbort, { once: true });
-  const expire = () => controller.abort(new Error(`${name} timed out after ${timeoutMs}ms.`));
+  const expire = () => controller.abort(new DeviceRunSessionTimeoutError(name, timeoutMs));
   let timer = setTimeout(expire, timeoutMs);
   const resetDeadline = () => {
     clearTimeout(timer);
