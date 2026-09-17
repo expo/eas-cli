@@ -3,6 +3,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
 
@@ -76,19 +77,7 @@ export async function markSandboxReadyAsync(
 ): Promise<void> {
   signal?.throwIfAborted();
   const result = await ctx.graphqlClient
-    .mutation(
-      MARK_SANDBOX_READY_MUTATION,
-      { sandboxId },
-      signal
-        ? {
-            fetch: (input, init) =>
-              fetch(input, {
-                ...init,
-                signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal,
-              }),
-          }
-        : undefined
-    )
+    .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
     .toPromise();
   signal?.throwIfAborted();
   if (result.error) {
