@@ -979,39 +979,34 @@ export async function startExpoDeviceHubWithTunnelAsync(
   if (runtimePlatform === BuildRuntimePlatform.LINUX) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
-  const recordingDirectory =
-    env.EAS_ANDROID_SESSION_RECORDING === '1'
-      ? await fs.promises.mkdtemp(path.join(os.tmpdir(), 'android-session-recordings-'))
-      : undefined;
-  const recordingControlToken = recordingDirectory ? randomBytes(32).toString('hex') : undefined;
+  const recordingDirectory = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'android-session-recordings-')
+  );
+  const recordingControlToken = randomBytes(32).toString('hex');
   const preview = await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
-    env: recordingControlToken
-      ? { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recordingControlToken }
-      : env,
+    env: { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recordingControlToken },
     logger,
     timeoutMs,
     serverName: 'expo-device-hub',
     packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
     createArgs: (port, turnArgs) =>
       createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
-    stopGracePeriodMs: recordingDirectory ? 70_000 : undefined,
-    beforeStopAsync: recordingControlToken
-      ? async port => {
-          const response = await turtleFetch(
-            `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
-            'POST',
-            {
-              headers: { Authorization: `Bearer ${recordingControlToken}` },
-              timeout: 60_000,
-              retries: 0,
-            }
-          );
-          if (!response.ok) {
-            throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
-          }
+    stopGracePeriodMs: 70_000,
+    beforeStopAsync: async port => {
+      const response = await turtleFetch(
+        `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
+        'POST',
+        {
+          headers: { Authorization: `Bearer ${recordingControlToken}` },
+          timeout: 60_000,
+          retries: 0,
         }
-      : undefined,
+      );
+      if (!response.ok) {
+        throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+      }
+    },
   });
   let stopTask: Promise<void> | undefined;
   return {
@@ -1019,9 +1014,6 @@ export async function startExpoDeviceHubWithTunnelAsync(
     stopAsync: () =>
       (stopTask ??= (async () => {
         await preview.stopAsync();
-        if (!recordingDirectory) {
-          return;
-        }
         try {
           const recordings: unknown = JSON.parse(
             await fs.promises.readFile(path.join(recordingDirectory, 'recordings.json'), 'utf8')
