@@ -6,6 +6,7 @@ import * as YAML from 'yaml';
 
 import { validateWorkflowLocalCompositeFunctionsAsync } from './compositeFunctions';
 import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
+import { warnIfWorkflowSetsReservedEnvironmentVariables } from './reservedEnvWarning';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
@@ -32,6 +33,7 @@ export async function validateWorkflowFileAsync(
   // Check if the parsed result is empty or null
   Log.debug(`Validating workflow is not empty...`);
   validateWorkflowIsNotEmpty(parsedYaml);
+  warnIfWorkflowSetsReservedEnvironmentVariables(parsedYaml);
 
   const workflowSchema = await fetchWorkflowSchemaAsync();
 

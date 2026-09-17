@@ -23,6 +23,7 @@ import { Datadog } from './datadog';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
+import { warnOrThrowIfJobOverridesReservedEnvironmentVariables } from './utils/reservedJobEnv';
 
 export type Artifacts = Partial<Record<ManagedArtifactType, string>>;
 
@@ -115,6 +116,12 @@ export class BuildContext<TJob extends Job = Job> {
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
     this.mcpServerUrl = options.mcpServerUrl;
+
+    warnOrThrowIfJobOverridesReservedEnvironmentVariables({
+      jobEnv: job?.builderEnvironment?.env,
+      workerEnv: options.env,
+      logger: this.logger,
+    });
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {
