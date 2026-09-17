@@ -6,7 +6,10 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { turtleFetch } from '../../../utils/turtleFetch';
-import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import {
+  findPartialDeviceScreenRecordingsAsync,
+  uploadDeviceRunSessionScreenRecordingsAsync,
+} from '../deviceRunSessionScreenRecordings';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
@@ -25,6 +28,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
   ...jest.requireActual('../deviceRunSessionScreenRecordings'),
+  findPartialDeviceScreenRecordingsAsync: jest.fn(),
   uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
 }));
 
@@ -61,6 +65,7 @@ beforeEach(() => {
   stopServer.mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
+  jest.mocked(findPartialDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const flag = options.args.indexOf('--android-recording-directory');
     if (flag >= 0) {
@@ -287,6 +292,31 @@ it('aborts a stalled finalization request before stopping the host', async () =>
   expect(options?.signal?.aborted).toBe(true);
   expect(stopServer).toHaveBeenCalledTimes(1);
   response.resolve({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
+});
+
+it('uploads the partial recording a killed host left behind and then removes the root', async () => {
+  const host = await startHostAsync();
+  const directory = directories[0];
+  const child = path.join(directory, 'session');
+  await mkdir(child);
+  await writeFile(path.join(directory, 'recordings.json'), '[]');
+  const partial = [
+    { udid: 'emulator-5554', deviceName: 'Pixel', runtimeDisplayName: 'Android', directory: child },
+  ];
+  jest.mocked(findPartialDeviceScreenRecordingsAsync).mockResolvedValueOnce(partial);
+  jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
+  await host.finishAsync();
+  expect(findPartialDeviceScreenRecordingsAsync).toHaveBeenCalledWith({
+    root: directory,
+    env,
+    logger,
+  });
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledWith(ctx, {
+    logger,
+    deviceRunSessionId: 'drs-id',
+    recordings: partial,
+  });
+  await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
 it('rejects descriptors outside its recording root', async () => {

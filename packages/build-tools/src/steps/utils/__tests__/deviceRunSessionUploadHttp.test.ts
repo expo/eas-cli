@@ -1,6 +1,9 @@
+import type { bunyan } from '@expo/logger';
+import type { BuildStepEnv } from '@expo/steps';
 import { Client, fetchExchange } from '@urql/core';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
 import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -10,6 +13,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import {
+  findPartialDeviceScreenRecordingsAsync,
+  uploadDeviceRunSessionScreenRecordingsAsync,
+} from '../deviceRunSessionScreenRecordings';
 
 jest.unmock('node-fetch');
 jest.unmock('node:fs');
@@ -40,11 +47,13 @@ let creates: number;
 let authorization: string | undefined;
 let stallCreation: boolean;
 let creationStarted: ReturnType<typeof deferred<IncomingMessage>>;
+let creationBody: string;
 
 beforeEach(async () => {
   creates = 0;
   authorization = undefined;
   stallCreation = false;
+  creationBody = '';
   creationStarted = deferred();
   directory = await mkdtemp(path.join(tmpdir(), 'recording-upload-http-'));
   server = createServer((request, response) => {
@@ -52,7 +61,8 @@ beforeEach(async () => {
       creates++;
       authorization = request.headers.authorization;
       creationStarted.resolve(request);
-      request.resume();
+      request.setEncoding('utf8');
+      request.on('data', chunk => (creationBody += chunk));
       request.on('end', () => {
         if (stallCreation) {
           return;
@@ -257,3 +267,89 @@ it('cancels urql session creation with auth intact and never starts a PUT', asyn
   expect(puts).not.toHaveBeenCalled();
   expect(stream.destroyed).toBe(true);
 });
+
+const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool]).status === 0);
+
+(hasFfmpeg ? it : it.skip)(
+  'recovers a decodable partial recording from a killed host and uploads it flagged as partial',
+  async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+    const env = process.env as BuildStepEnv;
+    const cut = path.join(directory, 'cut');
+    const empty = path.join(directory, 'empty');
+    await mkdir(cut);
+    await mkdir(empty);
+    const manifest = {
+      udid: 'emulator-5554',
+      deviceName: 'Pixel',
+      runtimeDisplayName: 'Android 16',
+      status: 'recording',
+      recording: 'recording.mp4.partial',
+      firstFrameWallClock: { iso8601: '2026-07-10T10:00:00.000Z' },
+      width: 128,
+      height: 96,
+    };
+    execFileSync('ffmpeg', [
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=red:s=128x96:r=1',
+      '-t',
+      '3',
+      '-c:v',
+      'libx264',
+      '-g',
+      '1',
+      '-pix_fmt',
+      'yuv420p',
+      '-movflags',
+      'frag_keyframe+empty_moov',
+      '-f',
+      'mp4',
+      path.join(cut, 'recording.mp4.partial'),
+    ]);
+    await writeFile(path.join(cut, 'session.json'), JSON.stringify(manifest));
+    await writeFile(path.join(empty, 'recording.mp4.partial'), new Uint8Array(28));
+    await writeFile(path.join(empty, 'session.json'), JSON.stringify(manifest));
+
+    const recordings = await findPartialDeviceScreenRecordingsAsync({
+      root: directory,
+      env,
+      logger,
+    });
+    expect(recordings).toEqual([
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android 16',
+        directory: cut,
+      },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('empty/recording.mp4.partial')
+    );
+
+    let putBytes = 0;
+    handle = (request, response) => {
+      request.on('data', chunk => (putBytes += chunk.length));
+      request.on('end', () => {
+        response.statusCode = 200;
+        response.end();
+      });
+    };
+    await expect(
+      uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
+        logger,
+        deviceRunSessionId: 'drs-id',
+        recordings,
+      })
+    ).resolves.toBe(true);
+    expect(putBytes).toBe((await stat(path.join(cut, 'recording.mp4.partial'))).size);
+    const input = JSON.parse(creationBody).variables.input;
+    expect(input.filename).toBe('cut.mp4');
+    expect(input.name).toContain(', partial)');
+    expect(input.metadata).toMatchObject({ partial: true, width: 128, height: 96 });
+  }
+);
