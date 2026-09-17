@@ -47,6 +47,10 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.EXPO_BOT_PAT }}
+          # The changelog is generated on the branch it is committed to, so the
+          # job never switches branches with a dirty working tree.
+          ref: main
+          fetch-depth: 0
       - uses: ./.github/actions/setup-mise
       - name: Install dependencies
         working-directory: ./scripts
@@ -57,20 +61,44 @@ jobs:
         run: |
           git config user.email "support+ci@expo.io"
           git config user.name "Expo CI"
+      - name: Check whether the changelog is already updated
+        run: |
+          if grep -qF "## [$EAS_CLI_VERSION](" CHANGELOG.md; then
+            echo "CHANGELOG.md already has an entry for v$EAS_CLI_VERSION."
+            echo "CHANGELOG_ALREADY_UPDATED=true" >> "$GITHUB_ENV"
+          else
+            echo "CHANGELOG_ALREADY_UPDATED=false" >> "$GITHUB_ENV"
+          fi
       - name: Update changelog
+        if: env.CHANGELOG_ALREADY_UPDATED == 'false'
         working-directory: ./scripts
         run: yarn release-changelog "$EAS_CLI_VERSION" > /tmp/current-changelog
+      - name: Reuse the existing changelog entry
+        if: env.CHANGELOG_ALREADY_UPDATED == 'true'
+        run: |
+          {
+            echo "v$EAS_CLI_VERSION"
+            echo
+            awk -v heading="## [$EAS_CLI_VERSION](" '
+              index($0, heading) == 1 { found = 1; next }
+              found && /^## / { exit }
+              found { print }
+            ' CHANGELOG.md | sed '/./,$!d'
+          } > /tmp/current-changelog
       - name: Publish release
         run: gh release edit "v$EAS_CLI_VERSION" --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit and push changelog
         run: |
-          git fetch
-          git checkout main
           git add CHANGELOG.md
-          git commit --allow-empty -m "update CHANGELOG.md for v$EAS_CLI_VERSION"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changelog changes to commit."
+          else
+            git commit -m "update CHANGELOG.md for v$EAS_CLI_VERSION"
+            git pull --rebase --autostash origin main
+            git push
+          fi
       - name: Verify eas-cli is available on npm
         run: |
           availability_deadline_epoch=$(( $(date +%s) + 600 ))
