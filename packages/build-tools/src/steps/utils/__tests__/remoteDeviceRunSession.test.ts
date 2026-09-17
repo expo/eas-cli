@@ -384,18 +384,17 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     });
   });
 
-  it('finalizes Android recording before stopping the preview and uploads once', async () => {
+  it('records Android by default and finalizes before stopping the preview and uploads once', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest
       .mocked(ngrok.forward)
       .mockResolvedValue({ url: () => 'https://preview.example.test', close } as never);
     const logger = createLoggerMock();
-    const recordingEnv = { ...env, EAS_ANDROID_SESSION_RECORDING: '1' };
     const ctx = createCtxMock();
     const preview = await startExpoDeviceHubWithTunnelAsync(ctx, {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       baseDomain,
-      env: recordingEnv,
+      env,
       logger,
       timeoutMs: 10_000,
     });
@@ -438,7 +437,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       expect(close).toHaveBeenCalledTimes(1);
       expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
       expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledWith(ctx, {
-        env: recordingEnv,
+        env,
         logger,
         recordings,
       });
@@ -499,11 +498,17 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual(['--yes', ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion })]);
+    expect(args).toContain('--android-recording-directory');
+    const recordingDirectory = args[args.indexOf('--android-recording-directory') + 1];
+    expect(args).toEqual([
+      '--yes',
+      ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+    ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
     await preview.stopAsync();
+    await fs.rm(recordingDirectory, { recursive: true, force: true });
     expect(close).toHaveBeenCalledTimes(1);
   });
 
