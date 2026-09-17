@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Respect `--no-auto-testflight-setup` when submitting without `ascAppId`, so the internal TestFlight group is no longer created and admins are no longer invited. ([#4426](https://github.com/expo/eas-cli/pull/4426) by [@tahakocal](https://github.com/tahakocal))
+
 ### 🧹 Chores
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16
