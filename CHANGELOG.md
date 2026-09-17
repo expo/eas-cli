@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [steps] Declare the `fast-glob` dependency, fixing `MODULE_NOT_FOUND` when eas-cli is installed with pnpm. ([#4050](https://github.com/expo/eas-cli/pull/4050) by [@ifeanyi-ugwu](https://github.com/ifeanyi-ugwu))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 5.9.3, `@types/node` to 20.19.43, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
