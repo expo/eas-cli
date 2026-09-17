@@ -31,6 +31,7 @@ export async function uploadDeviceRunSessionArtifactAsync(
     metadata,
     size,
     stream,
+    signal,
   }: {
     deviceRunSessionId: string;
     artifactId: string;
@@ -40,8 +41,10 @@ export async function uploadDeviceRunSessionArtifactAsync(
     metadata?: Record<string, unknown>;
     size: number;
     stream: NodeJS.ReadableStream;
+    signal?: AbortSignal;
   }
 ): Promise<void> {
+  signal?.throwIfAborted();
   const uploadSession = await createDeviceRunSessionArtifactUploadSessionAsync(ctx, {
     deviceRunSessionId,
     artifactId,
@@ -50,11 +53,14 @@ export async function uploadDeviceRunSessionArtifactAsync(
     kind,
     metadata,
     size,
+    signal,
   });
+  signal?.throwIfAborted();
   const response = await fetch(uploadSession.url, {
     method: 'PUT',
     headers: new Headers(uploadSession.headers as Record<string, string>),
     body: stream,
+    ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
     throw new SystemError(
@@ -74,6 +80,7 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
     kind,
     metadata,
     size,
+    signal,
   }: {
     deviceRunSessionId: string;
     artifactId: string;
@@ -82,19 +89,32 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
     kind: string | undefined;
     metadata?: Record<string, unknown>;
     size: number;
+    signal?: AbortSignal;
   }
 ) {
   const result = await ctx.graphqlClient
-    .mutation(CREATE_DEVICE_RUN_SESSION_ARTIFACT_UPLOAD_SESSION_MUTATION, {
-      deviceRunSessionId,
-      input: {
-        name,
-        filename,
-        ...(kind !== undefined ? { kind } : {}),
-        ...(metadata !== undefined ? { metadata } : {}),
-        size,
+    .mutation(
+      CREATE_DEVICE_RUN_SESSION_ARTIFACT_UPLOAD_SESSION_MUTATION,
+      {
+        deviceRunSessionId,
+        input: {
+          name,
+          filename,
+          ...(kind !== undefined ? { kind } : {}),
+          ...(metadata !== undefined ? { metadata } : {}),
+          size,
+        },
       },
-    })
+      signal
+        ? {
+            fetch: (input, options) =>
+              globalThis.fetch(input, {
+                ...options,
+                signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
+              }),
+          }
+        : undefined
+    )
     .toPromise();
   if (result.error) {
     throw new SystemError(
