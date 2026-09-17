@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 5.9.3, `@types/node` to 20.19.43, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
