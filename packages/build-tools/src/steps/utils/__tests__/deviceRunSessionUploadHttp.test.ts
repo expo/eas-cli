@@ -3,7 +3,7 @@ import type { BuildStepEnv } from '@expo/steps';
 import { Client, fetchExchange } from '@urql/core';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
 import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -47,13 +47,13 @@ let creates: number;
 let authorization: string | undefined;
 let stallCreation: boolean;
 let creationStarted: ReturnType<typeof deferred<IncomingMessage>>;
-let creationBody: string;
+let creationBodies: string[];
 
 beforeEach(async () => {
   creates = 0;
   authorization = undefined;
   stallCreation = false;
-  creationBody = '';
+  creationBodies = [];
   creationStarted = deferred();
   directory = await mkdtemp(path.join(tmpdir(), 'recording-upload-http-'));
   server = createServer((request, response) => {
@@ -62,7 +62,9 @@ beforeEach(async () => {
       authorization = request.headers.authorization;
       creationStarted.resolve(request);
       request.setEncoding('utf8');
-      request.on('data', chunk => (creationBody += chunk));
+      let body = '';
+      request.on('data', chunk => (body += chunk));
+      request.on('end', () => creationBodies.push(body));
       request.on('end', () => {
         if (stallCreation) {
           return;
@@ -277,8 +279,10 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
     const env = process.env as BuildStepEnv;
     const cut = path.join(directory, 'cut');
     const empty = path.join(directory, 'empty');
+    const failed = path.join(directory, 'failed');
     await mkdir(cut);
     await mkdir(empty);
+    await mkdir(failed);
     const manifest = {
       udid: 'emulator-5554',
       deviceName: 'Pixel',
@@ -313,6 +317,18 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
     await writeFile(path.join(cut, 'session.json'), JSON.stringify(manifest));
     await writeFile(path.join(empty, 'recording.mp4.partial'), new Uint8Array(28));
     await writeFile(path.join(empty, 'session.json'), JSON.stringify(manifest));
+    await copyFile(
+      path.join(cut, 'recording.mp4.partial'),
+      path.join(failed, 'recording.mp4.partial')
+    );
+    await writeFile(
+      path.join(failed, 'session.json'),
+      JSON.stringify({
+        ...manifest,
+        status: 'failed',
+        error: 'Recording finalization exceeded 30000 ms.',
+      })
+    );
 
     const recordings = await findPartialDeviceScreenRecordingsAsync({
       root: directory,
@@ -325,6 +341,12 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
         deviceName: 'Pixel',
         runtimeDisplayName: 'Android 16',
         directory: cut,
+      },
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android 16',
+        directory: failed,
       },
     ]);
     expect(logger.warn).toHaveBeenCalledWith(
@@ -346,10 +368,21 @@ const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool])
         recordings,
       })
     ).resolves.toBe(true);
-    expect(putBytes).toBe((await stat(path.join(cut, 'recording.mp4.partial'))).size);
-    const input = JSON.parse(creationBody).variables.input;
-    expect(input.filename).toBe('cut.mp4');
-    expect(input.name).toContain(', partial)');
-    expect(input.metadata).toMatchObject({ partial: true, width: 128, height: 96 });
+    expect(putBytes).toBe(2 * (await stat(path.join(cut, 'recording.mp4.partial'))).size);
+    const inputs = creationBodies
+      .map(body => JSON.parse(body).variables.input)
+      .sort((a, b) => a.filename.localeCompare(b.filename));
+    expect(inputs.map(input => input.filename)).toEqual(['cut.mp4', 'failed.mp4']);
+    expect(inputs.every(input => input.name.includes(', partial)'))).toBe(true);
+    expect(inputs[0].metadata).toMatchObject({
+      partial: true,
+      partialReason: 'The Device Hub stopped before it could finalize the recording.',
+      width: 128,
+      height: 96,
+    });
+    expect(inputs[1].metadata).toMatchObject({
+      partial: true,
+      partialReason: 'Recording finalization exceeded 30000 ms.',
+    });
   }
 );
