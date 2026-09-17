@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Print an actionable error message that says to install the project's dependencies when they aren't installed and EAS CLI needs them to read the app config, instead of a confusing module resolution error. Reading the config with the copy of `@expo/config` bundled with EAS CLI is now reserved for old SDK versions whose `expo` package doesn't include Expo CLI; projects without the `expo` package get an error directing them to install it. ([#4080](https://github.com/expo/eas-cli/pull/4080) by [@ide](https://github.com/ide))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 5.9.3, `@types/node` to 20.19.43, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
