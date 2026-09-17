@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Warn from workflow validation when YAML overwrites reserved `EAS_BUILD*` environment variables. ([#4427](https://github.com/expo/eas-cli/pull/4427) by [@sregg](https://github.com/sregg))
+- [build-tools] Warn when a job overwrites reserved `EAS_BUILD*` environment variables, and fail if `EAS_BUILD_ID` is replaced with a different value. ([#4427](https://github.com/expo/eas-cli/pull/4427) by [@sregg](https://github.com/sregg))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
