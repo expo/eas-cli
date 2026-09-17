@@ -5,6 +5,14 @@ on:
 
 name: Release workflow
 
+# Releases push commits to main, so they must never overlap. The group is a
+# constant rather than per-ref, so two different tags serialize. Queued runs
+# are never cancelled, because a half-finished release leaves npm, the git
+# history, and cli-versions.json out of sync.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Create a release
