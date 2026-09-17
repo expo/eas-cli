@@ -60,6 +60,7 @@ jest.mock('../../utils/expoUpdates', () => ({
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync: jest.fn(async () => null),
 }));
 jest.mock('../../utils/expoUpdatesEmbedded', () => ({
+  ...jest.requireActual('../../utils/expoUpdatesEmbedded'),
   uploadEmbeddedBundleAsync: jest.fn(),
 }));
 jest.mock('../../utils/hooks', () => ({
@@ -317,36 +318,82 @@ describe(androidBuilder, () => {
     expect(runBuilderWithHooksAsync).toHaveBeenCalledWith(ctx, expect.any(Function));
   });
 
-  it('runs the embedded bundle upload phase when EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is set', async () => {
-    const ctx = new BuildContext(createTestAndroidJob(), {
-      workingdir: '/workingdir',
-      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-      logger: createMockLogger(),
-      env: {
-        __API_SERVER_URL: 'http://api.expo.test',
-        EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1',
-      },
-      uploadArtifact: jest.fn(),
+  describe('embedded bundle upload phase', () => {
+    function createContext({
+      env = {},
+      sdkVersion,
+    }: {
+      env?: Record<string, string>;
+      sdkVersion?: string;
+    }): BuildContext<Android.Job> {
+      return new BuildContext(createTestAndroidJob(), {
+        workingdir: '/workingdir',
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        logger: createMockLogger(),
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+          ...env,
+        },
+        uploadArtifact: jest.fn(),
+        metadata: sdkVersion ? { sdkVersion } : undefined,
+      });
+    }
+
+    it('runs by default on SDK 58 and later', async () => {
+      const ctx = createContext({ sdkVersion: '58.0.0' });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
     });
 
-    await androidBuilder(ctx);
+    it('skips by default on SDK 57 and earlier', async () => {
+      const ctx = createContext({ sdkVersion: '57.0.0' });
 
-    expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
-  });
+      await androidBuilder(ctx);
 
-  it('skips the embedded bundle upload phase when EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is not set', async () => {
-    const ctx = new BuildContext(createTestAndroidJob(), {
-      workingdir: '/workingdir',
-      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-      logger: createMockLogger(),
-      env: {
-        __API_SERVER_URL: 'http://api.expo.test',
-      },
-      uploadArtifact: jest.fn(),
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
     });
 
-    await androidBuilder(ctx);
+    it('skips by default when the SDK version is unknown', async () => {
+      const ctx = createContext({});
 
-    expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+    });
+
+    it('runs on SDK 57 and earlier when EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE is 1', async () => {
+      const ctx = createContext({
+        sdkVersion: '57.0.0',
+        env: { EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE: '1' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+    });
+
+    it('skips on SDK 58 and later when EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE is 0', async () => {
+      const ctx = createContext({
+        sdkVersion: '58.0.0',
+        env: { EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE: '0' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+    });
+
+    it('honors the deprecated EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE name', async () => {
+      const ctx = createContext({
+        sdkVersion: '57.0.0',
+        env: { EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+    });
   });
 });

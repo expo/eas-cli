@@ -32,7 +32,10 @@ import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
-import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 
@@ -223,7 +226,7 @@ async function buildInnerAsync(
     });
   });
 
-  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
+  if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
       await uploadEmbeddedBundleAsync(ctx);
     });

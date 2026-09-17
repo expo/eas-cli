@@ -5,12 +5,45 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 import StreamZip from 'node-stream-zip';
+import semver from 'semver';
 
 import { findArtifacts } from './artifacts';
 import { runEasCliCommand } from './easCli';
 import { resolveArtifactPath } from '../ios/resolve';
 import { BuildContext } from '../context';
 import { isEASUpdateConfigured } from './expoUpdates';
+
+const EMBEDDED_BUNDLE_UPLOAD_ENV_VAR = 'EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE';
+const DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR = 'EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE';
+
+function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return value !== '0' && value !== 'false';
+}
+
+/**
+ * Uploading the embedded bundle is enabled by default for projects on SDK 58 and later.
+ * Set EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE to "0" to disable it, or to "1" to enable it on earlier SDKs.
+ */
+export function shouldUploadEmbeddedBundle(ctx: BuildContext<BuildJob>): boolean {
+  const flag = parseBooleanEnvVar(ctx.env[EMBEDDED_BUNDLE_UPLOAD_ENV_VAR]);
+  if (flag !== undefined) {
+    return flag;
+  }
+
+  const deprecatedFlag = parseBooleanEnvVar(ctx.env[DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR]);
+  if (deprecatedFlag !== undefined) {
+    ctx.logger.warn(
+      `${DEPRECATED_EMBEDDED_BUNDLE_UPLOAD_ENV_VAR} is deprecated and will be removed in a future release. Use ${EMBEDDED_BUNDLE_UPLOAD_ENV_VAR} instead.`
+    );
+    return deprecatedFlag;
+  }
+
+  const sdkVersion = ctx.metadata?.sdkVersion;
+  return !!sdkVersion && semver.satisfies(sdkVersion, '>=58');
+}
 
 export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Promise<void> {
   if (!(await isEASUpdateConfigured(ctx))) {
