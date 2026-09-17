@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stream iOS Simulator previews at 1600px and 10 Mbps. ([#4439](https://github.com/expo/eas-cli/pull/4439) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
