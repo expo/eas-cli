@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
