@@ -1,3 +1,4 @@
+import { AccessForbiddenError } from '@expo/apple-utils';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
@@ -91,7 +92,18 @@ export class SetUpAscApiKey {
     }
 
     // only provide autoselect if we can find a key that is certainly valid
-    const validKeys = await getValidAndTrackedAscApiKeysAsync(ctx, keysForAccount);
+    let validKeys: AppStoreConnectApiKeyFragment[];
+    try {
+      validKeys = await getValidAndTrackedAscApiKeysAsync(ctx, keysForAccount);
+    } catch (error) {
+      if (!(error instanceof AccessForbiddenError)) {
+        throw error;
+      }
+      Log.warn(
+        `Unable to find a valid App Store Connect API Key to reuse automatically, your Apple ID does not have permission to view API keys. Choose a key manually.`
+      );
+      return null;
+    }
     if (validKeys.length === 0) {
       return null;
     }
