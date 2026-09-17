@@ -24,6 +24,7 @@ import {
   resolvePackageAdd,
   resolvePackageInstall,
 } from '../../utils/packageManager';
+import { startAgentDeviceAppLogCollectionAsync } from '../utils/agentDeviceAppLogs';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
@@ -98,6 +99,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       }
 
       logger.info('Launching agent-device daemon.');
+      const appLogs = await startAgentDeviceAppLogCollectionAsync({
+        ctx,
+        deviceRunSessionId,
+        stateDir: AGENT_DEVICE_STATE_DIR,
+        logger,
+      });
       const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
 
       logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
@@ -175,18 +182,21 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
+        try {
+          if (webPreview) {
+            await webPreview.stopAsync();
+          }
+          await agentDeviceTunnel.stopAsync();
+          if (eventCollection) {
+            await stopAgentDeviceEventCollectionSafelyAsync({
+              eventCollection,
+              deviceRunSessionId,
+              logger,
+            });
+          }
+        } finally {
+          await stopAgentDeviceAndUploadAppLogsAsync({ daemonProcess, appLogs });
         }
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
-            deviceRunSessionId,
-            logger,
-          });
-        }
-        await daemonProcess.stopAsync();
       }
     }),
   });
@@ -258,6 +268,17 @@ export async function startAgentDeviceDaemonAsync({
     );
     return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
   }
+}
+
+export async function stopAgentDeviceAndUploadAppLogsAsync({
+  daemonProcess,
+  appLogs,
+}: {
+  daemonProcess: { stopAsync: () => Promise<void> };
+  appLogs: { stopAsync: () => Promise<void> };
+}): Promise<void> {
+  await daemonProcess.stopAsync();
+  await appLogs.stopAsync();
 }
 
 export async function stopAgentDeviceEventCollectionSafelyAsync({

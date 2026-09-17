@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
+- [build-tools] Preserve already-captured Agent Device app logs as simulator session artifacts after shutdown.
 
 ### 🐛 Bug fixes
 

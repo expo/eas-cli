@@ -7,6 +7,7 @@ import { Sentry } from '../../../sentry';
 import { spawnDetached } from '../../utils/remoteDeviceRunSession';
 import {
   startAgentDeviceDaemonAsync,
+  stopAgentDeviceAndUploadAppLogsAsync,
   stopAgentDeviceEventCollectionSafelyAsync,
 } from '../startAgentDeviceRemoteSession';
 
@@ -33,6 +34,39 @@ async function writeDaemonEntry(cwd: string): Promise<string> {
   await fs.promises.writeFile(daemonPath, '');
   return daemonPath;
 }
+
+describe(stopAgentDeviceAndUploadAppLogsAsync, () => {
+  it('waits for daemon shutdown before collecting final log bytes', async () => {
+    let finish!: () => void;
+    const daemonStopped = new Promise<void>(resolve => {
+      finish = resolve;
+    });
+    const upload = jest.fn(async () => {});
+    const stopped = stopAgentDeviceAndUploadAppLogsAsync({
+      daemonProcess: { stopAsync: () => daemonStopped },
+      appLogs: { stopAsync: upload },
+    });
+    expect(upload).not.toHaveBeenCalled();
+    finish();
+    await stopped;
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not snapshot a daemon that failed to stop', async () => {
+    const upload = jest.fn();
+    await expect(
+      stopAgentDeviceAndUploadAppLogsAsync({
+        daemonProcess: {
+          stopAsync: async () => {
+            throw new Error('stop failed');
+          },
+        },
+        appLogs: { stopAsync: upload },
+      })
+    ).rejects.toThrow('stop failed');
+    expect(upload).not.toHaveBeenCalled();
+  });
+});
 
 describe(stopAgentDeviceEventCollectionSafelyAsync, () => {
   beforeEach(() => {
