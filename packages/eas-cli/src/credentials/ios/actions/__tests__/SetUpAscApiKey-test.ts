@@ -1,3 +1,5 @@
+import { AccessForbiddenError, InternalServerError } from '@expo/apple-utils';
+
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
 import { confirmAsync, promptAsync } from '../../../../prompts';
@@ -131,6 +133,69 @@ describe(SetUpAscApiKey, () => {
     expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
     // expect configuration to be updated with a new ASC API Key
     expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
+  });
+  it('lets the user choose existing keys when the Apple ID is not allowed to list API keys', async () => {
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        listAscApiKeysAsync: jest.fn(async () => {
+          throw new AccessForbiddenError({ status: 403, data: {} });
+        }),
+      },
+      ios: {
+        ...getNewIosApiMock(),
+        getAscApiKeysForAccountAsync: jest.fn(() => [testAscApiKeyFragment]),
+      },
+    });
+    jest.mocked(confirmAsync).mockClear();
+    jest.mocked(promptAsync).mockClear();
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      choice: SetupAscApiKeyChoice.USE_EXISTING,
+      chosenAscApiKey: testAscApiKeyFragment,
+    }));
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
+    const setupAscApiKeyAction = new SetUpAscApiKey(
+      appLookupParams,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
+    await setupAscApiKeyAction.runAsync(ctx);
+
+    expect(ctx.appStore.listAscApiKeysAsync).toHaveBeenCalledTimes(1);
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ name: 'choice' }));
+    expect(jest.mocked(ctx.ios.createAscApiKeyAsync).mock.calls.length).toBe(0);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(1);
+  });
+  it('rethrows other errors while autoselecting an existing key', async () => {
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        listAscApiKeysAsync: jest.fn(async () => {
+          throw new InternalServerError({ status: 500, data: {} });
+        }),
+      },
+      ios: {
+        ...getNewIosApiMock(),
+        getAscApiKeysForAccountAsync: jest.fn(() => [testAscApiKeyFragment]),
+      },
+    });
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
+    const setupAscApiKeyAction = new SetUpAscApiKey(
+      appLookupParams,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
+    await expect(setupAscApiKeyAction.runAsync(ctx)).rejects.toBeInstanceOf(InternalServerError);
+    expect(jest.mocked(ctx.ios.updateIosAppCredentialsAsync).mock.calls.length).toBe(0);
   });
   it('works in Non Interactive Mode if ASC Key is configured', async () => {
     const ctx = createCtxMock({

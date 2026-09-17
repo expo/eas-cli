@@ -1,4 +1,4 @@
-import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
+import { AccessForbiddenError, ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
 import promiseRetry from 'promise-retry';
 
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
@@ -45,7 +45,9 @@ export async function getAscApiKeyAsync(
       spinner.stop();
       return null;
     }
-    Log.error(error);
+    if (!(error instanceof AccessForbiddenError)) {
+      Log.error(error);
+    }
     spinner.fail(`Failed to fetch App Store Connect API Key.`);
     throw error;
   }
