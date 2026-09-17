@@ -2,6 +2,7 @@ import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spa
 import fs from 'fs-extra';
 import path from 'path';
 
+import { type EnvMode, getExpoCommandEnv } from './environmentMode';
 import { PackageManager, findPackagerRootDir } from '../utils/packageManager';
 
 async function readFirstChars(filePath: string, chars: number): Promise<string> {
@@ -47,20 +48,25 @@ export function runExpoCliCommand({
   packageManager,
   args,
   options,
+  envMode,
 }: {
   packageManager: PackageManager;
   args: string[];
   options: SpawnOptions;
+  envMode?: EnvMode;
 }): SpawnPromise<SpawnResult> {
   const argsWithExpo = ['expo', ...args];
+  const spawnOptions = envMode
+    ? { ...options, env: getExpoCommandEnv(options.env ?? {}, envMode) }
+    : options;
   if (packageManager === PackageManager.NPM) {
-    return spawn('npx', argsWithExpo, options);
+    return spawn('npx', argsWithExpo, spawnOptions);
   } else if (packageManager === PackageManager.YARN) {
-    return spawn('yarn', argsWithExpo, options);
+    return spawn('yarn', argsWithExpo, spawnOptions);
   } else if (packageManager === PackageManager.PNPM) {
-    return spawn('pnpm', argsWithExpo, options);
+    return spawn('pnpm', argsWithExpo, spawnOptions);
   } else if (packageManager === PackageManager.BUN) {
-    return spawn('bun', argsWithExpo, options);
+    return spawn('bun', argsWithExpo, spawnOptions);
   } else {
     throw new Error(`Unsupported package manager: ${packageManager}`);
   }
