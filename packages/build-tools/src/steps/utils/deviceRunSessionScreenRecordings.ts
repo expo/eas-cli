@@ -31,13 +31,14 @@ const RecordingManifestSchema = z.object({
   height: z.number().int().positive(),
   recording: z.string(),
   status: z.string().optional(),
+  error: z.string().optional(),
 });
 
 const PartialRecordingManifestSchema = z.object({
   udid: z.string(),
   deviceName: z.string(),
   runtimeDisplayName: z.string(),
-  status: z.literal('recording'),
+  status: z.enum(['recording', 'failed']),
   recording: z.string(),
 });
 
@@ -65,8 +66,9 @@ export function parseDeviceScreenRecordings(input: unknown): z.infer<typeof Reco
 }
 
 /**
- * A killed Hub never lists its recording. It leaves session.json at "recording" and a fragmented
- * .partial that plays up to its last keyframe. Return the ones ffprobe can read.
+ * A Hub that was killed or could not finalize never lists its recording. It leaves session.json
+ * at "recording" or "failed" and a fragmented .partial that plays up to its last keyframe.
+ * Return the ones ffprobe can read.
  */
 export async function findPartialDeviceScreenRecordingsAsync({
   root,
@@ -143,7 +145,7 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
           const startedAt = recordingStartTimeFormatter.format(
             new Date(metadata.firstFrameWallClock.iso8601)
           );
-          const partial = metadata.status === 'recording';
+          const partial = metadata.status !== undefined && metadata.status !== 'complete';
           const shortUdid = `${recording.udid.slice(0, 8)}-…`;
           const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt}${partial ? ', partial' : ''})`;
           const recordingPath = path.join(recording.directory, metadata.recording);
@@ -167,7 +169,14 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
               firstFrameAt: metadata.firstFrameWallClock.iso8601,
               width: metadata.width,
               height: metadata.height,
-              ...(partial ? { partial: true } : {}),
+              ...(partial
+                ? {
+                    partial: true,
+                    partialReason:
+                      metadata.error ??
+                      'The Device Hub stopped before it could finalize the recording.',
+                  }
+                : {}),
             },
             size,
             stream: createReadStream(recordingPath),
