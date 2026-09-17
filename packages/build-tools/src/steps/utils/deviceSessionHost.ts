@@ -476,35 +476,27 @@ async function uploadFinishedAndroidRecordingAsync(
   { recording, logger }: { recording: AndroidSessionRecording; logger: bunyan }
 ): Promise<void> {
   try {
-    await withDeviceRunSessionTimeoutAsync(
-      { name: 'Android recording upload and cleanup', timeoutMs: 305_000 },
-      async signal => {
-        const recordings = parseDeviceScreenRecordings(
-          JSON.parse(
-            await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
-          )
-        );
-        for (const item of recordings) {
-          if (
-            path.dirname(path.resolve(item.directory)) !== recording.directory ||
-            (await fs.promises.lstat(item.directory)).isSymbolicLink()
-          ) {
-            throw new Error('Recording directory is not an owned session child.');
-          }
-        }
-        signal.throwIfAborted();
-        const uploaded = await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
-          logger,
-          deviceRunSessionId: recording.deviceRunSessionId,
-          recordings,
-          signal,
-        });
-        signal.throwIfAborted();
-        if (recordings.length > 0 && uploaded) {
-          await fs.promises.rm(recording.directory, { recursive: true });
-        }
-      }
+    const recordings = parseDeviceScreenRecordings(
+      JSON.parse(
+        await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
+      )
     );
+    for (const item of recordings) {
+      if (
+        path.dirname(path.resolve(item.directory)) !== recording.directory ||
+        (await fs.promises.lstat(item.directory)).isSymbolicLink()
+      ) {
+        throw new Error('Recording directory is not an owned session child.');
+      }
+    }
+    const uploaded = await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
+      logger,
+      deviceRunSessionId: recording.deviceRunSessionId,
+      recordings,
+    });
+    if (recordings.length > 0 && uploaded) {
+      await fs.promises.rm(recording.directory, { recursive: true });
+    }
   } catch (err) {
     logger.warn(
       { err, recordingDirectory: recording.directory },
