@@ -1,4 +1,7 @@
-import { withDeviceRunSessionTimeoutAsync } from '../deviceRunSessionTimeout';
+import {
+  DeviceRunSessionTimeoutError,
+  withDeviceRunSessionTimeoutAsync,
+} from '../deviceRunSessionTimeout';
 
 afterEach(() => jest.useRealTimers());
 
@@ -13,8 +16,10 @@ it('aborts a stalled operation when its deadline expires', async () => {
     }
   );
   const rejected = expect(operation).rejects.toThrow('test operation timed out after 100ms');
+  const typed = expect(operation).rejects.toBeInstanceOf(DeviceRunSessionTimeoutError);
   await jest.advanceTimersByTimeAsync(100);
   await rejected;
+  await typed;
   expect(signal?.aborted).toBe(true);
   expect(jest.getTimerCount()).toBe(0);
 });

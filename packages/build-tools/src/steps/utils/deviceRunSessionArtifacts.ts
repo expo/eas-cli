@@ -5,7 +5,10 @@ import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  DeviceRunSessionTimeoutError,
+  withDeviceRunSessionTimeoutAsync,
+} from './deviceRunSessionTimeout';
 
 const CREATE_DEVICE_RUN_SESSION_ARTIFACT_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateDeviceRunSessionArtifactUploadSession(
@@ -48,7 +51,12 @@ export async function uploadDeviceRunSessionArtifactAsync(
       async signal => await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, signal)
     );
     options.signal?.throwIfAborted();
-    await putArtifactWithRetriesAsync({ uploadSession, source: options, signal: options.signal });
+    await putArtifactWithRetriesAsync({
+      uploadSession,
+      source: options,
+      artifactId: options.artifactId,
+      signal: options.signal,
+    });
   } finally {
     // One-shot callers may have opened their stream before upload-session creation failed.
     options.stream.destroy();
@@ -58,10 +66,12 @@ export async function uploadDeviceRunSessionArtifactAsync(
 async function putArtifactWithRetriesAsync({
   uploadSession,
   source,
+  artifactId,
   signal,
 }: {
   uploadSession: ArtifactUploadSession;
   source: ArtifactSource;
+  artifactId: string;
   signal?: AbortSignal;
 }): Promise<void> {
   const attempts = source.reopenStream ? 3 : 1;
@@ -76,6 +86,7 @@ async function putArtifactWithRetriesAsync({
           await putArtifactAsync({
             uploadSession,
             stream,
+            artifactId,
             signal: putSignal,
             onProgress: resetDeadline,
           })
@@ -86,10 +97,8 @@ async function putArtifactWithRetriesAsync({
       const retryable =
         error instanceof ArtifactPutError
           ? [408, 429, 500, 502, 503, 504].includes(error.status)
-          : error instanceof Error &&
-            (error.name === 'FetchError' ||
-              error.name === 'AbortError' ||
-              error.message.startsWith('Artifact PUT timed out'));
+          : error instanceof DeviceRunSessionTimeoutError ||
+            (error instanceof Error && error.name === 'FetchError');
       if (!retryable || attempt + 1 === attempts) {
         throw error;
       }
@@ -103,19 +112,17 @@ async function putArtifactWithRetriesAsync({
 async function putArtifactAsync({
   uploadSession,
   stream,
+  artifactId,
   signal,
   onProgress,
 }: {
   uploadSession: ArtifactUploadSession;
   stream: Readable;
+  artifactId: string;
   signal: AbortSignal;
   onProgress: () => void;
 }): Promise<void> {
   const requestController = new AbortController();
-  const destroy = () => {
-    stream.destroy();
-  };
-  signal.addEventListener('abort', destroy, { once: true });
   try {
     const responding = fetch(uploadSession.url, {
       method: 'PUT',
@@ -128,19 +135,23 @@ async function putArtifactAsync({
     const response = await responding;
     signal.throwIfAborted();
     if (!response.ok) {
-      throw new ArtifactPutError(response.status);
+      throw new ArtifactPutError(artifactId, response);
     }
   } finally {
-    // node-fetch's response stream is a PassThrough; destroying it leaves the socket open.
+    // node-fetch destroys the request body on abort, and its response stream is a PassThrough
+    // whose destruction leaves the socket open, so the request itself is aborted here.
     requestController.abort();
-    signal.removeEventListener('abort', destroy);
-    stream.destroy();
   }
 }
 
 class ArtifactPutError extends SystemError {
-  constructor(readonly status: number) {
-    super(`Failed to upload device run session artifact: HTTP ${status}.`);
+  readonly status: number;
+
+  constructor(artifactId: string, response: { status: number; statusText: string }) {
+    super(
+      `Failed to upload device run session artifact ${artifactId}: HTTP ${response.status} ${response.statusText}.`
+    );
+    this.status = response.status;
   }
 }
 

@@ -180,6 +180,45 @@ it('keeps a slow PUT alive while its body is still flowing', async () => {
   jest.useRealTimers();
 });
 
+it('retries a PUT that stalled past the idle deadline with a fresh stream', async () => {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+  let puts = 0;
+  const firstBodyRead = deferred<void>();
+  handle = (request, response) => {
+    puts++;
+    request.resume();
+    request.on('end', () => {
+      if (puts === 1) {
+        firstBodyRead.resolve();
+        return;
+      }
+      response.statusCode = 200;
+      response.end();
+    });
+  };
+  const streams: Readable[] = [];
+  const open = () => {
+    const stream = Readable.from('recording');
+    streams.push(stream);
+    return stream;
+  };
+  const upload = uploadDeviceRunSessionArtifactAsync(ctx, {
+    ...metadata,
+    size: 9,
+    stream: open(),
+    reopenStream: open,
+  });
+  const settled = expect(upload).resolves.toBeUndefined();
+  await firstBodyRead.promise;
+  await jest.advanceTimersByTimeAsync(90_000);
+  await jest.advanceTimersByTimeAsync(500);
+  await settled;
+  expect(puts).toBe(2);
+  expect(streams).toHaveLength(2);
+  expect(streams.every(stream => stream.destroyed)).toBe(true);
+  jest.useRealTimers();
+});
+
 it('cancels an active PUT socket and destroys its source without retrying', async () => {
   const started = deferred<void>();
   const closed = deferred<void>();
