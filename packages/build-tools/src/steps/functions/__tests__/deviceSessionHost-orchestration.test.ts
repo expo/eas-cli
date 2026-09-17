@@ -189,6 +189,8 @@ describe.each([
 
   it.each(['preview', 'config', 'wait'])('finishes the host after %s fails', async phase => {
     const error = new Error(`${phase} failed`);
+    // A teardown failure must not replace the error that ended the session.
+    finishHost.mockRejectedValueOnce(new Error('recording cleanup failed'));
     if (phase === 'preview') {
       openPreview.mockRejectedValueOnce(error);
     } else if (phase === 'config') {
