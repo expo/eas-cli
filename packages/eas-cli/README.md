@@ -185,6 +185,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas fingerprint:generate`](#eas-fingerprintgenerate)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas init`](#eas-init)
+* [`eas init:onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-initonboarding-target_project_directory)
 * [`eas integrations:asc:connect`](#eas-integrationsascconnect)
 * [`eas integrations:asc:disconnect`](#eas-integrationsascdisconnect)
 * [`eas integrations:asc:status`](#eas-integrationsascstatus)
@@ -215,11 +216,13 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas observe:routes`](#eas-observeroutes)
 * [`eas observe:session [SESSIONID]`](#eas-observesession-sessionid)
 * [`eas observe:versions`](#eas-observeversions)
+* [`eas onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-onboarding-target_project_directory)
 * [`eas project:delete [NAME]`](#eas-projectdelete-name)
 * [`eas project:icon:set PATH`](#eas-projecticonset-path)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
+* [`eas project:onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-projectonboarding-target_project_directory)
 * [`eas project:status`](#eas-projectstatus)
 * [`eas sim`](#eas-sim)
 * [`eas sim:availability`](#eas-simavailability)
@@ -1833,6 +1836,22 @@ EXAMPLES
   $ eas init --account my-account --json --non-interactive  	 # Same, and print the result as JSON to stdout
 ```
 
+## `eas init:onboarding [TARGET_PROJECT_DIRECTORY]`
+
+continue onboarding process started on the https://expo.new website.
+
+```
+USAGE
+  $ eas init:onboarding [TARGET_PROJECT_DIRECTORY]
+
+DESCRIPTION
+  continue onboarding process started on the https://expo.new website.
+
+ALIASES
+  $ eas init:onboarding
+  $ eas onboarding
+```
+
 ## `eas integrations:asc:connect`
 
 connect a project to an App Store Connect app
@@ -2554,6 +2573,22 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v24.7.0/packages/eas-cli/src/commands/observe/versions.ts)_
 
+## `eas onboarding [TARGET_PROJECT_DIRECTORY]`
+
+continue onboarding process started on the https://expo.new website.
+
+```
+USAGE
+  $ eas onboarding [TARGET_PROJECT_DIRECTORY]
+
+DESCRIPTION
+  continue onboarding process started on the https://expo.new website.
+
+ALIASES
+  $ eas init:onboarding
+  $ eas onboarding
+```
+
 ## `eas project:delete [NAME]`
 
 delete a project
@@ -2671,6 +2706,24 @@ ALIASES
 ```
 
 _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/expo/eas-cli/blob/v24.7.0/packages/eas-cli/src/commands/project/new.ts)_
+
+## `eas project:onboarding [TARGET_PROJECT_DIRECTORY]`
+
+continue onboarding process started on the https://expo.new website.
+
+```
+USAGE
+  $ eas project:onboarding [TARGET_PROJECT_DIRECTORY]
+
+DESCRIPTION
+  continue onboarding process started on the https://expo.new website.
+
+ALIASES
+  $ eas init:onboarding
+  $ eas onboarding
+```
+
+_See code: [packages/eas-cli/src/commands/project/onboarding.ts](https://github.com/expo/eas-cli/blob/v24.7.0/packages/eas-cli/src/commands/project/onboarding.ts)_
 
 ## `eas project:status`
 
@@ -3150,6 +3203,8 @@ ALIASES
   $ eas sim:start
 ```
 
+_See code: [packages/eas-cli/src/commands/simulator/start.ts](https://github.com/expo/eas-cli/blob/v24.7.0/packages/eas-cli/src/commands/simulator/start.ts)_
+
 ## `eas status`
 
 show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
@@ -3421,8 +3476,8 @@ publish an update group
 ```
 USAGE
   $ eas update [--branch <value>] [--channel <value>] [-m <value>] [--input-dir <value>] [--skip-bundler]
-    [--clear-cache] [--emit-metadata] [--rollout-percentage <value>] [-p android|ios|all] [--auto] [--private-key-path
-    <value>] [--environment <value>] [--json] [--non-interactive]
+    [--clear-cache] [--upload-source-maps] [--emit-metadata] [--rollout-percentage <value>] [-p android|ios|all]
+    [--auto] [--private-key-path <value>] [--environment <value>] [--json] [--non-interactive]
 
 FLAGS
   -m, --message=<value>             A short message describing the update
@@ -3450,6 +3505,8 @@ FLAGS
                                     is itself being rolled out. The specified number must be an integer between 1 and
                                     100. When not specified, this defaults to 100.
       --skip-bundler                Skip running Expo CLI to bundle the app before publishing
+      --upload-source-maps          Upload the generated source maps to EAS so that stack traces from this update can be
+                                    symbolicated
 
 DESCRIPTION
   publish an update group

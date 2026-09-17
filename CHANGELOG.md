@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--upload-source-maps` to `eas update`, which uploads the generated source maps to EAS so that stack traces from an update can be symbolicated. Source maps are stripped of `sourcesContent` before upload. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

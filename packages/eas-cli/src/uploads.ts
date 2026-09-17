@@ -13,6 +13,7 @@ import {
   UploadSessionType,
 } from './graphql/generated';
 import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
+import { UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS } from './graphql/sourceMapShim';
 import { ProgressHandler } from './utils/progress';
 
 export interface PresignedPost {
@@ -29,7 +30,13 @@ export async function uploadFileAtPathToGCSAsync(
   const signedUrl = await UploadSessionMutation.createUploadSessionAsync(
     graphqlClient,
     type,
-    type === UploadSessionType.EasShareGcsAppArchive ? path : undefined
+    // The server derives the bucket key's file extension from this filename.
+    // TODO(ENG-26889): use UploadSessionType.EasUpdateSourceMaps once it is generated.
+    [UploadSessionType.EasShareGcsAppArchive, UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS].includes(
+      type
+    )
+      ? path
+      : undefined
   );
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
