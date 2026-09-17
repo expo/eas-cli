@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Add the `DeviceRunSession.Job` payload for EAS Simulator sessions. ([#4412](https://github.com/expo/eas-cli/pull/4412) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
