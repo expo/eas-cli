@@ -31,7 +31,7 @@ export async function syncUpdatesConfigurationAsync({
     await expoUpdatesCommandAsync(
       projectDir,
       ['configuration:syncnative', '--platform', 'ios', '--workflow', workflow],
-      { env }
+      { env, mode: 'production' }
     );
     return;
   }
