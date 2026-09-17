@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Don't abort `eas submit` when the Apple ID isn't allowed to view App Store Connect API keys, and use the provided key without validating it instead. ([#4428](https://github.com/expo/eas-cli/pull/4428) by [@tahakocal](https://github.com/tahakocal))
+
 ### 🧹 Chores
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16
