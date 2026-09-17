@@ -16,6 +16,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import {
+  findPartialDeviceScreenRecordingsAsync,
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
@@ -230,6 +231,7 @@ type AndroidSessionRecording = {
   deviceRunSessionId: string;
   directory: string;
   controlToken: string;
+  env: BuildStepEnv;
 };
 
 export async function startDeviceSessionHostAsync(
@@ -257,6 +259,7 @@ export async function startDeviceSessionHostAsync(
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
         directory: await fs.promises.mkdtemp(path.join(os.tmpdir(), 'android-session-recordings-')),
         controlToken: randomBytes(32).toString('hex'),
+        env,
       }
     : null;
   const subdomainId = randomBytes(16).toString('hex');
@@ -476,11 +479,18 @@ async function uploadFinishedAndroidRecordingAsync(
   { recording, logger }: { recording: AndroidSessionRecording; logger: bunyan }
 ): Promise<void> {
   try {
-    const recordings = parseDeviceScreenRecordings(
+    let recordings = parseDeviceScreenRecordings(
       JSON.parse(
         await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
       )
     );
+    if (recordings.length === 0) {
+      recordings = await findPartialDeviceScreenRecordingsAsync({
+        root: recording.directory,
+        env: recording.env,
+        logger,
+      });
+    }
     for (const item of recordings) {
       if (
         path.dirname(path.resolve(item.directory)) !== recording.directory ||

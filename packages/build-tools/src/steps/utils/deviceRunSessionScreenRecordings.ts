@@ -1,7 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import type { BuildStepEnv } from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
 import { createReadStream } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import limitFactory from 'promise-limit';
 import { z } from 'zod';
@@ -27,6 +30,15 @@ const RecordingManifestSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   recording: z.string(),
+  status: z.string().optional(),
+});
+
+const PartialRecordingManifestSchema = z.object({
+  udid: z.string(),
+  deviceName: z.string(),
+  runtimeDisplayName: z.string(),
+  status: z.literal('recording'),
+  recording: z.string(),
 });
 
 const recordingStartTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -50,6 +62,54 @@ export function parseDeviceScreenRecordings(input: unknown): z.infer<typeof Reco
     });
   }
   return result.data;
+}
+
+/**
+ * A killed Hub never lists its recording. It leaves session.json at "recording" and a fragmented
+ * .partial that plays up to its last keyframe. Return the ones ffprobe can read.
+ */
+export async function findPartialDeviceScreenRecordingsAsync({
+  root,
+  env,
+  logger,
+}: {
+  root: string;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<z.infer<typeof RecordingsSchema>> {
+  const found: z.infer<typeof RecordingsSchema> = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const directory = path.join(root, entry.name);
+    const manifest = PartialRecordingManifestSchema.safeParse(
+      await readFile(path.join(directory, 'session.json'), 'utf-8')
+        .then(text => JSON.parse(text))
+        .catch(() => null)
+    );
+    if (!manifest.success || path.basename(manifest.data.recording) !== manifest.data.recording) {
+      continue;
+    }
+    const file = path.join(directory, manifest.data.recording);
+    const probe = await asyncResult(
+      spawn(
+        'ffprobe',
+        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file],
+        {
+          env,
+          stdio: 'pipe',
+        }
+      )
+    );
+    if (!probe.ok || !(Number(probe.value.stdout.trim()) > 0)) {
+      logger.warn(`Partial recording ${file} does not decode; skipping it.`);
+      continue;
+    }
+    const { udid, deviceName, runtimeDisplayName } = manifest.data;
+    found.push({ udid, deviceName, runtimeDisplayName, directory });
+  }
+  return found;
 }
 
 export async function uploadDeviceRunSessionScreenRecordingsAsync(
@@ -83,8 +143,9 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
           const startedAt = recordingStartTimeFormatter.format(
             new Date(metadata.firstFrameWallClock.iso8601)
           );
+          const partial = metadata.status === 'recording';
           const shortUdid = `${recording.udid.slice(0, 8)}-…`;
-          const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt})`;
+          const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt}${partial ? ', partial' : ''})`;
           const recordingPath = path.join(recording.directory, metadata.recording);
           const { size } = await stat(recordingPath);
           const recordingId = path.basename(recording.directory);
@@ -106,6 +167,7 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
               firstFrameAt: metadata.firstFrameWallClock.iso8601,
               width: metadata.width,
               height: metadata.height,
+              ...(partial ? { partial: true } : {}),
             },
             size,
             stream: createReadStream(recordingPath),
