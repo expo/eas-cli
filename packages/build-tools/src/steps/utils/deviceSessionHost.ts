@@ -462,12 +462,16 @@ async function finalizeAndroidRecordingAsync({
             headers: { Authorization: `Bearer ${controlToken}` },
             timeout: 60_000,
             retries: 0,
+            shouldThrowOnNotOk: false,
             signal,
           }
         )
     );
     if (!response.ok) {
-      throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+      // The Hub answers 409 with the reason nothing was recorded, such as the emulator count.
+      throw new Error(
+        `Android recording finalization returned HTTP ${response.status}: ${await response.text()}`
+      );
     }
   } catch (err) {
     logger.warn({ err }, 'Could not finalize Android recording before shutdown.');

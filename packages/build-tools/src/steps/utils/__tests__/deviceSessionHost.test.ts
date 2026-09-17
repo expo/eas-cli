@@ -128,6 +128,7 @@ it('records by default with no preview and finalizes before process stop, upload
       headers: { Authorization: `Bearer ${token}` },
       timeout: 60_000,
       retries: 0,
+      shouldThrowOnNotOk: false,
       signal: expect.any(AbortSignal),
     }
   );
@@ -208,13 +209,21 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
   await writeFile(path.join(directories[0], 'recordings.json'), '[]');
   await host.openPreviewAsync({ baseDomain });
   closeTunnel.mockRejectedValueOnce(new Error('tunnel close failure'));
-  jest
-    .mocked(turtleFetch)
-    .mockResolvedValueOnce({ ok: false, status: 500 } as Awaited<ReturnType<typeof turtleFetch>>);
+  jest.mocked(turtleFetch).mockResolvedValueOnce({
+    ok: false,
+    status: 409,
+    text: async () => 'Android recording requires exactly one booted emulator; found 0.',
+  } as Awaited<ReturnType<typeof turtleFetch>>);
   await host.finishAsync();
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
-    expect.anything(),
+    {
+      err: expect.objectContaining({
+        message: expect.stringContaining(
+          'HTTP 409: Android recording requires exactly one booted emulator; found 0.'
+        ),
+      }),
+    },
     'Could not finalize Android recording before shutdown.'
   );
   expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
