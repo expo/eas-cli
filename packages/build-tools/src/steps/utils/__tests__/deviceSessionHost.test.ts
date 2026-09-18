@@ -1,16 +1,24 @@
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
-import { rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { turtleFetch } from '../../../utils/turtleFetch';
-import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import {
+  findUnlistedDeviceScreenRecordingsAsync,
+  uploadDeviceRunSessionScreenRecordingsAsync,
+} from '../deviceRunSessionScreenRecordings';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../serveSimMetricsRecorder', () => ({
+  readServeSimServersAsync: jest
+    .fn()
+    .mockResolvedValue([{ udid: 'emulator-5554', token: 'preview-token' }]),
+}));
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
@@ -20,6 +28,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
   ...jest.requireActual('../deviceRunSessionScreenRecordings'),
+  findUnlistedDeviceScreenRecordingsAsync: jest.fn(),
   uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
 }));
 
@@ -55,6 +64,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   stopServer.mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
+  jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
+  jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const flag = options.args.indexOf('--android-recording-directory');
     if (flag >= 0) {
@@ -76,10 +87,13 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true })));
+  jest.useRealTimers();
+  await Promise.all(
+    directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))
+  );
 });
 
-it('records with no preview and finalizes before process stop, uploading exactly once', async () => {
+it('records by default with no preview and finalizes before process stop, uploading exactly once', async () => {
   const host = await startHostAsync();
   expect(ngrok.forward).not.toHaveBeenCalled();
   const directory = directories[0];
@@ -92,6 +106,7 @@ it('records with no preview and finalizes before process stop, uploading exactly
     },
   ];
   await writeFile(path.join(directory, 'recordings.json'), JSON.stringify(recordings));
+  await mkdir(recordings[0].directory);
   const started = deferred<void>();
   const response = deferred<Awaited<ReturnType<typeof turtleFetch>>>();
   jest.mocked(turtleFetch).mockImplementationOnce(async () => {
@@ -113,6 +128,8 @@ it('records with no preview and finalizes before process stop, uploading exactly
       headers: { Authorization: `Bearer ${token}` },
       timeout: 60_000,
       retries: 0,
+      shouldThrowOnNotOk: false,
+      signal: expect.any(AbortSignal),
     }
   );
   response.resolve({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
@@ -180,28 +197,48 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
   await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow(
     'after session host finalization'
   );
-  expect(stopServer).not.toHaveBeenCalled();
   tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
-  await Promise.all([opening, finishing]);
+  await expect(opening).rejects.toThrow('finalized while the preview was opening');
+  await finishing;
   expect(closeTunnel).toHaveBeenCalledTimes(1);
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    return {
+      pid: undefined,
+      getOutput: () => '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255',
+      stopAsync: stopServer,
+    };
+  });
   const host = await startHostAsync();
   await writeFile(path.join(directories[0], 'recordings.json'), '[]');
   await host.openPreviewAsync({ baseDomain });
   closeTunnel.mockRejectedValueOnce(new Error('tunnel close failure'));
-  jest
-    .mocked(turtleFetch)
-    .mockResolvedValueOnce({ ok: false, status: 500 } as Awaited<ReturnType<typeof turtleFetch>>);
+  jest.mocked(turtleFetch).mockResolvedValueOnce({
+    ok: false,
+    status: 409,
+    text: async () => 'Android recording requires exactly one booted emulator; found 0.',
+  } as Awaited<ReturnType<typeof turtleFetch>>);
   await host.finishAsync();
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
-    expect.anything(),
+    {
+      err: expect.objectContaining({
+        message: expect.stringContaining(
+          'HTTP 409: Android recording requires exactly one booted emulator; found 0.'
+        ),
+      }),
+    },
     'Could not finalize Android recording before shutdown.'
   );
   expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { hostOutput: '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255' },
+    'Session host output around the recording failure.'
+  );
 });
 
 it('rolls back failed host startup without replacing the original error', async () => {
@@ -216,4 +253,150 @@ it('rolls back failed host startup without replacing the original error', async 
   ).rejects.toThrow('Timed out waiting');
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(ngrok.forward).not.toHaveBeenCalled();
+});
+
+async function writeRecordingDescriptorAsync(directory: string) {
+  const child = path.join(directory, 'session');
+  await mkdir(child);
+  await writeFile(
+    path.join(directory, 'recordings.json'),
+    JSON.stringify([
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android',
+        directory: child,
+      },
+    ])
+  );
+}
+
+it.each([true, false])(
+  'removes its recording root only when every upload succeeds (%s)',
+  async uploaded => {
+    const host = await startHostAsync();
+    const directory = directories[0];
+    await writeRecordingDescriptorAsync(directory);
+    jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(uploaded);
+    await host.finishAsync();
+    if (uploaded) {
+      await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+    } else {
+      await expect(access(directory)).resolves.toBeUndefined();
+    }
+  }
+);
+
+it('finishes despite a stalled tunnel close', async () => {
+  const host = await startHostAsync();
+  await host.openPreviewAsync({ baseDomain });
+  const closing = deferred<void>();
+  closeTunnel.mockReturnValueOnce(closing.promise);
+  jest.useFakeTimers();
+  const finishing = host.finishAsync();
+  await jest.advanceTimersByTimeAsync(5_000);
+  await finishing;
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('deadline'));
+  closing.resolve();
+});
+
+it('aborts a stalled finalization request before stopping the host', async () => {
+  const host = await startHostAsync();
+  const response = deferred<Awaited<ReturnType<typeof turtleFetch>>>();
+  jest.mocked(turtleFetch).mockReturnValueOnce(response.promise);
+  jest.useFakeTimers();
+  const finishing = host.finishAsync();
+  await jest.advanceTimersByTimeAsync(60_000);
+  await finishing;
+  const options = jest.mocked(turtleFetch).mock.calls.at(-1)?.[2];
+  expect(options?.signal?.aborted).toBe(true);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  response.resolve({ ok: true } as Awaited<ReturnType<typeof turtleFetch>>);
+});
+
+it('uploads the partial recording a killed host left behind and then removes the root', async () => {
+  const host = await startHostAsync();
+  const directory = directories[0];
+  const child = path.join(directory, 'session');
+  await mkdir(child);
+  await writeFile(path.join(directory, 'recordings.json'), '[]');
+  const partial = [
+    { udid: 'emulator-5554', deviceName: 'Pixel', runtimeDisplayName: 'Android', directory: child },
+  ];
+  jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockResolvedValueOnce(partial);
+  jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
+  await host.finishAsync();
+  expect(findUnlistedDeviceScreenRecordingsAsync).toHaveBeenCalledWith({
+    root: directory,
+    env,
+    logger,
+  });
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledWith(ctx, {
+    logger,
+    deviceRunSessionId: 'drs-id',
+    recordings: partial,
+  });
+  await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('rejects descriptors outside its recording root', async () => {
+  const host = await startHostAsync();
+  const directory = directories[0];
+  await writeFile(
+    path.join(directory, 'recordings.json'),
+    JSON.stringify([
+      {
+        udid: 'emulator-5554',
+        deviceName: 'Pixel',
+        runtimeDisplayName: 'Android',
+        directory: path.dirname(directory),
+      },
+    ])
+  );
+  await host.finishAsync();
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  await expect(access(directory)).resolves.toBeUndefined();
+});
+
+it('retains recordings without uploading if the host cannot be stopped', async () => {
+  const host = await startHostAsync();
+  const directory = directories[0];
+  await writeRecordingDescriptorAsync(directory);
+  stopServer.mockRejectedValueOnce(new Error('process stop failed'));
+  await host.finishAsync();
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  await expect(access(directory)).resolves.toBeUndefined();
+});
+
+it('closes a listener that arrives after finish has already timed out waiting for it', async () => {
+  const host = await startHostAsync();
+  const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+  jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+  const opening = host.openPreviewAsync({ baseDomain });
+  const rejected = expect(opening).rejects.toThrow('finalized while the preview was opening');
+  jest.useFakeTimers();
+  const finishing = host.finishAsync();
+  await jest.advanceTimersByTimeAsync(5_000);
+  await finishing;
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+  await rejected;
+  expect(closeTunnel).toHaveBeenCalledTimes(1);
+});
+
+it('leaves iOS recording to its existing build steps', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.args).not.toContain('--android-recording-directory');
+  expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
+  await host.finishAsync();
+  expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
 });
