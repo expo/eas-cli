@@ -640,15 +640,32 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
+// A website dev server runs on expo.test behind an expo-nginx port and points at hosted staging
+// sessions, so those workers see EXPO_STAGING, not EXPO_LOCAL. Ports are matched exactly, so a
+// wildcard cannot cover these and each one has to be named. Mirrors the upload allow-list in
+// https://github.com/expo/universe/pull/30566.
+const LOCAL_WEBSITE_ORIGINS = [
+  'http://expo.test',
+  'https://expo.test',
+  'https://expo.test:13001',
+  ...Array.from({ length: 16 }, (_unused, index) => `https://expo.test:${13200 + index}`),
+];
+
 export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
-  const origins = [websiteOrigin(env)];
-  // Staging is where website branches get tested, and each one is served from its own
-  // pr-<number>.expo.dev. Production names one origin so a subdomain cannot stand in for it.
-  // Same precedence as websiteOrigin, so a local run never also trusts *.expo.dev.
+  // A Set because websiteOrigin('local') is itself one of the dev origins, and naming an origin
+  // twice would pass the same flag twice.
+  const origins = new Set([websiteOrigin(env)]);
+  // Each website branch is served from its own pr-<number>.expo.dev. Production names one origin
+  // so no subdomain can stand in for it, and EXPO_LOCAL wins here as it does in websiteOrigin.
   if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
-    origins.push('https://*.expo.dev');
+    origins.add('https://*.expo.dev');
   }
-  return origins.flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
+  if (env.EXPO_LOCAL || env.EXPO_STAGING) {
+    for (const origin of LOCAL_WEBSITE_ORIGINS) {
+      origins.add(origin);
+    }
+  }
+  return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
