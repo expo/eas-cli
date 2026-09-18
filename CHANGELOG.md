@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Read `.easignore` from the project directory (next to `eas.json`) when present, falling back to the repository root. ([#4387](https://github.com/expo/eas-cli/pull/4387) by [@cpruijsen](https://github.com/cpruijsen))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
