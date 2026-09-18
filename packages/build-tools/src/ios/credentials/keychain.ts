@@ -97,9 +97,23 @@ export default class Keychain<TJob extends Ios.Job> {
   }
 
   private async findIdentitiesByTeamId(teamId: string): Promise<string> {
+    // Note: no `-v` flag. `-v` ("valid identities only") requires the full
+    // trust chain (dist cert -> Apple WWDR Intermediate -> Apple Root CA) to
+    // resolve from the keychain(s) in the search list. The build keychain
+    // created above only holds the dist cert + private key; Apple Root CA
+    // lives in /Library/Keychains/System.keychain. `security find-identity`
+    // does not aggregate trust resolution across keychains passed as
+    // positional args (only `security list-keychains -s` does, and that's
+    // session-wide and undesirable). On macOS 26 (Tahoe), this caused
+    // `find-identity -v -s "(<teamId>)" <buildKeychainPath>` to return 0
+    // identities even when the cert+key were correctly imported, falsely
+    // tripping `ensureCertificateImported`. Without `-v`, the presence
+    // check works correctly across macOS versions; codesign performs its
+    // own trust resolution downstream via Security.framework (which does
+    // aggregate across keychains), so signing still succeeds.
     const { output } = await spawn(
       'security',
-      ['find-identity', '-v', '-s', `(${teamId})`, this.keychainPath],
+      ['find-identity', '-s', `(${teamId})`, this.keychainPath],
       {
         stdio: 'pipe',
       }
