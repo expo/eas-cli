@@ -188,13 +188,14 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
           sessionFailed,
           teardown: [
+            appiumTunnel?.stopAsync(),
             (async () => {
-              if (appiumTunnel) {
-                await appiumTunnel.stopAsync();
+              try {
+                await eventCollection.stopAsync();
+              } finally {
+                await appiumProcess.stopAsync();
+                await fs.promises.rm(appiumHome, { recursive: true, force: true });
               }
-              await eventCollection.stopAsync();
-              await appiumProcess.stopAsync();
-              await fs.promises.rm(appiumHome, { recursive: true, force: true });
             })(),
             sessionHost?.finishAsync(),
           ],

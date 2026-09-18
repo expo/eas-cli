@@ -267,27 +267,28 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger,
           sessionFailed,
           teardown: [
+            toolsTunnel?.stopAsync(),
             (async () => {
-              if (toolsTunnel) {
-                await toolsTunnel.stopAsync();
-              }
-              await stopArgentEventCollectionSafelyAsync({
-                eventCollection,
-                deviceRunSessionId,
-                logger,
-              });
-              artifactPollAbortController.abort();
               try {
-                await artifactPollingPromise;
-              } catch (err) {
-                const error = err instanceof Error ? err : new Error(String(err));
-                Sentry.capture('Could not finish Argent remote session artifact polling', error);
-                logger.warn(
-                  { err: error },
-                  'Could not finish Argent remote session artifact polling.'
-                );
+                await stopArgentEventCollectionSafelyAsync({
+                  eventCollection,
+                  deviceRunSessionId,
+                  logger,
+                });
+                artifactPollAbortController.abort();
+                try {
+                  await artifactPollingPromise;
+                } catch (err) {
+                  const error = err instanceof Error ? err : new Error(String(err));
+                  Sentry.capture('Could not finish Argent remote session artifact polling', error);
+                  logger.warn(
+                    { err: error },
+                    'Could not finish Argent remote session artifact polling.'
+                  );
+                }
+              } finally {
+                await argentServer.stopAsync();
               }
-              await argentServer.stopAsync();
             })(),
             sessionHost?.finishAsync(),
           ],

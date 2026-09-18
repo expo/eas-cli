@@ -184,16 +184,19 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           logger,
           sessionFailed,
           teardown: [
+            agentDeviceTunnel.stopAsync(),
             (async () => {
-              await agentDeviceTunnel.stopAsync();
-              if (eventCollection) {
-                await stopAgentDeviceEventCollectionSafelyAsync({
-                  eventCollection,
-                  deviceRunSessionId,
-                  logger,
-                });
+              try {
+                if (eventCollection) {
+                  await stopAgentDeviceEventCollectionSafelyAsync({
+                    eventCollection,
+                    deviceRunSessionId,
+                    logger,
+                  });
+                }
+              } finally {
+                await daemonProcess.stopAsync();
               }
-              await daemonProcess.stopAsync();
             })(),
             sessionHost?.finishAsync(),
           ],
