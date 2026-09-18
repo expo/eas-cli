@@ -84,7 +84,7 @@ afterEach(() => {
 describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
   ['Agent Device', createStartAgentDeviceRemoteSessionBuildFunction],
-] as const)('%s host ownership', (_name, createFunction) => {
+] as const)('%s host ownership', (name, createFunction) => {
   async function runAsync() {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
@@ -156,7 +156,7 @@ describe.each([
     }
   });
 
-  it('finalizes recording even while automation tunnel close is pending', async () => {
+  it('finalizes recording and stops automation while the tunnel close is pending', async () => {
     let release!: () => void;
     let finished!: () => void;
     const pendingClose = new Promise<void>(resolve => {
@@ -165,19 +165,35 @@ describe.each([
     const hostFinished = new Promise<void>(resolve => {
       finished = resolve;
     });
+    const toolStopped = new Promise<void>(resolve => {
+      stopTool.mockImplementationOnce(async () => resolve());
+    });
     stopTunnel.mockReturnValueOnce(pendingClose);
     finishHost.mockImplementationOnce(async () => {
       finished();
     });
     const running = runAsync();
     try {
-      await hostFinished;
+      // Both settle while the tunnel close is still held open.
+      await Promise.all([hostFinished, toolStopped]);
       expect(stopTunnel).toHaveBeenCalledTimes(1);
-      expect(stopTool).not.toHaveBeenCalled();
     } finally {
       release();
       await running;
     }
+  });
+
+  it('still stops the automation process when event collection stop rejects', async () => {
+    stopEvents.mockRejectedValueOnce(new Error('collector failed'));
+    // Agent Device wraps its collector stop in a catch-all helper; Appium does not.
+    const outcome = await runAsync().then(
+      () => 'resolved',
+      (err: Error) => err.message
+    );
+    expect(outcome).toBe(name === 'Appium' ? 'collector failed' : 'resolved');
+    expect(stopTool).toHaveBeenCalledTimes(1);
+    expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(finishHost).toHaveBeenCalledTimes(1);
   });
 
   it('still stops automation when recording finalization rejects', async () => {
