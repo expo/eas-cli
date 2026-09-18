@@ -9,11 +9,10 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
-- [build-tools] Record Android device sessions and upload screen recordings by default. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
+- [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
 
 ### 🐛 Bug fixes
 
-- [build-tools] Keep Android session recordings running independently of the web preview connection. ([#4419](https://github.com/expo/eas-cli/pull/4419) by [@vonovak](https://github.com/vonovak))
 
 ### 🧹 Chores
 
