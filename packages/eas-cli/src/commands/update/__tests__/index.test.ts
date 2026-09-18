@@ -644,8 +644,8 @@ describe('--upload-source-maps', () => {
     expect(input[0]).not.toHaveProperty('sourceMapGroup');
   });
 
-  it.each(['false', 'inline'])(
-    'errors when combined with --source-maps %s',
+  it.each(['false', 'inline', 'external'])(
+    'errors when --source-maps is %s, which may not write a source map file',
     async sourceMapsValue => {
       mockTestProject();
       mockTestExport();
@@ -661,9 +661,25 @@ describe('--upload-source-maps', () => {
           ],
           commandOptions
         ).run()
-      ).rejects.toThrow('--upload-source-maps cannot be used with --source-maps');
+      ).rejects.toThrow('--upload-source-maps requires --source-maps true');
     }
   );
+
+  it('allows --source-maps true to be passed explicitly', async () => {
+    jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue({
+      ios: { type: SourceMapSourceType.Gcs, bucketKey: 'updates/ios-key' },
+    });
+
+    await publishWithFlagsAsync([
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--upload-source-maps',
+      '--source-maps=true',
+    ]);
+
+    expect(maybeUploadSourceMapsAsync).toHaveBeenCalled();
+  });
 
   it('proceeds with --skip-bundler', async () => {
     jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue({
