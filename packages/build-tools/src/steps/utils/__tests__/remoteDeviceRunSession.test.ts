@@ -248,19 +248,25 @@ describe(websiteOriginServeSimArgs, () => {
   });
 
   it('follows the stage, so staging and local never name production', () => {
+    for (const stage of [{ EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
+      expect(websiteOriginServeSimArgs(stage as BuildStepEnv)).not.toContain('https://expo.dev');
+    }
     expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual(
       expect.arrayContaining(['--cors-origin', 'https://staging.expo.dev'])
     );
-    expect(websiteOriginServeSimArgs({ EXPO_LOCAL: '1' } as BuildStepEnv)).toEqual([
-      '--cors-origin',
-      'https://expo.test',
-      '--frame-ancestor',
-      'https://expo.test',
-    ]);
+  });
+
+  it('names each website dev port on local too, not just staging', () => {
+    const args = websiteOriginServeSimArgs({ EXPO_LOCAL: '1' } as BuildStepEnv);
+    expect(args).toContain('https://expo.test:13001');
+    expect(args).toContain('https://expo.test:13215');
+    // The stage origin is itself a dev origin, so it must not be named twice.
+    expect(args.filter(value => value === 'https://expo.test')).toHaveLength(2);
+    expect(args).not.toContain('https://*.expo.dev');
   });
 
   it('adds the deploy-preview wildcard on staging only', () => {
-    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual([
+    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv).slice(0, 8)).toEqual([
       '--cors-origin',
       'https://staging.expo.dev',
       '--frame-ancestor',
@@ -274,6 +280,23 @@ describe(websiteOriginServeSimArgs, () => {
     for (const env of [{}, { EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
       expect(websiteOriginServeSimArgs(env as BuildStepEnv)).not.toContain('https://*.expo.dev');
     }
+  });
+
+  it('names each website dev port on staging, since a wildcard cannot match a port', () => {
+    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    for (const origin of [
+      'http://expo.test',
+      'https://expo.test',
+      'https://expo.test:13001',
+      'https://expo.test:13200',
+      'https://expo.test:13215',
+    ]) {
+      expect(args).toContain(origin);
+      // Each one has to be framed as well as read, or the preview page cannot embed the session.
+      expect(args.filter(value => value === origin)).toHaveLength(2);
+    }
+    expect(args).not.toContain('https://expo.test:13216');
+    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).not.toContain('https://expo.test:13001');
   });
 });
 
