@@ -27,7 +27,7 @@ jobs:
         env:
           MISE_NODE_VERSION: ${{ matrix.node }}
       - name: Install ffmpeg
-        # build-tools recording-recovery tests decode real MP4 files and skip without ffprobe.
+        # build-tools recording-recovery tests cut and decode real MP4 files with ffmpeg and ffprobe.
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install dependencies
         run: yarn install --immutable
