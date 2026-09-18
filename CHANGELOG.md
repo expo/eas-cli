@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Preserve already-captured Agent Device app logs as simulator session artifacts after shutdown. ([#4429](https://github.com/expo/eas-cli/pull/4429) by [@sjkim-expo](https://github.com/sjkim-expo))
 
 ### 🐛 Bug fixes
 
