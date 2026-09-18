@@ -793,9 +793,12 @@ export default class UpdatePublish extends EasCommand {
     const uploadSourceMaps = flags['upload-source-maps'] ?? false;
     const sourceMaps = flags['source-maps'];
 
-    if (uploadSourceMaps && (sourceMaps === 'false' || sourceMaps === 'inline')) {
+    // Only the default value reliably writes a standalone source map file. `false` writes none,
+    // and any other value is passed straight to `expo export` on SDK 55+, where `inline` embeds
+    // the map in the bundle instead of writing a file.
+    if (uploadSourceMaps && sourceMaps !== undefined && sourceMaps !== 'true') {
       Errors.error(
-        `--upload-source-maps cannot be used with --source-maps ${sourceMaps}, as neither emits a source map file to upload`,
+        `--upload-source-maps requires --source-maps true, which is the default. Other values may not write a separate source map file to upload. Received --source-maps ${sourceMaps}`,
         { exit: 1 }
       );
     }
