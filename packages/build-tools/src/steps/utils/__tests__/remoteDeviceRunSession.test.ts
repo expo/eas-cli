@@ -18,7 +18,6 @@ import {
   createServeSimArgs,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
-  metricsCorsOriginToServeSimArgs,
   simulatorPreviewPageUrl,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
@@ -27,6 +26,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForWebPreviewReadyAsync,
   websiteOrigin,
+  websiteOriginServeSimArgs,
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
@@ -155,16 +155,16 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
-  it('appends metrics CORS args after the TURN args when provided', () => {
+  it('appends the website args after the TURN args when provided', () => {
     const args = createServeSimArgs({
       port: 4321,
       turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
-      metricsCorsArgs: ['--metrics-cors-origin', 'https://expo.dev'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev'],
     });
     expect(args.slice(-4)).toEqual([
       '--turn-url',
       'turns:turn.example.test:443',
-      '--metrics-cors-origin',
+      '--cors-origin',
       'https://expo.dev',
     ]);
   });
@@ -181,10 +181,10 @@ describe(createServeSimArgs, () => {
     );
   });
 
-  it('appends --share-url after the frame ancestor args', () => {
+  it('appends --share-url after the website args', () => {
     const args = createServeSimArgs({
       port: 4321,
-      frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
       shareUrl: 'https://expo.dev/simulator-preview/abc',
     });
     expect(args.slice(-4)).toEqual([
@@ -237,30 +237,66 @@ describe(createExpoDeviceHubArgs, () => {
   });
 });
 
-describe(metricsCorsOriginToServeSimArgs, () => {
-  it('returns no args when the origin is unset or empty', () => {
-    expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
-    expect(
-      metricsCorsOriginToServeSimArgs({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
-    ).toEqual([]);
+describe(websiteOriginServeSimArgs, () => {
+  it('names the production website by default', () => {
+    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).toEqual([
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+    ]);
   });
 
-  it('builds one flag per comma-separated origin', () => {
-    expect(
-      metricsCorsOriginToServeSimArgs({
-        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
-      } as BuildStepEnv)
-    ).toEqual(['--metrics-cors-origin', 'https://expo.dev']);
-    expect(
-      metricsCorsOriginToServeSimArgs({
-        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev, https://staging.expo.dev',
-      } as BuildStepEnv)
-    ).toEqual([
-      '--metrics-cors-origin',
-      'https://expo.dev',
-      '--metrics-cors-origin',
+  it('follows the stage, so staging and local never name production', () => {
+    for (const stage of [{ EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
+      expect(websiteOriginServeSimArgs(stage as BuildStepEnv)).not.toContain('https://expo.dev');
+    }
+    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv)).toEqual(
+      expect.arrayContaining(['--cors-origin', 'https://staging.expo.dev'])
+    );
+  });
+
+  it('names each website dev port on local too, not just staging', () => {
+    const args = websiteOriginServeSimArgs({ EXPO_LOCAL: '1' } as BuildStepEnv);
+    expect(args).toContain('https://expo.test:13001');
+    expect(args).toContain('https://expo.test:13215');
+    // The stage origin is itself a dev origin, so it must not be named twice.
+    expect(args.filter(value => value === 'https://expo.test')).toHaveLength(2);
+    expect(args).not.toContain('https://*.expo.dev');
+  });
+
+  it('adds the deploy-preview wildcard on staging only', () => {
+    expect(websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv).slice(0, 8)).toEqual([
+      '--cors-origin',
       'https://staging.expo.dev',
+      '--frame-ancestor',
+      'https://staging.expo.dev',
+      '--cors-origin',
+      'https://*.expo.dev',
+      '--frame-ancestor',
+      'https://*.expo.dev',
     ]);
+    // EXPO_LOCAL wins in websiteOrigin, so it has to win here too.
+    for (const env of [{}, { EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
+      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).not.toContain('https://*.expo.dev');
+    }
+  });
+
+  it('names each website dev port on staging, since a wildcard cannot match a port', () => {
+    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    for (const origin of [
+      'http://expo.test',
+      'https://expo.test',
+      'https://expo.test:13001',
+      'https://expo.test:13200',
+      'https://expo.test:13215',
+    ]) {
+      expect(args).toContain(origin);
+      // Each one has to be framed as well as read, or the preview page cannot embed the session.
+      expect(args.filter(value => value === origin)).toHaveLength(2);
+    }
+    expect(args).not.toContain('https://expo.test:13216');
+    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).not.toContain('https://expo.test:13001');
   });
 });
 
@@ -341,10 +377,9 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     '--turn-credential',
     'turn-credential',
   ];
-  const metricsCorsArgs = ['--metrics-cors-origin', 'https://metrics.expo.test'];
+  const websiteArgs = ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'];
   const env = {
     DEVICE_RUN_SESSION_ID: 'drs-id',
-    EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
     NGROK_AUTHTOKEN: 'ngrok-token',
   } as unknown as BuildStepEnv;
 
@@ -560,8 +595,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       ...createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        websiteArgs,
         shareUrl: preview.previewPageUrl,
         packageVersion,
       }),
@@ -624,8 +658,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       ...createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        websiteArgs,
         shareUrl: preview.previewPageUrl,
         packageVersion: '4.5.6',
       }),
@@ -658,8 +691,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       ...createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs: ['--frame-ancestor', 'https://expo.dev'],
+        websiteArgs,
         shareUrl: preview.previewPageUrl,
       }),
     ]);

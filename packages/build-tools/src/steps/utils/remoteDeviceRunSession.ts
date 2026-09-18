@@ -632,19 +632,32 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
-  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
-  if (!origin) {
-    return [];
+// A website dev server runs on expo.test behind an expo-nginx port and points at hosted staging
+// sessions, so those workers see EXPO_STAGING, not EXPO_LOCAL. Ports are matched exactly, so a
+// wildcard cannot cover these and each one has to be named. Mirrors the upload allow-list in
+// https://github.com/expo/universe/pull/30566.
+const LOCAL_WEBSITE_ORIGINS = [
+  'http://expo.test',
+  'https://expo.test',
+  'https://expo.test:13001',
+  ...Array.from({ length: 16 }, (_unused, index) => `https://expo.test:${13200 + index}`),
+];
+
+export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
+  // A Set because websiteOrigin('local') is itself one of the dev origins, and naming an origin
+  // twice would pass the same flag twice.
+  const origins = new Set([websiteOrigin(env)]);
+  // Each website branch is served from its own pr-<number>.expo.dev. Production names one origin
+  // so no subdomain can stand in for it, and EXPO_LOCAL wins here as it does in websiteOrigin.
+  if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
+    origins.add('https://*.expo.dev');
   }
-  const args: string[] = [];
-  for (const value of origin.split(',')) {
-    const trimmed = value.trim();
-    if (trimmed) {
-      args.push('--metrics-cors-origin', trimmed);
+  if (env.EXPO_LOCAL || env.EXPO_STAGING) {
+    for (const origin of LOCAL_WEBSITE_ORIGINS) {
+      origins.add(origin);
     }
   }
-  return args;
+  return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
@@ -658,15 +671,13 @@ function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): str
 export function createServeSimArgs({
   port,
   turnArgs = [],
-  metricsCorsArgs = [],
-  frameAncestorArgs = [],
+  websiteArgs = [],
   shareUrl,
   packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
-  metricsCorsArgs?: string[];
-  frameAncestorArgs?: string[];
+  websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
 }): string[] {
@@ -690,8 +701,7 @@ export function createServeSimArgs({
     '--video-fps',
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
-    ...metricsCorsArgs,
-    ...frameAncestorArgs,
+    ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
   ];
 }
@@ -903,8 +913,7 @@ export async function startServeSimWithTunnelAsync(
     packageVersion?: string;
   }
 ): Promise<ServeSimPreviewHandle> {
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
+  const websiteArgs = websiteOriginServeSimArgs(env);
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -916,8 +925,7 @@ export async function startServeSimWithTunnelAsync(
       createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs,
+        websiteArgs,
         shareUrl: previewPageUrl,
         packageVersion,
       }),
