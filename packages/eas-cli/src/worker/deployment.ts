@@ -250,11 +250,13 @@ export async function assignWorkerDeploymentAliasAsync({
   deploymentId: string;
   aliasName: string;
 }): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
-  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+  const alias = await DeploymentsMutation.assignAliasAsync(graphqlClient, {
     appId,
     deploymentId,
     aliasName,
   });
+  assertAliasPointsToDeployment(alias, deploymentId);
+  return alias;
 }
 
 export async function assignWorkerDeploymentProductionAsync({
@@ -266,11 +268,36 @@ export async function assignWorkerDeploymentProductionAsync({
   appId: string;
   deploymentId: string;
 }): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
-  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+  const alias = await DeploymentsMutation.assignAliasAsync(graphqlClient, {
     appId,
     deploymentId,
     aliasName: null, // this will assign the deployment as production
   });
+  assertAliasPointsToDeployment(alias, deploymentId);
+  return alias;
+}
+
+/**
+ * The mutation resolves with the alias as it now stands, which is not necessarily the deployment
+ * that was requested. Without this check the caller reports success and exits 0 while the alias
+ * still resolves to the previous deployment, which is what expo/eas-cli#4388 describes for
+ * `--prod`. `assignDevDomainNameAsync` already compares its own mutation's result against what it
+ * asked for; this does the same for aliases.
+ */
+function assertAliasPointsToDeployment(
+  alias: Awaited<ReturnType<typeof DeploymentsMutation.assignAliasAsync>>,
+  requestedDeploymentId: string
+): void {
+  const assignedDeploymentId = alias.workerDeployment.deploymentIdentifier;
+  if (String(assignedDeploymentId) === String(requestedDeploymentId)) {
+    return;
+  }
+  const target = alias.aliasName ? `Alias "${alias.aliasName}"` : 'Production';
+  throw new Error(
+    `${target} was not moved to deployment "${requestedDeploymentId}" and still points to ` +
+      `"${assignedDeploymentId}". The deployment itself was created and is reachable at its own ` +
+      `URL, so retrying the command is safe.`
+  );
 }
 
 export async function selectWorkerDeploymentOnAppAsync({
