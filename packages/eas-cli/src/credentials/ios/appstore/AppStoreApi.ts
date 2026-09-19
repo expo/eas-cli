@@ -51,6 +51,12 @@ import Log from '../../../log';
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
   public defaultAuthenticationMode: AuthenticationMode;
+  /**
+   * Invoked once, immediately before authentication is forced on a caller that did not ask for
+   * it. Set by {@link CredentialsContext.bestEffortAppStoreAuthenticateAsync} when the optional
+   * offer was declined, so the login that follows can say why it is required.
+   */
+  public onBeforeForcedAuthentication?: () => void;
 
   constructor() {
     this.defaultAuthenticationMode = hasAscEnvVars()
@@ -74,6 +80,7 @@ export default class AppStoreApi {
 
   public async ensureAuthenticatedAsync(options?: AuthenticateOptions): Promise<AuthCtx> {
     if (!this.authCtx) {
+      this.onBeforeForcedAuthentication?.();
       const mode = options?.mode ?? this.defaultAuthenticationMode;
       this.authCtx = await authenticateAsync({ mode, ...options });
     }
