@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Say why Apple Developer access is required after all when the optional Apple sign-in was declined, instead of prompting for an Apple ID with no explanation. ([#4444](https://github.com/expo/eas-cli/pull/4444) by [@LizunovSergey](https://github.com/LizunovSergey))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
