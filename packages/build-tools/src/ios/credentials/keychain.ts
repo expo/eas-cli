@@ -1,19 +1,18 @@
-import { Ios } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
-import { BuildContext } from '../../context';
 import { runFastlane } from '../fastlane';
 
-export default class Keychain<TJob extends Ios.Job> {
+export default class Keychain {
   private readonly keychainPath: string;
   private readonly keychainPassword: string;
   private created = false;
   private destroyed = false;
 
-  constructor(private readonly ctx: BuildContext<TJob>) {
+  constructor() {
     this.keychainPath = path.join(os.tmpdir(), `eas-build-${uuid()}.keychain`);
     this.keychainPassword = uuid();
   }
@@ -25,8 +24,8 @@ export default class Keychain<TJob extends Ios.Job> {
     };
   }
 
-  public async create(): Promise<void> {
-    this.ctx.logger.debug(`Creating keychain - ${this.keychainPath}`);
+  public async create({ logger }: { logger: bunyan }): Promise<void> {
+    logger.debug(`Creating keychain - ${this.keychainPath}`);
     await runFastlane([
       'run',
       'create_keychain',
@@ -38,12 +37,20 @@ export default class Keychain<TJob extends Ios.Job> {
     this.created = true;
   }
 
-  public async importCertificate(certPath: string, certPassword: string): Promise<void> {
+  public async importCertificate({
+    logger,
+    certPath,
+    certPassword,
+  }: {
+    logger: bunyan;
+    certPath: string;
+    certPassword: string;
+  }): Promise<void> {
     if (!this.created) {
       throw new Error('You must create a keychain first.');
     }
 
-    this.ctx.logger.debug(`Importing certificate ${certPath} into keychain ${this.keychainPath}`);
+    logger.debug(`Importing certificate ${certPath} into keychain ${this.keychainPath}`);
     await runFastlane([
       'run',
       'import_certificate',
@@ -54,7 +61,13 @@ export default class Keychain<TJob extends Ios.Job> {
     ]);
   }
 
-  public async ensureCertificateImported(teamId: string, fingerprint: string): Promise<void> {
+  public async ensureCertificateImported({
+    teamId,
+    fingerprint,
+  }: {
+    teamId: string;
+    fingerprint: string;
+  }): Promise<void> {
     const identities = await this.findIdentitiesByTeamId(teamId);
     if (!identities.includes(fingerprint)) {
       throw new Error(
@@ -63,27 +76,33 @@ export default class Keychain<TJob extends Ios.Job> {
     }
   }
 
-  public async destroy(keychainPath?: string): Promise<void> {
+  public async destroy({
+    logger,
+    keychainPath,
+  }: {
+    logger: bunyan;
+    keychainPath?: string;
+  }): Promise<void> {
     if (!keychainPath && !this.created) {
-      this.ctx.logger.warn("There is nothing to destroy, a keychain hasn't been created yet.");
+      logger.warn("There is nothing to destroy, a keychain hasn't been created yet.");
       return;
     }
     if (this.destroyed) {
-      this.ctx.logger.warn('The keychain has been already destroyed');
+      logger.warn('The keychain has been already destroyed');
       return;
     }
     const keychainToDeletePath = keychainPath ?? this.keychainPath;
-    this.ctx.logger.info(`Destroying keychain - ${keychainToDeletePath}`);
+    logger.info(`Destroying keychain - ${keychainToDeletePath}`);
     try {
       await runFastlane(['run', 'delete_keychain', `keychain_path:${keychainToDeletePath}`]);
       this.destroyed = true;
     } catch (err) {
-      this.ctx.logger.error({ err }, 'Failed to delete the keychain\n');
+      logger.error({ err }, 'Failed to delete the keychain\n');
       throw err;
     }
   }
 
-  public async cleanUpKeychains(): Promise<void> {
+  public async cleanUpKeychains({ logger }: { logger: bunyan }): Promise<void> {
     const { stdout } = await spawn('security', ['list-keychains'], { stdio: 'pipe' });
     const keychainList = (/"(.*)"/g.exec(stdout) ?? ([] as string[])).map(i =>
       i.slice(1, i.length - 1)
@@ -92,7 +111,7 @@ export default class Keychain<TJob extends Ios.Job> {
       /eas-build-[\w-]+\.keychain$/.exec(keychain)
     );
     for (const turtleKeychainPath of turtleKeychainList) {
-      await this.destroy(turtleKeychainPath);
+      await this.destroy({ logger, keychainPath: turtleKeychainPath });
     }
   }
 
