@@ -527,6 +527,194 @@ describe('StaticWorkflowInterpolationContextZ', () => {
     expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
   });
 
+  it('accepts sentry context', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'created',
+        issue: {
+          id: '123456789',
+          short_id: 'MYAPP-1A',
+          title: 'TypeError: Cannot read properties of undefined',
+          culprit: 'src/screens/Home.tsx in render',
+          permalink: 'https://sentry.io/organizations/example/issues/123456789/',
+          level: 'error',
+          status: 'unresolved',
+          substatus: 'new',
+          platform: 'javascript-react-native',
+          first_seen: '2026-09-20T10:00:00.000Z',
+          last_seen: '2026-09-21T10:00:00.000Z',
+          project: {
+            id: '987654321',
+            slug: 'my-app',
+            name: 'My App',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts sentry context with null culprit, permalink, substatus, and platform', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'resolved',
+        issue: {
+          id: '123456789',
+          short_id: 'MYAPP-1A',
+          title: 'TypeError: Cannot read properties of undefined',
+          culprit: null,
+          permalink: null,
+          level: 'error',
+          status: 'unresolved',
+          substatus: null,
+          platform: null,
+          first_seen: '2026-09-20T10:00:00.000Z',
+          last_seen: '2026-09-21T10:00:00.000Z',
+          project: {
+            id: '987654321',
+            slug: 'my-app',
+            name: 'My App',
+          },
+        },
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed).toEqual(context);
+    expect(parsed.sentry?.issue.culprit).toBeNull();
+  });
+
+  it('rejects invalid sentry action', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'ignored',
+        issue: {
+          id: '123456789',
+          project: {
+            id: '987654321',
+          },
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('rejects sentry issue without project id', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'created',
+        issue: {
+          id: '123456789',
+          project: {
+            slug: 'my-app',
+          },
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('preserves sentry on the parsed output', () => {
+    const sentry = {
+      action: 'assigned',
+      issue: {
+        id: '123456789',
+        project: {
+          id: '987654321',
+        },
+      },
+    };
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry,
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed.sentry).toEqual(sentry);
+  });
+
   it('rejects invalid app and account context', () => {
     const context = {
       after: {},
