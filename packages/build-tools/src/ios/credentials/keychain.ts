@@ -23,7 +23,8 @@ const IMPORT_CERTIFICATE_DIAGNOSTICS = [
   },
   {
     code: 'CERTIFICATE_IMPORT_FAILED',
-    pattern: /SecKeychainItemImport:/,
+    pattern:
+      /SecKeychainItemImport:(?! MAC verification failed during PKCS12 import| Unknown format in import)/i,
     message: 'macOS reported a certificate import error (SecKeychainItemImport).',
   },
   {

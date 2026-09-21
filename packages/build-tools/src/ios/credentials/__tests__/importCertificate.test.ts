@@ -45,17 +45,45 @@ it('runs the import with the certificate and keychain credentials, without strea
   expect(logError).not.toHaveBeenCalled();
 });
 
-it('reports native errors even when fastlane exits successfully', async () => {
-  runFastlaneMock.mockResolvedValueOnce(
-    result(
-      'security: SecKeychainItemImport: MAC verification failed during PKCS12 import\nResult: true'
-    )
-  );
-  await keychain.importCertificate(options);
-  expect(logError).toHaveBeenCalledWith(
-    { diagnosticCode: 'PKCS12_MAC_VERIFICATION_FAILED' },
-    expect.stringContaining('export format')
-  );
+describe.each(['success', 'failure'])('Fastlane %s', outcome => {
+  it.each([
+    {
+      output: 'SecKeychainItemImport: MAC verification failed during PKCS12 import',
+      codes: ['PKCS12_MAC_VERIFICATION_FAILED'],
+    },
+    {
+      output: 'SecKeychainItemImport: Unknown format in import',
+      codes: ['PKCS12_UNKNOWN_FORMAT'],
+    },
+    {
+      output: 'SecKeychainItemImport: Some other error',
+      codes: ['CERTIFICATE_IMPORT_FAILED'],
+    },
+    {
+      output:
+        'SecKeychainItemImport: Unknown format in import\nSecKeychainItemSetAccessWithPassword: Access denied',
+      codes: ['PKCS12_UNKNOWN_FORMAT', 'PRIVATE_KEY_ACCESS_FAILED'],
+    },
+    {
+      output:
+        'seckeychainitemimport: unknown format in import\nSecKeychainItemImport: Some other error',
+      codes: ['PKCS12_UNKNOWN_FORMAT', 'CERTIFICATE_IMPORT_FAILED'],
+    },
+  ])('reports only the applicable codes: $codes', async ({ output, codes }) => {
+    if (outcome === 'success') {
+      runFastlaneMock.mockResolvedValueOnce(result(output));
+      await keychain.importCertificate(options);
+    } else {
+      runFastlaneMock.mockRejectedValueOnce(
+        Object.assign(new Error('import failed'), {
+          stderr: output,
+        })
+      );
+      const failure = await keychain.importCertificate(options).catch(error => error);
+      expect(failure.metadata.diagnosticCodes).toEqual(codes);
+    }
+    expect(logError.mock.calls.map(([fields]) => fields.diagnosticCode)).toEqual(codes);
+  });
 });
 
 it('never forwards output, command arguments, private key data, or the original error', async () => {
