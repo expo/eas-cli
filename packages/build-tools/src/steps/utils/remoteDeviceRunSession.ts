@@ -15,30 +15,10 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import {
-  PackageManager,
-  resolveConfiguredPackageManager,
-  resolvePackageExec,
-} from '../../utils/packageManager';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
-import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-const WEB_PREVIEW_HOST = '127.0.0.1';
-const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
-// Pinned while H.264 is known to stall at larger encode sizes without recovering.
-// Passing this explicitly also overrides serve-sim's own default H.264 cap, so raising it
-// loses that guard too.
-const SERVE_SIM_MAX_DIMENSION = '960';
-const SERVE_SIM_MJPEG_QUALITY = '0.55';
-const SERVE_SIM_VIDEO_BITRATE = '6000000';
-const SERVE_SIM_VIDEO_FPS = '60';
-const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
-const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
-const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
-const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
-
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
     deviceRunSession {
@@ -542,7 +522,7 @@ export type DetachedProcessHandle = {
   stopAsync: () => Promise<void>;
 };
 
-function isProcessRunning(pid: number): boolean {
+export function isProcessRunning(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -551,7 +531,10 @@ function isProcessRunning(pid: number): boolean {
   }
 }
 
-async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> {
+async function stopDetachedProcessAsync(
+  pid: number | undefined,
+  gracePeriodMs = 5_000
+): Promise<void> {
   if (pid === undefined || !isProcessRunning(pid)) {
     return;
   }
@@ -567,7 +550,7 @@ async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> 
     }
   }
 
-  const deadline = Date.now() + 5_000;
+  const deadline = Date.now() + gracePeriodMs;
   while (Date.now() < deadline && isProcessRunning(pid)) {
     await sleepAsync(100);
   }
@@ -588,11 +571,13 @@ export function spawnDetached({
   args,
   cwd,
   env,
+  stopGracePeriodMs,
 }: {
   command: string;
   args: string[];
   cwd?: string;
   env: BuildStepEnv;
+  stopGracePeriodMs?: number;
 }): DetachedProcessHandle {
   const promise = spawn(command, args, {
     cwd,
@@ -616,119 +601,8 @@ export function spawnDetached({
   return {
     pid,
     getOutput: () => output,
-    stopAsync: async () => await stopDetachedProcessAsync(pid),
+    stopAsync: async () => await stopDetachedProcessAsync(pid, stopGracePeriodMs),
   };
-}
-
-export function websiteOrigin(env: BuildStepEnv): string {
-  return env.EXPO_LOCAL
-    ? 'https://expo.test'
-    : env.EXPO_STAGING
-      ? 'https://staging.expo.dev'
-      : 'https://expo.dev';
-}
-
-export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string): string {
-  return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
-}
-
-export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
-  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
-  if (!origin) {
-    return [];
-  }
-  const args: string[] = [];
-  for (const value of origin.split(',')) {
-    const trimmed = value.trim();
-    if (trimmed) {
-      args.push('--metrics-cors-origin', trimmed);
-    }
-  }
-  return args;
-}
-
-function createServeSimPackageSpec(packageVersion: string | undefined): string {
-  return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
-}
-
-function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): string {
-  return `${EXPO_DEVICE_HUB_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
-}
-
-export function createServeSimArgs({
-  port,
-  turnArgs = [],
-  metricsCorsArgs = [],
-  frameAncestorArgs = [],
-  shareUrl,
-  packageVersion,
-}: {
-  port: number;
-  turnArgs?: string[];
-  metricsCorsArgs?: string[];
-  frameAncestorArgs?: string[];
-  shareUrl?: string;
-  packageVersion?: string;
-}): string[] {
-  return [
-    createServeSimPackageSpec(packageVersion),
-    '--port',
-    String(port),
-    '--host',
-    WEB_PREVIEW_HOST,
-    '--require-token',
-    '--transport',
-    'webrtc',
-    '--webrtc-codec',
-    'h264',
-    '--max-dimension',
-    SERVE_SIM_MAX_DIMENSION,
-    '--mjpeg-quality',
-    SERVE_SIM_MJPEG_QUALITY,
-    '--video-bitrate',
-    SERVE_SIM_VIDEO_BITRATE,
-    '--video-fps',
-    SERVE_SIM_VIDEO_FPS,
-    ...turnArgs,
-    ...metricsCorsArgs,
-    ...frameAncestorArgs,
-    ...(shareUrl ? ['--share-url', shareUrl] : []),
-  ];
-}
-
-export function createExpoDeviceHubArgs({
-  port,
-  turnArgs = [],
-  packageVersion,
-}: {
-  port: number;
-  turnArgs?: string[];
-  packageVersion?: string;
-}): string[] {
-  return [
-    createExpoDeviceHubPackageSpec(packageVersion),
-    '--port',
-    String(port),
-    '--host',
-    WEB_PREVIEW_HOST,
-    '--platform',
-    'android',
-    '--transport',
-    'webrtc',
-    '--webrtc-codec',
-    'h264',
-    '--webrtc-ice-policy',
-    'all',
-    '--max-dimension',
-    EXPO_DEVICE_HUB_MAX_DIMENSION,
-    '--video-bitrate',
-    EXPO_DEVICE_HUB_VIDEO_BITRATE,
-    '--video-fps',
-    EXPO_DEVICE_HUB_VIDEO_FPS,
-    '--hide-sidebar',
-    '--hide-boot-device',
-    ...turnArgs,
-  ];
 }
 
 export async function findAvailablePortAsync(): Promise<number> {
@@ -736,7 +610,7 @@ export async function findAvailablePortAsync(): Promise<number> {
   server.unref();
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, WEB_PREVIEW_HOST, () => resolve());
+    server.listen(0, '127.0.0.1', () => resolve());
   });
   const address = server.address();
   await new Promise<void>((resolve, reject) => {
@@ -746,250 +620,6 @@ export async function findAvailablePortAsync(): Promise<number> {
     throw new SystemError('Could not allocate a local port for the web preview.');
   }
   return address.port;
-}
-
-const WebPreviewReadyResponseSchema = z.object({
-  status: z.literal('ready'),
-  device: z.string(),
-});
-
-export async function waitForWebPreviewReadyAsync({
-  previewServer,
-  serverName,
-  port,
-  timeoutMs,
-}: {
-  previewServer: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
-  serverName: string;
-  port: number;
-  timeoutMs: number;
-}): Promise<string> {
-  const readyUrl = `http://${WEB_PREVIEW_HOST}:${port}/readyz`;
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-  while (Date.now() < deadline) {
-    if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
-      throw new SystemError(
-        `${serverName} exited before becoming ready. Last output:\n${
-          previewServer.getOutput() || '<empty>'
-        }`
-      );
-    }
-    try {
-      const response = await turtleFetch(readyUrl, 'GET', {
-        retries: 0,
-        timeout: 2_000,
-      });
-      const ready = WebPreviewReadyResponseSchema.parse(await response.json());
-      return ready.device;
-    } catch (error) {
-      lastError = error;
-    }
-    await sleepAsync(1_000);
-  }
-  throw new SystemError(
-    `Timed out waiting for ${serverName} readiness at ${readyUrl}${
-      lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
-  );
-}
-
-export type DeviceWebPreviewHandle = {
-  previewPageUrl: string;
-  apiUrl: string;
-  /** Session token gating the preview. Only serve-sim mints one. */
-  previewToken?: string;
-  stopAsync: () => Promise<void>;
-};
-
-export type ServeSimPreviewHandle = DeviceWebPreviewHandle;
-
-async function startWebPreviewWithTunnelAsync(
-  ctx: CustomBuildContext,
-  {
-    baseDomain,
-    env,
-    logger,
-    timeoutMs,
-    serverName,
-    packageSpec,
-    createArgs,
-    readPreviewTokenAsync,
-  }: {
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    serverName: string;
-    packageSpec: string;
-    createArgs: (port: number, turnArgs: string[], previewPageUrl: string) => string[];
-    readPreviewTokenAsync?: (device: string) => Promise<string>;
-  }
-): Promise<DeviceWebPreviewHandle> {
-  const subdomainId = randomBytes(16).toString('hex');
-  const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
-  const port = await findAvailablePortAsync();
-  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
-  const previewExec = resolvePackageExec(
-    resolveConfiguredPackageManager(env, PackageManager.NPM),
-    createArgs(port, turnArgs, previewPageUrl)
-  );
-  logger.info(
-    `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
-  );
-  const previewServer = spawnDetached({
-    command: previewExec.command,
-    args: previewExec.args,
-    env,
-  });
-
-  try {
-    logger.info(`Waiting for ${serverName} to become ready.`);
-    const device = await waitForWebPreviewReadyAsync({
-      previewServer,
-      serverName,
-      port,
-      timeoutMs,
-    });
-    const previewToken = await readPreviewTokenAsync?.(device);
-    const tunnel = await startNgrokTunnelAsync({
-      port,
-      subdomainPrefix: 'web-preview',
-      subdomainId,
-      baseDomain,
-      authtoken: getNgrokAuthtokenOrThrow(env),
-      logger,
-    });
-    return {
-      previewPageUrl,
-      apiUrl: tunnel.url,
-      previewToken,
-      stopAsync: async () => {
-        const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
-        for (const result of results) {
-          if (result.status === 'rejected') {
-            logger.warn({ err: result.reason }, `Could not stop a ${serverName} preview resource.`);
-          }
-        }
-      },
-    };
-  } catch (error) {
-    await previewServer.stopAsync();
-    throw error;
-  }
-}
-
-export async function readServeSimPreviewTokenAsync(
-  udid: string,
-  stateDir: string = SERVE_SIM_STATE_DIR
-): Promise<string | undefined> {
-  const servers = await readServeSimServersAsync(stateDir);
-  return servers.find(server => server.udid === udid)?.token;
-}
-
-export async function startServeSimWithTunnelAsync(
-  ctx: CustomBuildContext,
-  {
-    baseDomain,
-    env,
-    logger,
-    timeoutMs,
-    packageVersion,
-  }: {
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  }
-): Promise<ServeSimPreviewHandle> {
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
-  return await startWebPreviewWithTunnelAsync(ctx, {
-    baseDomain,
-    env,
-    logger,
-    timeoutMs,
-    serverName: 'serve-sim',
-    packageSpec: createServeSimPackageSpec(packageVersion),
-    createArgs: (port, turnArgs, previewPageUrl) =>
-      createServeSimArgs({
-        port,
-        turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs,
-        shareUrl: previewPageUrl,
-        packageVersion,
-      }),
-    readPreviewTokenAsync: async device => {
-      const previewToken = await readServeSimPreviewTokenAsync(device);
-      if (!previewToken) {
-        // A serve-sim that does not know --require-token fails earlier, in the readiness check, so
-        // reaching here means it started and left no token in its state file.
-        throw new SystemError(
-          `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
-            'on a public tunnel and would be reachable without one, so the session cannot continue. ' +
-            'This usually means the state file was not written as expected; retry the session, and ' +
-            'report it if it repeats.'
-        );
-      }
-      return previewToken;
-    },
-  });
-}
-
-export async function startExpoDeviceHubWithTunnelAsync(
-  ctx: CustomBuildContext,
-  {
-    runtimePlatform,
-    baseDomain,
-    env,
-    logger,
-    timeoutMs,
-    packageVersion,
-  }: {
-    runtimePlatform: BuildRuntimePlatform;
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  }
-): Promise<DeviceWebPreviewHandle> {
-  if (runtimePlatform === BuildRuntimePlatform.LINUX) {
-    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
-  }
-  return await startWebPreviewWithTunnelAsync(ctx, {
-    baseDomain,
-    env,
-    logger,
-    timeoutMs,
-    serverName: 'expo-device-hub',
-    packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
-    createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
-  });
-}
-
-export async function startDeviceWebPreviewWithTunnelAsync(
-  ctx: CustomBuildContext,
-  {
-    runtimePlatform,
-    ...options
-  }: {
-    runtimePlatform: BuildRuntimePlatform;
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  }
-): Promise<DeviceWebPreviewHandle> {
-  switch (runtimePlatform) {
-    case BuildRuntimePlatform.DARWIN:
-      return await startServeSimWithTunnelAsync(ctx, options);
-    case BuildRuntimePlatform.LINUX:
-      return await startExpoDeviceHubWithTunnelAsync(ctx, { ...options, runtimePlatform });
-  }
 }
 
 export type NgrokTunnelHandle = {
