@@ -9,7 +9,7 @@ import { runFastlane } from '../fastlane';
 
 // Do not log raw fastlane output or spawn errors: they can contain passwords,
 // command arguments, and private key attributes from set-key-partition-list.
-const DIAGNOSTICS = [
+const IMPORT_CERTIFICATE_DIAGNOSTICS = [
   {
     code: 'PKCS12_MAC_VERIFICATION_FAILED',
     pattern: /SecKeychainItemImport: MAC verification failed during PKCS12 import/i,
@@ -95,7 +95,7 @@ export default class Keychain {
         `keychain_password:${this.keychainPassword}`,
       ]);
       const output = [result.stdout, result.stderr].join('\n');
-      for (const diagnostic of DIAGNOSTICS) {
+      for (const diagnostic of IMPORT_CERTIFICATE_DIAGNOSTICS) {
         if (diagnostic.pattern.test(output)) {
           logger.error({ diagnosticCode: diagnostic.code }, diagnostic.message);
         }
@@ -110,7 +110,7 @@ export default class Keychain {
         .filter(value => typeof value === 'string')
         .join('\n');
       const diagnosticCodes: string[] = [];
-      for (const diagnostic of DIAGNOSTICS) {
+      for (const diagnostic of IMPORT_CERTIFICATE_DIAGNOSTICS) {
         if (diagnostic.pattern.test(output)) {
           diagnosticCodes.push(diagnostic.code);
           logger.error({ diagnosticCode: diagnostic.code }, diagnostic.message);
