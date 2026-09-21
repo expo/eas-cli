@@ -5,6 +5,7 @@ import { access, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   findUnlistedDeviceScreenRecordingsAsync,
@@ -14,6 +15,7 @@ import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
   readServeSimServersAsync: jest
     .fn()
@@ -234,6 +236,11 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
     },
     'Could not finalize Android recording before shutdown.'
   );
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'Could not finalize Android recording before shutdown',
+    expect.any(Error),
+    { level: 'warning' }
+  );
   expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
     { hostOutput: '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255' },
@@ -253,6 +260,12 @@ it('rolls back failed host startup without replacing the original error', async 
   ).rejects.toThrow('Timed out waiting');
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(ngrok.forward).not.toHaveBeenCalled();
+  expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.stringMatching(/finalize|upload/)
+  );
 });
 
 async function writeRecordingDescriptorAsync(directory: string) {

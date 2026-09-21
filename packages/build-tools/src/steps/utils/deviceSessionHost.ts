@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import {
   PackageManager,
   resolveConfiguredPackageManager,
@@ -224,7 +225,10 @@ export type DeviceWebPreview = {
 
 export type DeviceSessionHost = {
   openPreviewAsync(options: { baseDomain: string }): Promise<DeviceWebPreview>;
-  /** Terminal and idempotent, including when recording finalization or upload fails. */
+  /**
+   * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
+   * and reported, so callers need no error handling around it.
+   */
   finishAsync(): Promise<void>;
 };
 
@@ -304,6 +308,7 @@ export async function startDeviceSessionHostAsync(
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
   let finishTask: Promise<void> | null = null;
+  let hostReady = false;
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain }) {
@@ -364,7 +369,8 @@ export async function startDeviceSessionHostAsync(
         previewServer,
         serverName,
         port,
-        recording,
+        // A host that never answered /readyz has nothing to finalize or upload.
+        recording: hostReady ? recording : null,
         logger,
       }));
     },
@@ -377,6 +383,7 @@ export async function startDeviceSessionHostAsync(
       port,
       timeoutMs,
     });
+    hostReady = true;
     if (!isAndroid) {
       previewToken = await readServeSimPreviewTokenAsync(device);
       if (!previewToken) {
@@ -491,7 +498,11 @@ async function finalizeAndroidRecordingAsync({
     }
     return true;
   } catch (err) {
-    logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finalize Android recording before shutdown', error, {
+      level: 'warning',
+    });
+    logger.warn({ err: error }, 'Could not finalize Android recording before shutdown.');
     return false;
   }
 }
@@ -533,8 +544,10 @@ async function uploadFinishedAndroidRecordingAsync(
     }
     return false;
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not upload the Android session recording', error, { level: 'warning' });
     logger.warn(
-      { err, recordingDirectory: recording.directory },
+      { err: error, recordingDirectory: recording.directory },
       'Could not upload the Android session recording.'
     );
     return false;
