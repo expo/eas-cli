@@ -102,9 +102,9 @@ export default class Keychain {
       }
     } catch (error) {
       const processError =
-        error !== null && typeof error === 'object'
-          ? (error as Partial<Pick<SpawnResult, 'stdout' | 'stderr'>> &
-              Pick<NodeJS.ErrnoException, 'code'>)
+        error instanceof Error
+          ? (error as Error &
+              Partial<Pick<SpawnResult, 'stdout' | 'stderr'> & NodeJS.ErrnoException>)
           : undefined;
       const output = [processError?.stdout, processError?.stderr]
         .filter(value => typeof value === 'string')
@@ -116,7 +116,9 @@ export default class Keychain {
           logger.error({ diagnosticCode: diagnostic.code }, diagnostic.message);
         }
       }
+
       // Never attach the original error: its message includes passwords.
+
       if (processError?.code === 'ENOENT' || processError?.code === 'EACCES') {
         throw new errors.SystemError('Fastlane could not be started to import the certificate.', {
           trackingCode: 'IOS_CERTIFICATE_IMPORT_PROCESS_START_FAILED',

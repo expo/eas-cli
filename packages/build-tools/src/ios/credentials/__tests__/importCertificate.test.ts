@@ -117,25 +117,15 @@ it('preserves a safe message and diagnostic codes without claiming a user cause'
   expect(JSON.stringify(error)).not.toContain('secret command');
 });
 
-it('reads diagnostic fields from a plain thrown object', async () => {
-  runFastlaneMock.mockRejectedValueOnce({
-    stderr: 'SecKeychainItemImport: Unknown format in import',
-  });
-  const error = await keychain.importCertificate(options).catch(error => error);
-  expect(error.metadata.diagnosticCodes).toContain('PKCS12_UNKNOWN_FORMAT');
-  expect(logError).toHaveBeenCalledWith(
-    { diagnosticCode: 'PKCS12_UNKNOWN_FORMAT' },
-    expect.any(String)
+it.each([
+  null,
+  'failure',
+  { stderr: 'SecKeychainItemImport: Unknown format in import' },
+  Object.assign(new Error('failure'), { stdout: 123, stderr: {} }),
+])('handles rejected values without usable process output: %p', async value => {
+  runFastlaneMock.mockRejectedValueOnce(value);
+  await expect(keychain.importCertificate(options)).rejects.toThrow(
+    'Fastlane could not complete certificate import'
   );
+  expect(logError).not.toHaveBeenCalled();
 });
-
-it.each([null, 'failure', { stdout: 123, stderr: {} }])(
-  'handles rejected values without usable process output: %p',
-  async value => {
-    runFastlaneMock.mockRejectedValueOnce(value);
-    await expect(keychain.importCertificate(options)).rejects.toThrow(
-      'Fastlane could not complete certificate import'
-    );
-    expect(logError).not.toHaveBeenCalled();
-  }
-);
