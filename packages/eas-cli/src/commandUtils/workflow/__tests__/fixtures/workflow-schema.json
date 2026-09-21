@@ -1,0 +1,67 @@
+{
+  "data": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "name": { "type": "string" },
+      "jobs": {
+        "type": "object",
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "const": "build" },
+                "params": {
+                  "type": "object",
+                  "properties": {
+                    "platform": { "type": "string" },
+                    "profile": { "type": "string" }
+                  },
+                  "required": ["platform"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["type", "params"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "const": "slack" },
+                "params": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string" },
+                        "webhook_url": { "type": "string", "format": "uri" }
+                      },
+                      "required": ["message"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payload": { "type": "object" },
+                        "webhook_url": { "type": "string", "format": "uri" }
+                      },
+                      "required": ["payload"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["type", "params"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "required": ["jobs"],
+    "additionalProperties": false
+  }
+}

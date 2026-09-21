@@ -1,5 +1,6 @@
 import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/errors';
 import { CombinedError } from '@urql/core';
+import Ajv, { FormatDefinition } from 'ajv';
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as YAML from 'yaml';
@@ -142,7 +143,7 @@ function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): voi
 function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): void {
   delete workflowJsonSchema['$schema'];
 
-  const ajv = createValidator();
+  const ajv = createWorkflowValidator();
   const validate = ajv.compile(workflowJsonSchema);
   const result = validate(parsedYaml);
 
@@ -165,6 +166,69 @@ function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): vo
     }
     throw new Error([...processedErrors].join('\n'));
   }
+}
+
+// A `${{ ... }}` expression is only replaced with its value once the workflow runs.
+const TEMPLATE_EXPRESSION = /\$\{\{[\s\S]*?\}\}/;
+
+type AddedFormat = NonNullable<Ajv['formats'][string]>;
+
+/**
+ * A validator that accepts an interpolated value for any `format` it is checked against. Until the
+ * workflow runs, what the file holds is not the string the format describes -- `${{ env.WEBHOOK }}`
+ * is not a URI -- so the format is the one thing that cannot be decided here, and the server checks
+ * it once the value is resolved. Letting it through matters beyond the message itself, because jobs
+ * are matched with `anyOf`: one failed format drops its branch and the job is then reported against
+ * every other job type at once.
+ */
+function createWorkflowValidator(): Ajv {
+  const validator = createValidator();
+  for (const [name, format] of Object.entries(validator.formats)) {
+    const validate = format && stringFormatValidate(format);
+    if (!validate) {
+      continue;
+    }
+    const relaxed = (value: string): boolean => TEMPLATE_EXPRESSION.test(value) || validate(value);
+    validator.addFormat(
+      name,
+      isStringFormatDefinition(format) ? { ...format, validate: relaxed } : relaxed
+    );
+  }
+  return validator;
+}
+
+function isStringFormatDefinition(format: AddedFormat): format is FormatDefinition<string> {
+  return (
+    typeof format === 'object' &&
+    !(format instanceof RegExp) &&
+    // A definition without a `type` describes a string, which is also AJV's default.
+    format.type !== 'number' &&
+    format.async !== true
+  );
+}
+
+/** How a format checks a string, in whichever of the shapes AJV accepts it was registered. */
+function stringFormatValidate(format: AddedFormat): ((value: string) => boolean) | null {
+  if (format === true) {
+    // Every string is accepted as it is, so there is nothing left to relax.
+    return null;
+  }
+  if (format instanceof RegExp) {
+    return value => format.test(value);
+  }
+  if (typeof format === 'function') {
+    return format;
+  }
+  if (!isStringFormatDefinition(format)) {
+    // A number format, or an asynchronous one: neither can hold an expression to skip.
+    return null;
+  }
+  const { validate } = format;
+  if (typeof validate === 'function') {
+    return validate;
+  }
+  const pattern = validate instanceof RegExp ? validate : new RegExp(validate);
+  return value => pattern.test(value);
 }
 
 export function workflowContentsFromParsedYaml(parsedYaml: any): string {
