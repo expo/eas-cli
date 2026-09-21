@@ -13,7 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [build-tools] Report early Argent server exits during simulator startup instead of waiting for the full readiness timeout.
+- [build-tools] Report early Argent server exits during simulator startup instead of waiting for the full readiness timeout. ([#4454](https://github.com/expo/eas-cli/pull/4454) by [@sjkim-expo](https://github.com/sjkim-expo))
+- [eas-cli] Fix `eas account:view` printing `Role: undefined` for the new Release Manager role. ([#4300](https://github.com/expo/eas-cli/pull/4300) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🧹 Chores
 
