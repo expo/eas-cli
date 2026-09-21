@@ -31,6 +31,7 @@ import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
   ensureFfmpegInstalledOnceAsync,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -205,6 +206,7 @@ export function createStartArgentRemoteSessionBuildFunction(
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
+      let sessionFailed = false;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -257,37 +259,40 @@ export function createStartArgentRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        const cleanup = await Promise.allSettled([
-          (async () => {
-            if (toolsTunnel) {
-              await toolsTunnel.stopAsync();
-            }
-            await stopArgentEventCollectionSafelyAsync({
-              eventCollection,
-              deviceRunSessionId,
-              logger,
-            });
-            artifactPollAbortController.abort();
-            try {
-              await artifactPollingPromise;
-            } catch (err) {
-              const error = err instanceof Error ? err : new Error(String(err));
-              Sentry.capture('Could not finish Argent remote session artifact polling', error);
-              logger.warn(
-                { err: error },
-                'Could not finish Argent remote session artifact polling.'
-              );
-            }
-            await argentServer.stopAsync();
-          })(),
-          sessionHost?.finishAsync(),
-        ]);
-        for (const result of cleanup) {
-          if (result.status === 'rejected') {
-            throw result.reason;
-          }
-        }
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            toolsTunnel?.stopAsync(),
+            (async () => {
+              try {
+                await stopArgentEventCollectionSafelyAsync({
+                  eventCollection,
+                  deviceRunSessionId,
+                  logger,
+                });
+                artifactPollAbortController.abort();
+                try {
+                  await artifactPollingPromise;
+                } catch (err) {
+                  const error = err instanceof Error ? err : new Error(String(err));
+                  Sentry.capture('Could not finish Argent remote session artifact polling', error);
+                  logger.warn(
+                    { err: error },
+                    'Could not finish Argent remote session artifact polling.'
+                  );
+                }
+              } finally {
+                await argentServer.stopAsync();
+              }
+            })(),
+            sessionHost?.finishAsync(),
+          ],
+        });
       }
     }),
   });

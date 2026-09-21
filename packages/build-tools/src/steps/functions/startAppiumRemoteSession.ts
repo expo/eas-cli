@@ -31,6 +31,7 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import {
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -127,6 +128,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
+      let sessionFailed = false;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -178,23 +180,26 @@ export function createStartAppiumRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        const cleanup = await Promise.allSettled([
-          (async () => {
-            if (appiumTunnel) {
-              await appiumTunnel.stopAsync();
-            }
-            await eventCollection.stopAsync();
-            await appiumProcess.stopAsync();
-            await fs.promises.rm(appiumHome, { recursive: true, force: true });
-          })(),
-          sessionHost?.finishAsync(),
-        ]);
-        for (const result of cleanup) {
-          if (result.status === 'rejected') {
-            throw result.reason;
-          }
-        }
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            appiumTunnel?.stopAsync(),
+            (async () => {
+              try {
+                await eventCollection.stopAsync();
+              } finally {
+                await appiumProcess.stopAsync();
+                await fs.promises.rm(appiumHome, { recursive: true, force: true });
+              }
+            })(),
+            sessionHost?.finishAsync(),
+          ],
+        });
       }
     }),
   });
