@@ -1,11 +1,9 @@
-import { Ios } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
-import { BuildContext } from '../../../context';
 import { distributionCertificate } from '../__tests__/fixtures';
 import Keychain from '../keychain';
 
@@ -17,11 +15,9 @@ jest.setTimeout(60 * 1000);
 // We need the JS code to modify the file system, so we need to mock it.
 jest.unmock('fs');
 
-let ctx: BuildContext<Ios.Job>;
-
 describe('Keychain class', () => {
   describe('ensureCertificateImported method', () => {
-    let keychain: Keychain<Ios.Job>;
+    let keychain: Keychain;
     const certificatePath = path.join(os.tmpdir(), `cert-${uuid()}.p12`);
 
     beforeAll(async () => {
@@ -36,37 +32,34 @@ describe('Keychain class', () => {
     });
 
     beforeEach(async () => {
-      ctx = new BuildContext({ projectRootDirectory: '.' } as Ios.Job, {
-        workingdir: '/workingdir',
-        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-        logger: mockLogger,
-        env: {},
-        uploadArtifact: jest.fn(),
-      });
-      keychain = new Keychain(ctx);
-      await keychain.create();
+      keychain = new Keychain();
+      await keychain.create({ logger: mockLogger });
     });
 
     afterEach(async () => {
-      await keychain.destroy();
+      await keychain.destroy({ logger: mockLogger });
     });
 
     it("should throw an error if the certificate hasn't been imported", async () => {
       await expect(
-        keychain.ensureCertificateImported(
-          distributionCertificate.teamId,
-          distributionCertificate.fingerprint
-        )
+        keychain.ensureCertificateImported({
+          teamId: distributionCertificate.teamId,
+          fingerprint: distributionCertificate.fingerprint,
+        })
       ).rejects.toThrowError(/hasn't been imported successfully/);
     });
 
     it("shouldn't throw any error if the certificate has been imported successfully", async () => {
-      await keychain.importCertificate(certificatePath, distributionCertificate.password);
+      await keychain.importCertificate({
+        logger: mockLogger,
+        certPath: certificatePath,
+        certPassword: distributionCertificate.password,
+      });
       await expect(
-        keychain.ensureCertificateImported(
-          distributionCertificate.teamId,
-          distributionCertificate.fingerprint
-        )
+        keychain.ensureCertificateImported({
+          teamId: distributionCertificate.teamId,
+          fingerprint: distributionCertificate.fingerprint,
+        })
       ).resolves.not.toThrow();
     });
   });

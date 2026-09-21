@@ -1,7 +1,7 @@
 import { createLogger } from '@expo/logger';
 
 import { provisioningProfile } from './fixtures';
-import Keychain from '../keychain';
+import Keychain from '../../../../../ios/credentials/keychain';
 import ProvisioningProfile from '../provisioningProfile';
 
 const mockLogger = createLogger({ name: 'mock-logger' });
@@ -18,11 +18,11 @@ describe('ProvisioningProfile class', () => {
 
     beforeAll(async () => {
       keychain = new Keychain();
-      await keychain.create(mockLogger);
+      await keychain.create({ logger: mockLogger });
     });
 
     afterAll(async () => {
-      await keychain.destroy(mockLogger);
+      await keychain.destroy({ logger: mockLogger });
     });
 
     it("shouldn't throw any error if the provisioning profile and distribution certificate match", async () => {
