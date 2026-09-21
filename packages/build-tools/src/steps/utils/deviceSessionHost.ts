@@ -16,6 +16,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import {
+  findUnlistedDeviceScreenRecordingsAsync,
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
@@ -30,6 +31,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
+import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -42,6 +44,7 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+const HOST_OUTPUT_TAIL_CHARS = 8_000;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -229,6 +232,7 @@ type AndroidSessionRecording = {
   deviceRunSessionId: string;
   directory: string;
   controlToken: string;
+  env: BuildStepEnv;
 };
 
 export async function startDeviceSessionHostAsync(
@@ -256,6 +260,7 @@ export async function startDeviceSessionHostAsync(
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
         directory: await fs.promises.mkdtemp(path.join(os.tmpdir(), 'android-session-recordings-')),
         controlToken: randomBytes(32).toString('hex'),
+        env,
       }
     : null;
   const subdomainId = randomBytes(16).toString('hex');
@@ -319,6 +324,13 @@ export async function startDeviceSessionHostAsync(
           authtoken: getNgrokAuthtokenOrThrow(env),
           logger,
         });
+        if (finishTask) {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: 'Late preview tunnel close', timeoutMs: 5_000 },
+            async () => await tunnel.stopAsync()
+          ).catch(err => logger.warn({ err }, 'Could not close a late preview tunnel.'));
+          throw new SystemError('Session host finalized while the preview was opening.');
+        }
         let closeTask: Promise<void> | null = null;
         return {
           previewPageUrl,
@@ -401,23 +413,48 @@ async function finishDeviceSessionHostAsync(
     logger: bunyan;
   }
 ): Promise<void> {
-  try {
-    await (await previewTask)?.closeAsync();
-  } catch (err) {
-    logger.warn({ err }, `Could not close the ${serverName} preview tunnel.`);
-  }
+  // Native ngrok operations have no scoped cancellation. Retire a late listener too.
+  const retirePreview = withDeviceRunSessionTimeoutAsync(
+    { name: 'Preview tunnel retirement', timeoutMs: 5_000 },
+    async () => {
+      // A preview that failed to open, or was closed by its opener after finish began, has no tunnel left.
+      const preview = await previewTask?.catch(() => null);
+      await preview?.closeAsync();
+    }
+  ).catch(err => {
+    logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
+  });
+  let finalized = false;
   if (recording) {
     // stopAsync signals the whole process group, including capture's encoder.
     // Finalize the MP4 first; the token protects this route on the preview server.
-    await finalizeAndroidRecordingAsync({ port, controlToken: recording.controlToken, logger });
+    finalized = await finalizeAndroidRecordingAsync({
+      port,
+      controlToken: recording.controlToken,
+      logger,
+    });
   }
+  let hostStopped = false;
   try {
     await previewServer.stopAsync();
+    if (previewServer.pid !== undefined && isProcessRunning(previewServer.pid)) {
+      throw new Error('Session host is still running after shutdown.');
+    }
+    hostStopped = true;
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
-  if (recording) {
-    await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+  await retirePreview;
+  let uploaded = false;
+  if (recording && hostStopped) {
+    uploaded = await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+  }
+  if (recording && (!finalized || !uploaded)) {
+    // The Hub reports capture failures on stderr; the stop route answers with only a summary.
+    logger.warn(
+      { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
+      'Session host output around the recording failure.'
+    );
   }
 }
 
@@ -429,44 +466,77 @@ async function finalizeAndroidRecordingAsync({
   port: number;
   controlToken: string;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
-    const response = await turtleFetch(
-      `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
-      'POST',
-      {
-        headers: { Authorization: `Bearer ${controlToken}` },
-        timeout: 60_000,
-        retries: 0,
-      }
+    const response = await withDeviceRunSessionTimeoutAsync(
+      { name: 'Android recording finalization', timeoutMs: 60_000 },
+      async signal =>
+        await turtleFetch(
+          `http://${WEB_PREVIEW_HOST}:${port}/_eas/android-recording/stop`,
+          'POST',
+          {
+            headers: { Authorization: `Bearer ${controlToken}` },
+            timeout: 60_000,
+            retries: 0,
+            shouldThrowOnNotOk: false,
+            signal,
+          }
+        )
     );
     if (!response.ok) {
-      throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+      // The Hub answers 409 with the reason nothing was recorded, such as the emulator count.
+      throw new Error(
+        `Android recording finalization returned HTTP ${response.status}: ${await response.text()}`
+      );
     }
+    return true;
   } catch (err) {
     logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
+    return false;
   }
 }
 
 async function uploadFinishedAndroidRecordingAsync(
   ctx: CustomBuildContext,
   { recording, logger }: { recording: AndroidSessionRecording; logger: bunyan }
-): Promise<void> {
+): Promise<boolean> {
   try {
-    const recordings = parseDeviceScreenRecordings(
+    let recordings = parseDeviceScreenRecordings(
       JSON.parse(
         await fs.promises.readFile(path.join(recording.directory, 'recordings.json'), 'utf8')
       )
     );
-    await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
+    if (recordings.length === 0) {
+      // recordings.json is written at finish; a killed Hub leaves what it had on disk unlisted.
+      recordings = await findUnlistedDeviceScreenRecordingsAsync({
+        root: recording.directory,
+        env: recording.env,
+        logger,
+      });
+    }
+    for (const item of recordings) {
+      if (
+        path.dirname(path.resolve(item.directory)) !== recording.directory ||
+        (await fs.promises.lstat(item.directory)).isSymbolicLink()
+      ) {
+        throw new Error('Recording directory is not an owned session child.');
+      }
+    }
+    const uploaded = await uploadDeviceRunSessionScreenRecordingsAsync(ctx, {
       logger,
       deviceRunSessionId: recording.deviceRunSessionId,
       recordings,
     });
+    if (recordings.length > 0 && uploaded) {
+      await fs.promises.rm(recording.directory, { recursive: true });
+      return true;
+    }
+    return false;
   } catch (err) {
     logger.warn(
       { err, recordingDirectory: recording.directory },
       'Could not upload the Android session recording.'
     );
+    return false;
   }
 }
