@@ -8,7 +8,7 @@ import Keychain from '../keychain';
 jest.mock('../../fastlane');
 const runFastlaneMock = jest.mocked(runFastlane);
 const logger = createLogger({ name: 'test' });
-const warn = jest.spyOn(logger, 'warn').mockImplementation();
+const logError = jest.spyOn(logger, 'error').mockImplementation();
 let keychain: Keychain;
 const options = {
   logger,
@@ -41,7 +41,7 @@ it('runs the import with the certificate and keychain credentials, without strea
     `keychain_path:${keychain.data.path}`,
     `keychain_password:${keychain.data.password}`,
   ]);
-  expect(warn).not.toHaveBeenCalled();
+  expect(logError).not.toHaveBeenCalled();
 });
 
 it('reports native errors even when fastlane exits successfully', async () => {
@@ -51,11 +51,11 @@ it('reports native errors even when fastlane exits successfully', async () => {
     )
   );
   await keychain.importCertificate(options);
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ diagnosticCode: expect.any(String) }),
     expect.stringContaining('export format')
   );
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ diagnosticCode: expect.any(String) }),
     expect.stringContaining('SecKeychainItemImport')
   );
@@ -71,8 +71,8 @@ it('never forwards output, command arguments, private key data, or the original 
   await expect(keychain.importCertificate(options)).rejects.toThrow(
     'Fastlane could not complete certificate import'
   );
-  expect(JSON.stringify(warn.mock.calls)).not.toContain(secret);
-  expect(warn).toHaveBeenCalledWith(
+  expect(JSON.stringify(logError.mock.calls)).not.toContain(secret);
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ diagnosticCode: expect.any(String) }),
     expect.stringContaining('private key')
   );
@@ -83,7 +83,7 @@ it('handles process launch failures without captured output', async () => {
   await expect(keychain.importCertificate(options)).rejects.toThrow(
     'Fastlane could not complete certificate import'
   );
-  expect(warn).not.toHaveBeenCalled();
+  expect(logError).not.toHaveBeenCalled();
 });
 
 it.each(['ENOENT', 'EACCES'])(
@@ -116,3 +116,26 @@ it('preserves a safe message and diagnostic codes without claiming a user cause'
   expect(error.cause).toBeUndefined();
   expect(JSON.stringify(error)).not.toContain('secret command');
 });
+
+it('reads diagnostic fields from a plain thrown object', async () => {
+  runFastlaneMock.mockRejectedValueOnce({
+    stderr: 'SecKeychainItemImport: Unknown format in import',
+  });
+  const error = await keychain.importCertificate(options).catch(error => error);
+  expect(error.metadata.diagnosticCodes).toContain('PKCS12_UNKNOWN_FORMAT');
+  expect(logError).toHaveBeenCalledWith(
+    { diagnosticCode: 'PKCS12_UNKNOWN_FORMAT' },
+    expect.any(String)
+  );
+});
+
+it.each([null, 'failure', { stdout: 123, stderr: {} }])(
+  'handles rejected values without usable process output: %p',
+  async value => {
+    runFastlaneMock.mockRejectedValueOnce(value);
+    await expect(keychain.importCertificate(options)).rejects.toThrow(
+      'Fastlane could not complete certificate import'
+    );
+    expect(logError).not.toHaveBeenCalled();
+  }
+);

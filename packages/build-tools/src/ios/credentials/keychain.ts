@@ -85,8 +85,6 @@ export default class Keychain {
     }
 
     logger.debug(`Importing certificate ${certPath} into keychain ${this.keychainPath}`);
-    // Fastlane can report security errors and still exit successfully.
-    // Keep the identity check after import.
     try {
       const result = await runFastlane([
         'run',
@@ -99,17 +97,14 @@ export default class Keychain {
       const output = [result.stdout, result.stderr].join('\n');
       for (const diagnostic of DIAGNOSTICS) {
         if (diagnostic.pattern.test(output)) {
-          logger.warn({ diagnosticCode: diagnostic.code }, diagnostic.message);
+          logger.error({ diagnosticCode: diagnostic.code }, diagnostic.message);
         }
       }
     } catch (error) {
-      // spawn-async attaches captured output to process errors. Launch failures
-      // and synchronous errors can have no output.
       const processError =
-        error instanceof Error
-          ? (error as Error &
-              Partial<Pick<SpawnResult, 'stdout' | 'stderr'>> &
-              NodeJS.ErrnoException)
+        error !== null && typeof error === 'object'
+          ? (error as Partial<Pick<SpawnResult, 'stdout' | 'stderr'>> &
+              Pick<NodeJS.ErrnoException, 'code'>)
           : undefined;
       const output = [processError?.stdout, processError?.stderr]
         .filter(value => typeof value === 'string')
@@ -118,7 +113,7 @@ export default class Keychain {
       for (const diagnostic of DIAGNOSTICS) {
         if (diagnostic.pattern.test(output)) {
           diagnosticCodes.push(diagnostic.code);
-          logger.warn({ diagnosticCode: diagnostic.code }, diagnostic.message);
+          logger.error({ diagnosticCode: diagnostic.code }, diagnostic.message);
         }
       }
       // Never attach the original error: its message includes passwords.
@@ -127,8 +122,6 @@ export default class Keychain {
           trackingCode: 'IOS_CERTIFICATE_IMPORT_PROCESS_START_FAILED',
         });
       }
-      // These signals do not establish whether the credentials or builder caused
-      // the failure. Preserve that uncertainty and the safe message in the build error.
       throw new errors.UserError(
         errors.ErrorCode.UNKNOWN_ERROR,
         'Fastlane could not complete certificate import. Check the certificate import diagnostics in the Prepare credentials logs.',
