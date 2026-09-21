@@ -1,11 +1,44 @@
+import { errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import spawn from '@expo/turtle-spawn';
+import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
-import { runFastlaneImportCertificate } from './importCertificate';
 import { runFastlane } from '../fastlane';
+
+// Do not log raw fastlane output or spawn errors: they can contain passwords,
+// command arguments, and private key attributes from set-key-partition-list.
+const DIAGNOSTICS = [
+  {
+    code: 'PKCS12_MAC_VERIFICATION_FAILED',
+    pattern: /SecKeychainItemImport: MAC verification failed during PKCS12 import/i,
+    message:
+      'macOS could not verify the PKCS#12 MAC. Check the certificate password and PKCS#12 export format; this error does not prove that the password is wrong.',
+  },
+  {
+    code: 'PKCS12_UNKNOWN_FORMAT',
+    pattern: /SecKeychainItemImport: Unknown format in import/i,
+    message: 'macOS did not recognize the certificate import format.',
+  },
+  {
+    code: 'CERTIFICATE_IMPORT_FAILED',
+    pattern: /SecKeychainItemImport:/,
+    message: 'macOS reported a certificate import error (SecKeychainItemImport).',
+  },
+  {
+    code: 'PRIVATE_KEY_ACCESS_FAILED',
+    pattern: /SecKeychainItemSetAccessWithPassword:/,
+    message:
+      'macOS could not set access to the imported private key (SecKeychainItemSetAccessWithPassword).',
+  },
+  {
+    code: 'KEYCHAIN_ITEM_LOOKUP_FAILED',
+    pattern: /SecItemCopyMatching:/,
+    message:
+      'macOS could not find an item while configuring private key access (SecItemCopyMatching).',
+  },
+];
 
 export default class Keychain {
   private readonly keychainPath: string;
@@ -52,13 +85,59 @@ export default class Keychain {
     }
 
     logger.debug(`Importing certificate ${certPath} into keychain ${this.keychainPath}`);
-    await runFastlaneImportCertificate({
-      logger,
-      certificatePath: certPath,
-      certificatePassword: certPassword,
-      keychainPath: this.keychainPath,
-      keychainPassword: this.keychainPassword,
-    });
+    // Fastlane can report security errors and still exit successfully.
+    // Keep the identity check after import.
+    try {
+      const result = await runFastlane([
+        'run',
+        'import_certificate',
+        `certificate_path:${certPath}`,
+        `certificate_password:${certPassword}`,
+        `keychain_path:${this.keychainPath}`,
+        `keychain_password:${this.keychainPassword}`,
+      ]);
+      const output = [result.stdout, result.stderr].join('\n');
+      for (const diagnostic of DIAGNOSTICS) {
+        if (diagnostic.pattern.test(output)) {
+          logger.warn({ diagnosticCode: diagnostic.code }, diagnostic.message);
+        }
+      }
+    } catch (error) {
+      // spawn-async attaches captured output to process errors. Launch failures
+      // and synchronous errors can have no output.
+      const processError =
+        error instanceof Error
+          ? (error as Error &
+              Partial<Pick<SpawnResult, 'stdout' | 'stderr'>> &
+              NodeJS.ErrnoException)
+          : undefined;
+      const output = [processError?.stdout, processError?.stderr]
+        .filter(value => typeof value === 'string')
+        .join('\n');
+      const diagnosticCodes: string[] = [];
+      for (const diagnostic of DIAGNOSTICS) {
+        if (diagnostic.pattern.test(output)) {
+          diagnosticCodes.push(diagnostic.code);
+          logger.warn({ diagnosticCode: diagnostic.code }, diagnostic.message);
+        }
+      }
+      // Never attach the original error: its message includes passwords.
+      if (processError?.code === 'ENOENT' || processError?.code === 'EACCES') {
+        throw new errors.SystemError('Fastlane could not be started to import the certificate.', {
+          trackingCode: 'IOS_CERTIFICATE_IMPORT_PROCESS_START_FAILED',
+        });
+      }
+      // These signals do not establish whether the credentials or builder caused
+      // the failure. Preserve that uncertainty and the safe message in the build error.
+      throw new errors.UserError(
+        errors.ErrorCode.UNKNOWN_ERROR,
+        'Fastlane could not complete certificate import. Check the certificate import diagnostics in the Prepare credentials logs.',
+        {
+          trackingCode: 'IOS_CERTIFICATE_IMPORT_FAILED',
+          metadata: { diagnosticCodes },
+        }
+      );
+    }
   }
 
   public async ensureCertificateImported({
