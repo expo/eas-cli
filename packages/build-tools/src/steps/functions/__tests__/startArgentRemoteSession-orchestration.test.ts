@@ -84,6 +84,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 4242,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync: jest.fn(),
     });
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
@@ -109,6 +110,37 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
 
   afterEach(async () => {
     await fs.promises.rm(TEST_HOME, { recursive: true, force: true });
+  });
+
+  it('reports an early exit with output before opening tunnels or publishing readiness', async () => {
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 4242,
+      getOutput: () => 'could not bind server port',
+      getExitError: () => new Error('process exited with code 1'),
+      stopAsync: jest.fn(),
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toThrow(
+      'Argent exited before becoming ready: process exited with code 1\nArgent tool-server output:\ncould not bind server port'
+    );
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(startArgentEventCollectionAsync).not.toHaveBeenCalled();
   });
 
   it('enables the event log flag, shares one path, and starts/stops the collector', async () => {

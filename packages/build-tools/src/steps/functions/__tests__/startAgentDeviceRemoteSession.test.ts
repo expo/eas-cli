@@ -75,6 +75,7 @@ describe(startAgentDeviceDaemonAsync, () => {
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 1234,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync,
     });
     jest.mocked(spawn).mockImplementation((async (
