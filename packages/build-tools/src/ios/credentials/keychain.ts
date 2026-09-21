@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
+import { runFastlaneImportCertificate } from './importCertificate';
 import { runFastlane } from '../fastlane';
 
 export default class Keychain {
@@ -51,14 +52,13 @@ export default class Keychain {
     }
 
     logger.debug(`Importing certificate ${certPath} into keychain ${this.keychainPath}`);
-    await runFastlane([
-      'run',
-      'import_certificate',
-      `certificate_path:${certPath}`,
-      `certificate_password:${certPassword}`,
-      `keychain_path:${this.keychainPath}`,
-      `keychain_password:${this.keychainPassword}`,
-    ]);
+    await runFastlaneImportCertificate({
+      logger,
+      certificatePath: certPath,
+      certificatePassword: certPassword,
+      keychainPath: this.keychainPath,
+      keychainPassword: this.keychainPassword,
+    });
   }
 
   public async ensureCertificateImported({
