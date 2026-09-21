@@ -1,4 +1,4 @@
-import { UserRole } from '@expo/apple-utils';
+import { AccessForbiddenError, InternalServerError, UserRole } from '@expo/apple-utils';
 import fs from 'fs-extra';
 
 import { promptAsync, selectAsync } from '../../../../prompts';
@@ -97,6 +97,49 @@ describe(promptForAscApiKeyPathAsync, () => {
     expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(1); // keyId
     expect(jest.mocked(ctx.appStore.getAscApiKeyAsync).mock.calls.length).toBe(1); // issuerId
   });
+  it('prompts for issuerId when the Apple ID is not allowed to view API keys', async () => {
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
+      keyP8Path: '/asc-api-key.p8',
+    }));
+    jest
+      .mocked(getCredentialsFromUserAsync)
+      .mockResolvedValueOnce({ keyId: 'test-key-id' })
+      .mockResolvedValueOnce({ issuerId: 'test-issuer-id' });
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        getAscApiKeyAsync: jest.fn(async () => {
+          throw new AccessForbiddenError({ status: 403, data: {} });
+        }),
+      },
+    });
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+    expect(ascApiKeyPath).toEqual({
+      keyId: 'test-key-id',
+      issuerId: 'test-issuer-id',
+      keyP8Path: '/asc-api-key.p8',
+    });
+    expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(2);
+  });
+  it('rethrows other errors while detecting issuerId', async () => {
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
+      keyP8Path: '/asc-api-key.p8',
+    }));
+    jest.mocked(getCredentialsFromUserAsync).mockResolvedValueOnce({ keyId: 'test-key-id' });
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        getAscApiKeyAsync: jest.fn(async () => {
+          throw new InternalServerError({ status: 500, data: {} });
+        }),
+      },
+    });
+    await expect(promptForAscApiKeyPathAsync(ctx)).rejects.toBeInstanceOf(InternalServerError);
+  });
 });
 
 describe(provideOrGenerateAscApiKeyAsync, () => {
@@ -177,5 +220,39 @@ describe(provideOrGenerateAscApiKeyAsync, () => {
     });
     expect(selectAsync).not.toHaveBeenCalled();
     expect(createAscApiKeyAsync).not.toHaveBeenCalled();
+  });
+
+  it('uses a user-provided key when the Apple ID is not allowed to validate it', async () => {
+    jest.mocked(shouldAutoGenerateCredentialsAsync).mockResolvedValue(false);
+    jest.mocked(promptAsync).mockResolvedValue({ keyP8Path: '/asc-api-key.p8' });
+    jest.mocked(fs.readFile).mockImplementation(async () => 'test-key-p8' as any);
+    jest
+      .mocked(getCredentialsFromUserAsync)
+      .mockResolvedValueOnce({ keyId: 'test-key-id' })
+      .mockResolvedValueOnce({ issuerId: 'test-issuer-id' });
+
+    const getAscApiKeyAsync = jest.fn(async () => {
+      throw new AccessForbiddenError({ status: 403, data: {} });
+    });
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        getAscApiKeyAsync,
+      },
+    });
+
+    const result = await provideOrGenerateAscApiKeyAsync(
+      ctx,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
+
+    expect(result).toEqual({
+      keyP8: expect.any(String),
+      keyId: 'test-key-id',
+      issuerId: 'test-issuer-id',
+    });
+    expect(getAscApiKeyAsync).toHaveBeenCalledTimes(2);
   });
 });

@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Don't abort `eas submit` when the Apple ID isn't allowed to view App Store Connect API keys, and use the provided key without validating it instead. ([#4428](https://github.com/expo/eas-cli/pull/4428) by [@tahakocal](https://github.com/tahakocal))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))

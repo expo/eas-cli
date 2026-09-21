@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
-import { UserRole } from '@expo/apple-utils';
+import { AccessForbiddenError, UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -89,7 +89,18 @@ export async function provideOrGenerateAscApiKeyAsync(
     return userProvided;
   }
 
-  const isValidAndTracked = await isAscApiKeyValidAndTrackedAsync(ctx, userProvided);
+  let isValidAndTracked: boolean;
+  try {
+    isValidAndTracked = await isAscApiKeyValidAndTrackedAsync(ctx, userProvided);
+  } catch (error) {
+    if (!(error instanceof AccessForbiddenError)) {
+      throw error;
+    }
+    Log.warn(
+      `Unable to validate App Store Connect API Key, your Apple ID does not have permission to view API keys. The key will be used without validation. If Apple rejects it later, check that the key ID and issuer ID are correct and that the key is not revoked in App Store Connect.`
+    );
+    return userProvided;
+  }
   if (isValidAndTracked) {
     return userProvided;
   }
@@ -188,8 +199,15 @@ async function getBestEffortIssuerIdAsync(
   if (!ctx.appStore.authCtx) {
     return null;
   }
-  const ascApiKeyInfo = await ctx.appStore.getAscApiKeyAsync(ascApiKeyId);
-  return ascApiKeyInfo?.issuerId ?? null;
+  try {
+    const ascApiKeyInfo = await ctx.appStore.getAscApiKeyAsync(ascApiKeyId);
+    return ascApiKeyInfo?.issuerId ?? null;
+  } catch (error) {
+    if (!(error instanceof AccessForbiddenError)) {
+      throw error;
+    }
+    return null;
+  }
 }
 
 export async function getAscApiKeysFromAccountAsync(
