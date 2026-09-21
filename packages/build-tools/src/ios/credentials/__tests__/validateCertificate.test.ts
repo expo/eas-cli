@@ -1,3 +1,4 @@
+import { errors } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 
@@ -7,7 +8,7 @@ jest.mock('@expo/turtle-spawn');
 const spawnMock = jest.mocked(spawn);
 const fingerprint = 'ABCDEF0123456789ABCDEF0123456789ABCDEF01';
 const logger = createLogger({ name: 'test' });
-const warn = jest.spyOn(logger, 'warn').mockImplementation();
+const logError = jest.spyOn(logger, 'error').mockImplementation();
 const options = { keychainPath: '/test.keychain', teamId: 'TEAM', fingerprint, logger };
 const identity = `  1) ${fingerprint} "Private certificate name"`;
 function outputs(...values: (string | Error)[]): void {
@@ -31,7 +32,7 @@ it('does not run diagnostic probes when the existing gate passes', async () => {
   outputs(identity);
   await ensureCertificateImportedAsync(options);
   expect(spawnMock).toHaveBeenCalledTimes(1);
-  expect(warn).not.toHaveBeenCalled();
+  expect(logError).not.toHaveBeenCalled();
 });
 
 it('distinguishes an imported but untrusted identity without accepting it', async () => {
@@ -42,7 +43,7 @@ it('distinguishes an imported but untrusted identity without accepting it', asyn
     '0 valid identities found'
   );
   await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('trust chain');
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({
       certificatePresent: true,
       identityPresent: true,
@@ -51,7 +52,7 @@ it('distinguishes an imported but untrusted identity without accepting it', asyn
     }),
     expect.any(String)
   );
-  expect(JSON.stringify(warn.mock.calls)).not.toContain('Private certificate name');
+  expect(JSON.stringify(logError.mock.calls)).not.toContain('Private certificate name');
 });
 
 it('distinguishes a certificate without a private key identity', async () => {
@@ -62,7 +63,7 @@ it('distinguishes a certificate without a private key identity', async () => {
 it('reports an absent certificate and identity without claiming the password is wrong', async () => {
   outputs('', '', '', '');
   await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('export format');
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ certificatePresent: false, identityPresent: false }),
     expect.any(String)
   );
@@ -81,7 +82,7 @@ it('keeps diagnostic failures unknown and does not expose raw errors', async () 
     new Error('private output')
   );
   await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('could not determine');
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({
       certificatePresent: null,
       identityPresent: null,
@@ -89,7 +90,7 @@ it('keeps diagnostic failures unknown and does not expose raw errors', async () 
     }),
     expect.any(String)
   );
-  expect(JSON.stringify(warn.mock.calls)).not.toContain('private output');
+  expect(JSON.stringify(logError.mock.calls)).not.toContain('private output');
 });
 
 it('reports a failed primary query separately from a missing identity', async () => {
@@ -102,8 +103,36 @@ it('reports a failed primary query separately from a missing identity', async ()
 it('does not let a passing codesigning probe bypass the existing gate', async () => {
   outputs('', `SHA-1 hash: ${fingerprint}`, identity, identity);
   await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('basic policy');
-  expect(warn).toHaveBeenCalledWith(
+  expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ codesigningValid: true }),
     expect.any(String)
   );
+});
+
+it('does not accept a fingerprint found only in the name of another valid identity', async () => {
+  outputs(`1) ${'0'.repeat(40)} "${fingerprint}"`, '', '', '');
+  await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('did not find');
+  expect(spawnMock).toHaveBeenCalledTimes(4);
+});
+
+it('matches fingerprints without case sensitivity', async () => {
+  outputs(identity.toLowerCase());
+  await expect(ensureCertificateImportedAsync(options)).resolves.toBeUndefined();
+  expect(spawnMock).toHaveBeenCalledTimes(1);
+});
+
+it('preserves guidance in the external build error without retaining raw probe errors', async () => {
+  outputs(
+    '',
+    new Error('private output'),
+    new Error('private output'),
+    new Error('private output')
+  );
+  const failure = await ensureCertificateImportedAsync(options).catch(error => error);
+  expect(failure).toBeInstanceOf(errors.UserError);
+  expect(failure.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+  expect(failure.toExternalExpoError().message).toContain('could not determine');
+  expect(failure.metadata.identityPresent).toBeNull();
+  expect(failure.cause).toBeUndefined();
+  expect(JSON.stringify(failure)).not.toContain('private output');
 });

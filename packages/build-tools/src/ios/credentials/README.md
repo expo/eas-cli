@@ -8,7 +8,7 @@ builds and custom workflows. They do not change the valid-identity requirement.
 First check the certificate import messages. Fastlane can print a macOS import
 error and still exit with status zero. Only known error categories are logged;
 raw output and process errors can contain passwords or private key attributes.
-An absence of import warnings does not prove that the import succeeded.
+An absence of import diagnostics does not prove that the import succeeded.
 
 Then check `iOS signing identity diagnostics`:
 

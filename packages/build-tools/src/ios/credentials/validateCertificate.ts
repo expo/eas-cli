@@ -1,3 +1,4 @@
+import { errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 
@@ -28,15 +29,15 @@ export async function ensureCertificateImportedAsync({
 
   // -s is retained for compatibility. Under the default basic policy it does not
   // filter by team; the fingerprint and provisioning profile checks bind identity.
+  const expectedFingerprint = fingerprint.toUpperCase();
   const validIdentities = await query(['find-identity', '-v', '-s', `(${teamId})`], 0);
-  if (validIdentities !== null && validIdentities.includes(fingerprint)) {
+  if (validIdentities !== null && hasIdentity(validIdentities, expectedFingerprint)) {
     return;
   }
 
   const certificates = await query(['find-certificate', '-a', '-Z']);
   const identities = await query(['find-identity']);
   const codesigningIdentities = await query(['find-identity', '-v', '-p', 'codesigning']);
-  const expectedFingerprint = fingerprint.toUpperCase();
   const certificatePresent =
     certificates === null
       ? null
@@ -63,7 +64,7 @@ export async function ensureCertificateImportedAsync({
               })
           ),
         ];
-  logger?.warn(
+  logger?.error(
     {
       certificateFingerprint: expectedFingerprint,
       validIdentityQuerySucceeded: validIdentities !== null,
@@ -94,8 +95,19 @@ export async function ensureCertificateImportedAsync({
   }
   // Keep the original prefix for existing error consumers, and include guidance
   // in the exception as well as logs so callers without a logger can use it.
-  throw new Error(
-    `Distribution certificate with fingerprint ${fingerprint} hasn't been imported successfully. ${explanation}`
+  throw new errors.UserError(
+    errors.ErrorCode.UNKNOWN_ERROR,
+    `Distribution certificate with fingerprint ${fingerprint} hasn't been imported successfully. ${explanation}`,
+    {
+      trackingCode: 'IOS_SIGNING_IDENTITY_VALIDATION_FAILED',
+      metadata: {
+        certificatePresent,
+        identityPresent,
+        codesigningValid,
+        validIdentityQuerySucceeded: validIdentities !== null,
+        trustErrors,
+      },
+    }
   );
 }
 
