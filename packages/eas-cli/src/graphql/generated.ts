@@ -16839,6 +16839,15 @@ export type SupabaseProjectByAppIdQueryVariables = Exact<{
 
 export type SupabaseProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } | null } } };
 
+export type SupabaseAdvisorLintsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  security: Scalars['Boolean']['input'];
+  performance: Scalars['Boolean']['input'];
+}>;
+
+
+export type SupabaseAdvisorLintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any, security?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null, performance?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null } | null } } };
+
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
   timespan: InsightsTimespan;
@@ -17223,6 +17232,8 @@ export type SubmissionWithSubmittedBuildFragment = { __typename?: 'Submission', 
 export type SupabaseConnectionFragment = { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any };
 
 export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any };
+
+export type SupabaseAdvisorLintFragment = { __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }
