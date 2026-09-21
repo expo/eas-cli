@@ -604,12 +604,19 @@ export function spawnDetached({
   // Observe completion without rejecting in the background. Startup callers can
   // distinguish a dead process from one that is still preparing its state file.
   let exitError: Error | undefined;
+  // The spawn promise waits for stdio to close. Descendants may keep those
+  // pipes open after the launcher exits, so observe the exit itself as well.
+  promise.child.once('exit', (code, signal) => {
+    exitError = new Error(
+      signal ? `Process exited with signal ${signal}.` : `Process exited with code ${code}.`
+    );
+  });
   void promise.then(
     () => {
-      exitError = new Error('Process exited with code 0.');
+      exitError ??= new Error('Process exited with code 0.');
     },
     error => {
-      exitError = error instanceof Error ? error : new Error(String(error));
+      exitError ??= error instanceof Error ? error : new Error(String(error));
     }
   );
   promise.child.unref();

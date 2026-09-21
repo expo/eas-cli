@@ -2,6 +2,7 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import { EventEmitter } from 'node:events';
 import {
   clearTimeout as clearTimeoutCallback,
   setTimeout as setTimeoutCallback,
@@ -56,8 +57,19 @@ describe(spawnDetached, () => {
   function mockProcess(promise: Promise<unknown>): void {
     jest
       .mocked(spawn)
-      .mockReturnValue(Object.assign(promise, { child: { pid: 1234, unref: jest.fn() } }) as never);
+      .mockReturnValue(
+        Object.assign(promise, { child: { pid: 1234, unref: jest.fn(), once: jest.fn() } }) as never
+      );
   }
+
+  it('observes exit without waiting for inherited output pipes to close', () => {
+    const child = Object.assign(new EventEmitter(), { pid: 1234, unref: jest.fn() });
+    jest.mocked(spawn).mockReturnValue(Object.assign(new Promise(() => {}), { child }) as never);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    child.emit('exit', 1, null);
+    expect(handle.getExitError()?.message).toContain('code 1');
+    expect(child.listenerCount('exit')).toBe(0);
+  });
 
   it('does not report an exit while the process is running', () => {
     mockProcess(new Promise(() => {}));
@@ -413,6 +425,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
+        once: jest.fn(),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);

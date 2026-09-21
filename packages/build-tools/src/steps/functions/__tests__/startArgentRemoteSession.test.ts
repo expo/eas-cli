@@ -126,6 +126,27 @@ describe(waitForArgentToolServerStateAsync, () => {
     expect(getExitError).toHaveBeenCalledTimes(3);
   });
 
+  it('rejects an exit observed while reading a matching state file', async () => {
+    await fs.promises.writeFile(
+      path.join(stateDir, 'tool-server.json'),
+      stateJson({ port: 4321, pid: process.pid })
+    );
+    const getExitError = jest
+      .fn<Error | undefined, []>()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValue(new Error('server exited during startup'));
+    await expect(
+      waitForArgentToolServerStateAsync({
+        stateDir,
+        ancestorPid: process.ppid,
+        timeoutMs: 100,
+        pollIntervalMs: 1,
+        getExitError,
+      })
+    ).rejects.toThrow('server exited during startup');
+    expect(getExitError).toHaveBeenCalledTimes(2);
+  });
+
   it.each(['tool-server.json', 'tool-server-012345abcdef.json'])(
     'reads a matching process from %s',
     async fileName => {
