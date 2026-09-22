@@ -27,6 +27,7 @@ import {
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
+import * as promiseUtils from '../../../utils/promise';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -826,6 +827,100 @@ describe(Simulator, () => {
     await expect(command.runAsync()).rejects.toThrow();
     expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  describe('waiting for concurrency', () => {
+    let elapsedMs: number;
+
+    beforeEach(() => {
+      elapsedMs = 0;
+      jest.spyOn(Date, 'now').mockImplementation(() => elapsedMs);
+      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(async () => {
+        elapsedMs += 5 * 60 * 1_000;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([JobRunStatus.New, JobRunStatus.InQueue])(
+      'allows more than 15 minutes in %s and then a full startup window',
+      async status => {
+        mockByIdAsync.mockImplementation(async () => {
+          if (elapsedMs < 20 * 60 * 1_000) {
+            return makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            });
+          }
+          expect(mockOra.mock.results[1].value.text).toContain(
+            elapsedMs === 20 * 60 * 1_000
+              ? '⏳ Simulator session queued or waiting for available concurrency'
+              : 'session to start'
+          );
+          return makeDeviceRunSession({
+            ...(elapsedMs < 30 * 60 * 1_000 ? { remoteConfig: null } : {}),
+          });
+        });
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await command.runAsync();
+
+        expect(elapsedMs).toBe(30 * 60 * 1_000);
+        expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      }
+    );
+
+    it('times out and stops a session that does not start within 15 minutes after queuing', async () => {
+      mockByIdAsync.mockImplementation(async () =>
+        makeDeviceRunSession({
+          remoteConfig: null,
+          turtleJobRun: {
+            id: 'job-123',
+            status: elapsedMs < 20 * 60 * 1_000 ? JobRunStatus.InQueue : JobRunStatus.InProgress,
+          },
+        })
+      );
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        'session to start (excluding time in the queue)'
+      );
+
+      expect(elapsedMs).toBe(35 * 60 * 1_000);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+    });
+
+    it.each([JobRunStatus.Canceled, JobRunStatus.Errored, JobRunStatus.Finished])(
+      'reports %s while queued without waiting for a timeout',
+      async status => {
+        mockByIdAsync
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status: JobRunStatus.InQueue },
+            })
+          )
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            })
+          );
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await expect(command.runAsync()).rejects.toThrow(status.toLowerCase());
+
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+      }
+    );
   });
 
   it('stops the simulator session when interrupted before the session is ready', async () => {
