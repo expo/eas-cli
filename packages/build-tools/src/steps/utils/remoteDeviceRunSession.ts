@@ -640,28 +640,21 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-// A website dev server runs on expo.test behind an expo-nginx port and points at hosted staging
-// sessions, so those workers see EXPO_STAGING, not EXPO_LOCAL. Ports are matched exactly, so a
-// wildcard cannot cover these and each one has to be named. Mirrors the upload allow-list in
-// https://github.com/expo/universe/pull/30566.
-const LOCAL_WEBSITE_ORIGINS = [
+// Website dev servers on expo.test use staging sessions, and CORS matches ports exactly.
+const WEBSITE_DEV_ORIGINS = [
   'http://expo.test',
   'https://expo.test',
   'https://expo.test:13001',
-  ...Array.from({ length: 16 }, (_unused, index) => `https://expo.test:${13200 + index}`),
+  ...Array.from({ length: 16 }, (_, index) => `https://expo.test:${13200 + index}`),
 ];
 
 export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
-  // A Set because websiteOrigin('local') is itself one of the dev origins, and naming an origin
-  // twice would pass the same flag twice.
   const origins = new Set([websiteOrigin(env)]);
-  // Each website branch is served from its own pr-<number>.expo.dev. Production names one origin
-  // so no subdomain can stand in for it, and EXPO_LOCAL wins here as it does in websiteOrigin.
   if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
     origins.add('https://*.expo.dev');
   }
   if (env.EXPO_LOCAL || env.EXPO_STAGING) {
-    for (const origin of LOCAL_WEBSITE_ORIGINS) {
+    for (const origin of WEBSITE_DEV_ORIGINS) {
       origins.add(origin);
     }
   }
