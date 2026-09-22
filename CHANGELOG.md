@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
-- [eas-cli] Show the `eas simulator` commands in `eas --help` and in autocomplete. They keep the `[EXPERIMENTAL]` label in their descriptions. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [eas-cli] Show the `eas simulator` commands in `eas --help` and in autocomplete. They keep the `[EXPERIMENTAL]` label in their descriptions. ([#4455](https://github.com/expo/eas-cli/pull/4455) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 
 ### 🐛 Bug fixes
 
