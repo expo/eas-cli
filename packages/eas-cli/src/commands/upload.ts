@@ -1,5 +1,6 @@
 import { IOSConfig } from '@expo/config-plugins';
-import { Platform } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import fg from 'fast-glob';
 import fs from 'fs-extra';
@@ -8,6 +9,7 @@ import path from 'path';
 import * as tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
+import { truncateGitCommitMessage } from '../build/metadata';
 import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -25,6 +27,9 @@ import { FingerprintMutation } from '../graphql/mutations/FingerprintMutation';
 import { LocalBuildMutation } from '../graphql/mutations/LocalBuildMutation';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
+import { getPrivateExpoConfigAsync } from '../project/expoConfig';
+import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
+import { resolveWorkflowAsync } from '../project/workflow';
 import { promptAsync } from '../prompts';
 import * as xcode from '../run/ios/xcode';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
@@ -33,6 +38,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 import { getTmpDirectory } from '../utils/paths';
 import { parseBinaryPlistBuffer } from '../utils/plist';
 import { createProgressTracker } from '../utils/progress';
+import { resolveVcsClient } from '../vcs';
 
 export default class BuildUpload extends EasCommand {
   static override description = 'upload a local build and generate a sharable link';
@@ -45,6 +51,13 @@ export default class BuildUpload extends EasCommand {
     'build-path': Flags.string({
       description: 'Path for the local build',
     }),
+    current: Flags.boolean({
+      description: 'Assert that the artifact was built from the current project state',
+    }),
+    profile: Flags.string({
+      description: 'Build profile from eas.json used for this artifact',
+      dependsOn: ['current'],
+    }),
     fingerprint: Flags.string({
       description: 'Fingerprint hash of the local build',
     }),
@@ -53,6 +66,7 @@ export default class BuildUpload extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -62,6 +76,7 @@ export default class BuildUpload extends EasCommand {
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildUpload, {
       nonInteractive,
@@ -83,7 +98,14 @@ export default class BuildUpload extends EasCommand {
       developmentClient,
       simulator,
       ...otherMetadata
-    } = await extractAppMetadataAsync(localBuildPath, platform);
+    } = await extractAppMetadataAsync(localBuildPath, platform, flags.current);
+    const metadata = await resolveUploadMetadataAsync({
+      projectDir,
+      platform,
+      current: flags.current ?? false,
+      profile: flags.profile,
+      artifactMetadata: otherMetadata,
+    });
 
     let fingerprint = manualFingerprintHash ?? buildFingerprintHash;
     if (fingerprint) {
@@ -125,7 +147,7 @@ export default class BuildUpload extends EasCommand {
         distribution: DistributionType.Internal,
         fingerprintHash: fingerprint,
         developmentClient,
-        ...otherMetadata,
+        ...metadata,
       }
     );
 
@@ -162,6 +184,76 @@ export default class BuildUpload extends EasCommand {
     });
     return resolvedPlatform;
   }
+}
+
+// Project metadata is best-effort; the artifact remains authoritative.
+export async function resolveUploadMetadataAsync({
+  projectDir,
+  platform,
+  current,
+  profile,
+  artifactMetadata,
+}: {
+  projectDir: string;
+  platform: Platform;
+  current: boolean;
+  profile?: string;
+  artifactMetadata: BuildMetadataInput;
+}): Promise<BuildMetadataInput> {
+  if (!current) {
+    return artifactMetadata;
+  }
+
+  const metadata: BuildMetadataInput = {};
+  const buildProfile = profile
+    ? await EasJsonUtils.getBuildProfileAsync(
+        EasJsonAccessor.fromProjectPath(projectDir),
+        platform,
+        profile
+      )
+    : undefined;
+  if (buildProfile) {
+    metadata.buildProfile = profile;
+    metadata.channel = buildProfile.channel;
+    metadata.distribution =
+      buildProfile.distribution === 'internal' ? DistributionType.Internal : DistributionType.Store;
+  }
+
+  const vcsClient = resolveVcsClient();
+  metadata.gitCommitHash = await vcsClient.getCommitHashAsync().catch(() => undefined);
+  metadata.gitCommitMessage = truncateGitCommitMessage(
+    (await vcsClient.getLastCommitMessageAsync().catch(() => undefined)) ?? undefined
+  );
+  metadata.isGitWorkingTreeDirty = await vcsClient
+    .hasUncommittedChangesAsync()
+    .catch(() => undefined);
+
+  try {
+    const exp = await getPrivateExpoConfigAsync(projectDir, { env: buildProfile?.env });
+    metadata.appVersion = exp.version;
+    metadata.appBuildVersion =
+      platform === Platform.IOS ? exp.ios?.buildNumber : exp.android?.versionCode?.toString();
+    metadata.sdkVersion = exp.sdkVersion;
+    const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient).catch(
+      () => Workflow.MANAGED
+    );
+    metadata.runtimeVersion = (
+      await resolveRuntimeVersionAsync({
+        projectDir,
+        platform,
+        exp,
+        workflow,
+        env: buildProfile?.env,
+      })
+    )?.runtimeVersion;
+  } catch (error) {
+    Log.debug('Could not resolve optional current-project upload metadata:', error);
+  }
+
+  return {
+    ...metadata,
+    ...Object.fromEntries(Object.entries(artifactMetadata).filter(([, value]) => value != null)),
+  };
 }
 
 async function resolveLocalBuildPathAsync({
@@ -313,6 +405,8 @@ function getInfoPlistMetadata(infoPlist: any): {
   appName?: string;
   appIdentifier?: string;
   simulator: boolean;
+  appVersion?: string;
+  appBuildVersion?: string;
 } {
   const appName = infoPlist?.CFBundleDisplayName ?? infoPlist?.CFBundleName;
   const appIdentifier = infoPlist?.CFBundleIdentifier;
@@ -322,12 +416,15 @@ function getInfoPlistMetadata(infoPlist: any): {
     appName,
     appIdentifier,
     simulator,
+    appVersion: infoPlist?.CFBundleShortVersionString,
+    appBuildVersion: infoPlist?.CFBundleVersion,
   };
 }
 
-async function extractAppMetadataAsync(
+export async function extractAppMetadataAsync(
   buildPath: string,
-  platform: Platform
+  platform: Platform,
+  current = false
 ): Promise<{ developmentClient: boolean; simulator: boolean } & BuildMetadataInput> {
   let developmentClient = false;
   let fingerprintHash: string | undefined;
@@ -336,6 +433,8 @@ async function extractAppMetadataAsync(
   let simulator = platform === Platform.IOS;
   let appName: string | undefined;
   let appIdentifier: string | undefined;
+  let appVersion: string | undefined;
+  let appBuildVersion: string | undefined;
 
   const basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
   const fingerprintFilePath =
@@ -363,7 +462,8 @@ async function extractAppMetadataAsync(
     if (await fs.exists(path.join(basePath, 'Info.plist'))) {
       const infoPlistBuffer = await fs.readFile(path.join(basePath, 'Info.plist'));
       const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
-      ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
+      ({ simulator, appIdentifier, appName, appVersion, appBuildVersion } =
+        getInfoPlistMetadata(infoPlist));
     }
 
     if (await fs.exists(path.join(basePath, fingerprintFilePath))) {
@@ -381,7 +481,8 @@ async function extractAppMetadataAsync(
           if (infoPlistRegex.test(path)) {
             const infoPlistBuffer = await zip.entryData(entries[path]);
             const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
-            ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
+            ({ simulator, appIdentifier, appName, appVersion, appBuildVersion } =
+              getInfoPlistMetadata(infoPlist));
             return;
           }
 
@@ -446,7 +547,8 @@ async function extractAppMetadataAsync(
       }
       if (infoPlistPromise !== undefined) {
         const infoPlist = parseBinaryPlistBuffer(await infoPlistPromise);
-        ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
+        ({ simulator, appIdentifier, appName, appVersion, appBuildVersion } =
+          getInfoPlistMetadata(infoPlist));
       }
     } catch (err) {
       Log.error(`Error reading ${buildExtension}: ${err}`);
@@ -456,6 +558,7 @@ async function extractAppMetadataAsync(
   return {
     developmentClient,
     fingerprintHash,
+    ...(current && { appVersion, appBuildVersion }),
     simulator,
     appName,
     appIdentifier,
