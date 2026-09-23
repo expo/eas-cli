@@ -640,19 +640,24 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
-  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
-  if (!origin) {
-    return [];
+// Website dev servers on expo.test use staging sessions, and CORS matches ports exactly.
+const WEBSITE_DEV_ORIGINS = [
+  'https://expo.test',
+  'https://expo.test:13001',
+  ...Array.from({ length: 16 }, (_, index) => `https://expo.test:${13200 + index}`),
+];
+
+export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
+  const origins = new Set([websiteOrigin(env)]);
+  if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
+    origins.add('https://*.expo.dev');
   }
-  const args: string[] = [];
-  for (const value of origin.split(',')) {
-    const trimmed = value.trim();
-    if (trimmed) {
-      args.push('--metrics-cors-origin', trimmed);
+  if (env.EXPO_LOCAL || env.EXPO_STAGING) {
+    for (const origin of WEBSITE_DEV_ORIGINS) {
+      origins.add(origin);
     }
   }
-  return args;
+  return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
@@ -740,8 +745,7 @@ export function describeServeSimLaunch({
 export function createServeSimArgs({
   port,
   turnArgs = [],
-  metricsCorsArgs = [],
-  frameAncestorArgs = [],
+  websiteArgs = [],
   shareUrl,
   packageVersion,
   launchAppIdentifier,
@@ -750,8 +754,7 @@ export function createServeSimArgs({
 }: {
   port: number;
   turnArgs?: string[];
-  metricsCorsArgs?: string[];
-  frameAncestorArgs?: string[];
+  websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
 } & ServeSimLaunchOptions): string[] {
@@ -775,8 +778,7 @@ export function createServeSimArgs({
     '--video-fps',
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
-    ...metricsCorsArgs,
-    ...frameAncestorArgs,
+    ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
@@ -994,8 +996,7 @@ export async function startServeSimWithTunnelAsync(
     packageVersion?: string;
   } & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
+  const websiteArgs = websiteOriginServeSimArgs(env);
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
@@ -1007,8 +1008,7 @@ export async function startServeSimWithTunnelAsync(
       createServeSimArgs({
         port,
         turnArgs,
-        metricsCorsArgs,
-        frameAncestorArgs,
+        websiteArgs,
         shareUrl: previewPageUrl,
         packageVersion,
         launchAppIdentifier,
