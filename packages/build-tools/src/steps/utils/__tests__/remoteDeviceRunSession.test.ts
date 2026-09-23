@@ -392,6 +392,12 @@ describe(createServeSimArgs, () => {
     expect(createServeSimArgs({ port: 4321, networkCapture: true })).toContain('--network-capture');
   });
 
+  it('enables the networkCapture capability so capture attaches to the already-booted simulator', () => {
+    const args = createServeSimArgs({ port: 4321, networkCapture: true });
+    expect(args[args.indexOf('--enable') + 1]).toBe('networkCapture');
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('networkCapture');
+  });
+
   it('repeats --network-capture-field once per requested field', () => {
     expect(
       createServeSimArgs({

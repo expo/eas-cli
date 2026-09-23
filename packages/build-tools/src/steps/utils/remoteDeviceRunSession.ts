@@ -791,6 +791,8 @@ export function createServeSimArgs({
     ...(networkCapture
       ? [
           '--network-capture',
+          '--enable',
+          'networkCapture',
           ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
         ]
       : []),
