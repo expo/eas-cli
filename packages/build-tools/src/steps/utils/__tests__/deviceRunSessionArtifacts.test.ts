@@ -63,7 +63,8 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
           metadata: { firstFrameRecordAt: 'test-time' },
           size: reportedSize,
         },
-      })
+      }),
+      undefined
     );
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
       'https://uploads.expo.test/artifact',
@@ -72,5 +73,53 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
         body: stream,
       })
     );
+  });
+
+  it('forwards cancellation through upload allocation and skips PUT when allocation aborts', async () => {
+    const controller = new AbortController();
+    const mutation = jest.fn().mockReturnValue({
+      toPromise: async () => {
+        controller.abort();
+        return {
+          data: {
+            deviceRunSession: {
+              createArtifactUploadSession: {
+                uploadSession: {
+                  url: 'https://uploads.expo.test/artifact',
+                  headers: {},
+                },
+              },
+            },
+          },
+        };
+      },
+    });
+    const ctx = { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+    await expect(
+      uploadDeviceRunSessionArtifactAsync(ctx, {
+        deviceRunSessionId: 'session',
+        artifactId: 'id',
+        name: 'Logs',
+        filename: 'logs.ndjson',
+        kind: 'simulator-log',
+        size: 0,
+        stream: Readable.from([]),
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+    const allocationFetch = mutation.mock.calls[0][2].fetch;
+    const mockFetch = jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('aborted'));
+    try {
+      await expect(allocationFetch('https://api.expo.test/graphql', {})).rejects.toThrow('aborted');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.expo.test/graphql',
+        expect.objectContaining({
+          signal: expect.objectContaining({ aborted: true }),
+        })
+      );
+    } finally {
+      mockFetch.mockRestore();
+    }
   });
 });
