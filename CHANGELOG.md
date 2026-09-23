@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions.
+- [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [eas-cli] Accept build IDs in `workflow:ssh <id>`. ([#4452](https://github.com/expo/eas-cli/pull/4452) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [eas-cli] Make `eas simulator:*` commands visible in help output. ([#4456](https://github.com/expo/eas-cli/pull/4456) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
