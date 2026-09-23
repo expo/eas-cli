@@ -184,7 +184,7 @@ function logApplicationLaunch(
   logger.info(`Launching ${applicationIdentifier}${argumentsDescription}.`);
 }
 
-function parseNonEmptyStringInput(value: unknown, inputName: string): string {
+export function parseNonEmptyStringInput(value: unknown, inputName: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
@@ -194,7 +194,7 @@ function parseNonEmptyStringInput(value: unknown, inputName: string): string {
   return value;
 }
 
-function parseLaunchArgsInput(value: unknown): string[] {
+export function parseLaunchArgsInput(value: unknown): string[] {
   if (value === undefined) {
     return [];
   }
@@ -207,7 +207,7 @@ function parseLaunchArgsInput(value: unknown): string[] {
   return value;
 }
 
-function parseOpenUrlInput(value: unknown): string {
+export function parseOpenUrlInput(value: unknown): string {
   const openUrl = parseNonEmptyStringInput(value, 'open_url');
   if (!URL.canParse(openUrl)) {
     throw new UserError(

@@ -105,6 +105,17 @@ export class CredentialsContext {
     }
 
     if (this.appStore.defaultAuthenticationMode === AuthenticationMode.API_KEY) {
+      if (
+        process.env.EXPO_ASC_API_KEY_PATH &&
+        process.env.EXPO_ASC_KEY_ID &&
+        !process.env.EXPO_ASC_ISSUER_ID
+      ) {
+        Log.debug(
+          `App Store Connect API key ${process.env.EXPO_ASC_KEY_ID} has no Issuer ID (individual key). Skipping authentication with Apple. Set EXPO_ASC_ISSUER_ID if this is a team key.`
+        );
+        this.shouldAskAuthenticateAppStore = false;
+        return;
+      }
       await this.appStore.ensureAuthenticatedAsync();
       return;
     }

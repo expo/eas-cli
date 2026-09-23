@@ -1,7 +1,13 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
-import { BuildRuntimePlatform, BuildStepEnv, spawnAsync } from '@expo/steps';
+import {
+  BuildRuntimePlatform,
+  BuildStepEnv,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  spawnAsync,
+} from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
@@ -14,6 +20,11 @@ import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import {
+  parseLaunchArgsInput,
+  parseNonEmptyStringInput,
+  parseOpenUrlInput,
+} from '../functions/launchApplication';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -652,6 +663,80 @@ function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): str
   return `${EXPO_DEVICE_HUB_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
+export interface ServeSimLaunchOptions {
+  launchAppIdentifier?: string;
+  launchArgs?: string[];
+  openUrl?: string;
+}
+
+/**
+ * serve-sim performs the launch so the application starts under its instrumentation.
+ */
+export function createServeSimLaunchInputProviders(): ReturnType<
+  typeof BuildStepInput.createProvider
+>[] {
+  return [
+    BuildStepInput.createProvider({
+      id: 'launch_app_identifier',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    }),
+    BuildStepInput.createProvider({
+      id: 'launch_args',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    }),
+    BuildStepInput.createProvider({
+      id: 'open_url',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    }),
+  ];
+}
+
+export function parseServeSimLaunchInputs(
+  {
+    launchAppIdentifier: rawLaunchAppIdentifier,
+    launchArgs: rawLaunchArgs,
+    openUrl: rawOpenUrl,
+  }: { launchAppIdentifier?: unknown; launchArgs?: unknown; openUrl?: unknown },
+  { runtimePlatform }: { runtimePlatform: BuildRuntimePlatform }
+): ServeSimLaunchOptions {
+  const launchAppIdentifier =
+    rawLaunchAppIdentifier === undefined
+      ? undefined
+      : parseNonEmptyStringInput(rawLaunchAppIdentifier, 'launch_app_identifier');
+  const launchArgs = parseLaunchArgsInput(rawLaunchArgs);
+  const openUrl = rawOpenUrl === undefined ? undefined : parseOpenUrlInput(rawOpenUrl);
+  if (!launchAppIdentifier && (launchArgs.length > 0 || openUrl)) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Inputs "launch_args" and "open_url" only work with an application launch. Pass "launch_app_identifier", or remove them.'
+    );
+  }
+  if (launchAppIdentifier && runtimePlatform !== BuildRuntimePlatform.DARWIN) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      `Input "launch_app_identifier" launches an application on an iOS simulator, and this session runs on ${runtimePlatform}. Run the session on an iOS simulator, or drop the launch inputs.`
+    );
+  }
+  return { launchAppIdentifier, launchArgs, openUrl };
+}
+
+export function describeServeSimLaunch({
+  launchAppIdentifier,
+  launchArgs = [],
+  openUrl,
+}: ServeSimLaunchOptions): string | null {
+  if (!launchAppIdentifier) {
+    return null;
+  }
+  const withArguments =
+    launchArgs.length > 0 ? ` with arguments ${JSON.stringify(launchArgs)}` : '';
+  const thenOpen = openUrl ? `, then open ${openUrl}` : '';
+  return `serve-sim will launch ${launchAppIdentifier}${withArguments}${thenOpen}.`;
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
@@ -659,6 +744,9 @@ export function createServeSimArgs({
   frameAncestorArgs = [],
   shareUrl,
   packageVersion,
+  launchAppIdentifier,
+  launchArgs = [],
+  openUrl,
 }: {
   port: number;
   turnArgs?: string[];
@@ -666,7 +754,7 @@ export function createServeSimArgs({
   frameAncestorArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
-}): string[] {
+} & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
     '--port',
@@ -690,6 +778,9 @@ export function createServeSimArgs({
     ...metricsCorsArgs,
     ...frameAncestorArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
+    ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
+    ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
+    ...(openUrl ? ['--open-url', openUrl] : []),
   ];
 }
 
@@ -892,13 +983,16 @@ export async function startServeSimWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
+    launchAppIdentifier,
+    launchArgs,
+    openUrl,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
-  }
+  } & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const frameAncestorArgs = ['--frame-ancestor', websiteOrigin(env)];
@@ -917,6 +1011,9 @@ export async function startServeSimWithTunnelAsync(
         frameAncestorArgs,
         shareUrl: previewPageUrl,
         packageVersion,
+        launchAppIdentifier,
+        launchArgs,
+        openUrl,
       }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
@@ -971,6 +1068,9 @@ export async function startDeviceWebPreviewWithTunnelAsync(
   ctx: CustomBuildContext,
   {
     runtimePlatform,
+    launchAppIdentifier,
+    launchArgs,
+    openUrl,
     ...options
   }: {
     runtimePlatform: BuildRuntimePlatform;
@@ -979,12 +1079,25 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
-  }
+  } & ServeSimLaunchOptions
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
     case BuildRuntimePlatform.DARWIN:
-      return await startServeSimWithTunnelAsync(ctx, options);
+      return await startServeSimWithTunnelAsync(ctx, {
+        ...options,
+        launchAppIdentifier,
+        launchArgs,
+        openUrl,
+      });
     case BuildRuntimePlatform.LINUX:
+      // Unreachable from the three step functions, which reject a non-Darwin launch while
+      // parsing. Kept because this function is exported and expo-device-hub cannot launch.
+      if (launchAppIdentifier) {
+        throw new UserError(
+          'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+          `Cannot launch ${launchAppIdentifier}: an application launch runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
+        );
+      }
       return await startExpoDeviceHubWithTunnelAsync(ctx, { ...options, runtimePlatform });
   }
 }

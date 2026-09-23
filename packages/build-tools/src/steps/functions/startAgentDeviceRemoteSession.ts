@@ -28,9 +28,12 @@ import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArti
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
   type DetachedProcessHandle,
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
@@ -59,6 +62,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
     name: 'Start agent device remote session',
     __metricsId: 'eas/start_agent_device_remote_session',
     inputProviders: [
+      ...createServeSimLaunchInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -89,6 +93,14 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const { runtimePlatform } = global;
+      const launch = parseServeSimLaunchInputs(
+        {
+          launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value as string | undefined,
+        },
+        { runtimePlatform }
+      );
       logger.info(
         `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
       );
@@ -121,12 +133,19 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
       try {
+        const launchDescription = describeServeSimLaunch(launch);
+        if (launchDescription) {
+          logger.info(launchDescription);
+        }
         webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
           runtimePlatform,
           baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          launchAppIdentifier: launch.launchAppIdentifier,
+          launchArgs: launch.launchArgs,
+          openUrl: launch.openUrl,
         });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`

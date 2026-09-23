@@ -47,7 +47,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
-const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
+const STARTUP_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes, excluding time in the queue
 const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
@@ -61,8 +61,8 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
 };
 
 export default class Simulator extends EasCommand {
-  static override hidden = true;
-  static override aliases = ['simulator:start', 'sim', 'sim:start'];
+  static override aliases = ['simulator:start', 'sim:start'];
+  static override hiddenAliases = ['sim'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -318,11 +318,11 @@ export default class Simulator extends EasCommand {
     }
 
     const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`).start();
-    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    let startupDeadline: number | undefined = Date.now() + STARTUP_TIMEOUT_MS;
     let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
     try {
-      while (!sessionInterrupt.signal.aborted && Date.now() < deadline) {
+      while (!sessionInterrupt.signal.aborted) {
         const session = await Promise.race([
           DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
           sessionInterrupt.abortPromise,
@@ -358,6 +358,17 @@ export default class Simulator extends EasCommand {
           break;
         }
 
+        if (jobRunStatus === JobRunStatus.New || jobRunStatus === JobRunStatus.InQueue) {
+          startupDeadline = undefined;
+          pollSpinner.text = '⏳ Simulator session queued or waiting for available concurrency';
+        } else {
+          startupDeadline ??= Date.now() + STARTUP_TIMEOUT_MS;
+          pollSpinner.text = `⏳ Waiting for ${flags.type} session to start`;
+          if (Date.now() >= startupDeadline) {
+            break;
+          }
+        }
+
         await sleepAsync(POLL_INTERVAL_MS, sessionInterrupt.signal);
       }
     } catch (err) {
@@ -379,11 +390,11 @@ export default class Simulator extends EasCommand {
     }
 
     if (!remoteConfig) {
-      pollSpinner.fail(`Timed out waiting for ${flags.type} session to be ready`);
+      pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       sessionInterrupt.dispose();
       throw new Error(
-        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to be ready. ${link(deviceRunSessionUrl)}`
+        `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
       );
     }
 
