@@ -21,4 +21,8 @@ export default {
    * Comma separated list of feature gate keys of feature gates to evaluate override to false.
    */
   featureGateDisable: process.env.EAS_FG_DISABLE,
+  /**
+   * Enables the individual App Store Connect API key option in the interactive submission key prompt.
+   */
+  enableIndividualAscApiKeys: process.env.EAS_ENABLE_INDIVIDUAL_ASC_API_KEYS,
 };
