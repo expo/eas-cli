@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
 - [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4250](https://github.com/expo/eas-cli/pull/4250) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
