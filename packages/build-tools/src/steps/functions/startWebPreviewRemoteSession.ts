@@ -20,7 +20,7 @@ import {
   startDeviceWebPreviewWithTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
-import { parseNetworkCaptureFieldsInput } from '../utils/networkCaptureFields';
+import { parseNetworkCaptureInputs } from '../utils/networkCaptureFields';
 
 const STARTUP_TIMEOUT_MS = 60_000;
 
@@ -60,9 +60,12 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
-      const networkCapture = inputs.network_capture?.value as boolean | undefined;
-      const networkCaptureFields = parseNetworkCaptureFieldsInput(
-        inputs.network_capture_fields?.value
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform: global.runtimePlatform }
       );
       const { runtimePlatform } = global;
       const launch = parseServeSimLaunchInputs(

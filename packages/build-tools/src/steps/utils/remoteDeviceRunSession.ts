@@ -1113,6 +1113,12 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     case BuildRuntimePlatform.LINUX:
       // Unreachable from the three step functions, which reject a non-Darwin launch while
       // parsing. Kept because this function is exported and expo-device-hub cannot launch.
+      if (options.networkCapture) {
+        throw new UserError(
+          'EAS_NETWORK_CAPTURE_UNSUPPORTED_PLATFORM',
+          `Cannot record network traffic: capture runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
+        );
+      }
       if (launchAppIdentifier) {
         throw new UserError(
           'EAS_LAUNCH_APPLICATION_INVALID_INPUT',

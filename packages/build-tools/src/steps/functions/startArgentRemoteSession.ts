@@ -42,7 +42,7 @@ import {
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
-import { parseNetworkCaptureFieldsInput } from '../utils/networkCaptureFields';
+import { parseNetworkCaptureInputs } from '../utils/networkCaptureFields';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 // 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
@@ -112,9 +112,12 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
-      const networkCapture = inputs.network_capture?.value as boolean | undefined;
-      const networkCaptureFields = parseNetworkCaptureFieldsInput(
-        inputs.network_capture_fields?.value
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform: global.runtimePlatform }
       );
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;

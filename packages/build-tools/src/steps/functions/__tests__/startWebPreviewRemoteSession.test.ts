@@ -104,7 +104,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
-      networkCapture: undefined,
+      networkCapture: false,
       networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({

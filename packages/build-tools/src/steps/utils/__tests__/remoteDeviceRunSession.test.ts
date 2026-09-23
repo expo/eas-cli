@@ -33,7 +33,7 @@ import {
   websiteOrigin,
   websiteOriginServeSimArgs,
 } from '../remoteDeviceRunSession';
-import { parseNetworkCaptureFieldsInput } from '../networkCaptureFields';
+import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
@@ -420,6 +420,25 @@ describe(createServeSimArgs, () => {
     expect(createServeSimArgs({ port: 4321, networkCapture: true })).not.toContain(
       '--network-capture-field'
     );
+  });
+
+  it('rejects network capture on a runtime that has no serve-sim', () => {
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCapture: true },
+        { runtimePlatform: BuildRuntimePlatform.LINUX }
+      )
+    ).toThrow(UserError);
+    expect(parseNetworkCaptureInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
+      networkCapture: false,
+      networkCaptureFields: [],
+    });
+    expect(
+      parseNetworkCaptureInputs(
+        { networkCapture: true, networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toEqual({ networkCapture: true, networkCaptureFields: ['header'] });
   });
 
   it('rejects a step input that is not an array of strings', () => {
