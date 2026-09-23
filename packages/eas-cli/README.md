@@ -3833,17 +3833,42 @@ upload a local build and generate a sharable link
 
 ```
 USAGE
-  $ eas upload [-p ios|android] [--build-path <value>] [--fingerprint <value>] [--json] [--non-interactive]
+  $ eas upload [-p ios|android] [--build-path <value>] [--profile <value> --current] [--fingerprint <value>]
+    [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>    <options: ios|android>
       --build-path=<value>   Path for the local build
+      --current              Assert that the artifact was built from the current project state
       --fingerprint=<value>  Fingerprint hash of the local build
       --json                 Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
       --non-interactive      Run the command in non-interactive mode.
+      --profile=<value>      Build profile from eas.json used for this artifact
 
 DESCRIPTION
   upload a local build and generate a sharable link
+
+  Register an existing app artifact with EAS and share its build page without rebuilding it in the cloud. Build locally
+  with eas build --local or another build tool, then run eas upload from the app's project directory. Artifacts
+  downloaded from EAS Build can also be uploaded.
+
+  Use --current only when the artifact was built from the current project state. This assertion is trusted, not
+  verified. Available app version, build number, runtime version, Expo SDK version, Git commit hash, commit message, and
+  dirty status are attached to the upload. Artifact metadata takes precedence over project metadata, and missing Git or
+  optional metadata does not prevent uploading.
+
+  Use --profile with --current to record the eas.json build profile used for the artifact and its resolved channel and
+  distribution settings. Keep the project checkout and profile consistent between building and uploading. Omit --current
+  when uploading an artifact from a different or unknown project state.
+
+EXAMPLES
+  $ eas build --platform android --profile development:device --local --output ./app.apk
+  $ eas upload --platform android --build-path ./app.apk --current --profile development:device
+
+  $ eas build --platform ios --profile development:device --local --output ./app.ipa
+  $ eas upload --platform ios --build-path ./app.ipa --current --profile development:device
+
+  $ eas upload --platform android --build-path ./older-app.apk
 ```
 
 _See code: [packages/eas-cli/src/commands/upload.ts](https://github.com/expo/eas-cli/blob/v24.7.0/packages/eas-cli/src/commands/upload.ts)_

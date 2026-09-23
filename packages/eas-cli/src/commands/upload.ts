@@ -41,7 +41,19 @@ import { createProgressTracker } from '../utils/progress';
 import { resolveVcsClient } from '../vcs';
 
 export default class BuildUpload extends EasCommand {
-  static override description = 'upload a local build and generate a sharable link';
+  static override description = `upload a local build and generate a sharable link
+
+Register an existing app artifact with EAS and share its build page without rebuilding it in the cloud. Build locally with eas build --local or another build tool, then run eas upload from the app's project directory. Artifacts downloaded from EAS Build can also be uploaded.
+
+Use --current only when the artifact was built from the current project state. This assertion is trusted, not verified. Available app version, build number, runtime version, Expo SDK version, Git commit hash, commit message, and dirty status are attached to the upload. Artifact metadata takes precedence over project metadata, and missing Git or optional metadata does not prevent uploading.
+
+Use --profile with --current to record the eas.json build profile used for the artifact and its resolved channel and distribution settings. Keep the project checkout and profile consistent between building and uploading. Omit --current when uploading an artifact from a different or unknown project state.`;
+
+  static override examples = [
+    '$ eas build --platform android --profile development:device --local --output ./app.apk\n$ eas upload --platform android --build-path ./app.apk --current --profile development:device',
+    '$ eas build --platform ios --profile development:device --local --output ./app.ipa\n$ eas upload --platform ios --build-path ./app.ipa --current --profile development:device',
+    '$ eas upload --platform android --build-path ./older-app.apk',
+  ];
 
   static override flags = {
     platform: Flags.option({
