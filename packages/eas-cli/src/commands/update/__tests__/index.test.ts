@@ -7,6 +7,8 @@ import { instance, mock } from 'ts-mockito';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import UpdatePublish, { preprocessSourceMapsArg } from '..';
+import { SourceMapSourceType } from '../../../graphql/sourceMapShim';
+import { maybeUploadSourceMapsAsync } from '../../../project/maybeUploadSourceMapsAsync';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import {
   DynamicPrivateProjectConfigContextField,
@@ -62,6 +64,10 @@ jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
   }),
+}));
+jest.mock('../../../project/maybeUploadSourceMapsAsync', () => ({
+  ...jest.requireActual('../../../project/maybeUploadSourceMapsAsync'),
+  maybeUploadSourceMapsAsync: jest.fn(),
 }));
 jest.mock('../../../project/publish', () => ({
   ...jest.requireActual('../../../project/publish'),
@@ -566,6 +572,129 @@ describe(preprocessSourceMapsArg, () => {
       '--message',
       'test',
     ]);
+  });
+});
+
+describe('--upload-source-maps', () => {
+  afterEach(() => {
+    vol.reset();
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
+    jest.mocked(maybeUploadSourceMapsAsync).mockReset();
+  });
+
+  async function publishWithFlagsAsync(flags: string[]): Promise<void> {
+    mockTestProject();
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: { id: 'branch123', name: 'wat' },
+      createdBranch: false,
+    });
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+
+    await new UpdatePublish(flags, commandOptions).run();
+  }
+
+  it('is visible so that it appears in help output', () => {
+    expect(UpdatePublish.flags['upload-source-maps'].hidden).toBeFalsy();
+  });
+
+  it('does not upload source maps when the flag is absent', async () => {
+    await publishWithFlagsAsync(['--non-interactive', '--branch=branch123', '--message=abc']);
+
+    expect(maybeUploadSourceMapsAsync).not.toHaveBeenCalled();
+    const [[, input]] = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls;
+    expect(input[0]).not.toHaveProperty('sourceMapGroup');
+  });
+
+  it('sends sourceMapGroup for the platforms that produced a source map', async () => {
+    jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue({
+      android: { type: SourceMapSourceType.Gcs, bucketKey: 'updates/android-key' },
+      ios: { type: SourceMapSourceType.Gcs, bucketKey: 'updates/ios-key' },
+    });
+
+    await publishWithFlagsAsync([
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--upload-source-maps',
+    ]);
+
+    expect(maybeUploadSourceMapsAsync).toHaveBeenCalled();
+    const [[, input]] = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls;
+    expect((input[0] as any).sourceMapGroup).toEqual({
+      android: { type: 'GCS', bucketKey: 'updates/android-key' },
+      ios: { type: 'GCS', bucketKey: 'updates/ios-key' },
+    });
+  });
+
+  it('omits sourceMapGroup when no source map was uploaded', async () => {
+    jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue(null);
+
+    await publishWithFlagsAsync([
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--upload-source-maps',
+    ]);
+
+    const [[, input]] = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls;
+    expect(input[0]).not.toHaveProperty('sourceMapGroup');
+  });
+
+  it.each(['false', 'inline', 'external'])(
+    'errors when --source-maps is %s, which may not write a source map file',
+    async sourceMapsValue => {
+      mockTestProject();
+      mockTestExport();
+
+      await expect(
+        new UpdatePublish(
+          [
+            '--non-interactive',
+            '--branch=branch123',
+            '--message=abc',
+            '--upload-source-maps',
+            `--source-maps=${sourceMapsValue}`,
+          ],
+          commandOptions
+        ).run()
+      ).rejects.toThrow('--upload-source-maps requires --source-maps true');
+    }
+  );
+
+  it('allows --source-maps true to be passed explicitly', async () => {
+    jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue({
+      ios: { type: SourceMapSourceType.Gcs, bucketKey: 'updates/ios-key' },
+    });
+
+    await publishWithFlagsAsync([
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--upload-source-maps',
+      '--source-maps=true',
+    ]);
+
+    expect(maybeUploadSourceMapsAsync).toHaveBeenCalled();
+  });
+
+  it('proceeds with --skip-bundler', async () => {
+    jest.mocked(maybeUploadSourceMapsAsync).mockResolvedValue({
+      ios: { type: SourceMapSourceType.Gcs, bucketKey: 'updates/ios-key' },
+    });
+
+    await publishWithFlagsAsync([
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--upload-source-maps',
+      '--skip-bundler',
+    ]);
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 });
 
