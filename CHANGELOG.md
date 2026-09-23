@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
 - [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4250](https://github.com/expo/eas-cli/pull/4250) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Add `launch_app_identifier`, `launch_args`, and `open_url` inputs to the serve-sim, agent-device, argent, and Appium remote sessions, so serve-sim launches an installed app before the stream starts. The inputs are iOS only, and Android sessions keep using `eas/launch_application`. ([#4324](https://github.com/expo/eas-cli/pull/4324) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
