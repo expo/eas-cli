@@ -45,6 +45,7 @@ jest.mock('../../utils/localEgress', () => ({
   monitorLocalEgressAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
+  ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   getDeviceRunSessionIdOrThrow: () => 'session-id',
   getNgrokTunnelDomainOrThrow: () => 'example.test',
   getNgrokAuthtokenOrThrow: () => 'ngrok-token',
