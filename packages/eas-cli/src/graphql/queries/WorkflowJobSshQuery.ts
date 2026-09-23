@@ -2,13 +2,19 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { GraphqlError, withErrorHandlingAsync } from '../client';
-import { JobRunStatus, WorkflowJobStatus } from '../generated';
+import { BuildStatus, JobRunStatus, WorkflowJobStatus } from '../generated';
 
 const FINAL_WORKFLOW_JOB_STATUSES = new Set<WorkflowJobStatus>([
   WorkflowJobStatus.Success,
   WorkflowJobStatus.Failure,
   WorkflowJobStatus.Canceled,
   WorkflowJobStatus.Skipped,
+]);
+
+const FINAL_BUILD_STATUSES = new Set<BuildStatus>([
+  BuildStatus.Errored,
+  BuildStatus.Finished,
+  BuildStatus.Canceled,
 ]);
 
 const FINAL_JOB_RUN_STATUSES = new Set<JobRunStatus>([
@@ -51,6 +57,20 @@ type WorkflowJobSshPollQuery = {
 
 type WorkflowJobSshPollQueryVariables = {
   workflowJobId: string;
+};
+
+type BuildSshPollQuery = {
+  builds: {
+    byId: {
+      id: string;
+      status: BuildStatus;
+      sshSession: WorkflowJobSshSession | null;
+    };
+  };
+};
+
+type BuildSshPollQueryVariables = {
+  buildId: string;
 };
 
 type JobRunSshPollQuery = {
@@ -154,6 +174,52 @@ export const WorkflowJobSshQuery = {
     return toConnectInfo(data.workflowJobs.byId);
   },
 
+  async connectInfoForBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    buildId: string
+  ): Promise<WorkflowJobSshConnectInfo | null> {
+    let data: BuildSshPollQuery;
+    try {
+      data = await withErrorHandlingAsync(
+        graphqlClient
+          .query<BuildSshPollQuery, BuildSshPollQueryVariables>(
+            gql`
+              query BuildSshPoll($buildId: ID!) {
+                builds {
+                  byId(buildId: $buildId) {
+                    id
+                    status
+                    sshSession {
+                      id
+                      connectionConfig {
+                        host
+                        secret
+                        reconnecting
+                      }
+                    }
+                  }
+                }
+              }
+            `,
+            { buildId },
+            { requestPolicy: 'network-only' }
+          )
+          .toPromise()
+      );
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+    const build = data.builds.byId;
+    return {
+      sshRequested: build.sshSession !== null,
+      jobCompleted: FINAL_BUILD_STATUSES.has(build.status),
+      session: build.sshSession,
+    };
+  },
+
   async connectInfoForJobRunAsync(
     graphqlClient: ExpoGraphqlClient,
     jobRunId: string
@@ -207,6 +273,7 @@ export const WorkflowJobSshQuery = {
   ): Promise<WorkflowJobSshConnectInfo | null> {
     return (
       (await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, resourceId)) ??
+      (await WorkflowJobSshQuery.connectInfoForBuildAsync(graphqlClient, resourceId)) ??
       (await WorkflowJobSshQuery.connectInfoForJobRunAsync(graphqlClient, resourceId))
     );
   },
