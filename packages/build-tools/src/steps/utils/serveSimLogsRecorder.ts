@@ -7,8 +7,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
-// The endpoint includes all simulator processes. Newer serve-sim versions replay
-// buffered records and support a sequence cursor; older versions stream raw NDJSON.
+// Require user-app scope acknowledgement; replay cursors avoid duplicate records
+// on reconnect. Older servers that ignore the filter are not safe to collect from.
 const MAX_BYTES_PER_DEVICE = 20 * 1024 * 1024;
 const MAX_DURATION_MS = 30 * 60 * 1000;
 const MAX_LINE_LENGTH = 1024 * 1024;
@@ -128,9 +128,7 @@ export namespace ServeSimLogsRecorder {
       logger.warn({ err }, 'Could not collect serve-sim simulator logs.');
       controller.abort();
     });
-    logger.info(
-      'Started collecting simulator logs (all processes, up to 20 MiB per device and 30 minutes).'
-    );
+    logger.info('Started collecting user-app logs (up to 20 MiB per device and 30 minutes).');
   }
 
   export async function finishAsync({ logger }: { logger: bunyan }): Promise<CollectedLog[]> {
@@ -194,6 +192,7 @@ export async function streamServeSimLogsToFileAsync({
     }
     const url = new URL('/logs', serveSimUrl);
     url.searchParams.set('envelope', 'true');
+    url.searchParams.set('scope', 'user-apps');
     if (since !== undefined) {
       url.searchParams.set('since', String(since));
     }
@@ -212,6 +211,13 @@ export async function streamServeSimLogsToFileAsync({
     }
     if (!response.ok || !response.body) {
       logger.warn(`serve-sim /logs responded ${response.status}; simulator logs will be retried.`);
+      return { receivedData: false, limitReached, bytesWritten };
+    }
+    // Older servers ignore unknown query parameters and would return system logs.
+    if (response.headers.get('x-serve-sim-log-scope') !== 'user-apps') {
+      logger.warn(
+        'serve-sim did not confirm user-app log filtering. Skipping this stream; use a serve-sim version that supports /logs?scope=user-apps.'
+      );
       return { receivedData: false, limitReached, bytesWritten };
     }
     file = await open(filePath, 'a');

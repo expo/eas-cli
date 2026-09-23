@@ -12,7 +12,14 @@ jest.mock('node-fetch');
 jest.mock('../../../sentry');
 jest.unmock('node:fs');
 jest.unmock('node:fs/promises');
-const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+const { Response: FetchResponse } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+// A compatible serve-sim explicitly acknowledges the requested log scope.
+class Response extends FetchResponse {
+  constructor(...args: ConstructorParameters<typeof FetchResponse>) {
+    super(...args);
+    this.headers.set('x-serve-sim-log-scope', 'user-apps');
+  }
+}
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 let directory: string;
 
@@ -52,7 +59,7 @@ it('preserves split UTF-8 and CRLF records, skips heartbeat and invalid JSON, an
     '{"message":"안녕"}\n{"pid":42}\n'
   );
   expect(fetch).toHaveBeenCalledWith(
-    'http://localhost:1234/logs?envelope=true&device=device+two',
+    'http://localhost:1234/logs?envelope=true&scope=user-apps&device=device+two',
     expect.objectContaining({ headers: { Authorization: 'Bearer secret' } })
   );
 });
@@ -68,6 +75,21 @@ it('retains completed records when a connection errors', async () => {
   jest.mocked(fetch).mockResolvedValue(new Response(stream));
   expect(await record()).toEqual({ receivedData: true, bytesWritten: 11, limitReached: false });
   expect(await readFile(path.join(directory, 'logs.ndjson'), 'utf8')).toBe('{"pid":42}\n');
+});
+
+it.each([undefined, 'all'])('refuses an unconfirmed user-app scope (%s)', async scope => {
+  const body = Readable.from(['data: {"eventMessage":"system noise"}\n\n']);
+  const response = new FetchResponse(body);
+  if (scope) {
+    response.headers.set('x-serve-sim-log-scope', scope);
+  }
+  jest.mocked(fetch).mockResolvedValue(response);
+  expect(await record()).toEqual({ receivedData: false, bytesWritten: 0, limitReached: false });
+  expect(body.destroyed).toBe(true);
+  await expect(readFile(path.join(directory, 'logs.ndjson'))).rejects.toMatchObject({
+    code: 'ENOENT',
+  });
+  expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('did not confirm user-app'));
 });
 
 it('aborts a quiet live stream and drains preceding writes before returning', async () => {
@@ -189,11 +211,11 @@ it('selects each registered device when two simulators share one server URL', as
   await ServeSimLogsRecorder.startAsync({ logger, stateDir, pollIntervalMs: 5, maxBytes: 3 });
   await delay(50);
   expect(fetch).toHaveBeenCalledWith(
-    'http://localhost:1234/logs?envelope=true&device=A',
+    'http://localhost:1234/logs?envelope=true&scope=user-apps&device=A',
     expect.anything()
   );
   expect(fetch).toHaveBeenCalledWith(
-    'http://localhost:1234/logs?envelope=true&device=B',
+    'http://localhost:1234/logs?envelope=true&scope=user-apps&device=B',
     expect.anything()
   );
   expect(fetch).toHaveBeenCalledTimes(2);
@@ -212,7 +234,7 @@ it('persists the envelope cursor only for written records and drops replayed seq
   });
   expect(await readFile(path.join(directory, 'logs.ndjson'), 'utf8')).toBe('{"pid":2}\n');
   expect(fetch).toHaveBeenCalledWith(
-    'http://localhost:1234/logs?envelope=true&since=1',
+    'http://localhost:1234/logs?envelope=true&scope=user-apps&since=1',
     expect.anything()
   );
 });

@@ -14,7 +14,7 @@ const ctx = {} as CustomBuildContext;
 const filePath = path.join(os.tmpdir(), 'logs.ndjson');
 const args = { deviceRunSessionId: 'session', udid: 'A', filePath, logger };
 
-it('uploads NDJSON with explicit simulator scope and destroys the stream afterward', async () => {
+it('uploads NDJSON with explicit user-app scope and destroys the stream afterward', async () => {
   await writeFile(filePath, '{"pid":42}\n');
   await uploadServeSimLogsFileAsync(ctx, args);
   expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
@@ -23,7 +23,7 @@ it('uploads NDJSON with explicit simulator scope and destroys the stream afterwa
       kind: 'simulator-log',
       filename: 'simulator.ndjson',
       size: 11,
-      metadata: expect.objectContaining({ scope: 'simulator', udid: 'A' }),
+      metadata: expect.objectContaining({ scope: 'user-apps', udid: 'A' }),
     })
   );
   expect(

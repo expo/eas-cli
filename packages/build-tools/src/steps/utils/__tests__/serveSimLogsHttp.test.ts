@@ -57,7 +57,10 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
   server.on('request', (request, response) => {
     if (request.method === 'GET') {
       streamRequest = { url: request.url, authorization: request.headers.authorization };
-      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'X-Serve-Sim-Log-Scope': 'user-apps',
+      });
       response.write(wire.subarray(0, splitAt));
       setImmediate(() => response.end(wire.subarray(splitAt)));
       return;
@@ -80,7 +83,7 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
     logger,
   });
   expect(streamRequest).toEqual({
-    url: '/logs?envelope=true&device=device-B',
+    url: '/logs?envelope=true&scope=user-apps&device=device-B',
     authorization: 'Bearer local-test-token',
   });
   expect(result).toEqual({
@@ -112,13 +115,13 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
   expect(mutation.mock.calls[0][1]).toEqual({
     deviceRunSessionId: 'session-test',
     input: {
-      name: 'Simulator logs (device-B)',
+      name: 'App logs (device-B)',
       filename: 'simulator.ndjson',
       kind: 'simulator-log',
       metadata: {
         __eas_type: 'simulator-log',
         udid: 'device-B',
-        scope: 'simulator',
+        scope: 'user-apps',
         source: 'serve-sim/logs',
       },
       size: expected.length,
@@ -137,7 +140,10 @@ it('resumes a buffered stream without appending already persisted sequence numbe
     `data: ${JSON.stringify({ seq, at: seq * 1000, raw })}\n\n`;
   server.on('request', (request, response) => {
     urls.push(request.url!);
-    response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'X-Serve-Sim-Log-Scope': 'user-apps',
+    });
     // Deliberately resend seq=1 on reconnect to exercise the client's guard too.
     response.end(frame(1, first) + (urls.length > 1 ? frame(2, second) : ''));
   });
@@ -158,8 +164,8 @@ it('resumes a buffered stream without appending already persisted sequence numbe
   expect(resumed.lastSequence).toBe(2);
   expect(resumed.bytesWritten).toBe(Buffer.byteLength(second + '\n'));
   expect(urls).toEqual([
-    '/logs?envelope=true&device=device-A',
-    '/logs?envelope=true&since=1&device=device-A',
+    '/logs?envelope=true&scope=user-apps&device=device-A',
+    '/logs?envelope=true&scope=user-apps&since=1&device=device-A',
   ]);
   expect(await readFile(filePath, 'utf8')).toBe(first + '\n' + second + '\n');
 });
@@ -169,7 +175,10 @@ it('aborts a real open HTTP stream without waiting for the server to finish', as
   let sawRequest: () => void = () => {};
   const requestStarted = new Promise<void>(resolve => (sawRequest = resolve));
   server.on('request', (_request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'X-Serve-Sim-Log-Scope': 'user-apps',
+    });
     response.write(': heartbeat\n\n');
     sawRequest();
   });
