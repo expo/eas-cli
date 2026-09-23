@@ -1,6 +1,8 @@
 import { UserRole } from '@expo/apple-utils';
 import fs from 'fs-extra';
 
+import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
+import Log from '../../../../log';
 import { promptAsync, selectAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -9,16 +11,33 @@ import {
   getCredentialsFromUserAsync,
   shouldAutoGenerateCredentialsAsync,
 } from '../../../utils/promptForCredentials';
+import { getAscApiKeyForAppSubmissionsAsync } from '../../api/GraphqlClient';
+import { AppleTeamType } from '../../appstore/authenticateTypes';
+import { hasAscEnvVars } from '../../appstore/resolveCredentials';
 import {
   AppStoreApiKeyPurpose,
+  filterOutIndividualAscApiKeys,
   getAscApiKeyName,
   promptForAscApiKeyPathAsync,
   provideOrGenerateAscApiKeyAsync,
+  tryAuthenticateAppStoreWithEasAscApiKeyAsync,
 } from '../AscApiKeyUtils';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../utils/promptForCredentials');
 jest.mock('fs-extra');
+jest.mock('../../api/GraphqlClient', () => ({
+  ...jest.requireActual('../../api/GraphqlClient'),
+  getAscApiKeyForAppSubmissionsAsync: jest.fn(),
+}));
+jest.mock('../../appstore/resolveCredentials', () => ({
+  hasAscEnvVars: jest.fn(),
+}));
+jest.mock('../../../../graphql/queries/AppStoreConnectApiKeyQuery', () => ({
+  AppStoreConnectApiKeyQuery: {
+    getByIdAsync: jest.fn(),
+  },
+}));
 
 function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
   return Object.keys(obj) as K[];
@@ -30,6 +49,27 @@ afterEach(() => {
   jest.mocked(getCredentialsFromUserAsync).mockClear();
   jest.mocked(shouldAutoGenerateCredentialsAsync).mockClear();
   jest.mocked(fs.readFile).mockClear();
+  jest.mocked(hasAscEnvVars).mockReset();
+  jest.mocked(getAscApiKeyForAppSubmissionsAsync).mockReset();
+  jest.mocked(AppStoreConnectApiKeyQuery.getByIdAsync).mockReset();
+});
+
+describe(filterOutIndividualAscApiKeys, () => {
+  it('removes keys without an issuer identifier and keeps the rest', () => {
+    const teamKey = { id: 'team', issuerIdentifier: 'issuer-id' } as any;
+    const individualKey = { id: 'individual', issuerIdentifier: null } as any;
+
+    expect(filterOutIndividualAscApiKeys([teamKey, individualKey])).toEqual([teamKey]);
+  });
+
+  it('returns all keys when none is individual', () => {
+    const keys = [
+      { id: 'a', issuerIdentifier: 'issuer-a' },
+      { id: 'b', issuerIdentifier: 'issuer-b' },
+    ] as any[];
+
+    expect(filterOutIndividualAscApiKeys(keys)).toEqual(keys);
+  });
 });
 
 describe(getAscApiKeyName, () => {
@@ -177,5 +217,97 @@ describe(provideOrGenerateAscApiKeyAsync, () => {
     });
     expect(selectAsync).not.toHaveBeenCalled();
     expect(createAscApiKeyAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe(tryAuthenticateAppStoreWithEasAscApiKeyAsync, () => {
+  const app = {
+    account: { name: 'test-account' },
+    projectName: 'test-project',
+    bundleIdentifier: 'com.test.app',
+  } as any;
+
+  afterEach(() => {
+    delete process.env.EXPO_ASC_API_KEY_PATH;
+    delete process.env.EXPO_ASC_KEY_ID;
+    delete process.env.EXPO_ASC_ISSUER_ID;
+  });
+
+  function createNonInteractiveCtx(): ReturnType<typeof createCtxMock> {
+    return createCtxMock({
+      nonInteractive: true,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: null,
+        ensureAuthenticatedAsync: jest.fn(),
+      },
+    });
+  }
+
+  it('skips authentication without a warning when the environment key has no issuer ID', async () => {
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+    process.env.EXPO_ASC_API_KEY_PATH = '/asc-api-key.p8';
+    process.env.EXPO_ASC_KEY_ID = 'env-key-id';
+    jest.mocked(hasAscEnvVars).mockReturnValue(true);
+    const ctx = createNonInteractiveCtx();
+
+    const result = await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+      ctx,
+      app,
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
+
+    expect(result).toBe(false);
+    expect(ctx.appStore.ensureAuthenticatedAsync).not.toHaveBeenCalled();
+    expect(getAscApiKeyForAppSubmissionsAsync).not.toHaveBeenCalled();
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    logWarnSpy.mockRestore();
+  });
+
+  it('authenticates with the environment key when it has an issuer ID', async () => {
+    process.env.EXPO_ASC_API_KEY_PATH = '/asc-api-key.p8';
+    process.env.EXPO_ASC_KEY_ID = 'env-key-id';
+    process.env.EXPO_ASC_ISSUER_ID = 'env-issuer-id';
+    jest.mocked(hasAscEnvVars).mockReturnValue(true);
+    const ctx = createNonInteractiveCtx();
+    jest.mocked(ctx.appStore.ensureAuthenticatedAsync).mockImplementation(async () => {
+      (ctx.appStore as any).authCtx = testAuthCtx;
+      return testAuthCtx;
+    });
+
+    const result = await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+      ctx,
+      app,
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
+
+    expect(result).toBe(true);
+    expect(ctx.appStore.ensureAuthenticatedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips authentication without a warning when the stored submission key has no issuer ID', async () => {
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+    jest.mocked(hasAscEnvVars).mockReturnValue(false);
+    jest.mocked(getAscApiKeyForAppSubmissionsAsync).mockResolvedValue({
+      id: 'asc-key-id',
+      appleTeam: { appleTeamIdentifier: 'TEAM123', appleTeamName: 'Team Name' },
+    } as any);
+    jest.mocked(AppStoreConnectApiKeyQuery.getByIdAsync).mockResolvedValue({
+      keyP8: 'key-p8',
+      keyIdentifier: 'stored-key-id',
+      issuerIdentifier: null,
+    } as any);
+    const ctx = createNonInteractiveCtx();
+
+    const result = await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+      ctx,
+      app,
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
+
+    expect(result).toBe(false);
+    expect(ctx.appStore.ensureAuthenticatedAsync).not.toHaveBeenCalled();
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    logWarnSpy.mockRestore();
   });
 });
