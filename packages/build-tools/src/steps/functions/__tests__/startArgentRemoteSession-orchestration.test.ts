@@ -159,6 +159,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     // (3) The tool-server and the collector are pinned to the exact same event log path.
     const serverEnv = jest.mocked(spawnDetached).mock.calls[0][0].env;
     expect(serverEnv.ARGENT_EVENT_LOG).toBe(EXPECTED_EVENT_LOG_PATH);
+    expect(serverEnv.ARGENT_EMULATOR_NO_WINDOW).toBe('1');
     expect(serverEnv.EXISTING).toBe('value');
     expect(jest.mocked(startArgentEventCollectionAsync).mock.calls[0][0]).toMatchObject({
       deviceRunSessionId: 'device-run-session-id',

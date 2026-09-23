@@ -168,7 +168,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const argentServer = spawnDetached({
         command: startServer.command,
         args: startServer.args,
-        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
+        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
