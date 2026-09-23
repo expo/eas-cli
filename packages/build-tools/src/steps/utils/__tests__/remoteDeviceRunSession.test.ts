@@ -447,6 +447,13 @@ describe(websiteOriginServeSimArgs, () => {
     expect(args).not.toContain('https://expo.dev');
   });
 
+  it('names only https origins', () => {
+    for (const env of [{}, { EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
+      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      expect(args.filter(value => value.startsWith('http://'))).toEqual([]);
+    }
+  });
+
   it('names the website dev ports on local, without the deploy-preview wildcard', () => {
     for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
       const args = websiteOriginServeSimArgs(env as BuildStepEnv);

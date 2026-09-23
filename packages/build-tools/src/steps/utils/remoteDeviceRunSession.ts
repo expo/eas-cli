@@ -642,7 +642,6 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
 
 // Website dev servers on expo.test use staging sessions, and CORS matches ports exactly.
 const WEBSITE_DEV_ORIGINS = [
-  'http://expo.test',
   'https://expo.test',
   'https://expo.test:13001',
   ...Array.from({ length: 16 }, (_, index) => `https://expo.test:${13200 + index}`),
