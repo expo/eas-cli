@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Make `eas simulator:*` commands visible in help output. ([#4456](https://github.com/expo/eas-cli/pull/4456) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
+- [eas-cli] Add `eas integrations:detour:connect`, `eas integrations:detour:status`, `eas integrations:detour:dashboard`, and `eas integrations:detour:disconnect` to set up [Detour](https://detour.swmansion.com/) deferred deep linking in an Expo project: creates the app, installs the SDK, writes `EXPO_PUBLIC_DETOUR_*` to `.env.local` and EAS environments, publishes the link domain to `ios.associatedDomains` and `android.intentFilters`, and sends the app's signing identity so Android App Links and iOS Universal Links verify. ([#4461](https://github.com/expo/eas-cli/pull/4461) by [@matrixxonek](https://github.com/matrixxonek))
 
 ### 🐛 Bug fixes
 
