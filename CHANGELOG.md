@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas simulator --type` from listing `web-preview-only` twice in `--help`. ([#4321](https://github.com/expo/eas-cli/pull/4321) by [@tchayen](https://github.com/tchayen))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
