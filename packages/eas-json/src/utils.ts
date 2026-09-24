@@ -110,10 +110,11 @@ export class EasJsonUtils {
   public static async getSubmitProfileAsync<T extends Platform>(
     accessor: EasJsonAccessor,
     platform: T,
-    profileName?: string
+    profileName?: string,
+    env?: NodeJS.ProcessEnv
   ): Promise<SubmitProfile<T>> {
     const easJson = await accessor.readAsync();
-    const profile = resolveSubmitProfile({ easJson, platform, profileName });
+    const profile = resolveSubmitProfile({ easJson, platform, profileName, env });
     const Schema =
       platform === Platform.ANDROID ? AndroidSubmitProfileSchema : ResolvedIosSubmitProfileSchema;
     const { value, error } = Schema.validate(profile, {

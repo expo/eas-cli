@@ -26,6 +26,10 @@ import { createLaunchApplicationFunction } from './functions/launchApplication';
 import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
+import {
+  createCleanupSubmissionFunction,
+  createPrepareSubmissionFunction,
+} from './functions/prepareSubmission';
 import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
@@ -77,6 +81,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
+    createPrepareSubmissionFunction(ctx),
+    createCleanupSubmissionFunction(),
     createDownloadBuildFunction(ctx),
     createInstallBuildFunction(),
     createLaunchApplicationFunction(),
