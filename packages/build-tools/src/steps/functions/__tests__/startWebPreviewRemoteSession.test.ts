@@ -164,6 +164,15 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it('fails before starting anything when network capture is asked for on Android', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.LINUX, {
+        network_capture: { value: true },
+      })
+    ).rejects.toThrow('this session runs on linux');
+    expect(startDeviceWebPreviewWithTunnelAsync).not.toHaveBeenCalled();
+  });
+
   it('fails before starting anything when a launch is asked for on Android', async () => {
     await expect(
       runAsync(BuildRuntimePlatform.LINUX, {

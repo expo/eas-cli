@@ -90,15 +90,15 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
       const packageVersion = inputs.package_version.value as string | undefined;
+      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
+      const { runtimePlatform } = global;
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
           networkCaptureFields: inputs.network_capture_fields?.value,
         },
-        { runtimePlatform: global.runtimePlatform }
+        { runtimePlatform }
       );
-      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
-      const { runtimePlatform } = global;
       const launch = parseServeSimLaunchInputs(
         {
           launchAppIdentifier: inputs.launch_app_identifier?.value,

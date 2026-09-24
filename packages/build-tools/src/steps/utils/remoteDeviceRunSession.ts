@@ -1115,7 +1115,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
       // parsing. Kept because this function is exported and expo-device-hub cannot launch.
       if (options.networkCapture) {
         throw new UserError(
-          'EAS_NETWORK_CAPTURE_UNSUPPORTED_PLATFORM',
+          'EAS_NETWORK_CAPTURE_INVALID_INPUT',
           `Cannot record network traffic: capture runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
         );
       }

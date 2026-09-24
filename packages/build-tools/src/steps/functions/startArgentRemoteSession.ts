@@ -112,19 +112,19 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
-      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
-        {
-          networkCapture: inputs.network_capture?.value,
-          networkCaptureFields: inputs.network_capture_fields?.value,
-        },
-        { runtimePlatform: global.runtimePlatform }
-      );
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform }
+      );
       const launch = parseServeSimLaunchInputs(
         {
           launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,

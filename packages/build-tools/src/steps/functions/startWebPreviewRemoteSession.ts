@@ -60,14 +60,14 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
+      const { runtimePlatform } = global;
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
           networkCaptureFields: inputs.network_capture_fields?.value,
         },
-        { runtimePlatform: global.runtimePlatform }
+        { runtimePlatform }
       );
-      const { runtimePlatform } = global;
       const launch = parseServeSimLaunchInputs(
         {
           launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,

@@ -428,7 +428,13 @@ describe(createServeSimArgs, () => {
         { networkCapture: true },
         { runtimePlatform: BuildRuntimePlatform.LINUX }
       )
-    ).toThrow(UserError);
+    ).toThrow('this session runs on linux');
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toThrow('needs "network_capture: true"');
     expect(parseNetworkCaptureInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
       networkCapture: false,
       networkCaptureFields: [],
