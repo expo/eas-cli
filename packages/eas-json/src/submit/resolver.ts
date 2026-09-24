@@ -14,12 +14,10 @@ export function resolveSubmitProfile<T extends Platform>({
   easJson,
   platform,
   profileName,
-  env = process.env,
 }: {
   easJson: EasJson;
   platform: T;
   profileName?: string;
-  env?: NodeJS.ProcessEnv;
 }): SubmitProfile<T> {
   try {
     const submitProfile = resolveProfile({
@@ -28,7 +26,7 @@ export function resolveSubmitProfile<T extends Platform>({
       profileName: profileName ?? 'production',
     });
     const unevaluatedProfile = mergeProfiles(getDefaultProfile(platform), submitProfile);
-    return evaluateFields(platform, unevaluatedProfile, env);
+    return evaluateFields(platform, unevaluatedProfile);
   } catch (err: any) {
     if (err instanceof MissingProfileError && !profileName) {
       return getDefaultProfile(platform);
@@ -107,8 +105,7 @@ export function getDefaultProfile<T extends Platform>(platform: T): SubmitProfil
 
 function evaluateFields<T extends Platform>(
   platform: T,
-  profile: SubmitProfile<T>,
-  env: NodeJS.ProcessEnv
+  profile: SubmitProfile<T>
 ): SubmitProfile<T> {
   const fields =
     platform === Platform.ANDROID
@@ -118,7 +115,7 @@ function evaluateFields<T extends Platform>(
   for (const field of fields) {
     if (field in evaluatedProfile) {
       // @ts-ignore
-      evaluatedProfile[field] = envString(evaluatedProfile[field], env);
+      evaluatedProfile[field] = envString(evaluatedProfile[field], process.env);
     }
   }
   return evaluatedProfile;

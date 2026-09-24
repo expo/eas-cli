@@ -39,12 +39,10 @@
     "test": "yarn jest-unit"
   },
   "dependencies": {
-    "@expo/apple-utils": "2.2.1",
     "@expo/config": "55.0.10",
     "@expo/config-plugins": "55.0.7",
     "@expo/downloader": "24.0.0",
     "@expo/eas-build-job": "24.5.0",
-    "@expo/eas-json": "24.5.0",
     "@expo/env": "^0.4.0",
     "@expo/logger": "24.0.0",
     "@expo/package-manager": "1.9.10",

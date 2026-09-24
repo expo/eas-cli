@@ -14,25 +14,6 @@ beforeEach(async () => {
   await fs.mkdirp('/project');
 });
 
-test('submit profiles use an explicit environment without modifying process.env', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      production: {
-        ios: { ascApiKeyPath: '$SUBMISSION_TEST_KEY_PATH', ascApiKeyId: '$SUBMISSION_TEST_KEY_ID' },
-      },
-    },
-  });
-  const originalEnv = { ...process.env };
-  const profile = await EasJsonUtils.getSubmitProfileAsync(
-    EasJsonAccessor.fromProjectPath('/project'),
-    Platform.IOS,
-    'production',
-    { SUBMISSION_TEST_KEY_PATH: 'secrets/key.p8', SUBMISSION_TEST_KEY_ID: 'KEY123' }
-  );
-  expect(profile).toMatchObject({ ascApiKeyPath: 'secrets/key.p8', ascApiKeyId: 'KEY123' });
-  expect(process.env).toEqual(originalEnv);
-});
-
 test('minimal allowed eas.json for both platforms', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
