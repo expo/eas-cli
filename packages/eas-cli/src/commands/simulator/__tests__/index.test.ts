@@ -618,6 +618,40 @@ describe(Simulator, () => {
     );
   });
 
+  it('forwards --build-fingerprint to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '  4b1f2c9e7a3d  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d' })
+    );
+  });
+
+  it('accepts launch options with --build-fingerprint', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      '--open-url',
+      'exp://example.test',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d', openUrl: 'exp://example.test' })
+    );
+  });
+
   it('forwards --application-archive-url to the create mutation', async () => {
     const { command } = createCommand([
       '--platform',
@@ -813,6 +847,25 @@ describe(Simulator, () => {
 
   it.each([
     ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
+  ])('rejects passing --build-fingerprint with %s', async (sourceFlag, sourceValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      sourceFlag,
+      sourceValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--build-fingerprint', '4b1f2c9e7a3d'],
     ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
   ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
     const { command } = createCommand([
