@@ -250,8 +250,16 @@ async function syncScreenshotSetAsync(
 
   // Reorder screenshots to match config order
   if (screenshotIdsToKeep.length > 0) {
+    // `AppScreenshotSet.infoAsync` from @expo/apple-utils does not pass an
+    // `includes` query by default, so the App Store Connect API responds
+    // without `relationships.appScreenshots.data` and `attributes.appScreenshots`
+    // ends up undefined. We must request `appScreenshots` explicitly, otherwise
+    // the reorder check below sees an empty list and silently skips the PATCH —
+    // which is how a partial run can leave the live store with a stale order
+    // even though every (filename, fileSize) pair already matches the config.
     const refreshedSet = await AppScreenshotSet.infoAsync(localization.context, {
       id: screenshotSet.id,
+      query: { includes: ['appScreenshots'] },
     });
     const refreshedScreenshots = refreshedSet.attributes.appScreenshots || [];
     const screenshotsByFilename = new Map<string, AppScreenshot>();
