@@ -79,8 +79,10 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: {
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
           previewUrl: 'https://expo.dev/simulator-preview/preview-id',
           previewApiUrl: 'https://web-preview.example.test',
+          webPreviewToken: 'tok-1',
           previewToken: 'tok-1',
         },
       })
@@ -109,6 +111,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       ctx,
       deviceRunSessionId: 'device-run-session-id',
       remoteConfig: {
+        webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
         previewUrl: 'https://expo.dev/simulator-preview/preview-id',
         previewApiUrl: 'https://web-preview.example.test',
       },

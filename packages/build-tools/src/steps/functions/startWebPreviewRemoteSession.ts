@@ -88,10 +88,16 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           signal,
           ctx,
           deviceRunSessionId,
+          // WEB_PREVIEW_ONLY sessions read webPreviewUrl and webPreviewToken. Legacy SERVE_SIM
+          // sessions read previewUrl and previewToken. The server drops the keys that the
+          // session type does not use.
           remoteConfig: {
+            webPreviewUrl: webPreview.previewPageUrl,
             previewUrl: webPreview.previewPageUrl,
             previewApiUrl: webPreview.apiUrl,
-            ...(webPreview.previewToken ? { previewToken: webPreview.previewToken } : {}),
+            ...(webPreview.previewToken
+              ? { webPreviewToken: webPreview.previewToken, previewToken: webPreview.previewToken }
+              : {}),
           },
           logger,
         });
