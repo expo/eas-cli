@@ -9,13 +9,14 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
 
   constructor(
     projectDir: string,
-    private readonly platform: T
+    private readonly platform: T,
+    private readonly profileName?: string
   ) {
     this.easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   }
 
   async runAsync(): Promise<BuildProfile<T>> {
-    const profileName = await this.getProfileNameFromEasConfigAsync();
+    const profileName =  this.profileName ? this.profileName : await this.getProfileNameFromEasConfigAsync();
     const easConfig = await EasJsonUtils.getBuildProfileAsync<T>(
       this.easJsonAccessor,
       this.platform,

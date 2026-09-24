@@ -16,16 +16,19 @@ export class SelectPlatform {
     public readonly analytics: Analytics,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
     public readonly getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
-    private readonly flagPlatform?: string
+    private readonly options: {
+      flagPlatform?: string;
+      flagProfileName?: string;
+    }
   ) {}
 
   async runAsync(): Promise<void> {
-    const platform = await selectPlatformWithExitOptionAsync(this.flagPlatform);
+    const platform = await selectPlatformWithExitOptionAsync(this.options.flagPlatform);
 
     if (platform === 'ios') {
       await new ManageIos(this, process.cwd()).runAsync();
       return;
     }
-    await new ManageAndroid(this, process.cwd()).runAsync();
+    await new ManageAndroid(this, process.cwd(), this.options.flagProfileName).runAsync();
   }
 }
