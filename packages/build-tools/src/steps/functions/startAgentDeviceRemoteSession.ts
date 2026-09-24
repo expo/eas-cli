@@ -41,6 +41,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
+import { parseNetworkCaptureInputs } from '../utils/networkCaptureFields';
 
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
@@ -69,6 +70,16 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'network_capture',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
+        id: 'network_capture_fields',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_idle_time_minutes',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -93,6 +104,13 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const { runtimePlatform } = global;
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform }
+      );
       const launch = parseServeSimLaunchInputs(
         {
           launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
@@ -146,6 +164,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
+          networkCapture,
+          networkCaptureFields,
         });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`

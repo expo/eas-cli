@@ -33,6 +33,7 @@ import {
   websiteOrigin,
   websiteOriginServeSimArgs,
 } from '../remoteDeviceRunSession';
+import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
@@ -378,6 +379,89 @@ describe(createServeSimArgs, () => {
     const args = createServeSimArgs({ port: 4321 });
     expect(args.some(argument => argument.startsWith('--launch'))).toBe(false);
     expect(args).not.toContain('--open-url');
+  });
+
+  it('omits --network-capture by default', () => {
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
+      '--network-capture'
+    );
+  });
+
+  it('appends --network-capture when enabled', () => {
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).toContain('--network-capture');
+  });
+
+  it('enables the networkCapture capability so capture attaches to the already-booted simulator', () => {
+    const args = createServeSimArgs({ port: 4321, networkCapture: true });
+    expect(args[args.indexOf('--enable') + 1]).toBe('networkCapture');
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('networkCapture');
+  });
+
+  it('repeats --network-capture-field once per requested field', () => {
+    expect(
+      createServeSimArgs({
+        port: 4321,
+        networkCapture: true,
+        networkCaptureFields: ['header', 'query'],
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        '--network-capture',
+        '--network-capture-field',
+        'header',
+        '--network-capture-field',
+        'query',
+      ])
+    );
+  });
+
+  it('keeps capture metadata-only when no field is requested', () => {
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).not.toContain(
+      '--network-capture-field'
+    );
+  });
+
+  it('rejects network capture on a runtime that has no serve-sim', () => {
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCapture: true },
+        { runtimePlatform: BuildRuntimePlatform.LINUX }
+      )
+    ).toThrow('this session runs on linux');
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toThrow('needs "network_capture: true"');
+    expect(parseNetworkCaptureInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
+      networkCapture: false,
+      networkCaptureFields: [],
+    });
+    expect(
+      parseNetworkCaptureInputs(
+        { networkCapture: true, networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toEqual({ networkCapture: true, networkCaptureFields: ['header'] });
+  });
+
+  it('rejects a step input that is not an array of strings', () => {
+    // A JSON step input is whatever the workflow author wrote, so the shape has to be checked.
+    expect(() => parseNetworkCaptureFieldsInput('header,query')).toThrow(UserError);
+    expect(() => parseNetworkCaptureFieldsInput('header,query')).toThrow(
+      /must be an array of strings/
+    );
+    expect(() => parseNetworkCaptureFieldsInput([1, 2])).toThrow(UserError);
+    expect(parseNetworkCaptureFieldsInput(undefined)).toEqual([]);
+    expect(parseNetworkCaptureFieldsInput(['header'])).toEqual(['header']);
+  });
+
+  it('does not pass fields when capture itself is off', () => {
+    expect(
+      createServeSimArgs({ port: 4321, networkCapture: false, networkCaptureFields: ['header'] })
+    ).not.toContain('--network-capture-field');
   });
 });
 

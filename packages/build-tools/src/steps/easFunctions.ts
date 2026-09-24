@@ -19,6 +19,7 @@ import { generateGymfileFromTemplateFunction } from './functions/generateGymfile
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallMitmproxyBuildFunction } from './functions/installMitmproxy';
 import { createInstallBuildFunction } from './functions/installBuild';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
@@ -114,6 +115,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
+    createInstallMitmproxyBuildFunction(),
 
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),

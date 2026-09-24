@@ -751,12 +751,16 @@ export function createServeSimArgs({
   launchAppIdentifier,
   launchArgs = [],
   openUrl,
+  networkCapture = false,
+  networkCaptureFields = [],
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -783,6 +787,15 @@ export function createServeSimArgs({
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
     ...(openUrl ? ['--open-url', openUrl] : []),
+    // Repeated, not comma-joined, so serve-sim's error names the bad value.
+    ...(networkCapture
+      ? [
+          '--network-capture',
+          '--enable',
+          'networkCapture',
+          ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
+        ]
+      : []),
   ];
 }
 
@@ -988,12 +1001,16 @@ export async function startServeSimWithTunnelAsync(
     launchAppIdentifier,
     launchArgs,
     openUrl,
+    networkCapture = false,
+    networkCaptureFields = [],
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
   const websiteArgs = websiteOriginServeSimArgs(env);
@@ -1014,6 +1031,8 @@ export async function startServeSimWithTunnelAsync(
         launchAppIdentifier,
         launchArgs,
         openUrl,
+        networkCapture,
+        networkCaptureFields,
       }),
     readPreviewTokenAsync: async device => {
       const previewToken = await readServeSimPreviewTokenAsync(device);
@@ -1079,6 +1098,8 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
@@ -1092,6 +1113,12 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     case BuildRuntimePlatform.LINUX:
       // Unreachable from the three step functions, which reject a non-Darwin launch while
       // parsing. Kept because this function is exported and expo-device-hub cannot launch.
+      if (options.networkCapture) {
+        throw new UserError(
+          'EAS_NETWORK_CAPTURE_INVALID_INPUT',
+          `Cannot record network traffic: capture runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
+        );
+      }
       if (launchAppIdentifier) {
         throw new UserError(
           'EAS_LAUNCH_APPLICATION_INVALID_INPUT',

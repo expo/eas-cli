@@ -104,6 +104,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
+      networkCapture: false,
+      networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
@@ -135,6 +137,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'launch_args',
       'open_url',
       'package_version',
+      'network_capture',
+      'network_capture_fields',
       'max_duration_seconds',
     ]);
   });
@@ -158,6 +162,15 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'serve-sim will launch host.exp.Exponent with arguments ' +
         '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
     );
+  });
+
+  it('fails before starting anything when network capture is asked for on Android', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.LINUX, {
+        network_capture: { value: true },
+      })
+    ).rejects.toThrow('this session runs on linux');
+    expect(startDeviceWebPreviewWithTunnelAsync).not.toHaveBeenCalled();
   });
 
   it('fails before starting anything when a launch is asked for on Android', async () => {
