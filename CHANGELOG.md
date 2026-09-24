@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Stream iOS Simulator previews at 1600px and 10 Mbps. ([#4439](https://github.com/expo/eas-cli/pull/4439) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add the `DeviceRunSession.Job` payload for EAS Simulator sessions. ([#4412](https://github.com/expo/eas-cli/pull/4412) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Add a device run session runner that plans EAS Simulator sessions as a task graph, so device-independent work overlaps the boot. ([#4413](https://github.com/expo/eas-cli/pull/4413) by [@szdziedzic](https://github.com/szdziedzic))
+- [worker] Run `DeviceRunSession.Job` payloads with the device run session runner. ([#4414](https://github.com/expo/eas-cli/pull/4414) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
