@@ -13,6 +13,7 @@ import { vol } from 'memfs';
 import { createMockLogger } from './utils/logger';
 import { BuildContext } from '../context';
 import { Datadog } from '../datadog';
+import { getWorkflowInterpolationContext } from '../utils/workflowInterpolationContext';
 
 jest.mock('fs');
 jest.mock('fs-extra');
@@ -134,7 +135,7 @@ describe('BuildContext', () => {
 
     ctx.updateJobInformation({} as Job, {} as Metadata);
 
-    expect(ctx.job.workflowInterpolationContext).toEqual({
+    expect(getWorkflowInterpolationContext(ctx.job)).toEqual({
       foo: 'bar',
     });
   });

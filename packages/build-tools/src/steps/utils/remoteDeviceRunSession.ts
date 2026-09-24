@@ -476,10 +476,14 @@ export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): stri
  */
 export async function fetchWebPreviewTurnArgsAsync(
   ctx: CustomBuildContext,
-  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+  {
+    env,
+    logger,
+    deviceRunSessionId: deviceRunSessionIdOption,
+  }: { env: BuildStepEnv; logger: bunyan; deviceRunSessionId?: string }
 ): Promise<string[]> {
   try {
-    const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+    const deviceRunSessionId = deviceRunSessionIdOption ?? getDeviceRunSessionIdOrThrow(env);
     const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
     const robotAccessToken = nullthrows(
       ctx.job.secrets?.robotAccessToken,
@@ -905,6 +909,8 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec,
     createArgs,
     readPreviewTokenAsync,
+    deviceRunSessionId,
+    turnArgs: turnArgsOption,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -914,12 +920,17 @@ async function startWebPreviewWithTunnelAsync(
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[], previewPageUrl: string) => string[];
     readPreviewTokenAsync?: (device: string) => Promise<string>;
+    deviceRunSessionId?: string;
+    /** Pre-fetched TURN args; when set, no www request is made here. */
+    turnArgs?: string[];
   }
 ): Promise<DeviceWebPreviewHandle> {
   const subdomainId = randomBytes(16).toString('hex');
   const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
   const port = await findAvailablePortAsync();
-  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const turnArgs =
+    turnArgsOption ??
+    (await fetchWebPreviewTurnArgsAsync(ctx, { env, logger, deviceRunSessionId }));
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     createArgs(port, turnArgs, previewPageUrl)
@@ -977,6 +988,18 @@ export async function readServeSimPreviewTokenAsync(
   return servers.find(server => server.udid === udid)?.token;
 }
 
+export type WebPreviewStartOptions = {
+  baseDomain: string;
+  env: BuildStepEnv;
+  logger: bunyan;
+  timeoutMs: number;
+  packageVersion?: string;
+  /** Session id to use for www calls; defaults to the DEVICE_RUN_SESSION_ID env contract. */
+  deviceRunSessionId?: string;
+  /** Pre-fetched TURN args; when set, no www request is made here. */
+  turnArgs?: string[];
+};
+
 export async function startServeSimWithTunnelAsync(
   ctx: CustomBuildContext,
   {
@@ -985,16 +1008,12 @@ export async function startServeSimWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
+    deviceRunSessionId,
+    turnArgs,
     launchAppIdentifier,
     launchArgs,
     openUrl,
-  }: {
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  } & ServeSimLaunchOptions
+  }: WebPreviewStartOptions & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
   const websiteArgs = websiteOriginServeSimArgs(env);
   return await startWebPreviewWithTunnelAsync(ctx, {
@@ -1002,6 +1021,8 @@ export async function startServeSimWithTunnelAsync(
     env,
     logger,
     timeoutMs,
+    deviceRunSessionId,
+    turnArgs,
     serverName: 'serve-sim',
     packageSpec: createServeSimPackageSpec(packageVersion),
     createArgs: (port, turnArgs, previewPageUrl) =>
@@ -1041,14 +1062,9 @@ export async function startExpoDeviceHubWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
-  }: {
-    runtimePlatform: BuildRuntimePlatform;
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  }
+    deviceRunSessionId,
+    turnArgs,
+  }: WebPreviewStartOptions & { runtimePlatform: BuildRuntimePlatform }
 ): Promise<DeviceWebPreviewHandle> {
   if (runtimePlatform === BuildRuntimePlatform.LINUX) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
@@ -1058,6 +1074,8 @@ export async function startExpoDeviceHubWithTunnelAsync(
     env,
     logger,
     timeoutMs,
+    deviceRunSessionId,
+    turnArgs,
     serverName: 'expo-device-hub',
     packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
     createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
@@ -1072,14 +1090,7 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     launchArgs,
     openUrl,
     ...options
-  }: {
-    runtimePlatform: BuildRuntimePlatform;
-    baseDomain: string;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-  } & ServeSimLaunchOptions
+  }: WebPreviewStartOptions & ServeSimLaunchOptions & { runtimePlatform: BuildRuntimePlatform }
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
     case BuildRuntimePlatform.DARWIN:

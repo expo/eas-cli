@@ -31,6 +31,7 @@ export { parseGradleProfile, formatGradleProfileReport } from './android/gradleP
 export type { GradleProfileTask } from './android/gradleProfile';
 
 export * from './generic';
+export { runDeviceRunSessionJobAsync } from './deviceRunSession';
 
 export { Datadog } from './datadog';
 export { Sentry } from './sentry';

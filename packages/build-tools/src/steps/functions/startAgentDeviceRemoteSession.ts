@@ -109,29 +109,16 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      logger.info('Launching agent-device daemon.');
-      const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
-
-      logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
-        daemonProcess,
-      });
-      logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
-
-      const agentDeviceTunnel = await startNgrokTunnelAsync({
-        port: daemonPort,
-        subdomainPrefix: 'agent-device',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
+      const controller = await startAgentDeviceControllerAsync(ctx, {
+        deviceRunSessionId,
+        packageVersion,
+        ngrokTunnelDomain,
+        ngrokAuthtoken,
+        env,
         logger,
       });
-      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
-      logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
       let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
-      let eventCollection:
-        | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
-        | undefined;
       try {
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
@@ -157,25 +144,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           remoteConfig: {
-            agentDeviceRemoteSessionUrl,
-            agentDeviceRemoteSessionToken: daemonToken,
+            ...controller.remoteConfig,
             webPreviewUrl: webPreview.previewPageUrl,
             previewApiUrl: webPreview.apiUrl,
             ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
           },
-          logger,
-        });
-        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
-          deviceRunSessionId,
-          daemonUrl: `http://127.0.0.1:${daemonPort}`,
-          daemonToken,
-          logger,
-        });
-
-        eventCollection = await startAgentDeviceEventCollectionAsync({
-          ctx,
-          deviceRunSessionId,
-          stateDir: AGENT_DEVICE_STATE_DIR,
           logger,
         });
 
@@ -189,7 +162,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
               ? {
                   maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastEventObservedAt: controller.getLastEventObservedAt,
                 }
               : undefined,
         });
@@ -197,18 +170,114 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         if (webPreview) {
           await webPreview.stopAsync();
         }
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
-            deviceRunSessionId,
-            logger,
-          });
-        }
-        await daemonProcess.stopAsync();
+        await controller.stopAsync();
       }
     }),
   });
+}
+
+export type AgentDeviceControllerHandle = {
+  remoteConfig: {
+    agentDeviceRemoteSessionUrl: string;
+    agentDeviceRemoteSessionToken: string;
+  };
+  /** Local port the daemon listens on. */
+  daemonPort: number;
+  /** Arrival time of the newest collected session event, for idle detection. */
+  getLastEventObservedAt: () => Date | undefined;
+  /** Closes the tunnel, stops event collection, and stops the daemon. */
+  stopAsync: () => Promise<void>;
+};
+
+/**
+ * Starts the agent-device daemon, exposes it through an ngrok tunnel, and starts
+ * artifact and event collection for the session. Shared by the
+ * `eas/start_agent_device_remote_session` step and the device run session runner.
+ */
+export async function startAgentDeviceControllerAsync(
+  ctx: CustomBuildContext,
+  {
+    deviceRunSessionId,
+    packageVersion,
+    ngrokTunnelDomain,
+    ngrokAuthtoken,
+    env,
+    logger,
+  }: {
+    deviceRunSessionId: string;
+    packageVersion: string | undefined;
+    ngrokTunnelDomain: string;
+    ngrokAuthtoken: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+  }
+): Promise<AgentDeviceControllerHandle> {
+  logger.info('Launching agent-device daemon.');
+  const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
+
+  let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+  let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
+  try {
+    logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
+    const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
+      daemonProcess,
+    });
+    logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
+
+    agentDeviceTunnel = await startNgrokTunnelAsync({
+      port: daemonPort,
+      subdomainPrefix: 'agent-device',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      logger,
+    });
+    const tunnel = agentDeviceTunnel;
+    logger.info(`Tunnel is ready at ${tunnel.url}.`);
+
+    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId,
+      daemonUrl: `http://127.0.0.1:${daemonPort}`,
+      daemonToken,
+      logger,
+    });
+
+    eventCollection = await startAgentDeviceEventCollectionAsync({
+      ctx,
+      deviceRunSessionId,
+      stateDir: AGENT_DEVICE_STATE_DIR,
+      logger,
+    });
+    const collection = eventCollection;
+
+    return {
+      remoteConfig: {
+        agentDeviceRemoteSessionUrl: tunnel.url,
+        agentDeviceRemoteSessionToken: daemonToken,
+      },
+      daemonPort,
+      getLastEventObservedAt: collection.getLastEventObservedAt,
+      stopAsync: async () => {
+        await tunnel.stopAsync();
+        await stopAgentDeviceEventCollectionSafelyAsync({
+          eventCollection: collection,
+          deviceRunSessionId,
+          logger,
+        });
+        await daemonProcess.stopAsync();
+      },
+    };
+  } catch (error) {
+    await agentDeviceTunnel?.stopAsync();
+    if (eventCollection) {
+      await stopAgentDeviceEventCollectionSafelyAsync({
+        eventCollection,
+        deviceRunSessionId,
+        logger,
+      });
+    }
+    await daemonProcess.stopAsync();
+    throw error;
+  }
 }
 
 export async function startAgentDeviceDaemonAsync({
@@ -385,7 +454,7 @@ async function getBunVersionForDiagnosticsAsync(env: BuildStepEnv): Promise<stri
   }
 }
 
-function createAgentDevicePackageSpec(packageVersion: string | undefined): string {
+export function createAgentDevicePackageSpec(packageVersion: string | undefined): string {
   const versionSpec = packageVersion ? packageVersion.replace(/^v(?=\d)/, '') : 'latest';
   return `${AGENT_DEVICE_PACKAGE_NAME}@${versionSpec}`;
 }

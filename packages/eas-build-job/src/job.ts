@@ -2,11 +2,12 @@ import Joi from 'joi';
 
 import * as Android from './android';
 import { Platform } from './common';
+import { DeviceRunSession } from './deviceRunSessionJob';
 import { Generic } from './generic';
 import * as Ios from './ios';
 
 export type BuildJob = Android.Job | Ios.Job;
-export type Job = BuildJob | Generic.Job;
+export type Job = BuildJob | Generic.Job | DeviceRunSession.Job;
 
 export const JobSchema = Joi.object<BuildJob>({
   platform: Joi.string()
