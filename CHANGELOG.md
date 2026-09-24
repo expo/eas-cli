@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop spinners from printing their text over and over after the terminal is resized. ([#4473](https://github.com/expo/eas-cli/pull/4473) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
