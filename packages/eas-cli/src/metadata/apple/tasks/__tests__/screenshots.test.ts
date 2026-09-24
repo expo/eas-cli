@@ -27,6 +27,8 @@ jest.spyOn(fs, 'existsSync').mockReturnValue(true);
 jest.spyOn(fs, 'statSync').mockReturnValue({ size: 1024 } as any);
 jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
 jest.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined);
+// Default: pretend the local file differs so downloads write as before.
+jest.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.from('existing-local-file'));
 
 describe(ScreenshotsTask, () => {
   beforeEach(() => {
@@ -164,6 +166,64 @@ describe(ScreenshotsTask, () => {
         } as any,
       });
 
+      expect(writer.setScreenshots).toBeCalledWith('en-US', {
+        [ScreenshotDisplayType.APP_IPHONE_67]: [
+          'store/apple/screenshot/en-US/APP_IPHONE_67/home.png',
+        ],
+      });
+    });
+
+    it('skips rewriting a local screenshot that differs only in volatile PNG metadata', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      const pngChunk = (type: string, data: Buffer): Buffer => {
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(data.length);
+        return Buffer.concat([length, Buffer.from(type, 'latin1'), data, Buffer.alloc(4)]);
+      };
+      const pngWith = (metadata: string): Buffer =>
+        Buffer.concat([
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+          pngChunk('IHDR', Buffer.alloc(13, 1)),
+          pngChunk('iTXt', Buffer.from(metadata)),
+          pngChunk('IDAT', Buffer.from('same-pixel-data')),
+          pngChunk('IEND', Buffer.alloc(0)),
+        ]);
+
+      // Same pixels, different App Store Connect asset ID in the iTXt chunk.
+      jest.mocked(fs.promises.readFile).mockResolvedValueOnce(pngWith('asset-id-AAAA'));
+      mockFetch.mockResolvedValue({
+        ok: true,
+        buffer: () => Promise.resolve(pngWith('asset-id-BBBB')),
+      });
+
+      const screenshot = new AppScreenshot(requestContext, 'SS_1', {
+        fileName: 'home.png',
+        fileSize: 1024,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+      jest.spyOn(screenshot, 'getImageAssetUrl').mockReturnValue('https://example.com/home.png');
+
+      const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
+      displayTypeMap.set(
+        ScreenshotDisplayType.APP_IPHONE_67,
+        new AppScreenshotSet(requestContext, 'SET_1', {
+          screenshotDisplayType: ScreenshotDisplayType.APP_IPHONE_67,
+          appScreenshots: [screenshot],
+        } as any)
+      );
+      const screenshotSets = new Map([['en-US', displayTypeMap]]);
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      await new ScreenshotsTask().downloadAsync({
+        config: writer,
+        context: { screenshotSets, versionLocales: [locale], projectDir: '/test/project' } as any,
+      });
+
+      // The file on disk is untouched, but the config entry is still written.
+      expect(fs.promises.writeFile).not.toBeCalled();
       expect(writer.setScreenshots).toBeCalledWith('en-US', {
         [ScreenshotDisplayType.APP_IPHONE_67]: [
           'store/apple/screenshot/en-US/APP_IPHONE_67/home.png',
