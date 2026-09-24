@@ -102,7 +102,7 @@ it('reports a failed primary query separately from a missing identity', async ()
 
 it('does not let a passing codesigning probe bypass the existing gate', async () => {
   outputs('', `SHA-1 hash: ${fingerprint}`, identity, identity);
-  await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('basic policy');
+  await expect(ensureCertificateImportedAsync(options)).rejects.toThrow('signing test');
   expect(logError).toHaveBeenCalledWith(
     expect.objectContaining({ codesigningValid: true }),
     expect.any(String)
@@ -135,4 +135,30 @@ it('preserves guidance in the external build error without retaining raw probe e
   expect(failure.metadata.identityPresent).toBeNull();
   expect(failure.cause).toBeUndefined();
   expect(JSON.stringify(failure)).not.toContain('private output');
+});
+
+it('preserves safe query failure details in logs and the external error', async () => {
+  outputs(
+    Object.assign(new Error('private output'), { code: 'ENOENT' }),
+    Object.assign(new Error('private output'), { status: 1, signal: null }),
+    Object.assign(new Error('private output'), { status: null, signal: 'SIGTERM' }),
+    Object.assign(new Error('private output'), {
+      status: 'private output',
+      signal: 'private output',
+      code: 'private output',
+    })
+  );
+  const failure = await ensureCertificateImportedAsync(options).catch(error => error);
+  const queryFailures = [
+    { query: 'validIdentity', exitStatus: null, signal: null, code: 'ENOENT' },
+    { query: 'certificate', exitStatus: 1, signal: null, code: null },
+    { query: 'identity', exitStatus: null, signal: 'SIGTERM', code: null },
+    { query: 'codesigningIdentity', exitStatus: null, signal: null, code: null },
+  ];
+  expect(failure.metadata.queryFailures).toEqual(queryFailures);
+  expect(logError).toHaveBeenCalledWith(
+    expect.objectContaining({ queryFailures }),
+    expect.stringContaining(JSON.stringify(queryFailures))
+  );
+  expect(JSON.stringify([failure, logError.mock.calls])).not.toContain('private output');
 });
