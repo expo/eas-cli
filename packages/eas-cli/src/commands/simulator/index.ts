@@ -87,17 +87,22 @@ export default class Simulator extends EasCommand {
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
-      exclusive: ['application-archive-url', 'expo-go'],
+      exclusive: ['build-fingerprint', 'application-archive-url', 'expo-go'],
+    }),
+    'build-fingerprint': Flags.string({
+      description:
+        'Fingerprint hash of an EAS Build to install and launch before the simulator session is ready. Uses the most recent finished build with this fingerprint that can be installed on the simulator.',
+      exclusive: ['build-id', 'application-archive-url', 'expo-go'],
     }),
     'application-archive-url': Flags.string({
       description:
         'Application archive URL to download, install, and launch before the simulator session is ready.',
-      exclusive: ['build-id', 'expo-go'],
+      exclusive: ['build-id', 'build-fingerprint', 'expo-go'],
     }),
     'expo-go': Flags.boolean({
       description:
         "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
-      exclusive: ['build-id', 'application-archive-url'],
+      exclusive: ['build-id', 'build-fingerprint', 'application-archive-url'],
     }),
     'sdk-version': Flags.string({
       description:
@@ -203,6 +208,7 @@ export default class Simulator extends EasCommand {
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
+    const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
@@ -217,11 +223,12 @@ export default class Simulator extends EasCommand {
     if (
       (launchArgs?.length || openUrl) &&
       !buildId &&
+      !buildFingerprint &&
       !applicationArchiveUrlFromFlag &&
       !flags['expo-go']
     ) {
       throw new EasCommandError(
-        'Launch options require an application source. Pass --build-id, --application-archive-url, or --expo-go.'
+        'Launch options require an application source. Pass --build-id, --build-fingerprint, --application-archive-url, or --expo-go.'
       );
     }
 
@@ -281,6 +288,7 @@ export default class Simulator extends EasCommand {
             : { android: { deviceIdentifier } }
           : {}),
         ...(buildId ? { buildId } : {}),
+        ...(buildFingerprint ? { buildFingerprint } : {}),
         ...(applicationArchiveUrlFromFlag
           ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
           : {}),
