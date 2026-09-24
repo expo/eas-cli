@@ -1,12 +1,20 @@
-import { getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import { getConfig, getConfigFilePaths, getPackageJson, modifyConfigAsync } from '@expo/config';
 import JsonFile from '@expo/json-file';
 import { writeFileSync } from 'fs-extra';
+import resolveFrom from 'resolve-from';
 
-import { createOrModifyExpoConfigAsync } from '../expoConfig';
+import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../expoConfig';
+import { isExpoInstalled } from '../projectUtils';
 
 jest.mock('fs-extra');
 jest.mock('@expo/config');
 jest.mock('@expo/json-file');
+jest.mock('resolve-from', () => {
+  const resolveFrom: any = jest.fn();
+  resolveFrom.silent = jest.fn();
+  return resolveFrom;
+});
+jest.mock('../projectUtils');
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -45,6 +53,36 @@ describe('expoConfig', () => {
 
       await createOrModifyExpoConfigAsync('/app', { owner: 'ccheever' });
       expect(modifyConfigAsync).toHaveBeenCalledWith('/app', { owner: 'ccheever' });
+    });
+  });
+
+  describe('getPrivateExpoConfigAsync when Expo CLI is not resolvable', () => {
+    beforeEach(() => {
+      jest.mocked(getConfigFilePaths).mockReturnValue({
+        staticConfigPath: '/app/app.json',
+        dynamicConfigPath: null,
+      });
+      jest.mocked(isExpoInstalled).mockReturnValue(false);
+    });
+
+    it('throws an actionable error when expo is declared in package.json but not installed', async () => {
+      jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
+      jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
+
+      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
+        /dependencies to be installed/
+      );
+      expect(getConfig).not.toHaveBeenCalled();
+    });
+
+    it('throws an actionable error when expo is not declared in package.json', async () => {
+      jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
+      jest.mocked(getPackageJson).mockReturnValue({ dependencies: {} } as any);
+
+      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
+        /The "expo" package was not found/
+      );
+      expect(getConfig).not.toHaveBeenCalled();
     });
   });
 });
