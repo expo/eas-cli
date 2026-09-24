@@ -197,6 +197,24 @@ const PackageJsonZ = z.object({
   devDependencies: z.record(z.string(), z.string()).optional(),
 });
 
+export function isPackageInPackageJson({
+  packageJson,
+  packageName,
+}: {
+  packageJson: unknown;
+  packageName: string;
+}): boolean {
+  const parsedPackageJson = PackageJsonZ.safeParse(packageJson);
+  if (!parsedPackageJson.success) {
+    return false;
+  }
+
+  return !!(
+    parsedPackageJson.data.dependencies?.[packageName] ??
+    parsedPackageJson.data.devDependencies?.[packageName]
+  );
+}
+
 export function getPackageVersionFromPackageJson({
   packageJson,
   packageName,
