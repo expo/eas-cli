@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
+import { ensureCertificateImportedAsync } from './validateCertificate';
 import { runFastlane } from '../fastlane';
 
 // Do not log raw fastlane output or spawn errors: they can contain passwords,
@@ -137,18 +138,20 @@ export default class Keychain {
   }
 
   public async ensureCertificateImported({
+    logger,
     teamId,
     fingerprint,
   }: {
+    logger?: bunyan;
     teamId: string;
     fingerprint: string;
   }): Promise<void> {
-    const identities = await this.findIdentitiesByTeamId(teamId);
-    if (!identities.includes(fingerprint)) {
-      throw new Error(
-        `Distribution certificate with fingerprint ${fingerprint} hasn't been imported successfully`
-      );
-    }
+    await ensureCertificateImportedAsync({
+      keychainPath: this.keychainPath,
+      teamId,
+      fingerprint,
+      logger,
+    });
   }
 
   public async destroy({
@@ -188,16 +191,5 @@ export default class Keychain {
     for (const turtleKeychainPath of turtleKeychainList) {
       await this.destroy({ logger, keychainPath: turtleKeychainPath });
     }
-  }
-
-  private async findIdentitiesByTeamId(teamId: string): Promise<string> {
-    const { output } = await spawn(
-      'security',
-      ['find-identity', '-v', '-s', `(${teamId})`, this.keychainPath],
-      {
-        stdio: 'pipe',
-      }
-    );
-    return output.join('');
   }
 }
