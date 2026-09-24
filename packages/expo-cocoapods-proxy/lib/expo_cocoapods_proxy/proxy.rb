@@ -17,6 +17,7 @@ module Pod
         %r{https?://(api\.)?github\.com/},
         %r{https?://sourceforge\.net/},
         %r{https?://repo1\.maven\.org/},
+        %r{https?://central\.sonatype\.com/},
         %r{https?://boostorg\.jfrog\.io/},
         %r{https?://www\.sqlite\.org/},
         %r{https?://download\.videolan\.org/},
