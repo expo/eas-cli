@@ -20,6 +20,15 @@ export default class MetadataPush extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
+    'skip-screenshots': Flags.boolean({
+      description: 'Skip uploading screenshots to the app stores',
+      default: false,
+    }),
+    'skip-previews': Flags.boolean({
+      description:
+        'Skip uploading video previews to the app stores. Video previews missing from the store config are not deleted from the app stores.',
+      default: false,
+    }),
     ...EASNonInteractiveFlag,
   };
 
@@ -80,6 +89,8 @@ export default class MetadataPush extends EasCommand {
         nonInteractive,
         graphqlClient,
         projectId,
+        skipScreenshots: flags['skip-screenshots'],
+        skipPreviews: flags['skip-previews'],
       });
 
       Log.addNewLineIfNone();
