@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Run `expo doctor` during builds when `expo` is listed in `devDependencies`, not only `dependencies`. ([#4469](https://github.com/expo/eas-cli/pull/4469) by [@keith-kurak](https://github.com/keith-kurak))
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] List `eas simulator` only once in `eas --help`. The `sim` shorthand is now a hidden alias, so it still runs but no longer duplicates the entry. ([#4457](https://github.com/expo/eas-cli/pull/4457) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 - [eas-cli] Fix `eas account:view` printing `Role: undefined` for the new Release Manager role. ([#4300](https://github.com/expo/eas-cli/pull/4300) by [@byronkarlen](https://github.com/byronkarlen))
