@@ -41,6 +41,16 @@ export function ora(options?: Options | string): Ora {
   const oraStart = spinner.start.bind(spinner);
   const oraStop = spinner.stop.bind(spinner);
   const oraStopAndPersist = spinner.stopAndPersist.bind(spinner);
+  const oraRender = spinner.render.bind(spinner);
+
+  spinner.render = (): Ora => {
+    // ora only recalculates how many terminal lines the text wraps to when the text changes.
+    // After the terminal is resized, the stale count makes every frame clear too few lines,
+    // so the spinner text gets printed over and over. Setting the text recalculates the count.
+    const { text } = spinner;
+    spinner.text = text;
+    return oraRender();
+  };
 
   const logWrap = (method: any, args: any[]): void => {
     oraStop();
