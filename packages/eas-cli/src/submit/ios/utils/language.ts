@@ -77,6 +77,10 @@ const LANGUAGES: Language[] = [
     itcLocale: 'ar-SA',
   },
   {
+    locale: 'bn-BD',
+    name: 'Bengali',
+  },
+  {
     locale: 'ca-ES',
     name: 'Catalan',
     itcLocale: 'ca',
@@ -148,6 +152,10 @@ const LANGUAGES: Language[] = [
     itcLocale: 'el',
   },
   {
+    locale: 'gu-IN',
+    name: 'Gujarati',
+  },
+  {
     locale: 'he',
     name: 'Hebrew',
     itcLocale: 'he',
@@ -183,6 +191,10 @@ const LANGUAGES: Language[] = [
     itcLocale: 'ja',
   },
   {
+    locale: 'kn-IN',
+    name: 'Kannada',
+  },
+  {
     locale: 'ko-KR',
     name: 'Korean',
     itcLocale: 'ko',
@@ -193,9 +205,21 @@ const LANGUAGES: Language[] = [
     itcLocale: 'ms',
   },
   {
+    locale: 'ml-IN',
+    name: 'Malayalam',
+  },
+  {
+    locale: 'mr-IN',
+    name: 'Marathi',
+  },
+  {
     locale: 'no-NO',
     name: 'Norwegian',
     itcLocale: 'no',
+  },
+  {
+    locale: 'or-IN',
+    name: 'Oriya',
   },
   {
     locale: 'pl-PL',
@@ -209,6 +233,10 @@ const LANGUAGES: Language[] = [
   {
     locale: 'pt-PT',
     name: 'Portuguese',
+  },
+  {
+    locale: 'pa-IN',
+    name: 'Punjabi',
   },
   {
     locale: 'ro-RO',
@@ -235,9 +263,21 @@ const LANGUAGES: Language[] = [
     itcLocale: 'sk',
   },
   {
+    locale: 'sl-SI',
+    name: 'Slovenian',
+  },
+  {
     locale: 'sv-SE',
     name: 'Swedish',
     itcLocale: 'sv',
+  },
+  {
+    locale: 'ta-IN',
+    name: 'Tamil',
+  },
+  {
+    locale: 'te-IN',
+    name: 'Telugu',
   },
   {
     locale: 'th-TH',
@@ -253,6 +293,10 @@ const LANGUAGES: Language[] = [
     locale: 'uk-UA',
     name: 'Ukrainian',
     itcLocale: 'uk',
+  },
+  {
+    locale: 'ur-PK',
+    name: 'Urdu',
   },
   {
     locale: 'vi-VI',
