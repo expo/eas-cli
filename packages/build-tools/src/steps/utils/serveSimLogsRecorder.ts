@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { Sentry } from '../../sentry';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 // Require user-app scope acknowledgement; replay cursors avoid duplicate records

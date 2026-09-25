@@ -2,12 +2,14 @@ import { type bunyan } from '@expo/logger';
 import { type BuildStepContext, type BuildStepEnv } from '@expo/steps';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { getDeviceRunSessionIdOrThrow } from '../../utils/remoteDeviceRunSession';
 import { uploadServeSimLogsFileAsync } from '../../utils/serveSimLogsArtifacts';
 import { ServeSimLogsRecorder } from '../../utils/serveSimLogsRecorder';
 import { createCollectServeSimLogsBuildFunction } from '../collectServeSimLogs';
 import { createStartServeSimLogsBuildFunction } from '../startServeSimLogs';
 
+jest.mock('../../../sentry');
 jest.mock('../../utils/serveSimLogsRecorder');
 jest.mock('../../utils/serveSimLogsArtifacts');
 jest.mock('../../utils/remoteDeviceRunSession');
@@ -26,6 +28,10 @@ it('starts collection and tolerates startup failures', async () => {
   jest.mocked(ServeSimLogsRecorder.startAsync).mockRejectedValueOnce(new Error('disk failure'));
   await expect(createStartServeSimLogsBuildFunction().fn?.(step, args)).resolves.toBeUndefined();
   expect(logger.warn).toHaveBeenCalled();
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'Could not start serve-sim simulator logs',
+    expect.any(Error)
+  );
 });
 
 it('uploads each device with its own bounded signal', async () => {
@@ -57,4 +63,8 @@ it('skips empty collection and warns on finalization failure', async () => {
     createCollectServeSimLogsBuildFunction(ctx).fn?.(step, args)
   ).resolves.toBeUndefined();
   expect(logger.warn).toHaveBeenCalled();
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'Could not finalize serve-sim simulator logs',
+    expect.any(Error)
+  );
 });

@@ -1,6 +1,7 @@
 import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 import { uploadServeSimLogsFileAsync } from '../utils/serveSimLogsArtifacts';
 import { ServeSimLogsRecorder } from '../utils/serveSimLogsRecorder';
@@ -33,7 +34,12 @@ export function createCollectServeSimLogsBuildFunction(ctx: CustomBuildContext):
           });
         }
       } catch (err) {
-        logger.warn({ err }, 'Could not finalize simulator logs; the session result is unchanged.');
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sentry.capture('Could not finalize serve-sim simulator logs', error);
+        logger.warn(
+          { err: error },
+          'Could not finalize simulator logs; the session result is unchanged.'
+        );
       }
     },
   });

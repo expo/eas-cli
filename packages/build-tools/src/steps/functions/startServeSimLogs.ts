@@ -1,5 +1,6 @@
 import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
+import { Sentry } from '../../sentry';
 import { ServeSimLogsRecorder } from '../utils/serveSimLogsRecorder';
 
 export function createStartServeSimLogsBuildFunction(): BuildFunction {
@@ -13,8 +14,10 @@ export function createStartServeSimLogsBuildFunction(): BuildFunction {
       try {
         await ServeSimLogsRecorder.startAsync({ logger });
       } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sentry.capture('Could not start serve-sim simulator logs', error);
         logger.warn(
-          { err },
+          { err: error },
           'Could not start simulator log collection; the session will continue.'
         );
       }
