@@ -107,6 +107,8 @@ function buildMaestroArgs({
       return { executable: 'maestro', args };
     }
     case 'maestro-runner': {
+      // The runner writes every report format to one directory. output_format only
+      // selects which extra report artifact EAS uploads after the test.
       const args = [`--platform=${platform}`, 'test', `--output=${output}`, '--flatten'];
       if (shards !== undefined && shards > 1) {
         args.push(`--parallel=${shards}`);
@@ -213,23 +215,20 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
       const testsDirectory = path.join(home, '.maestro', 'tests');
       const junitReportDirectory = path.join(testsDirectory, 'junit-reports');
-      const finalReportPath =
-        outputFormat === 'junit'
-          ? path.join(testsDirectory, `${platform}-maestro-junit.xml`)
-          : undefined;
+      const junitFinalReportPath = path.join(testsDirectory, `${platform}-maestro-junit.xml`);
 
       // Public docs (EAS workflows pre-packaged-jobs) document
       // `${MAESTRO_TESTS_DIR}` for users to save screenshots/recordings into
       // the uploaded dir.
       const spawnEnv: NodeJS.ProcessEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
 
-      // Outputs are published BEFORE any throw below so downstream
-      // `if: always()` upload steps still see populated values when this
-      // step fails early.
+      // Publish known paths before backend validation so `if: always()` upload
+      // steps can use them after an early failure. final_report_path names the
+      // report selected by output_format, not every report the backend produces.
       outputs.tests_directory.set(testsDirectory);
       outputs.junit_report_directory.set(junitReportDirectory);
-      if (finalReportPath !== undefined) {
-        outputs.final_report_path.set(finalReportPath);
+      if (outputFormat === 'junit') {
+        outputs.final_report_path.set(junitFinalReportPath);
       }
 
       // Resolved after the output assignments above: an invalid backend input or
@@ -239,6 +238,16 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         input: inputs.backend.value,
         env,
       });
+      // The runner can write JUnit regardless of output_format; Maestro CLI only
+      // writes it when JUnit is selected. Either command may fail before it writes a file.
+      const mayHaveJUnitReports = backend === 'maestro-runner' || outputFormat === 'junit';
+      const maestroCliOutputPath =
+        backend === 'maestro' && outputFormat && outputFormat !== 'junit'
+          ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
+          : null;
+      if (backend === 'maestro' && outputFormat === 'html' && maestroCliOutputPath) {
+        outputs.final_report_path.set(maestroCliOutputPath);
+      }
 
       const flowPaths = parseInput(
         FlowPathSchema,
@@ -262,10 +271,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           undefined,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
-      if (backend === 'maestro-runner' && outputFormat !== undefined && outputFormat !== 'junit') {
+      if (
+        backend === 'maestro-runner' &&
+        outputFormat !== undefined &&
+        !['junit', 'html', 'allure'].includes(outputFormat)
+      ) {
         throw new UserError(
           'ERR_MAESTRO_INVALID_INPUT',
-          `maestro-runner only supports the "junit" output_format, but received "${outputFormat}".`
+          `maestro-runner supports "junit", "html", and "allure" output_format values, but received "${outputFormat}".`
         );
       }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
@@ -337,17 +350,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       for (let attempt = 0; attempt <= retries; attempt++) {
-        // maestro-runner writes its JUnit report and screenshot metadata to this directory.
+        // maestro-runner writes all report formats and screenshot metadata here.
         const runnerOutputDirectory = path.join(
           testsDirectory,
           `${platform}-maestro-runner-attempt-${attempt}`
         );
-        const outputPath =
-          outputFormat === 'junit'
-            ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
-            : backend === 'maestro' && outputFormat
-              ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
-              : null;
+        const outputPath = mayHaveJUnitReports
+          ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
+          : maestroCliOutputPath;
         const { executable, args: maestroArgs } = buildMaestroArgs({
           backend,
           platform,
@@ -412,10 +422,8 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           reportDirectories.push(runnerOutputDirectory);
         }
 
-        // Harvest this attempt's failure screenshots before any retry subsetting. Gated on
-        // junit: test-case-result rows (and therefore the summary icons) only exist for junit
-        // runs, so harvesting other formats would just create orphan artifacts the website hides.
-        if (outputFormat === 'junit') {
+        // Harvest failure screenshots before retry subsetting when JUnit results are available.
+        if (mayHaveJUnitReports) {
           let screenshots: HarvestedScreenshot[];
           switch (backend) {
             case 'maestro': {
@@ -504,14 +512,15 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         await sleepAsync(2000);
       }
 
-      // Smart merge first; on data errors (bad XML, missing input) fall back
-      // to copy-latest so the caller still gets a single JUnit file.
+      // Only JUnit is merged into final_report_path. Runner HTML/Allure keeps its
+      // per-attempt JUnit files, but final_report_path names the selected report.
+      // On data errors (bad XML, missing input), fall back to copy-latest.
       // Filesystem errors short-circuit straight to SystemError.
-      if (finalReportPath !== undefined) {
+      if (outputFormat === 'junit') {
         try {
           await mergeJUnitReports({
             sourceDir: junitReportDirectory,
-            outputPath: finalReportPath,
+            outputPath: junitFinalReportPath,
           });
         } catch (mergeErr: any) {
           if (isFilesystemError(mergeErr)) {
@@ -521,7 +530,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           try {
             await copyLatestAttemptXml({
               sourceDir: junitReportDirectory,
-              outputPath: finalReportPath,
+              outputPath: junitFinalReportPath,
             });
           } catch (copyErr: any) {
             // Swallow: a copy failure here usually means maestro itself failed
@@ -529,15 +538,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
             // the real reason and cancel billing for a user-side failure — let
             // the lastAttemptExitCode check below surface ERR_MAESTRO_TESTS_FAILED.
             logger.warn(
-              `Failed to produce final_report_path at ${finalReportPath}: ${copyErr?.message ?? copyErr}`
+              `Failed to produce final_report_path at ${junitFinalReportPath}: ${copyErr?.message ?? copyErr}`
             );
           }
         }
       }
 
-      // Upload before the ERR_MAESTRO_TESTS_FAILED throw below so fully-failed runs (which need
-      // screenshots most) still upload. Harvest only ran for junit, so guard the same way.
-      if (outputFormat === 'junit') {
+      // Upload before the failure verdict so fully-failed runs still get screenshots.
+      if (mayHaveJUnitReports) {
         await uploadFailureScreenshotsAsync({
           harvested,
           backend,
@@ -545,6 +553,81 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           ctx,
           logger,
         });
+      }
+
+      // Upload the selected non-JUnit report before the failure verdict. The pre-packaged
+      // job also uploads testsDirectory, but a named artifact makes the report easy to find.
+      let selectedReport:
+        | { name: string; artifactPath: string; finalReportPath: string }
+        | undefined;
+      switch (outputFormat) {
+        case 'html': {
+          switch (backend) {
+            case 'maestro': {
+              if (!maestroCliOutputPath) {
+                break;
+              }
+              selectedReport = {
+                name: 'Maestro HTML Report',
+                artifactPath: maestroCliOutputPath,
+                finalReportPath: maestroCliOutputPath,
+              };
+              break;
+            }
+            case 'maestro-runner': {
+              const reportDirectory = reportDirectories.at(-1);
+              if (!reportDirectory) {
+                break;
+              }
+              // HTML references nearby screenshots, so keep its whole attempt directory.
+              selectedReport = {
+                name: 'Maestro Runner HTML Report',
+                artifactPath: reportDirectory,
+                finalReportPath: path.join(reportDirectory, 'report.html'),
+              };
+              break;
+            }
+          }
+          break;
+        }
+        case 'allure': {
+          switch (backend) {
+            case 'maestro':
+              logger.warn(
+                'Maestro CLI does not support Allure reports; no Allure artifact was uploaded.'
+              );
+              break;
+            case 'maestro-runner': {
+              const reportDirectory = reportDirectories.at(-1);
+              if (!reportDirectory) {
+                break;
+              }
+              const allureResultsDirectory = path.join(reportDirectory, 'allure-results');
+              selectedReport = {
+                name: 'Maestro Runner Allure Results',
+                artifactPath: allureResultsDirectory,
+                finalReportPath: allureResultsDirectory,
+              };
+              break;
+            }
+          }
+          break;
+        }
+      }
+      if (selectedReport) {
+        outputs.final_report_path.set(selectedReport.finalReportPath);
+        try {
+          await ctx.runtimeApi.uploadArtifact({
+            artifact: {
+              type: GenericArtifactType.OTHER,
+              name: selectedReport.name,
+              paths: [selectedReport.artifactPath],
+            },
+            logger,
+          });
+        } catch (err: any) {
+          logger.warn({ err }, `Failed to upload ${selectedReport.name}.`);
+        }
       }
 
       // The retry loop exits via success (0), numeric status (retryable),

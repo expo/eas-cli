@@ -271,18 +271,121 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn.mock.calls[0][1]).toContain('--parallel=2');
   });
 
-  it('rejects a non-junit output_format with maestro-runner', async () => {
+  it.each(['html', 'allure'])(
+    'accepts %s output_format with maestro-runner and keeps JUnit',
+    async format => {
+      mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+      const copyFileSpy = jest.spyOn(fs, 'copyFile').mockResolvedValue();
+      const step = createStep({
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        backend: 'maestro-runner',
+        output_format: format,
+      });
+
+      await step.executeAsync();
+
+      expect(mockedSpawn.mock.calls[0][1]).toEqual(
+        expect.arrayContaining([
+          '--output=/home/expo/.maestro/tests/android-maestro-runner-attempt-0',
+        ])
+      );
+      expect(copyFileSpy).toHaveBeenCalledWith(
+        '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/junit-report.xml',
+        '/home/expo/.maestro/tests/junit-reports/android-maestro-junit-attempt-0.xml'
+      );
+      expect(parser.mergeJUnitReports).not.toHaveBeenCalled();
+      expect(step.getOutputValueByName('final_report_path')).toBe(
+        format === 'html'
+          ? '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/report.html'
+          : '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/allure-results'
+      );
+      expect(mockedRunnerHarvest).toHaveBeenCalledTimes(1);
+      expect(mockUploadArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifact: expect.objectContaining({
+            type: GenericArtifactType.OTHER,
+            name:
+              format === 'html' ? 'Maestro Runner HTML Report' : 'Maestro Runner Allure Results',
+            paths: [
+              format === 'html'
+                ? '/home/expo/.maestro/tests/android-maestro-runner-attempt-0'
+                : '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/allure-results',
+            ],
+          }),
+        })
+      );
+    }
+  );
+
+  it('does not expose a selected runner report before an attempt starts', async () => {
     const step = createStep({
-      flow_path: ['flows/a.yaml'],
+      flow_path: [],
       platform: 'android',
       backend: 'maestro-runner',
       output_format: 'html',
     });
 
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(step.getOutputValueByName('final_report_path')).toBeUndefined();
+    expect(step.getOutputValueByName('junit_report_directory')).toBe(
+      '/home/expo/.maestro/tests/junit-reports'
+    );
+  });
+
+  it('rejects an unknown output_format with maestro-runner', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'csv',
+    });
+
     await expect(step.executeAsync()).rejects.toThrow(
-      'maestro-runner only supports the "junit" output_format'
+      'maestro-runner supports "junit", "html", and "allure" output_format values'
     );
     expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('uploads the last runner HTML report even when the test fails', async () => {
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'html',
+      retries: 1,
+      retry_failed_only: false,
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.objectContaining({
+          name: 'Maestro Runner HTML Report',
+          paths: ['/home/expo/.maestro/tests/android-maestro-runner-attempt-1'],
+        }),
+      })
+    );
+    expect(step.getOutputValueByName('final_report_path')).toBe(
+      '/home/expo/.maestro/tests/android-maestro-runner-attempt-1/report.html'
+    );
+  });
+
+  it('does not fail a passing test when the runner report upload fails', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    mockUploadArtifact.mockRejectedValue(new Error('upload failed'));
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'allure',
+    });
+
+    await expect(step.executeAsync()).resolves.toBeUndefined();
   });
 
   it('logs that maestro-runner does not support direct DADB', async () => {
@@ -966,7 +1069,7 @@ describe('createMaestroTestsBuildFunction', () => {
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
-  it('uses $HOME/.maestro/tests output path for non-junit formats (e.g. html)', async () => {
+  it('uses $HOME/.maestro/tests output path and uploads the Maestro CLI HTML report', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
@@ -977,11 +1080,63 @@ describe('createMaestroTestsBuildFunction', () => {
     await step.executeAsync();
 
     const args = mockedSpawn.mock.calls[0][1] as string[];
-    // Non-JUnit uses a fixed path inside $HOME/.maestro/tests so the
-    // whole-directory upload picks it up.
+    // Non-JUnit uses a fixed path inside $HOME/.maestro/tests.
     const outputArg = args.find(a => a.startsWith('--output='));
     expect(outputArg).toMatch(/\.maestro\/tests\/android-maestro-html\.html$/);
     expect(outputArg).not.toMatch(/junit-reports/);
+    expect(step.getOutputValueByName('final_report_path')).toBe(
+      '/home/expo/.maestro/tests/android-maestro-html.html'
+    );
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.objectContaining({
+          type: GenericArtifactType.OTHER,
+          name: 'Maestro HTML Report',
+          paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
+        }),
+      })
+    );
+  });
+
+  it('uploads the Maestro CLI HTML report even when tests fail', async () => {
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'html',
+      platform: 'android',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.objectContaining({
+          name: 'Maestro HTML Report',
+          paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
+        }),
+      })
+    );
+  });
+
+  it('warns that Maestro CLI does not support Allure reports', async () => {
+    mockedSpawn.mockRejectedValue(rejectExit1());
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        output_format: 'allure',
+        platform: 'android',
+      },
+      { logger }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Maestro CLI does not support Allure reports; no Allure artifact was uploaded.'
+    );
+    expect(mockUploadArtifact).not.toHaveBeenCalled();
   });
 
   it('uses lowercase extension for non-junit formats regardless of input casing', async () => {
@@ -1301,14 +1456,15 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledTimes(30);
   });
 
-  it('does not harvest or upload screenshots when output_format is not junit', async () => {
+  it('does not harvest or upload screenshots for Maestro CLI HTML', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({ flow_path: ['a.yaml'], platform: 'android', output_format: 'html' });
     await step.executeAsync();
 
     expect(mockedHarvest).not.toHaveBeenCalled();
-    expect(mockUploadArtifact).not.toHaveBeenCalled();
+    expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
+    expect(mockUploadArtifact.mock.calls[0][0].artifact.name).toBe('Maestro HTML Report');
   });
 
   it('uploads only the final attempt for a pure-failure flow, but every attempt for a flaky flow', async () => {
