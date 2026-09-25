@@ -184,6 +184,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           stateDir: ARGENT_STATE_DIR,
           ancestorPid: argentServer.pid,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          getExitError: argentServer.getExitError,
         });
         toolServerPort = toolServerState.port;
         toolServerToken = toolServerState.token;
@@ -371,16 +372,26 @@ export async function waitForArgentToolServerStateAsync({
   ancestorPid,
   timeoutMs,
   pollIntervalMs = 1_000,
+  getExitError,
 }: {
   stateDir: string;
   ancestorPid: number;
   timeoutMs: number;
   pollIntervalMs?: number;
+  getExitError?: () => Error | undefined;
 }): Promise<ArgentToolServerState> {
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
+  const throwIfExited = (): void => {
+    const error = getExitError?.();
+    if (error) {
+      throw new SystemError(`Argent exited before becoming ready: ${error.message}`);
+    }
+  };
 
   while (Date.now() < deadline) {
+    throwIfExited();
+    let matchingState: ArgentToolServerState | undefined;
     try {
       const stateFileNames = (await fs.promises.readdir(stateDir)).filter(
         name => name.startsWith('tool-server') && name.endsWith('.json')
@@ -391,7 +402,8 @@ export async function waitForArgentToolServerStateAsync({
             await fs.promises.readFile(path.join(stateDir, stateFileName), 'utf8')
           );
           if (await isProcessDescendantOfAsync(state.pid, ancestorPid)) {
-            return state;
+            matchingState = state;
+            break;
           }
         } catch (err) {
           if ((err as NodeJS.ErrnoException).code !== 'ENOENT' && !(err instanceof SystemError)) {
@@ -401,6 +413,11 @@ export async function waitForArgentToolServerStateAsync({
       }
     } catch (err) {
       lastError = err;
+    }
+    // Keep process failures outside the retryable state-file read errors.
+    throwIfExited();
+    if (matchingState) {
+      return matchingState;
     }
     await sleepAsync(pollIntervalMs);
   }

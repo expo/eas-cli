@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import { EventEmitter } from 'node:events';
 import {
   clearTimeout as clearTimeoutCallback,
   setTimeout as setTimeoutCallback,
@@ -24,6 +25,7 @@ import {
   fetchWebPreviewTurnArgsAsync,
   parseServeSimLaunchInputs,
   simulatorPreviewPageUrl,
+  spawnDetached,
   startDeviceWebPreviewWithTunnelAsync,
   startExpoDeviceHubWithTunnelAsync,
   startNgrokTunnelAsync,
@@ -55,6 +57,69 @@ function createLoggerMock(): bunyan {
     debug: jest.fn(),
   } as unknown as bunyan;
 }
+
+describe(spawnDetached, () => {
+  function mockProcess(promise: Promise<unknown>): void {
+    jest
+      .mocked(spawn)
+      .mockReturnValue(
+        Object.assign(promise, { child: { pid: 1234, unref: jest.fn(), once: jest.fn() } }) as never
+      );
+  }
+
+  it('observes exit without waiting for inherited output pipes to close', () => {
+    const child = Object.assign(new EventEmitter(), { pid: 1234, unref: jest.fn() });
+    jest.mocked(spawn).mockReturnValue(Object.assign(new Promise(() => {}), { child }) as never);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    child.emit('exit', 1, null);
+    expect(handle.getExitError()?.message).toContain('code 1');
+    expect(child.listenerCount('exit')).toBe(0);
+  });
+
+  it('does not report an exit while the process is running', () => {
+    mockProcess(new Promise(() => {}));
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    expect(handle.getExitError()).toBeUndefined();
+  });
+
+  it('reports a clean exit so startup does not keep waiting', async () => {
+    const completion = Promise.resolve();
+    mockProcess(completion);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    await completion;
+    expect(handle.getExitError()?.message).toContain('code 0');
+  });
+
+  it.each([0, 1])('observes a real subprocess exiting with code %s', async exitCode => {
+    const actualSpawn =
+      jest.requireActual<typeof import('@expo/turtle-spawn')>('@expo/turtle-spawn').default;
+    let completion: ReturnType<typeof actualSpawn>;
+    jest.mocked(spawn).mockImplementationOnce((...args) => {
+      completion = actualSpawn(...args);
+      return completion;
+    });
+    const handle = spawnDetached({
+      command: process.execPath,
+      args: ['-e', `console.error('startup-marker'); process.exit(${exitCode});`],
+      env: {},
+    });
+    await completion!.catch(() => {});
+    expect(handle.getExitError()).toBeInstanceOf(Error);
+    expect(handle.getOutput()).toContain('startup-marker');
+  });
+
+  it.each(['spawn ENOENT', 'server exited with code 1', 'server terminated by SIGTERM'])(
+    'preserves the process failure: %s',
+    async message => {
+      const error = new Error(message);
+      const completion = Promise.reject(error);
+      mockProcess(completion);
+      const handle = spawnDetached({ command: 'server', args: [], env: {} });
+      await completion.catch(() => {});
+      expect(handle.getExitError()).toBe(error);
+    }
+  );
+});
 
 function createCtxMock(): CustomBuildContext {
   return {
@@ -559,6 +624,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
+        once: jest.fn(),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);

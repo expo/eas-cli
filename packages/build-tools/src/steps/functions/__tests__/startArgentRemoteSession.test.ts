@@ -94,6 +94,59 @@ describe(waitForArgentToolServerStateAsync, () => {
     return JSON.stringify({ port, pid, token });
   }
 
+  it('reports process exit instead of waiting for the startup timeout', async () => {
+    const getExitError = jest.fn(() => new Error('server exited with code 1'));
+    await expect(
+      waitForArgentToolServerStateAsync({
+        stateDir,
+        ancestorPid: process.pid,
+        timeoutMs: 100,
+        pollIntervalMs: 1,
+        getExitError,
+      })
+    ).rejects.toThrow('server exited with code 1');
+    expect(getExitError).toHaveBeenCalledTimes(1);
+  });
+
+  it('detects an exit after polling has begun', async () => {
+    const getExitError = jest
+      .fn<Error | undefined, []>()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(undefined)
+      .mockReturnValue(new Error('server stopped'));
+    await expect(
+      waitForArgentToolServerStateAsync({
+        stateDir,
+        ancestorPid: process.pid,
+        timeoutMs: 100,
+        pollIntervalMs: 1,
+        getExitError,
+      })
+    ).rejects.toThrow('server stopped');
+    expect(getExitError).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects an exit observed while reading a matching state file', async () => {
+    await fs.promises.writeFile(
+      path.join(stateDir, 'tool-server.json'),
+      stateJson({ port: 4321, pid: process.pid })
+    );
+    const getExitError = jest
+      .fn<Error | undefined, []>()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValue(new Error('server exited during startup'));
+    await expect(
+      waitForArgentToolServerStateAsync({
+        stateDir,
+        ancestorPid: process.ppid,
+        timeoutMs: 100,
+        pollIntervalMs: 1,
+        getExitError,
+      })
+    ).rejects.toThrow('server exited during startup');
+    expect(getExitError).toHaveBeenCalledTimes(2);
+  });
+
   it.each(['tool-server.json', 'tool-server-012345abcdef.json'])(
     'reads a matching process from %s',
     async fileName => {

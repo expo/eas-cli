@@ -547,6 +547,7 @@ export type DetachedProcessHandle = {
   /** PID of the directly spawned process, if the OS assigned one. */
   pid: number | undefined;
   getOutput: () => string;
+  getExitError: () => Error | undefined;
   stopAsync: () => Promise<void>;
 };
 
@@ -608,9 +609,24 @@ export function spawnDetached({
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   });
-  // We don't await the process — it should outlive this step. Failures show
-  // up in the captured output; suppress unhandled rejections here.
-  promise.catch(() => {});
+  // Observe completion without rejecting in the background. Startup callers can
+  // distinguish a dead process from one that is still preparing its state file.
+  let exitError: Error | undefined;
+  // The spawn promise waits for stdio to close. Descendants may keep those
+  // pipes open after the launcher exits, so observe the exit itself as well.
+  promise.child.once('exit', (code, signal) => {
+    exitError = new Error(
+      signal ? `Process exited with signal ${signal}.` : `Process exited with code ${code}.`
+    );
+  });
+  void promise.then(
+    () => {
+      exitError ??= new Error('Process exited with code 0.');
+    },
+    error => {
+      exitError ??= error instanceof Error ? error : new Error(String(error));
+    }
+  );
   promise.child.unref();
 
   let output = '';
@@ -624,6 +640,7 @@ export function spawnDetached({
   return {
     pid,
     getOutput: () => output,
+    getExitError: () => exitError,
     stopAsync: async () => await stopDetachedProcessAsync(pid),
   };
 }
