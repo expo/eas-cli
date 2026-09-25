@@ -85,6 +85,10 @@ export default class Simulator extends EasCommand {
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
     }),
+    'os-version': Flags.string({
+      description:
+        'iOS version of the Simulator runtime, as major.minor (e.g. "18.5") or as a major version (e.g. "26") for the newest supported release of that major. Unsupported versions are rejected with the list of supported ones. Defaults to the server default. Only supported with --platform ios.',
+    }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
       exclusive: ['application-archive-url', 'expo-go'],
@@ -202,6 +206,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const osVersion = flags['os-version']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
@@ -238,6 +243,17 @@ export default class Simulator extends EasCommand {
     if (egress && platform !== AppPlatform.Ios) {
       throw new EasCommandError('--egress local is only supported with --platform ios.');
     }
+    if (osVersion && platform !== AppPlatform.Ios) {
+      throw new EasCommandError('--os-version is only supported with --platform ios.');
+    }
+    const virtualDeviceOptions =
+      platform === AppPlatform.Ios
+        ? deviceIdentifier || osVersion
+          ? { ios: { deviceIdentifier, osVersion } }
+          : {}
+        : deviceIdentifier
+          ? { android: { deviceIdentifier } }
+          : {};
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
@@ -275,11 +291,7 @@ export default class Simulator extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
-        ...(deviceIdentifier
-          ? platform === AppPlatform.Ios
-            ? { ios: { deviceIdentifier } }
-            : { android: { deviceIdentifier } }
-          : {}),
+        ...virtualDeviceOptions,
         ...(buildId ? { buildId } : {}),
         ...(applicationArchiveUrlFromFlag
           ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }

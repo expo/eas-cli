@@ -6584,7 +6584,14 @@ export type CreateGitHubRepositorySettingsInput = {
 
 export type CreateIosDeviceRunSessionInput = {
   /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
-  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;  /**
+   * iOS version of the Simulator runtime, as major.minor (e.g. "18.5") or as a major version
+   * (e.g. "26") for the newest supported release of that major. Each version runs on the macOS
+   * worker image whose Xcode bundles that runtime, so the session also uses that image's
+   * tooling. Unsupported versions are rejected with the list of supported ones. If omitted,
+   * the server default is used.
+   */
+  osVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateIosSubmissionInput = {
