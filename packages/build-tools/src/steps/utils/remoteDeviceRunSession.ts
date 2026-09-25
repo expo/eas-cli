@@ -34,6 +34,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
+import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -559,8 +560,20 @@ function isProcessRunning(pid: number): boolean {
   }
 }
 
-async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> {
-  if (pid === undefined || !isProcessRunning(pid)) {
+function isDetachedProcessGroupRunning(pid: number): boolean {
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function stopDetachedProcessAsync(
+  pid: number | undefined,
+  stopTimeoutMs: number
+): Promise<void> {
+  if (pid === undefined || !isDetachedProcessGroupRunning(pid)) {
     return;
   }
   try {
@@ -575,11 +588,11 @@ async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> 
     }
   }
 
-  const deadline = Date.now() + 5_000;
-  while (Date.now() < deadline && isProcessRunning(pid)) {
+  const deadline = Date.now() + stopTimeoutMs;
+  while (Date.now() < deadline && isDetachedProcessGroupRunning(pid)) {
     await sleepAsync(100);
   }
-  if (!isProcessRunning(pid)) {
+  if (!isDetachedProcessGroupRunning(pid)) {
     return;
   }
   try {
@@ -596,11 +609,13 @@ export function spawnDetached({
   args,
   cwd,
   env,
+  stopTimeoutMs = 5_000,
 }: {
   command: string;
   args: string[];
   cwd?: string;
   env: BuildStepEnv;
+  stopTimeoutMs?: number;
 }): DetachedProcessHandle {
   const promise = spawn(command, args, {
     cwd,
@@ -624,7 +639,7 @@ export function spawnDetached({
   return {
     pid,
     getOutput: () => output,
-    stopAsync: async () => await stopDetachedProcessAsync(pid),
+    stopAsync: async () => await stopDetachedProcessAsync(pid, stopTimeoutMs),
   };
 }
 
@@ -904,7 +919,10 @@ async function startWebPreviewWithTunnelAsync(
     serverName,
     packageSpec,
     createArgs,
+    serverStopTimeoutMs,
     readPreviewTokenAsync,
+    onReady,
+    onStop,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
@@ -913,7 +931,10 @@ async function startWebPreviewWithTunnelAsync(
     serverName: string;
     packageSpec: string;
     createArgs: (port: number, turnArgs: string[], previewPageUrl: string) => string[];
+    serverStopTimeoutMs?: number;
     readPreviewTokenAsync?: (device: string) => Promise<string>;
+    onReady?: (device: string) => void;
+    onStop?: (device: string) => void;
   }
 ): Promise<DeviceWebPreviewHandle> {
   const subdomainId = randomBytes(16).toString('hex');
@@ -931,6 +952,7 @@ async function startWebPreviewWithTunnelAsync(
     command: previewExec.command,
     args: previewExec.args,
     env,
+    stopTimeoutMs: serverStopTimeoutMs,
   });
 
   try {
@@ -950,11 +972,13 @@ async function startWebPreviewWithTunnelAsync(
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
     });
+    onReady?.(device);
     return {
       previewPageUrl,
       apiUrl: tunnel.url,
       previewToken,
       stopAsync: async () => {
+        onStop?.(device);
         const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
         for (const result of results) {
           if (result.status === 'rejected') {
@@ -997,13 +1021,15 @@ export async function startServeSimWithTunnelAsync(
   } & ServeSimLaunchOptions
 ): Promise<ServeSimPreviewHandle> {
   const websiteArgs = websiteOriginServeSimArgs(env);
+  const packageSpec = createServeSimPackageSpec(packageVersion);
   return await startWebPreviewWithTunnelAsync(ctx, {
     baseDomain,
     env,
     logger,
     timeoutMs,
     serverName: 'serve-sim',
-    packageSpec: createServeSimPackageSpec(packageVersion),
+    packageSpec,
+    serverStopTimeoutMs: 90_000,
     createArgs: (port, turnArgs, previewPageUrl) =>
       createServeSimArgs({
         port,
@@ -1029,6 +1055,8 @@ export async function startServeSimWithTunnelAsync(
       }
       return previewToken;
     },
+    onReady: device => IosSimulatorRecordingUtils.registerServeSimPackage(device, packageSpec),
+    onStop: device => IosSimulatorRecordingUtils.unregisterServeSimPackage(device, packageSpec),
   });
 }
 
