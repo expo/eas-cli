@@ -49,6 +49,16 @@ describe('CompositeFunctionConfigZ', () => {
     });
   });
 
+  it('rejects the camelCase spellings the legacy shape accepts', () => {
+    const config = {
+      supportedRuntimePlatforms: ['darwin'],
+      inputs: [{ name: 'greeting', defaultValue: 'Hi' }],
+      runs: { steps: [{ run: 'echo hello' }] },
+    };
+    expect(() => CompositeFunctionConfigZ.parse(config)).toThrow(ZodError);
+    expect(() => CompositeFunctionConfigZ.parse(config)).toThrow(/supportedRuntimePlatforms/);
+  });
+
   it('rejects unknown top-level keys', () => {
     const config = {
       unknown_field: true,
@@ -74,5 +84,13 @@ describe('CompositeFunctionConfigZ', () => {
         /must declare at least one step under "runs.steps"/
       );
     }
+  });
+
+  it('rejects the single-step output shape', () => {
+    const config = {
+      outputs: [{ name: 'version' }],
+      runs: { steps: [{ run: 'echo hello' }] },
+    };
+    expect(() => CompositeFunctionConfigZ.parse(config)).toThrow(ZodError);
   });
 });
