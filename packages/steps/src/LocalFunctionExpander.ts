@@ -1,16 +1,18 @@
 /**
- * Expands local composite functions (`uses: ./path/to/function`) into a
- * {@link CompositeBuildStep} tree at parse time.
+ * Expands local functions (`uses: ./path/to/function`) into build steps at parse time.
  *
- * Each call becomes a node with prefixed child ids (`caller__inner`); the parser
- * flattens the tree into the workflow. Expanded steps carry a
- * {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and `${{ inputs.* }}`
- * resolve against composite-function-local names.
+ * A composite function call becomes a {@link CompositeBuildStep} node with prefixed child ids
+ * (`caller__inner`); the parser flattens the tree into the workflow. Expanded steps carry a
+ * {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and `${{ inputs.* }}` resolve
+ * against composite-function-local names. A single-step (`command`/`path`) function call becomes
+ * one ordinary build step keeping the caller's own id.
  */
 import {
   CompositeFunctionConfig,
   FunctionStep,
+  LegacyFunctionConfig,
   LocalFunctionCatalog,
+  LocalFunctionConfig,
   ShellStep,
   Step,
   isLegacyFunctionConfig,
@@ -26,17 +28,18 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import {
   BuildStepInput,
-  BuildStepInputValueTypeName,
   getDisallowedInputValueError,
+  parseBuildStepInputValueTypeName,
 } from './BuildStepInput';
 import { CompositeBuildStep } from './CompositeBuildStep';
 import { BuildConfigError } from './errors';
 import { duplicates } from './utils/expodash/duplicates';
+import { createBuildFunctionFromLegacyFunctionConfig } from './utils/legacyFunction';
 import {
-  getLocalCompositeFunctionCallWorkingDirectoryError,
-  isLocalCompositeFunctionPath,
-  parseLocalCompositeFunctionPath,
-} from './utils/localCompositeFunctions';
+  getLocalFunctionCallWorkingDirectoryError,
+  isLocalFunctionPath,
+  parseLocalFunctionPath,
+} from './utils/localFunctions';
 import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 const MAX_COMPOSITE_FUNCTION_NESTING_DEPTH = 10;
@@ -46,16 +49,18 @@ export type FunctionMaps = {
   buildFunctionGroupById: BuildFunctionGroupById;
 };
 
-type CompositeFunctionCall = {
-  compositeFunctionPath: string;
-  /** Caller-assigned id used as prefix for all inner step ids. */
+type LocalFunctionCall = {
+  functionPath: string;
+  /** Caller-assigned id; for a composite function also the prefix of all inner step ids. */
   syntheticStepId: string;
   name?: string;
-  /** Caller-provided input values, consumed when composite function inputs are interpolated. */
+  /** Caller-provided input values, consumed when function inputs are interpolated. */
   callWith?: Record<string, unknown>;
   callIf?: string;
   parentScope?: BuildStepCompositeFunctionScope;
   inheritedEnv?: BuildStepEnv;
+  /** Rejected for composite calls. */
+  workingDirectory?: string;
 };
 
 type StepOverrides = {
@@ -64,10 +69,10 @@ type StepOverrides = {
   ifCondition?: string;
 };
 
-export class CompositeFunctionExpander {
+export class LocalFunctionExpander {
   constructor(
     private readonly ctx: BuildStepGlobalContext,
-    private readonly compositeFunctionCatalog: LocalFunctionCatalog,
+    private readonly localFunctionCatalog: LocalFunctionCatalog,
     private readonly functionMaps: FunctionMaps
   ) {}
 
@@ -79,38 +84,68 @@ export class CompositeFunctionExpander {
     return this.functionMaps.buildFunctionGroupById;
   }
 
-  public expandCompositeFunctionStep(
+  public expandLocalFunctionStep(
     step: FunctionStep,
-    compositeFunctionPath: string,
+    functionPath: string,
     syntheticStepId: string
-  ): CompositeBuildStep {
-    this.rejectCompositeFunctionCallWorkingDirectory(step);
-    return this.expand(
+  ): BuildStep[] {
+    const expanded = this.expandCall(
       {
-        compositeFunctionPath,
+        functionPath,
         syntheticStepId,
         name: step.name,
         callWith: step.with,
         callIf: step.if,
         inheritedEnv: step.env,
+        workingDirectory: step.working_directory,
       },
       new Set<string>()
     );
+    return expanded instanceof CompositeBuildStep ? expanded.getFlattenedSteps() : [expanded];
   }
 
-  // The call step expands away; `working_directory` on it would never apply.
-  private rejectCompositeFunctionCallWorkingDirectory(step: FunctionStep): void {
-    if (step.working_directory !== undefined) {
-      throw new BuildConfigError(getLocalCompositeFunctionCallWorkingDirectoryError(step.uses));
+  private expandCall(call: LocalFunctionCall, visited: ReadonlySet<string>): BuildStep {
+    const localFunction = this.lookupLocalFunction(call.functionPath);
+    if (isLegacyFunctionConfig(localFunction)) {
+      return this.createLegacyFunctionStep(call, localFunction);
     }
+    return this.expand(call, localFunction, visited);
+  }
+
+  // Keeps the caller's id and if:. No expansion scope to hang the condition on.
+  private createLegacyFunctionStep(
+    call: LocalFunctionCall,
+    config: LegacyFunctionConfig
+  ): BuildStep {
+    const { functionPath } = call;
+    // One BuildFunction per path. Relative ./../ keys cannot collide with registered ids.
+    const buildFunction = (this.functionMaps.buildFunctionById[functionPath] ??=
+      createBuildFunctionFromLegacyFunctionConfig(functionPath, config));
+    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+      id: call.syntheticStepId,
+      name: call.name ?? config.name ?? functionPath,
+      callInputs: call.callWith,
+      workingDirectory: call.workingDirectory,
+      shell: config.shell,
+      env: call.inheritedEnv,
+      ifCondition: call.callIf,
+      compositeFunctionScope: call.parentScope,
+    });
   }
 
   // `visited.size` is the current composite function nesting depth.
-  private expand(call: CompositeFunctionCall, visited: ReadonlySet<string>): CompositeBuildStep {
-    const { compositeFunctionPath, syntheticStepId } = call;
+  private expand(
+    call: LocalFunctionCall,
+    compositeFunction: CompositeFunctionConfig,
+    visited: ReadonlySet<string>
+  ): CompositeBuildStep {
+    const { functionPath: compositeFunctionPath, syntheticStepId } = call;
+    // The call step expands away; `working_directory` on it would never apply.
+    if (call.workingDirectory !== undefined) {
+      throw new BuildConfigError(getLocalFunctionCallWorkingDirectoryError(compositeFunctionPath));
+    }
     this.guardAgainstRunawayRecursion(compositeFunctionPath, visited);
 
-    const compositeFunction = this.lookupCompositeFunction(compositeFunctionPath);
     const compositeFunctionDisplayName =
       call.name ?? compositeFunction.name ?? compositeFunctionPath;
     const innerSteps = compositeFunction.runs.steps;
@@ -185,19 +220,14 @@ export class CompositeFunctionExpander {
     }
   }
 
-  private lookupCompositeFunction(compositeFunctionPath: string): CompositeFunctionConfig {
-    const compositeFunction = this.compositeFunctionCatalog[compositeFunctionPath];
-    if (!compositeFunction) {
+  private lookupLocalFunction(functionPath: string): LocalFunctionConfig {
+    const localFunction = this.localFunctionCatalog[functionPath];
+    if (!localFunction) {
       throw new BuildConfigError(
-        `Local composite function "${compositeFunctionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${compositeFunctionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
+        `Local function "${functionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${functionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
       );
     }
-    if (isLegacyFunctionConfig(compositeFunction)) {
-      throw new BuildConfigError(
-        `Local function "${compositeFunctionPath}" uses the legacy command/path shape, which this expander does not support yet.`
-      );
-    }
-    return compositeFunction;
+    return localFunction;
   }
 
   private expandInnerStep(
@@ -216,10 +246,9 @@ export class CompositeFunctionExpander {
     const overrides = this.resolveStepOverrides(innerStep);
 
     if (isStepFunctionStep(innerStep)) {
-      if (isLocalCompositeFunctionPath(innerStep.uses)) {
-        this.rejectCompositeFunctionCallWorkingDirectory(innerStep);
-        return this.expandNestedCompositeFunctionCall(innerStep, {
-          compositeFunctionPath: parseLocalCompositeFunctionPath(innerStep.uses),
+      if (isLocalFunctionPath(innerStep.uses)) {
+        return this.expandNestedLocalFunctionCall(innerStep, {
+          functionPath: parseLocalFunctionPath(innerStep.uses),
           newId,
           overrides,
           scope,
@@ -249,31 +278,32 @@ export class CompositeFunctionExpander {
     };
   }
 
-  private expandNestedCompositeFunctionCall(
+  private expandNestedLocalFunctionCall(
     innerStep: FunctionStep,
     {
-      compositeFunctionPath,
+      functionPath,
       newId,
       overrides,
       scope,
       visited,
     }: {
-      compositeFunctionPath: string;
+      functionPath: string;
       newId: string;
       overrides: StepOverrides;
       scope: BuildStepCompositeFunctionScope;
       visited: ReadonlySet<string>;
     }
-  ): CompositeBuildStep {
-    return this.expand(
+  ): BuildStep {
+    return this.expandCall(
       {
-        compositeFunctionPath,
+        functionPath,
         syntheticStepId: newId,
         name: innerStep.name,
         callWith: innerStep.with,
         callIf: overrides.ifCondition,
         parentScope: scope,
         inheritedEnv: overrides.env,
+        workingDirectory: overrides.workingDirectory,
       },
       visited
     );
@@ -397,7 +427,7 @@ export class CompositeFunctionExpander {
         typeof declared === 'string'
           ? {
               name: declared,
-              type: 'string',
+              type: 'string' as const,
               required: false,
               allowedValues: undefined as unknown[] | undefined,
               defaultValue: undefined as unknown,
@@ -415,11 +445,7 @@ export class CompositeFunctionExpander {
         defaultValue: definition.defaultValue,
         required: definition.required,
         allowedValues: definition.allowedValues,
-        allowedValueTypeName: this.toInputValueTypeName(
-          definition.type,
-          compositeFunctionPath,
-          definition.name
-        ),
+        allowedValueTypeName: parseBuildStepInputValueTypeName(definition.type),
       });
       if (callWith && Object.prototype.hasOwnProperty.call(callWith, definition.name)) {
         const value = callWith[definition.name];
@@ -442,21 +468,5 @@ export class CompositeFunctionExpander {
       inputs.set(definition.name, input);
     }
     return { inputs, providedInputKeys };
-  }
-
-  private toInputValueTypeName(
-    type: string,
-    compositeFunctionPath: string,
-    inputName: string
-  ): BuildStepInputValueTypeName {
-    const supported = Object.values(BuildStepInputValueTypeName) as string[];
-    if (!supported.includes(type)) {
-      throw new BuildConfigError(
-        `Composite function "${compositeFunctionPath}" input "${inputName}" has unsupported type "${type}". Supported types: ${supported.join(
-          ', '
-        )}.`
-      );
-    }
-    return type as BuildStepInputValueTypeName;
   }
 }

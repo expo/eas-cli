@@ -4,8 +4,8 @@ import {
   BuildStepGlobalContext,
   BuildWorkflow,
   StepsConfigParser,
-  buildLocalCompositeFunctionCatalogAsync,
-  createLocalCompositeFunctionLoader,
+  buildLocalFunctionCatalogAsync,
+  createLocalFunctionLoader,
   errors,
 } from '@expo/steps';
 import assert from 'assert';
@@ -70,11 +70,11 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
             steps: ctx.job.steps,
             hooks: ctx.job.hooks,
             // Eager for job steps (always run), lazy loader for hooks (running anchors only).
-            compositeFunctionCatalog: await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+            localFunctionCatalog: await buildLocalFunctionCatalogAsync(projectRoot, {
               rootSteps: ctx.job.steps,
               logger: ctx.logger,
             }),
-            loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, {
+            loadLocalFunction: createLocalFunctionLoader(projectRoot, {
               logger: ctx.logger,
             }),
           })
