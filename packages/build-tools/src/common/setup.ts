@@ -26,6 +26,7 @@ import { setUpNpmrcAsync } from '../utils/npmrc';
 import {
   getPackageVersionFromPackageJson,
   isAtLeastNpm7Async,
+  isPackageInPackageJson,
   shouldUseFrozenLockfile,
 } from '../utils/packageManager';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
@@ -176,7 +177,10 @@ export async function setupAsync<TJob extends BuildJob>(
 
   // Read fresh: a before_install_node_modules hook may have added or removed
   // the expo dependency.
-  const hasExpoPackage = !!readPackageJson(ctx.getReactNativeProjectDirectory()).dependencies?.expo;
+  const hasExpoPackage = isPackageInPackageJson({
+    packageJson: readPackageJson(ctx.getReactNativeProjectDirectory()),
+    packageName: 'expo',
+  });
   if (!ctx.env.EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP && hasExpoPackage) {
     await ctx.runBuildPhase(BuildPhase.RUN_EXPO_DOCTOR, async () => {
       try {

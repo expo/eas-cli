@@ -9,6 +9,7 @@ import {
   PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  isPackageInPackageJson,
   resolveConfiguredPackageManager,
   resolveFallbackPackageManager,
   resolveOverridePackageManager,
@@ -479,4 +480,23 @@ describe(shouldUseFrozenLockfile, () => {
       })
     ).toBe(false);
   });
+});
+
+describe(isPackageInPackageJson, () => {
+  const CASES = [
+    [{ dependencies: { expo: '~54.0.0' } }, 'expo', true],
+    [{ devDependencies: { expo: '~54.0.0' } }, 'expo', true],
+    [{ dependencies: { expo: 'catalog:' } }, 'expo', true],
+    [{ devDependencies: { expo: 'workspace:*' } }, 'expo', true],
+    [{ dependencies: { 'react-native': '0.81.0' } }, 'expo', false],
+    [{}, 'expo', false],
+    [null, 'expo', false],
+    ['not-a-package-json', 'expo', false],
+  ] as const;
+
+  for (const [packageJson, packageName, expected] of CASES) {
+    it(`returns ${expected} for ${JSON.stringify(packageJson)}`, () => {
+      expect(isPackageInPackageJson({ packageJson, packageName })).toBe(expected);
+    });
+  }
 });
