@@ -99,28 +99,6 @@ export async function getExpoUpdatesPackageVersionIfInstalledAsync(
   return version ?? null;
 }
 
-export async function validateAppVersionRuntimePolicySupportAsync(
-  projectDir: string,
-  exp: ExpoConfig
-): Promise<void> {
-  if (typeof exp.runtimeVersion !== 'object' || exp.runtimeVersion?.policy !== 'appVersion') {
-    return;
-  }
-
-  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
-  if (
-    expoUpdatesPackageVersion !== null &&
-    (semver.gte(expoUpdatesPackageVersion, '0.14.4') ||
-      expoUpdatesPackageVersion.includes('canary'))
-  ) {
-    return;
-  }
-
-  Log.warn(
-    `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
-  );
-}
-
 export async function enforceRollBackToEmbeddedUpdateSupportAsync(
   projectDir: string
 ): Promise<void> {
