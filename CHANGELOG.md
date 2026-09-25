@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Send the branch or tag name to `eas workflow:run --ref`, instead of resolving it to a commit hash locally, so that runs are labeled with the ref that was requested. ([#4355](https://github.com/expo/eas-cli/pull/4355) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
