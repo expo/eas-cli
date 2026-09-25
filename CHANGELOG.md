@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Add `sentry` workflow interpolation context schema for Sentry-triggered workflow runs. ([#4453](https://github.com/expo/eas-cli/pull/4453) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
