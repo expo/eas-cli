@@ -245,6 +245,7 @@ describe(AscApiClient, () => {
         attributes: {
           state: responseFixture.data.attributes.state,
         },
+        relationships: { build: { data: null } },
       },
     });
     expect(scope.isDone()).toBeTruthy();

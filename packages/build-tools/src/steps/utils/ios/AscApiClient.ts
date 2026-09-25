@@ -27,6 +27,29 @@ const AscErrorResponseSchema = z.object({
 });
 
 const GetApi = {
+  '/v1/builds/:id/app': {
+    path: z.object({ id: z.string() }),
+    request: z.object({}),
+    response: z.object({
+      data: z.object({ id: z.string(), attributes: z.object({ primaryLocale: z.string() }) }),
+    }),
+  },
+  '/v1/builds/:id/betaBuildLocalizations': {
+    path: z.object({ id: z.string() }),
+    request: z.object({ limit: z.number() }),
+    response: z.object({
+      data: z.array(z.object({ id: z.string(), attributes: z.object({ locale: z.string() }) })),
+      links: z.object({ next: z.string().nullish() }).optional(),
+    }),
+  },
+  '/v1/betaGroups': {
+    path: z.object({}),
+    request: z.object({ 'filter[app]': z.string(), 'filter[name]': z.string(), limit: z.number() }),
+    response: z.object({
+      data: z.array(z.object({ id: z.string(), attributes: z.object({ name: z.string() }) })),
+      links: z.object({ next: z.string().nullish() }).optional(),
+    }),
+  },
   '/v1/apps': {
     path: z.object({}),
     request: z.object({
@@ -119,12 +142,37 @@ const GetApi = {
             warnings: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
           }),
         }),
+        relationships: z
+          .object({
+            build: z.object({
+              data: z.object({ type: z.literal('builds'), id: z.string() }).nullable(),
+            }),
+          })
+          .optional(),
       }),
     }),
   },
 } satisfies ApiSchema;
 
 const PostApi = {
+  '/v1/builds/:id/relationships/betaGroups': {
+    request: z.object({
+      data: z.array(z.object({ type: z.literal('betaGroups'), id: z.string() })),
+    }),
+    response: z.undefined(),
+  },
+  '/v1/betaBuildLocalizations': {
+    request: z.object({
+      data: z.object({
+        type: z.literal('betaBuildLocalizations'),
+        attributes: z.object({ locale: z.string(), whatsNew: z.string() }),
+        relationships: z.object({
+          build: z.object({ data: z.object({ type: z.literal('builds'), id: z.string() }) }),
+        }),
+      }),
+    }),
+    response: z.object({ data: z.object({ id: z.string() }) }),
+  },
   '/v1/buildUploads': {
     request: z.object({
       // https://developer.apple.com/documentation/appstoreconnectapi/builduploadcreaterequest/data-data.dictionary
@@ -223,6 +271,17 @@ const PostApi = {
 } satisfies ApiSchema;
 
 const PatchApi = {
+  '/v1/betaBuildLocalizations/:id': {
+    path: z.object({ id: z.string() }),
+    request: z.object({
+      data: z.object({
+        type: z.literal('betaBuildLocalizations'),
+        id: z.string(),
+        attributes: z.object({ whatsNew: z.string() }),
+      }),
+    }),
+    response: z.object({ data: z.object({ id: z.string() }) }),
+  },
   // https://developer.apple.com/documentation/appstoreconnectapi/patch-v1-builduploadfiles-_id_
   '/v1/buildUploadFiles/:id': {
     path: z.object({
@@ -336,12 +395,13 @@ export class AscApiClient {
 
   public async postAsync<TPath extends keyof typeof PostApi>(
     path: TPath,
-    body: z.input<(typeof PostApi)[TPath]['request']>
+    body: z.input<(typeof PostApi)[TPath]['request']>,
+    params?: { id: string }
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
     const schema = PostApi[path];
     return await this.sendRequestAsync({
       method: 'POST',
-      path,
+      path: params ? path.replace(':id', encodeURIComponent(params.id)) : path,
       body,
       requestSchema: schema.request,
       responseSchema: schema.response,
@@ -421,6 +481,9 @@ export class AscApiClient {
       });
     }
 
+    if (response.status === 204) {
+      return responseSchema.parse(undefined);
+    }
     const text = await response.text();
     const parsedJson = await asyncResult((async () => JSON.parse(text))());
     if (!parsedJson.ok) {
