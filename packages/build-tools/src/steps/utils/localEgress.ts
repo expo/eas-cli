@@ -55,6 +55,7 @@ const CHISEL_STARTUP_TIMEOUT_MS = 15_000;
 const EGRESS_MONITOR_INTERVAL_MS = 2_000;
 const EGRESS_ESCAPE_SCAN_INTERVAL_MS = 5_000;
 const EGRESS_ESCAPE_LOG_LIMIT = 50;
+export const EGRESS_EXIT_IP_CHECK_WINDOW_MS = 90_000;
 
 export type LocalEgressHandoff = {
   /** Public URL of the reverse tunnel server, reachable through ngrok. */
@@ -719,6 +720,83 @@ async function findDirectSimulatorConnectionsAsync({
 }
 
 /**
+ * The worker's own request through the proxy, used to confirm the tunnel
+ * exits from the machine running the egress client. The proxy port on the
+ * worker is the reverse end of the client's tunnel: it starts listening the
+ * instant the client connects, and the first request over a fresh tunnel can
+ * take longer than one curl timeout. One failed attempt therefore proves
+ * nothing: keep trying on every monitor tick for a bounded window, report the
+ * address once on the first success, and warn only when the whole window
+ * passes without one. By then the client is connected (the port would not be
+ * listening otherwise), so a failure means requests through the tunnel do
+ * not complete, not that the client is missing. `reset` re-arms the check
+ * when the listener comes back after going away.
+ */
+export class ExitIpCheck {
+  private startedAt: number | null = null;
+  private failures = 0;
+  private done = false;
+  // Bumped by reset so an attempt that was in flight across a listener
+  // restart reports into neither the old window nor the new one.
+  private generation = 0;
+
+  constructor(
+    private readonly logger: bunyan,
+    private readonly windowMs: number = EGRESS_EXIT_IP_CHECK_WINDOW_MS,
+    private readonly now: () => number = Date.now
+  ) {}
+
+  get pending(): boolean {
+    return !this.done;
+  }
+
+  reset(): void {
+    this.startedAt = null;
+    this.failures = 0;
+    this.done = false;
+    this.generation++;
+  }
+
+  async attemptAsync(fetchExitIp: () => Promise<string>): Promise<void> {
+    if (this.done) {
+      return;
+    }
+    const generation = this.generation;
+    const startedAt = (this.startedAt ??= this.now());
+    const seconds = Math.round(this.windowMs / 1000);
+    let exitIp: string;
+    try {
+      exitIp = await fetchExitIp();
+    } catch (err) {
+      if (generation !== this.generation) {
+        return;
+      }
+      this.failures++;
+      if (this.now() - startedAt < this.windowMs) {
+        if (this.failures === 1) {
+          this.logger.info(
+            `Local egress: the egress client is connected; waiting for a first request through the tunnel to reach the internet (up to ${seconds} seconds).`
+          );
+        }
+        return;
+      }
+      this.done = true;
+      this.logger.warn(
+        { err },
+        `Local egress: the egress client is connected, but no request through the tunnel reached the internet in ${seconds} seconds. The machine running \`eas simulator:egress\` may be unable to reach the internet, or api.ipify.org may be unreachable from it. Requests from the Simulator that use the proxy will fail the same way until that is fixed.`
+      );
+      return;
+    }
+    if (generation === this.generation) {
+      this.done = true;
+      this.logger.info(
+        `Local egress: a request through the tunnel reached the internet from ${exitIp}, the public address of the machine running \`eas simulator:egress\`. Requests from the Simulator that use the proxy exit from there too.`
+      );
+    }
+  }
+}
+
+/**
  * Log proxy listener availability, the exit IP observed by a worker request
  * through it, and simulator connections that bypassed the proxy. Neither check
  * verifies that proxied simulator requests reach the egress client. Never
@@ -739,6 +817,10 @@ export async function monitorLocalEgressAsync({
   let lastEscapeScanAt = 0;
   let escapeScanBroken = false;
   const reportedEscapes = new Set<string>();
+  const exitIpCheck = new ExitIpCheck(logger);
+  // Each attempt can take a full curl timeout; it runs beside the loop so
+  // listener polling and the bypass scan keep their cadence meanwhile.
+  let exitIpAttempt: Promise<void> | null = null;
   const lifetimeSignal = activeLocalEgressResources?.controller.signal;
   try {
     while (!signal.aborted && !lifetimeSignal?.aborted) {
@@ -746,22 +828,19 @@ export async function monitorLocalEgressAsync({
       if (listening && !connected) {
         connected = true;
         logger.info('Local egress proxy listener is available.');
-        try {
-          const exitIp = await fetchExitIpThroughProxyAsync({ port, env });
-          logger.info(
-            `Worker proxy exit-IP check observed ${exitIp}. This does not verify simulator routing.`
-          );
-        } catch (err) {
-          logger.warn(
-            { err },
-            'The local egress proxy listener is available, but the worker exit-IP check through it failed.'
-          );
-        }
+        exitIpCheck.reset();
       } else if (!listening && connected) {
         connected = false;
         logger.warn(
           'Local egress proxy listener is unavailable. Proxied HTTP(S) requests fail until it returns.'
         );
+      }
+      if (connected && exitIpCheck.pending && exitIpAttempt === null) {
+        exitIpAttempt = exitIpCheck
+          .attemptAsync(() => fetchExitIpThroughProxyAsync({ port, env }))
+          .finally(() => {
+            exitIpAttempt = null;
+          });
       }
 
       if (!escapeScanBroken && Date.now() - lastEscapeScanAt >= EGRESS_ESCAPE_SCAN_INTERVAL_MS) {
