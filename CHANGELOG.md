@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fail `eas deploy --prod` and `eas deploy:alias` when the alias was not moved to the new deployment, instead of reporting success and exiting 0. ([#4443](https://github.com/expo/eas-cli/pull/4443) by [@LizunovSergey](https://github.com/LizunovSergey))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
