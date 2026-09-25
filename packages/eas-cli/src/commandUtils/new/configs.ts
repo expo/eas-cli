@@ -10,6 +10,17 @@ import { Choice, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
+const DEFAULT_PROJECT_NAME = 'expo-project';
+
+/**
+ * Terminal editing shortcuts the prompt does not implement — Ctrl-U to clear the line, for
+ * example — are left in the answer as raw control characters. Kept, they produce an
+ * unreadable project directory and a slug the API rejects with "Invalid slug".
+ */
+function sanitizeProjectName(name: string): string {
+  return name.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+}
+
 function validateProjectPath(resolvedPath: string): void {
   const normalizedPath = path.normalize(resolvedPath);
 
@@ -41,7 +52,7 @@ export async function generateProjectConfigAsync(
   projectName: string;
   projectDirectory: string;
 }> {
-  let baseName = 'expo-project';
+  let baseName = DEFAULT_PROJECT_NAME;
   let parentDirectory = process.cwd();
 
   if (pathArg) {
@@ -50,14 +61,13 @@ export async function generateProjectConfigAsync(
     baseName = path.basename(resolvedPath);
     parentDirectory = path.dirname(resolvedPath);
   } else {
-    baseName = (
-      await promptAsync({
-        type: 'text',
-        name: 'name',
-        message: 'What would you like to name your project?',
-        initial: 'expo-project',
-      })
-    ).name;
+    const { name } = await promptAsync({
+      type: 'text',
+      name: 'name',
+      message: 'What would you like to name your project?',
+      initial: DEFAULT_PROJECT_NAME,
+    });
+    baseName = sanitizeProjectName(name) || DEFAULT_PROJECT_NAME;
   }
 
   // Find an available name checking both local filesystem and remote server
