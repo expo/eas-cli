@@ -424,7 +424,7 @@ export default class IntegrationsConvexConnect extends EasCommand {
       // Replace existing line if present
       const regex = new RegExp(`^${key}=.*$`, 'm');
       if (regex.test(content)) {
-        content = content.replace(regex, `${key}=${value}`);
+        content = content.replace(regex, () => `${key}=${value}`);
         delete keysToAdd[key];
       }
     }
