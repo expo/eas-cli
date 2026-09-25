@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Say why Apple Developer access is required after all when the optional Apple sign-in was declined, instead of prompting for an Apple ID with no explanation. ([#4444](https://github.com/expo/eas-cli/pull/4444) by [@LizunovSergey](https://github.com/LizunovSergey))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
