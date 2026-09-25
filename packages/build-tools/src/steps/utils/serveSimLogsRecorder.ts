@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { mkdtemp, open } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { type Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { Sentry } from '../../sentry';
@@ -185,7 +186,7 @@ export async function streamServeSimLogsToFileAsync({
   let file: Awaited<ReturnType<typeof open>> | undefined;
   let body: NodeJS.ReadableStream | undefined;
   const closeBody = (): void => {
-    (body as import('node:stream').Readable | undefined)?.destroy?.();
+    (body as Readable | undefined)?.destroy?.();
   };
   try {
     if (signal.aborted || limitReached) {
