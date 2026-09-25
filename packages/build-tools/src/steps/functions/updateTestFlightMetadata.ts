@@ -1,10 +1,12 @@
+import { SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import fs from 'fs-extra';
-import * as jose from 'jose';
 import path from 'node:path';
+import limitFactory from 'promise-limit';
 import { z } from 'zod';
 
 import { AscApiClient } from '../utils/ios/AscApiClient';
+import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
 export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -13,13 +15,16 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
     name: 'Update TestFlight metadata',
     __metricsId: 'eas/update_testflight_metadata',
     inputProviders: [
-      ...['asc_api_key_path', 'build_upload_id'].map(id =>
-        BuildStepInput.createProvider({
-          id,
-          required: true,
-          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-        })
-      ),
+      BuildStepInput.createProvider({
+        id: 'asc_api_key_path',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'build_upload_id',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
       BuildStepInput.createProvider({
         id: 'changelog',
         required: false,
@@ -34,30 +39,29 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
       }),
     ],
     fn: async (ctx, { inputs }) => {
-      const keyPath = path.resolve(
-        ctx.workingDirectory,
-        z.string().parse(inputs.asc_api_key_path.value)
-      );
-      const key = z
-        .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
-        .parse(await fs.readJson(keyPath));
-      const jwt = new jose.SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: key.key_id })
-        .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m');
-      if (key.issuer_id) {
-        jwt.setIssuer(key.issuer_id);
-      } else {
-        jwt.setSubject('user');
-      }
-      const token = await jwt.sign(await jose.importPKCS8(key.key, 'ES256'));
+      const parsedInputs = z
+        .object({
+          asc_api_key_path: z.string(),
+          build_upload_id: z.string(),
+          changelog: z.string(),
+          groups: z.array(z.string()),
+        })
+        .parse({
+          asc_api_key_path: inputs.asc_api_key_path.value,
+          build_upload_id: inputs.build_upload_id.value,
+          changelog: inputs.changelog.value,
+          groups: inputs.groups.value,
+        });
+      const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
+      const token = await AscApiUtils.signTokenAsync({ keyPath });
       await updateTestFlightMetadataAsync({
         client: new AscApiClient({ token, logger: ctx.logger }),
-        buildUploadId: z.string().parse(inputs.build_upload_id.value),
-        changelog: z.string().parse(inputs.changelog.value),
-        groups: z.array(z.string()).parse(inputs.groups.value),
+        buildUploadId: parsedInputs.build_upload_id,
+        changelog: parsedInputs.changelog,
+        groups: parsedInputs.groups,
+        logger: ctx.logger,
       });
-      ctx.logger.info('TestFlight metadata updated. No beta review was requested.');
+      ctx.logger.info('TestFlight metadata updated.');
     },
   });
 }
@@ -67,11 +71,13 @@ export async function updateTestFlightMetadataAsync({
   buildUploadId,
   changelog,
   groups,
+  logger,
 }: {
   client: AscApiClient;
   buildUploadId: string;
   changelog: string;
   groups: string[];
+  logger: bunyan;
 }): Promise<void> {
   const { data: upload } = await client.getAsync(
     '/v1/buildUploads/:id',
@@ -81,76 +87,115 @@ export async function updateTestFlightMetadataAsync({
     },
     { id: buildUploadId }
   );
-  const buildId = upload.relationships?.build.data?.id;
-  if (upload.attributes.state.state !== 'COMPLETE' || !buildId) {
-    throw new Error(
+  const buildId = upload.relationships?.build?.data?.id;
+  if (upload.attributes?.state?.state !== 'COMPLETE' || !buildId) {
+    throw new UserError(
+      'EAS_TESTFLIGHT_BUILD_NOT_READY',
       'The uploaded build is not ready for TestFlight metadata. Run eas/upload_to_asc with wait_for_processing: true first.'
     );
   }
+  logger.info(`Updating TestFlight metadata for Apple build ${buildId}...`);
   const { data: app } = await client.getAsync('/v1/builds/:id/app', {}, { id: buildId });
 
-  // Resolve every group before changing metadata, so a misspelled name cannot cause a partial update.
   const groupIds: string[] = [];
-  for (const name of new Set(groups)) {
-    const response = await client.getAsync('/v1/betaGroups', {
+  if (groups.length) {
+    const requestedNames = new Set(groups);
+    let response = await client.getAsync('/v1/betaGroups', {
       'filter[app]': app.id,
-      'filter[name]': name,
       limit: 200,
     });
-    const matches = response.data.filter(group => group.attributes.name === name);
-    if (response.links?.next || matches.length !== 1) {
-      throw new Error(
-        `Cannot select TestFlight group "${name}". Check that exactly one group with this name exists for the app.`
+    for (let page = 1; page <= 20; page++) {
+      groupIds.push(
+        ...response.data
+          .filter(group => group.attributes?.name && requestedNames.has(group.attributes.name))
+          .map(group => group.id)
       );
-    }
-    groupIds.push(matches[0].id);
-  }
-
-  if (changelog) {
-    const response = await client.getAsync(
-      '/v1/builds/:id/betaBuildLocalizations',
-      { limit: 200 },
-      { id: buildId }
-    );
-    if (response.links?.next) {
-      throw new Error(
-        'Cannot update all TestFlight localizations in one page. Update the changelog in App Store Connect.'
-      );
-    }
-    for (const localization of response.data) {
-      await client.patchAsync(
-        '/v1/betaBuildLocalizations/:id',
-        {
-          data: {
-            type: 'betaBuildLocalizations',
-            id: localization.id,
-            attributes: { whatsNew: changelog },
-          },
-        },
-        { id: localization.id }
-      );
-    }
-    if (
-      !response.data.some(
-        localization => localization.attributes.locale === app.attributes.primaryLocale
-      )
-    ) {
-      await client.postAsync('/v1/betaBuildLocalizations', {
-        data: {
-          type: 'betaBuildLocalizations',
-          attributes: { locale: app.attributes.primaryLocale, whatsNew: changelog },
-          relationships: { build: { data: { type: 'builds', id: buildId } } },
-        },
-      });
+      if (!response.links?.next) {
+        break;
+      }
+      if (page === 20) {
+        throw new SystemError('The TestFlight group list has more than 20 pages.');
+      }
+      response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
     }
   }
   if (groupIds.length) {
-    await client.postAsync(
-      '/v1/builds/:id/relationships/betaGroups',
-      {
-        data: groupIds.map(id => ({ type: 'betaGroups', id })),
-      },
-      { id: buildId }
+    logger.info(`Found ${groupIds.length} TestFlight group(s).`);
+  } else if (groups.length) {
+    logger.warn('No TestFlight groups matched the requested names.');
+  }
+
+  const limit = limitFactory<void>(1);
+  const results = await Promise.allSettled([
+    limit(async () => {
+      if (!changelog) {
+        return;
+      }
+      logger.info('Updating TestFlight changelog...');
+      const primaryLocale = app.attributes?.primaryLocale;
+      if (!primaryLocale) {
+        throw new SystemError('App Store Connect did not return the app primary locale.');
+      }
+      const response = await client.getAsync(
+        '/v1/builds/:id/betaBuildLocalizations',
+        { limit: 200 },
+        { id: buildId }
+      );
+      if (response.links?.next) {
+        throw new SystemError(
+          'Cannot update all TestFlight localizations in one page. Update the changelog in App Store Connect.'
+        );
+      }
+      if (response.data.some(localization => !localization.attributes?.locale)) {
+        throw new SystemError('App Store Connect did not return a TestFlight localization locale.');
+      }
+      for (const localization of response.data) {
+        await client.patchAsync(
+          '/v1/betaBuildLocalizations/:id',
+          {
+            data: {
+              type: 'betaBuildLocalizations',
+              id: localization.id,
+              attributes: { whatsNew: changelog },
+            },
+          },
+          { id: localization.id }
+        );
+      }
+      if (!response.data.some(localization => localization.attributes?.locale === primaryLocale)) {
+        await client.postAsync('/v1/betaBuildLocalizations', {
+          data: {
+            type: 'betaBuildLocalizations',
+            attributes: { locale: primaryLocale, whatsNew: changelog },
+            relationships: { build: { data: { type: 'builds', id: buildId } } },
+          },
+        });
+      }
+    }),
+    limit(async () => {
+      if (!groupIds.length) {
+        return;
+      }
+      logger.info(`Adding Apple build to ${groupIds.length} TestFlight group(s)...`);
+      await client.postAsync(
+        '/v1/builds/:id/relationships/betaGroups',
+        {
+          data: groupIds.map(id => ({ type: 'betaGroups', id })),
+        },
+        { id: buildId }
+      );
+    }),
+  ]);
+  const failures = results.filter(result => result.status === 'rejected');
+  if (failures.length === 1) {
+    throw failures[0].reason;
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(
+      failures.map(failure => failure.reason),
+      `Failed to update the TestFlight changelog and groups: ${failures
+        .map(failure => String(failure.reason))
+        .join('; ')}`
     );
   }
 }

@@ -1,6 +1,7 @@
 import nock from 'nock';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
+import { createMockLogger } from '../../../__tests__/utils/logger';
 import { AscApiClient } from '../../utils/ios/AscApiClient';
 import {
   createUpdateTestFlightMetadataBuildFunction,
@@ -11,7 +12,13 @@ jest.unmock('node-fetch');
 
 const client = new AscApiClient({ token: 'test-token' });
 const changelog = 'Test "quotes"\n$(not-a-command)';
-const options = { client, buildUploadId: 'upload', changelog, groups: [] as string[] };
+const options = {
+  client,
+  buildUploadId: 'upload',
+  changelog,
+  groups: [] as string[],
+  logger: createMockLogger(),
+};
 const api = () => nock('https://api.appstoreconnect.apple.com');
 
 function mockBuild(state = 'COMPLETE', buildId: string | null = 'build'): void {
@@ -107,11 +114,23 @@ it('updates all existing localizations without replacing them', async () => {
   await updateTestFlightMetadataAsync(options);
 });
 
+it('stops before changing metadata when Apple omits a localization locale', async () => {
+  mockBuild();
+  api()
+    .get('/v1/builds/build/betaBuildLocalizations')
+    .query(true)
+    .reply(200, { data: [{ id: 'localization' }] });
+
+  await expect(updateTestFlightMetadataAsync(options)).rejects.toThrow(
+    'App Store Connect did not return a TestFlight localization locale.'
+  );
+});
+
 it('adds groups without changing changelog or submitting beta review', async () => {
   mockBuild();
   api()
     .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', 'filter[name]': 'A, "B"', limit: '200' })
+    .query({ 'filter[app]': 'app', limit: '200' })
     .reply(200, { data: [{ id: 'group', attributes: { name: 'A, "B"' } }] });
   api()
     .post('/v1/builds/build/relationships/betaGroups', {
@@ -121,11 +140,113 @@ it('adds groups without changing changelog or submitting beta review', async () 
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A, "B"', 'A, "B"'] });
 });
 
-it('fails before writes when a group cannot be found', async () => {
+it('ignores group names that do not exist', async () => {
   mockBuild();
-  api().get('/v1/betaGroups').query(true).reply(200, { data: [] });
-  await expect(updateTestFlightMetadataAsync({ ...options, groups: ['missing'] })).rejects.toThrow(
-    'Cannot select TestFlight group'
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [] });
+  const logger = createMockLogger();
+  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['missing'], logger });
+  expect(logger.warn).toHaveBeenCalledWith('No TestFlight groups matched the requested names.');
+});
+
+it('reads all pages and adds every group with a requested name', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, {
+      data: [{ id: 'first', attributes: { name: 'A' } }],
+      links: {
+        next: 'https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app&limit=200&cursor=page-2',
+      },
+    });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200', cursor: 'page-2' })
+    .reply(200, {
+      data: [
+        { id: 'second', attributes: { name: 'A' } },
+        { id: 'other', attributes: { name: 'B' } },
+      ],
+    });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', {
+      data: [
+        { type: 'betaGroups', id: 'first' },
+        { type: 'betaGroups', id: 'second' },
+      ],
+    })
+    .reply(204);
+  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
+});
+
+it('adds found groups when another requested name is missing', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', {
+      data: [{ type: 'betaGroups', id: 'group' }],
+    })
+    .reply(204);
+  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'missing'] });
+});
+
+it('stops after 20 group pages', async () => {
+  mockBuild();
+  const next =
+    'https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app&limit=200&cursor=next';
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [], links: { next } });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200', cursor: 'next' })
+    .times(19)
+    .reply(200, { data: [], links: { next } });
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] })
+  ).rejects.toThrow('more than 20 pages');
+});
+
+it('tries group assignment if the changelog update fails', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  api().get('/v1/builds/build/betaBuildLocalizations').query(true).reply(200, { data: [] });
+  api()
+    .post('/v1/betaBuildLocalizations')
+    .reply(403, { errors: [{ code: 'FORBIDDEN', detail: 'Not allowed' }] });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', {
+      data: [{ type: 'betaGroups', id: 'group' }],
+    })
+    .reply(204);
+  await expect(updateTestFlightMetadataAsync({ ...options, groups: ['A'] })).rejects.toThrow('403');
+});
+
+it('reports both write failures', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  api().get('/v1/builds/build/betaBuildLocalizations').query(true).reply(200, { data: [] });
+  api()
+    .post('/v1/betaBuildLocalizations')
+    .reply(403, { errors: [{ code: 'CHANGELOG_FAILED' }] });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups')
+    .reply(403, { errors: [{ code: 'GROUPS_FAILED' }] });
+  await expect(updateTestFlightMetadataAsync({ ...options, groups: ['A'] })).rejects.toThrow(
+    /CHANGELOG_FAILED.*GROUPS_FAILED/
   );
 });
 

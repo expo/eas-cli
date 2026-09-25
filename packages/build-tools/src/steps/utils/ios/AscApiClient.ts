@@ -27,26 +27,45 @@ const AscErrorResponseSchema = z.object({
 });
 
 const GetApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-app
   '/v1/builds/:id/app': {
     path: z.object({ id: z.string() }),
     request: z.object({}),
     response: z.object({
-      data: z.object({ id: z.string(), attributes: z.object({ primaryLocale: z.string() }) }),
+      data: z.object({
+        id: z.string(),
+        attributes: z.object({ primaryLocale: z.string().optional() }).optional(),
+      }),
     }),
   },
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-betabuildlocalizations
   '/v1/builds/:id/betaBuildLocalizations': {
     path: z.object({ id: z.string() }),
-    request: z.object({ limit: z.number() }),
+    request: z.object({ limit: z.number().int().max(200) }),
     response: z.object({
-      data: z.array(z.object({ id: z.string(), attributes: z.object({ locale: z.string() }) })),
+      data: z.array(
+        z.object({
+          id: z.string(),
+          attributes: z.object({ locale: z.string().optional() }).optional(),
+        })
+      ),
       links: z.object({ next: z.string().nullish() }).optional(),
     }),
   },
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups
   '/v1/betaGroups': {
     path: z.object({}),
-    request: z.object({ 'filter[app]': z.string(), 'filter[name]': z.string(), limit: z.number() }),
+    request: z.object({
+      'filter[app]': z.string(),
+      limit: z.number().int().max(200),
+    }),
     response: z.object({
-      data: z.array(z.object({ id: z.string(), attributes: z.object({ name: z.string() }) })),
+      data: z.array(
+        z.object({
+          id: z.string(),
+          attributes: z.object({ name: z.string().optional() }).optional(),
+        })
+      ),
       links: z.object({ next: z.string().nullish() }).optional(),
     }),
   },
@@ -155,17 +174,20 @@ const GetApi = {
 } satisfies ApiSchema;
 
 const PostApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/post-v1-builds-_id_-relationships-betagroups
   '/v1/builds/:id/relationships/betaGroups': {
+    path: z.object({ id: z.string() }),
     request: z.object({
       data: z.array(z.object({ type: z.literal('betaGroups'), id: z.string() })),
     }),
     response: z.undefined(),
   },
+  // https://developer.apple.com/documentation/appstoreconnectapi/post-v1-betabuildlocalizations
   '/v1/betaBuildLocalizations': {
     request: z.object({
       data: z.object({
         type: z.literal('betaBuildLocalizations'),
-        attributes: z.object({ locale: z.string(), whatsNew: z.string() }),
+        attributes: z.object({ locale: z.string(), whatsNew: z.string().nullish() }),
         relationships: z.object({
           build: z.object({ data: z.object({ type: z.literal('builds'), id: z.string() }) }),
         }),
@@ -271,13 +293,14 @@ const PostApi = {
 } satisfies ApiSchema;
 
 const PatchApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/patch-v1-betabuildlocalizations-_id_
   '/v1/betaBuildLocalizations/:id': {
     path: z.object({ id: z.string() }),
     request: z.object({
       data: z.object({
         type: z.literal('betaBuildLocalizations'),
         id: z.string(),
-        attributes: z.object({ whatsNew: z.string() }),
+        attributes: z.object({ whatsNew: z.string().nullish() }).optional(),
       }),
     }),
     response: z.object({ data: z.object({ id: z.string() }) }),
@@ -393,15 +416,40 @@ export class AscApiClient {
     });
   }
 
+  public async getNextPageAsync<TPath extends keyof typeof GetApi>(
+    path: TPath,
+    next: string
+  ): Promise<z.output<(typeof GetApi)[TPath]['response']>> {
+    const nextUrl = new URL(next, this.baseUrl);
+    if (nextUrl.origin !== this.baseUrl) {
+      throw new Error('App Store Connect returned a pagination link on another host.');
+    }
+    return await this.sendRequestAsync({
+      method: 'GET',
+      path: nextUrl.toString(),
+      body: {},
+      requestSchema: z.object({}),
+      responseSchema: GetApi[path].response,
+    });
+  }
+
   public async postAsync<TPath extends keyof typeof PostApi>(
     path: TPath,
     body: z.input<(typeof PostApi)[TPath]['request']>,
-    params?: { id: string }
+    // Require path params if the API schema defines them.
+    ...params: (typeof PostApi)[TPath] extends { path: infer TSchema extends z.ZodType }
+      ? [params: z.input<TSchema>]
+      : []
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
     const schema = PostApi[path];
+    let effectivePath: string = path;
+    const pathParams = 'path' in schema ? schema.path.parse(params[0]) : {};
+    for (const [key, value] of Object.entries(pathParams)) {
+      effectivePath = effectivePath.replaceAll(`:${key}`, encodeURIComponent(String(value)));
+    }
     return await this.sendRequestAsync({
       method: 'POST',
-      path: params ? path.replace(':id', encodeURIComponent(params.id)) : path,
+      path: effectivePath,
       body,
       requestSchema: schema.request,
       responseSchema: schema.response,
