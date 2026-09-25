@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Upload the embedded bundle after build by default for projects on SDK 58 and later. Set `EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE` to `0` to disable it. On SDK 57 and below the feature remains experimental and opt-in via `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE`. ([#4433](https://github.com/expo/eas-cli/pull/4433) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
