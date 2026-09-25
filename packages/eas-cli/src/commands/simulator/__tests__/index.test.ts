@@ -573,6 +573,54 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
   });
 
+  it('forwards --os-version in the iOS create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--os-version',
+      ' 18.5 ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ ios: { osVersion: '18.5' } })
+    );
+  });
+
+  it('forwards --os-version together with --device', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--device',
+      'iPhone 16 Pro',
+      '--os-version',
+      '26',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro', osVersion: '26' } })
+    );
+  });
+
+  it('rejects --os-version for Android before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--os-version',
+      '18.5',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--os-version is only supported with --platform ios.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('omits resourceClass when --resource-class is not set', async () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
