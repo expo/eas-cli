@@ -8,6 +8,7 @@ import { BuildContext } from '../context';
 const MIN_PRECOMPILED_MODULES_EXPO_VERSION = '55.0.26';
 const PRECOMPILED_MODULES_BASE_URL =
   'https://storage.googleapis.com/eas-build-precompiled-modules/';
+const MAVEN_CENTRAL_BASE_URL = 'https://repo1.maven.org/maven2';
 
 export async function installPods<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
@@ -18,6 +19,7 @@ export async function installPods<TJob extends Ios.Job>(
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? ['--verbose'] : [];
   const cocoapodsDeploymentFlag = ctx.env['POD_INSTALL_DEPLOYMENT'] === '1' ? ['--deployment'] : [];
   const precompiledModulesEnv = await resolvePrecompiledModulesPodInstallEnvAsync(ctx);
+  const enterpriseRepositoryEnv = resolveEnterpriseRepositoryPodInstallEnv(ctx);
 
   return {
     spawnPromise: spawn('pod', ['install', ...verboseFlag, ...cocoapodsDeploymentFlag], {
@@ -27,6 +29,7 @@ export async function installPods<TJob extends Ios.Job>(
         ...ctx.env,
         LANG: 'en_US.UTF-8',
         ...precompiledModulesEnv,
+        ...enterpriseRepositoryEnv,
       },
       lineTransformer: (line?: string) => {
         if (
@@ -40,6 +43,22 @@ export async function installPods<TJob extends Ios.Job>(
       },
       infoCallbackFn,
     }),
+  };
+}
+
+function resolveEnterpriseRepositoryPodInstallEnv<TJob extends Ios.Job>(
+  ctx: BuildContext<TJob>
+): Env {
+  if (ctx.env.ENTERPRISE_REPOSITORY || !ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL) {
+    return {};
+  }
+
+  const parsedUrl = new URL(MAVEN_CENTRAL_BASE_URL);
+  return {
+    ENTERPRISE_REPOSITORY: MAVEN_CENTRAL_BASE_URL.replace(
+      `${parsedUrl.protocol}//${parsedUrl.host}`,
+      `${ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL.replace(/\/$/, '')}/${parsedUrl.host}`
+    ),
   };
 }
 
