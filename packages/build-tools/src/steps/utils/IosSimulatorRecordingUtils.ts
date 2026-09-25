@@ -10,12 +10,20 @@ import { setTimeout } from 'node:timers/promises';
 
 import { Sentry } from '../../sentry';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageExec,
+} from '../../utils/packageManager';
+import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const IOS_SIMULATOR_RECORDING_POLL_INTERVAL_MS = 2_000;
-const RECORD_SIM_FINISH_TIMEOUT_MS = 70_000;
-const RECORD_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
-const RECORD_SIM_MAX_ATTEMPTS_PER_BOOT = 3;
-const RECORD_SIM_COMMAND = 'record-sim';
+const SERVE_SIM_START_TIMEOUT_MS = 60_000;
+const SERVE_SIM_FINISH_TIMEOUT_MS = 130_000;
+const SERVE_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
+const SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS = 30_000;
+const SERVE_SIM_RECORDING_STARTED = 'serve-sim:recording-started';
+const serveSimPackageSpecs = new Map<string, string>();
 
 type IosSimulatorRecording = {
   id: string;
@@ -25,6 +33,7 @@ type IosSimulatorRecording = {
   outputDirectory: string;
   startedAt: Date;
   getOutput: () => string;
+  hasStarted: () => boolean;
 };
 
 type ActiveIosSimulatorRecording = IosSimulatorRecording & {
@@ -35,11 +44,13 @@ type ActiveIosSimulatorRecording = IosSimulatorRecording & {
 type IosSimulatorRecordingSession = {
   env: Env;
   logger: bunyan;
-  recordSimCommand: string;
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
   completedRecordings: IosSimulatorRecording[];
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
+  recordingRetryAt: Map<IosSimulatorUuid, number>;
+  serverTokens: Map<IosSimulatorUuid, string>;
+  completedServerTokens: Map<IosSimulatorUuid, string>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
 };
@@ -47,17 +58,19 @@ type IosSimulatorRecordingSession = {
 let activeIosSimulatorRecordingSession: IosSimulatorRecordingSession | null = null;
 
 export namespace IosSimulatorRecordingUtils {
+  export function registerServeSimPackage(udid: string, packageSpec: string): void {
+    serveSimPackageSpecs.set(udid, packageSpec);
+  }
+
+  export function unregisterServeSimPackage(udid: string, packageSpec: string): void {
+    if (serveSimPackageSpecs.get(udid) === packageSpec) {
+      serveSimPackageSpecs.delete(udid);
+    }
+  }
+
   export async function startAsync({ env, logger }: { env: Env; logger: bunyan }): Promise<void> {
     if (activeIosSimulatorRecordingSession) {
       logger.info('iOS Simulator screen recording polling is already running.');
-      return;
-    }
-
-    const recordSimCommand = await resolveRecordSimCommandAsync({ env });
-    if (!recordSimCommand) {
-      logger.warn(
-        'record-sim binary is not available; iOS Simulator screen recordings are disabled.'
-      );
       return;
     }
 
@@ -67,11 +80,13 @@ export namespace IosSimulatorRecordingUtils {
     const session: IosSimulatorRecordingSession = {
       env,
       logger,
-      recordSimCommand,
       recordingsRootDirectory,
       activeRecordings: new Map(),
       completedRecordings: [],
       recordingFailureCounts: new Map(),
+      recordingRetryAt: new Map(),
+      serverTokens: new Map(),
+      completedServerTokens: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
     };
@@ -105,29 +120,35 @@ export namespace IosSimulatorRecordingUtils {
     await Promise.all(
       [...session.activeRecordings.values()].map(async recording => {
         logger.info(`Stopping screen recording for ${recording.deviceName}.`);
-        recording.recordingProcess.kill('SIGINT');
+        const startState = await waitForRecorderStartAsync(recording, SERVE_SIM_START_TIMEOUT_MS);
+        if (startState === 'exited') {
+          return;
+        }
+        const finishTimeoutMs =
+          startState === 'started' ? SERVE_SIM_FINISH_TIMEOUT_MS : SERVE_SIM_FORCE_STOP_TIMEOUT_MS;
+        signalRecordingProcess(recording.recordingProcess, 'SIGINT');
         const finished = await Promise.race([
           recording.completionPromise.then(() => true),
-          setTimeout(RECORD_SIM_FINISH_TIMEOUT_MS, false, { ref: false }),
+          setTimeout(finishTimeoutMs, false, { ref: false }),
         ]);
         if (finished) {
           return;
         }
 
-        const recordSimOutput = recording.getOutput().trim();
-        const finishTimeoutSeconds = Math.round(RECORD_SIM_FINISH_TIMEOUT_MS / 1_000);
+        const recorderOutput = recording.getOutput().trim();
+        const finishTimeoutSeconds = Math.round(finishTimeoutMs / 1_000);
         logger.warn(
-          { recordSimOutput },
+          { recorderOutput },
           `Screen recording for ${recording.deviceName} did not finish within ${finishTimeoutSeconds} seconds and will be stopped.${
-            recordSimOutput
-              ? `\nRecent recorder messages:\n${recordSimOutput}`
+            recorderOutput
+              ? `\nRecent recorder messages:\n${recorderOutput}`
               : '\nNo recorder messages were captured.'
           }`
         );
-        recording.recordingProcess.kill('SIGKILL');
+        signalRecordingProcess(recording.recordingProcess, 'SIGKILL');
         const killed = await Promise.race([
           recording.completionPromise.then(() => true),
-          setTimeout(RECORD_SIM_FORCE_STOP_TIMEOUT_MS, false, { ref: false }),
+          setTimeout(SERVE_SIM_FORCE_STOP_TIMEOUT_MS, false, { ref: false }),
         ]);
         if (!killed) {
           logger.warn(
@@ -148,12 +169,31 @@ export namespace IosSimulatorRecordingUtils {
     const completedRecordings = [...session.completedRecordings].sort(
       (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
     );
-    return completedRecordings.map(recording => ({
-      udid: recording.udid,
-      deviceName: recording.deviceName,
-      runtimeDisplayName: recording.runtimeDisplayName,
-      directory: recording.outputDirectory,
-    }));
+    const recordingsWithManifests = await Promise.all(
+      completedRecordings.map(async recording => {
+        if (
+          await waitForRecordingManifestAsync(
+            recording.outputDirectory,
+            SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS
+          )
+        ) {
+          return recording;
+        }
+        logger.warn(
+          { recorderOutput: recording.getOutput().trim() },
+          `Screen recording for ${recording.deviceName} has no manifest; skipping upload.`
+        );
+        return null;
+      })
+    );
+    return recordingsWithManifests
+      .filter(recording => recording !== null)
+      .map(recording => ({
+        udid: recording.udid,
+        deviceName: recording.deviceName,
+        runtimeDisplayName: recording.runtimeDisplayName,
+        directory: recording.outputDirectory,
+      }));
   }
 }
 
@@ -174,18 +214,38 @@ async function pollIosSimulatorRecordingsAsync(
         break;
       }
       listDevicesErrorCount = 0;
+      const readyServers = new Map(
+        (await readServeSimServersAsync(SERVE_SIM_STATE_DIR)).flatMap(server =>
+          server.token ? [[server.udid, server.token] as const] : []
+        )
+      );
 
       const bootedUdids = new Set(bootedDevices.map(device => device.udid));
-      for (const udid of session.recordingFailureCounts.keys()) {
+      for (const udid of session.serverTokens.keys()) {
         if (!bootedUdids.has(udid)) {
           session.recordingFailureCounts.delete(udid);
+          session.recordingRetryAt.delete(udid);
+          session.serverTokens.delete(udid);
+          session.completedServerTokens.delete(udid);
         }
       }
 
       for (const device of bootedDevices) {
+        const token = readyServers.get(device.udid);
+        const packageSpec = serveSimPackageSpecs.get(device.udid);
+        if (!token || !packageSpec) {
+          continue;
+        }
+        if (session.serverTokens.get(device.udid) !== token) {
+          session.serverTokens.set(device.udid, token);
+          session.recordingFailureCounts.delete(device.udid);
+          session.recordingRetryAt.delete(device.udid);
+          session.completedServerTokens.delete(device.udid);
+        }
         if (
+          session.completedServerTokens.get(device.udid) === token ||
           session.activeRecordings.has(device.udid) ||
-          (session.recordingFailureCounts.get(device.udid) ?? 0) >= RECORD_SIM_MAX_ATTEMPTS_PER_BOOT
+          Date.now() < (session.recordingRetryAt.get(device.udid) ?? 0)
         ) {
           continue;
         }
@@ -193,6 +253,7 @@ async function pollIosSimulatorRecordingsAsync(
           udid: device.udid,
           deviceName: device.name,
           runtimeDisplayName: device.runtimeDisplayName,
+          packageSpec,
         });
       }
     } catch (err) {
@@ -227,49 +288,75 @@ async function startIosSimulatorRecordingAsync(
     udid,
     deviceName,
     runtimeDisplayName,
+    packageSpec,
   }: {
     udid: IosSimulatorUuid;
     deviceName: string;
     runtimeDisplayName: string;
+    packageSpec: string;
   }
 ): Promise<void> {
   const startedAt = new Date();
+  const serverToken = session.serverTokens.get(udid);
   const recordingId = randomUUID();
   const outputDirectory = path.join(session.recordingsRootDirectory, recordingId);
   await mkdir(outputDirectory, { recursive: true });
 
   session.logger.info(`Starting screen recording for ${deviceName}.`);
+  const recorderExec = resolvePackageExec(
+    resolveConfiguredPackageManager(session.env, PackageManager.NPM),
+    [packageSpec, 'record-video']
+  );
   const recordingSpawn = spawn(
-    session.recordSimCommand,
-    ['--udid', udid, '--output', outputDirectory, '--segment-duration', '0'],
+    recorderExec.command,
+    [...recorderExec.args, '--udid', udid, '--output', outputDirectory],
     {
       env: session.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
     }
   );
-  const getOutput = captureProcessOutput(recordingSpawn.child);
+  const { getOutput, hasStarted } = captureProcessOutput(recordingSpawn.child);
+  const saveFinalizedRecordingAsync = async (): Promise<boolean> => {
+    if (
+      !(await waitForRecordingManifestAsync(outputDirectory, SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS))
+    ) {
+      return false;
+    }
+    if (serverToken) {
+      session.completedServerTokens.set(udid, serverToken);
+    }
+    session.completedRecordings.push({
+      id: recordingId,
+      udid,
+      deviceName,
+      runtimeDisplayName,
+      outputDirectory,
+      startedAt,
+      getOutput,
+      hasStarted,
+    });
+    return true;
+  };
   const completionPromise = recordingSpawn
-    .then(() => undefined)
-    .catch((err: unknown) => {
-      session.recordingFailureCounts.set(udid, (session.recordingFailureCounts.get(udid) ?? 0) + 1);
+    .then(async () => {
+      if (!(await saveFinalizedRecordingAsync())) {
+        scheduleRecordingRetry(session, udid);
+      }
+    })
+    .catch(async (err: unknown) => {
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('iOS Simulator screen recording process failed', error);
       session.logger.warn(
-        { err: error, recordSimOutput: getOutput() },
+        { err: error, recorderOutput: getOutput() },
         `Screen recording process failed for ${deviceName}.`
       );
+      if (!hasStarted() || !(await saveFinalizedRecordingAsync())) {
+        scheduleRecordingRetry(session, udid);
+      }
     })
     .finally(() => {
       session.activeRecordings.delete(udid);
-      session.completedRecordings.push({
-        id: recordingId,
-        udid,
-        deviceName,
-        runtimeDisplayName,
-        outputDirectory,
-        startedAt,
-        getOutput,
-      });
     });
 
   session.activeRecordings.set(udid, {
@@ -282,31 +369,82 @@ async function startIosSimulatorRecordingAsync(
     completionPromise,
     startedAt,
     getOutput,
+    hasStarted,
   });
 }
 
-async function resolveRecordSimCommandAsync({ env }: { env: Env }): Promise<string | null> {
-  try {
-    await spawn('which', [RECORD_SIM_COMMAND], { env });
-    return RECORD_SIM_COMMAND;
-  } catch {}
-
-  const packagedRecordSimPath = path.join(__dirname, '..', '..', '..', 'bin', RECORD_SIM_COMMAND);
-  try {
-    await access(packagedRecordSimPath);
-    return packagedRecordSimPath;
-  } catch {
-    return null;
+async function waitForRecordingManifestAsync(
+  outputDirectory: string,
+  timeoutMs: number
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await access(path.join(outputDirectory, 'session.json'));
+      return true;
+    } catch {
+      await setTimeout(1_000);
+    }
   }
+  return false;
 }
 
-function captureProcessOutput(recordingProcess: ChildProcess): () => string {
+async function waitForRecorderStartAsync(
+  recording: ActiveIosSimulatorRecording,
+  timeoutMs: number
+): Promise<'started' | 'exited' | 'timeout'> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (recording.hasStarted()) {
+      return 'started';
+    }
+    const exited = await Promise.race([
+      recording.completionPromise.then(() => true),
+      setTimeout(100, false),
+    ]);
+    if (exited) {
+      return 'exited';
+    }
+  }
+  return 'timeout';
+}
+
+function scheduleRecordingRetry(
+  session: IosSimulatorRecordingSession,
+  udid: IosSimulatorUuid
+): void {
+  const failures = (session.recordingFailureCounts.get(udid) ?? 0) + 1;
+  session.recordingFailureCounts.set(udid, failures);
+  session.recordingRetryAt.set(
+    udid,
+    Date.now() + Math.min(300_000, 25_000 * 2 ** Math.min(failures - 1, 4))
+  );
+}
+
+function signalRecordingProcess(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {}
+  }
+  child.kill(signal);
+}
+
+function captureProcessOutput(recordingProcess: ChildProcess): {
+  getOutput: () => string;
+  hasStarted: () => boolean;
+} {
   let output = '';
+  let started = false;
   const appendChunk = (chunk: Buffer | string): void => {
-    // Keep enough recorder stderr/stdout for diagnostics without retaining unbounded output.
-    output = `${output}${chunk.toString()}`.slice(-16_384);
+    output = `${output}${chunk.toString()}`;
+    if (output.includes(SERVE_SIM_RECORDING_STARTED)) {
+      started = true;
+    }
+    output = output.slice(-16_384);
   };
   recordingProcess.stdout?.on('data', appendChunk);
   recordingProcess.stderr?.on('data', appendChunk);
-  return () => output;
+  return { getOutput: () => output, hasStarted: () => started };
 }

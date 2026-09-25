@@ -95,7 +95,6 @@ async function resolvePackagedFileAsync(binDir: string, file: string): Promise<s
   }
 }
 
-/** The packaged library, next to the compiled package like record-sim. */
 export async function resolveEgressGuardLibraryAsync(
   binDir: string = PACKAGED_BIN_DIR
 ): Promise<string | null> {
