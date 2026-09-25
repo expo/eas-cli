@@ -35,7 +35,7 @@ export async function uploadServeSimLogsFileAsync(
       deviceRunSessionId,
       artifactId: `simulator-log-${udid}`,
       name: `App logs (${udid.slice(0, 8)})`,
-      filename: 'simulator.ndjson',
+      filename: 'app-logs.ndjson',
       kind: 'simulator-log',
       metadata: { __eas_type: 'simulator-log', udid, scope: 'user-apps', source: 'serve-sim/logs' },
       size,

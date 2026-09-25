@@ -21,7 +21,7 @@ it('uploads NDJSON with explicit user-app scope and destroys the stream afterwar
     ctx,
     expect.objectContaining({
       kind: 'simulator-log',
-      filename: 'simulator.ndjson',
+      filename: 'app-logs.ndjson',
       size: 11,
       metadata: expect.objectContaining({ scope: 'user-apps', udid: 'A' }),
     })

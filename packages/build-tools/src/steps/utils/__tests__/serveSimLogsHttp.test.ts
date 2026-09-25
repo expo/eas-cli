@@ -116,7 +116,7 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
     deviceRunSessionId: 'session-test',
     input: {
       name: 'App logs (device-B)',
-      filename: 'simulator.ndjson',
+      filename: 'app-logs.ndjson',
       kind: 'simulator-log',
       metadata: {
         __eas_type: 'simulator-log',
