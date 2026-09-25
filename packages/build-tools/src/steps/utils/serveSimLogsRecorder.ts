@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { type Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
+import { z } from 'zod';
 
 import { Sentry } from '../../sentry';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
@@ -15,6 +16,11 @@ const MAX_BYTES_PER_DEVICE = 20 * 1024 * 1024;
 const MAX_DURATION_MS = 30 * 60 * 1000;
 const MAX_LINE_LENGTH = 1024 * 1024;
 const MAX_CONSECUTIVE_FAILURES = 10;
+
+const ServeSimLogEnvelopeSchema = z.object({
+  seq: z.number().int().nonnegative(),
+  raw: z.string(),
+});
 
 type CollectedLog = { udid: string; filePath: string };
 type Session = {
@@ -183,6 +189,7 @@ export async function streamServeSimLogsToFileAsync({
   let bytesWritten = 0;
   let limitReached = maxBytes <= 0;
   let lastSequence = since;
+  let malformedRecords = 0;
   let file: Awaited<ReturnType<typeof open>> | undefined;
   let body: NodeJS.ReadableStream | undefined;
   const closeBody = (): void => {
@@ -241,25 +248,18 @@ export async function streamServeSimLogsToFileAsync({
         let payload = line.slice(5).trim();
         let sequence: number | undefined;
         try {
-          const parsed: unknown = JSON.parse(payload);
-          if (
-            parsed &&
-            typeof parsed === 'object' &&
-            'seq' in parsed &&
-            'raw' in parsed &&
-            typeof parsed.seq === 'number' &&
-            Number.isSafeInteger(parsed.seq) &&
-            parsed.seq >= 0 &&
-            typeof parsed.raw === 'string'
-          ) {
-            sequence = parsed.seq;
+          const envelope = ServeSimLogEnvelopeSchema.safeParse(JSON.parse(payload));
+          if (envelope.success) {
+            sequence = envelope.data.seq;
             if (lastSequence !== undefined && sequence <= lastSequence) {
               continue;
             }
             // Keep the downloaded artifact homogeneous across old and new servers.
-            payload = JSON.stringify(JSON.parse(parsed.raw));
+            payload = JSON.stringify(JSON.parse(envelope.data.raw));
           }
         } catch {
+          // Skip the record so the rest of the stream is kept; the count is reported below.
+          malformedRecords += 1;
           continue;
         }
         const record = payload + '\n';
@@ -292,6 +292,15 @@ export async function streamServeSimLogsToFileAsync({
       );
     }
   } finally {
+    if (malformedRecords > 0) {
+      Sentry.capture('serve-sim sent malformed simulator log records', {
+        extras: { malformedRecords, serveSimDevice },
+      });
+      logger.warn(
+        { malformedRecords },
+        'serve-sim sent simulator log records that are not valid JSON; they were skipped.'
+      );
+    }
     signal.removeEventListener('abort', closeBody);
     closeBody();
     await file?.close().catch(err => {

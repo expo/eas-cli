@@ -6,6 +6,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { Sentry } from '../../../sentry';
 import { ServeSimLogsRecorder, streamServeSimLogsToFileAsync } from '../serveSimLogsRecorder';
 
 jest.mock('node-fetch');
@@ -46,7 +47,7 @@ function record(options: Partial<Parameters<typeof streamServeSimLogsToFileAsync
   });
 }
 
-it('preserves split UTF-8 and CRLF records, skips heartbeat and invalid JSON, and selects a device', async () => {
+it('preserves split UTF-8 and CRLF records, skips heartbeat and reports invalid JSON, and selects a device', async () => {
   const input = Buffer.from(
     ':\r\n\r\ndata: {"message":"안녕"}\r\n\r\ndata: bad\n\ndata: {"pid":42}\n\n'
   );
@@ -58,6 +59,9 @@ it('preserves split UTF-8 and CRLF records, skips heartbeat and invalid JSON, an
   expect(await readFile(path.join(directory, 'logs.ndjson'), 'utf8')).toBe(
     '{"message":"안녕"}\n{"pid":42}\n'
   );
+  expect(Sentry.capture).toHaveBeenCalledWith('serve-sim sent malformed simulator log records', {
+    extras: { malformedRecords: 1, serveSimDevice: 'device two' },
+  });
   expect(fetch).toHaveBeenCalledWith(
     'http://localhost:1234/logs?envelope=true&scope=user-apps&device=device+two',
     expect.objectContaining({ headers: { Authorization: 'Bearer secret' } })

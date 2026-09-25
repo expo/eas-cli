@@ -11,6 +11,7 @@ import { streamServeSimLogsToFileAsync } from '../serveSimLogsRecorder';
 
 // This test exercises actual sockets, UTF-8 decoding, files, and PUT uploads.
 // Only WWW's allocation response is substituted; it does not verify cloud storage.
+jest.mock('../../../sentry');
 jest.unmock('fs');
 jest.unmock('node:fs');
 jest.unmock('fs/promises');
@@ -129,7 +130,12 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
   });
   expect(uploaded).toEqual(expected);
   expect(uploadedLength).toBe(String(expected.length));
-  expect(logger.warn).not.toHaveBeenCalled();
+  // Only the invalid JSON record is reported; the partial trailing record is not a record yet.
+  expect(logger.warn).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { malformedRecords: 1 },
+    expect.stringContaining('not valid JSON')
+  );
 });
 
 it('resumes a buffered stream without appending already persisted sequence numbers', async () => {
