@@ -5,6 +5,8 @@ import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 import { uploadServeSimLogsFileAsync } from '../utils/serveSimLogsArtifacts';
 import { ServeSimLogsRecorder } from '../utils/serveSimLogsRecorder';
 
+const UPLOAD_TIMEOUT_MS = 30_000;
+
 export function createCollectServeSimLogsBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -20,14 +22,14 @@ export function createCollectServeSimLogsBuildFunction(ctx: CustomBuildContext):
           return;
         }
         const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-        const signal = AbortSignal.timeout(30_000);
         for (const { udid, filePath } of collected) {
+          // Each device gets its own budget so one stuck upload does not cancel the rest.
           await uploadServeSimLogsFileAsync(ctx, {
             deviceRunSessionId,
             udid,
             filePath,
             logger,
-            signal,
+            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
           });
         }
       } catch (err) {

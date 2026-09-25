@@ -28,7 +28,7 @@ it('starts collection and tolerates startup failures', async () => {
   expect(logger.warn).toHaveBeenCalled();
 });
 
-it('uploads each device using one bounded finalization signal', async () => {
+it('uploads each device with its own bounded signal', async () => {
   jest.mocked(ServeSimLogsRecorder.finishAsync).mockResolvedValue([
     { udid: 'A', filePath: '/tmp/A.ndjson' },
     { udid: 'B', filePath: '/tmp/B.ndjson' },
@@ -44,7 +44,7 @@ it('uploads each device using one bounded finalization signal', async () => {
       signal: expect.any(AbortSignal),
     })
   );
-  expect(jest.mocked(uploadServeSimLogsFileAsync).mock.calls[0][1].signal).toBe(
+  expect(jest.mocked(uploadServeSimLogsFileAsync).mock.calls[0][1].signal).not.toBe(
     jest.mocked(uploadServeSimLogsFileAsync).mock.calls[1][1].signal
   );
 });
