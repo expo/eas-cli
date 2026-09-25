@@ -4,7 +4,7 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import {
   BuildStepInputById,
   BuildStepInputProvider,
-  makeBuildStepInputByIdMap,
+  makeBuildStepInputById,
 } from './BuildStepInput';
 import { BuildConfigError } from './errors';
 
@@ -46,13 +46,13 @@ export class BuildFunctionGroup {
     this.createBuildStepsFromFunctionGroupCall = (ctx, { callInputs = {} } = {}) => {
       const inputs = this.inputProviders?.map(inputProvider => {
         const input = inputProvider(ctx, id);
-        if (input.id in callInputs) {
+        if (Object.hasOwn(callInputs, input.id)) {
           input.set(callInputs[input.id]);
         }
         return input;
       });
       return createBuildStepsFromFunctionGroupCall(ctx, {
-        inputs: makeBuildStepInputByIdMap(inputs),
+        inputs: makeBuildStepInputById(inputs),
       });
     };
   }

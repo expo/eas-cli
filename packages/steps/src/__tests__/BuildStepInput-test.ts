@@ -5,7 +5,7 @@ import { BuildStep } from '../BuildStep';
 import {
   BuildStepInput,
   BuildStepInputValueTypeName,
-  makeBuildStepInputByIdMap,
+  makeBuildStepInputById,
 } from '../BuildStepInput';
 import { BuildStepRuntimeError } from '../errors';
 
@@ -942,12 +942,15 @@ describe(BuildStepInput, () => {
   });
 });
 
-describe(makeBuildStepInputByIdMap, () => {
-  it('returns empty object when inputs are undefined', () => {
-    expect(makeBuildStepInputByIdMap(undefined)).toEqual({});
+describe(makeBuildStepInputById, () => {
+  it('returns an empty null-prototype object when inputs are undefined', () => {
+    const result = makeBuildStepInputById(undefined);
+
+    expect(Object.keys(result)).toEqual([]);
+    expect(Object.getPrototypeOf(result)).toBeNull();
   });
 
-  it('returns object with inputs indexed by their ids', () => {
+  it('returns a null-prototype object with inputs indexed by their ids', () => {
     const ctx = createGlobalContextMock();
     const inputs: BuildStepInput[] = [
       new BuildStepInput(ctx, {
@@ -972,8 +975,9 @@ describe(makeBuildStepInputByIdMap, () => {
         required: true,
       }),
     ];
-    const result = makeBuildStepInputByIdMap(inputs);
-    expect(Object.keys(result).length).toBe(3);
+    const result = makeBuildStepInputById(inputs);
+    expect(Object.getPrototypeOf(result)).toBeNull();
+    expect(Object.keys(result)).toHaveLength(3);
     expect(result.foo1).toBeDefined();
     expect(result.foo2).toBeDefined();
     expect(result.foo1.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
@@ -985,5 +989,21 @@ describe(makeBuildStepInputByIdMap, () => {
     expect(result.foo3.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
       true
     );
+  });
+
+  it('supports input ids that are special object property names', () => {
+    const ctx = createGlobalContextMock();
+    const input = new BuildStepInput(ctx, {
+      id: '__proto__',
+      stepDisplayName: 'test1',
+      defaultValue: 'value',
+      required: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    });
+
+    const result = makeBuildStepInputById([input]);
+
+    expect(result.__proto__).toBe(input);
+    expect(Object.hasOwn(result, '__proto__')).toBe(true);
   });
 });
