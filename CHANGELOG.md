@@ -15,7 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Add `launch_app_identifier`, `launch_args`, and `open_url` inputs to the serve-sim, agent-device, argent, and Appium remote sessions, so serve-sim launches an installed app before the stream starts. The inputs are iOS only, and Android sessions keep using `eas/launch_application`. ([#4324](https://github.com/expo/eas-cli/pull/4324) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Stream iOS Simulator previews at 1600px and 10 Mbps. ([#4439](https://github.com/expo/eas-cli/pull/4439) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `--os-version` to `eas simulator` to select the iOS Simulator runtime version. ([@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add `--os-version` to `eas simulator` to select the iOS Simulator runtime version. ([#4476](https://github.com/expo/eas-cli/pull/4476) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
