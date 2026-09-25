@@ -3,6 +3,7 @@ import { BuildMode, BuildPhase, Ios, ManagedArtifactType, Workflow } from '@expo
 import plist from '@expo/plist';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
@@ -18,6 +19,7 @@ import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
 import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
+import { restoreMetroCacheAsync, saveMetroCacheAsync } from '../steps/functions/metroBuildCache';
 import {
   cacheStatsAsync,
   restoreCcacheAsync,
@@ -104,6 +106,16 @@ async function buildInnerAsync(
         return;
       }
       await ctx.cacheManager?.restoreCache(ctx);
+      Object.assign(
+        ctx.env,
+        await restoreMetroCacheAsync({
+          logger: ctx.logger,
+          platform: ctx.job.platform,
+          cacheDirectory: path.join(ctx.workingdir, 'metro-cache'),
+          env: ctx.env,
+          secrets: ctx.job.secrets,
+        })
+      );
       await restoreCcacheAsync({
         logger: ctx.logger,
         workingDirectory,
@@ -252,6 +264,12 @@ async function buildInnerAsync(
       return;
     }
     await ctx.cacheManager?.saveCache(ctx);
+    await saveMetroCacheAsync({
+      logger: ctx.logger,
+      platform: ctx.job.platform,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,

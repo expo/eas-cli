@@ -16,6 +16,7 @@ import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { JobHooksRef, setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
+import { restoreMetroCacheAsync, saveMetroCacheAsync } from '../steps/functions/metroBuildCache';
 import {
   cacheStatsAsync,
   restoreCcacheAsync,
@@ -95,6 +96,16 @@ async function buildInnerAsync(
       return;
     }
     await ctx.cacheManager?.restoreCache(ctx);
+    Object.assign(
+      ctx.env,
+      await restoreMetroCacheAsync({
+        logger: ctx.logger,
+        platform: ctx.job.platform,
+        cacheDirectory: path.join(ctx.workingdir, 'metro-cache'),
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      })
+    );
     await restoreCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
@@ -235,6 +246,12 @@ async function buildInnerAsync(
       return;
     }
     await ctx.cacheManager?.saveCache(ctx);
+    await saveMetroCacheAsync({
+      logger: ctx.logger,
+      platform: ctx.job.platform,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
