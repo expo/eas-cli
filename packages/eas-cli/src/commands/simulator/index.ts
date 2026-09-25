@@ -108,6 +108,10 @@ export default class Simulator extends EasCommand {
       description:
         'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
     }),
+    'os-version': Flags.string({
+      description:
+        'iOS version of the Simulator runtime, as major.minor (e.g. "18.6") or as a major version (e.g. "26") for the newest available release of that major. Unavailable versions are rejected with the list of available ones. Defaults to the server default. Only supported with --platform ios.',
+    }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
       exclusive: ['build-fingerprint', 'application-archive-url', 'expo-go'],
@@ -257,6 +261,7 @@ export default class Simulator extends EasCommand {
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const systemImagePackage = flags['system-image']?.trim() || undefined;
+    const osVersion = flags['os-version']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -302,6 +307,9 @@ export default class Simulator extends EasCommand {
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
     if (systemImagePackage && platform !== AppPlatform.Android) {
       throw new EasCommandError('--system-image is only supported with --platform android.');
+    }
+    if (osVersion && platform !== AppPlatform.Ios) {
+      throw new EasCommandError('--os-version is only supported with --platform ios.');
     }
     let egressAllow: string[] = [];
     try {
@@ -379,8 +387,13 @@ export default class Simulator extends EasCommand {
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
             ...(platform === AppPlatform.Ios
-              ? deviceIdentifier
-                ? { ios: { deviceIdentifier } }
+              ? deviceIdentifier || osVersion
+                ? {
+                    ios: {
+                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                      ...(osVersion ? { osVersion } : {}),
+                    },
+                  }
                 : {}
               : deviceIdentifier || systemImagePackage
                 ? {

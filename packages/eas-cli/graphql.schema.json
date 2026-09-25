@@ -46796,7 +46796,19 @@
         "inputFields": [
           {
             "name": "deviceIdentifier",
-            "description": "Simulator device name or UDID to use for the session (e.g. \"iPhone 16 Pro\").",
+            "description": "Simulator device name or UDID to use for the session (e.g. \"iPhone 17 Pro\"). If omitted,\nthe default device of the selected iOS version is used.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "osVersion",
+            "description": "iOS version of the Simulator runtime, as major.minor (e.g. \"18.6\") or as a major version\n(e.g. \"26\") for the newest available release of that major. Each version runs on the macOS\nworker image that has that runtime, so the session also uses that image's Xcode. Unavailable\nversions are rejected with the list of available ones. Not every account can select a version\nyet. If omitted, the default iOS version is used.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
