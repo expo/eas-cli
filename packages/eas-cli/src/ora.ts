@@ -30,13 +30,21 @@ export function isSpinnerEnabled(): boolean {
 export function ora(options?: Options | string): Ora {
   const inputOptions = typeof options === 'string' ? { text: options } : (options ?? {});
   const disabled = !isSpinnerEnabled();
+  // In non-interactive mode, send the stream to stdout so it prevents looking like an error.
+  const stream: NodeJS.WritableStream =
+    inputOptions.stream ?? (disabled ? process.stdout : process.stderr);
   const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
     isEnabled: !disabled,
-    // In non-interactive mode, send the stream to stdout so it prevents looking like an error.
-    stream: disabled ? process.stdout : process.stderr,
     ...inputOptions,
+    stream,
   });
+
+  // ora only recounts the wrapped lines of its text when the text changes. After the
+  // terminal gets narrower, it clears too few lines and every frame leaves a copy behind.
+  const onResize = (): void => {
+    spinner.text = spinner.text;
+  };
 
   const oraStart = spinner.start.bind(spinner);
   const oraStop = spinner.stop.bind(spinner);
@@ -95,6 +103,8 @@ export function ora(options?: Options | string): Ora {
     // Skipping wrapping native logs removes the repeated interleaved "Exporting..." messages.
     if (!disabled) {
       wrapNativeLogs();
+      stream.off('resize', onResize);
+      stream.on('resize', onResize);
     }
 
     return oraStart(text);
@@ -103,12 +113,14 @@ export function ora(options?: Options | string): Ora {
   spinner.stopAndPersist = (options): Ora => {
     const result = oraStopAndPersist(options);
     resetNativeLogs();
+    stream.off('resize', onResize);
     return result;
   };
 
   spinner.stop = (): Ora => {
     const result = oraStop();
     resetNativeLogs();
+    stream.off('resize', onResize);
     return result;
   };
 
