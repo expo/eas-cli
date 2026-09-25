@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Accept build IDs in `workflow:ssh <id>`. ([#4452](https://github.com/expo/eas-cli/pull/4452) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [eas-cli] Make `eas simulator:*` commands visible in help output. ([#4456](https://github.com/expo/eas-cli/pull/4456) by [@szdziedzic](https://github.com/szdziedzic))
-- [build-tools] Add `eas/update_testflight_metadata` to set changelogs and TestFlight groups for an uploaded build with an App Store Connect API key.
+- [build-tools] Add `eas/update_testflight_metadata` to set changelogs and TestFlight groups for an uploaded build with an App Store Connect API key. ([#4475](https://github.com/expo/eas-cli/pull/4475) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
 - [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
