@@ -48,12 +48,12 @@ describe(runExpoCliCommand, () => {
       const expoConfig = instance(mockExpoConfig);
 
       const mockCtx = mock<BuildContext<Android.Job>>();
-      when(mockCtx.packageManager).thenReturn(PackageManager.NPM);
+      when(mockCtx.packageManager).thenReturn(PackageManager.YARN);
       when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
       const ctx = instance(mockCtx);
 
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
-      expect(spawn).toHaveBeenCalledWith('npx', ['expo', 'doctor'], expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith('yarn', ['expo', 'doctor'], expect.any(Object));
     });
 
     it('spawns expo via "pnpm" when package manager is pnpm', () => {
@@ -83,6 +83,26 @@ describe(runExpoCliCommand, () => {
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
       expect(spawn).toHaveBeenCalledWith('bun', ['expo', 'doctor'], expect.any(Object));
     });
+  });
+
+  it('sets production mode for the Expo CLI child process', () => {
+    void runExpoCliCommand({
+      args: ['prebuild'],
+      options: { env: { NODE_ENV: 'staging' } },
+      packageManager: PackageManager.NPM,
+      envMode: 'production',
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      ['expo', 'prebuild'],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          NODE_ENV: 'production',
+          __EXPO_CONFIG_MODE: 'production',
+        }),
+      })
+    );
   });
 });
 
