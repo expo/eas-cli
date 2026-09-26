@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Write credentials downloaded to `credentials.json` into the project directory instead of the current working directory, so running `eas credentials` from a subdirectory no longer deletes the existing keystore, certificate or provisioning profile. ([#4477](https://github.com/expo/eas-cli/pull/4477) by [@breken-ai](https://github.com/breken-ai))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
