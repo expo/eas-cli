@@ -113,7 +113,7 @@ export async function collectAssetsAsync(
     for await (const file of listFilesRecursively(assetPath)) {
       if (file.size > options.maxFileSize) {
         throw new Error(
-          `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
+          `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>4GB)`
         );
       } else if (EXPO_ROUTES_PATHS.has(file.normalizedPath)) {
         continue;
