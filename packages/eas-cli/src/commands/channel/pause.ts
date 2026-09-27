@@ -56,7 +56,7 @@ export default class ChannelPause extends EasCommand {
   static override args = {
     name: Args.string({
       required: false,
-      description: 'Name of the channel to edit',
+      description: 'Name of the channel to pause',
     }),
   };
 
