@@ -7,6 +7,7 @@ import {
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -249,6 +250,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
@@ -411,6 +413,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -431,6 +434,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -451,6 +455,7 @@ describe(Simulator, () => {
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
       maxIdleTimeMinutes: 30,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 

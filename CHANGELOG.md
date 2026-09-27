@@ -26,6 +26,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Report `eas-cli` as the request origin when `eas simulator` creates a session, for analytics. ([#TBD](https://github.com/expo/eas-cli/pull/TBD) by [@sjkim-expo](https://github.com/sjkim-expo))
+
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
 
 ### 🎉 New features

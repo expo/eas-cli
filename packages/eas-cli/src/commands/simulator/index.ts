@@ -12,6 +12,7 @@ import {
 import {
   AppPlatform,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -298,6 +299,7 @@ export default class Simulator extends EasCommand {
         ...(openUrl ? { openUrl } : {}),
         ...(resourceClass ? { resourceClass } : {}),
         ...(egress ? { egress } : {}),
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
