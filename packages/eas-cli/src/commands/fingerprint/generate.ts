@@ -66,6 +66,13 @@ export default class FingerprintGenerate extends EasCommand {
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const { platform: platformStringFlag, environment, 'build-profile': buildProfileName } = flags;
 
+    // Enable JSON output before resolving context so that any logs emitted while
+    // loading server-side environment variables are redirected to stderr instead
+    // of polluting the JSON written to stdout.
+    if (json) {
+      enableJsonOutput();
+    }
+
     const {
       projectId,
       privateProjectConfig: { projectDir },
@@ -77,9 +84,6 @@ export default class FingerprintGenerate extends EasCommand {
       nonInteractive,
       withServerSideEnvironment: environment ?? null,
     });
-    if (json) {
-      enableJsonOutput();
-    }
 
     let platform: AppPlatform;
     if (platformStringFlag) {
