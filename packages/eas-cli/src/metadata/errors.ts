@@ -73,11 +73,17 @@ export function logMetadataValidationError(error: MetadataValidationError): void
 /**
  * Handle a thrown metadata error by informing the user what went wrong.
  * If a normal error is thrown, this method will re-throw that error to avoid consuming it.
+ *
+ * Aggregated download/upload errors (`MetadataDownloadError`, `MetadataUploadError`)
+ * are logged in detail here and then re-thrown so the calling command exits with a
+ * non-zero status. Otherwise per-entity failures (e.g. a single screenshot upload that
+ * raised inside `logAsync`) would be visible only in the spinner output while the
+ * outer `eas metadata:push` / `eas metadata:pull` invocation still reported success.
  */
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
     logMetadataValidationError(error);
-    return;
+    throw error;
   }
 
   if (error instanceof MetadataDownloadError || error instanceof MetadataUploadError) {
@@ -92,7 +98,7 @@ export function handleMetadataError(error: Error): void {
     Log.log('If this issue persists, open a new issue at:');
     // TODO: add execution ID to the issue template link
     Log.log(link('https://github.com/expo/eas-cli'));
-    return;
+    throw error;
   }
 
   throw error;
