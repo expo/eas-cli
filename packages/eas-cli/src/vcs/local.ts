@@ -62,6 +62,7 @@ node_modules
         cwd: this.rootDir,
         ignore: ['node_modules'],
         followSymbolicLinks: false,
+        dot: true,
       })
     )
       // ensure that parent dir is before child directories
@@ -84,12 +85,15 @@ node_modules
   }
 
   public ignores(relativePath: string): boolean {
+    let ignored = false;
     for (const [prefix, ignore] of this.ignoreMapping) {
-      if (relativePath.startsWith(prefix) && ignore.ignores(relativePath.slice(prefix.length))) {
-        return true;
-      }
+      if (!relativePath.startsWith(prefix)) continue;
+      const slicedPath = relativePath.slice(prefix.length);
+      const result = ignore.test(slicedPath);
+      if (result.ignored) ignored = true;
+      else if (result.unignored) ignored = false;
     }
-    return false;
+    return ignored;
   }
 }
 
@@ -115,7 +119,10 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
         return true;
       }
       const relativePath = path.relative(src, srcFilePath);
-      const shouldCopyTheItem = !ignore.ignores(relativePath);
+
+      // Append a trailing slash for directories so patterns like !dir/ match correctly.
+      const isDirectory = fsExtra.lstatSync(srcFilePath).isDirectory();
+      const shouldCopyTheItem = !ignore.ignores(isDirectory ? `${relativePath}/` : relativePath);
 
       Log.debug(shouldCopyTheItem ? 'copying' : 'skipping', {
         src,
