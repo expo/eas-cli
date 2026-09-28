@@ -286,30 +286,36 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger,
           sessionFailed,
           teardown: [
-            toolsTunnel?.stopAsync(),
-            (async () => {
-              try {
-                await stopArgentEventCollectionSafelyAsync({
-                  eventCollection,
-                  deviceRunSessionId,
-                  logger,
-                });
-                artifactPollAbortController.abort();
+            ['Argent tunnel', toolsTunnel?.stopAsync()],
+            [
+              'Argent tool-server',
+              (async () => {
                 try {
-                  await artifactPollingPromise;
-                } catch (err) {
-                  const error = err instanceof Error ? err : new Error(String(err));
-                  Sentry.capture('Could not finish Argent remote session artifact polling', error);
-                  logger.warn(
-                    { err: error },
-                    'Could not finish Argent remote session artifact polling.'
-                  );
+                  await stopArgentEventCollectionSafelyAsync({
+                    eventCollection,
+                    deviceRunSessionId,
+                    logger,
+                  });
+                  artifactPollAbortController.abort();
+                  try {
+                    await artifactPollingPromise;
+                  } catch (err) {
+                    const error = err instanceof Error ? err : new Error(String(err));
+                    Sentry.capture(
+                      'Could not finish Argent remote session artifact polling',
+                      error
+                    );
+                    logger.warn(
+                      { err: error },
+                      'Could not finish Argent remote session artifact polling.'
+                    );
+                  }
+                } finally {
+                  await argentServer.stopAsync();
                 }
-              } finally {
-                await argentServer.stopAsync();
-              }
-            })(),
-            sessionHost?.finishAsync(),
+              })(),
+            ],
+            ['session host', sessionHost?.finishAsync()],
           ],
         });
       }

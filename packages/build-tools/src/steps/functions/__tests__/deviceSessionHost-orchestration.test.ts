@@ -40,6 +40,7 @@ const stopTool = jest.fn();
 const stopTunnel = jest.fn();
 const stopEvents = jest.fn();
 const openPreview = jest.fn();
+const logger = { info: jest.fn(), warn: jest.fn() };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -89,7 +90,7 @@ describe.each([
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
-        logger: { info: jest.fn(), warn: jest.fn() },
+        logger,
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
@@ -218,5 +219,9 @@ describe.each([
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.objectContaining({ message: 'recording cleanup failed' }) },
+      'Could not stop the session host during remote session teardown.'
+    );
   });
 });

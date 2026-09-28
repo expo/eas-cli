@@ -584,26 +584,27 @@ async function stopDetachedProcessAsync(
 }
 
 /**
- * Runs every teardown to completion and logs each failure. The first failure is rethrown only
- * when the session body succeeded, so a teardown error cannot replace the error that ended it.
+ * Runs every named teardown to completion and logs each failure. The first failure is rethrown
+ * only when the session body succeeded, so a teardown error cannot replace the error that ended it.
  */
 export async function finishRemoteSessionAsync({
   teardown,
   sessionFailed,
   logger,
 }: {
-  teardown: (Promise<unknown> | undefined)[];
+  teardown: [name: string, task: Promise<unknown> | undefined][];
   sessionFailed: boolean;
   logger: bunyan;
 }): Promise<void> {
-  const failures = (await Promise.allSettled(teardown)).flatMap(result =>
-    result.status === 'rejected' ? [result.reason] : []
+  const results = await Promise.allSettled(teardown.map(([, task]) => task));
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected' ? [{ name: teardown[index][0], err: result.reason }] : []
   );
-  for (const err of failures) {
-    logger.warn({ err }, 'Remote session teardown failed.');
+  for (const { name, err } of failures) {
+    logger.warn({ err }, `Could not stop the ${name} during remote session teardown.`);
   }
   if (!sessionFailed && failures.length > 0) {
-    throw failures[0];
+    throw failures[0].err;
   }
 }
 
