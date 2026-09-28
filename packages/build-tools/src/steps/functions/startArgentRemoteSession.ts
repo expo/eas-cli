@@ -18,6 +18,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -32,13 +33,13 @@ import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -168,7 +169,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const argentServer = spawnDetached({
         command: startServer.command,
         args: startServer.args,
-        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
+        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
@@ -217,7 +218,8 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
+      let sessionFailed = false;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -234,9 +236,8 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
@@ -244,6 +245,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
@@ -277,23 +279,46 @@ export function createStartArgentRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
-        if (toolsTunnel) {
-          await toolsTunnel.stopAsync();
-        }
-        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
-        artifactPollAbortController.abort();
-        try {
-          await artifactPollingPromise;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not finish Argent remote session artifact polling', error);
-          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
-        }
-        await argentServer.stopAsync();
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            ['Argent tunnel', toolsTunnel?.stopAsync()],
+            [
+              'Argent tool-server',
+              (async () => {
+                try {
+                  await stopArgentEventCollectionSafelyAsync({
+                    eventCollection,
+                    deviceRunSessionId,
+                    logger,
+                  });
+                  artifactPollAbortController.abort();
+                  try {
+                    await artifactPollingPromise;
+                  } catch (err) {
+                    const error = err instanceof Error ? err : new Error(String(err));
+                    Sentry.capture(
+                      'Could not finish Argent remote session artifact polling',
+                      error
+                    );
+                    logger.warn(
+                      { err: error },
+                      'Could not finish Argent remote session artifact polling.'
+                    );
+                  }
+                } finally {
+                  await argentServer.stopAsync();
+                }
+              })(),
+            ],
+            ['session host', sessionHost?.finishAsync()],
+          ],
+        });
       }
     }),
   });

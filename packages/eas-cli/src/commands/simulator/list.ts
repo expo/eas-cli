@@ -17,9 +17,9 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
-  DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
-  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   deviceRunSessionTypeToFlagValue,
+  deviceRunSessionTypesForFlagValue,
 } from '../../simulator/utils';
 import { fromNow } from '../../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -62,7 +62,7 @@ export default class SimulatorList extends EasCommand {
     type: Flags.option({
       description:
         'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       multiple: true,
     })(),
     platform: Flags.option({
@@ -110,7 +110,7 @@ export default class SimulatorList extends EasCommand {
       filter.statuses = flags.status.map(value => STATUS_BY_FLAG_VALUE[value]);
     }
     if (flags.type && flags.type.length > 0) {
-      filter.types = flags.type.map(value => DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[value]);
+      filter.types = flags.type.flatMap(deviceRunSessionTypesForFlagValue);
     }
     if (flags.platform && flags.platform.length > 0) {
       filter.platforms = flags.platform.map(value => PLATFORM_BY_FLAG_VALUE[value]);

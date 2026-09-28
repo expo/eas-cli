@@ -8,13 +8,13 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -40,6 +40,7 @@ jest.mock('../../utils/agentDeviceArtifacts', () => ({
 jest.mock('../../utils/agentDeviceEvents', () => ({
   startAgentDeviceEventCollectionAsync: jest.fn(),
 }));
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   getDeviceRunSessionIdOrThrow: jest.fn(),
@@ -47,7 +48,6 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   spawnDetached: jest.fn(),
-  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
@@ -113,10 +113,13 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       subdomainId: 'agent-device-abc',
       stopAsync: mockTunnelStopAsync,
     });
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.tunnel.example.com',
-      stopAsync: mockPreviewStopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.tunnel.example.com',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -135,7 +138,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     await runAsync(logger, BuildRuntimePlatform.LINUX);
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
     );
@@ -164,7 +167,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       open_url: { value: 'exp://127.0.0.1:8081' },
     });
 
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
         runtimePlatform: BuildRuntimePlatform.DARWIN,

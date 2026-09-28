@@ -45,6 +45,19 @@ export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
   )
 ) as Record<string, DeviceRunSessionType>;
 
+// Legacy ServeSim and WebPreviewOnly share a flag value, so list each value once.
+export const DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS = [
+  ...new Set(Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES)),
+];
+
+// Every enum value behind a flag value, so filtering by web-preview-only also
+// matches sessions created with the legacy ServeSim type.
+export function deviceRunSessionTypesForFlagValue(value: string): DeviceRunSessionType[] {
+  return (Object.keys(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES) as DeviceRunSessionType[]).filter(
+    type => DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type] === value
+  );
+}
+
 export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): string {
   return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
 }
