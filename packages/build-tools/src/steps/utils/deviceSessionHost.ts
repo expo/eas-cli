@@ -43,6 +43,12 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+// On SIGTERM the Hub finalizes the recording itself, with this deadline before it force-exits,
+// so a stop request that failed here still gets one more chance to write the MP4.
+const EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS = 60_000;
+const EXPO_DEVICE_HUB_EXIT_LEEWAY_MS = 10_000;
+const RECORDING_STOP_GRACE_PERIOD_MS =
+  EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -315,7 +321,7 @@ export async function startDeviceSessionHostAsync(
     env: recording
       ? { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken }
       : env,
-    stopGracePeriodMs: recording ? 70_000 : undefined,
+    stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
   });
 
   let previewToken: string | undefined;
