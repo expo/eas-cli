@@ -2,6 +2,8 @@ import { BuildStepEnv } from '@expo/steps';
 import spawnAsync from '@expo/turtle-spawn';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 
+import { type EnvMode, getExpoCommandEnv } from './environmentMode';
+
 export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
 export class ExpoUpdatesCLIInvalidCommandError extends Error {}
 export class ExpoUpdatesCLICommandFailedError extends Error {}
@@ -9,7 +11,7 @@ export class ExpoUpdatesCLICommandFailedError extends Error {}
 export async function expoUpdatesCommandAsync(
   projectDir: string,
   args: string[],
-  { env }: { env: BuildStepEnv }
+  { env, mode }: { env: BuildStepEnv; mode: EnvMode }
 ): Promise<string> {
   let expoUpdatesCli;
   try {
@@ -29,7 +31,7 @@ export async function expoUpdatesCommandAsync(
     const spawnResult = await spawnAsync(expoUpdatesCli, args, {
       stdio: 'pipe',
       cwd: projectDir,
-      env,
+      env: getExpoCommandEnv(env, mode),
     });
     return spawnResult.stdout;
   } catch (e: any) {

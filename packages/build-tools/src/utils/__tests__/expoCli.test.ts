@@ -75,4 +75,20 @@ describe(expoCommandAsync, () => {
       })
     );
   });
+
+  it('sets production mode for the Expo CLI child process', async () => {
+    mockedResolveFrom.silent.mockReturnValue('/project/node_modules/expo/bin/cli');
+
+    await expoCommandAsync('/project', ['config'], {
+      env: { NODE_ENV: 'staging' },
+      envMode: 'production',
+    });
+
+    const options = jest.mocked(spawnAsync).mock.calls[0]?.[2];
+    expect(options?.env).toMatchObject({
+      NODE_ENV: 'production',
+      __EXPO_CONFIG_MODE: 'production',
+    });
+    expect(options).not.toHaveProperty('envMode');
+  });
 });

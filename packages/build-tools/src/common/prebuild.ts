@@ -32,6 +32,7 @@ export async function prebuildAsync<TJob extends BuildJob>(
     args: prebuildCommandArgs,
     options: spawnOptions,
     packageManager: ctx.packageManager,
+    envMode: 'production',
   });
   await installDependenciesWithNpmCacheFallbackAsync({
     packageManager: ctx.packageManager,

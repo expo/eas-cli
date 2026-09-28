@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [build-tools] Use production mode for app config, prebuild, Expo Doctor, and Expo Updates commands. ([#4180](https://github.com/expo/eas-cli/pull/4180) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ### 🎉 New features
 
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))

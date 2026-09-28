@@ -47,6 +47,7 @@ export async function resolveRuntimeVersionAsync({
       ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
       {
         env,
+        mode: 'production',
       }
     );
     const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);

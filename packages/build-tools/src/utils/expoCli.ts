@@ -1,6 +1,8 @@
 import resolveFrom from 'resolve-from';
 import spawnAsync, { type SpawnOptions } from '@expo/turtle-spawn';
 
+import { type EnvMode, getExpoCommandEnv } from './environmentMode';
+
 export class ExpoCLIModuleNotFoundError extends Error {}
 
 function resolveExpoCLI(projectRoot: string): string {
@@ -19,15 +21,16 @@ function resolveExpoCLI(projectRoot: string): string {
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
-  options: Omit<SpawnOptions, 'cwd'>
+  options: Omit<SpawnOptions, 'cwd'> & { envMode?: EnvMode }
 ) {
   const expoCliPath = resolveExpoCLI(projectDir);
+  const { envMode, ...spawnOptions } = options;
   return spawnAsync(expoCliPath, args, {
     cwd: projectDir,
     stdio: 'pipe',
-    ...options,
+    ...spawnOptions,
     env: {
-      ...options.env,
+      ...(envMode ? getExpoCommandEnv(options.env ?? {}, envMode) : options.env),
       // NOTE: If we're reading user configs, if a user has set this, it might cause excessive output
       // that can stop the command from being readable
       EXPO_DEBUG: '0',
