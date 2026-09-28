@@ -18,6 +18,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -38,7 +39,6 @@ import {
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -216,7 +216,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -233,9 +233,8 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
@@ -243,6 +242,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
@@ -277,22 +277,36 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
+        const cleanup = await Promise.allSettled([
+          (async () => {
+            if (toolsTunnel) {
+              await toolsTunnel.stopAsync();
+            }
+            await stopArgentEventCollectionSafelyAsync({
+              eventCollection,
+              deviceRunSessionId,
+              logger,
+            });
+            artifactPollAbortController.abort();
+            try {
+              await artifactPollingPromise;
+            } catch (err) {
+              const error = err instanceof Error ? err : new Error(String(err));
+              Sentry.capture('Could not finish Argent remote session artifact polling', error);
+              logger.warn(
+                { err: error },
+                'Could not finish Argent remote session artifact polling.'
+              );
+            }
+            await argentServer.stopAsync();
+          })(),
+          sessionHost?.finishAsync(),
+        ]);
+        for (const result of cleanup) {
+          if (result.status === 'rejected') {
+            throw result.reason;
+          }
         }
-        if (toolsTunnel) {
-          await toolsTunnel.stopAsync();
-        }
-        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
-        artifactPollAbortController.abort();
-        try {
-          await artifactPollingPromise;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not finish Argent remote session artifact polling', error);
-          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
-        }
-        await argentServer.stopAsync();
       }
     }),
   });
