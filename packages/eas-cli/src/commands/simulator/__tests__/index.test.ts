@@ -1,6 +1,7 @@
 import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 
+import { SimulatorEvent } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
@@ -89,6 +90,7 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockLogEvent = jest.fn();
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
@@ -198,6 +200,7 @@ describe(Simulator, () => {
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       loggedIn: { actor: { isExpoAdmin }, graphqlClient },
+      analytics: { logEvent: mockLogEvent },
       projectDir,
       projectId: 'project-123',
     });
@@ -228,6 +231,34 @@ describe(Simulator, () => {
 
     expect(mockAvailabilityByAppIdAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalled();
+  });
+
+  it('logs "request sent" with the funnel properties before creating the session', async () => {
+    mockLogEvent.mockClear();
+    mockCreateDeviceRunSessionAsync.mockImplementationOnce(async () => {
+      expect(mockLogEvent).toHaveBeenCalledWith(SimulatorEvent.REQUEST_SENT, {
+        project_id: 'project-123',
+        origin: 'eas-cli',
+        type: 'agent-device',
+        platform: 'ios',
+        has_build_id: false,
+        has_archive_url: false,
+        expo_go: false,
+        non_interactive: true,
+      });
+      return makeCreatedDeviceRunSession();
+    });
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
   });
 
   it('prints environment variables without saving when outputting env', async () => {
