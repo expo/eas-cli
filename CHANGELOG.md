@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Allow expo.test subdomains to open local and staging simulator previews. ([#4480](https://github.com/expo/eas-cli/pull/4480) by [@hirbod](https://github.com/hirbod))
+
 ### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
