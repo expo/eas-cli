@@ -18,7 +18,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
-import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -216,7 +216,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,

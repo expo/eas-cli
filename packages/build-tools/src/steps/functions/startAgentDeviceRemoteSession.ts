@@ -17,7 +17,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
-import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -128,7 +128,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;

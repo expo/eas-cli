@@ -19,7 +19,7 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
-import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -138,7 +138,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let sessionHost: Awaited<ReturnType<typeof startDeviceSessionHostAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
