@@ -9,6 +9,17 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
+
+### 🎉 New features
+
+- [eas-cli] Add `--build-fingerprint` to `eas simulator` to install the newest build with a given fingerprint. ([#4472](https://github.com/expo/eas-cli/pull/4472) by [@tchayen](https://github.com/tchayen))
 - [eas-cli] Accept build IDs in `workflow:ssh <id>`. ([#4452](https://github.com/expo/eas-cli/pull/4452) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [eas-cli] Make `eas simulator:*` commands visible in help output. ([#4456](https://github.com/expo/eas-cli/pull/4456) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
@@ -21,7 +32,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] List `eas simulator` only once in `eas --help`. The `sim` shorthand is now a hidden alias, so it still runs but no longer duplicates the entry. ([#4457](https://github.com/expo/eas-cli/pull/4457) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [build-tools] Start the Argent tool-server with `ARGENT_EMULATOR_NO_WINDOW=1`, so Argent can boot the Android emulator again after it stops. Without it, the windowed emulator fails on the Linux image because `libpulse.so.0` is missing. ([#4465](https://github.com/expo/eas-cli/pull/4465) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Fix `eas account:view` printing `Role: undefined` for the new Release Manager role. ([#4300](https://github.com/expo/eas-cli/pull/4300) by [@byronkarlen](https://github.com/byronkarlen))
+- [eas-cli] Include legacy serve-sim sessions in `eas simulator:list --type web-preview-only`, and list `web-preview-only` only once in the `--type` options. ([#4466](https://github.com/expo/eas-cli/pull/4466) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 

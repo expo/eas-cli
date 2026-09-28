@@ -2,10 +2,12 @@ import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graph
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
+  deviceRunSessionTypesForFlagValue,
   formatLoopbackForwardNotice,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
@@ -225,6 +227,23 @@ describe('simulator session type flags', () => {
     );
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['serve-sim']).toBeUndefined();
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['web-preview']).toBeUndefined();
+  });
+
+  it('lists each flag value once', () => {
+    expect(DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS).toEqual([
+      'agent-device',
+      'appium',
+      'argent',
+      'web-preview-only',
+    ]);
+  });
+
+  it('filters web-preview-only by the new and the legacy session type', () => {
+    expect(deviceRunSessionTypesForFlagValue('web-preview-only')).toEqual([
+      DeviceRunSessionType.ServeSim,
+      DeviceRunSessionType.WebPreviewOnly,
+    ]);
+    expect(deviceRunSessionTypesForFlagValue('appium')).toEqual([DeviceRunSessionType.Appium]);
   });
 });
 

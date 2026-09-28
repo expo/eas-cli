@@ -29,7 +29,20 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       });
   });
 
-  it('uploads simulator device metadata', async () => {
+  it.each([
+    {
+      platform: BuildRuntimePlatform.DARWIN,
+      udid: SIMULATOR_UDID,
+      name: 'iPhone 16',
+      runtime: 'iOS 18.6',
+    },
+    {
+      platform: BuildRuntimePlatform.LINUX,
+      udid: 'emulator-5554',
+      name: 'Pixel',
+      runtime: 'Android 16',
+    },
+  ])('uploads device metadata on $platform', async ({ platform, udid, name, runtime }) => {
     const recordingDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'ios-recording-test-'));
     const recordingPath = path.join(recordingDirectory, 'recording.mp4');
     await fs.writeFile(recordingPath, 'recording');
@@ -45,7 +58,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
 
     try {
       const globalContext = createGlobalContextMock({
-        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        runtimePlatform: platform,
       });
       const buildStep = createUploadDeviceRunSessionScreenRecordingsBuildFunction(
         {} as CustomBuildContext
@@ -54,9 +67,9 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         callInputs: {
           recordings_json: [
             {
-              udid: SIMULATOR_UDID,
-              deviceName: 'iPhone 16',
-              runtimeDisplayName: 'iOS 18.6',
+              udid,
+              deviceName: name,
+              runtimeDisplayName: runtime,
               directory: recordingDirectory,
             },
           ],
@@ -68,13 +81,13 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          name: 'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          name: `${name} screen recording (${udid.slice(0, 8)}-…, started at Jul 10, 2026, 10:00:00.000 UTC)`,
           metadata: {
             __eas_type: 'screen-recording',
             __eas_screen_recording: '1',
-            udid: SIMULATOR_UDID,
-            deviceName: 'iPhone 16',
-            runtimeDisplayName: 'iOS 18.6',
+            udid,
+            deviceName: name,
+            runtimeDisplayName: runtime,
             firstFrameAt: '2026-07-10T10:00:00.000Z',
             width: 1179,
             height: 2556,

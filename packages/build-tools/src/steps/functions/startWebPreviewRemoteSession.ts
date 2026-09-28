@@ -6,6 +6,7 @@ import {
 } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
@@ -17,7 +18,6 @@ import {
   getNgrokTunnelDomainOrThrow,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
-  startDeviceWebPreviewWithTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -69,9 +69,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      const webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+      const sessionHost = await startDeviceSessionHostAsync(ctx, {
         runtimePlatform,
-        baseDomain: ngrokTunnelDomain,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
@@ -80,9 +79,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,
       });
-      logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
 
       try {
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+        logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
@@ -104,7 +104,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           signal,
         });
       } finally {
-        await webPreview.stopAsync();
+        await sessionHost.finishAsync();
       }
     }),
   });
