@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Log analytics events when an `eas simulator` session request is sent, cancelled, or fails before the server answers. ([#4483](https://github.com/expo/eas-cli/pull/4483) by [@sjkim-expo](https://github.com/sjkim-expo))
+
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
 
 ### 🎉 New features
