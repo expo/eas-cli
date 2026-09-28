@@ -1,7 +1,10 @@
-import { Errors } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 
-import { Analytics, AnalyticsEventProperties, SimulatorEvent } from '../analytics/AnalyticsManager';
+import {
+  AnalyticsEventProperties,
+  AnalyticsWithOrchestration,
+  SimulatorEvent,
+} from '../analytics/AnalyticsManager';
 
 /** The same value www stores in the session's `request_origin` tracking tag for eas-cli requests. */
 export const SIMULATOR_REQUEST_ORIGIN = 'eas-cli';
@@ -75,10 +78,11 @@ class SimulatorRequestCancelledError extends Error {}
 /**
  * Runs the create request and logs the client-side funnel events around it: "request sent" before
  * it leaves, "request cancelled" on Ctrl+C before an answer, and "request failed" when no answer
- * arrives. Ctrl+C exits with code 130 after the command's normal analytics flush.
+ * arrives. Ctrl+C flushes analytics and exits with 130, like the session's own Ctrl+C handler:
+ * going through the command's error handling would print the exit as an error and report it to Sentry.
  */
 export async function withSimulatorRequestAnalyticsAsync<T>(
-  analytics: Analytics,
+  analytics: AnalyticsWithOrchestration,
   properties: AnalyticsEventProperties,
   createAsync: () => Promise<T>
 ): Promise<T> {
@@ -95,7 +99,8 @@ export async function withSimulatorRequestAnalyticsAsync<T>(
   } catch (error) {
     if (error instanceof SimulatorRequestCancelledError) {
       analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
-      Errors.exit(130);
+      await analytics.flushAsync();
+      process.exit(130);
     }
     const reason = simulatorRequestFailureReason(error);
     if (reason) {
