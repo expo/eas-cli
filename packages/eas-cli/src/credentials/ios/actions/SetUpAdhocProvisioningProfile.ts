@@ -388,14 +388,23 @@ export class SetUpAdhocProvisioningProfile {
       const devices = await ctx.ios.getDevicesForAppleTeamAsync(ctx.graphqlClient, app, appleTeam, {
         useCache: false,
       });
-      if (devices.length === 0) {
-        Log.warn('There are still no registered devices.');
-        // if the user used the input method there should be some devices available
-        if (method === RegistrationMethod.INPUT) {
-          throw new Error('Input registration method has failed');
-        }
-      } else {
+      if (devices.length > 0) {
         return devices;
+      }
+
+      Log.warn('There are still no registered devices.');
+      // if the user used the input method there should be some devices available
+      if (method === RegistrationMethod.INPUT) {
+        throw new Error('Input registration method has failed');
+      }
+      // Only the website method registers devices out of band, so only there does waiting and
+      // reading the list again stand a chance of returning something. Every other method is done
+      // registering by the time it resolves - with nothing to wait for, looping would just reread
+      // the same empty list forever and leave the user no way out but killing the process.
+      if (method !== RegistrationMethod.WEBSITE) {
+        throw new Error(
+          `No devices were registered. Run 'eas device:create' to register your devices first.`
+        );
       }
     }
   }
