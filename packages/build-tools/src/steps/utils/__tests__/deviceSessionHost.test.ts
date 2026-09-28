@@ -219,17 +219,15 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
   closeTunnel.mockRejectedValueOnce(new Error('tunnel close failure'));
   jest.mocked(turtleFetch).mockResolvedValueOnce({
     ok: false,
-    status: 409,
-    text: async () => 'Android recording requires exactly one booted emulator; found 0.',
+    status: 500,
+    text: async () => 'Error: scrcpy exited with code 255',
   } as Awaited<ReturnType<typeof turtleFetch>>);
   await host.finishAsync();
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
     {
       err: expect.objectContaining({
-        message: expect.stringContaining(
-          'HTTP 409: Android recording requires exactly one booted emulator; found 0.'
-        ),
+        message: expect.stringContaining('HTTP 500: Error: scrcpy exited with code 255'),
       }),
     },
     'Could not finalize Android recording before shutdown.'
@@ -237,6 +235,33 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
   expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
     { hostOutput: '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255' },
+    'Session host output around the recording failure.'
+  );
+});
+
+it('logs the reason and skips upload and output dump when the Hub never recorded', async () => {
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    return {
+      pid: undefined,
+      getOutput: () => '[serve-emu] Android recording skipped',
+      stopAsync: stopServer,
+    };
+  });
+  const host = await startHostAsync();
+  jest.mocked(turtleFetch).mockResolvedValueOnce({
+    ok: false,
+    status: 409,
+    text: async () => 'Android recording requires exactly one booted emulator; found 0.',
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  await host.finishAsync();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'Android recording was not captured: Android recording requires exactly one booted emulator; found 0.'
+  );
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
     'Session host output around the recording failure.'
   );
 });

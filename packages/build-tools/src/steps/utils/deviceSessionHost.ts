@@ -452,11 +452,11 @@ async function finishDeviceSessionHostAsync(
   ).catch(err => {
     logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
   });
-  let finalized = false;
+  let finalization: AndroidRecordingFinalization | null = null;
   if (recording) {
     // stopAsync signals the whole process group, including capture's encoder.
     // Finalize the MP4 first; the token protects this route on the preview server.
-    finalized = await finalizeAndroidRecordingAsync({
+    finalization = await finalizeAndroidRecordingAsync({
       port,
       controlToken: recording.controlToken,
       logger,
@@ -473,11 +473,13 @@ async function finishDeviceSessionHostAsync(
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
   await retirePreview;
+  // A Hub that never recorded has logged its reason and left nothing to upload.
+  const captured = finalization !== 'not-recording';
   let uploaded = false;
-  if (recording && hostStopped) {
+  if (recording && captured && hostStopped) {
     uploaded = await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
   }
-  if (recording && (!finalized || !uploaded)) {
+  if (recording && captured && (finalization === 'failed' || !uploaded)) {
     // The Hub reports capture failures on stderr; the stop route answers with only a summary.
     logger.warn(
       { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
@@ -485,6 +487,8 @@ async function finishDeviceSessionHostAsync(
     );
   }
 }
+
+type AndroidRecordingFinalization = 'finalized' | 'not-recording' | 'failed';
 
 async function finalizeAndroidRecordingAsync({
   port,
@@ -494,7 +498,7 @@ async function finalizeAndroidRecordingAsync({
   port: number;
   controlToken: string;
   logger: bunyan;
-}): Promise<boolean> {
+}): Promise<AndroidRecordingFinalization> {
   try {
     const response = await withDeviceRunSessionTimeoutAsync(
       { name: 'Android recording finalization', timeoutMs: 60_000 },
@@ -511,16 +515,20 @@ async function finalizeAndroidRecordingAsync({
           }
         )
     );
-    if (!response.ok) {
+    if (response.status === 409) {
       // The Hub answers 409 with the reason nothing was recorded, such as the emulator count.
+      logger.warn(`Android recording was not captured: ${await response.text()}`);
+      return 'not-recording';
+    }
+    if (!response.ok) {
       throw new SystemError(
         `Android recording finalization returned HTTP ${response.status}: ${await response.text()}`
       );
     }
-    return true;
+    return 'finalized';
   } catch (err) {
     logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
-    return false;
+    return 'failed';
   }
 }
 
