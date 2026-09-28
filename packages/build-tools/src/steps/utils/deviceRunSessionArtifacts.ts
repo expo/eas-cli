@@ -5,6 +5,7 @@ import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
   DeviceRunSessionTimeoutError,
   withDeviceRunSessionTimeoutAsync,
@@ -173,14 +174,7 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
           size,
         },
       },
-      {
-        // urql replaces fetchOptions.signal. Wrap fetch after it has resolved auth and its own signal.
-        fetch: (input, init) =>
-          globalThis.fetch(input, {
-            ...init,
-            signal: init?.signal ? AbortSignal.any([init.signal, signal]) : signal,
-          }),
-      }
+      graphqlAbortContext(signal)
     )
     .toPromise();
   signal.throwIfAborted();
