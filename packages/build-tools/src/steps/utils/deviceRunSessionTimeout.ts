@@ -24,9 +24,10 @@ export async function withDeviceRunSessionTimeoutAsync<T>(
   signal.addEventListener('abort', onAbort, { once: true });
   const expire = () => controller.abort(new DeviceRunSessionTimeoutError(name, timeoutMs));
   let timer = setTimeout(expire, timeoutMs);
+  let settled = false;
   const resetDeadline = () => {
     clearTimeout(timer);
-    if (!signal.aborted) {
+    if (!settled && !signal.aborted) {
       timer = setTimeout(expire, timeoutMs);
     }
   };
@@ -35,6 +36,7 @@ export async function withDeviceRunSessionTimeoutAsync<T>(
     signal.throwIfAborted();
     return result;
   } finally {
+    settled = true;
     clearTimeout(timer);
     signal.removeEventListener('abort', onAbort);
   }
