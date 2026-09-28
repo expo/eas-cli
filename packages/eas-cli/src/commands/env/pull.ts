@@ -12,6 +12,7 @@ import {
 } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
+import { formatEnvValue } from '../../utils/dotenv';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvPull extends EasCommand {
@@ -111,7 +112,7 @@ export default class EnvPull extends EasCommand {
         if (variable.visibility === EnvironmentVariableVisibility.Secret) {
           if (currentEnvLocal[variable.name]) {
             overridenSecretVariables.push(variable.name);
-            return `${variable.name}=${currentEnvLocal[variable.name]}`;
+            return `${variable.name}=${formatEnvValue(currentEnvLocal[variable.name])}`;
           }
           skippedSecretVariables.push(variable.name);
           return `# ${variable.name}=***** (secret)`;
@@ -119,9 +120,9 @@ export default class EnvPull extends EasCommand {
         if (variable.type === EnvironmentSecretType.FileBase64 && variable.valueWithFileContent) {
           const filePath = path.join(envDir, variable.name);
           await fs.writeFile(filePath, variable.valueWithFileContent, 'base64');
-          return `${variable.name}=${filePath}`;
+          return `${variable.name}=${formatEnvValue(filePath)}`;
         }
-        return `${variable.name}=${variable.value}`;
+        return `${variable.name}=${formatEnvValue(variable.value ?? '')}`;
       })
     );
 
