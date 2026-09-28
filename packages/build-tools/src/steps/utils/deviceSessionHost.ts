@@ -508,7 +508,6 @@ async function finalizeAndroidRecordingAsync({
           'POST',
           {
             headers: { Authorization: `Bearer ${controlToken}` },
-            timeout: 60_000,
             retries: 0,
             shouldThrowOnNotOk: false,
             signal,

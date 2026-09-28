@@ -126,7 +126,6 @@ it('records by default with no preview and finalizes before process stop, upload
     'POST',
     {
       headers: { Authorization: `Bearer ${token}` },
-      timeout: 60_000,
       retries: 0,
       shouldThrowOnNotOk: false,
       signal: expect.any(AbortSignal),
