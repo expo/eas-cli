@@ -7,6 +7,7 @@ import path from 'node:path';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
   findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
@@ -15,6 +16,7 @@ import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
   readServeSimServersAsync: jest
@@ -444,3 +446,42 @@ it('leaves iOS recording to its existing build steps', async () => {
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
+
+it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
+  'uploads screenshots and flushes them exactly once when the %s host finishes',
+  async runtimePlatform => {
+    const uploads: Buffer[] = [];
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementation(async (_ctx, { stream }) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+          chunks.push(Buffer.from(chunk));
+        }
+        uploads.push(Buffer.concat(chunks));
+      });
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+    await host.openPreviewAsync({ baseDomain });
+    const directory =
+      jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
+    if (!directory) {
+      throw new Error('Missing screenshot artifact directory');
+    }
+    await writeFile(
+      path.join(directory, 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png'),
+      'manual-capture'
+    );
+    const finishing = host.finishAsync();
+    expect(host.finishAsync()).toBe(finishing);
+    await finishing;
+    expect(uploads).toEqual([Buffer.from('manual-capture')]);
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(closeTunnel).toHaveBeenCalledTimes(1);
+    await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+  }
+);
