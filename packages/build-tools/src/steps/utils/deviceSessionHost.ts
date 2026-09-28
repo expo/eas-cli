@@ -463,7 +463,7 @@ async function finalizeAndroidRecordingAsync({
       }
     );
     if (!response.ok) {
-      throw new Error(`Android recording finalization returned HTTP ${response.status}.`);
+      throw new SystemError(`Android recording finalization returned HTTP ${response.status}.`);
     }
   } catch (err) {
     logger.warn({ err }, 'Could not finalize Android recording before shutdown.');
