@@ -300,7 +300,8 @@ describe('createMaestroTestsBuildFunction', () => {
           ? '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/report.html'
           : '/home/expo/.maestro/tests/android-maestro-runner-attempt-0/allure-results'
       );
-      expect(mockedRunnerHarvest).toHaveBeenCalledTimes(1);
+      expect(mockedRunnerHarvest).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
       expect(mockUploadArtifact).toHaveBeenCalledWith(
         expect.objectContaining({
           artifact: expect.objectContaining({
@@ -1371,28 +1372,31 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
-  it('discovers maestro-runner flow results from the attempt report directory', async () => {
-    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
-    const shot = makeShot(0);
-    jest.spyOn(fs, 'copyFile').mockResolvedValue();
-    mockedRunnerHarvest.mockResolvedValue([shot]);
-    const parseFlowResultsSpy = jest.spyOn(parser, 'parseMaestroRunnerReport').mockResolvedValue({
-      flows: [{ name: 'Login', sourceFile: 'a.yaml', status: 'failed' }],
-    });
+  it.each(['junit', undefined])(
+    'uploads runner screenshots with output_format=%s',
+    async format => {
+      mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+      const shot = makeShot(0);
+      jest.spyOn(fs, 'copyFile').mockResolvedValue();
+      mockedRunnerHarvest.mockResolvedValue([shot]);
+      const parseFlowResultsSpy = jest.spyOn(parser, 'parseMaestroRunnerReport').mockResolvedValue({
+        flows: [{ name: 'Login', sourceFile: 'a.yaml', status: 'failed' }],
+      });
 
-    const step = createStep({
-      flow_path: ['a.yaml'],
-      platform: 'ios',
-      output_format: 'junit',
-      backend: 'maestro-runner',
-    });
-    await step.executeAsync();
+      const step = createStep({
+        flow_path: ['a.yaml'],
+        platform: 'ios',
+        ...(format === undefined ? {} : { output_format: format }),
+        backend: 'maestro-runner',
+      });
+      await step.executeAsync();
 
-    expect(parseFlowResultsSpy).toHaveBeenCalledWith(
-      '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0'
-    );
-    expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
-  });
+      expect(parseFlowResultsSpy).toHaveBeenCalledWith(
+        '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0'
+      );
+      expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('uploads screenshots even when all attempts fail, before throwing ERR_MAESTRO_TESTS_FAILED', async () => {
     mockedSpawn.mockRejectedValue(rejectExit1());

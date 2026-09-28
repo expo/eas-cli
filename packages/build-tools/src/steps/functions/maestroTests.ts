@@ -422,8 +422,9 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           reportDirectories.push(runnerOutputDirectory);
         }
 
-        // Harvest failure screenshots before retry subsetting when JUnit results are available.
-        if (mayHaveJUnitReports) {
+        // The pre-packaged job reports test cases only for JUnit (the default format).
+        // Individual screenshots need those test cases to be visible on the website.
+        if (outputFormat === 'junit') {
           let screenshots: HarvestedScreenshot[];
           switch (backend) {
             case 'maestro': {
@@ -545,7 +546,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       // Upload before the failure verdict so fully-failed runs still get screenshots.
-      if (mayHaveJUnitReports) {
+      if (outputFormat === 'junit') {
         await uploadFailureScreenshotsAsync({
           harvested,
           backend,
