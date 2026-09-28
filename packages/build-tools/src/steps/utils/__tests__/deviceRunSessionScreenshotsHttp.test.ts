@@ -145,7 +145,7 @@ it('publishes a manual preview PNG through the artifact GraphQL and HTTP upload 
     session,
     directory,
     deviceRunSessionId: 'drs-id',
-    failedAttempts: new Map(),
+    failedUploads: new Map(),
     logger: { info: jest.fn(), warn: jest.fn() } as unknown as bunyan,
     signal: new AbortController().signal,
   });
@@ -190,7 +190,7 @@ it('rereads the PNG when the artifact PUT is retried', async () => {
   const uploaded = await uploadDeviceRunSessionScreenshotsAsync(ctx, {
     directory,
     deviceRunSessionId: 'drs-id',
-    failedAttempts: new Map(),
+    failedUploads: new Map(),
     logger: { info: jest.fn(), warn: jest.fn() } as unknown as bunyan,
     signal: new AbortController().signal,
   });
@@ -208,7 +208,7 @@ it('aborts a stalled GraphQL upload request and retains the PNG', async () => {
   const upload = uploadDeviceRunSessionScreenshotsAsync(ctx, {
     directory,
     deviceRunSessionId: 'drs-id',
-    failedAttempts: new Map(),
+    failedUploads: new Map(),
     logger: { info: jest.fn(), warn: jest.fn() } as unknown as bunyan,
     signal: controller.signal,
   });

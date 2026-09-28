@@ -20,13 +20,13 @@ const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const options = { deviceRunSessionId: 'session-id', logger };
 let directory: string;
 let uploaded: Buffer[];
-let failedAttempts: Map<string, number>;
+let failedUploads: Map<string, { attempts: number; lastError: Error }>;
 
 beforeEach(async () => {
   jest.clearAllMocks();
   directory = await mkdtemp(path.join(os.tmpdir(), 'screenshots-test-'));
   uploaded = [];
-  failedAttempts = new Map();
+  failedUploads = new Map();
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementation(async (_ctx, { stream }) => {
     const chunks: Buffer[] = [];
     for await (const chunk of stream) {
@@ -45,7 +45,7 @@ const flush = () =>
   uploadDeviceRunSessionScreenshotsAsync(ctx, {
     ...options,
     directory,
-    failedAttempts,
+    failedUploads,
     signal: new AbortController().signal,
   });
 
@@ -92,6 +92,7 @@ it('retains failed uploads and retries the same artifact ID', async () => {
   expect(
     jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls.map(([, args]) => args.artifactId)
   ).toEqual([filename.slice(0, -4), filename.slice(0, -4)]);
+  expect(Sentry.capture).not.toHaveBeenCalled();
 });
 
 it('flushes a capture made just before shutdown exactly once and removes the drained directory', async () => {
@@ -207,12 +208,16 @@ it('uses periodic scans when watching is unavailable and does not overlap upload
   }
 });
 
-it('warns with the attempt count and reports each file to Sentry only once', async () => {
+it('warns for the first three attempts and every tenth after, without reporting to Sentry', async () => {
   const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
   await writeFile(path.join(directory, filename), 'png');
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockRejectedValue(new Error('offline'));
-  await flush();
-  await flush();
+  for (let i = 0; i < 12; i++) {
+    await flush();
+  }
+  expect(jest.mocked(logger.warn).mock.calls.map(([fields]) => fields.attempt)).toEqual([
+    1, 2, 3, 10,
+  ]);
   expect(logger.warn).toHaveBeenNthCalledWith(
     1,
     expect.objectContaining({ file: path.join(directory, filename), attempt: 1, size: 3 }),
@@ -223,11 +228,11 @@ it('warns with the attempt count and reports each file to Sentry only once', asy
     expect.objectContaining({ attempt: 2 }),
     'Could not upload preview screenshot (attempt 2). Keeping it for retry.'
   );
-  expect(Sentry.capture).toHaveBeenCalledTimes(1);
-  expect(Sentry.capture).toHaveBeenCalledWith(
-    'Could not upload preview screenshot',
-    expect.objectContaining({ message: 'offline' })
-  );
+  expect(failedUploads.get(filename)).toEqual({
+    attempts: 12,
+    lastError: expect.objectContaining({ message: 'offline' }),
+  });
+  expect(Sentry.capture).not.toHaveBeenCalled();
 });
 
 it('keeps a screenshot without counting a failure when the shutdown deadline aborts its upload', async () => {
@@ -250,14 +255,14 @@ it('keeps a screenshot without counting a failure when the shutdown deadline abo
   const upload = uploadDeviceRunSessionScreenshotsAsync(ctx, {
     ...options,
     directory,
-    failedAttempts,
+    failedUploads,
     signal: controller.signal,
   });
   await uploadStarted;
   controller.abort();
   expect(await upload).toBe(0);
   expect(Sentry.capture).not.toHaveBeenCalled();
-  expect(failedAttempts.size).toBe(0);
+  expect(failedUploads.size).toBe(0);
   expect(logger.warn).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
     { file, size: 3 },
@@ -278,7 +283,7 @@ it('logs the failed attempt count when an upload succeeds on retry', async () =>
       /^Uploaded preview screenshot screenshot-2026-09-24T08-45-59-123Z\.png \(3 B\) in \d+ ms after 1 failed attempt\.$/
     )
   );
-  expect(failedAttempts.size).toBe(0);
+  expect(failedUploads.size).toBe(0);
 });
 
 it('removes an empty directory on finish even when the host may still be running', async () => {
@@ -286,20 +291,71 @@ it('removes an empty directory on finish even when the host may still be running
   await collector.finishAsync();
   await expect(readdir(collector.directory)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(logger.info).toHaveBeenCalledWith('Uploaded 0 preview screenshots during the session.');
+  expect(Sentry.capture).not.toHaveBeenCalled();
 });
 
-it('warns with the retained files when a screenshot is left on finish', async () => {
+it('warns with the retained files and their last error, and reports them to Sentry once', async () => {
   const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
   const filename = 'screenshot-2026-09-24T08-45-59-123Z-aaaaaaaaaaaa.png';
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockRejectedValue(new Error('offline'));
   try {
     await writeFile(path.join(collector.directory, filename), 'png');
     await collector.finishAsync();
+    const retained = [{ name: filename, attempts: expect.any(Number), lastError: 'offline' }];
     expect(logger.warn).toHaveBeenCalledWith(
-      { directory: collector.directory, files: [filename] },
+      { directory: collector.directory, files: retained },
       'Retained 1 preview screenshots that were not uploaded.'
     );
+    expect(Sentry.capture).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Preview screenshots were not uploaded',
+      expect.objectContaining({
+        message: 'Retained 1 preview screenshots that were not uploaded.',
+      }),
+      { extras: { files: retained } }
+    );
   } finally {
+    await rm(collector.directory, { recursive: true, force: true });
+  }
+});
+
+it('retains a screenshot whose upload is still running when the shutdown deadline fires', async () => {
+  jest.useFakeTimers();
+  const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
+  const filename = 'screenshot-2026-09-24T08-45-59-123Z-aaaaaaaaaaaa.png';
+  const file = path.join(collector.directory, filename);
+  let signalUploadStarted!: () => void;
+  const uploadStarted = new Promise<void>(resolve => {
+    signalUploadStarted = resolve;
+  });
+  jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementation(async (_ctx, { signal }) => {
+    signalUploadStarted();
+    await new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason));
+    });
+  });
+  try {
+    await writeFile(file, 'png');
+    const finish = collector.finishAsync();
+    await uploadStarted;
+    jest.advanceTimersByTime(30_000);
+    await finish;
+    expect(logger.warn).toHaveBeenCalledWith(
+      { directory: collector.directory },
+      'Preview screenshot flush timed out after 30 s.'
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      { file, size: 3 },
+      'Shutdown deadline reached before this preview screenshot uploaded. Keeping the file.'
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      { directory: collector.directory, files: [{ name: filename }] },
+      'Retained 1 preview screenshots that were not uploaded.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledTimes(1);
+    expect(await readdir(collector.directory)).toEqual([filename]);
+  } finally {
+    jest.useRealTimers();
     await rm(collector.directory, { recursive: true, force: true });
   }
 });

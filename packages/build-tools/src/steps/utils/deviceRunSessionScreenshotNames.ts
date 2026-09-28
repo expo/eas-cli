@@ -100,6 +100,7 @@ export function screenshotArtifactDetails(
 }
 
 function screenshotArtifactName(timestamp: string): string {
+  // The caller already matched the timestamp against the filename pattern, so this split cannot fail.
   const [date, time] = timestamp.split('T');
   const [hours, minutes, seconds] = time.split('-');
   return `Screenshot ${date} ${hours}:${minutes}:${seconds} UTC`;

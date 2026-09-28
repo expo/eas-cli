@@ -34,14 +34,14 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     deviceRunSessionId,
     logger,
     signal,
-    failedAttempts,
+    failedUploads,
     session = Promise.resolve(null),
   }: {
     directory: string;
     deviceRunSessionId: string;
     logger: bunyan;
     signal: AbortSignal;
-    failedAttempts: Map<string, number>;
+    failedUploads: Map<string, { attempts: number; lastError: Error }>;
     session?: Promise<ScreenshotSession | null>;
   }
 ): Promise<number> {
@@ -78,8 +78,8 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
       });
       await rm(file);
       uploadedCount++;
-      const previousFailures = failedAttempts.get(entry.name) ?? 0;
-      failedAttempts.delete(entry.name);
+      const previousFailures = failedUploads.get(entry.name)?.attempts ?? 0;
+      failedUploads.delete(entry.name);
       // Each earlier failed attempt may have left an artifact row without a file on the server.
       // The API deletes such rows when the job run finishes (expo/universe#31539).
       const retryNote =
@@ -102,15 +102,15 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
         break;
       }
       const error = err instanceof Error ? err : new Error(String(err));
-      const attempt = (failedAttempts.get(entry.name) ?? 0) + 1;
-      failedAttempts.set(entry.name, attempt);
-      if (attempt === 1) {
-        Sentry.capture('Could not upload preview screenshot', error);
+      const attempt = (failedUploads.get(entry.name)?.attempts ?? 0) + 1;
+      failedUploads.set(entry.name, { attempts: attempt, lastError: error });
+      // A sustained outage would otherwise warn for every retained file on each 30 s scan.
+      if (attempt <= 3 || attempt % 10 === 0) {
+        logger.warn(
+          { err: error, file, attempt, size },
+          `Could not upload preview screenshot (attempt ${attempt}). Keeping it for retry.`
+        );
       }
-      logger.warn(
-        { err: error, file, attempt, size },
-        `Could not upload preview screenshot (attempt ${attempt}). Keeping it for retry.`
-      );
     }
   }
   return uploadedCount;
@@ -122,7 +122,7 @@ export async function startDeviceRunSessionScreenshotsAsync(
 ): Promise<{ directory: string; finishAsync: () => Promise<void> }> {
   const session = loadScreenshotSessionAsync(ctx, options.deviceRunSessionId, options.logger);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'device-session-screenshots-'));
-  const failedAttempts = new Map<string, number>();
+  const failedUploads = new Map<string, { attempts: number; lastError: Error }>();
   let uploadedCount = 0;
   const controller = new AbortController();
   let pending: Promise<void> | null = null;
@@ -136,7 +136,7 @@ export async function startDeviceRunSessionScreenshotsAsync(
           ...options,
           session,
           directory,
-          failedAttempts,
+          failedUploads,
           signal: controller.signal,
         });
       } catch (err) {
@@ -201,10 +201,17 @@ export async function startDeviceRunSessionScreenshotsAsync(
           if (files.length === 0) {
             await rm(directory, { recursive: true });
           } else {
-            options.logger.warn(
-              { directory, files },
-              `Retained ${files.length} preview screenshots that were not uploaded.`
-            );
+            const retained = files.map(name => {
+              const failure = failedUploads.get(name);
+              return failure
+                ? { name, attempts: failure.attempts, lastError: failure.lastError.message }
+                : { name };
+            });
+            const message = `Retained ${files.length} preview screenshots that were not uploaded.`;
+            options.logger.warn({ directory, files: retained }, message);
+            Sentry.capture('Preview screenshots were not uploaded', new Error(message), {
+              extras: { files: retained },
+            });
           }
         } catch (err) {
           options.logger.warn({ err, directory }, 'Could not finish preview screenshot uploads.');
