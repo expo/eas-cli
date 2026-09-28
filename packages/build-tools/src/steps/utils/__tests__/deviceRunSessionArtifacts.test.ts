@@ -64,7 +64,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
           size: reportedSize,
         },
       }),
-      undefined
+      { fetch: expect.any(Function) }
     );
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
       'https://uploads.expo.test/artifact',

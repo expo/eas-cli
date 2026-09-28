@@ -8,24 +8,39 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
+
+### 🎉 New features
+
+- [eas-cli] Add `--build-fingerprint` to `eas simulator` to install the newest build with a given fingerprint. ([#4472](https://github.com/expo/eas-cli/pull/4472) by [@tchayen](https://github.com/tchayen))
 - [eas-cli] Accept build IDs in `workflow:ssh <id>`. ([#4452](https://github.com/expo/eas-cli/pull/4452) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [eas-cli] Make `eas simulator:*` commands visible in help output. ([#4456](https://github.com/expo/eas-cli/pull/4456) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Pass `--share-url` when launching serve-sim so Share copies the expo.dev preview page instead of the tunnel URL. ([#4434](https://github.com/expo/eas-cli/pull/4434) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:advisors` to list unresolved Supabase Security and Performance Advisor findings for the linked Supabase project. ([#4342](https://github.com/expo/eas-cli/pull/4342) by [@fiberjw](https://github.com/fiberjw))
 - [eas-cli] Accept individual App Store Connect API keys for submissions, TestFlight setup, and metadata. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@sswrk](https://github.com/sswrk))
-- [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4250](https://github.com/expo/eas-cli/pull/4250) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Add `launch_app_identifier`, `launch_args`, and `open_url` inputs to the serve-sim, agent-device, argent, and Appium remote sessions, so serve-sim launches an installed app before the stream starts. The inputs are iOS only, and Android sessions keep using `eas/launch_application`. ([#4324](https://github.com/expo/eas-cli/pull/4324) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stream iOS Simulator previews at 1600px and 10 Mbps. ([#4439](https://github.com/expo/eas-cli/pull/4439) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] List `eas simulator` only once in `eas --help`. The `sim` shorthand is now a hidden alias, so it still runs but no longer duplicates the entry. ([#4457](https://github.com/expo/eas-cli/pull/4457) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [build-tools] Start the Argent tool-server with `ARGENT_EMULATOR_NO_WINDOW=1`, so Argent can boot the Android emulator again after it stops. Without it, the windowed emulator fails on the Linux image because `libpulse.so.0` is missing. ([#4465](https://github.com/expo/eas-cli/pull/4465) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Fix `eas account:view` printing `Role: undefined` for the new Release Manager role. ([#4300](https://github.com/expo/eas-cli/pull/4300) by [@byronkarlen](https://github.com/byronkarlen))
+- [eas-cli] Include legacy serve-sim sessions in `eas simulator:list --type web-preview-only`, and list `web-preview-only` only once in the `--type` options. ([#4466](https://github.com/expo/eas-cli/pull/4466) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
+- [eas-cli] Stop creating `CLAUDE.md` in new apps; use `AGENTS.md` for agent instructions. ([#4446](https://github.com/expo/eas-cli/pull/4446) by [@davidmokos](https://github.com/davidmokos))
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
+- [build-tools] Use the website origin for simulator preview CORS and framing, and allow deploy previews and local website dev servers on staging. ([#4437](https://github.com/expo/eas-cli/pull/4437) by [@gwdp](https://github.com/gwdp))
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16
 
