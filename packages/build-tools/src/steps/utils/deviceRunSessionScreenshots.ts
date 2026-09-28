@@ -17,9 +17,11 @@ import {
 // The device-hub repository writes these files from
 // packages/serve-sim/packages/serve-sim/src/screenshot-artifacts.ts and
 // packages/serve-emu/packages/serve-emu/src/screenshot-artifacts.ts.
-// This pattern and the producer pattern must change together.
+// The same files log SCREENSHOT_SAVE_FAILURE_MARKER on stderr when a capture cannot be saved.
+// This pattern, this marker and the producer code must change together.
 const SCREENSHOT_FILENAME_PATTERN =
   /^screenshot-(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-[a-f0-9]{12}\.png$/;
+export const SCREENSHOT_SAVE_FAILURE_MARKER = 'could not save screenshot artifact';
 
 /**
  * Only atomically completed PNGs are eligible; failed uploads stay on disk for retry.
@@ -65,7 +67,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
       await uploadDeviceRunSessionArtifactAsync(ctx, {
         deviceRunSessionId,
         artifactId: entry.name.slice(0, -4),
-        name: 'Screenshot',
+        name: artifactDetails.name,
         filename: artifactDetails.filename,
         metadata: artifactDetails.metadata,
         kind: 'screenshot',
@@ -91,6 +93,13 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     } catch (err) {
       if (size === undefined && (err as NodeJS.ErrnoException).code === 'ENOENT') {
         continue;
+      }
+      if (signal.aborted) {
+        logger.warn(
+          { file, size },
+          'Shutdown deadline reached before this preview screenshot uploaded. Keeping the file.'
+        );
+        break;
       }
       const error = err instanceof Error ? err : new Error(String(err));
       const attempt = (failedAttempts.get(entry.name) ?? 0) + 1;
@@ -178,6 +187,8 @@ export async function startDeviceRunSessionScreenshotsAsync(
       finishTask = (async () => {
         watcher?.close();
         clearInterval(timer);
+        // This shutdown budget wins over the uploader's own 90 s stall deadline, so a slow upload
+        // at shutdown is retained rather than delaying teardown.
         const deadline = setTimeout(() => controller.abort(), 30_000);
         try {
           await pending;

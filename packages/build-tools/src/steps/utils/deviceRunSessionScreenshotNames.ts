@@ -69,9 +69,10 @@ export async function loadScreenshotSessionAsync(
 export function screenshotArtifactDetails(
   timestamp: string,
   session: ScreenshotSession | null
-): { filename: string; metadata: Record<string, unknown> } {
+): { name: string; filename: string; metadata: Record<string, unknown> } {
+  const name = screenshotArtifactName(timestamp);
   if (!session) {
-    return { filename: `screenshot-${timestamp}.png`, metadata: {} };
+    return { name, filename: `screenshot-${timestamp}.png`, metadata: {} };
   }
 
   const app = session.build?.app ?? session.app;
@@ -95,5 +96,11 @@ export function screenshotArtifactDetails(
     }
   }
   filenameParts.push(timestamp);
-  return { filename: `${filenameParts.join('-')}.png`, metadata };
+  return { name, filename: `${filenameParts.join('-')}.png`, metadata };
+}
+
+function screenshotArtifactName(timestamp: string): string {
+  const [date, time] = timestamp.split('T');
+  const [hours, minutes, seconds] = time.split('-');
+  return `Screenshot ${date} ${hours}:${minutes}:${seconds} UTC`;
 }

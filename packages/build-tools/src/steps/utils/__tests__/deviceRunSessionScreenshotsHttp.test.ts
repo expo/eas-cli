@@ -157,6 +157,7 @@ it('publishes a manual preview PNG through the artifact GraphQL and HTTP upload 
     expect.objectContaining({
       deviceRunSessionId: 'drs-id',
       input: expect.objectContaining({
+        name: 'Screenshot 2026-09-24 08:45:59 UTC',
         filename: 'my-app-ios-a1b2c3d-2026-09-24T08-45-59-123Z.png',
         kind: 'screenshot',
         size: payload.length,

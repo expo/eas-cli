@@ -69,6 +69,7 @@ it('uploads completed captures with their bytes and stable IDs, ignoring partial
     expect.objectContaining({
       deviceRunSessionId: 'session-id',
       artifactId: filename.slice(0, -4),
+      name: 'Screenshot 2026-09-24 08:45:59 UTC',
       filename: 'screenshot-2026-09-24T08-45-59-123Z.png',
       kind: 'screenshot',
       size: 11,
@@ -227,6 +228,42 @@ it('warns with the attempt count and reports each file to Sentry only once', asy
     'Could not upload preview screenshot',
     expect.objectContaining({ message: 'offline' })
   );
+});
+
+it('keeps a screenshot without counting a failure when the shutdown deadline aborts its upload', async () => {
+  const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
+  const file = path.join(directory, filename);
+  await writeFile(file, 'png');
+  const controller = new AbortController();
+  let signalUploadStarted!: () => void;
+  const uploadStarted = new Promise<void>(resolve => {
+    signalUploadStarted = resolve;
+  });
+  jest
+    .mocked(uploadDeviceRunSessionArtifactAsync)
+    .mockImplementationOnce(async (_ctx, { signal }) => {
+      signalUploadStarted();
+      await new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason));
+      });
+    });
+  const upload = uploadDeviceRunSessionScreenshotsAsync(ctx, {
+    ...options,
+    directory,
+    failedAttempts,
+    signal: controller.signal,
+  });
+  await uploadStarted;
+  controller.abort();
+  expect(await upload).toBe(0);
+  expect(Sentry.capture).not.toHaveBeenCalled();
+  expect(failedAttempts.size).toBe(0);
+  expect(logger.warn).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { file, size: 3 },
+    'Shutdown deadline reached before this preview screenshot uploaded. Keeping the file.'
+  );
+  expect(await readdir(directory)).toEqual([filename]);
 });
 
 it('logs the failed attempt count when an upload succeeds on retry', async () => {

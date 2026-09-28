@@ -1,6 +1,7 @@
 import { screenshotArtifactDetails } from '../deviceRunSessionScreenshotNames';
 
 const timestamp = '2026-09-24T08-45-59-123Z';
+const name = 'Screenshot 2026-09-24 08:45:59 UTC';
 const gitCommitHash = 'a1b2c3d' + '0'.repeat(33);
 const session = {
   platform: 'IOS' as const,
@@ -12,6 +13,7 @@ it.each(['IOS', 'ANDROID'] as const)(
   'names %s captures after the installed build and retains its full commit',
   platform => {
     expect(screenshotArtifactDetails(timestamp, { ...session, platform })).toEqual({
+      name,
       filename: `my-app-${platform.toLowerCase()}-a1b2c3d-${timestamp}.png`,
       metadata: {
         appSlug: 'my-app',
@@ -25,6 +27,7 @@ it.each(['IOS', 'ANDROID'] as const)(
 
 it('omits the commit for archive and empty sessions', () => {
   expect(screenshotArtifactDetails(timestamp, { ...session, build: null })).toEqual({
+    name,
     filename: `workflow-project-ios-${timestamp}.png`,
     metadata: { appSlug: 'workflow-project', platform: 'ios' },
   });
@@ -44,6 +47,7 @@ it.each([null, '', 'not-a-commit'])(
 
 it('uses timestamp-only names when session details are unavailable', () => {
   expect(screenshotArtifactDetails(timestamp, null)).toEqual({
+    name,
     filename: `screenshot-${timestamp}.png`,
     metadata: {},
   });
