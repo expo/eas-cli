@@ -672,7 +672,8 @@
           },
           "demoPassword": {
             "type": "string",
-            "description": "The password to sign in to your app to review its features."
+            "description": "The password to sign in to your app to review its features.",
+            "maxLength": 100
           },
           "demoRequired": {
             "type": "boolean",
