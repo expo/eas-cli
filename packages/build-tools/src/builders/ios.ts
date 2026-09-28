@@ -35,7 +35,7 @@ import {
 } from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
-import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { getParentAndDescendantProcessPidsAsync, killProcesses } from '../utils/processes';
 import { isSourceMapUploadEnabled, resolveIosSourceMapPathAsync } from '../utils/sourceMaps';
 
 const INSTALL_PODS_WARN_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -386,9 +386,7 @@ async function runInstallPodsAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       );
       const ppid = nullthrows(installPodsSpawnPromise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach(pid => {
-        process.kill(pid);
-      });
+      killProcesses(pids);
       ctx.reportError?.('"Install pods" phase takes a very long time', undefined, {
         extras: { buildId: ctx.env.EAS_BUILD_ID },
       });
