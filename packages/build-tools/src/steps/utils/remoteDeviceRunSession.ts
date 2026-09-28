@@ -583,6 +583,38 @@ async function stopDetachedProcessAsync(
   }
 }
 
+/**
+ * Runs every named teardown to completion and logs each failure. The first failure is rethrown
+ * only when the session body succeeded, so a teardown error cannot replace the error that ended it.
+ */
+export async function finishRemoteSessionAsync({
+  teardown,
+  sessionFailed,
+  logger,
+}: {
+  teardown: [name: string, task: Promise<unknown> | undefined][];
+  sessionFailed: boolean;
+  logger: bunyan;
+}): Promise<void> {
+  const results = await Promise.allSettled(teardown.map(([, task]) => task));
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected' ? [{ name: teardown[index][0], err: result.reason }] : []
+  );
+  for (const { name, err } of failures) {
+    logger.warn({ err }, `Could not stop the ${name} during remote session teardown.`);
+    if (sessionFailed) {
+      // The session error is what the step reports, so a swallowed teardown failure goes to Sentry.
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture(`Could not stop the ${name} after the remote session failed`, error, {
+        level: 'warning',
+      });
+    }
+  }
+  if (!sessionFailed && failures.length > 0) {
+    throw failures[0].err;
+  }
+}
+
 export function spawnDetached({
   command,
   args,

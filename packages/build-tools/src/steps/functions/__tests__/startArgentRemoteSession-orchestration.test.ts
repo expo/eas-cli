@@ -46,6 +46,8 @@ jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
+  finishRemoteSessionAsync: jest.requireActual('../../utils/remoteDeviceRunSession')
+    .finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),

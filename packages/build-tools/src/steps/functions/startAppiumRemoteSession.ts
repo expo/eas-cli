@@ -33,6 +33,7 @@ import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -139,6 +140,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
+      let sessionFailed = false;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -197,23 +199,29 @@ export function createStartAppiumRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        const cleanup = await Promise.allSettled([
-          (async () => {
-            if (appiumTunnel) {
-              await appiumTunnel.stopAsync();
-            }
-            await eventCollection.stopAsync();
-            await appiumProcess.stopAsync();
-            await fs.promises.rm(appiumHome, { recursive: true, force: true });
-          })(),
-          sessionHost?.finishAsync(),
-        ]);
-        for (const result of cleanup) {
-          if (result.status === 'rejected') {
-            throw result.reason;
-          }
-        }
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            ['Appium tunnel', appiumTunnel?.stopAsync()],
+            [
+              'Appium server',
+              (async () => {
+                try {
+                  await eventCollection.stopAsync();
+                } finally {
+                  await appiumProcess.stopAsync();
+                  await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                }
+              })(),
+            ],
+            ['session host', sessionHost?.finishAsync()],
+          ],
+        });
       }
     }),
   });

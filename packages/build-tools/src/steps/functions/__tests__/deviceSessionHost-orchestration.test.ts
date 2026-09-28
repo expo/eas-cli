@@ -3,6 +3,7 @@ import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
@@ -19,6 +20,7 @@ import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentD
 import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemoteSession';
 
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../../sentry');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/AndroidEmulatorUtils');
 jest.mock('../../utils/deviceSessionHost');
@@ -40,6 +42,7 @@ const stopTool = jest.fn();
 const stopTunnel = jest.fn();
 const stopEvents = jest.fn();
 const openPreview = jest.fn();
+const logger = { info: jest.fn(), warn: jest.fn() };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -84,12 +87,12 @@ afterEach(() => {
 describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
   ['Agent Device', createStartAgentDeviceRemoteSessionBuildFunction],
-] as const)('%s host ownership', (_name, createFunction) => {
+] as const)('%s host ownership', (name, createFunction) => {
   async function runAsync() {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
-        logger: { info: jest.fn(), warn: jest.fn() },
+        logger,
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
@@ -156,7 +159,7 @@ describe.each([
     }
   });
 
-  it('finalizes recording even while automation tunnel close is pending', async () => {
+  it('finalizes recording and stops automation while the tunnel close is pending', async () => {
     let release!: () => void;
     let finished!: () => void;
     const pendingClose = new Promise<void>(resolve => {
@@ -165,19 +168,35 @@ describe.each([
     const hostFinished = new Promise<void>(resolve => {
       finished = resolve;
     });
+    const toolStopped = new Promise<void>(resolve => {
+      stopTool.mockImplementationOnce(async () => resolve());
+    });
     stopTunnel.mockReturnValueOnce(pendingClose);
     finishHost.mockImplementationOnce(async () => {
       finished();
     });
     const running = runAsync();
     try {
-      await hostFinished;
+      // Both settle while the tunnel close is still held open.
+      await Promise.all([hostFinished, toolStopped]);
       expect(stopTunnel).toHaveBeenCalledTimes(1);
-      expect(stopTool).not.toHaveBeenCalled();
     } finally {
       release();
       await running;
     }
+  });
+
+  it('still stops the automation process when event collection stop rejects', async () => {
+    stopEvents.mockRejectedValueOnce(new Error('collector failed'));
+    // Agent Device wraps its collector stop in a catch-all helper; Appium does not.
+    const outcome = await runAsync().then(
+      () => 'resolved',
+      (err: Error) => err.message
+    );
+    expect(outcome).toBe(name === 'Appium' ? 'collector failed' : 'resolved');
+    expect(stopTool).toHaveBeenCalledTimes(1);
+    expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(finishHost).toHaveBeenCalledTimes(1);
   });
 
   it('still stops automation when recording finalization rejects', async () => {
@@ -185,10 +204,13 @@ describe.each([
     await expect(runAsync()).rejects.toThrow('recording cleanup failed');
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it.each(['preview', 'config', 'wait'])('finishes the host after %s fails', async phase => {
     const error = new Error(`${phase} failed`);
+    // A teardown failure must not replace the error that ended the session.
+    finishHost.mockRejectedValueOnce(new Error('recording cleanup failed'));
     if (phase === 'preview') {
       openPreview.mockRejectedValueOnce(error);
     } else if (phase === 'config') {
@@ -200,5 +222,14 @@ describe.each([
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.objectContaining({ message: 'recording cleanup failed' }) },
+      'Could not stop the session host during remote session teardown.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not stop the session host after the remote session failed',
+      expect.objectContaining({ message: 'recording cleanup failed' }),
+      { level: 'warning' }
+    );
   });
 });

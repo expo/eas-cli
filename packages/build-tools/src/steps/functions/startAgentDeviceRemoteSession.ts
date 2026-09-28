@@ -31,6 +31,7 @@ import {
   type DetachedProcessHandle,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -132,6 +133,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
+      let sessionFailed = false;
       try {
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
@@ -193,26 +195,34 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        const cleanup = await Promise.allSettled([
-          (async () => {
-            await agentDeviceTunnel.stopAsync();
-            if (eventCollection) {
-              await stopAgentDeviceEventCollectionSafelyAsync({
-                eventCollection,
-                deviceRunSessionId,
-                logger,
-              });
-            }
-            await daemonProcess.stopAsync();
-          })(),
-          sessionHost?.finishAsync(),
-        ]);
-        for (const result of cleanup) {
-          if (result.status === 'rejected') {
-            throw result.reason;
-          }
-        }
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            ['agent-device tunnel', agentDeviceTunnel.stopAsync()],
+            [
+              'agent-device daemon',
+              (async () => {
+                try {
+                  if (eventCollection) {
+                    await stopAgentDeviceEventCollectionSafelyAsync({
+                      eventCollection,
+                      deviceRunSessionId,
+                      logger,
+                    });
+                  }
+                } finally {
+                  await daemonProcess.stopAsync();
+                }
+              })(),
+            ],
+            ['session host', sessionHost?.finishAsync()],
+          ],
+        });
       }
     }),
   });
