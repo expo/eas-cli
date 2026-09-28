@@ -220,6 +220,24 @@ describe(BuildStepGlobalContext, () => {
       );
     });
   });
+  describe(BuildStepGlobalContext.prototype.getInterpolationContext, () => {
+    it('replaces every occurrence when the replacement contains the replaced string', () => {
+      const { replaceAll } = createGlobalContextMock().getInterpolationContext();
+      expect(replaceAll('refs/heads/main', '/', '//')).toBe('refs//heads//main');
+      expect(replaceAll("it's", "'", "'\\''")).toBe("it'\\''s");
+    });
+
+    it('handles an empty string to replace', () => {
+      const { replaceAll } = createGlobalContextMock().getInterpolationContext();
+      expect(replaceAll('abc', '', '-')).toBe('-a-b-c-');
+    });
+
+    it('does not expand replacement patterns', () => {
+      const { replaceAll } = createGlobalContextMock().getInterpolationContext();
+      expect(replaceAll('a-b', '-', '$&')).toBe('a$&b');
+      expect(replaceAll('a-b', '-', '$$')).toBe('a$$b');
+    });
+  });
   describe(BuildStepGlobalContext.prototype.hashFiles, () => {
     let tempDir: string;
     let ctx: BuildStepGlobalContext;

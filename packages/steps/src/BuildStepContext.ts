@@ -147,12 +147,8 @@ export class BuildStepGlobalContext {
       startsWith: (value, prefix) => value.startsWith(prefix),
       endsWith: (value, suffix) => value.endsWith(suffix),
       hashFiles: (...patterns: string[]) => this.hashFiles(...patterns),
-      replaceAll: (input: string, stringToReplace: string, replacementString: string) => {
-        while (input.includes(stringToReplace)) {
-          input = input.replace(stringToReplace, replacementString);
-        }
-        return input;
-      },
+      replaceAll: (input: string, stringToReplace: string, replacementString: string) =>
+        input.replaceAll(stringToReplace, () => replacementString),
       substring: (input: string, start: number, end?: number) => input.substring(start, end),
     };
   }

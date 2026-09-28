@@ -123,7 +123,7 @@ function interpolate(
   for (const match of matched) {
     const [, path] = nullthrows(match.match(regex));
     const value = typeof varsOrFn === 'function' ? varsOrFn(path) : varsOrFn[path.split('.')[1]];
-    result = result.replace(match, value);
+    result = result.replace(match, () => value);
   }
   return result;
 }

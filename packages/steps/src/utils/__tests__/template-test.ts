@@ -10,6 +10,10 @@ import {
 } from '../template';
 
 describe(interpolateWithInputs, () => {
+  test('interpolates values containing replacement patterns verbatim', () => {
+    const result = interpolateWithInputs('password=${ inputs.foo }', { foo: 'pa$$word$&' });
+    expect(result).toBe('password=pa$$word$&');
+  });
   test('interpolation', () => {
     const result = interpolateWithInputs('foo${ inputs.foo }', { foo: 'bar' });
     expect(result).toBe('foobar');
@@ -17,6 +21,10 @@ describe(interpolateWithInputs, () => {
 });
 
 describe(interpolateWithOutputs, () => {
+  test('interpolates values containing replacement patterns verbatim', () => {
+    const result = interpolateWithOutputs('password=${ steps.abc123.foo }', () => 'pa$$word$&');
+    expect(result).toBe('password=pa$$word$&');
+  });
   test('interpolation', () => {
     const result = interpolateWithOutputs('foo${ steps.abc123.foo }${ steps.abc123.bar }', path => {
       if (path === 'steps.abc123.foo') {
@@ -32,6 +40,13 @@ describe(interpolateWithOutputs, () => {
 });
 
 describe(interpolateWithGlobalContext, () => {
+  test('interpolates values containing replacement patterns verbatim', () => {
+    const result = interpolateWithGlobalContext(
+      'token=${ eas.job.secrets.token }',
+      () => "pa$$w$&or$'d"
+    );
+    expect(result).toBe("token=pa$$w$&or$'d");
+  });
   test('interpolation', () => {
     const result = interpolateWithGlobalContext(
       'foo${ eas.prop1.prop2.prop3.value4 }${ eas.prop1.prop2.prop3.value5 }',
