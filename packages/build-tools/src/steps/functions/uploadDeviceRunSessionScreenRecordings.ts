@@ -20,7 +20,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
     id: 'upload_device_run_session_screen_recordings',
     name: 'Upload device run session screen recordings',
     __metricsId: 'eas/upload_device_run_session_screen_recordings',
-    supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX],
+    supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'recordings_json',
