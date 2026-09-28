@@ -311,6 +311,34 @@ it('cancels urql session creation with auth intact and never starts a PUT', asyn
 
 const hasFfmpeg = ['ffmpeg', 'ffprobe'].every(tool => spawnSync('which', [tool]).status === 0);
 
+it('says ffprobe is missing instead of calling an unlisted recording undecodable', async () => {
+  const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  const session = path.join(directory, 'session');
+  await mkdir(session);
+  await writeFile(path.join(session, 'recording.mp4.partial'), new Uint8Array(28));
+  await writeFile(
+    path.join(session, 'session.json'),
+    JSON.stringify({
+      udid: 'emulator-5554',
+      deviceName: 'Pixel',
+      runtimeDisplayName: 'Android 16',
+      status: 'recording',
+      recording: 'recording.mp4.partial',
+    })
+  );
+
+  const recordings = await findUnlistedDeviceScreenRecordingsAsync({
+    root: directory,
+    env: { ...process.env, PATH: path.join(directory, 'no-tools') } as BuildStepEnv,
+    logger,
+  });
+
+  expect(recordings).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'ffprobe is not available; cannot recover the unlisted recording session/recording.mp4.partial.'
+  );
+});
+
 (hasFfmpeg ? it : it.skip)(
   'recovers unlisted recordings from a killed host and flags the unfinished ones as partial',
   async () => {

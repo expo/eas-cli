@@ -1,6 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import type { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { createReadStream } from 'node:fs';
@@ -94,18 +93,23 @@ export async function findUnlistedDeviceScreenRecordingsAsync({
       continue;
     }
     const file = path.join(directory, manifest.data.recording);
-    const probe = await asyncResult(
-      spawn(
+    const name = path.join(entry.name, manifest.data.recording);
+    let duration = 0;
+    try {
+      const probe = await spawn(
         'ffprobe',
         ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file],
-        {
-          env,
-          stdio: 'pipe',
-        }
-      )
-    );
-    if (!probe.ok || !(Number(probe.value.stdout.trim()) > 0)) {
-      logger.warn(`Unlisted recording ${file} does not decode; skipping it.`);
+        { env, stdio: 'pipe' }
+      );
+      duration = Number(probe.stdout.trim());
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        logger.warn(`ffprobe is not available; cannot recover the unlisted recording ${name}.`);
+        continue;
+      }
+    }
+    if (!(duration > 0)) {
+      logger.warn(`Unlisted recording ${name} does not decode; skipping it.`);
       continue;
     }
     const { udid, deviceName, runtimeDisplayName } = manifest.data;
