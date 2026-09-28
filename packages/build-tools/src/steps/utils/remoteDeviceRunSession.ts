@@ -602,6 +602,13 @@ export async function finishRemoteSessionAsync({
   );
   for (const { name, err } of failures) {
     logger.warn({ err }, `Could not stop the ${name} during remote session teardown.`);
+    if (sessionFailed) {
+      // The session error is what the step reports, so a swallowed teardown failure goes to Sentry.
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture(`Could not stop the ${name} after the remote session failed`, error, {
+        level: 'warning',
+      });
+    }
   }
   if (!sessionFailed && failures.length > 0) {
     throw failures[0].err;

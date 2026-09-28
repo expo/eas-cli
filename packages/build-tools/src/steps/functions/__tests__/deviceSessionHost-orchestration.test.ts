@@ -3,6 +3,7 @@ import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
@@ -19,6 +20,7 @@ import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentD
 import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemoteSession';
 
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../../sentry');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/AndroidEmulatorUtils');
 jest.mock('../../utils/deviceSessionHost');
@@ -202,6 +204,7 @@ describe.each([
     await expect(runAsync()).rejects.toThrow('recording cleanup failed');
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it.each(['preview', 'config', 'wait'])('finishes the host after %s fails', async phase => {
@@ -222,6 +225,11 @@ describe.each([
     expect(logger.warn).toHaveBeenCalledWith(
       { err: expect.objectContaining({ message: 'recording cleanup failed' }) },
       'Could not stop the session host during remote session teardown.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not stop the session host after the remote session failed',
+      expect.objectContaining({ message: 'recording cleanup failed' }),
+      { level: 'warning' }
     );
   });
 });
