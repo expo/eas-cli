@@ -26,6 +26,7 @@ import {
   parseOpenUrlInput,
 } from '../functions/launchApplication';
 import { Sentry } from '../../sentry';
+import { isProcessGroupRunning } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
@@ -548,7 +549,7 @@ async function stopDetachedProcessAsync(
   pid: number | undefined,
   gracePeriodMs = 5_000
 ): Promise<void> {
-  if (pid === undefined || !isProcessRunning(pid)) {
+  if (pid === undefined || !isProcessGroupRunning(pid)) {
     return;
   }
   try {
@@ -564,10 +565,10 @@ async function stopDetachedProcessAsync(
   }
 
   const deadline = Date.now() + gracePeriodMs;
-  while (Date.now() < deadline && isProcessRunning(pid)) {
+  while (Date.now() < deadline && isProcessGroupRunning(pid)) {
     await sleepAsync(100);
   }
-  if (!isProcessRunning(pid)) {
+  if (!isProcessGroupRunning(pid)) {
     return;
   }
   try {
@@ -579,7 +580,7 @@ async function stopDetachedProcessAsync(
   }
   // kill(pid, 0) succeeds on the zombie until libuv reaps it on a later loop turn.
   const killDeadline = Date.now() + 5_000;
-  while (Date.now() < killDeadline && isProcessRunning(pid)) {
+  while (Date.now() < killDeadline && isProcessGroupRunning(pid)) {
     await sleepAsync(100);
   }
 }
