@@ -140,6 +140,7 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
         'Validating whether the distribution certificate has been imported successfully'
       );
       await this.keychain.ensureCertificateImported({
+        logger: this.ctx.logger,
         teamId: provisioningProfile.data.teamId,
         fingerprint: certificateFingerprint,
       });
