@@ -86,7 +86,9 @@ it('uploads captures that never failed first, oldest first, before retrying fail
   failedUploads.set(failed, { attempts: 1, lastError: new Error('stalled') });
   await flush();
   expect(
-    jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls.map(([, { artifactId }]) => artifactId)
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mock.calls.map(([, { artifactId }]) => artifactId)
   ).toEqual([older, newer, failed].map(name => name.slice(0, -4)));
 });
 
