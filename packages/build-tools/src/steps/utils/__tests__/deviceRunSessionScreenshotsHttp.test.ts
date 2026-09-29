@@ -194,7 +194,7 @@ it('rereads the PNG when the artifact PUT is retried', async () => {
     logger: { info: jest.fn(), warn: jest.fn() } as unknown as bunyan,
     signal: new AbortController().signal,
   });
-  expect(uploaded).toBe(1);
+  expect(uploaded).toEqual({ uploaded: 1, saveFailures: 0 });
   expect(creates).toBe(1);
   expect(bodies).toEqual(['retried-capture', 'retried-capture']);
   await expect(stat(path.join(directory, filename))).rejects.toMatchObject({ code: 'ENOENT' });

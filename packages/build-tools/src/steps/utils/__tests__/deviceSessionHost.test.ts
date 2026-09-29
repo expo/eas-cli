@@ -445,42 +445,6 @@ it('leaves iOS recording to its existing build steps', async () => {
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
-  expect(logger.warn).not.toHaveBeenCalledWith(
-    expect.anything(),
-    expect.stringContaining('could not save')
-  );
-  expect(Sentry.capture).not.toHaveBeenCalledWith(
-    'The session host could not save preview screenshots',
-    expect.anything(),
-    expect.anything()
-  );
-});
-
-it('surfaces the screenshot save failures that the host logged', async () => {
-  const saveFailure =
-    '[serve-sim] could not save screenshot artifact /tmp/screenshots/screenshot.png: ENOSPC';
-  jest.mocked(spawnDetached).mockImplementationOnce(() => ({
-    pid: undefined,
-    getOutput: () => `[serve-sim] ready\n${saveFailure}\n[serve-sim] stopping\n`,
-    getExitError: () => undefined,
-    stopAsync: stopServer,
-  }));
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 10_000,
-  });
-  await host.finishAsync();
-  expect(logger.warn).toHaveBeenCalledWith(
-    { hostOutput: [saveFailure] },
-    'The session host could not save 1 preview screenshots.'
-  );
-  expect(Sentry.capture).toHaveBeenCalledWith(
-    'The session host could not save preview screenshots',
-    expect.objectContaining({ message: 'The session host could not save 1 preview screenshots.' }),
-    { extras: { hostOutput: [saveFailure] } }
-  );
 });
 
 it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(

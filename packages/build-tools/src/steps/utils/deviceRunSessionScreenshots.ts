@@ -1,8 +1,9 @@
 import type { bunyan } from '@expo/logger';
 import { type FSWatcher, createReadStream, watch } from 'node:fs';
-import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
@@ -17,15 +18,41 @@ import {
 // The device-hub repository writes these files from
 // packages/serve-sim/packages/serve-sim/src/screenshot-artifacts.ts and
 // packages/serve-emu/packages/serve-emu/src/screenshot-artifacts.ts.
-// The same files log SCREENSHOT_SAVE_FAILURE_MARKER on stderr when a capture cannot be saved.
-// This pattern, this marker and the producer code must change together.
+// When a capture cannot be saved, the same files write a failure record in its place.
+// These patterns, the record schema and the producer code must change together.
 const SCREENSHOT_FILENAME_PATTERN =
   /^screenshot-(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-[a-f0-9]{12}\.png$/;
-export const SCREENSHOT_SAVE_FAILURE_MARKER = 'could not save screenshot artifact';
+const SCREENSHOT_FAILURE_RECORD_PATTERN =
+  /^screenshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[a-f0-9]{12}\.failed\.json$/;
+const ScreenshotFailureRecordSchema = z.object({
+  file: z.string(),
+  error: z.string(),
+  at: z.string(),
+});
+
+async function reportScreenshotFailureRecordAsync(file: string, logger: bunyan): Promise<void> {
+  try {
+    const record = ScreenshotFailureRecordSchema.parse(JSON.parse(await readFile(file, 'utf8')));
+    logger.warn(
+      { file: record.file, error: record.error, at: record.at },
+      'The session host could not save a preview screenshot.'
+    );
+    Sentry.capture(
+      'The session host could not save a preview screenshot',
+      new Error(record.error),
+      {
+        extras: { file: record.file, at: record.at },
+      }
+    );
+  } catch (err) {
+    logger.warn({ err, file }, 'Could not read a preview screenshot failure record.');
+  }
+  await rm(file, { force: true });
+}
 
 /**
  * Only atomically completed PNGs are eligible; failed uploads stay on disk for retry.
- * Returns the number of uploaded screenshots.
+ * Failure records are reported once and deleted.
  */
 export async function uploadDeviceRunSessionScreenshotsAsync(
   ctx: CustomBuildContext,
@@ -44,13 +71,19 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     failedUploads: Map<string, { attempts: number; lastError: Error }>;
     session?: Promise<ScreenshotSession | null>;
   }
-): Promise<number> {
+): Promise<{ uploaded: number; saveFailures: number }> {
   let uploadedCount = 0;
+  let saveFailures = 0;
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (signal.aborted) {
       break;
     }
     if (!entry.isFile()) {
+      continue;
+    }
+    if (SCREENSHOT_FAILURE_RECORD_PATTERN.test(entry.name)) {
+      await reportScreenshotFailureRecordAsync(path.join(directory, entry.name), logger);
+      saveFailures++;
       continue;
     }
     const filenameMatch = SCREENSHOT_FILENAME_PATTERN.exec(entry.name);
@@ -113,7 +146,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
       }
     }
   }
-  return uploadedCount;
+  return { uploaded: uploadedCount, saveFailures };
 }
 
 export async function startDeviceRunSessionScreenshotsAsync(
@@ -124,6 +157,7 @@ export async function startDeviceRunSessionScreenshotsAsync(
   const directory = await mkdtemp(path.join(os.tmpdir(), 'device-session-screenshots-'));
   const failedUploads = new Map<string, { attempts: number; lastError: Error }>();
   let uploadedCount = 0;
+  let saveFailureCount = 0;
   const controller = new AbortController();
   let pending: Promise<void> | null = null;
   let scanRequested = false;
@@ -132,13 +166,15 @@ export async function startDeviceRunSessionScreenshotsAsync(
     while (scanRequested && !controller.signal.aborted) {
       scanRequested = false;
       try {
-        uploadedCount += await uploadDeviceRunSessionScreenshotsAsync(ctx, {
+        const { uploaded, saveFailures } = await uploadDeviceRunSessionScreenshotsAsync(ctx, {
           ...options,
           session,
           directory,
           failedUploads,
           signal: controller.signal,
         });
+        uploadedCount += uploaded;
+        saveFailureCount += saveFailures;
       } catch (err) {
         options.logger.warn({ err, directory }, 'Could not collect preview screenshots.');
       }
@@ -160,7 +196,11 @@ export async function startDeviceRunSessionScreenshotsAsync(
   let watcher: FSWatcher | undefined;
   try {
     watcher = watch(directory, { persistent: false }, (_event, filename) => {
-      if (filename === null || SCREENSHOT_FILENAME_PATTERN.test(filename)) {
+      if (
+        filename === null ||
+        SCREENSHOT_FILENAME_PATTERN.test(filename) ||
+        SCREENSHOT_FAILURE_RECORD_PATTERN.test(filename)
+      ) {
         void flush();
       }
     });
@@ -196,7 +236,11 @@ export async function startDeviceRunSessionScreenshotsAsync(
           if (controller.signal.aborted) {
             options.logger.warn({ directory }, 'Preview screenshot flush timed out after 30 s.');
           }
-          options.logger.info(`Uploaded ${uploadedCount} preview screenshots during the session.`);
+          const saveFailureNote =
+            saveFailureCount > 0 ? `; the session host could not save ${saveFailureCount}` : '';
+          options.logger.info(
+            `Uploaded ${uploadedCount} preview screenshots during the session${saveFailureNote}.`
+          );
           const files = await readdir(directory);
           if (files.length === 0) {
             await rm(directory, { recursive: true });

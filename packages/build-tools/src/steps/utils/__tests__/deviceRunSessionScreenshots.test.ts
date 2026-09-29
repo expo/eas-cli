@@ -303,3 +303,68 @@ it('retains a screenshot whose upload is still running when the shutdown deadlin
     await rm(collector.directory, { recursive: true, force: true });
   }
 });
+
+it('reports a failure record once and deletes it while uploading captures from the same scan', async () => {
+  const png = 'screenshot-2026-09-24T08-45-59-123Z-aaaaaaaaaaaa.png';
+  const failed = 'screenshot-2026-09-24T08-45-59-124Z-bbbbbbbbbbbb.png';
+  const record = { file: failed, error: 'ENOSPC: no space left', at: '2026-09-24T08:45:59.124Z' };
+  await writeFile(path.join(directory, png), 'png');
+  await writeFile(
+    path.join(directory, 'screenshot-2026-09-24T08-45-59-124Z-bbbbbbbbbbbb.failed.json'),
+    JSON.stringify(record)
+  );
+  expect(await flush()).toEqual({ uploaded: 1, saveFailures: 1 });
+  expect(await flush()).toEqual({ uploaded: 0, saveFailures: 0 });
+  expect(uploaded).toEqual([Buffer.from('png')]);
+  expect(await readdir(directory)).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    record,
+    'The session host could not save a preview screenshot.'
+  );
+  expect(Sentry.capture).toHaveBeenCalledTimes(1);
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'The session host could not save a preview screenshot',
+    expect.objectContaining({ message: 'ENOSPC: no space left' }),
+    { extras: { file: failed, at: record.at } }
+  );
+});
+
+it('warns about a malformed failure record, deletes it, and does not report it to Sentry', async () => {
+  const file = path.join(directory, 'screenshot-2026-09-24T08-45-59-124Z-bbbbbbbbbbbb.failed.json');
+  await writeFile(file, JSON.stringify({ file: 'screenshot.png' }));
+  await flush();
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: expect.anything(), file },
+    'Could not read a preview screenshot failure record.'
+  );
+  expect(await readdir(directory)).toEqual([]);
+  expect(Sentry.capture).not.toHaveBeenCalled();
+});
+
+it('handles a failure record as soon as it appears and counts it on finish', async () => {
+  jest.useFakeTimers();
+  const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
+  let signalReported!: () => void;
+  const reported = new Promise<void>(resolve => {
+    signalReported = resolve;
+  });
+  jest.mocked(Sentry.capture).mockImplementationOnce(() => signalReported());
+  const record = path.join(
+    collector.directory,
+    'screenshot-2026-09-24T08-45-59-124Z-bbbbbbbbbbbb.failed.json'
+  );
+  try {
+    await writeFile(`${record}.tmp`, JSON.stringify({ file: 'x.png', error: 'EIO', at: 'now' }));
+    await rename(`${record}.tmp`, record);
+    await reported;
+    await collector.finishAsync();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Uploaded 0 preview screenshots during the session; the session host could not save 1.'
+    );
+  } finally {
+    jest.useRealTimers();
+    await collector.finishAsync();
+    await rm(collector.directory, { recursive: true, force: true });
+  }
+});

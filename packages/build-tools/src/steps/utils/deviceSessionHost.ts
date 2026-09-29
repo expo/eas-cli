@@ -21,10 +21,7 @@ import {
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
-import {
-  SCREENSHOT_SAVE_FAILURE_MARKER,
-  startDeviceRunSessionScreenshotsAsync,
-} from './deviceRunSessionScreenshots';
+import { startDeviceRunSessionScreenshotsAsync } from './deviceRunSessionScreenshots';
 import {
   type DetachedProcessHandle,
   type ServeSimLaunchOptions,
@@ -500,17 +497,6 @@ async function finishDeviceSessionHostAsync(
   }
   await retirePreview;
   await screenshots.finishAsync();
-  const screenshotSaveFailures = previewServer
-    .getOutput()
-    .split('\n')
-    .filter(line => line.includes(SCREENSHOT_SAVE_FAILURE_MARKER));
-  if (screenshotSaveFailures.length > 0) {
-    const message = `The session host could not save ${screenshotSaveFailures.length} preview screenshots.`;
-    logger.warn({ hostOutput: screenshotSaveFailures }, message);
-    Sentry.capture('The session host could not save preview screenshots', new Error(message), {
-      extras: { hostOutput: screenshotSaveFailures },
-    });
-  }
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
   let uploaded = false;
