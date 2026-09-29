@@ -1,6 +1,5 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import {
   BuildRuntimePlatform,
   BuildStepEnv,
@@ -294,121 +293,6 @@ async function sleepUntilAbortedAsync(
   } catch (err) {
     if (!signal?.aborted) {
       throw err;
-    }
-  }
-}
-
-// Device-session tools resolve `ffmpeg` from PATH. Spawning it with the step's
-// environment rejects with ENOENT when the binary is absent, and running it also
-// proves that the installed binary works.
-async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
-}
-
-async function installFfmpegWithHomebrewAsync({
-  env,
-  logger,
-}: {
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  await spawn('brew', ['install', 'ffmpeg'], {
-    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-    logger,
-  });
-}
-
-async function installFfmpegWithAptAsync({
-  env,
-  logger,
-}: {
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  const aptEnv = { ...env, DEBIAN_FRONTEND: 'noninteractive' };
-  // The worker's package index can be older than the image it booted from, which
-  // makes the install 404 on a moved package. Refreshing first avoids that; a
-  // failed refresh is not fatal because the existing index may still resolve.
-  await asyncResult(spawn('sudo', ['apt-get', 'update'], { env: aptEnv, logger }));
-  await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
-}
-
-let ffmpegSetupPromise: Promise<void> | undefined;
-
-/**
- * Install ffmpeg when the runtime does not already provide it. Device-session
- * tools use it for video encoding on macOS (iOS simulators) and Linux (Android
- * emulators) alike, but the worker images do not ship it yet.
- *
- * Best-effort by design: a failure here is logged and the session continues
- * without FFmpeg-dependent features.
- *
- * The whole body is wrapped because the caller runs this in the background with
- * `void`. There is no unhandledRejection handler in the worker, so a rejection
- * escaping here would crash the process and take the live session with it.
- * `spawn` is not an async function and can throw synchronously, which
- * `asyncResult` cannot catch — it only wraps an already-created promise.
- */
-async function ensureFfmpegInstalledAsync({
-  runtimePlatform,
-  env,
-  logger,
-}: {
-  runtimePlatform: BuildRuntimePlatform;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  try {
-    if (await isFfmpegAvailableAsync(env)) {
-      logger.info('ffmpeg is already installed.');
-      return;
-    }
-
-    const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
-    logger.info(
-      `ffmpeg is not installed, installing it with ${
-        isDarwin ? 'Homebrew' : 'apt'
-      } for the device session.`
-    );
-    if (isDarwin) {
-      await installFfmpegWithHomebrewAsync({ env, logger });
-    } else {
-      await installFfmpegWithAptAsync({ env, logger });
-    }
-    logger.info('Installed ffmpeg.');
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    Sentry.capture('Could not install ffmpeg for the device session', error, {
-      level: 'warning',
-    });
-    logger.warn(
-      { err: error },
-      'Could not install ffmpeg. FFmpeg-dependent features may not work in this session.'
-    );
-  }
-}
-
-export async function ensureFfmpegInstalledOnceAsync({
-  runtimePlatform,
-  env,
-  logger,
-}: {
-  runtimePlatform: BuildRuntimePlatform;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  if (ffmpegSetupPromise) {
-    await ffmpegSetupPromise;
-    return;
-  }
-
-  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
-  ffmpegSetupPromise = setupPromise;
-  try {
-    await setupPromise;
-  } finally {
-    if (ffmpegSetupPromise === setupPromise) {
-      ffmpegSetupPromise = undefined;
     }
   }
 }

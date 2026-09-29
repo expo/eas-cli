@@ -24,7 +24,6 @@ import {
 import {
   type DetachedProcessHandle,
   type ServeSimLaunchOptions,
-  ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   findAvailablePortAsync,
   getDeviceRunSessionIdOrThrow,
@@ -281,9 +280,6 @@ export async function startDeviceSessionHostAsync(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
       `Cannot launch ${launchAppIdentifier}: an application launch runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
     );
-  }
-  if (isAndroid) {
-    await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
   const recording: AndroidSessionRecording | null = isAndroid
     ? {

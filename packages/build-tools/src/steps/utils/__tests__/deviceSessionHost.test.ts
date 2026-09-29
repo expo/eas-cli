@@ -24,7 +24,6 @@ jest.mock('../serveSimMetricsRecorder', () => ({
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
-  ensureFfmpegInstalledOnceAsync: jest.fn(),
   fetchWebPreviewTurnArgsAsync: jest.fn().mockResolvedValue([]),
   spawnDetached: jest.fn(),
 }));

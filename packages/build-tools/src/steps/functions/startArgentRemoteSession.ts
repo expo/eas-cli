@@ -32,7 +32,6 @@ import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../u
 import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
-  ensureFfmpegInstalledOnceAsync,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -123,13 +122,6 @@ export function createStartArgentRemoteSessionBuildFunction(
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
-
-      // Start the potentially slow installation while Argent is being prepared.
-      // On Linux expo-device-hub calls this again and awaits the same in-flight
-      // setup before launching. On macOS this remains non-blocking, so only a
-      // recording started in the first moments may miss ffmpeg.
-      // Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
       const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
       const argentExec = (args: string[]): { command: string; args: string[] } =>

@@ -51,7 +51,6 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   getNgrokTunnelDomainOrThrow: () => 'example.test',
   getNgrokAuthtokenOrThrow: () => 'ngrok-token',
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
-  ensureFfmpegInstalledOnceAsync: jest.fn(),
   spawnDetached: () => ({ pid: 123, getOutput: () => '', stopAsync: jest.fn() }),
   waitForFileAsync: async () => ({ port: 1234, token: 'controller-token' }),
   startNgrokTunnelAsync: async () => ({
