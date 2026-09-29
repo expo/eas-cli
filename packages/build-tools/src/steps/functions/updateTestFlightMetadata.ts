@@ -5,7 +5,7 @@ import path from 'node:path';
 import limitFactory from 'promise-limit';
 import { z } from 'zod';
 
-import { AscApiClient } from '../utils/ios/AscApiClient';
+import { AscApiClient, AscApiRequestError } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
 export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
@@ -100,16 +100,19 @@ export async function updateTestFlightMetadataAsync({
   const groupIds: string[] = [];
   if (groups.length) {
     const requestedNames = new Set(groups);
+    const foundNames = new Set<string>();
     let response = await client.getAsync('/v1/betaGroups', {
       'filter[app]': app.id,
       limit: 200,
     });
     for (let page = 1; page <= 20; page++) {
-      groupIds.push(
-        ...response.data
-          .filter(group => group.attributes?.name && requestedNames.has(group.attributes.name))
-          .map(group => group.id)
-      );
+      for (const group of response.data) {
+        const name = group.attributes?.name;
+        if (name && requestedNames.has(name)) {
+          foundNames.add(name);
+          groupIds.push(group.id);
+        }
+      }
       if (!response.links?.next) {
         break;
       }
@@ -118,11 +121,14 @@ export async function updateTestFlightMetadataAsync({
       }
       response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
     }
-  }
-  if (groupIds.length) {
+    const missingNames = [...requestedNames].filter(name => !foundNames.has(name));
+    if (missingNames.length) {
+      throw new UserError(
+        'EAS_TESTFLIGHT_GROUPS_NOT_FOUND',
+        `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
+      );
+    }
     logger.info(`Found ${groupIds.length} TestFlight group(s).`);
-  } else if (groups.length) {
-    logger.warn('No TestFlight groups matched the requested names.');
   }
 
   const limit = limitFactory<void>(1);
@@ -177,13 +183,27 @@ export async function updateTestFlightMetadataAsync({
         return;
       }
       logger.info(`Adding Apple build to ${groupIds.length} TestFlight group(s)...`);
-      await client.postAsync(
-        '/v1/builds/:id/relationships/betaGroups',
-        {
-          data: groupIds.map(id => ({ type: 'betaGroups', id })),
-        },
-        { id: buildId }
-      );
+      try {
+        await client.postAsync(
+          '/v1/builds/:id/relationships/betaGroups',
+          {
+            data: groupIds.map(id => ({ type: 'betaGroups', id })),
+          },
+          { id: buildId }
+        );
+      } catch (error) {
+        if (isInternalGroupAssignmentError(error)) {
+          throw new UserError(
+            'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
+            "App Store Connect can't add this build to a requested internal TestFlight group. " +
+              "Internal groups that automatically receive new builds can't be assigned to manually. " +
+              'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
+              `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
+            { cause: error }
+          );
+        }
+        throw error;
+      }
     }),
   ]);
   const failures = results.filter(result => result.status === 'rejected');
@@ -198,4 +218,18 @@ export async function updateTestFlightMetadataAsync({
         .join('; ')}`
     );
   }
+}
+
+// Apple returns a generic 422 code, so match the title or detail too.
+function isInternalGroupAssignmentError(error: unknown): boolean {
+  return (
+    error instanceof AscApiRequestError &&
+    error.status === 422 &&
+    error.responseJson.errors.some(
+      ({ code, title, detail }) =>
+        code === 'ENTITY_UNPROCESSABLE' &&
+        (title === 'Builds cannot be assigned to this internal group.' ||
+          detail === 'Cannot add internal group to a build.')
+    )
+  );
 }

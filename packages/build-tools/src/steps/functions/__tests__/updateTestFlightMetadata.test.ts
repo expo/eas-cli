@@ -140,15 +140,15 @@ it('adds groups without changing changelog or submitting beta review', async () 
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A, "B"', 'A, "B"'] });
 });
 
-it('ignores group names that do not exist', async () => {
+it('fails before changing metadata when no requested group exists', async () => {
   mockBuild();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
     .reply(200, { data: [] });
-  const logger = createMockLogger();
-  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['missing'], logger });
-  expect(logger.warn).toHaveBeenCalledWith('No TestFlight groups matched the requested names.');
+  await expect(updateTestFlightMetadataAsync({ ...options, groups: ['missing'] })).rejects.toThrow(
+    'The following TestFlight group was not found in App Store Connect: "missing".'
+  );
 });
 
 it('reads all pages and adds every group with a requested name', async () => {
@@ -182,18 +182,41 @@ it('reads all pages and adds every group with a requested name', async () => {
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
 });
 
-it('adds found groups when another requested name is missing', async () => {
+it('fails without adding found groups when another requested name is missing', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
+  ).rejects.toThrow(
+    'The following TestFlight groups were not found in App Store Connect: "B", "C".'
+  );
+});
+
+it('explains when Apple rejects an internal group with automatic distribution', async () => {
   mockBuild();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
     .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
   api()
-    .post('/v1/builds/build/relationships/betaGroups', {
-      data: [{ type: 'betaGroups', id: 'group' }],
-    })
-    .reply(204);
-  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'missing'] });
+    .post('/v1/builds/build/relationships/betaGroups')
+    .reply(422, {
+      errors: [
+        {
+          code: 'ENTITY_UNPROCESSABLE',
+          title: 'Builds cannot be assigned to this internal group.',
+          detail: 'Cannot add internal group to a build.',
+        },
+      ],
+    });
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] })
+  ).rejects.toThrow(
+    "App Store Connect can't add this build to a requested internal TestFlight group."
+  );
 });
 
 it('stops after 20 group pages', async () => {
