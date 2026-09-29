@@ -447,7 +447,12 @@ it('leaves iOS recording to its existing build steps', async () => {
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).not.toHaveBeenCalledWith(
     expect.anything(),
-    'The session host could not save some preview screenshots.'
+    expect.stringContaining('could not save')
+  );
+  expect(Sentry.capture).not.toHaveBeenCalledWith(
+    'The session host could not save preview screenshots',
+    expect.anything(),
+    expect.anything()
   );
 });
 
@@ -469,7 +474,12 @@ it('surfaces the screenshot save failures that the host logged', async () => {
   await host.finishAsync();
   expect(logger.warn).toHaveBeenCalledWith(
     { hostOutput: [saveFailure] },
-    'The session host could not save some preview screenshots.'
+    'The session host could not save 1 preview screenshots.'
+  );
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'The session host could not save preview screenshots',
+    expect.objectContaining({ message: 'The session host could not save 1 preview screenshots.' }),
+    { extras: { hostOutput: [saveFailure] } }
   );
 });
 

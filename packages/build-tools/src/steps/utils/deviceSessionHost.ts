@@ -505,10 +505,11 @@ async function finishDeviceSessionHostAsync(
     .split('\n')
     .filter(line => line.includes(SCREENSHOT_SAVE_FAILURE_MARKER));
   if (screenshotSaveFailures.length > 0) {
-    logger.warn(
-      { hostOutput: screenshotSaveFailures },
-      'The session host could not save some preview screenshots.'
-    );
+    const message = `The session host could not save ${screenshotSaveFailures.length} preview screenshots.`;
+    logger.warn({ hostOutput: screenshotSaveFailures }, message);
+    Sentry.capture('The session host could not save preview screenshots', new Error(message), {
+      extras: { hostOutput: screenshotSaveFailures },
+    });
   }
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
