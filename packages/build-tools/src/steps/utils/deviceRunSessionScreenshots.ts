@@ -177,7 +177,14 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
 ): Promise<{ uploaded: number; saveFailures: number }> {
   let uploadedCount = 0;
   let saveFailures = 0;
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
+  // Names start with the capture time. Captures that never failed go first, oldest first, so a
+  // capture that keeps stalling cannot hold back newer ones or use up the shutdown budget.
+  const entries = (await readdir(directory, { withFileTypes: true })).sort(
+    (a, b) =>
+      Number(failedUploads.has(a.name)) - Number(failedUploads.has(b.name)) ||
+      (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  );
+  for (const entry of entries) {
     if (signal.aborted) {
       break;
     }

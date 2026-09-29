@@ -1,7 +1,7 @@
 import type { bunyan } from '@expo/logger';
 import fs from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -50,16 +50,12 @@ const flush = () =>
   });
 
 it('uploads completed captures with their bytes and stable IDs, ignoring partial files and symlinks', async () => {
-  const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
+  const filename = 'screenshot-2026-09-24T08-45-59-123Z-ffffffffffff.png';
+  // Sorts before the real file, so following the link would upload it before the target is gone.
+  const link = 'screenshot-2026-09-24T08-45-59-123Z-000000000000.png';
   await writeFile(path.join(directory, filename), 'png-content');
   await writeFile(path.join(directory, `${filename}.tmp`), 'partial');
-  await symlink(
-    path.join(directory, filename),
-    path.join(
-      directory,
-      `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`
-    )
-  );
+  await symlink(path.join(directory, filename), path.join(directory, link));
   await flush();
   await flush();
   expect(uploaded).toEqual([Buffer.from('png-content')]);
@@ -77,6 +73,21 @@ it('uploads completed captures with their bytes and stable IDs, ignoring partial
     })
   );
   expect(await readdir(directory)).not.toContain(filename);
+  expect((await lstat(path.join(directory, link))).isSymbolicLink()).toBe(true);
+});
+
+it('uploads captures that never failed first, oldest first, before retrying failed ones', async () => {
+  const failed = 'screenshot-2026-09-24T08-45-00-000Z-aaaaaaaaaaaa.png';
+  const newer = 'screenshot-2026-09-24T08-45-59-123Z-bbbbbbbbbbbb.png';
+  const older = 'screenshot-2026-09-24T08-45-30-000Z-cccccccccccc.png';
+  for (const name of [newer, failed, older]) {
+    await writeFile(path.join(directory, name), name);
+  }
+  failedUploads.set(failed, { attempts: 1, lastError: new Error('stalled') });
+  await flush();
+  expect(
+    jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls.map(([, { artifactId }]) => artifactId)
+  ).toEqual([older, newer, failed].map(name => name.slice(0, -4)));
 });
 
 it('retains failed uploads and retries the same artifact ID, logging the failed attempt count', async () => {
