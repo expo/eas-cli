@@ -27,6 +27,7 @@ import {
 } from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
+import { type StartupTasks, createStartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
   createServeSimLaunchInputProviders,
@@ -88,13 +89,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       }),
     ],
     fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
-      // Fail fast before any expensive setup if the injected env
-      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
-      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
-      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      // Fail fast before any expensive setup if the injected env vars are missing.
+      const sessionEnv = getAgentDeviceRemoteSessionEnvOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       // A missing or non-positive value disables the idle timeout (opt-in feature).
@@ -109,130 +105,220 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
-      logger.info(
-        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
-      );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      logger.info('Launching agent-device daemon.');
-      const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
-
-      logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
-        daemonProcess,
-      });
-      logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
-
-      const agentDeviceTunnel = await startNgrokTunnelAsync({
-        port: daemonPort,
-        subdomainPrefix: 'agent-device',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
+      // Earlier steps booted the device and installed and launched the app.
+      await runAgentDeviceRemoteSessionAsync(ctx, {
+        env,
         logger,
+        signal,
+        runtimePlatform,
+        sessionEnv,
+        packageVersion,
+        maxIdleTimeMinutes,
+        maxDurationSeconds,
+        launch,
+        tasks: createStartupTasks(logger),
+        device: { booted: Promise.resolve(), ready: Promise.resolve() },
       });
-      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
-      logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
-
-      let sessionHost: DeviceSessionHost | undefined;
-      let eventCollection:
-        | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
-        | undefined;
-      let sessionFailed = false;
-      try {
-        const launchDescription = describeServeSimLaunch(launch);
-        if (launchDescription) {
-          logger.info(launchDescription);
-        }
-        sessionHost = await startDeviceSessionHostAsync(ctx, {
-          runtimePlatform,
-          env,
-          logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-          launchAppIdentifier: launch.launchAppIdentifier,
-          launchArgs: launch.launchArgs,
-          openUrl: launch.openUrl,
-        });
-        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
-        logger.info(
-          `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
-        );
-
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
-          env,
-          signal,
-          ctx,
-          deviceRunSessionId,
-          remoteConfig: {
-            agentDeviceRemoteSessionUrl,
-            agentDeviceRemoteSessionToken: daemonToken,
-            webPreviewUrl: webPreview.previewPageUrl,
-            previewApiUrl: webPreview.apiUrl,
-            ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
-          },
-          logger,
-        });
-        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
-          deviceRunSessionId,
-          daemonUrl: `http://127.0.0.1:${daemonPort}`,
-          daemonToken,
-          logger,
-        });
-
-        eventCollection = await startAgentDeviceEventCollectionAsync({
-          ctx,
-          deviceRunSessionId,
-          stateDir: AGENT_DEVICE_STATE_DIR,
-          logger,
-        });
-
-        await waitForDeviceRunSessionStoppedAsync({
-          ctx,
-          deviceRunSessionId,
-          logger,
-          maxDurationSeconds,
-          signal,
-          idleTimeout:
-            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
-              ? {
-                  maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
-                }
-              : undefined,
-        });
-      } catch (error) {
-        sessionFailed = true;
-        throw error;
-      } finally {
-        await finishRemoteSessionAsync({
-          logger,
-          sessionFailed,
-          teardown: [
-            ['agent-device tunnel', agentDeviceTunnel.stopAsync()],
-            [
-              'agent-device daemon',
-              (async () => {
-                try {
-                  if (eventCollection) {
-                    await stopAgentDeviceEventCollectionSafelyAsync({
-                      eventCollection,
-                      deviceRunSessionId,
-                      logger,
-                    });
-                  }
-                } finally {
-                  await daemonProcess.stopAsync();
-                }
-              })(),
-            ],
-            ['session host', sessionHost?.finishAsync()],
-          ],
-        });
-      }
     }),
   });
+}
+
+export type AgentDeviceRemoteSessionEnv = {
+  deviceRunSessionId: string;
+  ngrokTunnelDomain: string;
+  ngrokAuthtoken: string;
+};
+
+/**
+ * Reads the env vars that the API server injects into a device run session job:
+ * DEVICE_RUN_SESSION_ID (to report the remote config back to the API server),
+ * EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain for our ngrok tunnels), and
+ * NGROK_AUTHTOKEN (to authenticate them).
+ */
+export function getAgentDeviceRemoteSessionEnvOrThrow(
+  env: BuildStepEnv
+): AgentDeviceRemoteSessionEnv {
+  return {
+    deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
+    ngrokTunnelDomain: getNgrokTunnelDomainOrThrow(env),
+    ngrokAuthtoken: getNgrokAuthtokenOrThrow(env),
+  };
+}
+
+/**
+ * Starts the agent-device daemon, its tunnel, the session host and the web preview,
+ * reports the session as ready, and keeps it alive until it stops.
+ *
+ * The daemon does not need the device, so it starts at once. The session host starts
+ * when `device.booted` resolves. The session is reported as ready only when both are
+ * up and `device.ready` (the app is installed and launched) resolved too.
+ */
+export async function runAgentDeviceRemoteSessionAsync(
+  ctx: CustomBuildContext,
+  {
+    env,
+    logger,
+    signal,
+    runtimePlatform,
+    sessionEnv: { deviceRunSessionId, ngrokTunnelDomain, ngrokAuthtoken },
+    packageVersion,
+    maxIdleTimeMinutes,
+    maxDurationSeconds,
+    launch,
+    tasks,
+    device,
+  }: {
+    env: BuildStepEnv;
+    logger: bunyan;
+    signal?: AbortSignal;
+    runtimePlatform: BuildRuntimePlatform;
+    sessionEnv: AgentDeviceRemoteSessionEnv;
+    packageVersion: string | undefined;
+    maxIdleTimeMinutes: number | undefined;
+    maxDurationSeconds: number | undefined;
+    launch: ReturnType<typeof parseServeSimLaunchInputs>;
+    tasks: StartupTasks;
+    device: { booted: Promise<unknown>; ready: Promise<unknown> };
+  }
+): Promise<void> {
+  logger.info(
+    `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
+  );
+
+  let daemonProcess: DetachedProcessHandle | undefined;
+  let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+  let sessionHost: DeviceSessionHost | undefined;
+  let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
+  let sessionFailed = false;
+
+  // Each task stores what it started, so the teardown below can stop it even when
+  // another task failed first.
+  const agentDeviceStartup = tasks.run('agent-device daemon', async () => {
+    logger.info('Launching agent-device daemon.');
+    daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
+
+    logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
+    const daemonInfo = await waitForDaemonInfoAsync({ daemonProcess });
+    logger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
+
+    agentDeviceTunnel = await startNgrokTunnelAsync({
+      port: daemonInfo.port,
+      subdomainPrefix: 'agent-device',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      logger,
+    });
+    logger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
+  });
+  const sessionHostStartup = tasks.run('session host', async () => {
+    await device.booted;
+    const launchDescription = describeServeSimLaunch(launch);
+    if (launchDescription) {
+      logger.info(launchDescription);
+    }
+    sessionHost = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: STARTUP_TIMEOUT_MS,
+      launchAppIdentifier: launch.launchAppIdentifier,
+      launchArgs: launch.launchArgs,
+      openUrl: launch.openUrl,
+    });
+    const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+    logger.info(`Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
+    return webPreview;
+  });
+
+  try {
+    const [
+      { port: daemonPort, token: daemonToken, remoteSessionUrl: agentDeviceRemoteSessionUrl },
+      webPreview,
+    ] = await Promise.all([agentDeviceStartup, sessionHostStartup, device.ready]);
+    logger.info(tasks.summary());
+
+    await uploadRemoteSessionConfigWithLocalEgressAsync({
+      env,
+      signal,
+      ctx,
+      deviceRunSessionId,
+      remoteConfig: {
+        agentDeviceRemoteSessionUrl,
+        agentDeviceRemoteSessionToken: daemonToken,
+        webPreviewUrl: webPreview.previewPageUrl,
+        previewApiUrl: webPreview.apiUrl,
+        ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
+      },
+      logger,
+    });
+    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId,
+      daemonUrl: `http://127.0.0.1:${daemonPort}`,
+      daemonToken,
+      logger,
+    });
+
+    eventCollection = await startAgentDeviceEventCollectionAsync({
+      ctx,
+      deviceRunSessionId,
+      stateDir: AGENT_DEVICE_STATE_DIR,
+      logger,
+    });
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId,
+      logger,
+      maxDurationSeconds,
+      signal,
+      idleTimeout:
+        maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+          ? {
+              maxIdleTimeMinutes,
+              getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+            }
+          : undefined,
+    });
+  } catch (error) {
+    sessionFailed = true;
+    throw error;
+  } finally {
+    // Promise.all rejects on the first failure while other tasks can still be starting.
+    // Wait for all of them, so the teardown sees everything that was started.
+    await Promise.allSettled([agentDeviceStartup, sessionHostStartup, device.ready]);
+    const startedDaemon = daemonProcess;
+    await finishRemoteSessionAsync({
+      logger,
+      sessionFailed,
+      teardown: [
+        ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        [
+          'agent-device daemon',
+          startedDaemon &&
+            (async () => {
+              try {
+                if (eventCollection) {
+                  await stopAgentDeviceEventCollectionSafelyAsync({
+                    eventCollection,
+                    deviceRunSessionId,
+                    logger,
+                  });
+                }
+              } finally {
+                await startedDaemon.stopAsync();
+              }
+            })(),
+        ],
+        ['session host', sessionHost?.finishAsync()],
+      ],
+    });
+  }
 }
 
 export async function startAgentDeviceDaemonAsync({

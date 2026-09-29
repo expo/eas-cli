@@ -45,6 +45,7 @@ import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
+import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
 import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
@@ -101,6 +102,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
     createStartAgentDeviceRemoteSessionBuildFunction(ctx),
+    createStartAgentDeviceSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
     createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
