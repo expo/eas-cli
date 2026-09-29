@@ -1,9 +1,4 @@
 name: worker-preview
-# Deploys the worker built from a PR to worker-{android,ios}-preview-pr-<number>.tar.gz when
-# the PR has the "preview" label. The regular staging worker is not affected. To run a staging
-# build or workflow job on the preview worker, set the `__EAS_WORKER_PREVIEW=pr-<number>` env
-# variable in the eas.json build profile `env` or in the workflow job `env`.
-# The preview tarballs are removed when the label is removed or the PR is closed.
 
 on:
   pull_request:
@@ -15,7 +10,6 @@ concurrency:
 
 jobs:
   deploy-worker-preview:
-    # Secrets and GCP credentials are not available for PRs from forks.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.action != 'closed' &&

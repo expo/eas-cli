@@ -2,7 +2,6 @@ name: build-and-deploy-worker
 # Assumes main branch always specifies an environment (staging/production).
 # If environment is empty: PR testing build (no upload, no deploy)
 # If environment is set: Build (unless cached on main), upload, and deploy
-# If environment is "preview-*": Same as above, but deploys a worker preview (see worker-preview.yml)
 
 on:
   workflow_dispatch:
@@ -214,7 +213,6 @@ jobs:
 
             gsutil cp "gs://eas-build-worker-tarballs/$GCP_TARBALL" "gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL"
 
-            # Preview tarballs are overwritten on every push to the PR, so make sure they're not served from cache.
             if [[ "${{ inputs.environment }}" == preview-* ]]; then
               gsutil setmeta -h "Cache-Control:no-cache, no-store, must-revalidate" "gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL"
             fi
