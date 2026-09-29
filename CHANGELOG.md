@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
+- [build-tools] Add an opt-in `prepare_ios_runner` input to `eas/start_agent_device_remote_session` that warms up the agent-device iOS runner in the background, without delaying the ready signal. ([#4489](https://github.com/expo/eas-cli/pull/4489) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
