@@ -65,9 +65,12 @@ beforeEach(() => {
   jest
     .mocked(startDeviceSessionHostAsync)
     .mockResolvedValue({ openPreviewAsync: openPreview, finishAsync: finishHost });
-  jest
-    .mocked(spawnDetached)
-    .mockReturnValue({ pid: undefined, getOutput: () => '', stopAsync: stopTool });
+  jest.mocked(spawnDetached).mockReturnValue({
+    pid: undefined,
+    getOutput: () => '',
+    getExitError: () => undefined,
+    stopAsync: stopTool,
+  });
   jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
     url: 'https://tool.example.test',
     subdomainId: 'tool-id',

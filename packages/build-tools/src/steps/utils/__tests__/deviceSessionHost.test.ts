@@ -73,7 +73,12 @@ beforeEach(() => {
     if (flag >= 0) {
       directories.push(options.args[flag + 1]);
     }
-    return { pid: undefined, getOutput: () => '', stopAsync: stopServer };
+    return {
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    };
   });
   jest.mocked(ngrok.forward).mockResolvedValue({
     url: () => 'https://public.example.test',
@@ -211,6 +216,7 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255',
+      getExitError: () => undefined,
       stopAsync: stopServer,
     };
   });
@@ -251,6 +257,7 @@ it('logs the reason and skips upload and output dump when the Hub never recorded
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] Android recording skipped',
+      getExitError: () => undefined,
       stopAsync: stopServer,
     };
   });

@@ -104,6 +104,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 4242,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync: mockDaemonStopAsync,
     });
     jest.mocked(waitForFileAsync).mockResolvedValue({ port: 5678, token: 'daemon-token' });

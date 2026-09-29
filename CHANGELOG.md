@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - [eas-cli] Log analytics events when an `eas simulator` session request is sent, cancelled, or fails before the server answers. ([#4483](https://github.com/expo/eas-cli/pull/4483) by [@sjkim-expo](https://github.com/sjkim-expo))
@@ -32,6 +34,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Report early Argent server exits during simulator startup instead of waiting for the full readiness timeout. ([#4454](https://github.com/expo/eas-cli/pull/4454) by [@sjkim-expo](https://github.com/sjkim-expo))
+- [eas-cli] Stop spinners from printing a new line on every frame after the terminal gets narrower. ([#4470](https://github.com/expo/eas-cli/pull/4470) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] List `eas simulator` only once in `eas --help`. The `sim` shorthand is now a hidden alias, so it still runs but no longer duplicates the entry. ([#4457](https://github.com/expo/eas-cli/pull/4457) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 - [build-tools] Start the Argent tool-server with `ARGENT_EMULATOR_NO_WINDOW=1`, so Argent can boot the Android emulator again after it stops. Without it, the windowed emulator fails on the Linux image because `libpulse.so.0` is missing. ([#4465](https://github.com/expo/eas-cli/pull/4465) by [@gwdp](https://github.com/gwdp))
