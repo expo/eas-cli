@@ -193,6 +193,69 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     expect(spawnDetached).not.toHaveBeenCalled();
   });
 
+  it('starts the session host without waiting for the agent-device daemon', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const sessionHost = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      ctx,
+      {} as never
+    );
+    let markHostStarted!: () => void;
+    const hostStarted = new Promise<void>(resolve => {
+      markHostStarted = resolve;
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockImplementation(async () => {
+      markHostStarted();
+      return sessionHost;
+    });
+    // The daemon credentials only appear after the session host started. A sequential
+    // startup would wait here forever.
+    jest.mocked(waitForFileAsync).mockImplementation(async () => {
+      await hostStarted;
+      return { port: 5678, token: 'daemon-token' };
+    });
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          agentDeviceRemoteSessionUrl: 'https://agent-device-abc.tunnel.example.com',
+          agentDeviceRemoteSessionToken: 'daemon-token',
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+        }),
+      })
+    );
+  });
+
+  it('stops the daemon and its tunnel when the session host fails to start', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest
+      .mocked(startDeviceSessionHostAsync)
+      .mockRejectedValue(new Error('serve-sim did not start'));
+
+    await expect(runAsync(logger, BuildRuntimePlatform.DARWIN)).rejects.toThrow(
+      'serve-sim did not start'
+    );
+
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the session host when the agent-device daemon fails to start', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(waitForFileAsync).mockRejectedValue(new Error('no daemon credentials'));
+
+    await expect(runAsync(logger, BuildRuntimePlatform.DARWIN)).rejects.toThrow(
+      'no daemon credentials'
+    );
+
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('declares the launch inputs', () => {
     const buildFunction = createStartAgentDeviceRemoteSessionBuildFunction(ctx);
     const globalCtx = createGlobalContextMock();

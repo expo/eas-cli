@@ -117,31 +117,36 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      logger.info('Launching agent-device daemon.');
-      const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
-
-      logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
-        daemonProcess,
-      });
-      logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
-
-      const agentDeviceTunnel = await startNgrokTunnelAsync({
-        port: daemonPort,
-        subdomainPrefix: 'agent-device',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
-        logger,
-      });
-      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
-      logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
-
+      let daemonProcess: DetachedProcessHandle | undefined;
+      let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
       let sessionFailed = false;
-      try {
+
+      // The daemon (with its tunnel) and the session host (with the web preview) do not
+      // depend on each other, so they start in parallel. Each chain stores what it
+      // started, so the teardown below can stop it even when the other chain failed.
+      const agentDeviceStartup = (async () => {
+        logger.info('Launching agent-device daemon.');
+        daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
+
+        logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
+        const daemonInfo = await waitForDaemonInfoAsync({ daemonProcess });
+        logger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
+
+        agentDeviceTunnel = await startNgrokTunnelAsync({
+          port: daemonInfo.port,
+          subdomainPrefix: 'agent-device',
+          baseDomain: ngrokTunnelDomain,
+          authtoken: ngrokAuthtoken,
+          logger,
+        });
+        logger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+        return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
+      })();
+      const sessionHostStartup = (async () => {
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
           logger.info(launchDescription);
@@ -159,6 +164,14 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
+        return webPreview;
+      })();
+
+      try {
+        const [
+          { port: daemonPort, token: daemonToken, remoteSessionUrl: agentDeviceRemoteSessionUrl },
+          webPreview,
+        ] = await Promise.all([agentDeviceStartup, sessionHostStartup]);
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -206,26 +219,31 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         sessionFailed = true;
         throw error;
       } finally {
+        // Promise.all rejects on the first failure while the other chain can still be
+        // starting. Wait for both, so the teardown sees everything that was started.
+        await Promise.allSettled([agentDeviceStartup, sessionHostStartup]);
+        const startedDaemon = daemonProcess;
         await finishRemoteSessionAsync({
           logger,
           sessionFailed,
           teardown: [
-            ['agent-device tunnel', agentDeviceTunnel.stopAsync()],
+            ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
             [
               'agent-device daemon',
-              (async () => {
-                try {
-                  if (eventCollection) {
-                    await stopAgentDeviceEventCollectionSafelyAsync({
-                      eventCollection,
-                      deviceRunSessionId,
-                      logger,
-                    });
+              startedDaemon &&
+                (async () => {
+                  try {
+                    if (eventCollection) {
+                      await stopAgentDeviceEventCollectionSafelyAsync({
+                        eventCollection,
+                        deviceRunSessionId,
+                        logger,
+                      });
+                    }
+                  } finally {
+                    await startedDaemon.stopAsync();
                   }
-                } finally {
-                  await daemonProcess.stopAsync();
-                }
-              })(),
+                })(),
             ],
             ['session host', sessionHost?.finishAsync()],
           ],

@@ -18,6 +18,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
+import { ensureFfmpegInstalledOnceAsync } from '../utils/remoteDeviceRunSession';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -74,11 +75,24 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         required: true,
       }),
     ],
-    fn: async ({ logger }, { inputs, outputs, env }) => {
+    fn: async ({ logger, global }, { inputs, outputs, env }) => {
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
       outputs.logcat_directory.set(logcatDirectory);
+
+      // A device run session installs ffmpeg for expo-device-hub after the boot, which
+      // took about 25 s with apt. It does not need the emulator, so start it now and let
+      // it run during the boot; the session host then waits for the same install.
+      // It never rejects: failures are logged and the session continues without it.
+      if (env.DEVICE_RUN_SESSION_ID) {
+        logger.info('Installing ffmpeg for the device session in the background.');
+        void ensureFfmpegInstalledOnceAsync({
+          runtimePlatform: global.runtimePlatform,
+          env,
+          logger,
+        });
+      }
 
       if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
         await assertAndroidEmulatorHostSupportAsync({ env });

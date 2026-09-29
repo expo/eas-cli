@@ -8,6 +8,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
+import { ensureFfmpegInstalledOnceAsync } from '../../utils/remoteDeviceRunSession';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -17,6 +18,10 @@ jest.mock('@expo/turtle-spawn', () => ({
 
 jest.mock('../../../utils/retry', () => ({
   retryAsync: jest.fn(),
+}));
+
+jest.mock('../../utils/remoteDeviceRunSession', () => ({
+  ensureFfmpegInstalledOnceAsync: jest.fn(),
 }));
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
@@ -282,6 +287,33 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         serialId: 'emulator-default',
       })
     );
+  });
+
+  it('installs ffmpeg in the background during the boot of a device run session', async () => {
+    // Never settles: the boot must not wait for the install.
+    jest.mocked(ensureFfmpegInstalledOnceAsync).mockReturnValue(new Promise(() => {}));
+    const step = createStep(undefined, { DEVICE_RUN_SESSION_ID: 'device-run-session-id' });
+
+    await step.executeAsync();
+
+    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledTimes(1);
+    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        env: expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'device-run-session-id' }),
+      })
+    );
+    expect(jest.mocked(ensureFfmpegInstalledOnceAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
+    );
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalled();
+  });
+
+  it('does not install ffmpeg outside a device run session', async () => {
+    const step = createStep();
+
+    await step.executeAsync();
+
+    expect(ensureFfmpegInstalledOnceAsync).not.toHaveBeenCalled();
   });
 
   it('skips animation scale adjustments when opt out env var is disabled', async () => {
