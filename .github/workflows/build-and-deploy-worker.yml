@@ -2,26 +2,34 @@ name: build-and-deploy-worker
 # Assumes main branch always specifies an environment (staging/production).
 # If environment is empty: PR testing build (no upload, no deploy)
 # If environment is set: Build (unless cached on main), upload, and deploy
+# If environment is "preview-*": Same as above, but deploys a worker preview (see worker-preview.yml)
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: '"staging", "production" or empty'
+        description: '"staging", "production", "preview-*" or empty'
         type: string
         required: true
   workflow_call:
     inputs:
       environment:
-        description: '"staging", "production" or empty'
+        description: '"staging", "production", "preview-*" or empty'
         type: string
         required: true
+      ref:
+        description: Commit SHA to build the worker from (defaults to github.sha)
+        type: string
+        required: false
+        default: ''
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    env:
+      WORKER_SHA: ${{ inputs.ref || github.sha }}
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
@@ -39,7 +47,7 @@ jobs:
         if: inputs.environment != ''
         run: |
           for platform in android ios; do
-            GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
+            GCP_TARBALL="worker-$platform-sha1-$WORKER_SHA.tar.gz"
 
             if ! gsutil stat "gs://eas-build-worker-tarballs/$GCP_TARBALL"; then
               echo "worker_exists=false" >> "$GITHUB_OUTPUT"
@@ -65,7 +73,7 @@ jobs:
 
           # Run workflow and capture output (includes run ID)
           WORKFLOW_OUTPUT=$(eas workflow:run build-worker.yml \
-            --ref ${{ github.sha }} \
+            --ref "$WORKER_SHA" \
             --input upload_artifact=$SHOULD_UPLOAD_ARTIFACT \
             --non-interactive \
             --no-wait \
@@ -192,8 +200,8 @@ jobs:
         # Don't upload PR builds (no environment) or when using cached tarballs
         if: inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false'
         run: |
-          IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
-          ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
+          IOS_GCP_TARBALL="worker-ios-sha1-$WORKER_SHA.tar.gz"
+          ANDROID_GCP_TARBALL="worker-android-sha1-$WORKER_SHA.tar.gz"
           curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - "gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL"
           curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - "gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL"
 
@@ -201,8 +209,13 @@ jobs:
         if: inputs.environment != ''
         run: |
           for platform in android ios; do
-            GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
+            GCP_TARBALL="worker-$platform-sha1-$WORKER_SHA.tar.gz"
             WORKER_STAGING_TARBALL="worker-$platform-${{ inputs.environment }}.tar.gz"
 
             gsutil cp "gs://eas-build-worker-tarballs/$GCP_TARBALL" "gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL"
+
+            # Preview tarballs are overwritten on every push to the PR, so make sure they're not served from cache.
+            if [[ "${{ inputs.environment }}" == preview-* ]]; then
+              gsutil setmeta -h "Cache-Control:no-cache, no-store, must-revalidate" "gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL"
+            fi
           done
