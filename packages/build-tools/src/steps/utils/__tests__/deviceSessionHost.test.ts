@@ -457,6 +457,7 @@ it('surfaces the screenshot save failures that the host logged', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(() => ({
     pid: undefined,
     getOutput: () => `[serve-sim] ready\n${saveFailure}\n[serve-sim] stopping\n`,
+    getExitError: () => undefined,
     stopAsync: stopServer,
   }));
   const host = await startDeviceSessionHostAsync(ctx, {
