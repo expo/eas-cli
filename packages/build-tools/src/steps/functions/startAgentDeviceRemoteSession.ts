@@ -27,6 +27,8 @@ import {
 } from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
+import { sleepAsync } from '../../utils/retry';
+import { turtleFetch } from '../../utils/turtleFetch';
 import {
   type DetachedProcessHandle,
   createServeSimLaunchInputProviders,
@@ -49,6 +51,7 @@ const SRC_DIR = '/tmp/agent-device-src';
 const AGENT_DEVICE_STATE_DIR = path.join(os.homedir(), '.agent-device');
 const DAEMON_JSON_PATH = path.join(AGENT_DEVICE_STATE_DIR, 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
+const DAEMON_HEALTH_TIMEOUT_MS = 10_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
   AGENT_DEVICE_RETAIN_ARTIFACTS: '1',
@@ -124,6 +127,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
         daemonProcess,
       });
+      await waitForDaemonHealthyAsync({ daemonProcess, port: daemonPort, logger });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
       const agentDeviceTunnel = await startNgrokTunnelAsync({
@@ -398,6 +402,50 @@ async function waitForDaemonInfoAsync({
       }${output ? `\nagent-device daemon output:\n${output}` : ''}`
     );
   }
+}
+
+// daemon.json only proves the daemon started once: it stays on disk after the
+// process exits. Probe the HTTP server so a dead daemon fails the step here.
+// The daemon writes daemon.json after it listens, so a healthy one answers at once.
+async function waitForDaemonHealthyAsync({
+  daemonProcess,
+  port,
+  logger,
+}: {
+  daemonProcess: DetachedProcessHandle;
+  port: number;
+  logger: bunyan;
+}): Promise<void> {
+  const deadline = Date.now() + DAEMON_HEALTH_TIMEOUT_MS;
+  let lastError = 'no response';
+  while (Date.now() < deadline) {
+    const exitError = daemonProcess.getExitError();
+    if (exitError) {
+      lastError = `daemon process exited: ${exitError.message}`;
+      break;
+    }
+    try {
+      const response = await turtleFetch(`http://127.0.0.1:${port}/health`, 'GET', {
+        timeout: 2_000,
+        retries: 0,
+        logger,
+      });
+      const body = (await response.json()) as { ok?: unknown; service?: unknown };
+      if (body.ok === true && body.service === 'agent-device-daemon') {
+        return;
+      }
+      lastError = `unexpected health response: ${JSON.stringify(body)}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+    await sleepAsync(1_000);
+  }
+  const output = daemonProcess.getOutput();
+  throw new SystemError(
+    `agent-device daemon did not answer health checks on port ${port} (${lastError}).${
+      output ? `\nagent-device daemon output:\n${output}` : ''
+    }`
+  );
 }
 
 async function getBunVersionForDiagnosticsAsync(env: BuildStepEnv): Promise<string> {

@@ -1,6 +1,8 @@
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
+import { type AddressInfo } from 'node:net';
+import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -32,6 +34,7 @@ jest.mock('node:os', () => {
     homedir: () => actualPath.join(actual.tmpdir(), 'eas-agent-device-orchestration-home'),
   };
 });
+jest.unmock('node-fetch');
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('../../utils/agentDeviceArtifacts', () => ({
@@ -66,6 +69,10 @@ const mockTunnelStopAsync = jest.fn();
 const mockDaemonStopAsync = jest.fn();
 const mockEventCollectionStopAsync = jest.fn();
 
+// Stands in for the daemon's HTTP server, so the step can probe GET /health.
+let daemonServer: ReturnType<typeof createServer>;
+let daemonHealthRequestCount: number;
+
 async function runAsync(
   logger: { info: jest.Mock; warn: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
@@ -91,6 +98,20 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
   beforeEach(async () => {
     jest.clearAllMocks();
 
+    daemonHealthRequestCount = 0;
+    daemonServer = createServer((request, response) => {
+      if (request.method === 'GET' && request.url === '/health') {
+        daemonHealthRequestCount += 1;
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ ok: true, service: 'agent-device-daemon' }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end();
+    });
+    await new Promise<void>(resolve => daemonServer.listen(0, '127.0.0.1', resolve));
+    const daemonPort = (daemonServer.address() as AddressInfo).port;
+
     jest.mocked(spawn).mockResolvedValue(undefined as never);
     jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue(undefined);
     jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue({
@@ -107,7 +128,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       getExitError: () => undefined,
       stopAsync: mockDaemonStopAsync,
     });
-    jest.mocked(waitForFileAsync).mockResolvedValue({ port: 5678, token: 'daemon-token' });
+    jest.mocked(waitForFileAsync).mockResolvedValue({ port: daemonPort, token: 'daemon-token' });
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://agent-device-abc.tunnel.example.com',
       subdomainId: 'agent-device-abc',
@@ -129,6 +150,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
   });
 
   afterEach(async () => {
+    await new Promise<void>(resolve => daemonServer.close(() => resolve()));
     await fs.promises.rm(TEST_HOME, { recursive: true, force: true });
   });
 
@@ -138,6 +160,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     await runAsync(logger, BuildRuntimePlatform.LINUX);
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
+    expect(daemonHealthRequestCount).toBe(1);
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
@@ -156,6 +179,25 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
     expect(mockEventCollectionStopAsync).toHaveBeenCalledTimes(1);
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails before opening the tunnel when the daemon has already exited', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 4242,
+      getOutput: () => 'daemon crashed',
+      getExitError: () => new Error('Process exited with code 1.'),
+      stopAsync: mockDaemonStopAsync,
+    });
+
+    await expect(runAsync(logger, BuildRuntimePlatform.LINUX)).rejects.toThrow(
+      /did not answer health checks on port \d+ \(daemon process exited: Process exited with code 1\.\)\.\nagent-device daemon output:\ndaemon crashed$/
+    );
+    expect(daemonHealthRequestCount).toBe(0);
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('Daemon is listening on port')
+    );
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
