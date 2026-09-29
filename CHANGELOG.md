@@ -30,6 +30,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Report early Argent server exits during simulator startup instead of waiting for the full readiness timeout. ([#4454](https://github.com/expo/eas-cli/pull/4454) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [eas-cli] Stop spinners from printing a new line on every frame after the terminal gets narrower. ([#4470](https://github.com/expo/eas-cli/pull/4470) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] List `eas simulator` only once in `eas --help`. The `sim` shorthand is now a hidden alias, so it still runs but no longer duplicates the entry. ([#4457](https://github.com/expo/eas-cli/pull/4457) by [@krystofwoldrich](https://github.com/krystofwoldrich))

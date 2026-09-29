@@ -31,7 +31,12 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
 }));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
-const server = { pid: 12345, getOutput: () => '', stopAsync: jest.fn() };
+const server = {
+  pid: 12345,
+  getOutput: () => '',
+  getExitError: () => undefined,
+  stopAsync: jest.fn(),
+};
 const tunnel = {
   url: 'https://egress.example.com',
   subdomainId: 'egress-id',
