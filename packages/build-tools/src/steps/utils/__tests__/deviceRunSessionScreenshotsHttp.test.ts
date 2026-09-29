@@ -164,6 +164,7 @@ it('publishes a manual preview PNG through the artifact GraphQL and HTTP upload 
         kind: 'screenshot',
         size: payload.length,
         metadata: {
+          __eas_type: 'screenshot',
           appSlug: 'my-app',
           platform: 'ios',
           buildId: 'installed-build',

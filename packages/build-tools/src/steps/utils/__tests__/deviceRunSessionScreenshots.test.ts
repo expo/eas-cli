@@ -69,7 +69,7 @@ it('uploads completed captures with their bytes and stable IDs, ignoring partial
       filename: 'screenshot-2026-09-24T08-45-59-123Z.png',
       kind: 'screenshot',
       size: 11,
-      metadata: {},
+      metadata: { __eas_type: 'screenshot' },
     })
   );
   expect(await readdir(directory)).not.toContain(filename);

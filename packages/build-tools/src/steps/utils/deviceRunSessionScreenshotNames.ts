@@ -78,7 +78,7 @@ export function screenshotArtifactDetails(
 ): { name: string; filename: string; metadata: Record<string, unknown> } {
   const name = screenshotArtifactName(timestamp);
   if (!session) {
-    return { name, filename: `screenshot-${timestamp}.png`, metadata: {} };
+    return { name, filename: `screenshot-${timestamp}.png`, metadata: { __eas_type: 'screenshot' } };
   }
 
   const app = session.build?.app ?? session.app;
@@ -89,7 +89,7 @@ export function screenshotArtifactDetails(
       .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
   const platform = session.platform.toLowerCase();
   const filenameParts = [appSlug, platform];
-  const metadata: Record<string, unknown> = { appSlug: app.slug, platform };
+  const metadata: Record<string, unknown> = { __eas_type: 'screenshot', appSlug: app.slug, platform };
 
   if (session.build) {
     metadata.buildId = session.build.id;

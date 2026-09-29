@@ -13,7 +13,7 @@ it('omits the commit for archive and empty sessions', () => {
   expect(screenshotArtifactDetails(timestamp, { ...session, build: null })).toEqual({
     name,
     filename: `workflow-project-ios-${timestamp}.png`,
-    metadata: { appSlug: 'workflow-project', platform: 'ios' },
+    metadata: { __eas_type: 'screenshot', appSlug: 'workflow-project', platform: 'ios' },
   });
 });
 
