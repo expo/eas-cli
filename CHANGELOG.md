@@ -17,6 +17,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [build-tools] Stop installing ffmpeg at the start of device sessions, because all session images now ship it. ([#4492](https://github.com/expo/eas-cli/pull/4492) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
 
 ### 🎉 New features
