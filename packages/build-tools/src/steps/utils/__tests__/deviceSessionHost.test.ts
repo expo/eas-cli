@@ -1,7 +1,7 @@
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
@@ -487,12 +487,18 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
       path.join(directory, 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png'),
       'manual-capture'
     );
+    let directoryWhenStopping: string[] | undefined;
+    stopServer.mockImplementationOnce(async () => {
+      directoryWhenStopping = await readdir(directory);
+    });
     const finishing = host.finishAsync();
     expect(host.finishAsync()).toBe(finishing);
     await finishing;
     expect(uploads).toEqual([Buffer.from('manual-capture')]);
     expect(stopServer).toHaveBeenCalledTimes(1);
     expect(closeTunnel).toHaveBeenCalledTimes(1);
+    // The collector finishes, and removes its directory, only after the host has stopped.
+    expect(directoryWhenStopping).toBeDefined();
     await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
   }
 );

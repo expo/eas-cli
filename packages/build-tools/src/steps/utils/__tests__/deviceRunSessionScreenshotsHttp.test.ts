@@ -5,7 +5,10 @@ import { type IncomingMessage, type ServerResponse, createServer } from 'node:ht
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { CustomBuildContext } from '../../../customBuildContext';
-import { loadScreenshotSessionAsync } from '../deviceRunSessionScreenshotNames';
+import {
+  loadScreenshotSessionAsync,
+  screenshotArtifactDetails,
+} from '../deviceRunSessionScreenshotNames';
 import { uploadDeviceRunSessionScreenshotsAsync } from '../deviceRunSessionScreenshots';
 jest.unmock('node-fetch');
 jest.mock('../../../sentry');
@@ -254,4 +257,9 @@ it('falls back without using the workflow commit when the session lookup fails',
     expect.objectContaining({ deviceRunSessionId: 'drs-id' }),
     'Could not load screenshot session details; using capture timestamps.'
   );
+  expect(screenshotArtifactDetails('2026-09-24T08-45-59-123Z', session)).toEqual({
+    name: 'Screenshot 2026-09-24 08:45:59 UTC',
+    filename: 'screenshot-2026-09-24T08-45-59-123Z.png',
+    metadata: { __eas_type: 'screenshot' },
+  });
 });
