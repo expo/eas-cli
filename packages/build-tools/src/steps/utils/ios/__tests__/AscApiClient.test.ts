@@ -102,6 +102,13 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBeTruthy();
   });
 
+  it('requires path parameters for a POST route that has them', async () => {
+    await expect(
+      // @ts-expect-error The build ID is required by this route.
+      client.postAsync('/v1/builds/:id/relationships/betaGroups', { data: [] })
+    ).rejects.toThrow();
+  });
+
   it('creates build upload file', async () => {
     const buildUploadId = 'fdf9c476-aaa4-4ead-b91c-6e3cc3a47805';
     const fileId = '5b110930-f947-4998-a129-5926ffcedde5';
@@ -245,6 +252,7 @@ describe(AscApiClient, () => {
         attributes: {
           state: responseFixture.data.attributes.state,
         },
+        relationships: { build: { data: null } },
       },
     });
     expect(scope.isDone()).toBeTruthy();
