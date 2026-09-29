@@ -342,7 +342,8 @@ export async function startDeviceSessionHostAsync(
       stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
     });
   } catch (error) {
-    await screenshots.finishAsync();
+    // Nothing was spawned, so nothing can still write into the directory.
+    await screenshots.finishAsync(true);
     throw error;
   }
 
@@ -457,7 +458,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
     previewServer: DetachedProcessHandle;
-    screenshots: { finishAsync(): Promise<void> };
+    screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
     port: number;
     recording: AndroidSessionRecording | null;
@@ -496,7 +497,7 @@ async function finishDeviceSessionHostAsync(
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
   await retirePreview;
-  await screenshots.finishAsync();
+  await screenshots.finishAsync(hostStopped);
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
   let uploaded = false;

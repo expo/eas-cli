@@ -1,6 +1,6 @@
 import type { bunyan } from '@expo/logger';
 import { type FSWatcher, createReadStream, watch } from 'node:fs';
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, rmdir, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
@@ -252,18 +252,36 @@ function watchScreenshotDirectory(
   return () => watcher?.close();
 }
 
+// A capture can land after the final scan. rmdir refuses a non-empty directory, so that capture is
+// reported as retained instead of being deleted with the directory.
+async function removeEmptyDirectoryAsync(directory: string): Promise<boolean> {
+  try {
+    await rmdir(directory);
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOTEMPTY') {
+      return false;
+    }
+    throw err;
+  }
+}
+
 async function reportRetainedScreenshotsAsync({
   directory,
+  hostStopped,
   failedUploads,
   logger,
 }: {
   directory: string;
+  hostStopped: boolean;
   failedUploads: FailedUploads;
   logger: bunyan;
 }): Promise<void> {
+  if (hostStopped && (await removeEmptyDirectoryAsync(directory))) {
+    return;
+  }
   const files = await readdir(directory);
   if (files.length === 0) {
-    await rm(directory, { recursive: true });
     return;
   }
   const retained = files.map(name => {
@@ -281,6 +299,7 @@ async function reportRetainedScreenshotsAsync({
 
 async function finishCollectionAsync({
   directory,
+  hostStopped,
   logger,
   stopWatching,
   timer,
@@ -290,6 +309,7 @@ async function finishCollectionAsync({
   failedUploads,
 }: {
   directory: string;
+  hostStopped: boolean;
   logger: bunyan;
   stopWatching: () => void;
   timer: NodeJS.Timeout;
@@ -313,7 +333,13 @@ async function finishCollectionAsync({
     logger.info(
       `Uploaded ${totals.uploaded} preview screenshots during the session${saveFailureNote}.`
     );
-    await reportRetainedScreenshotsAsync({ directory, failedUploads, logger });
+    if (!hostStopped) {
+      logger.warn(
+        { directory },
+        'The session host is still running, so preview screenshots it saves from now on are not uploaded.'
+      );
+    }
+    await reportRetainedScreenshotsAsync({ directory, hostStopped, failedUploads, logger });
   } catch (err) {
     logger.warn({ err, directory }, 'Could not finish preview screenshot uploads.');
   } finally {
@@ -324,7 +350,7 @@ async function finishCollectionAsync({
 export async function startDeviceRunSessionScreenshotsAsync(
   ctx: CustomBuildContext,
   options: { deviceRunSessionId: string; logger: bunyan }
-): Promise<{ directory: string; finishAsync: () => Promise<void> }> {
+): Promise<{ directory: string; finishAsync: (hostStopped: boolean) => Promise<void> }> {
   const session = loadScreenshotSessionAsync(ctx, options.deviceRunSessionId, options.logger);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'device-session-screenshots-'));
   const failedUploads: FailedUploads = new Map();
@@ -372,9 +398,10 @@ export async function startDeviceRunSessionScreenshotsAsync(
   let finishTask: Promise<void> | null = null;
   return {
     directory,
-    finishAsync() {
+    finishAsync(hostStopped) {
       finishTask ??= finishCollectionAsync({
         directory,
+        hostStopped,
         logger: options.logger,
         stopWatching,
         timer,

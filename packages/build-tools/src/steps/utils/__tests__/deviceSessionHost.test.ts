@@ -292,13 +292,24 @@ it('rolls back failed host startup without replacing the original error', async 
     })
   ).rejects.toThrow('Timed out waiting');
   expect(stopServer).toHaveBeenCalledTimes(1);
+  const directory =
+    jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
+  if (!directory) {
+    throw new Error('Missing screenshot artifact directory');
+  }
+  // The host could not be stopped, so it may still write captures there.
+  await expect(access(directory)).resolves.toBeUndefined();
   expect(ngrok.forward).not.toHaveBeenCalled();
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
-  expect(logger.warn).not.toHaveBeenCalledWith(
-    expect.anything(),
-    expect.stringMatching(/finalize|upload/)
-  );
+  const hostStillRunning =
+    'The session host is still running, so preview screenshots it saves from now on are not uploaded.';
+  expect(logger.warn).toHaveBeenCalledWith({ directory }, hostStillRunning);
+  const recordingWarnings = jest
+    .mocked(logger.warn)
+    .mock.calls.map(([, message]) => message)
+    .filter(message => message !== hostStillRunning);
+  expect(recordingWarnings).not.toContainEqual(expect.stringMatching(/finalize|upload/));
 });
 
 async function writeRecordingDescriptorAsync(directory: string) {

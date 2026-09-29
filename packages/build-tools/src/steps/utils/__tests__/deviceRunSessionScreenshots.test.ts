@@ -150,13 +150,13 @@ it('uploads atomic captures immediately, including a capture arriving during ano
     expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
     releaseFirstUpload();
     await secondUploadStarted;
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     expect(uploaded).toEqual([Buffer.from('first-capture'), Buffer.from('second-capture')]);
     expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(2);
   } finally {
     releaseFirstUpload();
     jest.useRealTimers();
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     await rm(collector.directory, { recursive: true, force: true });
   }
 });
@@ -189,13 +189,13 @@ it('uses periodic scans when watching is unavailable and does not overlap upload
     jest.advanceTimersByTime(60_000);
     expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
     releaseUpload();
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
   } finally {
     releaseUpload();
     watchSpy.mockRestore();
     jest.useRealTimers();
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     await rm(collector.directory, { recursive: true, force: true });
   }
 });
@@ -229,12 +229,27 @@ it('warns for the first three attempts and every tenth after, without reporting 
 
 it('removes an empty directory on finish and returns the same task when finish repeats', async () => {
   const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
-  const finish = collector.finishAsync();
-  expect(collector.finishAsync()).toBe(finish);
+  const finish = collector.finishAsync(true);
+  expect(collector.finishAsync(true)).toBe(finish);
   await finish;
   await expect(readdir(collector.directory)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(logger.info).toHaveBeenCalledWith('Uploaded 0 preview screenshots during the session.');
   expect(Sentry.capture).not.toHaveBeenCalled();
+});
+
+it('keeps the directory and warns when the session host is still running', async () => {
+  const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
+  try {
+    await collector.finishAsync(false);
+    expect(await readdir(collector.directory)).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { directory: collector.directory },
+      'The session host is still running, so preview screenshots it saves from now on are not uploaded.'
+    );
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  } finally {
+    await rm(collector.directory, { recursive: true, force: true });
+  }
 });
 
 it('warns with the retained files and their last error, and reports them to Sentry once', async () => {
@@ -243,7 +258,7 @@ it('warns with the retained files and their last error, and reports them to Sent
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockRejectedValue(new Error('offline'));
   try {
     await writeFile(path.join(collector.directory, filename), 'png');
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     const retained = [{ name: filename, attempts: expect.any(Number), lastError: 'offline' }];
     expect(logger.warn).toHaveBeenCalledWith(
       { directory: collector.directory, files: retained },
@@ -279,7 +294,7 @@ it('retains a screenshot whose upload is still running when the shutdown deadlin
   });
   try {
     await writeFile(file, 'png');
-    const finish = collector.finishAsync();
+    const finish = collector.finishAsync(true);
     await uploadStarted;
     jest.advanceTimersByTime(30_000);
     await finish;
@@ -358,13 +373,13 @@ it('handles a failure record as soon as it appears and counts it on finish', asy
     await writeFile(`${record}.tmp`, JSON.stringify({ file: 'x.png', error: 'EIO', at: 'now' }));
     await rename(`${record}.tmp`, record);
     await reported;
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     expect(logger.info).toHaveBeenCalledWith(
       'Uploaded 0 preview screenshots during the session; the session host could not save 1.'
     );
   } finally {
     jest.useRealTimers();
-    await collector.finishAsync();
+    await collector.finishAsync(true);
     await rm(collector.directory, { recursive: true, force: true });
   }
 });
