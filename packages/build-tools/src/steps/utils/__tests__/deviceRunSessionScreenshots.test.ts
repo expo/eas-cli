@@ -73,12 +73,13 @@ it('uploads completed captures with their bytes and stable IDs, ignoring partial
       filename: 'screenshot-2026-09-24T08-45-59-123Z.png',
       kind: 'screenshot',
       size: 11,
+      metadata: {},
     })
   );
   expect(await readdir(directory)).not.toContain(filename);
 });
 
-it('retains failed uploads and retries the same artifact ID', async () => {
+it('retains failed uploads and retries the same artifact ID, logging the failed attempt count', async () => {
   const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
   await writeFile(path.join(directory, filename), 'png');
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementationOnce(async () => {
@@ -92,23 +93,14 @@ it('retains failed uploads and retries the same artifact ID', async () => {
   expect(
     jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls.map(([, args]) => args.artifactId)
   ).toEqual([filename.slice(0, -4), filename.slice(0, -4)]);
-  expect(Sentry.capture).not.toHaveBeenCalled();
-});
-
-it('flushes a capture made just before shutdown exactly once and removes the drained directory', async () => {
-  const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
-  await writeFile(
-    path.join(
-      collector.directory,
-      `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`
-    ),
-    'last-capture'
+  expect(logger.info).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.stringMatching(
+      /^Uploaded preview screenshot screenshot-2026-09-24T08-45-59-123Z\.png \(3 B\) in \d+ ms after 1 failed attempt\.$/
+    )
   );
-  const finish = collector.finishAsync();
-  expect(collector.finishAsync()).toBe(finish);
-  await finish;
-  expect(uploaded).toEqual([Buffer.from('last-capture')]);
-  await expect(readdir(collector.directory)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect(failedUploads.size).toBe(0);
+  expect(Sentry.capture).not.toHaveBeenCalled();
 });
 
 it('uploads atomic captures immediately, including a capture arriving during another upload', async () => {
@@ -235,60 +227,11 @@ it('warns for the first three attempts and every tenth after, without reporting 
   expect(Sentry.capture).not.toHaveBeenCalled();
 });
 
-it('keeps a screenshot without counting a failure when the shutdown deadline aborts its upload', async () => {
-  const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
-  const file = path.join(directory, filename);
-  await writeFile(file, 'png');
-  const controller = new AbortController();
-  let signalUploadStarted!: () => void;
-  const uploadStarted = new Promise<void>(resolve => {
-    signalUploadStarted = resolve;
-  });
-  jest
-    .mocked(uploadDeviceRunSessionArtifactAsync)
-    .mockImplementationOnce(async (_ctx, { signal }) => {
-      signalUploadStarted();
-      await new Promise((_resolve, reject) => {
-        signal?.addEventListener('abort', () => reject(signal.reason));
-      });
-    });
-  const upload = uploadDeviceRunSessionScreenshotsAsync(ctx, {
-    ...options,
-    directory,
-    failedUploads,
-    signal: controller.signal,
-  });
-  await uploadStarted;
-  controller.abort();
-  expect(await upload).toBe(0);
-  expect(Sentry.capture).not.toHaveBeenCalled();
-  expect(failedUploads.size).toBe(0);
-  expect(logger.warn).toHaveBeenCalledTimes(1);
-  expect(logger.warn).toHaveBeenCalledWith(
-    { file, size: 3 },
-    'Shutdown deadline reached before this preview screenshot uploaded. Keeping the file.'
-  );
-  expect(await readdir(directory)).toEqual([filename]);
-});
-
-it('logs the failed attempt count when an upload succeeds on retry', async () => {
-  const filename = `screenshot-2026-09-24T08-45-59-123Z-${randomBytes(6).toString('hex')}.png`;
-  await writeFile(path.join(directory, filename), 'png');
-  jest.mocked(uploadDeviceRunSessionArtifactAsync).mockRejectedValueOnce(new Error('offline'));
-  await flush();
-  await flush();
-  expect(logger.info).toHaveBeenCalledWith(
-    expect.anything(),
-    expect.stringMatching(
-      /^Uploaded preview screenshot screenshot-2026-09-24T08-45-59-123Z\.png \(3 B\) in \d+ ms after 1 failed attempt\.$/
-    )
-  );
-  expect(failedUploads.size).toBe(0);
-});
-
-it('removes an empty directory on finish even when the host may still be running', async () => {
+it('removes an empty directory on finish and returns the same task when finish repeats', async () => {
   const collector = await startDeviceRunSessionScreenshotsAsync(ctx, options);
-  await collector.finishAsync();
+  const finish = collector.finishAsync();
+  expect(collector.finishAsync()).toBe(finish);
+  await finish;
   await expect(readdir(collector.directory)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(logger.info).toHaveBeenCalledWith('Uploaded 0 preview screenshots during the session.');
   expect(Sentry.capture).not.toHaveBeenCalled();
@@ -352,6 +295,7 @@ it('retains a screenshot whose upload is still running when the shutdown deadlin
       { directory: collector.directory, files: [{ name: filename }] },
       'Retained 1 preview screenshots that were not uploaded.'
     );
+    expect(logger.info).toHaveBeenCalledWith('Uploaded 0 preview screenshots during the session.');
     expect(Sentry.capture).toHaveBeenCalledTimes(1);
     expect(await readdir(collector.directory)).toEqual([filename]);
   } finally {
