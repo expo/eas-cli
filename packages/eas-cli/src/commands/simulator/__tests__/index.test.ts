@@ -279,39 +279,45 @@ describe(Simulator, () => {
     );
   });
 
-  it('logs "request cancelled" and exits with 130 on Ctrl+C while the session is being created', async () => {
+  it('logs "request cancelled", stops the spinner, and exits with 130 on Ctrl+C while the session is being created', async () => {
     mockLogEvent.mockClear();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
-    let notifyCreateStarted!: () => void;
-    const createStarted = new Promise<void>(resolve => {
-      notifyCreateStarted = resolve;
-    });
-    mockCreateDeviceRunSessionAsync.mockImplementationOnce(
-      () =>
-        new Promise(() => {
-          notifyCreateStarted();
-        })
-    );
-    const existingSigintListeners = new Set(process.listeners('SIGINT'));
+    try {
+      let notifyCreateStarted!: () => void;
+      const createStarted = new Promise<void>(resolve => {
+        notifyCreateStarted = resolve;
+      });
+      mockCreateDeviceRunSessionAsync.mockImplementationOnce(
+        () =>
+          new Promise(() => {
+            notifyCreateStarted();
+          })
+      );
+      const existingSigintListeners = new Set(process.listeners('SIGINT'));
 
-    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
-    const commandPromise = command.runAsync();
-    await createStarted;
-    process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
-      'SIGINT'
-    );
-    await expect(commandPromise).rejects.toThrow('process.exit(130)');
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      await createStarted;
+      process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
+        'SIGINT'
+      );
+      await expect(commandPromise).rejects.toThrow('process.exit(130)');
 
-    expect(mockLogEvent).toHaveBeenLastCalledWith(
-      SimulatorEvent.REQUEST_CANCELLED,
-      expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
-    );
-    expect(mockFlushAsync).toHaveBeenCalled();
-    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
-    expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
-    processExitSpy.mockRestore();
+      expect(mockLogEvent).toHaveBeenLastCalledWith(
+        SimulatorEvent.REQUEST_CANCELLED,
+        expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+      expect(mockFlushAsync).toHaveBeenCalled();
+      expect(mockOra.mock.results[0]?.value.fail).toHaveBeenCalledWith(
+        'Simulator session request canceled'
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    } finally {
+      processExitSpy.mockRestore();
+    }
   });
 
   it('prints environment variables without saving when outputting env', async () => {

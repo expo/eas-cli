@@ -2,6 +2,7 @@ import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql';
 
 import { SimulatorEvent } from '../../analytics/AnalyticsManager';
+import { Ora } from '../../ora';
 import {
   simulatorRequestFailureReason,
   simulatorRequestProperties,
@@ -99,10 +100,13 @@ describe(withSimulatorRequestAnalyticsAsync, () => {
   const logEvent = jest.fn();
   const flushAsync = jest.fn(async () => {});
   const analytics = { logEvent, flushAsync, setActor: jest.fn() };
+  const spinnerFail = jest.fn();
+  const spinner = { fail: spinnerFail } as unknown as Ora;
 
   beforeEach(() => {
     logEvent.mockReset();
     flushAsync.mockClear();
+    spinnerFail.mockClear();
   });
 
   it('logs "request sent" before the request and nothing else on success', async () => {
@@ -111,7 +115,7 @@ describe(withSimulatorRequestAnalyticsAsync, () => {
       return 'session';
     });
     await expect(
-      withSimulatorRequestAnalyticsAsync(analytics, properties, createAsync)
+      withSimulatorRequestAnalyticsAsync(analytics, properties, spinner, createAsync)
     ).resolves.toBe('session');
     expect(logEvent).toHaveBeenCalledTimes(1);
   });
@@ -119,7 +123,7 @@ describe(withSimulatorRequestAnalyticsAsync, () => {
   it('logs "request failed" with the reason when no answer arrives, and rethrows', async () => {
     const error = new CombinedError({ networkError: networkError({ code: 'ECONNRESET' }) });
     await expect(
-      withSimulatorRequestAnalyticsAsync(analytics, properties, async () => {
+      withSimulatorRequestAnalyticsAsync(analytics, properties, spinner, async () => {
         throw error;
       })
     ).rejects.toBe(error);
@@ -132,44 +136,114 @@ describe(withSimulatorRequestAnalyticsAsync, () => {
   it('logs nothing more when the server refuses', async () => {
     const error = new CombinedError({ graphQLErrors: [new GraphQLError('denied')] });
     await expect(
-      withSimulatorRequestAnalyticsAsync(analytics, properties, async () => {
+      withSimulatorRequestAnalyticsAsync(analytics, properties, spinner, async () => {
         throw error;
       })
     ).rejects.toBe(error);
     expect(logEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('logs "request cancelled" on Ctrl+C before an answer, flushes, exits with 130, and removes its listener', async () => {
+  it('logs "request cancelled" on Ctrl+C before an answer, stops the spinner, and exits with 130 only after the flush', async () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
-    const existing = new Set(process.listeners('SIGINT'));
-    const promise = withSimulatorRequestAnalyticsAsync(
-      analytics,
-      properties,
-      () => new Promise(() => {})
-    );
-    const listener = process.listeners('SIGINT').find(l => !existing.has(l));
-    expect(listener).toBeDefined();
-    listener?.('SIGINT');
-    await expect(promise).rejects.toThrow('process.exit(130)');
-    expect(logEvent).toHaveBeenLastCalledWith(SimulatorEvent.REQUEST_CANCELLED, {
-      ...properties,
-      reason: 'user_abort',
+    try {
+      let finishFlush!: () => void;
+      const flushStarted = new Promise<void>(notifyFlushStarted => {
+        flushAsync.mockImplementationOnce(
+          () =>
+            new Promise<void>(resolve => {
+              finishFlush = resolve;
+              notifyFlushStarted();
+            })
+        );
+      });
+      const exited = expect(
+        withSimulatorRequestAnalyticsAsync(
+          analytics,
+          properties,
+          spinner,
+          () => new Promise(() => {})
+        )
+      ).rejects.toThrow('process.exit(130)');
+
+      process.emit('SIGINT');
+      await flushStarted;
+      const exitCallsDuringFlush = [...exitSpy.mock.calls];
+      finishFlush();
+      await exited;
+
+      expect(exitCallsDuringFlush).toEqual([]);
+      expect(logEvent).toHaveBeenLastCalledWith(SimulatorEvent.REQUEST_CANCELLED, {
+        ...properties,
+        reason: 'user_abort',
+      });
+      expect(spinnerFail).toHaveBeenCalledWith('Simulator session request canceled');
+    } finally {
+      exitSpy.mockRestore();
+    }
+  });
+
+  it('removes its listener on the first Ctrl+C, so a second Ctrl+C is not swallowed during the flush', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
     });
-    expect(flushAsync.mock.invocationCallOrder[0]).toBeLessThan(
-      exitSpy.mock.invocationCallOrder[0]
-    );
-    expect(process.listeners('SIGINT')).toEqual([...existing]);
-    exitSpy.mockRestore();
+    try {
+      const existing = process.listeners('SIGINT');
+      const exited = expect(
+        withSimulatorRequestAnalyticsAsync(
+          analytics,
+          properties,
+          spinner,
+          () => new Promise(() => {})
+        )
+      ).rejects.toThrow('process.exit(130)');
+
+      process.emit('SIGINT');
+      const listenersAfterFirstCtrlC = process.listeners('SIGINT');
+      await exited;
+
+      expect(listenersAfterFirstCtrlC).toEqual(existing);
+    } finally {
+      exitSpy.mockRestore();
+    }
+  });
+
+  it('exits with 130 after 1 second when the flush hangs', async () => {
+    jest.useFakeTimers();
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      flushAsync.mockImplementationOnce(() => new Promise<void>(() => {}));
+      const exited = expect(
+        withSimulatorRequestAnalyticsAsync(
+          analytics,
+          properties,
+          spinner,
+          () => new Promise(() => {})
+        )
+      ).rejects.toThrow('process.exit(130)');
+
+      process.emit('SIGINT');
+      await jest.advanceTimersByTimeAsync(999);
+      const exitCallsBeforeOneSecond = [...exitSpy.mock.calls];
+      await jest.advanceTimersByTimeAsync(1);
+      await exited;
+
+      expect(exitCallsBeforeOneSecond).toEqual([]);
+    } finally {
+      exitSpy.mockRestore();
+      jest.useRealTimers();
+    }
   });
 
   it('removes its Ctrl+C listener after success and after failure', async () => {
     const existing = [...process.listeners('SIGINT')];
-    await withSimulatorRequestAnalyticsAsync(analytics, properties, async () => 'session');
+    await withSimulatorRequestAnalyticsAsync(analytics, properties, spinner, async () => 'session');
     expect(process.listeners('SIGINT')).toEqual(existing);
     await expect(
-      withSimulatorRequestAnalyticsAsync(analytics, properties, async () => {
+      withSimulatorRequestAnalyticsAsync(analytics, properties, spinner, async () => {
         throw new Error('boom');
       })
     ).rejects.toThrow('boom');

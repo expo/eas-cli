@@ -292,32 +292,36 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         nonInteractive,
       });
-      const session = await withSimulatorRequestAnalyticsAsync(analytics, requestProperties, () =>
-        DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
-          appId: projectId,
-          name,
-          ...(tags?.length ? { tags } : {}),
-          platform,
-          type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
-          packageVersion: flags['package-version'],
-          ...(deviceIdentifier
-            ? platform === AppPlatform.Ios
-              ? { ios: { deviceIdentifier } }
-              : { android: { deviceIdentifier } }
-            : {}),
-          ...(buildId ? { buildId } : {}),
-          ...(buildFingerprint ? { buildFingerprint } : {}),
-          ...(applicationArchiveUrlFromFlag
-            ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
-            : {}),
-          ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
-          ...(launchArgs?.length ? { launchArgs } : {}),
-          ...(openUrl ? { openUrl } : {}),
-          ...(resourceClass ? { resourceClass } : {}),
-          ...(egress ? { egress } : {}),
-          maxRunTimeMinutes: flags['max-duration-minutes'],
-          maxIdleTimeMinutes: flags['max-idle-time-minutes'],
-        })
+      const session = await withSimulatorRequestAnalyticsAsync(
+        analytics,
+        requestProperties,
+        createSpinner,
+        () =>
+          DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
+            appId: projectId,
+            name,
+            ...(tags?.length ? { tags } : {}),
+            platform,
+            type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+            packageVersion: flags['package-version'],
+            ...(deviceIdentifier
+              ? platform === AppPlatform.Ios
+                ? { ios: { deviceIdentifier } }
+                : { android: { deviceIdentifier } }
+              : {}),
+            ...(buildId ? { buildId } : {}),
+            ...(buildFingerprint ? { buildFingerprint } : {}),
+            ...(applicationArchiveUrlFromFlag
+              ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+              : {}),
+            ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
+            ...(launchArgs?.length ? { launchArgs } : {}),
+            ...(openUrl ? { openUrl } : {}),
+            ...(resourceClass ? { resourceClass } : {}),
+            ...(egress ? { egress } : {}),
+            maxRunTimeMinutes: flags['max-duration-minutes'],
+            maxIdleTimeMinutes: flags['max-idle-time-minutes'],
+          })
       );
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
