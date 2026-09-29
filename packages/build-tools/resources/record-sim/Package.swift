@@ -15,6 +15,7 @@ let package = Package(
         .target(
             name: "RecordSim",
             linkerSettings: [
+                .linkedFramework("Accelerate"),
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("CoreMedia"),

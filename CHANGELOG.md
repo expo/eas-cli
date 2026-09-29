@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Record both iPhone Duo panels side by side and upright, so iOS Simulator screen recordings are no longer black while the device is folded.
 
 ### 🧹 Chores
 
