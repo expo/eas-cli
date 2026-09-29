@@ -8,6 +8,7 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
+import { warmUpAgentDeviceIosRunnerAsync } from '../../utils/agentDeviceRunnerWarmup';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -39,6 +40,9 @@ jest.mock('../../utils/agentDeviceArtifacts', () => ({
 }));
 jest.mock('../../utils/agentDeviceEvents', () => ({
   startAgentDeviceEventCollectionAsync: jest.fn(),
+}));
+jest.mock('../../utils/agentDeviceRunnerWarmup', () => ({
+  warmUpAgentDeviceIosRunnerAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
@@ -93,6 +97,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
 
     jest.mocked(spawn).mockResolvedValue(undefined as never);
     jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue(undefined);
+    jest.mocked(warmUpAgentDeviceIosRunnerAsync).mockResolvedValue(undefined);
     jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue({
       stopAsync: mockEventCollectionStopAsync,
       getLastEventObservedAt: () => undefined,
@@ -193,12 +198,67 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     expect(spawnDetached).not.toHaveBeenCalled();
   });
 
+  it('does not warm up the iOS runner by default', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+
+    expect(warmUpAgentDeviceIosRunnerAsync).not.toHaveBeenCalled();
+  });
+
+  it('warms up the iOS runner in the session daemon when prepare_ios_runner is set', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      prepare_ios_runner: { value: true },
+    });
+
+    expect(warmUpAgentDeviceIosRunnerAsync).toHaveBeenCalledWith({
+      daemonUrl: 'http://127.0.0.1:5678',
+      daemonToken: 'daemon-token',
+      logger,
+    });
+    // It starts before the tunnels, so it runs in parallel with them.
+    expect(jest.mocked(warmUpAgentDeviceIosRunnerAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(startNgrokTunnelAsync).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('reports the session as ready without waiting for the iOS runner warm-up', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(warmUpAgentDeviceIosRunnerAsync).mockReturnValue(new Promise(() => {}));
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      prepare_ios_runner: { value: true },
+    });
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warm up an iOS runner on an Android session', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await runAsync(logger, BuildRuntimePlatform.LINUX, {
+      prepare_ios_runner: { value: true },
+    });
+
+    expect(warmUpAgentDeviceIosRunnerAsync).not.toHaveBeenCalled();
+  });
+
   it('declares the launch inputs', () => {
     const buildFunction = createStartAgentDeviceRemoteSessionBuildFunction(ctx);
     const globalCtx = createGlobalContextMock();
 
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
-    ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
+    ).toEqual(
+      expect.arrayContaining([
+        'launch_app_identifier',
+        'launch_args',
+        'open_url',
+        'prepare_ios_runner',
+      ])
+    );
   });
 });

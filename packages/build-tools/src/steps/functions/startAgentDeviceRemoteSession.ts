@@ -27,6 +27,7 @@ import {
 } from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
+import { warmUpAgentDeviceIosRunnerAsync } from '../utils/agentDeviceRunnerWarmup';
 import {
   type DetachedProcessHandle,
   createServeSimLaunchInputProviders,
@@ -86,6 +87,14 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      // Starts the iOS runner while the tunnels and the web preview start, so the
+      // first remote command does not wait for it. It never delays the ready signal.
+      BuildStepInput.createProvider({
+        id: 'prepare_ios_runner',
+        required: false,
+        defaultValue: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
     ],
     fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
@@ -100,6 +109,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
+      const prepareIosRunner = inputs.prepare_ios_runner?.value === true;
       const { runtimePlatform } = global;
       const launch = parseServeSimLaunchInputs(
         {
@@ -125,6 +135,18 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         daemonProcess,
       });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
+
+      // iOS sessions run on Darwin workers. The simulator is booted and the app is
+      // installed by earlier steps, so the runner can start now, in parallel with the
+      // tunnels and the web preview. Not awaited: it must not delay the ready signal.
+      if (prepareIosRunner && runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        logger.info('Warming up the agent-device iOS runner in the background.');
+        void warmUpAgentDeviceIosRunnerAsync({
+          daemonUrl: `http://127.0.0.1:${daemonPort}`,
+          daemonToken,
+          logger,
+        });
+      }
 
       const agentDeviceTunnel = await startNgrokTunnelAsync({
         port: daemonPort,
