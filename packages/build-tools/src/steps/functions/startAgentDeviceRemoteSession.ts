@@ -52,6 +52,13 @@ const STARTUP_TIMEOUT_MS = 60_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
   AGENT_DEVICE_RETAIN_ARTIFACTS: '1',
+  // The session lifetime is owned by max_idle_time_minutes / max_duration_seconds
+  // and the device run session stop, so disable agent-device's own idle timers.
+  // Without this the daemon exits after 5 minutes with no open session, and the
+  // tunnel is left without a daemon behind it.
+  AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
+  AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
+  AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
 };
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
