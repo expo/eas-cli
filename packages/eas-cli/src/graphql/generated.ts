@@ -6429,6 +6429,11 @@ export type CreateDeviceRunSessionInput = {
   /** Free-form labels for grouping sessions, for example one per app variant. */
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   type: DeviceRunSessionType;
+  /**
+   * Internal. Run the session on a worker preview built from an expo/eas-cli pull request
+   * (e.g. "pr-1234"). Only supported on staging.
+   */
+  workerPreview?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateEchoChatInput = {
