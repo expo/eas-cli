@@ -1,6 +1,8 @@
 import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
+import fs from 'fs-extra';
+import * as jose from 'jose';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
 
@@ -397,12 +399,48 @@ export class AscApiRequestError extends Error {
 
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
-  private readonly token: string | (() => Promise<string>);
+  private readonly keyPath: string;
+  private cachedToken?: { value: Promise<string>; expiresAt: number };
   private readonly logger?: bunyan;
 
-  constructor({ token, logger }: { token: string | (() => Promise<string>); logger?: bunyan }) {
-    this.token = token;
+  constructor({ keyPath, logger }: { keyPath: string; logger?: bunyan }) {
+    this.keyPath = keyPath;
     this.logger = logger;
+  }
+
+  private async getTokenAsync(): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    // Reuse valid tokens, but leave time for a request to reach Apple before expiry.
+    if (!this.cachedToken || this.cachedToken.expiresAt <= now + 60) {
+      const expiresAt = now + 20 * 60;
+      this.cachedToken = { value: this.signTokenAsync(expiresAt), expiresAt };
+    }
+    const cachedToken = this.cachedToken;
+    try {
+      return await cachedToken.value;
+    } catch (error) {
+      if (this.cachedToken === cachedToken) {
+        this.cachedToken = undefined;
+      }
+      throw error;
+    }
+  }
+
+  private async signTokenAsync(expiresAt: number): Promise<string> {
+    const keyJson = z
+      .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
+      .parse(await fs.readJson(this.keyPath));
+    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
+    const jwt = new jose.SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
+      .setAudience('appstoreconnect-v1')
+      .setExpirationTime(expiresAt);
+    if (keyJson.issuer_id) {
+      jwt.setIssuer(keyJson.issuer_id);
+    } else {
+      jwt.setSubject('user');
+    }
+    return await jwt.sign(privateKey);
   }
 
   public async getAsync<TPath extends keyof typeof GetApi>(
@@ -524,7 +562,7 @@ export class AscApiClient {
       method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${typeof this.token === 'string' ? this.token : await this.token()}`,
+        Authorization: `Bearer ${await this.getTokenAsync()}`,
       },
       body: method === 'GET' ? undefined : JSON.stringify(parsedBody.value),
     });

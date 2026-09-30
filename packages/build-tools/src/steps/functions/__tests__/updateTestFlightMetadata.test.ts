@@ -1,3 +1,5 @@
+import fs from 'fs-extra';
+import * as jose from 'jose';
 import nock from 'nock';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
@@ -10,10 +12,11 @@ import {
 
 jest.unmock('node-fetch');
 
-const client = new AscApiClient({ token: 'test-token' });
+const keyPath = '/asc-api-key.json';
+let privateKeyPem: string;
 const changelog = 'Test "quotes"\n$(not-a-command)';
 const options = {
-  client,
+  client: new AscApiClient({ keyPath }),
   buildUploadId: 'upload',
   changelog,
   groups: [] as string[],
@@ -54,9 +57,15 @@ function mockAssignedGroups(ids: string[] = []): void {
     .reply(200, { data: ids.map(id => ({ id })) });
 }
 
-beforeAll(() => nock.disableNetConnect());
-beforeEach(() => {
+beforeAll(async () => {
+  const { privateKey } = await jose.generateKeyPair('ES256');
+  privateKeyPem = await jose.exportPKCS8(privateKey);
+  nock.disableNetConnect();
+});
+beforeEach(async () => {
   options.logger = createMockLogger();
+  await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
+  options.client = new AscApiClient({ keyPath });
 });
 afterAll(() => nock.enableNetConnect());
 afterEach(() => {

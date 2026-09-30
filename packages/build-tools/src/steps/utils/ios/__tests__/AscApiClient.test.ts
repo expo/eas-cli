@@ -4,17 +4,24 @@ import * as jose from 'jose';
 import nock from 'nock';
 
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
-import { AscApiUtils } from '../AscApiUtils';
 
 // nock needs real fetch implementation
 jest.unmock('node-fetch');
 
 describe(AscApiClient, () => {
-  const token = 'test-token';
-  const client = new AscApiClient({ token });
+  const keyPath = '/asc-api-key.json';
+  let privateKeyPem: string;
+  let client: AscApiClient;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    privateKeyPem = await jose.exportPKCS8(privateKey);
     nock.disableNetConnect();
+  });
+
+  beforeEach(async () => {
+    await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
+    client = new AscApiClient({ keyPath });
   });
 
   afterAll(() => {
@@ -27,10 +34,9 @@ describe(AscApiClient, () => {
   });
 
   it.each([undefined, 'test-issuer'])(
-    'authenticates after the first token expires (issuer: %s)',
+    'reuses tokens and refreshes before expiry (issuer: %s)',
     async issuerId => {
       const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
-      const keyPath = '/asc-api-key.json';
       await fs.writeJson(keyPath, {
         key_id: 'TESTKEY',
         issuer_id: issuerId,
@@ -39,31 +45,35 @@ describe(AscApiClient, () => {
       const startTime = Date.now();
       jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
       jest.setSystemTime(startTime);
-      const refreshingClient = new AscApiClient({
-        token: () => AscApiUtils.signTokenAsync({ keyPath }),
-      });
+      const refreshingClient = new AscApiClient({ keyPath });
       const responseFixture = require('./fixtures/buildUploads/get-buildUploads-200.json');
       const tokens: string[] = [];
       const scope = nock('https://api.appstoreconnect.apple.com')
         .get('/v1/buildUploads/upload-id')
         .query(true)
-        .twice()
+        .times(5)
         .reply(function () {
           tokens.push(String(this.req.headers.authorization).replace(/^Bearer /, ''));
           return [200, responseFixture];
         });
 
-      await refreshingClient.getAsync(
-        '/v1/buildUploads/:id',
-        { 'fields[buildUploads]': ['build', 'state'], include: ['build'] },
-        { id: 'upload-id' }
-      );
+      const requestAsync = async (): Promise<unknown> =>
+        await refreshingClient.getAsync(
+          '/v1/buildUploads/:id',
+          { 'fields[buildUploads]': ['build', 'state'], include: ['build'] },
+          { id: 'upload-id' }
+        );
+      await Promise.all([requestAsync(), requestAsync()]);
+      jest.setSystemTime(startTime + 18 * 60 * 1000);
+      await requestAsync();
+      expect(new Set(tokens).size).toBe(1);
+
+      jest.setSystemTime(startTime + 19 * 60 * 1000);
+      await requestAsync();
+      expect(tokens[3]).not.toBe(tokens[0]);
       jest.setSystemTime(startTime + 21 * 60 * 1000);
-      await refreshingClient.getAsync(
-        '/v1/buildUploads/:id',
-        { 'fields[buildUploads]': ['build', 'state'], include: ['build'] },
-        { id: 'upload-id' }
-      );
+      await requestAsync();
+      expect(tokens[4]).toBe(tokens[3]);
 
       const verificationOptions = {
         currentDate: new Date(Date.now()),
@@ -73,13 +83,29 @@ describe(AscApiClient, () => {
         '"exp" claim timestamp check failed'
       );
       await expect(
-        jose.jwtVerify(tokens[1], publicKey, verificationOptions)
+        jose.jwtVerify(tokens[4], publicKey, verificationOptions)
       ).resolves.toMatchObject({
         payload: issuerId ? { iss: issuerId } : { sub: 'user' },
       });
       expect(scope.isDone()).toBe(true);
     }
   );
+
+  it('can authenticate after a signing failure is corrected', async () => {
+    await fs.remove(keyPath);
+    await expect(
+      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
+    ).rejects.toThrow('ENOENT');
+    await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/app')
+      .query(true)
+      .reply(200, require('./fixtures/apps/get-apps-200.json'));
+    await expect(
+      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
+    ).resolves.toHaveProperty('data');
+    expect(scope.isDone()).toBe(true);
+  });
 
   it('fetches app info', async () => {
     const appId = '1491144534';

@@ -1,7 +1,4 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
-import fs from 'fs-extra';
-import * as jose from 'jose';
-import { z } from 'zod';
 
 import {
   AscApiClient,
@@ -62,24 +59,6 @@ export namespace AscApiUtils {
       groups.push(...response.data);
     }
     return groups;
-  }
-
-  export async function signTokenAsync({ keyPath }: { keyPath: string }): Promise<string> {
-    const keyJson = z
-      .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
-      .parse(await fs.readJson(keyPath));
-    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
-    const jwt = new jose.SignJWT({})
-      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
-      .setAudience('appstoreconnect-v1')
-      .setExpirationTime('20m');
-    if (keyJson.issuer_id) {
-      jwt.setIssuer(keyJson.issuer_id);
-    } else {
-      // An individual API key has no issuer ID.
-      jwt.setSubject('user');
-    }
-    return await jwt.sign(privateKey);
   }
 
   /**

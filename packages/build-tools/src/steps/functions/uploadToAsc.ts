@@ -87,8 +87,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       }
 
       const client = new AscApiClient({
-        // Upload and processing can outlast an ASC token's 20-minute lifetime.
-        token: () => AscApiUtils.signTokenAsync({ keyPath: ascApiKeyPath }),
+        keyPath: ascApiKeyPath,
         logger: stepsCtx.logger,
       });
 
