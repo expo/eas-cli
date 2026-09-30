@@ -206,7 +206,9 @@ function jobsFromWorkflow(parsedYaml: any): any[] {
 }
 
 function jobTypesFromWorkflowSchema(workflowJsonSchema: any): string[] {
-  return workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf.map(
-    (props: any) => props.properties.type.const
-  );
+  const jobSchemas: any[] = workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf ?? [];
+  // Some job schemas (for example, `uses:` jobs) do not declare a `type`.
+  return jobSchemas
+    .map(jobSchema => jobSchema?.properties?.type?.const)
+    .filter((type): type is string => typeof type === 'string');
 }
