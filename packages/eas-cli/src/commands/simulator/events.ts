@@ -127,9 +127,11 @@ export default class SimulatorEvents extends EasCommand {
           return;
         }
 
+        // Any status that isn't final counts as running, so statuses added later (such as queued
+        // and starting) keep follow mode going.
         const isRunning =
-          session.status === DeviceRunSessionStatus.New ||
-          session.status === DeviceRunSessionStatus.InProgress;
+          session.status !== DeviceRunSessionStatus.Stopped &&
+          session.status !== DeviceRunSessionStatus.Errored;
         if (isRunning) {
           observedRunningSession = true;
           remainingPostStopRefreshes = 0;

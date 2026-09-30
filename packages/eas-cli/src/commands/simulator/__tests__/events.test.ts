@@ -164,6 +164,22 @@ describe(SimulatorEvents, () => {
     expect(mockLog).toHaveBeenCalledWith('formatted:event-id');
   });
 
+  it('keeps following a session in a status this version does not know', async () => {
+    mockEventsByIdAsync
+      .mockResolvedValueOnce(createSession('QUEUED' as DeviceRunSessionStatus))
+      .mockResolvedValueOnce(createSession('STARTING' as DeviceRunSessionStatus))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.InProgress))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.Stopped))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.Stopped))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.Stopped));
+    mockDownloadEventsAsync.mockResolvedValue([createEvent()]);
+    const command = createCommand(['--id', 'session-id', '--follow']);
+
+    await command.runAsync();
+
+    expect(mockEventsByIdAsync).toHaveBeenCalledTimes(6);
+  });
+
   it('wakes from polling and flushes incomplete events when follow mode is interrupted', async () => {
     const existingInterruptListeners = new Set(process.listeners('SIGINT'));
     mockEventsByIdAsync.mockResolvedValue(createSession(DeviceRunSessionStatus.InProgress));
