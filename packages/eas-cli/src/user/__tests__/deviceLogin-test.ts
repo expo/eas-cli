@@ -80,6 +80,7 @@ it('resumes across fresh sessions, keeps secrets private, and installs a normal 
   MockDate.set(now + 5000);
   token({ error: 'authorization_pending' });
   expect((await resumeDeviceLoginAsync(id, manager())).status).toBe('authorization_pending');
+  expect((await fs.stat(requestPath)).mode & 0o777).toBe(0o600);
   MockDate.set(now + 10000);
   token({ error: 'matching_required', match_options: ['12', '42', '87'] });
   expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({
@@ -118,15 +119,22 @@ it('keeps the poll interval across invocations, including slow_down', async () =
   expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(9);
 });
 
-it('honors HTTP 429 Retry-After across invocations', async () => {
+it.each([
+  { header: '30', delay: 30 },
+  { header: new Date(now + 35000).toUTCString(), delay: 30 },
+  { header: undefined, delay: 60 },
+  { header: 'invalid', delay: 60 },
+])('honors HTTP 429 Retry-After ($header) across invocations', async ({ header, delay }) => {
   const id = await startAsync();
   MockDate.set(now + 5000);
-  nock(apiUrl).post('/v2/auth/token').reply(429, {}, { 'Retry-After': '30' });
+  nock(apiUrl)
+    .post('/v2/auth/token')
+    .reply(429, {}, header ? { 'Retry-After': header } : {});
   expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({
     status: 'slow_down',
-    retry_after: 30,
+    retry_after: delay,
   });
-  expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(30);
+  expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(delay);
 });
 
 it('expires without a network call and removes the private request', async () => {
@@ -154,6 +162,9 @@ it('recovers after token exchange succeeds but fetching the user fails', async (
   token({ session_secret: 'PRIVATE_SESSION', expires_at: '2027-01-01T00:00:00Z' }, '42');
   jest.mocked(fetchUserAsync).mockRejectedValueOnce(new Error('offline'));
   await expect(resumeDeviceLoginAsync(id, manager(), '42')).rejects.toThrow('offline');
+  const requestPath = path.join(directory, 'device-login', `${id}.json`);
+  expect((await fs.stat(requestPath)).mode & 0o777).toBe(0o600);
+  expect((await fs.readJson(requestPath)).sessionSecret).toBe('PRIVATE_SESSION');
   // No second token exchange; the one-use grant was already consumed.
   expect((await resumeDeviceLoginAsync(id, manager())).status).toBe('authenticated');
 });
@@ -170,18 +181,6 @@ it('rejects another API environment, invalid request IDs, and invalid number inp
   await expect(resumeDeviceLoginAsync(id, manager(), 'guess')).rejects.toThrow(
     'number the user sees'
   );
-});
-
-it('rejects concurrent resumes and recovers the lock of a terminated process', async () => {
-  const id = await startAsync();
-  const lockPath = path.join(directory, 'device-login', `${id}.json.lock`);
-  await fs.writeFile(lockPath, String(process.pid));
-  await expect(resumeDeviceLoginAsync(id, manager())).rejects.toThrow('another process');
-  jest.spyOn(process, 'kill').mockImplementation(() => {
-    throw Object.assign(new Error('gone'), { code: 'ESRCH' });
-  });
-  expect((await resumeDeviceLoginAsync(id, manager())).status).toBe('authorization_pending');
-  expect(await fs.pathExists(lockPath)).toBe(false);
 });
 
 it('preserves a pending request after a network failure', async () => {

@@ -32,7 +32,7 @@ export default class AccountLogin extends EasCommand {
       dependsOn: ['device'],
     }),
     resume: Flags.string({
-      description: 'Resume a saved device login using its request ID',
+      description: 'Resume a saved device login using its request ID (one command at a time)',
       dependsOn: ['device'],
     }),
     match: Flags.string({
@@ -135,7 +135,7 @@ export default class AccountLogin extends EasCommand {
           type: 'select',
           name: 'match',
           message: 'Select the number shown in your browser',
-          choices: result.match_options!.map(value => ({ title: value, value })),
+          choices: result.match_options.map(value => ({ title: value, value })),
         });
         match = answer.match;
       }
