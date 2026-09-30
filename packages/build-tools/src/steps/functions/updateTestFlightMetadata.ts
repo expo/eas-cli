@@ -53,9 +53,11 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
           groups: inputs.groups.value,
         });
       const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
-      const token = await AscApiUtils.signTokenAsync({ keyPath });
       await updateTestFlightMetadataAsync({
-        client: new AscApiClient({ token, logger: ctx.logger }),
+        client: new AscApiClient({
+          token: () => AscApiUtils.signTokenAsync({ keyPath }),
+          logger: ctx.logger,
+        }),
         buildUploadId: parsedInputs.build_upload_id,
         changelog: parsedInputs.changelog,
         groups: parsedInputs.groups,

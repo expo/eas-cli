@@ -86,8 +86,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
       }
 
-      const token = await AscApiUtils.signTokenAsync({ keyPath: ascApiKeyPath });
-      const client = new AscApiClient({ token, logger: stepsCtx.logger });
+      const client = new AscApiClient({
+        // Upload and processing can outlast an ASC token's 20-minute lifetime.
+        token: () => AscApiUtils.signTokenAsync({ keyPath: ascApiKeyPath }),
+        logger: stepsCtx.logger,
+      });
 
       stepsCtx.logger.info(
         `Reading App information for Apple app identifier: ${appleAppIdentifier}...`

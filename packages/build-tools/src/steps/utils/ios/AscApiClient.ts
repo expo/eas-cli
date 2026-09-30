@@ -397,10 +397,10 @@ export class AscApiRequestError extends Error {
 
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
-  private readonly token: string;
+  private readonly token: string | (() => Promise<string>);
   private readonly logger?: bunyan;
 
-  constructor({ token, logger }: { token: string; logger?: bunyan }) {
+  constructor({ token, logger }: { token: string | (() => Promise<string>); logger?: bunyan }) {
     this.token = token;
     this.logger = logger;
   }
@@ -524,7 +524,7 @@ export class AscApiClient {
       method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.token}`,
+        Authorization: `Bearer ${typeof this.token === 'string' ? this.token : await this.token()}`,
       },
       body: method === 'GET' ? undefined : JSON.stringify(parsedBody.value),
     });
