@@ -20,6 +20,7 @@ import {
   AssetMapSourceInput,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
+  SourceMapGroup,
   StatuspageServiceName,
   UpdateInfoGroup,
   UpdatePublishMutation,
@@ -29,7 +30,6 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { SourceMapGroup } from '../../graphql/sourceMapShim';
 import { maybeUploadAssetMapAsync } from '../../project/maybeUploadAssetMapAsync';
 import {
   SourceMapSources,
@@ -602,8 +602,7 @@ export default class UpdatePublish extends EasCommand {
             rolloutInfoGroup: localRolloutInfoGroup,
             fingerprintInfoGroup: transformedFingerprintInfoGroup,
             assetMapGroup,
-            // TODO(ENG-26889): drop the cast once PublishUpdateGroupInput has sourceMapGroup.
-            ...(sourceMapGroup ? { sourceMapGroup } : {}),
+            sourceMapGroup,
             runtimeVersion,
             message: updateMessage,
             gitCommitHash,

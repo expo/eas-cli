@@ -6,11 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { loadMetadata } from './publish';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import {
-  SourceMapSourceInput,
-  SourceMapSourceType,
-  UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS,
-} from '../graphql/sourceMapShim';
+import { SourceMapSourceInput, SourceMapSourceType, UploadSessionType } from '../graphql/generated';
 import Log from '../log';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
@@ -88,7 +84,7 @@ async function uploadSourceMapForPlatformAsync(
 
     const bucketKey = await uploadFileAtPathToGCSAsync(
       graphqlClient,
-      UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS,
+      UploadSessionType.EasUpdateSourceMaps,
       strippedPath,
       createProgressTracker({
         total: size,

@@ -4,7 +4,7 @@ import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS } from '../../graphql/sourceMapShim';
+import { UploadSessionType } from '../../graphql/generated';
 import { uploadFileAtPathToGCSAsync } from '../../uploads';
 import {
   MAX_SOURCE_MAP_SIZE_BYTES,
@@ -171,7 +171,7 @@ describe(maybeUploadSourceMapsAsync, () => {
     });
     expect(uploadFileAtPathToGCSAsync).toHaveBeenCalledTimes(2);
     expect(jest.mocked(uploadFileAtPathToGCSAsync).mock.calls[0][1]).toBe(
-      UPLOAD_SESSION_TYPE_EAS_UPDATE_SOURCE_MAPS
+      UploadSessionType.EasUpdateSourceMaps
     );
   });
 

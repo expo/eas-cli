@@ -7,7 +7,7 @@ import { instance, mock } from 'ts-mockito';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import UpdatePublish, { preprocessSourceMapsArg } from '..';
-import { SourceMapSourceType } from '../../../graphql/sourceMapShim';
+import { SourceMapSourceType } from '../../../graphql/generated';
 import { maybeUploadSourceMapsAsync } from '../../../project/maybeUploadSourceMapsAsync';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import {
@@ -606,7 +606,7 @@ describe('--upload-source-maps', () => {
 
     expect(maybeUploadSourceMapsAsync).not.toHaveBeenCalled();
     const [[, input]] = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls;
-    expect(input[0]).not.toHaveProperty('sourceMapGroup');
+    expect(input[0].sourceMapGroup).toBeNull();
   });
 
   it('sends sourceMapGroup for the platforms that produced a source map', async () => {
@@ -641,7 +641,7 @@ describe('--upload-source-maps', () => {
     ]);
 
     const [[, input]] = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls;
-    expect(input[0]).not.toHaveProperty('sourceMapGroup');
+    expect(input[0].sourceMapGroup).toBeNull();
   });
 
   it.each(['false', 'inline', 'external'])(
