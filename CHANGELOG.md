@@ -58,6 +58,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [build-tools] Add `eas/start_agent_device_session`, one step for agent-device sessions that boots the device, downloads, installs and launches the app, and starts the session, with the independent parts in parallel. ([#4491](https://github.com/expo/eas-cli/pull/4491) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-build-job] Add `sentry` workflow interpolation context schema for Sentry-triggered workflow runs. ([#4453](https://github.com/expo/eas-cli/pull/4453) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Upload the embedded bundle from custom builds that use `eas/build`. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add the `eas/upload_embedded_bundle` step for custom build configs. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
