@@ -25,6 +25,30 @@ describe(Ignore, () => {
     expect(ignore.ignores('dir/bbb')).toBe(true);
   });
 
+  it('matches nested .gitignore prefixes against Windows-style relative paths', async () => {
+    vol.fromJSON(
+      {
+        'packages/app/.gitignore': 'ignored.txt',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect(ignore.ignores(String.raw`packages\app\ignored.txt`)).toBe(true);
+  });
+
+  it.each(['packages/app', String.raw`packages\app`])(
+    'does not apply a nested .gitignore to its own directory: %s',
+    async directory => {
+      vol.fromJSON({ 'packages/app/.gitignore': 'ignored.txt\ndist/\n' }, '/root');
+
+      const ignore = await Ignore.createForCopyingAsync('/root');
+      expect(ignore.ignores(directory, { isDirectory: true })).toBe(false);
+      expect(ignore.ignores(`${directory}/dist`, { isDirectory: true })).toBe(true);
+      expect(ignore.ignores(`${directory}/included.txt`)).toBe(false);
+    }
+  );
+
   it('ignores .gitignore files if .easignore is present', async () => {
     vol.fromJSON(
       {
@@ -110,5 +134,18 @@ describe(Ignore, () => {
 
     const ignore = await Ignore.createForCopyingAsync('/root');
     expect(() => ignore.ignores('dir/test')).not.toThrowError();
+  });
+
+  it('treats directory rules as directories when checking copy filters', async () => {
+    vol.fromJSON(
+      {
+        '.gitignore': 'dist/\n',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect(ignore.ignores('dist', { isDirectory: true })).toBe(true);
+    expect(ignore.ignores('dist/index.js')).toBe(true);
   });
 });

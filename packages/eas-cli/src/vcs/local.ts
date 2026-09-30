@@ -83,14 +83,31 @@ node_modules
     });
   }
 
-  public ignores(relativePath: string): boolean {
+  public ignores(relativePath: string, options: { isDirectory?: boolean } = {}): boolean {
+    const normalizedPath = normalizeIgnorePath(relativePath, options);
     for (const [prefix, ignore] of this.ignoreMapping) {
-      if (relativePath.startsWith(prefix) && ignore.ignores(relativePath.slice(prefix.length))) {
+      const normalizedPrefix = normalizeIgnorePath(prefix);
+      if (
+        normalizedPath.length > normalizedPrefix.length &&
+        normalizedPath.startsWith(normalizedPrefix) &&
+        ignore.ignores(normalizedPath.slice(normalizedPrefix.length))
+      ) {
         return true;
       }
     }
     return false;
   }
+}
+
+function normalizeIgnorePath(
+  relativePath: string,
+  options: { isDirectory?: boolean } = {}
+): string {
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  if (options.isDirectory && normalizedPath && !normalizedPath.endsWith('/')) {
+    return `${normalizedPath}/`;
+  }
+  return normalizedPath;
 }
 
 export async function makeShallowCopyAsync(_src: string, dst: string): Promise<void> {
@@ -108,14 +125,18 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
     recursive: true,
     // Preserve symlinks without re-resolving them to their original targets
     verbatimSymlinks: true,
-    filter: (_srcFilePath: string) => {
+    // eslint-disable-next-line async-protect/async-suffix
+    filter: async (_srcFilePath: string): Promise<boolean> => {
       const srcFilePath = path.toNamespacedPath(_srcFilePath);
 
       if (srcFilePath === src) {
         return true;
       }
+      const stats = await fs.lstat(srcFilePath);
       const relativePath = path.relative(src, srcFilePath);
-      const shouldCopyTheItem = !ignore.ignores(relativePath);
+      const shouldCopyTheItem = !ignore.ignores(relativePath, {
+        isDirectory: stats.isDirectory(),
+      });
 
       Log.debug(shouldCopyTheItem ? 'copying' : 'skipping', {
         src,
