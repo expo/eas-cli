@@ -1,5 +1,4 @@
 import { UserError } from '@expo/eas-build-job';
-import fs from 'fs-extra';
 import * as jose from 'jose';
 import nock from 'nock';
 
@@ -9,19 +8,17 @@ import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 jest.unmock('node-fetch');
 
 describe(AscApiClient, () => {
-  const keyPath = '/asc-api-key.json';
-  let privateKeyPem: string;
+  let signingKey: jose.KeyLike;
   let client: AscApiClient;
 
   beforeAll(async () => {
     const { privateKey } = await jose.generateKeyPair('ES256');
-    privateKeyPem = await jose.exportPKCS8(privateKey);
+    signingKey = privateKey;
     nock.disableNetConnect();
   });
 
-  beforeEach(async () => {
-    await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
-    client = new AscApiClient({ keyPath });
+  beforeEach(() => {
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey: signingKey } });
   });
 
   afterAll(() => {
@@ -37,15 +34,12 @@ describe(AscApiClient, () => {
     'reuses tokens and refreshes before expiry (issuer: %s)',
     async issuerId => {
       const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
-      await fs.writeJson(keyPath, {
-        key_id: 'TESTKEY',
-        issuer_id: issuerId,
-        key: await jose.exportPKCS8(privateKey),
-      });
       const startTime = Date.now();
       jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
       jest.setSystemTime(startTime);
-      const refreshingClient = new AscApiClient({ keyPath });
+      const refreshingClient = new AscApiClient({
+        key: { keyId: 'TESTKEY', issuerId, privateKey },
+      });
       const responseFixture = require('./fixtures/buildUploads/get-buildUploads-200.json');
       const tokens: string[] = [];
       const scope = nock('https://api.appstoreconnect.apple.com')
@@ -90,22 +84,6 @@ describe(AscApiClient, () => {
       expect(scope.isDone()).toBe(true);
     }
   );
-
-  it('can authenticate after a signing failure is corrected', async () => {
-    await fs.remove(keyPath);
-    await expect(
-      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
-    ).rejects.toThrow('ENOENT');
-    await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .get('/v1/apps/app')
-      .query(true)
-      .reply(200, require('./fixtures/apps/get-apps-200.json'));
-    await expect(
-      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
-    ).resolves.toHaveProperty('data');
-    expect(scope.isDone()).toBe(true);
-  });
 
   it('fetches app info', async () => {
     const appId = '1491144534';

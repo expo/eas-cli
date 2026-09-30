@@ -6,6 +6,7 @@ import limitFactory from 'promise-limit';
 import { z } from 'zod';
 
 import { AscApiClient, AscApiRequestError } from '../utils/ios/AscApiClient';
+import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
 export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -54,7 +55,7 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
       const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
       await updateTestFlightMetadataAsync({
         client: new AscApiClient({
-          keyPath,
+          key: await AscApiUtils.loadApiKeyAsync({ keyPath }),
           logger: ctx.logger,
         }),
         buildUploadId: parsedInputs.build_upload_id,

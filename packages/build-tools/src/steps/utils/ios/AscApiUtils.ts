@@ -1,9 +1,13 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
+import fs from 'fs-extra';
+import * as jose from 'jose';
+import { z } from 'zod';
 
 import {
   AscApiClient,
   AscApiClientGetApi,
   AscApiClientPostApi,
+  AscApiKey,
   AscApiRequestError,
   AscPlatform,
 } from './AscApiClient';
@@ -59,6 +63,17 @@ export namespace AscApiUtils {
       groups.push(...response.data);
     }
     return groups;
+  }
+
+  export async function loadApiKeyAsync({ keyPath }: { keyPath: string }): Promise<AscApiKey> {
+    const keyJson = z
+      .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
+      .parse(await fs.readJson(keyPath));
+    return {
+      keyId: keyJson.key_id,
+      issuerId: keyJson.issuer_id,
+      privateKey: await jose.importPKCS8(keyJson.key, 'ES256'),
+    };
   }
 
   /**

@@ -1,7 +1,6 @@
 import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
-import fs from 'fs-extra';
 import * as jose from 'jose';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
@@ -397,14 +396,20 @@ export class AscApiRequestError extends Error {
   }
 }
 
+export type AscApiKey = {
+  keyId: string;
+  issuerId?: string | null;
+  privateKey: jose.KeyLike;
+};
+
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
-  private readonly keyPath: string;
+  private readonly key: AscApiKey;
   private cachedToken?: { value: Promise<string>; expiresAt: number };
   private readonly logger?: bunyan;
 
-  constructor({ keyPath, logger }: { keyPath: string; logger?: bunyan }) {
-    this.keyPath = keyPath;
+  constructor({ key, logger }: { key: AscApiKey; logger?: bunyan }) {
+    this.key = key;
     this.logger = logger;
   }
 
@@ -427,20 +432,16 @@ export class AscApiClient {
   }
 
   private async signTokenAsync(expiresAt: number): Promise<string> {
-    const keyJson = z
-      .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
-      .parse(await fs.readJson(this.keyPath));
-    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
     const jwt = new jose.SignJWT({})
-      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
+      .setProtectedHeader({ alg: 'ES256', kid: this.key.keyId })
       .setAudience('appstoreconnect-v1')
       .setExpirationTime(expiresAt);
-    if (keyJson.issuer_id) {
-      jwt.setIssuer(keyJson.issuer_id);
+    if (this.key.issuerId) {
+      jwt.setIssuer(this.key.issuerId);
     } else {
       jwt.setSubject('user');
     }
-    return await jwt.sign(privateKey);
+    return await jwt.sign(this.key.privateKey);
   }
 
   public async getAsync<TPath extends keyof typeof GetApi>(

@@ -87,7 +87,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       }
 
       const client = new AscApiClient({
-        keyPath: ascApiKeyPath,
+        key: await AscApiUtils.loadApiKeyAsync({ keyPath: ascApiKeyPath }),
         logger: stepsCtx.logger,
       });
 

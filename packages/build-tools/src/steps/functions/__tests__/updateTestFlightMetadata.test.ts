@@ -1,6 +1,5 @@
-import fs from 'fs-extra';
-import * as jose from 'jose';
 import nock from 'nock';
+import { generateKeyPairSync } from 'node:crypto';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -12,11 +11,11 @@ import {
 
 jest.unmock('node-fetch');
 
-const keyPath = '/asc-api-key.json';
-let privateKeyPem: string;
+const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const key = { keyId: 'TESTKEY', privateKey };
 const changelog = 'Test "quotes"\n$(not-a-command)';
 const options = {
-  client: new AscApiClient({ keyPath }),
+  client: new AscApiClient({ key }),
   buildUploadId: 'upload',
   changelog,
   groups: [] as string[],
@@ -57,15 +56,10 @@ function mockAssignedGroups(ids: string[] = []): void {
     .reply(200, { data: ids.map(id => ({ id })) });
 }
 
-beforeAll(async () => {
-  const { privateKey } = await jose.generateKeyPair('ES256');
-  privateKeyPem = await jose.exportPKCS8(privateKey);
-  nock.disableNetConnect();
-});
-beforeEach(async () => {
+beforeAll(() => nock.disableNetConnect());
+beforeEach(() => {
   options.logger = createMockLogger();
-  await fs.writeJson(keyPath, { key_id: 'TESTKEY', key: privateKeyPem });
-  options.client = new AscApiClient({ keyPath });
+  options.client = new AscApiClient({ key });
 });
 afterAll(() => nock.enableNetConnect());
 afterEach(() => {

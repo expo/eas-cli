@@ -1,7 +1,54 @@
-import { AscApiRequestError } from '../AscApiClient';
+import fs from 'fs-extra';
+import * as jose from 'jose';
+import nock from 'nock';
+
+import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
+jest.unmock('node-fetch');
+
 describe('AscApiUtils', () => {
+  describe('loadApiKeyAsync', () => {
+    beforeAll(() => nock.disableNetConnect());
+    afterAll(() => nock.enableNetConnect());
+    afterEach(() => nock.cleanAll());
+
+    it.each([undefined, 'test-issuer'])(
+      'loads a key that authenticates ASC requests (issuer: %s)',
+      async issuerId => {
+        const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
+        const keyPath = '/asc-api-key.json';
+        await fs.writeJson(keyPath, {
+          key_id: 'TESTKEY',
+          issuer_id: issuerId,
+          key: await jose.exportPKCS8(privateKey),
+        });
+        const client = new AscApiClient({ key: await AscApiUtils.loadApiKeyAsync({ keyPath }) });
+        let token = '';
+        const scope = nock('https://api.appstoreconnect.apple.com')
+          .get('/v1/apps/app')
+          .query(true)
+          .reply(function () {
+            token = String(this.req.headers.authorization).replace(/^Bearer /, '');
+            return [200, require('./fixtures/apps/get-apps-200.json')];
+          });
+
+        await client.getAsync(
+          '/v1/apps/:id',
+          { 'fields[apps]': ['bundleId', 'name'] },
+          { id: 'app' }
+        );
+        await expect(
+          jose.jwtVerify(token, publicKey, { audience: 'appstoreconnect-v1' })
+        ).resolves.toMatchObject({
+          protectedHeader: { kid: 'TESTKEY', alg: 'ES256' },
+          payload: issuerId ? { iss: issuerId } : { sub: 'user' },
+        });
+        expect(scope.isDone()).toBe(true);
+      }
+    );
+  });
+
   describe('getAppInfoAsync', () => {
     it('returns app info when lookup succeeds', async () => {
       const response = {
