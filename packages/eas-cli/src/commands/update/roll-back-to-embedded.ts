@@ -84,7 +84,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }),
     'force-end-active-rollout': Flags.boolean({
       description:
-        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it.',
+        'End an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it.',
       default: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -202,7 +202,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platforms: realizedPlatforms,
       runtimeVersion: selectedRuntime,
       json: jsonFlag,
-      activeRollout: { forceEndActiveRollout, nonInteractive },
+      activeRollout: { forceEndActiveRollout },
     });
   }
 

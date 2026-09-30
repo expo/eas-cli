@@ -186,7 +186,7 @@ export default class UpdatePublish extends EasCommand {
     }),
     'force-end-active-rollout': Flags.boolean({
       description:
-        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being published, so this update supersedes it.',
+        'End an in-progress rollout on the runtime version being published, so this update supersedes it.',
       default: false,
     }),
     platform: Flags.option({
@@ -600,7 +600,6 @@ export default class UpdatePublish extends EasCommand {
       {
         appId: projectId,
         branchName: branch.name,
-        nonInteractive,
         forceEndActiveRollout,
         rolloutPercentage,
       }

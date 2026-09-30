@@ -58,25 +58,9 @@ jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
 jest.mock('../../../ora', () => ({
-  ora: () => {
-    const spinner = {
-      isSpinning: false,
-      start: () => {
-        spinner.isSpinning = true;
-        return spinner;
-      },
-      succeed: () => {
-        spinner.isSpinning = false;
-      },
-      fail: () => {
-        spinner.isSpinning = false;
-      },
-      stop: () => {
-        spinner.isSpinning = false;
-      },
-    };
-    return spinner;
-  },
+  ora: () => ({
+    start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
+  }),
 }));
 jest.mock('../../../project/publish', () => ({
   ...jest.requireActual('../../../project/publish'),

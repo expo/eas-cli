@@ -63,7 +63,7 @@ export async function republishAsync({
   codeSigningInfo?: CodeSigningInfo;
   json?: boolean;
   rolloutPercentage?: number;
-  activeRollout?: { forceEndActiveRollout: boolean; nonInteractive: boolean };
+  activeRollout?: { forceEndActiveRollout: boolean };
 }): Promise<void> {
   const { branchName: targetBranchName, branchId: targetBranchId } = targetBranch;
 
@@ -122,7 +122,7 @@ export async function republishAsync({
     );
   }
 
-  const publishIndicator = ora('Republishing...');
+  const publishIndicator = ora('Republishing...').start();
   let updatesRepublished: Awaited<ReturnType<typeof PublishMutation.publishUpdateGroupAsync>>;
 
   try {
@@ -188,13 +188,11 @@ export async function republishAsync({
       ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
           appId: app.projectId,
           branchName: targetBranchName,
-          nonInteractive: activeRollout.nonInteractive,
           forceEndActiveRollout: activeRollout.forceEndActiveRollout,
           rolloutPercentage,
         })
       : updateGroups;
 
-    publishIndicator.start();
     updatesRepublished = await PublishMutation.publishUpdateGroupAsync(
       graphqlClient,
       updateGroupsToPublish
@@ -241,9 +239,7 @@ export async function republishAsync({
 
     publishIndicator.succeed('Republished update group');
   } catch (error: any) {
-    if (publishIndicator.isSpinning) {
-      publishIndicator.fail('Failed to republish update group');
-    }
+    publishIndicator.fail('Failed to republish update group');
     throw error;
   }
 

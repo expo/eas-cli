@@ -1,12 +1,9 @@
-import { Errors } from '@oclif/core';
-
 import { UpdatePublishPlatform, updatePublishPlatformToAppPlatform } from './utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PublishUpdateGroupInput, UpdateFragment } from '../graphql/generated';
 import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
 import { appPlatformDisplayNames } from '../platform';
-import { confirmAsync } from '../prompts';
 import renderTextTable from '../utils/renderTextTable';
 
 type ActiveRollout = { platform: UpdatePublishPlatform; update: UpdateFragment };
@@ -52,13 +49,11 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   {
     appId,
     branchName,
-    nonInteractive,
     forceEndActiveRollout,
     rolloutPercentage,
   }: {
     appId: string;
     branchName: string;
-    nonInteractive: boolean;
     forceEndActiveRollout: boolean;
     rolloutPercentage?: number;
   }
@@ -121,19 +116,9 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   Log.newLine();
 
   if (!forceEndActiveRollout) {
-    if (nonInteractive) {
-      throw new Error(
-        'Cannot supersede the rollout in progress. Ending a rollout requires confirmation, which is unavailable in non-interactive mode. Re-run with --force-end-active-rollout to end the rollout and publish.'
-      );
-    }
-
-    const shouldEndRollout = await confirmAsync({
-      message: 'End the rollout and publish anyway?',
-      initial: false,
-    });
-    if (!shouldEndRollout) {
-      Errors.error('Aborted.', { exit: 1 });
-    }
+    throw new Error(
+      'Cannot supersede the rollout in progress. Ending a rollout must be requested explicitly. Re-run with --force-end-active-rollout to end the rollout and publish.'
+    );
   }
 
   return updateGroups.map((updateGroup, index) => {
