@@ -93,6 +93,14 @@ describe(simulatorRequestFailureReason, () => {
     expect(
       simulatorRequestFailureReason(new Error('Returned query result data is null!'))
     ).toBeNull();
+    expect(
+      simulatorRequestFailureReason(
+        new CombinedError({
+          networkError: new Error('Gateway Timeout'),
+          response: { status: 504, statusText: 'Gateway Timeout' },
+        })
+      )
+    ).toBeNull();
   });
 });
 
