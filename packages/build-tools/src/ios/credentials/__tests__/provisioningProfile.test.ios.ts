@@ -18,7 +18,7 @@ jest.unmock('fs');
 describe('ProvisioningProfile class', () => {
   describe('verifyCertificate method', () => {
     let ctx: BuildContext<Ios.Job>;
-    let keychain: Keychain<Ios.Job>;
+    let keychain: Keychain;
 
     beforeAll(async () => {
       ctx = new BuildContext({ projectRootDirectory: '.' } as Ios.Job, {
@@ -30,12 +30,12 @@ describe('ProvisioningProfile class', () => {
         },
         uploadArtifact: jest.fn(),
       });
-      keychain = new Keychain(ctx);
-      await keychain.create();
+      keychain = new Keychain();
+      await keychain.create({ logger: mockLogger });
     });
 
     afterAll(async () => {
-      await keychain.destroy();
+      await keychain.destroy({ logger: mockLogger });
     });
 
     it("shouldn't throw any error if the provisioning profile and distribution certificate match", async () => {

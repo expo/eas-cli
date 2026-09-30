@@ -6,11 +6,6 @@ const userStub: Actor = {
   id: 'userId',
   email: 'user@example.com',
   username: 'username',
-  primaryAccount: {
-    id: 'account_id_777',
-    name: 'username',
-    viewerUserPermission: { role: Role.Owner },
-  },
   accounts: [
     {
       id: 'account_id_777',
@@ -26,11 +21,6 @@ const ssoUserStub: Actor = {
   __typename: 'SSOUser',
   id: 'ssoUserId',
   username: 'ssoUsername',
-  primaryAccount: {
-    id: 'account_id_888',
-    name: 'ssoUsername',
-    viewerUserPermission: { role: Role.Owner },
-  },
   accounts: [
     {
       id: 'account_id_888',

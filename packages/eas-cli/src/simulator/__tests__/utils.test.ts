@@ -2,10 +2,12 @@ import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graph
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
+  deviceRunSessionTypesForFlagValue,
   formatLoopbackForwardNotice,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
@@ -68,9 +70,26 @@ describe('local egress configuration', () => {
     expect(instructions).toContain('eas simulator:egress');
     expect(instructions).toContain('Keep it running for the life of the session.');
     expect(instructions).not.toContain('It can also reach');
+    expect(instructions).toContain(
+      'Connections that bypass the proxy are refused inside the simulator. The Logs section of the session page lists what was refused and which library tried.'
+    );
     expect(formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'env')).toContain(
       "export EAS_SIMULATOR_EGRESS_ALLOW=''"
     );
+  });
+
+  it('links the session page when it is known, so refusals can be found', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv', {
+      sessionUrl: 'https://expo.dev/accounts/a/projects/p/simulator-sessions/s',
+    });
+    // The link is rendered with terminal styling, so check the phrase and the URL apart.
+    expect(instructions).toContain('lists what was refused and which library tried: ');
+    expect(instructions).toContain('https://expo.dev/accounts/a/projects/p/simulator-sessions/s');
+    expect(
+      formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv', {
+        sessionUrl: 'https://expo.dev/x',
+      })
+    ).not.toContain('refused');
   });
 
   it('says nothing about starting the client when it runs inline', () => {
@@ -209,6 +228,23 @@ describe('simulator session type flags', () => {
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['serve-sim']).toBeUndefined();
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['web-preview']).toBeUndefined();
   });
+
+  it('lists each flag value once', () => {
+    expect(DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS).toEqual([
+      'agent-device',
+      'appium',
+      'argent',
+      'web-preview-only',
+    ]);
+  });
+
+  it('filters web-preview-only by the new and the legacy session type', () => {
+    expect(deviceRunSessionTypesForFlagValue('web-preview-only')).toEqual([
+      DeviceRunSessionType.ServeSim,
+      DeviceRunSessionType.WebPreviewOnly,
+    ]);
+    expect(deviceRunSessionTypesForFlagValue('appium')).toEqual([DeviceRunSessionType.Appium]);
+  });
 });
 
 describe('simulator resource class flags', () => {
@@ -223,24 +259,38 @@ describe('simulator resource class flags', () => {
 });
 
 describe(formatPreviewUrl, () => {
-  it('appends the session token for a gated preview', () => {
-    expect(formatPreviewUrl('https://preview.example.test', 'tok-1')).toBe(
-      'https://preview.example.test/?token=tok-1'
-    );
+  const PAGE_URL = 'https://expo.dev/simulator-preview/abc';
+  const SERVER_URL = 'https://web-preview-abc.eas-simulator.ngrok.dev';
+  const pageConfig = {
+    __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+    previewUrl: PAGE_URL,
+    previewToken: 'tok-1',
+    previewApiUrl: SERVER_URL,
+  };
+  const serverConfig = {
+    __typename: 'ServeSimRunSessionRemoteConfig' as const,
+    previewUrl: SERVER_URL,
+    previewToken: 'tok-1',
+  };
+
+  it('puts the token in the fragment for the expo.dev page, where no request carries it', () => {
+    expect(formatPreviewUrl(pageConfig, PAGE_URL, 'tok-1')).toBe(`${PAGE_URL}#token=tok-1`);
+  });
+
+  it('puts the token on the query for a session that predates the expo.dev page', () => {
+    expect(formatPreviewUrl(serverConfig, SERVER_URL, 'tok-1')).toBe(`${SERVER_URL}/?token=tok-1`);
   });
 
   it('leaves the url alone when the preview is ungated', () => {
-    expect(formatPreviewUrl('https://preview.example.test', null)).toBe(
-      'https://preview.example.test'
-    );
-    expect(formatPreviewUrl('https://preview.example.test', undefined)).toBe(
-      'https://preview.example.test'
-    );
+    expect(formatPreviewUrl(pageConfig, PAGE_URL, null)).toBe(PAGE_URL);
+    expect(formatPreviewUrl(pageConfig, PAGE_URL, undefined)).toBe(PAGE_URL);
   });
 });
 
 describe(sanitizeRemoteConfigForJson, () => {
   const PREVIEW_URL = 'https://preview.example.test';
+
+  const PAGE_URL = 'https://expo.dev/simulator-preview/abc';
 
   it('moves the token into the preview url and drops the standalone field', () => {
     const sanitized = sanitizeRemoteConfigForJson({
@@ -252,6 +302,22 @@ describe(sanitizeRemoteConfigForJson, () => {
     expect(sanitized).toEqual({
       __typename: 'ServeSimRunSessionRemoteConfig',
       previewUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+    expect(JSON.stringify(sanitized)).not.toContain('previewToken');
+  });
+
+  it('puts the token on the api url query, for a caller that cannot send a header', () => {
+    const sanitized = sanitizeRemoteConfigForJson({
+      __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+      previewUrl: PAGE_URL,
+      previewToken: 'tok-1',
+      previewApiUrl: PREVIEW_URL,
+    });
+
+    expect(sanitized).toEqual({
+      __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+      previewUrl: `${PAGE_URL}#token=tok-1`,
+      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
     });
     expect(JSON.stringify(sanitized)).not.toContain('previewToken');
   });
@@ -348,6 +414,48 @@ describe('gated preview links', () => {
 
     for (const remoteConfig of controllers) {
       expect(formatRemoteSessionInstructions(remoteConfig, 'env')).toContain(GATED);
+    }
+  });
+
+  it('prints the fragment link for every session the worker gave a preview api url', () => {
+    const PAGE = 'https://expo.dev/simulator-preview/abc';
+    const API = 'https://web-preview-abc.eas-simulator.ngrok.dev';
+    const sessions = [
+      {
+        __typename: 'ServeSimRunSessionRemoteConfig' as const,
+        previewUrl: PAGE,
+        previewToken: 'tok-1',
+        previewApiUrl: API,
+      },
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE,
+        previewToken: 'tok-1',
+        previewApiUrl: API,
+      },
+      {
+        __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+        agentDeviceRemoteSessionUrl: 'https://daemon.example.test',
+        agentDeviceRemoteSessionToken: 'daemon-token',
+        webPreviewUrl: PAGE,
+        webPreviewToken: 'tok-1',
+        previewApiUrl: API,
+      },
+      {
+        __typename: 'ArgentRunSessionRemoteConfig' as const,
+        toolsUrl: 'https://argent.example.test',
+        toolsAuthToken: 'argent-token',
+        webPreviewUrl: PAGE,
+        webPreviewToken: 'tok-1',
+        previewApiUrl: API,
+      },
+      { ...iosAppiumConfig, webPreviewUrl: PAGE, webPreviewToken: 'tok-1', previewApiUrl: API },
+    ];
+
+    for (const remoteConfig of sessions) {
+      const instructions = formatRemoteSessionInstructions(remoteConfig, 'env');
+      expect(instructions).toContain(`${PAGE}#token=tok-1`);
+      expect(instructions).not.toContain('?token=');
     }
   });
 

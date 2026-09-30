@@ -1,31 +1,45 @@
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import { EventEmitter } from 'node:events';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
   clearTimeout as clearTimeoutCallback,
   setTimeout as setTimeoutCallback,
 } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
+import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
-  createExpoDeviceHubArgs,
-  createServeSimArgs,
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
-  metricsCorsOriginToServeSimArgs,
-  startDeviceWebPreviewWithTunnelAsync,
-  startExpoDeviceHubWithTunnelAsync,
+  parseServeSimLaunchInputs,
+  spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
-  waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
+
+import {
+  createExpoDeviceHubArgs,
+  createServeSimArgs,
+  simulatorPreviewPageUrl,
+  startDeviceSessionHostAsync,
+  waitForWebPreviewReadyAsync,
+  websiteOrigin,
+  websiteOriginServeSimArgs,
+} from '../deviceSessionHost';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
@@ -34,6 +48,10 @@ jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');
+jest.mock('../deviceRunSessionScreenRecordings', () => ({
+  ...jest.requireActual('../deviceRunSessionScreenRecordings'),
+  uploadDeviceRunSessionScreenRecordingsAsync: jest.fn(),
+}));
 // Spyable so a test can stand in for the serve-sim state directory, which a local serve-sim owns.
 jest.mock('../serveSimMetricsRecorder', () => {
   const actual = jest.requireActual('../serveSimMetricsRecorder');
@@ -48,6 +66,69 @@ function createLoggerMock(): bunyan {
     debug: jest.fn(),
   } as unknown as bunyan;
 }
+
+describe(spawnDetached, () => {
+  function mockProcess(promise: Promise<unknown>): void {
+    jest
+      .mocked(spawn)
+      .mockReturnValue(
+        Object.assign(promise, { child: { pid: 1234, unref: jest.fn(), once: jest.fn() } }) as never
+      );
+  }
+
+  it('observes exit without waiting for inherited output pipes to close', () => {
+    const child = Object.assign(new EventEmitter(), { pid: 1234, unref: jest.fn() });
+    jest.mocked(spawn).mockReturnValue(Object.assign(new Promise(() => {}), { child }) as never);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    child.emit('exit', 1, null);
+    expect(handle.getExitError()?.message).toContain('code 1');
+    expect(child.listenerCount('exit')).toBe(0);
+  });
+
+  it('does not report an exit while the process is running', () => {
+    mockProcess(new Promise(() => {}));
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    expect(handle.getExitError()).toBeUndefined();
+  });
+
+  it('reports a clean exit so startup does not keep waiting', async () => {
+    const completion = Promise.resolve();
+    mockProcess(completion);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    await completion;
+    expect(handle.getExitError()?.message).toContain('code 0');
+  });
+
+  it.each([0, 1])('observes a real subprocess exiting with code %s', async exitCode => {
+    const actualSpawn =
+      jest.requireActual<typeof import('@expo/turtle-spawn')>('@expo/turtle-spawn').default;
+    let completion: ReturnType<typeof actualSpawn>;
+    jest.mocked(spawn).mockImplementationOnce((...args) => {
+      completion = actualSpawn(...args);
+      return completion;
+    });
+    const handle = spawnDetached({
+      command: process.execPath,
+      args: ['-e', `console.error('startup-marker'); process.exit(${exitCode});`],
+      env: {},
+    });
+    await completion!.catch(() => {});
+    expect(handle.getExitError()).toBeInstanceOf(Error);
+    expect(handle.getOutput()).toContain('startup-marker');
+  });
+
+  it.each(['spawn ENOENT', 'server exited with code 1', 'server terminated by SIGTERM'])(
+    'preserves the process failure: %s',
+    async message => {
+      const error = new Error(message);
+      const completion = Promise.reject(error);
+      mockProcess(completion);
+      const handle = spawnDetached({ command: 'server', args: [], env: {} });
+      await completion.catch(() => {});
+      expect(handle.getExitError()).toBe(error);
+    }
+  );
+});
 
 function createCtxMock(): CustomBuildContext {
   return {
@@ -122,6 +203,161 @@ function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
 
+describe(createServeSimLaunchInputProviders, () => {
+  it('declares the launch inputs as optional', () => {
+    const globalCtx = createGlobalContextMock();
+    const inputs = createServeSimLaunchInputProviders().map(provider =>
+      provider(globalCtx, 'Test step')
+    );
+
+    expect(
+      inputs.map(({ id, required, allowedValueTypeName }) => ({
+        id,
+        required,
+        allowedValueTypeName,
+      }))
+    ).toEqual([
+      {
+        id: 'launch_app_identifier',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+      {
+        id: 'launch_args',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      },
+      {
+        id: 'open_url',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+    ]);
+  });
+});
+
+describe(parseServeSimLaunchInputs, () => {
+  const darwin = { runtimePlatform: BuildRuntimePlatform.DARWIN };
+
+  it('reads the launch identifier, arguments and URL', () => {
+    expect(
+      parseServeSimLaunchInputs(
+        {
+          launchAppIdentifier: 'host.exp.Exponent',
+          launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+          openUrl: 'exp://127.0.0.1:8081',
+        },
+        darwin
+      )
+    ).toEqual({
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+  });
+
+  it('defaults to no launch when the step declares nothing', () => {
+    expect(parseServeSimLaunchInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
+      launchAppIdentifier: undefined,
+      launchArgs: [],
+      openUrl: undefined,
+    });
+  });
+
+  it('rejects launch arguments that are not a list', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        {
+          launchAppIdentifier: 'host.exp.Exponent',
+          launchArgs: 'oops',
+        },
+        darwin
+      )
+    ).toThrow('must be an array of strings');
+  });
+
+  it('rejects launch arguments that are not all strings', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        {
+          launchAppIdentifier: 'host.exp.Exponent',
+          launchArgs: ['-flag', 1],
+        },
+        darwin
+      )
+    ).toThrow('must be an array of strings');
+  });
+
+  it('rejects launch arguments with no application to launch', () => {
+    expect(() => parseServeSimLaunchInputs({ launchArgs: ['-flag'] }, darwin)).toThrow(
+      'Pass "launch_app_identifier"'
+    );
+  });
+
+  it('rejects a URL with no application to open it in', () => {
+    expect(() => parseServeSimLaunchInputs({ openUrl: 'exp://127.0.0.1:8081' }, darwin)).toThrow(
+      'Pass "launch_app_identifier"'
+    );
+  });
+
+  it('rejects an identifier that resolved to an empty string', () => {
+    expect(() => parseServeSimLaunchInputs({ launchAppIdentifier: '' }, darwin)).toThrow(
+      'must be a non-empty string'
+    );
+  });
+
+  it('rejects a URL that is not a URL', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        { launchAppIdentifier: 'host.exp.Exponent', openUrl: 'not a url' },
+        darwin
+      )
+    ).toThrow('must be a valid URL');
+  });
+
+  it('raises a user error, not a platform error', () => {
+    expect(() => parseServeSimLaunchInputs({ launchAppIdentifier: '' }, darwin)).toThrow(UserError);
+    try {
+      parseServeSimLaunchInputs({ launchAppIdentifier: '' }, darwin);
+    } catch (error) {
+      expect((error as UserError).errorCode).toBe('EAS_LAUNCH_APPLICATION_INVALID_INPUT');
+    }
+  });
+
+  it('rejects a launch on a session that does not run an iOS simulator', () => {
+    expect(() =>
+      parseServeSimLaunchInputs(
+        { launchAppIdentifier: 'host.exp.Exponent' },
+        { runtimePlatform: BuildRuntimePlatform.LINUX }
+      )
+    ).toThrow('runs on linux');
+  });
+});
+
+describe(describeServeSimLaunch, () => {
+  it('says nothing when there is no application to launch', () => {
+    expect(describeServeSimLaunch({ launchArgs: [] })).toBeNull();
+  });
+
+  it('names only the application when there are no arguments or URL', () => {
+    expect(describeServeSimLaunch({ launchAppIdentifier: 'host.exp.Exponent' })).toBe(
+      'serve-sim will launch host.exp.Exponent.'
+    );
+  });
+
+  it('names the application, its arguments and the URL', () => {
+    expect(
+      describeServeSimLaunch({
+        launchAppIdentifier: 'host.exp.Exponent',
+        launchArgs: ['-flag', '1'],
+        openUrl: 'exp://127.0.0.1:8081',
+      })
+    ).toBe(
+      'serve-sim will launch host.exp.Exponent with arguments ["-flag","1"], then open exp://127.0.0.1:8081.'
+    );
+  });
+});
+
 describe(createServeSimArgs, () => {
   it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
@@ -130,7 +366,6 @@ describe(createServeSimArgs, () => {
         turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       })
     ).toEqual([
-      '--yes',
       '@expo/serve-sim@latest',
       '--port',
       '4321',
@@ -140,13 +375,13 @@ describe(createServeSimArgs, () => {
       '--transport',
       'webrtc',
       '--webrtc-codec',
-      'vp8',
+      'h264',
       '--max-dimension',
-      '960',
+      '1600',
       '--mjpeg-quality',
       '0.55',
       '--video-bitrate',
-      '6000000',
+      '10000000',
       '--video-fps',
       '60',
       '--turn-url',
@@ -154,36 +389,79 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
-  it('appends metrics CORS args after the TURN args when provided', () => {
+  it('appends the website args after the TURN args when provided', () => {
     const args = createServeSimArgs({
       port: 4321,
       turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
-      metricsCorsArgs: ['--metrics-cors-origin', 'https://expo.dev'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev'],
     });
     expect(args.slice(-4)).toEqual([
       '--turn-url',
       'turns:turn.example.test:443',
-      '--metrics-cors-origin',
+      '--cors-origin',
       'https://expo.dev',
     ]);
   });
 
   it('pins the requested package version', () => {
-    expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' }).slice(0, 2)).toEqual([
-      '--yes',
-      '@expo/serve-sim@0.1.38',
-    ]);
+    expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' })[0]).toBe(
+      '@expo/serve-sim@0.1.38'
+    );
   });
 
   it('pins a dist-tag', () => {
-    expect(createServeSimArgs({ port: 4321, packageVersion: 'next' }).slice(0, 2)).toEqual([
-      '--yes',
-      '@expo/serve-sim@next',
+    expect(createServeSimArgs({ port: 4321, packageVersion: 'next' })[0]).toBe(
+      '@expo/serve-sim@next'
+    );
+  });
+
+  it('appends --share-url after the website args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
+      shareUrl: 'https://expo.dev/simulator-preview/abc',
+    });
+    expect(args.slice(-4)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--share-url',
+      'https://expo.dev/simulator-preview/abc',
     ]);
+  });
+
+  it('appends the launch flags after the streaming policy', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+    expect(args.slice(-8)).toEqual([
+      '--launch-app-identifier',
+      'host.exp.Exponent',
+      '--launch-arg',
+      '-EXDevMenuIsOnboardingFinished',
+      '--launch-arg',
+      '1',
+      '--open-url',
+      'exp://127.0.0.1:8081',
+    ]);
+  });
+
+  it('omits the launch flags when there is no application to launch', () => {
+    const args = createServeSimArgs({ port: 4321 });
+    expect(args.some(argument => argument.startsWith('--launch'))).toBe(false);
+    expect(args).not.toContain('--open-url');
   });
 });
 
 describe(createExpoDeviceHubArgs, () => {
+  it('opts in to recording only when a directory is provided', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321 })).not.toContain('--android-recording-directory');
+    expect(
+      createExpoDeviceHubArgs({ port: 4321, recordingDirectory: '/tmp/recordings' }).slice(-2)
+    ).toEqual(['--android-recording-directory', '/tmp/recordings']);
+  });
   it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
     expect(
       createExpoDeviceHubArgs({
@@ -191,7 +469,6 @@ describe(createExpoDeviceHubArgs, () => {
         turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       })
     ).toEqual([
-      '--yes',
       'expo-device-hub@latest',
       '--port',
       '4321',
@@ -219,37 +496,51 @@ describe(createExpoDeviceHubArgs, () => {
   });
 
   it('pins the requested package version', () => {
-    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' }).slice(0, 2)).toEqual([
-      '--yes',
-      'expo-device-hub@0.7.0',
-    ]);
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' })[0]).toBe(
+      'expo-device-hub@0.7.0'
+    );
   });
 });
 
-describe(metricsCorsOriginToServeSimArgs, () => {
-  it('returns no args when the origin is unset or empty', () => {
-    expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
-    expect(
-      metricsCorsOriginToServeSimArgs({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
-    ).toEqual([]);
+describe(websiteOriginServeSimArgs, () => {
+  it('names only the production website by default', () => {
+    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).toEqual([
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+    ]);
   });
 
-  it('builds one flag per comma-separated origin', () => {
-    expect(
-      metricsCorsOriginToServeSimArgs({
-        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
-      } as BuildStepEnv)
-    ).toEqual(['--metrics-cors-origin', 'https://expo.dev']);
-    expect(
-      metricsCorsOriginToServeSimArgs({
-        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev, https://staging.expo.dev',
-      } as BuildStepEnv)
-    ).toEqual([
-      '--metrics-cors-origin',
-      'https://expo.dev',
-      '--metrics-cors-origin',
+  it('names staging, its deploy previews and each website dev port on staging', () => {
+    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    expect(args.slice(0, 4)).toEqual([
+      '--cors-origin',
+      'https://staging.expo.dev',
+      '--frame-ancestor',
       'https://staging.expo.dev',
     ]);
+    expect(args).toContain('https://*.expo.dev');
+    expect(args).toContain('https://expo.test:13001');
+    expect(args).toContain('https://expo.test:13215');
+    expect(args).not.toContain('https://expo.test:13216');
+    expect(args).not.toContain('https://expo.dev');
+  });
+
+  it('names only https origins', () => {
+    for (const env of [{}, { EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
+      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      expect(args.filter(value => value.startsWith('http://'))).toEqual([]);
+    }
+  });
+
+  it('names the website dev ports on local, without the deploy-preview wildcard', () => {
+    for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
+      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      expect(args).toContain('https://expo.test:13001');
+      expect(args).not.toContain('https://*.expo.dev');
+      expect(args.filter(value => value === 'https://expo.test')).toHaveLength(2);
+    }
   });
 });
 
@@ -309,13 +600,18 @@ describe(startNgrokTunnelAsync, () => {
       })
     );
     expect(tunnel.url).toBe('https://web-preview.example.test');
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        domain: `web-preview-${tunnel.subdomainId}.eas-simulator.ngrok.dev`,
+      })
+    );
     await tunnel.stopAsync();
     await tunnel.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 });
 
-describe(startDeviceWebPreviewWithTunnelAsync, () => {
+describe(startDeviceSessionHostAsync, () => {
   const baseDomain = 'eas-simulator.ngrok.dev';
   const turnArgs = [
     '--turn-url',
@@ -325,14 +621,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     '--turn-credential',
     'turn-credential',
   ];
-  const metricsCorsArgs = ['--metrics-cors-origin', 'https://metrics.expo.test'];
+  const websiteArgs = ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'];
   const env = {
     DEVICE_RUN_SESSION_ID: 'drs-id',
-    EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://metrics.expo.test',
     NGROK_AUTHTOKEN: 'ngrok-token',
   } as unknown as BuildStepEnv;
 
   beforeEach(() => {
+    jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
     jest.mocked(spawn).mockReset();
     jest.mocked(ngrok.forward).mockReset();
     jest.mocked(turtleFetch).mockReset();
@@ -344,6 +640,7 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
+        once: jest.fn(),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);
@@ -385,14 +682,14 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
     expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
@@ -419,11 +716,17 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual(createExpoDeviceHubArgs({ port, turnArgs, packageVersion }));
+    expect(args).toContain('--android-recording-directory');
+    const recordingDirectory = args[args.indexOf('--android-recording-directory') + 1];
+    expect(args).toEqual([
+      '--yes',
+      ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+    ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
-    expect(preview.previewUrl).toBe('https://android-preview.example.test');
+    expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
-    await preview.stopAsync();
+    await host.finishAsync();
+    await fs.rm(recordingDirectory, { recursive: true, force: true });
     expect(close).toHaveBeenCalledTimes(1);
   });
 
@@ -433,16 +736,50 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     expect(preview.previewToken).toBe('tok-1');
-    expect(preview.previewUrl).toBe('https://preview.example.test');
+    expect(preview.apiUrl).toBe('https://preview.example.test');
+  });
+
+  it.each([
+    [{}, 'https://expo.dev'],
+    [{ EXPO_STAGING: '1' }, 'https://staging.expo.dev'],
+    [{ EXPO_LOCAL: '1' }, 'https://expo.test'],
+  ])('points the preview page at the website for the stage the worker runs in', (stage, origin) => {
+    expect(websiteOrigin({ ...env, ...stage })).toBe(origin);
+    expect(simulatorPreviewPageUrl({ ...env, ...stage }, 'abc')).toBe(
+      `${origin}/simulator-preview/abc`
+    );
+  });
+
+  it('points the preview URL at the website page for the tunnel', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: { ...env, EXPO_STAGING: '1' },
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain });
+
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    const previewId = preview.previewPageUrl.split('/').at(-1);
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: `web-preview-${previewId}.${baseDomain}` })
+    );
   });
 
   // serve-sim is always launched with --require-token, so a missing token means it is running
@@ -453,9 +790,8 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       .mockResolvedValue([{ udid: 'device-id', url: 'http://127.0.0.1:1' }]);
 
     await expect(
-      startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+      startDeviceSessionHostAsync(createCtxMock(), {
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        baseDomain,
         env,
         logger: createLoggerMock(),
         timeoutMs: 10_000,
@@ -471,13 +807,13 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     expect(preview.previewToken).toBeUndefined();
     const [, args] = jest.mocked(spawn).mock.calls[0];
@@ -492,51 +828,144 @@ describe(startDeviceWebPreviewWithTunnelAsync, () => {
       close,
     } as never);
 
-    const preview = await startDeviceWebPreviewWithTunnelAsync(createCtxMock(), {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
     expect(port).toBeGreaterThan(0);
     expect(command).toBe('npx');
-    expect(args).toEqual(createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }));
+    expect(args).toEqual([
+      '--yes',
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        shareUrl: preview.previewPageUrl,
+        packageVersion,
+      }),
+    ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
-    expect(preview.previewUrl).toBe('https://ios-preview.example.test');
+    expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
-    await preview.stopAsync();
+    await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('does not install ffmpeg before starting expo-device-hub outside Linux', async () => {
+  it('launches serve-sim with bun x when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
-      url: () => 'https://android-preview.example.test',
+      url: () => 'https://ios-preview.example.test',
       close,
     } as never);
 
-    const preview = await startExpoDeviceHubWithTunnelAsync(createCtxMock(), {
+    const bunEnv = { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' };
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      baseDomain,
-      env,
+      env: bunEnv,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      packageVersion: '4.5.6',
+    });
+    const preview = await host.openPreviewAsync({ baseDomain });
+
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(command).toBe('bun');
+    expect(args).toEqual([
+      'x',
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        shareUrl: preview.previewPageUrl,
+        packageVersion: '4.5.6',
+      }),
+    ]);
+
+    await host.finishAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('launches serve-sim with bun x when EAS_FALLBACK_PACKAGE_MANAGER is bun', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close,
+    } as never);
+
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
+    const preview = await host.openPreviewAsync({ baseDomain });
 
-    expect(jest.mocked(spawn).mock.calls[0][0]).toBe('npx');
-    expect(jest.mocked(spawn)).not.toHaveBeenCalledWith(
-      'ffmpeg',
-      expect.anything(),
-      expect.anything()
-    );
+    const [command, args] = jest.mocked(spawn).mock.calls[0];
+    const port = Number(args[args.indexOf('--port') + 1]);
+    expect(command).toBe('bun');
+    expect(args).toEqual([
+      'x',
+      ...createServeSimArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        shareUrl: preview.previewPageUrl,
+      }),
+    ]);
 
-    await preview.stopAsync();
+    await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the launch options to serve-sim on Darwin', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://ios-preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      launchAppIdentifier: 'host.exp.Exponent',
+      launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+      openUrl: 'exp://127.0.0.1:8081',
+    });
+    await host.finishAsync();
+
+    const [, args] = jest.mocked(spawn).mock.calls[0];
+    expect(args.slice(-8)).toEqual([
+      '--launch-app-identifier',
+      'host.exp.Exponent',
+      '--launch-arg',
+      '-EXDevMenuIsOnboardingFinished',
+      '--launch-arg',
+      '1',
+      '--open-url',
+      'exp://127.0.0.1:8081',
+    ]);
+  });
+
+  it('refuses to launch an application on Linux, where expo-device-hub cannot', async () => {
+    await expect(
+      startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        launchAppIdentifier: 'host.exp.Exponent',
+      })
+    ).rejects.toThrow('Cannot launch host.exp.Exponent');
+    expect(spawn).not.toHaveBeenCalled();
   });
 });
 

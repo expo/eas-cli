@@ -185,6 +185,67 @@ export namespace IosSimulatorUtils {
     }
   }
 
+  const UDID_PATTERN = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+
+  /**
+   * The UDID for a device name or UDID. A name picks the first available
+   * device with that name, as `simctl` itself does.
+   */
+  export async function resolveUdidAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<IosSimulatorUuid> {
+    if (UDID_PATTERN.test(deviceIdentifier)) {
+      return deviceIdentifier as IosSimulatorUuid;
+    }
+    const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
+    const device = devices.find(candidate => candidate.name === deviceIdentifier);
+    if (!device) {
+      throw new UserError(
+        'EAS_IOS_SIMULATOR_NOT_FOUND',
+        `No available iOS Simulator is named "${deviceIdentifier}". Run \`xcrun simctl list devices available\` on the device host to see the devices it offers.`
+      );
+    }
+    return device.udid;
+  }
+
+  /**
+   * Start booting without waiting for boot to complete; follow with
+   * `startAsync` to wait for it. `launchdEnvironment` is handed to the
+   * simulator's launchd before it spawns anything: `simctl` forwards every
+   * `SIMCTL_CHILD_`-prefixed variable of its own environment to the process
+   * it starts, and for `boot` that process is launchd itself. This is the only
+   * way to give the first processes of a boot an environment; `launchctl
+   * setenv` after boot only reaches processes started later. A device that is
+   * already booted keeps its environment.
+   */
+  export async function bootAsync({
+    deviceIdentifier,
+    env,
+    launchdEnvironment = {},
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+    launchdEnvironment?: Record<string, string>;
+  }): Promise<void> {
+    const bootEnv = { ...env };
+    for (const [name, value] of Object.entries(launchdEnvironment)) {
+      bootEnv[`SIMCTL_CHILD_${name}`] = value;
+    }
+    try {
+      await spawn('xcrun', ['simctl', 'boot', deviceIdentifier], { env: bootEnv, stdio: 'pipe' });
+    } catch (err) {
+      const failed = err as { stderr?: string };
+      if (/current state: Booted/.test(failed.stderr ?? '')) {
+        return;
+      }
+      throw err;
+    }
+  }
+
   export async function startAsync({
     deviceIdentifier,
     env,
@@ -283,6 +344,32 @@ export namespace IosSimulatorUtils {
     }
 
     throw lastError ?? new SystemError('Unable to disable apsd in the Simulator.');
+  }
+
+  /**
+   * Set environment variables in the Simulator's launchd. Every process that
+   * launchd spawns afterwards inherits them: apps launched by SpringBoard
+   * (deep links, taps, WebDriverAgent) as well as by `simctl launch`.
+   * Processes that are already running keep their environment.
+   */
+  export async function setLaunchdEnvironmentAsync({
+    udid,
+    env,
+    variables,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+    variables: Record<string, string>;
+  }): Promise<void> {
+    // One invocation for every variable: each `simctl spawn` costs a few
+    // hundred milliseconds on a device host, and this runs in the window
+    // between `simctl boot` returning and launchd spawning the boot's
+    // processes, which must inherit these.
+    const pairs = Object.entries(variables).flat();
+    if (pairs.length === 0) {
+      return;
+    }
+    await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'setenv', ...pairs], { env });
   }
 
   export async function collectLogsAsync({

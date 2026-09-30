@@ -5699,12 +5699,14 @@ export type BuildFilterInput = {
   channel?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distributions?: InputMaybe<Array<DistributionType>>;
+  expired?: InputMaybe<Scalars['Boolean']['input']>;
   fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   releaseChannel?: InputMaybe<Scalars['String']['input']>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
   simulator?: InputMaybe<Scalars['Boolean']['input']>;
+  statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 export enum BuildIosEnterpriseProvisioning {
@@ -10145,6 +10147,7 @@ export enum Permission {
   Admin = 'ADMIN',
   Own = 'OWN',
   Publish = 'PUBLISH',
+  PublishProtected = 'PUBLISH_PROTECTED',
   View = 'VIEW'
 }
 
@@ -10298,7 +10301,6 @@ export type ProjectArchiveSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   gitRef?: InputMaybe<Scalars['String']['input']>;
   metadataLocation?: InputMaybe<Scalars['String']['input']>;
-  repositoryUrl?: InputMaybe<Scalars['String']['input']>;
   type: ProjectArchiveSourceType;
   url?: InputMaybe<Scalars['String']['input']>;
 };
@@ -10553,6 +10555,7 @@ export enum Role {
   HasAdmin = 'HAS_ADMIN',
   NotAdmin = 'NOT_ADMIN',
   Owner = 'OWNER',
+  ReleaseManager = 'RELEASE_MANAGER',
   ViewOnly = 'VIEW_ONLY'
 }
 
@@ -11084,6 +11087,22 @@ export type Sandbox = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type SandboxConnection = {
+  __typename?: 'SandboxConnection';
+  edges: Array<SandboxEdge>;
+  pageInfo: PageInfo;
+};
+
+export type SandboxEdge = {
+  __typename?: 'SandboxEdge';
+  cursor: Scalars['String']['output'];
+  node: Sandbox;
+};
+
+export type SandboxFilterInput = {
+  statuses?: InputMaybe<Array<SandboxStatus>>;
+};
+
 export type SandboxMutation = {
   __typename?: 'SandboxMutation';
   createSandbox: Sandbox;
@@ -11124,7 +11143,19 @@ export type SandboxProjectArchiveInput = {
 
 export type SandboxQuery = {
   __typename?: 'SandboxQuery';
+  /** Project sandboxes, newest first. An omitted or empty status filter includes all statuses. */
+  byAppIdPaginated: SandboxConnection;
   byId: Sandbox;
+};
+
+
+export type SandboxQuery_ByAppIdPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  appId: Scalars['ID']['input'];
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<SandboxFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -12144,7 +12175,7 @@ export type UpdateChannel = {
   embeddedUpdateCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
   isPaused: Scalars['Boolean']['output'];
-  /** Only account admins may release to a protected channel. */
+  /** Only allowed publishers (Release Managers, Admins, Owners) may release to a protected channel. */
   isProtected: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   latestRuntimes: ChannelRuntimesConnection;
@@ -12199,7 +12230,7 @@ export type UpdateChannelMutation = {
   editUpdateChannel: UpdateChannel;
   /** Pause updates for an EAS channel. */
   pauseUpdateChannel: UpdateChannel;
-  /** Protect an EAS channel, so only account admins may release to it. */
+  /** Protect an EAS channel, so only allowed publishers (Release Managers, Admins, Owners) may release to it. */
   protectUpdateChannel: UpdateChannel;
   /** Resume updates for an EAS channel. */
   resumeUpdateChannel: UpdateChannel;
@@ -14670,6 +14701,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   __typename?: 'WorkflowRun';
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
+  app: App;
   /**
    * Why the server canceled this run. Null for manually canceled runs and for
    * runs canceled before the reason was recorded.
@@ -16491,11 +16523,11 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
-        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
-        | { __typename: 'AppiumRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null }
-        | { __typename: 'ArgentRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null }
-        | { __typename: 'ServeSimRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null }
-        | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null }
+        | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null, egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
+        | { __typename: 'AppiumRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null }
+        | { __typename: 'ArgentRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null }
+        | { __typename: 'ServeSimRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null, previewApiUrl?: string | null }
+        | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewApiUrl?: string | null, previewUrl: string, previewToken?: string | null }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
@@ -16811,6 +16843,15 @@ export type SupabaseProjectByAppIdQueryVariables = Exact<{
 
 export type SupabaseProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } | null } } };
 
+export type SupabaseAdvisorLintsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  security: Scalars['Boolean']['input'];
+  performance: Scalars['Boolean']['input'];
+}>;
+
+
+export type SupabaseAdvisorLintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any, security?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null, performance?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null } | null } } };
+
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
   timespan: InsightsTimespan;
@@ -16896,28 +16937,38 @@ export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
-    | { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'PartnerActor', id: string, username: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> }
-    | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'Robot', id: string, firstName?: string | null, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> }
-    | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
-          | { __typename?: 'SSOUser', id: string, username: string }
-          | { __typename?: 'User', id: string, username: string }
-         | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'SSOUser', id: string, username: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> }
-    | { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
-          | { __typename?: 'SSOUser', id: string, username: string }
-          | { __typename?: 'User', id: string, username: string }
-         | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'User', id: string, email: string, username: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> }
+   | null };
+
+export type CurrentUserWithPrimaryAccountQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CurrentUserWithPrimaryAccountQuery = { __typename?: 'RootQuery', meActor?:
+    | { __typename: 'PartnerActor', id: string }
+    | { __typename: 'Robot', id: string }
+    | { __typename: 'SSOUser', id: string, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
+          | { __typename?: 'SSOUser', id: string, username: string }
+          | { __typename?: 'User', id: string, username: string }
+         | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } } }
+    | { __typename: 'User', id: string, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
+          | { __typename?: 'SSOUser', id: string, username: string }
+          | { __typename?: 'User', id: string, username: string }
+         | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } } }
    | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
@@ -17077,6 +17128,33 @@ export type UsageMetricTotalFragment = { __typename?: 'UsageMetricTotal', id: st
 
 export type AccountUsageMetricFragment = { __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number };
 
+type MeActorFragment_PartnerActor = { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+      | { __typename?: 'SSOUser', id: string, username: string }
+      | { __typename?: 'User', id: string, username: string }
+     | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> };
+
+type MeActorFragment_Robot = { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+      | { __typename?: 'SSOUser', id: string, username: string }
+      | { __typename?: 'User', id: string, username: string }
+     | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> };
+
+type MeActorFragment_SsoUser = { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+      | { __typename?: 'SSOUser', id: string, username: string }
+      | { __typename?: 'User', id: string, username: string }
+     | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> };
+
+type MeActorFragment_User = { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+      | { __typename?: 'SSOUser', id: string, username: string }
+      | { __typename?: 'User', id: string, username: string }
+     | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> };
+
+export type MeActorFragment =
+  | MeActorFragment_PartnerActor
+  | MeActorFragment_Robot
+  | MeActorFragment_SsoUser
+  | MeActorFragment_User
+;
+
 export type AppFragment = { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
       | { __typename?: 'SSOUser', id: string, username: string }
       | { __typename?: 'User', id: string, username: string }
@@ -17158,6 +17236,8 @@ export type SubmissionWithSubmittedBuildFragment = { __typename?: 'Submission', 
 export type SupabaseConnectionFragment = { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any };
 
 export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any };
+
+export type SupabaseAdvisorLintFragment = { __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }

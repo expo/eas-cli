@@ -11,8 +11,8 @@
   },
   "devDependencies": {
     "@expo/steps": "^1.0.119",
-    "@types/node": "20.14.11",
+    "@types/node": "20.19.43",
     "@vercel/ncc": "^0.38.1",
-    "typescript": "^5.5.3"
+    "typescript": "^6.0.3"
   }
 }

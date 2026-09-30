@@ -1,7 +1,7 @@
 import { groupLogLinesIntoSteps, mergeLogLines, parseLogLines } from '../parseLogs';
-import { WorkflowRawLogLine } from '../../types';
+import { RawLogLine } from '../types';
 
-function logLine(overrides: Partial<WorkflowRawLogLine> = {}): WorkflowRawLogLine {
+function logLine(overrides: Partial<RawLogLine> = {}): RawLogLine {
   return { msg: 'a message', ...overrides };
 }
 

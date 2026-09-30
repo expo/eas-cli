@@ -28,7 +28,6 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 
 export default class SimulatorGet extends EasCommand {
-  static override hidden = true;
   static override aliases = ['sim:get'];
   static override description =
     '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
@@ -111,7 +110,11 @@ export default class SimulatorGet extends EasCommand {
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();
       if (session.remoteConfig) {
-        Log.log(formatRemoteSessionInstructions(session.remoteConfig, 'env'));
+        Log.log(
+          formatRemoteSessionInstructions(session.remoteConfig, 'env', {
+            sessionUrl: deviceRunSessionUrl,
+          })
+        );
       } else {
         Log.log(
           '⏳ Session is starting up — remote config is not available yet. Re-run this command in a moment.'

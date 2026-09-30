@@ -54,11 +54,14 @@ import { createStartIosSimulatorRecordingsBuildFunction } from './functions/star
 import { createStartLocalEgressBuildFunction } from './functions/startLocalEgress';
 import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
+import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
+import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
@@ -111,6 +114,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
+    createStartServeSimLogsBuildFunction(),
+    createCollectServeSimLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
@@ -128,6 +133,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
 
     createSubmissionEntityFunction(),
     createUploadToAscBuildFunction(),
+    createUpdateTestFlightMetadataBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
     createMaestroTestsBuildFunction(ctx),

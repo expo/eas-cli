@@ -10,11 +10,6 @@ const userActor: Actor = {
   id: 'user-id',
   email: 'jane@example.com',
   username: 'jane',
-  primaryAccount: {
-    id: 'account-id-personal',
-    name: 'jane',
-    viewerUserPermission: { role: Role.Owner },
-  },
   accounts: [
     {
       id: 'account-id-org',

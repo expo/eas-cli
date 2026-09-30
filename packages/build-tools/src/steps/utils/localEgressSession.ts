@@ -6,6 +6,7 @@ import {
   readLocalEgressHandoffAsync,
   stopLocalEgressResourcesAsync,
 } from './localEgress';
+import { rebindLocalEgressGuardRelays } from './localEgressGuard';
 import { uploadRemoteSessionConfigAsync } from './remoteDeviceRunSession';
 
 /** Release the pre-boot egress resources even if controller startup or teardown fails. */
@@ -39,6 +40,9 @@ export async function uploadRemoteSessionConfigWithLocalEgressAsync({
     remoteConfig: { ...options.remoteConfig, ...buildEgressRemoteConfigFields(localEgress) },
   });
   if (localEgress && !signal?.aborted) {
+    // Guard refusals from here on show up under this step in the job log,
+    // alongside the monitor's reports, instead of under the boot step.
+    rebindLocalEgressGuardRelays(options.logger);
     options.logger.info(
       'Local egress: waiting for the EAS CLI egress client to connect. Proxied HTTP(S) ' +
         'requests are unavailable until it does.'

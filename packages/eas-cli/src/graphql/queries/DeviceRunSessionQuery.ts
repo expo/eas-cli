@@ -88,6 +88,7 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
                       webPreviewToken
+                      previewApiUrl
                       egressUrl
                       egressToken
                       egressFingerprint
@@ -102,6 +103,7 @@ export const DeviceRunSessionQuery = {
                       toolsAuthToken
                       webPreviewUrl
                       webPreviewToken
+                      previewApiUrl
                     }
                     ... on AppiumRunSessionRemoteConfig {
                       egressUrl
@@ -112,6 +114,7 @@ export const DeviceRunSessionQuery = {
                       capabilities
                       webPreviewUrl
                       webPreviewToken
+                      previewApiUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {
                       egressUrl
@@ -120,6 +123,7 @@ export const DeviceRunSessionQuery = {
                       egressPort
                       previewUrl
                       previewToken
+                      previewApiUrl
                     }
                     ... on WebPreviewOnlyRunSessionRemoteConfig {
                       egressUrl
@@ -128,6 +132,7 @@ export const DeviceRunSessionQuery = {
                       egressPort
                       previewUrl: webPreviewUrl
                       previewToken: webPreviewToken
+                      previewApiUrl
                     }
                   }
                   turtleJobRun {

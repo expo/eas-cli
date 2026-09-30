@@ -35,6 +35,7 @@ import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
@@ -47,7 +48,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
-const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
+const STARTUP_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes, excluding time in the queue
 const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
@@ -61,8 +62,8 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
 };
 
 export default class Simulator extends EasCommand {
-  static override hidden = true;
-  static override aliases = ['simulator:start', 'sim', 'sim:start'];
+  static override aliases = ['simulator:start', 'sim:start'];
+  static override hiddenAliases = ['sim'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -87,17 +88,22 @@ export default class Simulator extends EasCommand {
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
-      exclusive: ['application-archive-url', 'expo-go'],
+      exclusive: ['build-fingerprint', 'application-archive-url', 'expo-go'],
+    }),
+    'build-fingerprint': Flags.string({
+      description:
+        'Fingerprint hash of an EAS Build to install and launch before the simulator session is ready. Uses the most recent finished build with this fingerprint that can be installed on the simulator.',
+      exclusive: ['build-id', 'application-archive-url', 'expo-go'],
     }),
     'application-archive-url': Flags.string({
       description:
         'Application archive URL to download, install, and launch before the simulator session is ready.',
-      exclusive: ['build-id', 'expo-go'],
+      exclusive: ['build-id', 'build-fingerprint', 'expo-go'],
     }),
     'expo-go': Flags.boolean({
       description:
         "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
-      exclusive: ['build-id', 'application-archive-url'],
+      exclusive: ['build-id', 'build-fingerprint', 'application-archive-url'],
     }),
     'sdk-version': Flags.string({
       description:
@@ -115,7 +121,7 @@ export default class Simulator extends EasCommand {
     type: Flags.option({
       description:
         'Type of simulator session to create. All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       default: DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.AgentDevice],
     })(),
     'package-version': Flags.string({
@@ -139,7 +145,7 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) exit from this machine and fail while the egress client is disconnected. Requests from libraries that bypass the system proxy are not covered. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) exit from this machine and fail while the egress client is disconnected. Connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. The egress client must keep running for the life of the session. Only supported with --platform ios.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
@@ -203,6 +209,7 @@ export default class Simulator extends EasCommand {
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
+    const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
@@ -217,11 +224,12 @@ export default class Simulator extends EasCommand {
     if (
       (launchArgs?.length || openUrl) &&
       !buildId &&
+      !buildFingerprint &&
       !applicationArchiveUrlFromFlag &&
       !flags['expo-go']
     ) {
       throw new EasCommandError(
-        'Launch options require an application source. Pass --build-id, --application-archive-url, or --expo-go.'
+        'Launch options require an application source. Pass --build-id, --build-fingerprint, --application-archive-url, or --expo-go.'
       );
     }
 
@@ -281,6 +289,7 @@ export default class Simulator extends EasCommand {
             : { android: { deviceIdentifier } }
           : {}),
         ...(buildId ? { buildId } : {}),
+        ...(buildFingerprint ? { buildFingerprint } : {}),
         ...(applicationArchiveUrlFromFlag
           ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
           : {}),
@@ -318,11 +327,11 @@ export default class Simulator extends EasCommand {
     }
 
     const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`).start();
-    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    let startupDeadline: number | undefined = Date.now() + STARTUP_TIMEOUT_MS;
     let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
     try {
-      while (!sessionInterrupt.signal.aborted && Date.now() < deadline) {
+      while (!sessionInterrupt.signal.aborted) {
         const session = await Promise.race([
           DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
           sessionInterrupt.abortPromise,
@@ -358,6 +367,17 @@ export default class Simulator extends EasCommand {
           break;
         }
 
+        if (jobRunStatus === JobRunStatus.New || jobRunStatus === JobRunStatus.InQueue) {
+          startupDeadline = undefined;
+          pollSpinner.text = '⏳ Simulator session queued or waiting for available concurrency';
+        } else {
+          startupDeadline ??= Date.now() + STARTUP_TIMEOUT_MS;
+          pollSpinner.text = `⏳ Waiting for ${flags.type} session to start`;
+          if (Date.now() >= startupDeadline) {
+            break;
+          }
+        }
+
         await sleepAsync(POLL_INTERVAL_MS, sessionInterrupt.signal);
       }
     } catch (err) {
@@ -379,11 +399,11 @@ export default class Simulator extends EasCommand {
     }
 
     if (!remoteConfig) {
-      pollSpinner.fail(`Timed out waiting for ${flags.type} session to be ready`);
+      pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       sessionInterrupt.dispose();
       throw new Error(
-        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to be ready. ${link(deviceRunSessionUrl)}`
+        `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
       );
     }
 
@@ -422,6 +442,7 @@ export default class Simulator extends EasCommand {
       formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
+        sessionUrl: deviceRunSessionUrl,
       })
     );
     Log.newLine();
@@ -542,9 +563,12 @@ async function waitForSessionEndOrInterruptAsync({
   projectDir: string;
   sessionInterrupt: SessionInterrupt;
 }): Promise<void> {
-  const spinner = ora(
-    `Simulator session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
-  ).start();
+  Log.log(
+    `To stop the session from another shell, run: eas simulator:stop --id ${deviceRunSessionId}`
+  );
+  // Keep the spinner text short so it fits on one line. When the text wraps, resizing the
+  // terminal can leave copies of the spinner line behind.
+  const spinner = ora('Simulator session active — press Ctrl+C to stop').start();
 
   const { signal } = sessionInterrupt;
   try {

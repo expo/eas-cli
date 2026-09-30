@@ -3,6 +3,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
 
@@ -32,8 +33,9 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async (stepCtx, { inputs, signal }) => {
-      const sandboxToken = ctx.env.__EAS_SANDBOX_MCP_TOKEN;
+    fn: async (stepCtx, { inputs, signal, env }) => {
+      // The daemon needs this credential, but shell commands do not.
+      const { __EAS_SANDBOX_MCP_TOKEN: sandboxToken, ...commandEnv } = env;
       if (!sandboxToken) {
         throw new SystemError('__EAS_SANDBOX_MCP_TOKEN is required to start the sandbox daemon.');
       }
@@ -48,6 +50,8 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         reconnectDelayMs: RECONNECT_DELAY_MS,
         logger: stepCtx.logger,
         signal,
+        workingDirectory: stepCtx.workingDirectory,
+        env: commandEnv,
       });
       try {
         await daemon.ready;
@@ -73,19 +77,7 @@ export async function markSandboxReadyAsync(
 ): Promise<void> {
   signal?.throwIfAborted();
   const result = await ctx.graphqlClient
-    .mutation(
-      MARK_SANDBOX_READY_MUTATION,
-      { sandboxId },
-      signal
-        ? {
-            fetch: (input, init) =>
-              fetch(input, {
-                ...init,
-                signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal,
-              }),
-          }
-        : undefined
-    )
+    .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
     .toPromise();
   signal?.throwIfAborted();
   if (result.error) {

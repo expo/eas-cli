@@ -290,7 +290,7 @@ export class MarkdownRenderer implements Renderer {
     const lines = token.text.split(EOL);
     const indentStr = this.indent(ctx?.indent);
 
-    lines.unshift('```' + token.lang ?? '');
+    lines.unshift('```' + (token.lang ?? ''));
     lines.push('```');
 
     return indentStr + lines.join(EOL + indentStr);

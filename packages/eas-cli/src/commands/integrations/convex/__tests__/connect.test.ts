@@ -9,7 +9,6 @@ import {
   EnvironmentSecretType,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
-  Role,
 } from '../../../../graphql/generated';
 import { ConvexMutation } from '../../../../graphql/mutations/ConvexMutation';
 import { EnvironmentVariableMutation } from '../../../../graphql/mutations/EnvironmentVariableMutation';
@@ -56,12 +55,6 @@ describe(IntegrationsConvexConnect, () => {
     email: 'user@example.com',
     featureGates: {},
     isExpoAdmin: false,
-    primaryAccount: {
-      id: testAccountId,
-      name: testAccountName,
-      ownerUserActor: null,
-      viewerUserPermission: { role: Role.Owner },
-    },
     accounts: [],
   };
 

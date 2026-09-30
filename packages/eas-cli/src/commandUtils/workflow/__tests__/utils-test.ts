@@ -1,15 +1,15 @@
 import { getMockWorkflowRunWithJobsFragment } from '../../../__tests__/commands/utils';
 import { WorkflowJobStatus } from '../../../graphql/generated';
-import { groupLogLinesIntoSteps, parseLogLines } from '../logs/parseLogs';
-import { WorkflowLogs, WorkflowRawLogLine } from '../types';
+import { groupLogLinesIntoSteps, parseLogLines } from '../../logs/parseLogs';
+import { JobLogs, RawLogLine } from '../../logs/types';
 import { formatActiveWorkflowRun, formatFailedWorkflowRun } from '../utils';
 
 function jobWithLogs(
-  logLines: WorkflowRawLogLine[],
+  logLines: RawLogLine[],
   status: WorkflowJobStatus = WorkflowJobStatus.InProgress
 ): {
   job: ReturnType<typeof getMockWorkflowRunWithJobsFragment>['jobs'][number];
-  logs: WorkflowLogs;
+  logs: JobLogs;
 } {
   return {
     job: { ...getMockWorkflowRunWithJobsFragment().jobs[0], status },
@@ -17,7 +17,7 @@ function jobWithLogs(
   };
 }
 
-function stepLines(buildStepId: string, count: number): WorkflowRawLogLine[] {
+function stepLines(buildStepId: string, count: number): RawLogLine[] {
   return Array.from({ length: count }, (_, index) => ({ buildStepId, msg: `line${index}` }));
 }
 

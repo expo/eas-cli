@@ -45,11 +45,6 @@ describe(getProjectIdAsync, () => {
         id: 'user_id',
         email: 'notnotbrent@example.com',
         username: 'notnotbrent',
-        primaryAccount: {
-          id: 'account_id_1',
-          name: 'notnotbrent',
-          viewerUserPermission: { role: Role.Owner },
-        },
         accounts: [
           {
             id: 'account_id_1',
@@ -420,11 +415,6 @@ describe(getProjectIdAsync, () => {
           id: 'user_id',
           email: 'notnotbrent@example.com',
           username: 'notnotbrent',
-          primaryAccount: {
-            id: 'account_id_1',
-            name: 'notnotbrent',
-            viewerUserPermission: { role: Role.Owner },
-          },
           accounts: [
             {
               id: 'account_id_1',
@@ -524,11 +514,6 @@ describe(getProjectIdAsync, () => {
           id: 'user_id',
           email: 'notnotbrent@example.com',
           username: 'notnotbrent',
-          primaryAccount: {
-            id: 'account_id_1',
-            name: 'notnotbrent',
-            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
-          },
           accounts: [
             {
               id: 'account_id_1',

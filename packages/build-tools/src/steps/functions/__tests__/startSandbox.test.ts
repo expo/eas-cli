@@ -59,19 +59,47 @@ describe('sandbox build functions', () => {
         fn.fn!({ logger: {} } as any, {
           inputs: { sandbox_id: { value: 'sandbox-id' } },
           outputs: {},
-          env: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
           signal: controller.signal,
         })
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ name: 'AbortError' });
       expect(mutation).not.toHaveBeenCalled();
       expect(stopAsync).toHaveBeenCalledTimes(1);
     } finally {
       start.mockRestore();
     }
   });
-  it('provides one long-running step', () => {
-    const ctx = { job: {} } as any;
-    expect(createStartSandboxBuildFunction(ctx).getFullId()).toBe('eas/start_sandbox');
+  it('excludes the MCP token from the command environment', async () => {
+    const env = {
+      PREPARED_BY_EARLIER_STEP: 'value',
+      EXPO_TOKEN: 'expo-token',
+      __EAS_SANDBOX_MCP_TOKEN: 'token',
+    };
+    const startupError = new Error('stop after checking options');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+      mcpServerUrl: 'ws://localhost:8787',
+    } as any);
+    try {
+      await expect(
+        fn.fn!({ logger: {} } as any, {
+          inputs: { sandbox_id: { value: 'sandbox-id' } },
+          outputs: {},
+          env,
+        })
+      ).rejects.toBe(startupError);
+      expect(start.mock.calls[0][0]).toMatchObject({ credential: 'token' });
+      expect(start.mock.calls[0][0].env).toEqual({
+        PREPARED_BY_EARLIER_STEP: 'value',
+        EXPO_TOKEN: 'expo-token',
+      });
+      expect(env.__EAS_SANDBOX_MCP_TOKEN).toBe('token');
+    } finally {
+      start.mockRestore();
+    }
   });
 
   it('throws a system error when the sandbox token is missing', async () => {
@@ -100,9 +128,9 @@ describe('sandbox build functions', () => {
       fn.fn!({} as any, {
         inputs: { sandbox_id: { value: 'sandbox-id' } },
         outputs: {},
-        env: {},
+        env: { __EAS_SANDBOX_MCP_TOKEN: 'sandbox-token' },
       })
-    ).rejects.toBeInstanceOf(SystemError);
+    ).rejects.toThrow('MCP server URL is required to start the sandbox daemon.');
   });
 
   it('marks the sandbox as ready', async () => {
