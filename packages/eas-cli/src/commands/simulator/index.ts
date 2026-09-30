@@ -86,6 +86,10 @@ export default class Simulator extends EasCommand {
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
     }),
+    'system-image': Flags.string({
+      description:
+        'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
+    }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
       exclusive: ['build-fingerprint', 'application-archive-url', 'expo-go'],
@@ -208,6 +212,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const systemImagePackage = flags['system-image']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -246,6 +251,9 @@ export default class Simulator extends EasCommand {
     if (egress && platform !== AppPlatform.Ios) {
       throw new EasCommandError('--egress local is only supported with --platform ios.');
     }
+    if (systemImagePackage && platform !== AppPlatform.Android) {
+      throw new EasCommandError('--system-image is only supported with --platform android.');
+    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
@@ -283,11 +291,18 @@ export default class Simulator extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
-        ...(deviceIdentifier
-          ? platform === AppPlatform.Ios
+        ...(platform === AppPlatform.Ios
+          ? deviceIdentifier
             ? { ios: { deviceIdentifier } }
-            : { android: { deviceIdentifier } }
-          : {}),
+            : {}
+          : deviceIdentifier || systemImagePackage
+            ? {
+                android: {
+                  ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                  ...(systemImagePackage ? { systemImagePackage } : {}),
+                },
+              }
+            : {}),
         ...(buildId ? { buildId } : {}),
         ...(buildFingerprint ? { buildFingerprint } : {}),
         ...(applicationArchiveUrlFromFlag
