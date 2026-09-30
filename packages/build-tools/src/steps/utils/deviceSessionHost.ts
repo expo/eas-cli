@@ -43,6 +43,9 @@ const SERVE_SIM_MAX_DIMENSION = '1600';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
 const SERVE_SIM_VIDEO_BITRATE = '10000000';
 const SERVE_SIM_VIDEO_FPS = '60';
+// serve-sim switches off simulator services a session does not need, in the background (about
+// 1.5 GB per simulator). Needs an @expo/serve-sim with `--slim-simulator` (expo/expo-device-hub#175).
+const SERVE_SIM_SLIM_PROFILE = 'default';
 const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
@@ -135,6 +138,8 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_BITRATE,
     '--video-fps',
     SERVE_SIM_VIDEO_FPS,
+    '--slim-simulator',
+    SERVE_SIM_SLIM_PROFILE,
     ...turnArgs,
     ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
