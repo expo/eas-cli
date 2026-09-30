@@ -4,20 +4,25 @@ import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getProjectDashboardUrl(accountName: string, projectName: string): string {
-  return new URL(
-    `/accounts/${accountName}/projects/${projectName}`,
-    getExpoWebsiteBaseUrl()
-  ).toString();
+  return getProjectPageUrl(accountName, projectName);
+}
+
+export function getProjectPageUrl(
+  accountName: string,
+  projectName: string,
+  page?: string | null
+): string {
+  const projectPath = `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+    projectName
+  )}`;
+  return new URL(page ? `${projectPath}/${page}` : projectPath, getExpoWebsiteBaseUrl()).toString();
 }
 
 export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
-  const { project } = build;
-  const url =
-    project.__typename !== 'App'
-      ? `/builds/${build.id}`
-      : `/accounts/${project.ownerAccount.name}/projects/${project.slug}/builds/${build.id}${
-          hash ? `#${hash}` : ''
-        }`;
+  const { app } = build;
+  const url = `/accounts/${app.ownerAccount.name}/projects/${app.slug}/builds/${build.id}${
+    hash ? `#${hash}` : ''
+  }`;
 
   return new URL(url, getExpoWebsiteBaseUrl()).toString();
 }
@@ -29,7 +34,7 @@ export function getArtifactUrl(artifactId: string): string {
 export function getInternalDistributionInstallUrl(build: BuildFragment): string {
   if (build.platform === AppPlatform.Ios) {
     return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/v2/projects/${
-      build.project.id
+      build.app.id
     }/builds/${build.id}/manifest.plist`;
   }
 
@@ -51,6 +56,19 @@ export function getUpdateGroupUrl(
   ).toString();
 }
 
+export function getSubmissionUrl(
+  accountName: string,
+  projectName: string,
+  submissionId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/submissions/${encodeURIComponent(submissionId)}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
 export function getWorkflowRunUrl(
   accountName: string,
   projectName: string,
@@ -60,6 +78,19 @@ export function getWorkflowRunUrl(
     `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
       projectName
     )}/workflows/${workflowRunId}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
+export function getDeviceRunSessionUrl(
+  accountName: string,
+  projectName: string,
+  deviceRunSessionId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/simulator-sessions/${encodeURIComponent(deviceRunSessionId)}`,
     getExpoWebsiteBaseUrl()
   ).toString();
 }

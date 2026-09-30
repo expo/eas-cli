@@ -654,8 +654,79 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         noBroadcastNotificationOption
       )
     ).rejects.toThrowError(
-      `https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
+      `https://developer.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
     );
+  });
+
+  it('re-throws generic Apple errors with actionable context and preserves the original message', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => []),
+      updateBundleIdCapabilityAsync: jest
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "HTTP 400 — The request entity is not a valid request document object - Unexpected or invalid value at 'data.relationships.bundleIdCapabilities.data.[0].attributes'."
+          )
+        ),
+      attributes: { identifier: 'dev.expo.app' },
+      id: 'XXX333',
+    } as any;
+
+    await expect(
+      syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        { 'com.apple.developer.associated-domains': ['applinks:example.com'] },
+        noBroadcastNotificationOption
+      )
+    ).rejects.toThrow(/Failed to update Apple capabilities for app "dev\.expo\.app"/);
+
+    await expect(
+      syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        { 'com.apple.developer.associated-domains': ['applinks:example.com'] },
+        noBroadcastNotificationOption
+      )
+    ).rejects.toThrow(/data\.relationships\.bundleIdCapabilities\.data\.\[0\]\.attributes/);
+  });
+
+  it('mentions EXPO_NO_CAPABILITY_SYNC and the Apple developer console URL in rethrown errors', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => []),
+      updateBundleIdCapabilityAsync: jest.fn().mockRejectedValue(new Error('Some Apple error')),
+      attributes: { identifier: 'dev.expo.app' },
+      id: 'XXX333',
+    } as any;
+
+    await expect(
+      syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        { 'com.apple.developer.associated-domains': ['applinks:example.com'] },
+        noBroadcastNotificationOption
+      )
+    ).rejects.toThrow(/EXPO_NO_CAPABILITY_SYNC=1/);
+  });
+
+  it('preserves the original error as .cause when rethrowing generic Apple errors', async () => {
+    const originalError = new Error('Some Apple error');
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => []),
+      updateBundleIdCapabilityAsync: jest.fn().mockRejectedValue(originalError),
+      attributes: { identifier: 'dev.expo.app' },
+      id: 'XXX333',
+    } as any;
+
+    let caught: any;
+    try {
+      await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        { 'com.apple.developer.associated-domains': ['applinks:example.com'] },
+        noBroadcastNotificationOption
+      );
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeDefined();
+    expect(caught.cause).toBe(originalError);
   });
 
   it('cannot skip complex duplicates', async () => {

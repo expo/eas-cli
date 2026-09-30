@@ -7,6 +7,7 @@ import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
 import { App, Target } from '../../types';
 import { displayIosCredentials } from '../printCredentials';
+import { Role } from '../../../../graphql/generated';
 
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({
@@ -29,7 +30,7 @@ describe('print credentials', () => {
       account: {
         id: 'account-id',
         name: 'quinlanj',
-        users: [],
+        viewerUserPermission: { role: Role.Owner },
       },
       projectName: 'test52',
     };
@@ -52,5 +53,42 @@ describe('print credentials', () => {
       .mocked(Log.log)
       .mock.calls.reduce((acc, mockValue) => acc + mockValue, '');
     expect(loggedSoFar).toMatchSnapshot();
+  });
+
+  it('prints the key type for an individual (issuer-less) ASC API key', async () => {
+    jest.mocked(Log.log).mockClear();
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const app: App = {
+      account: {
+        id: 'account-id',
+        name: 'quinlanj',
+        viewerUserPermission: { role: Role.Owner },
+      },
+      projectName: 'test52',
+    };
+    const testIosAppCredentialsData = JSON.parse(
+      JSON.stringify(
+        nullthrows(
+          await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync(
+            graphqlClient,
+            '@quinlanj/test52',
+            {
+              appleAppIdentifierId: 'test-id',
+            }
+          )
+        )
+      )
+    );
+    testIosAppCredentialsData.appStoreConnectApiKeyForSubmissions.issuerIdentifier = null;
+    const targets: Target[] = [
+      { targetName: 'test52', bundleIdentifier: 'com.quinlanj.test52', entitlements: {} },
+    ];
+    displayIosCredentials(app, { test52: testIosAppCredentialsData }, targets);
+    const loggedSoFar = jest
+      .mocked(Log.log)
+      .mock.calls.reduce((acc, mockValue) => acc + mockValue, '');
+    expect(loggedSoFar).toContain('Key Type');
+    expect(loggedSoFar).toContain('Individual (submissions only)');
+    expect(loggedSoFar).not.toContain('Issuer ID');
   });
 });

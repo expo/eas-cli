@@ -1,6 +1,7 @@
 import { LogBuffer } from '@expo/build-tools';
 import { LoggerLevel } from '@expo/logger';
-import bunyan from 'bunyan';
+import type { bunyan as ExpoLogger } from '@expo/logger';
+import bunyan from '@expo/bunyan';
 import chalk from 'chalk';
 import omit from 'lodash/omit';
 import { Writable } from 'stream';
@@ -129,7 +130,9 @@ class PrettyStream extends Writable {
 
 export const logBuffer = new BuildCliLogBuffer(MAX_LINES_IN_BUFFER);
 
-export function createLogger(level?: LoggerLevel): bunyan {
+export function createLogger(level?: LoggerLevel): ExpoLogger {
+  // @expo/bunyan provides the Bunyan API used here, but its stricter stream types are not
+  // structurally compatible with the legacy @types/bunyan types exposed by @expo/logger.
   return bunyan.createLogger({
     name: 'eas-build-cli',
     serializers: bunyan.stdSerializers,
@@ -143,5 +146,5 @@ export function createLogger(level?: LoggerLevel): bunyan {
         stream: logBuffer,
       },
     ],
-  });
+  }) as unknown as ExpoLogger;
 }

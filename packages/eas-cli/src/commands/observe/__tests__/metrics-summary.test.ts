@@ -1,9 +1,14 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppPlatform } from '../../../graphql/generated';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
 import ObserveMetricsSummary from '../metrics-summary';
 
 jest.mock('../../../observe/fetchMetrics', () => {
@@ -26,6 +31,10 @@ const mockBuildObserveMetricsSummaryTable = jest.mocked(buildObserveMetricsTable
 const mockBuildObserveMetricsSummaryJson = jest.mocked(buildObserveMetricsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(ObserveMetricsSummary, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -52,6 +61,24 @@ describe(ObserveMetricsSummary, () => {
     return command;
   }
 
+  it('surfaces the server plan-gate message when a metric is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveMetricsSummaryAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand(['--metric', 'nav_tti']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
   it('fetches metrics with default parameters (both platforms)', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
@@ -61,7 +88,7 @@ describe(ObserveMetricsSummary, () => {
 
     expect(mockFetchObserveMetricsSummaryAsync).toHaveBeenCalledTimes(1);
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android), target(AppObservePlatform.Ios)]);
 
     jest.useRealTimers();
   });
@@ -71,7 +98,7 @@ describe(ObserveMetricsSummary, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Android]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android)]);
   });
 
   it('queries only iOS when --platform ios is passed', async () => {
@@ -79,7 +106,40 @@ describe(ObserveMetricsSummary, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Ios)]);
+  });
+
+  it('queries one combined target covering every Apple platform when --platform apple is passed', async () => {
+    const command = createCommand(['--platform', 'apple']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([
+      {
+        key: 'APPLE',
+        platforms: [
+          AppObservePlatform.Ios,
+          AppObservePlatform.Ipados,
+          AppObservePlatform.Tvos,
+          AppObservePlatform.Macos,
+        ],
+      },
+    ]);
+  });
+
+  it('queries only macOS when --platform macos is passed', async () => {
+    const command = createCommand(['--platform', 'macos']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Macos)]);
+  });
+
+  it('passes --environment through to fetchObserveMetricsAsync', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockFetchObserveMetricsSummaryAsync.mock.calls[0][6]).toBe('production');
   });
 
   it('resolves --metric aliases before passing to fetchObserveMetricsAsync', async () => {

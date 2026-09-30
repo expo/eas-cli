@@ -31,7 +31,9 @@ jobs:
           script: |
             core.setFailed('Please add a changelog entry!')
       - uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
-        if: always()
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           message-id: changelog-entry-check
           refresh-message-position: true

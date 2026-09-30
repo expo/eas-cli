@@ -5,12 +5,43 @@ import { withErrorHandlingAsync } from '../client';
 import {
   DeviceRunSessionByIdQuery,
   DeviceRunSessionByIdQueryVariables,
+  DeviceRunSessionEventsByIdQuery,
+  DeviceRunSessionEventsByIdQueryVariables,
   DeviceRunSessionFilterInput,
   DeviceRunSessionsByAppIdQuery,
   DeviceRunSessionsByAppIdQueryVariables,
 } from '../generated';
 
 export const DeviceRunSessionQuery = {
+  async eventsByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string
+  ): Promise<DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<DeviceRunSessionEventsByIdQuery, DeviceRunSessionEventsByIdQueryVariables>(
+          gql`
+            query DeviceRunSessionEventsByIdQuery($deviceRunSessionId: ID!) {
+              deviceRunSessions {
+                byId(deviceRunSessionId: $deviceRunSessionId) {
+                  id
+                  status
+                  artifacts {
+                    id
+                    downloadUrl
+                    metadata
+                  }
+                }
+              }
+            }
+          `,
+          { deviceRunSessionId },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSessions.byId;
+  },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string
@@ -23,8 +54,15 @@ export const DeviceRunSessionQuery = {
               deviceRunSessions {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
+                  name
+                  tags
                   status
                   type
+                  platform
+                  createdAt
+                  startedAt
+                  finishedAt
+                  updatedAt
                   app {
                     id
                     slug
@@ -33,20 +71,68 @@ export const DeviceRunSessionQuery = {
                       name
                     }
                   }
+                  artifacts {
+                    id
+                    name
+                    filename
+                    downloadUrl
+                    fileSizeBytes
+                    metadata
+                    createdAt
+                    updatedAt
+                  }
                   remoteConfig {
                     __typename
                     ... on AgentDeviceRunSessionRemoteConfig {
                       agentDeviceRemoteSessionUrl
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                     }
                     ... on ArgentRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       toolsUrl
+                      toolsAuthToken
                       webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
+                    }
+                    ... on AppiumRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
+                      appiumUrl
+                      capabilities
+                      webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       previewUrl
-                      streamUrl
+                      previewToken
+                      previewApiUrl
+                    }
+                    ... on WebPreviewOnlyRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
+                      previewUrl: webPreviewUrl
+                      previewToken: webPreviewToken
+                      previewApiUrl
                     }
                   }
                   turtleJobRun {
@@ -96,6 +182,8 @@ export const DeviceRunSessionQuery = {
                       cursor
                       node {
                         id
+                        name
+                        tags
                         status
                         type
                         platform

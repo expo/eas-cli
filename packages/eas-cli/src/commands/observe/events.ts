@@ -1,7 +1,11 @@
 import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
@@ -9,8 +13,9 @@ import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
@@ -22,8 +27,8 @@ import {
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
-import { appObservePlatformFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
+import { observePlatformsFromFlag } from '../../observe/platforms';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -49,16 +54,19 @@ export default class ObserveEvents extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
+    ...ObserveEnvironmentFlag,
     'session-id': Flags.string({
-      description: 'Filter by session ID',
+      description:
+        'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
     'all-events': Flags.boolean({
       description:
         'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
       default: false,
     }),
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -67,12 +75,9 @@ export default class ObserveEvents extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveEvents);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (args.eventName && flags['all-events']) {
       throw new Error(
@@ -80,31 +85,37 @@ export default class ObserveEvents extends EasCommand {
       );
     }
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveEvents,
-      loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveEvents, {
+      nonInteractive,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platform = appObservePlatformFromFlag(flags.platform);
+    const platforms = observePlatformsFromFlag(flags.platform);
 
-    if (!args.eventName && !flags['all-events']) {
-      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
-        appId: projectId,
-        startTime,
-        endTime,
-        platform,
-      });
+    // A session ID narrows to a single session, so show that session's events
+    // (like --all-events) instead of the account-wide name+count summary, which
+    // has no session filter.
+    if (!args.eventName && !flags['all-events'] && !flags['session-id']) {
+      const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
+        ObserveQuery.customEventNamesAsync(graphqlClient, {
+          appId: projectId,
+          startTime,
+          endTime,
+          platforms,
+          environment: flags.environment,
+        })
+      );
 
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
       } else {
         Log.addNewLineIfNone();
@@ -120,27 +131,32 @@ export default class ObserveEvents extends EasCommand {
       return;
     }
 
-    const { events, pageInfo } = await fetchObserveCustomEventsAsync(graphqlClient, projectId, {
-      eventName: args.eventName,
-      limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-      ...(flags.after && { after: flags.after }),
-      startTime,
-      endTime,
-      platform,
-      appVersion: flags['app-version'],
-      updateId: flags['update-id'],
-      sessionId: flags['session-id'],
-    });
+    const { events, pageInfo } = await withObservePlanGateHandlingAsync(() =>
+      fetchObserveCustomEventsAsync(graphqlClient, projectId, {
+        eventName: args.eventName,
+        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+        ...(flags.after && { after: flags.after }),
+        startTime,
+        endTime,
+        platforms,
+        appVersion: flags['app-version'],
+        buildNumber: flags['build-number'],
+        updateId: flags['update-id'],
+        sessionId: flags['session-id'],
+        environment: flags.environment,
+      })
+    );
 
     if (args.eventName && events.length === 0) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
         startTime,
         endTime,
-        platform,
+        platforms,
+        environment: flags.environment,
       });
 
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput(
           buildObserveCustomEventsEmptyWithSuggestionsJson(args.eventName, names, isTruncated)
         );
@@ -158,7 +174,7 @@ export default class ObserveEvents extends EasCommand {
       return;
     }
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveCustomEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();

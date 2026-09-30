@@ -70,6 +70,48 @@ describe('easBuildInternal', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('overrides the minimum release age only for the internal config command', async () => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      child: jest.fn(),
+    } as any;
+    const ctx = {
+      logger,
+      env: {
+        FOO: 'bar',
+        NPM_CONFIG_MIN_RELEASE_AGE: '365',
+      },
+      job: { platform: 'ios', buildProfile: 'production' },
+    } as any;
+    jest.mocked(resolveEasCommandPrefixAndEnvAsync).mockResolvedValueOnce({
+      cmd: 'npx',
+      args: ['-y', 'eas-cli@latest'],
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
+    });
+    jest.mocked(spawn).mockResolvedValueOnce({
+      stdout: Buffer.from(JSON.stringify({ buildProfile: { env: {} } })),
+    } as any);
+
+    await resolveEnvFromBuildProfileAsync(ctx, { cwd: '/tmp/project' });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      expect.any(Array),
+      expect.objectContaining({
+        env: {
+          FOO: 'bar',
+          NPM_CONFIG_MIN_RELEASE_AGE: '0',
+        },
+      })
+    );
+    expect(ctx.env).toEqual({
+      FOO: 'bar',
+      NPM_CONFIG_MIN_RELEASE_AGE: '365',
+    });
+  });
+
   it('passes --refresh-ad-hoc-provisioning-profile to build:internal for iOS jobs with refreshAdHocProvisioningProfile', async () => {
     const logger = {
       info: jest.fn(),
@@ -195,5 +237,68 @@ describe('easBuildInternal', () => {
     });
 
     expect((newJob as any).refreshAdHocProvisioningProfile).toBe(true);
+  });
+
+  describe('hooks retention', () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), child: jest.fn() } as any;
+    const originalHooks = { before_install_node_modules: [{ run: 'echo original' }] };
+
+    function mockRegeneratedJob(hooks?: object): void {
+      const internalJob = {
+        platform: Platform.IOS,
+        type: Workflow.GENERIC,
+        triggeredBy: 'EAS_CLI',
+        projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com' },
+        projectRootDirectory: '.',
+        secrets: {
+          buildCredentials: {
+            testapp: {
+              distributionCertificate: {
+                dataBase64: 'YmluYXJ5Y29udGVudDE=',
+                password: 'distCertPassword',
+              },
+              provisioningProfileBase64: 'MnRuZXRub2N5cmFuaWI=',
+            },
+          },
+        },
+        initiatingUserId: 'user-id',
+        appId: 'app-id',
+        ...(hooks ? { hooks } : null),
+      };
+      jest.mocked(spawn).mockResolvedValue({
+        stdout: Buffer.from(JSON.stringify({ job: internalJob, metadata: {} })),
+        stderr: Buffer.from(''),
+      } as any);
+    }
+
+    function runWith(jobHooks?: object): Promise<{ newJob: BuildJob }> {
+      const job = {
+        platform: Platform.IOS,
+        buildProfile: 'preview',
+        appId: 'app-id',
+        initiatingUserId: 'user-id',
+        secrets: { robotAccessToken: 'token' },
+        ...(jobHooks ? { hooks: jobHooks } : null),
+      } as unknown as BuildJob;
+      return runEasBuildInternalAsync({ job, logger, env: {}, cwd: '/tmp/project' });
+    }
+
+    it('keeps the original hooks when the regenerated job has none', async () => {
+      mockRegeneratedJob();
+      const { newJob } = await runWith(originalHooks);
+      expect((newJob as any).hooks).toEqual(originalHooks);
+    });
+
+    it('lets the original hooks win over hooks in the regenerated job', async () => {
+      mockRegeneratedJob({ after_install_node_modules: [{ run: 'echo from-eas-json' }] });
+      const { newJob } = await runWith(originalHooks);
+      expect((newJob as any).hooks).toEqual(originalHooks);
+    });
+
+    it('carries no hooks when the original had none, even if the regenerated job adds some', async () => {
+      mockRegeneratedJob({ before_install_node_modules: [{ run: 'echo from-eas-json' }] });
+      const { newJob } = await runWith(undefined);
+      expect((newJob as any).hooks).toBeUndefined();
+    });
   });
 });

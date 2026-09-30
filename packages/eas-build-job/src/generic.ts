@@ -7,6 +7,7 @@ import {
   EnvironmentSecretZ,
   HooksZ,
   JobOutputsSchemaZ,
+  SshSettingsZ,
   StaticWorkflowInterpolationContextZ,
 } from './common';
 import { StepZ } from './step';
@@ -48,6 +49,7 @@ export namespace Generic {
     appId: z.string(),
 
     hooks: HooksZ.optional(),
+    ssh: SshSettingsZ.optional(),
     steps: z.array(StepZ).min(1),
     outputs: JobOutputsSchemaZ.optional(),
   });

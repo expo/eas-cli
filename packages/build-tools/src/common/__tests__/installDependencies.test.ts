@@ -3,7 +3,10 @@ import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
 import { PackageManager } from '../../utils/packageManager';
-import { installDependenciesWithNpmCacheFallbackAsync } from '../installDependencies';
+import {
+  installDependenciesAsync,
+  installDependenciesWithNpmCacheFallbackAsync,
+} from '../installDependencies';
 
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../../sentry', () => ({
@@ -40,7 +43,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -56,6 +59,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
     });
@@ -66,6 +70,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -110,7 +115,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       packageManager: PackageManager.NPM,
       env: {
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -158,7 +163,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
         packageManager: PackageManager.NPM,
         env: {
           EAS_USE_NPM_CACHE: '1',
-          NPM_CONFIG_REGISTRY: 'http://npm.staging.caches.eas-build.internal',
+          EAS_BUILD_NPM_CACHE_URL: 'http://npm.staging.caches.eas-build.internal',
         },
         logger,
         cwd: '/tmp/build',
@@ -170,7 +175,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
-  it('does not retry when EAS_USE_NPM_CACHE is not enabled', async () => {
+  it('does not retry when the npm cache is not enabled', async () => {
     const logger = createMockLogger();
     const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
     const error = Object.assign(
@@ -188,9 +193,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     await expect(
       installDependenciesWithNpmCacheFallbackAsync({
         packageManager: PackageManager.NPM,
-        env: {
-          NPM_CONFIG_REGISTRY: npmCacheUrl,
-        },
+        env: {},
         logger,
         cwd: '/tmp/build',
         useFrozenLockfile: false,
@@ -199,6 +202,119 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
 
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+
+  it('installs through the npm cache registry without retrying when the cache install succeeds', async () => {
+    const logger = createMockLogger();
+    const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
+
+    jest
+      .mocked(spawn)
+      .mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesWithNpmCacheFallbackAsync({
+      packageManager: PackageManager.NPM,
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+      },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: false,
+    });
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith('npm', ['install', '--include=dev'], {
+      cwd: '/tmp/build',
+      logger,
+      infoCallbackFn: undefined,
+      lineTransformer: expect.any(Function),
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+        NPM_CONFIG_REGISTRY: npmCacheUrl,
+      },
+    });
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+});
+
+describe(installDependenciesAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(spawn).mockReturnValue(createSpawnPromise(Promise.resolve(createSpawnResult())));
+  });
+
+  it('installs only the selected workspace when EAS_PNPM_FILTER_WORKSPACE is set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.PNPM,
+      env: { EAS_PNPM_FILTER_WORKSPACE: 'my-app' },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['install', '--filter', 'my-app', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
+  it('installs all workspaces when EAS_PNPM_FILTER_WORKSPACE is not set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.PNPM,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['install', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
+  it('installs only the selected workspace when EAS_BUN_FILTER_WORKSPACE is set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.BUN,
+      env: { EAS_BUN_FILTER_WORKSPACE: 'my-app' },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['install', '--filter', 'my-app', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
+  it('installs all workspaces when EAS_BUN_FILTER_WORKSPACE is not set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.BUN,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['install', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
   });
 });
 

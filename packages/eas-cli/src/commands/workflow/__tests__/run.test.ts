@@ -3,6 +3,31 @@ import {
   parseJsonInputs,
   parseWorkflowInputsFromYaml,
 } from '../../../commandUtils/workflow/inputs';
+import { resolveWorkflowRunSshInput } from '../run';
+
+describe(resolveWorkflowRunSshInput, () => {
+  it('is null when --ssh is not set', () => {
+    expect(resolveWorkflowRunSshInput({ ssh: false, idleTimeoutSeconds: undefined })).toBeNull();
+  });
+
+  it('forwards ssh with an undefined timeout when --ssh is set alone', () => {
+    expect(resolveWorkflowRunSshInput({ ssh: true, idleTimeoutSeconds: undefined })).toEqual({
+      idleTimeoutSeconds: undefined,
+    });
+  });
+
+  it('forwards the requested idle timeout when both flags are set', () => {
+    expect(resolveWorkflowRunSshInput({ ssh: true, idleTimeoutSeconds: 60 })).toEqual({
+      idleTimeoutSeconds: 60,
+    });
+  });
+
+  it('rejects --ssh-idle-timeout without --ssh', () => {
+    expect(() => resolveWorkflowRunSshInput({ ssh: false, idleTimeoutSeconds: 60 })).toThrow(
+      '--ssh-idle-timeout requires --ssh.'
+    );
+  });
+});
 
 describe('parseInputs', () => {
   it('should parse single key=value pair', () => {

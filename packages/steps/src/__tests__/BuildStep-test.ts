@@ -10,10 +10,12 @@ import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction, BuildStepStatus } from '../BuildStep';
+import { BuildStepCompositeFunctionScope } from '../BuildStepCompositeFunctionScope';
 import { BuildStepContext, BuildStepGlobalContext } from '../BuildStepContext';
 import { BuildStepEnv } from '../BuildStepEnv';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
+import { BuildWorkflow } from '../BuildWorkflow';
 import { BuildStepRuntimeError } from '../errors';
 import { nullthrows } from '../utils/nullthrows';
 import { spawnAsync } from '../utils/shell/spawn';
@@ -630,6 +632,46 @@ describe(BuildStep, () => {
         expect(error).toBeInstanceOf(BuildStepRuntimeError);
         expect(error.message).toMatch(/Some required outputs have not been set: "abc"/);
       });
+
+      it('skips a later default-gated inner step when a required output is missing on an earlier one', async () => {
+        const compositeFunctionScope = new BuildStepCompositeFunctionScope({
+          ctx: baseStepCtx,
+          compositeFunctionPath: 'test-action',
+          inputs: new Map(),
+          providedInputKeys: new Set(),
+          childrenByLocalId: new Map(),
+        });
+
+        const firstStep = new BuildStep(baseStepCtx, {
+          id: 'first',
+          displayName: 'first',
+          command: 'echo 123',
+          outputs: [
+            new BuildStepOutput(baseStepCtx, {
+              id: 'abc',
+              stepDisplayName: 'first',
+              required: true,
+            }),
+          ],
+          compositeFunctionScope,
+        });
+
+        const secondStep = new BuildStep(baseStepCtx, {
+          id: 'second',
+          displayName: 'second',
+          command: 'echo 456',
+          compositeFunctionScope,
+        });
+
+        // Via workflow so recordFailure marks global status; second step then skips.
+        const workflow = new BuildWorkflow(baseStepCtx, {
+          buildSteps: [firstStep, secondStep],
+          buildFunctions: {},
+        });
+        const error = await getErrorAsync<BuildStepRuntimeError>(() => workflow.executeAsync());
+        expect(error.message).toMatch(/Some required outputs have not been set: "abc"/);
+        expect(secondStep.status).toBe(BuildStepStatus.SKIPPED);
+      });
     });
 
     describe('fn', () => {
@@ -1120,6 +1162,26 @@ describe(BuildStep.deserialize, () => {
 });
 
 describe(BuildStep.prototype.shouldExecuteStep, () => {
+  it('does not evaluate inputs for a step without an if condition after a failure', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      inputs: [
+        new BuildStepInput(ctx, {
+          id: 'required',
+          stepDisplayName: 'Test 1',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+    });
+
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
+  });
+
   it('returns true when if condition is always and previous steps failed', () => {
     const ctx = createGlobalContextMock();
     ctx.markAsFailed();
@@ -1129,7 +1191,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ always() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is always and previous steps have not failed', () => {
@@ -1140,7 +1202,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ always() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns false when if condition is success and previous steps failed', () => {
@@ -1152,7 +1214,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ success() }',
     });
-    expect(step.shouldExecuteStep()).toBe(false);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
   });
 
   it('returns true when a dynamic expression matches', () => {
@@ -1169,7 +1231,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       },
       ifCondition: '${ env.NODE_ENV === "production" && env.LOCAL_ENV === "true" }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('can use the general interpolation context', () => {
@@ -1183,7 +1245,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: 'fromJSON(env.CONFIG_JSON).foo == "bar"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when a simplified dynamic expression matches', () => {
@@ -1197,7 +1259,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       },
       ifCondition: "env.NODE_ENV === 'production'",
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when an input matches', () => {
@@ -1220,7 +1282,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ],
       ifCondition: 'inputs.foo1 === "bar"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when an eas value matches', () => {
@@ -1231,7 +1293,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: 'eas.runtimePlatform === "linux"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is success and previous steps have not failed', () => {
@@ -1242,7 +1304,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ success() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is failure and previous steps failed', () => {
@@ -1255,7 +1317,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
         command: 'echo 123',
         ifCondition,
       });
-      expect(step.shouldExecuteStep()).toBe(true);
+      expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
     }
   });
 
@@ -1268,7 +1330,31 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
         command: 'echo 123',
         ifCondition,
       });
-      expect(step.shouldExecuteStep()).toBe(false);
+      expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
     }
+  });
+
+  it('resolves a missing if condition with the provided run-by-default policy', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: false })).toBe(false);
+    ctx.markAsFailed();
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(true);
+  });
+
+  it('ignores the run-by-default value when an if condition is present', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      ifCondition: '${ success() }',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(false);
   });
 });

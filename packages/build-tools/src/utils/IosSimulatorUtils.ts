@@ -1,3 +1,4 @@
+import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -31,13 +32,43 @@ export namespace IosSimulatorUtils {
     lastBootedAt?: string;
   };
 
-  type SimulatorDevice = XcrunSimctlDevice & { runtime: string; displayName: string };
+  type SimulatorDevice = XcrunSimctlDevice & {
+    runtime: string;
+    runtimeDisplayName: string;
+    displayName: string;
+  };
 
   type XcrunSimctlListDevicesJsonOutput = {
     devices: {
       [runtime: string]: XcrunSimctlDevice[];
     };
   };
+
+  export type IosSimulatorRuntime = {
+    identifier: string;
+    isAvailable?: boolean;
+    version?: string;
+  };
+
+  type XcrunSimctlListRuntimesJsonOutput = {
+    runtimes: (Omit<IosSimulatorRuntime, 'identifier'> & { identifier?: string })[];
+  };
+
+  export async function getAvailableRuntimesAsync({
+    env,
+  }: {
+    env: NodeJS.ProcessEnv;
+  }): Promise<IosSimulatorRuntime[]> {
+    const { stdout } = await spawn('xcrun', ['simctl', 'list', 'runtimes', '--json'], { env });
+    const { runtimes } = JSON.parse(stdout) as XcrunSimctlListRuntimesJsonOutput;
+
+    return runtimes.flatMap(runtime =>
+      runtime.isAvailable !== false &&
+      runtime.identifier?.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-')
+        ? [{ ...runtime, identifier: runtime.identifier }]
+        : []
+    );
+  }
 
   export async function getAvailableDevicesAsync({
     env,
@@ -59,6 +90,7 @@ export namespace IosSimulatorUtils {
         ...devices.map(device => ({
           ...device,
           runtime,
+          runtimeDisplayName: formatRuntimeDisplayName(runtime),
           displayName: `${device.name} (${device.udid}) on ${runtime}`,
         }))
       );
@@ -90,6 +122,128 @@ export namespace IosSimulatorUtils {
     await spawn('xcrun', ['simctl', 'clone', sourceDeviceIdentifier, destinationDeviceName], {
       env,
     });
+  }
+
+  export async function enableAccessibilitySettingsAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    try {
+      const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
+      const device = devices.find(
+        device =>
+          device.isAvailable &&
+          (device.udid === deviceIdentifier || device.name === deviceIdentifier)
+      );
+      if (!device) {
+        throw new UserError(
+          'EAS_IOS_SIMULATOR_NOT_FOUND',
+          `Failed to find available iOS Simulator "${deviceIdentifier}" to update accessibility settings.`
+        );
+      }
+      if (device.state !== 'Shutdown') {
+        throw new UserError(
+          'EAS_IOS_SIMULATOR_NOT_SHUTDOWN',
+          `Expected iOS Simulator "${deviceIdentifier}" to be shutdown before updating accessibility settings, but it is ${device.state}.`
+        );
+      }
+
+      const plistPath = path.join(
+        device.dataPath,
+        'Library',
+        'Preferences',
+        'com.apple.Accessibility.plist'
+      );
+      await fs.promises.mkdir(path.dirname(plistPath), { recursive: true });
+
+      const plistExists = await fs.promises
+        .access(plistPath)
+        .then(() => true)
+        .catch(() => false);
+      if (!plistExists) {
+        await spawn('plutil', ['-create', 'binary1', plistPath], { env });
+      }
+
+      for (const key of [
+        'AutomationEnabled',
+        'IgnoreAXServerEntitlements',
+        'AccessibilityEnabled',
+        'ApplicationAccessibilityEnabled',
+      ]) {
+        await spawn('plutil', ['-replace', key, '-bool', 'true', plistPath], { env });
+      }
+    } catch (err) {
+      if (err instanceof ExpoError) {
+        throw err;
+      }
+      throw new SystemError('Failed to update iOS Simulator accessibility settings.', {
+        cause: err,
+      });
+    }
+  }
+
+  const UDID_PATTERN = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+
+  /**
+   * The UDID for a device name or UDID. A name picks the first available
+   * device with that name, as `simctl` itself does.
+   */
+  export async function resolveUdidAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<IosSimulatorUuid> {
+    if (UDID_PATTERN.test(deviceIdentifier)) {
+      return deviceIdentifier as IosSimulatorUuid;
+    }
+    const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
+    const device = devices.find(candidate => candidate.name === deviceIdentifier);
+    if (!device) {
+      throw new UserError(
+        'EAS_IOS_SIMULATOR_NOT_FOUND',
+        `No available iOS Simulator is named "${deviceIdentifier}". Run \`xcrun simctl list devices available\` on the device host to see the devices it offers.`
+      );
+    }
+    return device.udid;
+  }
+
+  /**
+   * Start booting without waiting for boot to complete; follow with
+   * `startAsync` to wait for it. `launchdEnvironment` is handed to the
+   * simulator's launchd before it spawns anything: `simctl` forwards every
+   * `SIMCTL_CHILD_`-prefixed variable of its own environment to the process
+   * it starts, and for `boot` that process is launchd itself. This is the only
+   * way to give the first processes of a boot an environment; `launchctl
+   * setenv` after boot only reaches processes started later. A device that is
+   * already booted keeps its environment.
+   */
+  export async function bootAsync({
+    deviceIdentifier,
+    env,
+    launchdEnvironment = {},
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+    launchdEnvironment?: Record<string, string>;
+  }): Promise<void> {
+    const bootEnv = { ...env };
+    for (const [name, value] of Object.entries(launchdEnvironment)) {
+      bootEnv[`SIMCTL_CHILD_${name}`] = value;
+    }
+    try {
+      await spawn('xcrun', ['simctl', 'boot', deviceIdentifier], { env: bootEnv, stdio: 'pipe' });
+    } catch (err) {
+      const failed = err as { stderr?: string };
+      if (/current state: Booted/.test(failed.stderr ?? '')) {
+        return;
+      }
+      throw err;
+    }
   }
 
   export async function startAsync({
@@ -164,16 +318,58 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await spawn(
-      'xcrun',
-      ['simctl', 'spawn', udid, 'launchctl', 'disable', 'system/com.apple.apsd'],
-      { env }
-    );
-    await spawn(
-      'xcrun',
-      ['simctl', 'spawn', udid, 'launchctl', 'bootout', 'system/com.apple.apsd'],
-      { env }
-    );
+    const launchctlDomains = ['user/foreground', 'system'];
+    let lastError: unknown;
+
+    for (const domain of launchctlDomains) {
+      const service = `${domain}/com.apple.apsd`;
+      try {
+        await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'disable', service], { env });
+
+        try {
+          await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', service], {
+            env,
+          });
+        } catch (err) {
+          // bootout can fail when apsd is already gone; verify the service state below.
+          lastError = err;
+        }
+
+        if (!(await isLaunchctlServiceLoadedAsync({ udid, env, serviceLabel: 'com.apple.apsd' }))) {
+          return;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError ?? new SystemError('Unable to disable apsd in the Simulator.');
+  }
+
+  /**
+   * Set environment variables in the Simulator's launchd. Every process that
+   * launchd spawns afterwards inherits them: apps launched by SpringBoard
+   * (deep links, taps, WebDriverAgent) as well as by `simctl launch`.
+   * Processes that are already running keep their environment.
+   */
+  export async function setLaunchdEnvironmentAsync({
+    udid,
+    env,
+    variables,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+    variables: Record<string, string>;
+  }): Promise<void> {
+    // One invocation for every variable: each `simctl spawn` costs a few
+    // hundred milliseconds on a device host, and this runs in the window
+    // between `simctl boot` returning and launchd spawning the boot's
+    // processes, which must inherit these.
+    const pairs = Object.entries(variables).flat();
+    if (pairs.length === 0) {
+      return;
+    }
+    await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'setenv', ...pairs], { env });
   }
 
   export async function collectLogsAsync({
@@ -293,6 +489,31 @@ export namespace IosSimulatorUtils {
       // If ps command fails, assume no data migration processes are running
       return false;
     }
+  }
+}
+
+function formatRuntimeDisplayName(runtimeIdentifier: string): string {
+  const match = /^com\.apple\.CoreSimulator\.SimRuntime\.([^-]+)-(.+)$/.exec(runtimeIdentifier);
+  return match ? `${match[1]} ${match[2].replaceAll('-', '.')}` : runtimeIdentifier;
+}
+
+async function isLaunchctlServiceLoadedAsync({
+  udid,
+  env,
+  serviceLabel,
+}: {
+  udid: IosSimulatorUuid;
+  env: NodeJS.ProcessEnv;
+  serviceLabel: string;
+}): Promise<boolean> {
+  try {
+    await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list', serviceLabel], { env });
+    return true;
+  } catch (err) {
+    if (err instanceof Error && 'status' in err && (err as { status: unknown }).status === 113) {
+      return false;
+    }
+    throw err;
   }
 }
 

@@ -9,7 +9,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -51,7 +50,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -92,11 +90,44 @@ describe('Generic.JobZ', () => {
     expect(Generic.JobZ.parse(job)).toEqual(job);
   });
 
+  it('accepts optional ssh settings', () => {
+    const job: Generic.Job = {
+      projectArchive: {
+        type: ArchiveSourceType.GIT,
+        gitCommitHash: '1234567890',
+        gitRef: null,
+      },
+      ssh: { idleTimeoutSeconds: 900, relayServerUrl: 'wss://ssh.expo.dev' },
+      steps: [
+        {
+          id: 'step1',
+          name: 'Step 1',
+          run: 'echo Hello, world!',
+          shell: 'sh',
+        },
+      ],
+      secrets: {
+        robotAccessToken: 'token',
+        environmentSecrets: [],
+      },
+      expoDevUrl: 'https://expo.dev/accounts/name/builds/id',
+      builderEnvironment: {
+        image: 'macos-sonoma-14.5-xcode-15.4',
+        node: '20.15.1',
+        corepack: false,
+        env: {},
+      },
+      triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+      appId: randomUUID(),
+      initiatingUserId: randomUUID(),
+    };
+    expect(Generic.JobZ.parse(job)).toEqual(job);
+  });
+
   it('accepts hooks with arbitrary names', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -148,7 +179,6 @@ describe('Generic.JobZ', () => {
     const job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -197,7 +227,6 @@ describe('Generic.JobZ', () => {
     const job: Omit<Generic.Job, 'customBuildConfig' | 'steps'> = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },

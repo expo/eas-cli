@@ -1,11 +1,15 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import {
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
   AppObservePlatform,
 } from '../../../graphql/generated';
 import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
@@ -52,6 +56,41 @@ describe(ObserveMetrics, () => {
     return command;
   }
 
+  it('surfaces the server plan-gate message when the metric is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveEventsAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand(['nav_tti']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
+  it('accepts a navigation metric alias as the positional arg', async () => {
+    const command = createCommand(['nav_tti']);
+    await command.runAsync();
+
+    expect(mockFetchObserveEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockFetchObserveEventsAsync.mock.calls[0][2].metricName).toBe('expo.navigation.tti');
+  });
+
+  it('accepts nav_cold_ttr as a positional arg and resolves it to the navigation full name', async () => {
+    const command = createCommand(['nav_cold_ttr']);
+    await command.runAsync();
+
+    expect(mockFetchObserveEventsAsync.mock.calls[0][2].metricName).toBe(
+      'expo.navigation.cold_ttr'
+    );
+  });
+
   it('uses --days to compute start/end time range', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
@@ -94,6 +133,14 @@ describe(ObserveMetrics, () => {
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
     expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
     expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
+  });
+
+  it('passes --environment to the events filter', async () => {
+    const command = createCommand(['tti', '--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
   });
 
   it('defaults endTime to now when only --start is provided', async () => {
@@ -146,20 +193,20 @@ describe(ObserveMetrics, () => {
     await expect(command.runAsync()).rejects.toThrow();
   });
 
-  it('passes --platform ios to fetchObserveEventsAsync as AppObservePlatform.Ios', async () => {
+  it('passes --platform ios to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--platform', 'ios']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Ios);
+    expect(options.platforms).toEqual([AppObservePlatform.Ios]);
   });
 
-  it('passes --platform android to fetchObserveEventsAsync as AppObservePlatform.Android', async () => {
+  it('passes --platform android to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--platform', 'android']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Android);
+    expect(options.platforms).toEqual([AppObservePlatform.Android]);
   });
 
   it('passes --app-version to fetchObserveEventsAsync', async () => {
@@ -170,6 +217,14 @@ describe(ObserveMetrics, () => {
     expect(options.appVersion).toBe('2.1.0');
   });
 
+  it('passes --build-number to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['tti', '--build-number', '42']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.buildNumber).toBe('42');
+  });
+
   it('passes --update-id to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--update-id', 'update-xyz']);
     await command.runAsync();
@@ -178,12 +233,12 @@ describe(ObserveMetrics, () => {
     expect(options.updateId).toBe('update-xyz');
   });
 
-  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
+  it('does not pass platforms, appVersion, or updateId when flags are not provided', async () => {
     const command = createCommand(['tti']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBeUndefined();
+    expect(options.platforms).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
   });
@@ -192,8 +247,8 @@ describe(ObserveMetrics, () => {
     const mockEvents = [
       {
         id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        name: 'expo.app_startup.tti',
+        value: 1.23,
         timestamp: '2025-01-15T10:30:00.000Z',
         appVersion: '1.0.0',
         appBuildNumber: '42',
@@ -235,8 +290,8 @@ describe(ObserveMetrics, () => {
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
     expect(options.orderBy).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
@@ -247,34 +302,42 @@ describe(ObserveMetrics, () => {
       'metric argument is required in non-interactive mode'
     );
   });
+
+  it('treats --json as non-interactive when no metric is provided', async () => {
+    const command = createCommand(['--json']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'metric argument is required in non-interactive mode'
+    );
+  });
 });
 
 describe(resolveOrderBy, () => {
   it('resolves lowercase "slowest" to MetricValue DESC', () => {
     expect(resolveOrderBy('slowest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('resolves lowercase "fastest" to MetricValue ASC', () => {
     expect(resolveOrderBy('fastest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 
   it('resolves lowercase "newest" to Timestamp DESC', () => {
     expect(resolveOrderBy('newest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('resolves lowercase "oldest" to Timestamp ASC', () => {
     expect(resolveOrderBy('oldest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 });

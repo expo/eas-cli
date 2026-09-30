@@ -5,6 +5,7 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildWorkflow } from './BuildWorkflow';
 import { BuildWorkflowValidator } from './BuildWorkflowValidator';
 import { BuildConfigError } from './errors';
+import { AnchorHooks } from './hooks';
 import { duplicates } from './utils/expodash/duplicates';
 import { uniq } from './utils/expodash/uniq';
 
@@ -30,9 +31,13 @@ export abstract class AbstractConfigParser {
   }
 
   public async parseAsync(): Promise<BuildWorkflow> {
-    const { buildSteps, buildFunctionById } =
+    const { buildSteps, buildFunctionById, hooksByAnchorStep } =
       await this.parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync();
-    const workflow = new BuildWorkflow(this.ctx, { buildSteps, buildFunctions: buildFunctionById });
+    const workflow = new BuildWorkflow(this.ctx, {
+      buildSteps,
+      buildFunctions: buildFunctionById,
+      hooksByAnchorStep,
+    });
     await new BuildWorkflowValidator(workflow).validateAsync();
     return workflow;
   }
@@ -40,6 +45,7 @@ export abstract class AbstractConfigParser {
   protected abstract parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
     buildSteps: BuildStep[];
     buildFunctionById: BuildFunctionById;
+    hooksByAnchorStep: ReadonlyMap<BuildStep, AnchorHooks>;
   }>;
 
   private validateExternalFunctions(externalFunctions?: BuildFunction[]): void {

@@ -37,7 +37,7 @@ const { loadConfigAsync } = require('../config/resolve') as jest.Mocked<
 >;
 const { confirmAsync } = require('../../prompts') as jest.Mocked<typeof import('../../prompts')>;
 
-function createArgs(overrides: Record<string, any> = {}) {
+function createArgs(overrides: Record<string, any> = {}): any {
   return {
     projectDir: '/app',
     profile: { metadataPath: 'store.config.json', bundleIdentifier: 'com.example.app' } as any,

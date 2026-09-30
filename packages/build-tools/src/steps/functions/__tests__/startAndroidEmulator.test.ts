@@ -1,4 +1,5 @@
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -34,6 +35,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
+const mockedMkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
 function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
@@ -54,6 +56,7 @@ function createStartResult(serialId: string) {
 
 describe(createStartAndroidEmulatorBuildFunction, () => {
   beforeEach(() => {
+    mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
@@ -74,6 +77,35 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       }
       throw lastErr;
     });
+  });
+
+  afterAll(() => {
+    mockedMkdtemp.mockRestore();
+  });
+
+  it('passes profile and LCD inputs to emulator creation', async () => {
+    const systemImagePackage = 'system-images;android-35;default;x86_64';
+    await createStep({
+      device_identifier: 'medium_phone',
+      system_image_package: systemImagePackage,
+      lcd_width: 720,
+      lcd_height: 1600,
+      lcd_density: 262,
+    }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith('sdkmanager', [systemImagePackage], expect.anything());
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceIdentifier: 'medium_phone',
+        systemImagePackage,
+        lcdWidth: 720,
+        lcdHeight: 1600,
+        lcdDensity: 262,
+      })
+    );
+    expect(mockedAndroidUtils.createAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
+    );
   });
 
   it('retries base emulator startup with increasing readiness timeouts', async () => {
@@ -104,6 +136,20 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       1,
       expect.objectContaining({
         serialId: 'emulator-2222',
+      })
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
+      })
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -174,6 +220,24 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         serialId: 'emulator-clone-2-attempt-1',
       })
     );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
+      })
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceName: 'eas-simulator-1',
+        logcatDirectory: '/tmp/logcat-directory',
+      })
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceName: 'eas-simulator-2',
+        logcatDirectory: '/tmp/logcat-directory',
+      })
+    );
 
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,6 +264,24 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('outputs and uses a temporary logcat directory', async () => {
+    const step = createStep();
+    await step.executeAsync();
+
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logcatDirectory: '/tmp/logcat-directory',
+      })
+    );
+    expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-default',
+      })
+    );
   });
 
   it('skips animation scale adjustments when opt out env var is disabled', async () => {

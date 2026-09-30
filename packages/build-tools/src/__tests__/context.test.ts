@@ -139,6 +139,38 @@ describe('BuildContext', () => {
     });
   });
 
+  it('overwrites existing environment variables when updating env', async () => {
+    await vol.promises.mkdir('/workingdir/eas-environment-secrets/', { recursive: true });
+
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        secrets: {},
+      } as Job,
+      {
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+          EXISTING_ENV: 'old-value',
+          REMOVED_ENV: 'old-value',
+        },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+
+    ctx.updateEnv({
+      EXISTING_ENV: 'new-value',
+      REMOVED_ENV: undefined,
+      NEW_ENV: 'new-env-value',
+    });
+
+    expect(ctx.env.EXISTING_ENV).toBe('new-value');
+    expect(ctx.env.REMOVED_ENV).toBeUndefined();
+    expect(ctx.env.NEW_ENV).toBe('new-env-value');
+  });
+
   it('emits build phase duration metrics for successful build phases', async () => {
     const ctx = createTestBuildContext({ platform: Platform.IOS });
 

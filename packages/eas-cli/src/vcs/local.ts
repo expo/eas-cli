@@ -88,6 +88,7 @@ node_modules
     for (const [prefix, ignore] of this.ignoreMapping) {
       const normalizedPrefix = normalizeIgnorePath(prefix);
       if (
+        normalizedPath.length > normalizedPrefix.length &&
         normalizedPath.startsWith(normalizedPrefix) &&
         ignore.ignores(normalizedPath.slice(normalizedPrefix.length))
       ) {
@@ -98,7 +99,10 @@ node_modules
   }
 }
 
-function normalizeIgnorePath(relativePath: string, options: { isDirectory?: boolean } = {}): string {
+function normalizeIgnorePath(
+  relativePath: string,
+  options: { isDirectory?: boolean } = {}
+): string {
   const normalizedPath = relativePath.replace(/\\/g, '/');
   if (options.isDirectory && normalizedPath && !normalizedPath.endsWith('/')) {
     return `${normalizedPath}/`;
@@ -121,13 +125,14 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
     recursive: true,
     // Preserve symlinks without re-resolving them to their original targets
     verbatimSymlinks: true,
-    filter: (_srcFilePath: string) => {
+    // eslint-disable-next-line async-protect/async-suffix
+    filter: async (_srcFilePath: string): Promise<boolean> => {
       const srcFilePath = path.toNamespacedPath(_srcFilePath);
 
       if (srcFilePath === src) {
         return true;
       }
-      const stats = fsExtra.lstatSync(srcFilePath);
+      const stats = await fs.lstat(srcFilePath);
       const relativePath = path.relative(src, srcFilePath);
       const shouldCopyTheItem = !ignore.ignores(relativePath, {
         isDirectory: stats.isDirectory(),

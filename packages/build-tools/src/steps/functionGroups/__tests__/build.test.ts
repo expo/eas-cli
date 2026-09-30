@@ -162,6 +162,28 @@ describe(createEasBuildBuildFunctionGroup, () => {
       expect(installPodsStep!.ctx.relativeWorkingDirectory).toBe('./ios');
     });
 
+    it('restores and saves caches around an iOS simulator build', () => {
+      const buildToolsContext = createMockBuildToolsContext({
+        platform: Platform.IOS,
+        simulator: true,
+      });
+      const functionGroup = createEasBuildBuildFunctionGroup(buildToolsContext);
+      const globalCtx = createGlobalContextMock({ logger: createMockLogger() });
+
+      const steps = functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx);
+      const stepNames = steps.map(step => step.displayName);
+      const restoreCacheIndex = stepNames.indexOf('Restore Cache');
+      const installPodsIndex = stepNames.indexOf('Install Pods');
+      const saveCacheIndex = stepNames.indexOf('Save Cache');
+
+      expect(restoreCacheIndex).toBeGreaterThan(-1);
+      expect(restoreCacheIndex).toBeLessThan(installPodsIndex);
+      expect(saveCacheIndex).toBeGreaterThan(installPodsIndex);
+
+      const restoreCacheStep = steps[restoreCacheIndex];
+      expect(restoreCacheStep.inputs?.find(input => input.id === 'simulator')?.rawValue).toBe(true);
+    });
+
     it('sets working directory on all steps except checkout (Android with credentials)', () => {
       const buildToolsContext = createMockBuildToolsContext({
         platform: Platform.ANDROID,

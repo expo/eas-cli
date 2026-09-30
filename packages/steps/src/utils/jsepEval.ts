@@ -6,7 +6,8 @@
 
 import assert from 'assert';
 import jsep from 'jsep';
-import get from 'lodash.get';
+
+import { get } from './get';
 
 const binaryOperatorFunctions = {
   '===': (a: any, b: any) => a === b,
@@ -193,4 +194,23 @@ function evaluateExpressionNode(node: jsep.Expression, context: Record<string, u
 export function jsepEval(expression: string, context?: Record<string, unknown>): unknown {
   const tree = jsep(expression);
   return evaluateExpressionNode(tree, context ?? {});
+}
+
+/**
+ * Evaluates a step-level or hook-entry-level `if:` condition: strips the
+ * optional `${{ }}` / `${ }` delimiters and coerces the result to boolean.
+ * The evaluation context is the caller's — step conditions include the step's
+ * inputs and env, entry conditions the global context only.
+ */
+export function evaluateIfCondition(
+  ifCondition: string,
+  context: Record<string, unknown>
+): boolean {
+  let condition = ifCondition;
+  if (condition.startsWith('${{') && condition.endsWith('}}')) {
+    condition = condition.slice(3, -2);
+  } else if (condition.startsWith('${') && condition.endsWith('}')) {
+    condition = condition.slice(2, -1);
+  }
+  return Boolean(jsepEval(condition, context));
 }

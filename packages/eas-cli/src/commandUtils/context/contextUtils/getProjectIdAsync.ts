@@ -9,10 +9,16 @@ import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import {
+  getAccountChoices,
+  getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
+} from '../../../project/accountSelection';
+import {
   createOrModifyExpoConfigAsync,
   getPrivateExpoConfigAsync,
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { getUnconfiguredProjectError } from '../../../project/projectNotConfiguredError';
+import { promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
 import { Actor, getActorUsername } from '../../../user/User';
 
@@ -178,30 +184,16 @@ export async function validateOrSetProjectIdAsync({
     throw new Error('This command must be run inside a project directory.');
   }
 
-  Log.warn('EAS project not configured.');
+  if (!options.nonInteractive) {
+    Log.warn('EAS project not configured.');
+  }
 
-  const getDefaultAccountNameForEASProject = (exp: ExpoConfig, user: Actor): string => {
-    if (exp.owner) {
-      return exp.owner;
-    }
-    switch (user.__typename) {
-      case 'User':
-        return user.username;
-      case 'SSOUser':
-        return user.username;
-      case 'PartnerActor':
-        return user.username;
-      case 'Robot':
-        throw new Error(
-          'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
-        );
-    }
-  };
+  const accountName = await chooseAccountNameForEASProjectAsync(exp, actor, options);
 
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
     graphqlClient,
     {
-      accountName: getDefaultAccountNameForEASProject(exp, actor),
+      accountName,
       projectName: exp.slug,
     },
     {
@@ -220,4 +212,50 @@ export async function validateOrSetProjectIdAsync({
   }
 
   return projectId;
+}
+
+/**
+ * Choose the account that should own a not-yet-configured EAS project. Uses the "owner" field
+ * from the app config when set. Otherwise, when the actor has access to multiple accounts,
+ * prompts for the account to use.
+ */
+async function chooseAccountNameForEASProjectAsync(
+  exp: ExpoConfig,
+  actor: Actor,
+  options: { nonInteractive: boolean }
+): Promise<string> {
+  if (exp.owner) {
+    return exp.owner;
+  }
+
+  if (actor.__typename === 'Robot') {
+    throw getUnconfiguredProjectError({
+      actor,
+      reason: 'A robot access token cannot configure it interactively.',
+      additionalFix: 'Alternatively, set the "owner" field in your app config.',
+    });
+  }
+
+  const allAccounts = actor.accounts;
+  if (allAccounts.length === 1) {
+    return allAccounts[0].name;
+  }
+
+  if (options.nonInteractive) {
+    throw getUnconfiguredProjectError({ actor });
+  }
+
+  const choices = getAccountChoices(
+    actor,
+    getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(actor)
+  );
+
+  return (
+    await promptAsync({
+      type: 'select',
+      name: 'account',
+      message: 'Which account should own this project?',
+      choices,
+    })
+  ).account.name;
 }

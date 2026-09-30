@@ -1,15 +1,18 @@
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
 } from '../../observe/flags';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
-import { appPlatformsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -19,7 +22,8 @@ export default class ObserveVersions extends EasCommand {
   static override flags = {
     ...ObservePlatformFlag,
     ...ObserveTimeRangeFlags,
-    ...ObserveProjectIdFlag,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -28,38 +32,36 @@ export default class ObserveVersions extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveVersions);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveVersions,
-      loggedInOnlyContextDefinition: ObserveVersions.loggedInOnlyContextDefinition,
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveVersions, {
+      nonInteractive,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
     const { startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const results = await fetchObserveVersionsAsync(
       graphqlClient,
       projectId,
-      platforms,
+      targets,
       startTime,
-      endTime
+      endTime,
+      flags.environment
     );
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveVersionsJson(results));
     } else {
       Log.addNewLineIfNone();

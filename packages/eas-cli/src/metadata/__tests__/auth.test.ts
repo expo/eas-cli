@@ -61,7 +61,7 @@ const { AppStoreConnectApiKeyQuery } =
 
 const mockApp = { id: '123', bundleId: 'com.example.app' };
 
-function createMockCredentialsCtx(ensureAuthResult?: any) {
+function createMockCredentialsCtx(ensureAuthResult?: any): any {
   return {
     appStore: {
       ensureAuthenticatedAsync: jest.fn(() => ({
@@ -73,7 +73,7 @@ function createMockCredentialsCtx(ensureAuthResult?: any) {
   } as any;
 }
 
-function createBaseArgs(overrides: Record<string, any> = {}) {
+function createBaseArgs(overrides: Record<string, any> = {}): any {
   return {
     projectDir: '/app',
     profile: { bundleIdentifier: 'com.example.app' } as SubmitProfile,
@@ -124,6 +124,29 @@ describe(getAppStoreAuthAsync, () => {
           keyP8: 'mock-key-p8-content',
           keyId: 'KEY123',
           issuerId: 'ISSUER456',
+        },
+      })
+    );
+    expect(result.app).toBe(mockApp);
+  });
+
+  it('uses individual API key from submit profile when ascApiKeyIssuerId is absent', async () => {
+    const profile = {
+      bundleIdentifier: 'com.example.app',
+      ascApiKeyPath: '/path/to/key.p8',
+      ascApiKeyId: 'KEY123',
+    } as any;
+    const args = createBaseArgs({ profile });
+
+    const result = await getAppStoreAuthAsync(args);
+
+    expect(args.credentialsCtx.appStore.ensureAuthenticatedAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: AuthenticationMode.API_KEY,
+        ascApiKey: {
+          keyP8: 'mock-key-p8-content',
+          keyId: 'KEY123',
+          issuerId: undefined,
         },
       })
     );

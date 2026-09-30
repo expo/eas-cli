@@ -80,8 +80,7 @@ function getAccountPermissionsMap(actor: Actor): Map<string, boolean> {
   const permissionsMap = new Map<string, boolean>();
 
   for (const account of actor.accounts) {
-    const hasPermission =
-      account.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly;
+    const hasPermission = account.viewerUserPermission.role !== Role.ViewOnly;
     permissionsMap.set(account.name, hasPermission);
   }
 

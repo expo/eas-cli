@@ -1,58 +1,69 @@
-import { AppObservePlatform, AppPlatform } from '../graphql/generated';
+import { AppObservePlatform } from '../graphql/generated';
 
-/**
- * Allowed values for the --platform flag in observe commands.
- * Derived from the AppObservePlatform enum so new platforms added on
- * the server are automatically picked up.
- */
-export const allowedPlatformFlagValues = Object.values(AppObservePlatform).map(s =>
-  s.toLowerCase()
-);
+export const APPLE_PLATFORM_FLAG_VALUE = 'apple';
 
-const defaultAppObservePlatform = AppObservePlatform.Ios;
-const defaultAppPlatform = AppPlatform.Ios;
+const APPLE_OBSERVE_PLATFORMS: AppObservePlatform[] = [
+  AppObservePlatform.Ios,
+  AppObservePlatform.Ipados,
+  AppObservePlatform.Tvos,
+  AppObservePlatform.Macos,
+];
+
+export const allowedPlatformFlagValues = [
+  ...Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+  APPLE_PLATFORM_FLAG_VALUE,
+];
 
 type PlatformFlagValue = (typeof allowedPlatformFlagValues)[number];
 
-/**
- * Resolve a single AppObservePlatform from a --platform flag value.
- * Returns undefined when no flag was provided.
- */
-export function appObservePlatformFromFlag(
+export type ObservePlatformKey = AppObservePlatform | 'APPLE';
+
+export const observePlatformDisplayNames: Record<ObservePlatformKey, string> = {
+  [AppObservePlatform.Android]: 'Android',
+  [AppObservePlatform.Ios]: 'iOS',
+  [AppObservePlatform.Ipados]: 'iPadOS',
+  [AppObservePlatform.Tvos]: 'tvOS',
+  [AppObservePlatform.Macos]: 'macOS',
+  APPLE: 'Apple',
+};
+
+export interface ObservePlatformTarget {
+  key: ObservePlatformKey;
+  platforms: AppObservePlatform[];
+}
+
+function singlePlatformFromFlag(flag: PlatformFlagValue): AppObservePlatform {
+  const platform = Object.values(AppObservePlatform).find(p => p.toLowerCase() === flag);
+  if (!platform) {
+    throw new Error(`Unknown platform flag value: "${flag}"`);
+  }
+  return platform;
+}
+
+export function observePlatformsFromFlag(
   flag: PlatformFlagValue | undefined
-): AppObservePlatform | undefined {
+): AppObservePlatform[] | undefined {
   if (!flag) {
     return undefined;
   }
-  switch (flag) {
-    case 'android':
-      return AppObservePlatform.Android;
-    case 'ios':
-      return AppObservePlatform.Ios;
+  if (flag === APPLE_PLATFORM_FLAG_VALUE) {
+    return APPLE_OBSERVE_PLATFORMS;
   }
-  return defaultAppObservePlatform;
+  return [singlePlatformFromFlag(flag)];
 }
 
-/**
- * Resolve a list of AppPlatform values from a --platform flag value.
- * Returns the single matching platform when a flag is provided, or all
- * known platforms when no flag is provided (so the caller queries every
- * platform).
- */
-export function appPlatformsFromFlag(flag: PlatformFlagValue | undefined): AppPlatform[] {
+export function observePlatformTargetsFromFlag(
+  flag: PlatformFlagValue | undefined
+): ObservePlatformTarget[] {
   if (!flag) {
-    return [AppPlatform.Android, AppPlatform.Ios];
+    return [
+      { key: AppObservePlatform.Android, platforms: [AppObservePlatform.Android] },
+      { key: AppObservePlatform.Ios, platforms: [AppObservePlatform.Ios] },
+    ];
   }
-  switch (flag) {
-    case 'android':
-      return [AppPlatform.Android];
-    case 'ios':
-      return [AppPlatform.Ios];
+  if (flag === APPLE_PLATFORM_FLAG_VALUE) {
+    return [{ key: 'APPLE', platforms: APPLE_OBSERVE_PLATFORMS }];
   }
-  return [defaultAppPlatform];
+  const platform = singlePlatformFromFlag(flag);
+  return [{ key: platform, platforms: [platform] }];
 }
-
-export const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};

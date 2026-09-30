@@ -67,15 +67,21 @@ export async function syncCapabilitiesForEntitlementsAsync(
     try {
       await bundleId.updateBundleIdCapabilityAsync(modifiedRequest);
     } catch (error: any) {
-      if (error.message.match(/bundle '[\w\d]+' cannot be deleted. Delete all the Apps/)) {
-        Log.error(
-          'Failed to patch capabilities:',
-          inspect(modifiedRequest, { depth: null, colors: true })
-        );
-        throw new Error(
-          `Unexpected error occurred while attempting to update capabilities for app "${bundleId.attributes.identifier}".\nCapabilities can be modified manually in the Apple developer console at https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/${bundleId.id}.\nAuto capability syncing can be disabled with the environment variable \`EXPO_NO_CAPABILITY_SYNC=1\`.\n${error.message}`
-        );
+      Log.error(
+        'Failed to patch capabilities:',
+        inspect(modifiedRequest, { depth: null, colors: true })
+      );
+      const context = `Failed to update Apple capabilities for app "${bundleId.attributes.identifier}".\nYou can enable or disable capabilities manually in the Apple developer console at https://developer.apple.com/account/resources/identifiers/bundleId/edit/${bundleId.id}, then re-run this command.\nAuto capability syncing can be disabled with the environment variable \`EXPO_NO_CAPABILITY_SYNC=1\`.`;
+      if (error.message?.match?.(/bundle '[\w\d]+' cannot be deleted. Delete all the Apps/)) {
+        throw new Error(`${context}\n${error.message}`);
       }
+      // Preserve the underlying Apple error and stack, but attach the same
+      // actionable context so the user knows how to unblock their build.
+      const wrapped: Error & { cause?: unknown } = new Error(
+        `${context}\n\nApple API error: ${error.message}`
+      );
+      wrapped.cause = error;
+      throw wrapped;
     }
   }
 

@@ -32,7 +32,11 @@ export async function installDependenciesAsync({
       break;
     }
     case PackageManager.PNPM: {
-      args = ['install', useFrozenLockfile ? '--frozen-lockfile' : '--no-frozen-lockfile'];
+      args = [
+        'install',
+        ...(env['EAS_PNPM_FILTER_WORKSPACE'] ? ['--filter', env['EAS_PNPM_FILTER_WORKSPACE']] : []),
+        useFrozenLockfile ? '--frozen-lockfile' : '--no-frozen-lockfile',
+      ];
       break;
     }
     case PackageManager.YARN: {
@@ -58,7 +62,11 @@ export async function installDependenciesAsync({
       break;
     }
     case PackageManager.BUN:
-      args = ['install', ...(useFrozenLockfile ? ['--frozen-lockfile'] : [])];
+      args = [
+        'install',
+        ...(env['EAS_BUN_FILTER_WORKSPACE'] ? ['--filter', env['EAS_BUN_FILTER_WORKSPACE']] : []),
+        ...(useFrozenLockfile ? ['--frozen-lockfile'] : []),
+      ];
       break;
     default:
       throw new Error(`Unsupported package manager: ${packageManager}`);
@@ -93,7 +101,24 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
   infoCallbackFn?: SpawnOptions['infoCallbackFn'];
   useFrozenLockfile: boolean;
 }): Promise<void> {
-  const npmCacheUrl = env.NPM_CONFIG_REGISTRY;
+  const npmCacheUrl = env.EAS_BUILD_NPM_CACHE_URL;
+
+  if (!npmCacheUrl) {
+    await (
+      await installDependenciesAsync({
+        packageManager,
+        env,
+        logger,
+        infoCallbackFn,
+        cwd,
+        useFrozenLockfile,
+      })
+    ).spawnPromise;
+    return;
+  }
+
+  logger.info(`Installing dependencies using the npm cache registry (${npmCacheUrl}).`);
+
   let firstErrorLine: string | undefined;
   let errorLineCount = 0;
 
@@ -101,11 +126,11 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     await (
       await installDependenciesAsync({
         packageManager,
-        env,
+        env: { ...env, NPM_CONFIG_REGISTRY: npmCacheUrl },
         logger,
         infoCallbackFn,
         lineTransformer: (line: string) => {
-          if (isNpmCacheRegistryErrorLine(line, { env, npmCacheUrl })) {
+          if (isNpmCacheRegistryErrorLine(line, npmCacheUrl)) {
             firstErrorLine ??= line;
             errorLineCount += 1;
           }
@@ -124,7 +149,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
       });
     }
   } catch (err: unknown) {
-    if (!isNpmCacheInstallFailure(err, { env, npmCacheUrl })) {
+    if (!isNpmCacheInstallFailure(err, npmCacheUrl)) {
       throw err;
     }
 
@@ -144,11 +169,10 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
       },
     });
 
-    const { NPM_CONFIG_REGISTRY: _NPM_CONFIG_REGISTRY, ...fallbackEnv } = env;
     await (
       await installDependenciesAsync({
         packageManager,
-        env: fallbackEnv,
+        env,
         logger,
         infoCallbackFn,
         cwd,
@@ -172,33 +196,15 @@ export function resolvePackagerDir(ctx: BuildContext<Job>): string {
   return packagerRunDir;
 }
 
-function isNpmCacheInstallFailure(
-  err: unknown,
-  { env, npmCacheUrl }: { env: Record<string, string | undefined>; npmCacheUrl: string | undefined }
-): boolean {
-  if (!isNpmCacheRegistryEnabled(env, npmCacheUrl)) {
-    return false;
-  }
-  const errorOutput = getErrorOutput(err);
-  return errorOutput.includes(npmCacheUrl);
+function isNpmCacheInstallFailure(err: unknown, npmCacheUrl: string): boolean {
+  return getErrorOutput(err).includes(npmCacheUrl);
 }
 
-function isNpmCacheRegistryErrorLine(
-  line: string,
-  { env, npmCacheUrl }: { env: Record<string, string | undefined>; npmCacheUrl: string | undefined }
-): boolean {
+function isNpmCacheRegistryErrorLine(line: string, npmCacheUrl: string): boolean {
   return (
-    isNpmCacheRegistryEnabled(env, npmCacheUrl) &&
     line.includes(npmCacheUrl) &&
     /(?:error|failed|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|FetchError)/i.test(line)
   );
-}
-
-function isNpmCacheRegistryEnabled(
-  env: Record<string, string | undefined>,
-  npmCacheUrl: string | undefined
-): npmCacheUrl is string {
-  return env.EAS_USE_NPM_CACHE === '1' && !!npmCacheUrl;
 }
 
 function getErrorOutput(err: unknown): string {

@@ -17,8 +17,8 @@ jest.mock('node:fs', () => jest.requireMock('fs'));
 jest.mock('@expo/build-tools', () => {
   return {
     ...jest.requireActual('@expo/build-tools'),
-    GCS: {
-      uploadWithSignedUrl: jest.fn(),
-    },
+    downloadCacheAsync: jest.fn(),
+    uploadCacheAsync: jest.fn(),
+    uploadWithSignedUrl: jest.fn(),
   };
 });

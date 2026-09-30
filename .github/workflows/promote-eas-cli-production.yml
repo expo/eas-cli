@@ -1,0 +1,58 @@
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: false
+        description: "eas-cli version to set as PRODUCTION in cli-versions.json. Defaults to the current STAGING value."
+
+name: Promote eas-cli to production
+
+jobs:
+  promote-production:
+    name: Bump PRODUCTION in cli-versions.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      INPUT_VERSION: ${{ github.event.inputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          token: ${{ secrets.EXPO_BOT_PAT }}
+      - name: Ensure main is checked out
+        run: |
+          git fetch
+          git checkout main
+      - name: Resolve version
+        run: |
+          version="$INPUT_VERSION"
+          if [ -z "$version" ]; then
+            version="$(jq -r .STAGING cli-versions.json)"
+          fi
+          echo "PRODUCTION_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Verify version is an exact, published eas-cli version
+        run: |
+          resolved="$(npm view "eas-cli@$PRODUCTION_VERSION" version 2>/dev/null || true)"
+          if [ "$resolved" != "$PRODUCTION_VERSION" ]; then
+            echo "'$PRODUCTION_VERSION' is not an exact published eas-cli version." >&2
+            echo "npm resolved it to: '${resolved:-<nothing>}'." >&2
+            echo "Provide an exact version such as 21.5.0, not a range or dist-tag." >&2
+            exit 1
+          fi
+      - name: Bump PRODUCTION in cli-versions.json
+        run: |
+          jq --arg version "$PRODUCTION_VERSION" '.PRODUCTION = $version' \
+            cli-versions.json > cli-versions.json.tmp
+          mv cli-versions.json.tmp cli-versions.json
+      - name: Commit and push
+        run: |
+          if git diff --quiet cli-versions.json; then
+            echo "PRODUCTION is already $PRODUCTION_VERSION; nothing to do."
+            exit 0
+          fi
+          git config --global user.email "support+ci@expo.io"
+          git config --global user.name "Expo CI"
+          git add cli-versions.json
+          git commit -m "bump PRODUCTION to $PRODUCTION_VERSION in cli-versions.json"
+          git push

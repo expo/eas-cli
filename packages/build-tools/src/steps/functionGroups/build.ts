@@ -98,6 +98,8 @@ function createStepsForIosSimulatorBuild({
   buildToolsContext,
   workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
+  const evictUsedBefore = new Date();
+
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
@@ -106,6 +108,16 @@ function createStepsForIosSimulatorBuild({
   const installPods = createInstallPodsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
     workingDirectory: workingDirectory ? path.join(workingDirectory, './ios') : './ios',
   });
+  const restoreCache = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
+    globalCtx,
+    {
+      workingDirectory,
+      callInputs: {
+        platform: Platform.IOS,
+        simulator: true,
+      },
+    }
+  );
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -123,6 +135,16 @@ function createStepsForIosSimulatorBuild({
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
     },
   });
+  const saveCache = createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(
+    globalCtx,
+    {
+      workingDirectory,
+      callInputs: {
+        platform: Platform.IOS,
+        simulator: true,
+      },
+    }
+  );
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
     createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
@@ -138,6 +160,7 @@ function createStepsForIosSimulatorBuild({
     createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
     }),
+    restoreCache,
     calculateEASUpdateRuntimeVersion,
     installPods,
     configureEASUpdate,
@@ -159,6 +182,10 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    saveCache,
+    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
   ];
 }
 

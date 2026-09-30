@@ -234,7 +234,7 @@ async function syncScreenshotSetAsync(
     const newScreenshot = await logAsync(
       () =>
         AppScreenshot.uploadAsync(localization.context, {
-          id: screenshotSet!.id,
+          id: screenshotSet.id,
           filePath: absolutePath,
           waitForProcessing: true,
         }),

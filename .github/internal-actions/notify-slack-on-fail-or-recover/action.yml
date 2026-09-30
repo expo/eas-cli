@@ -1,12 +1,13 @@
 name: notify-slack-on-fail-or-recover
+description: Notify a Slack channel when a workflow fails, or when it recovers after a previous failure.
 
 inputs:
   channel:
+    description: Slack channel to send the notification to.
     required: true
-    type: string
   slack_webhook:
+    description: Slack incoming webhook URL used to post the notification.
     required: true
-    type: string
 
 runs:
   using: 'composite'

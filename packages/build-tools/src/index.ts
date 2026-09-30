@@ -1,8 +1,12 @@
 import * as Builders from './builders';
-import GCSLoggerStream from './gcs/LoggerStream';
-import GCS from './gcs/client';
+import HttpLogStream from './logging/HttpLogStream';
+import RemoteLoggerStream from './logging/RemoteLoggerStream';
 
-export { Builders, GCS, GCSLoggerStream };
+export { Builders, HttpLogStream, RemoteLoggerStream };
+export { uploadWithSignedUrl } from './storage/uploadWithSignedUrl';
+export type { SignedUrl, UploadWithSignedUrlParams } from './storage/uploadWithSignedUrl';
+export { downloadCacheAsync } from './steps/functions/restoreCache';
+export { uploadCacheAsync } from './steps/functions/saveCache';
 
 export {
   ArtifactToUpload,
@@ -15,6 +19,9 @@ export {
 } from './context';
 
 export { PackageManager } from './utils/packageManager';
+
+export * as TurtleSshSession from './utils/turtleSshSession';
+export { formatSecondsForLog } from './utils/formatDuration';
 
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 

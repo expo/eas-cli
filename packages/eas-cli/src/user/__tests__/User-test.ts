@@ -1,47 +1,35 @@
 import { Role } from '../../graphql/generated';
-import { Actor, getActorDisplayName } from '../User';
+import { Actor, getActorDisplayName, getCreatableAccountNames } from '../User';
 
 const userStub: Actor = {
   __typename: 'User',
   id: 'userId',
   email: 'user@example.com',
   username: 'username',
-  primaryAccount: {
-    id: 'account_id_777',
-    name: 'username',
-    users: [{ role: Role.Owner, actor: { id: 'userId' } }],
-  },
   accounts: [
     {
       id: 'account_id_777',
       name: 'username',
-      users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const ssoUserStub: Actor = {
   __typename: 'SSOUser',
   id: 'ssoUserId',
   username: 'ssoUsername',
-  primaryAccount: {
-    id: 'account_id_888',
-    name: 'ssoUsername',
-    users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
-  },
   accounts: [
     {
       id: 'account_id_888',
       name: 'ssoUsername',
-      users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const robotStub: Actor = {
@@ -72,5 +60,39 @@ describe('getActorDisplayName', () => {
 
   it('returns robot prefix only for robot actors without firstName', () => {
     expect(getActorDisplayName({ ...robotStub, firstName: undefined })).toBe('robot');
+  });
+});
+
+describe('getCreatableAccountNames', () => {
+  it('lists the personal account first, then team accounts, then organizations, excluding view-only accounts', () => {
+    const actor: Actor = {
+      ...userStub,
+      accounts: [
+        {
+          id: 'account_id_1',
+          name: 'some-org',
+          viewerUserPermission: { role: Role.Owner },
+        },
+        {
+          id: 'account_id_2',
+          name: 'other-user-team',
+          ownerUserActor: { id: 'otherUserId', username: 'other-user' },
+          viewerUserPermission: { role: Role.Admin },
+        },
+        {
+          id: 'account_id_3',
+          name: 'view-only-org',
+          viewerUserPermission: { role: Role.ViewOnly },
+        },
+        {
+          id: 'account_id_4',
+          name: 'username',
+          ownerUserActor: { id: 'userId', username: 'username' },
+          viewerUserPermission: { role: Role.Owner },
+        },
+      ],
+    };
+
+    expect(getCreatableAccountNames(actor)).toEqual(['username', 'other-user-team', 'some-org']);
   });
 });

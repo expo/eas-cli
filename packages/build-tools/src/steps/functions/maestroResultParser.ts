@@ -2,6 +2,7 @@ import { asyncResult } from '@expo/results';
 import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
 export interface MaestroFlowResult {
   name: string;
@@ -34,10 +35,16 @@ const xmlParser = new XMLParser({
   isArray: name => ['testsuite', 'testcase', 'property'].includes(name),
 });
 
-// A `file=` attribute counts as present only when it is a non-empty string.
+// Official Maestro writes the flow path as a `file=` testcase attribute. maestro-runner writes
+// the same value as a `<property name="file" value="..."/>` child.
 function fileAttrOf(tc: any): string | undefined {
   const f = tc?.['@_file'];
-  return typeof f === 'string' && f.length > 0 ? f : undefined;
+  if (typeof f === 'string' && f.length > 0) {
+    return f;
+  }
+  const properties: { '@_name'?: unknown; '@_value'?: unknown }[] = tc?.properties?.property ?? [];
+  const fileProperty = properties.find(property => property['@_name'] === 'file')?.['@_value'];
+  return typeof fileProperty === 'string' && fileProperty.length > 0 ? fileProperty : undefined;
 }
 
 function parseJUnitContent(content: string): JUnitTestCaseResult[] {
@@ -62,26 +69,46 @@ function parseJUnitContent(content: string): JUnitTestCaseResult[] {
           continue;
         }
 
+        // Standard JUnit marks skipped tests with a <skipped/> child (no failure/error). Exclude
+        // them so they aren't miscounted as passed, matching the report.json path which drops
+        // skipped flows.
+        if (tc.skipped != null) {
+          continue;
+        }
+
         const file = fileAttrOf(tc);
 
         const timeStr = tc['@_time'];
         const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
         const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
 
-        const status: 'passed' | 'failed' = tc['@_status'] === 'SUCCESS' ? 'passed' : 'failed';
+        // maestro-runner puts the real error in the `message` attribute and the command
+        // label (e.g. `tapOn`) in the body; official Maestro only writes the body. Prefer
+        // `@_message` and fall back to `#text` so both stay correct.
         const failureText =
           tc.failure != null
             ? typeof tc.failure === 'string'
               ? tc.failure
-              : (tc.failure?.['#text'] ?? null)
+              : (tc.failure?.['@_message'] ?? tc.failure?.['#text'] ?? null)
             : null;
         const errorText =
           tc.error != null
             ? typeof tc.error === 'string'
               ? tc.error
-              : (tc.error?.['#text'] ?? null)
+              : (tc.error?.['@_message'] ?? tc.error?.['#text'] ?? null)
             : null;
         const errorMessage: string | null = failureText ?? errorText ?? null;
+        // Official Maestro uses status="SUCCESS". maestro-runner uses standard JUnit semantics:
+        // a testcase passes when it has no failure or error child.
+        const statusAttribute = tc['@_status'];
+        const status: 'passed' | 'failed' =
+          typeof statusAttribute === 'string'
+            ? statusAttribute === 'SUCCESS'
+              ? 'passed'
+              : 'failed'
+            : tc.failure == null && tc.error == null
+              ? 'passed'
+              : 'failed';
 
         const rawProperties: { '@_name': string; '@_value': string }[] =
           tc.properties?.property ?? [];
@@ -120,6 +147,18 @@ async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> 
   } catch {
     return [];
   }
+}
+
+// Raw names (slashes kept) of the testcases a single JUnit file marks failed. Best-effort: an
+// unreadable or malformed file yields an empty set rather than throwing.
+export async function parseFailedFlowNamesFromJUnitFile(junitFile: string): Promise<Set<string>> {
+  const failed = new Set<string>();
+  for (const testcase of await parseJUnitFile(junitFile)) {
+    if (testcase.status === 'failed') {
+      failed.add(testcase.name);
+    }
+  }
+  return failed;
 }
 
 export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnitTestCaseResult[]> {
@@ -162,6 +201,69 @@ export async function junitFileHasFileAttrs(junitFile: string): Promise<boolean>
 
 async function fileExists(absPath: string): Promise<boolean> {
   return (await asyncResult(fs.stat(absPath))).ok;
+}
+
+// maestro-runner writes report.json as the source of truth for a run. Use it for runner control
+// flow because sourceFile preserves the exact flow path, while older runner JUnit reports flatten
+// it to a basename. Keep only passed and failed flows so the result matches Maestro JUnit reports,
+// which do not include skipped flows.
+const MaestroRunnerRecordedFlowSchema = z.object({
+  name: z.string().min(1),
+  sourceFile: z.string().min(1),
+  status: z.enum(['passed', 'failed']),
+});
+const MaestroRunnerReportSchema = z.object({
+  flows: z
+    .array(
+      z.discriminatedUnion('status', [
+        MaestroRunnerRecordedFlowSchema,
+        z.object({ status: z.literal('skipped') }),
+      ])
+    )
+    .transform(flows =>
+      flows.filter(
+        (flow): flow is z.infer<typeof MaestroRunnerRecordedFlowSchema> => flow.status !== 'skipped'
+      )
+    ),
+});
+
+type MaestroRunnerReport = z.infer<typeof MaestroRunnerReportSchema>;
+
+export async function parseFailedFlowsFromMaestroRunnerReport(args: {
+  reportDirectory: string;
+  workingDirectory: string;
+}): Promise<string[] | null> {
+  const report = await parseMaestroRunnerReport(args.reportDirectory);
+  if (report === null) {
+    return null;
+  }
+
+  const failedPaths = [
+    ...new Set(report.flows.filter(flow => flow.status === 'failed').map(flow => flow.sourceFile)),
+  ];
+  if (failedPaths.length === 0) {
+    return null;
+  }
+
+  for (const flowPath of failedPaths) {
+    if (!(await fileExists(path.resolve(args.workingDirectory, flowPath)))) {
+      return null;
+    }
+  }
+  return failedPaths;
+}
+
+export async function parseMaestroRunnerReport(
+  reportDirectory: string
+): Promise<MaestroRunnerReport | null> {
+  let report: unknown;
+  try {
+    report = JSON.parse(await fs.readFile(path.join(reportDirectory, 'report.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  const result = MaestroRunnerReportSchema.safeParse(report);
+  return result.success ? result.data : null;
 }
 
 // Group by `file=` so two same-named flows in different files stay separate.

@@ -29,6 +29,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   exp,
   vcsClient,
   nonInteractive,
+  autoSelectDefault = false,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -36,6 +37,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   exp: ExpoConfig;
   vcsClient: Client;
   nonInteractive: boolean;
+  autoSelectDefault?: boolean;
 }): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -51,6 +53,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
       projectId,
       exp,
       nonInteractive,
+      autoSelectDefault,
     });
   }
 }
@@ -141,12 +144,14 @@ async function configureApplicationIdAsync({
   projectId,
   exp,
   nonInteractive,
+  autoSelectDefault = false,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  autoSelectDefault?: boolean;
 }): Promise<string> {
   if (nonInteractive) {
     throw new Error(
@@ -166,25 +171,31 @@ async function configureApplicationIdAsync({
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
-  Log.addNewLineIfNone();
-  Log.log(
-    `${chalk.bold(`📝  Android application id`)} ${chalk.dim(
-      learnMore('https://expo.fyi/android-package')
-    )}`
-  );
-
   const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
     graphqlClient,
     exp,
     projectId
   );
-  const { packageName } = await promptAsync({
-    name: 'packageName',
-    type: 'text',
-    message: `What would you like your Android application id to be?`,
-    initial: suggestedAndroidApplicationId,
-    validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
-  });
+
+  let packageName: string;
+  if (autoSelectDefault && suggestedAndroidApplicationId) {
+    packageName = suggestedAndroidApplicationId;
+    Log.withTick(`Set "android.package" to ${chalk.bold(packageName)} (modified app.json)`);
+  } else {
+    Log.addNewLineIfNone();
+    Log.log(
+      `${chalk.bold(`📝  Android application id`)} ${chalk.dim(
+        learnMore('https://expo.fyi/android-package')
+      )}`
+    );
+    ({ packageName } = await promptAsync({
+      name: 'packageName',
+      type: 'text',
+      message: `What would you like your Android application id to be?`,
+      initial: suggestedAndroidApplicationId,
+      validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
+    }));
+  }
 
   const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = {

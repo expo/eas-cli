@@ -12,7 +12,7 @@ export const AppStoreConnectApiKeyQuery = {
     graphqlClient: ExpoGraphqlClient,
     ascApiKeyId: string
   ): Promise<{
-    issuerIdentifier: string;
+    issuerIdentifier: string | undefined;
     keyIdentifier: string;
     keyP8: string;
   }> {
@@ -42,7 +42,7 @@ export const AppStoreConnectApiKeyQuery = {
     const key = data.appStoreConnectApiKey.byId;
 
     return {
-      issuerIdentifier: key.issuerIdentifier,
+      issuerIdentifier: key.issuerIdentifier ?? undefined,
       keyIdentifier: key.keyIdentifier,
       keyP8: key.keyP8,
     };

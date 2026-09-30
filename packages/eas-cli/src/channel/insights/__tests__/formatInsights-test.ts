@@ -46,7 +46,11 @@ function makeInsights(
       id: u.id,
       group: u.group,
       message: u.message,
-      runtimeVersion: u.runtimeVersion,
+      runtime: {
+        __typename: 'Runtime' as const,
+        id: `${u.id}-runtime`,
+        version: u.runtimeVersion,
+      },
       platform: u.platform,
       insights: {
         __typename: 'UpdateInsights' as const,

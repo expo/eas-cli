@@ -1,18 +1,18 @@
 import { getConfigFilePaths } from '@expo/config';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
-import Go from '../../commands/go';
+import Go, { toRepackTargetSdkVersion } from '../../commands/go';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
+import { detectProjectSdkVersionAsync } from '../../project/detectProjectSdkVersionAsync';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
-import { ensureActorHasPrimaryAccount } from '../../user/actions';
-import { detectProjectSdkVersionAsync } from '../../commands/go';
 import { mockTestCommand } from './utils';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 
 jest.mock('@expo/config', () => ({
   ...jest.requireActual('@expo/config'),
@@ -45,8 +45,8 @@ jest.mock('fs-extra', () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
   remove: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../user/actions');
 jest.mock('../../graphql/queries/WorkflowRunQuery');
+jest.mock('../../graphql/queries/UserQuery');
 jest.mock('../../graphql/mutations/WorkflowRunMutation');
 jest.mock('../../project/uploadAccountScopedFileAsync');
 jest.mock('../../project/uploadAccountScopedProjectSourceAsync');
@@ -81,6 +81,25 @@ describe('detectProjectSdkVersionAsync', () => {
   });
 });
 
+describe('toRepackTargetSdkVersion', () => {
+  it.each([
+    ['57', '57.0.0'],
+    ['57.0.0', '57.0.0'],
+    ['57.0.9', '57.0.0'],
+    ['57.0.0-canary-20260101', '57.0.0'],
+  ])('resolves %s to the %s repack target', (sdkVersion, expected) => {
+    expect(toRepackTargetSdkVersion(sdkVersion)).toBe(expected);
+  });
+
+  it('returns undefined when no version is requested', () => {
+    expect(toRepackTargetSdkVersion(undefined)).toBeUndefined();
+  });
+
+  it('returns the requested version unchanged when it holds no version number', () => {
+    expect(toRepackTargetSdkVersion('latest')).toBe('latest');
+  });
+});
+
 const mockAccount = { id: 'account-id', name: 'testuser' };
 const mockActor = {
   __typename: 'User' as const,
@@ -91,7 +110,9 @@ const mockActor = {
 
 describe('Go command', () => {
   beforeEach(() => {
-    jest.mocked(ensureActorHasPrimaryAccount).mockReturnValue(mockAccount as any);
+    jest
+      .mocked(UserQuery.requireCurrentUserPrimaryAccountAsync)
+      .mockReturnValue(mockAccount as any);
     jest.mocked(WorkflowRunQuery.expoGoRepackConfigurationAsync).mockResolvedValue({
       files: [],
       sdkVersion: '55.0.0',
@@ -112,7 +133,7 @@ describe('Go command', () => {
     jest.clearAllMocks();
   });
 
-  function makeCmd(argv: string[] = []) {
+  function makeCmd(argv: string[] = []): Go {
     const ctx = {
       loggedIn: { actor: mockActor as any, graphqlClient: {} as any },
       analytics: {} as any,
@@ -149,12 +170,41 @@ describe('Go command', () => {
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Auto-selected'));
   });
 
+  it('requests the repack configuration with the repack target SDK version', async () => {
+    mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+
+    await makeCmd(['--sdk-version', '57']).run();
+
+    expect(WorkflowRunQuery.expoGoRepackConfigurationAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ sdkVersion: '57.0.0' })
+    );
+  });
+
   it('prompts for SDK version when no project config is found', async () => {
     mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
     jest.mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync).mockResolvedValue([
-      { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: false },
-      { sdkVersion: '55.0.0', isLatest: true, isBeta: false, isDeprecated: false },
-      { sdkVersion: '56.0.0', isLatest: false, isBeta: true, isDeprecated: false },
+      {
+        sdkVersion: '54.0.0',
+        isLatest: false,
+        isBeta: false,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+      {
+        sdkVersion: '55.0.0',
+        isLatest: true,
+        isBeta: false,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+      {
+        sdkVersion: '56.0.0',
+        isLatest: false,
+        isBeta: true,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
     ]);
     jest.mocked(selectAsync).mockResolvedValue('55.0.0');
 
@@ -173,11 +223,15 @@ describe('Go command', () => {
 
   it('skips prompt when all versions are deprecated', async () => {
     mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
-    jest
-      .mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync)
-      .mockResolvedValue([
-        { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: true },
-      ]);
+    jest.mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync).mockResolvedValue([
+      {
+        sdkVersion: '54.0.0',
+        isLatest: false,
+        isBeta: false,
+        isDeprecated: true,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+    ]);
 
     await makeCmd().run();
 

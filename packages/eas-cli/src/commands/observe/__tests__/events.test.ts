@@ -1,8 +1,12 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObservePlatform } from '../../../graphql/generated';
 import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../../observe/fetchCustomEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import {
   buildObserveCustomEventNamesJson,
   buildObserveCustomEventsEmptyWithSuggestionsJson,
@@ -73,6 +77,31 @@ describe(ObserveEvents, () => {
     return command;
   }
 
+  function planGateError(): CombinedError {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    return new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(serverMessage, null, null, null, null, null, {
+          errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+        }),
+      ],
+    });
+  }
+
+  it('surfaces the plan-gate message when listing event names is not available on the plan', async () => {
+    mockCustomEventNamesAsync.mockRejectedValueOnce(planGateError());
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow(/Subscription to EAS is required/);
+  });
+
+  it('surfaces the plan-gate message when querying events is not available on the plan', async () => {
+    mockFetchObserveCustomEventsAsync.mockRejectedValueOnce(planGateError());
+    const command = createCommand(['my_event']);
+    await expect(command.runAsync()).rejects.toThrow(/Subscription to EAS is required/);
+  });
+
   it('passes eventName arg to fetchObserveCustomEventsAsync', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [{ id: 'evt-1' } as any],
@@ -84,6 +113,25 @@ describe(ObserveEvents, () => {
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.eventName).toBe('my_event');
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+  });
+
+  it('passes --environment to the custom events filter', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [{ id: 'evt-1' } as any],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+    const command = createCommand(['my_event', '--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
+  });
+
+  it('passes --environment to customEventNamesAsync when listing event names', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync.mock.calls[0][1].environment).toBe('production');
   });
 
   it('routes to customEventNamesAsync when no positional arg is provided', async () => {
@@ -102,6 +150,17 @@ describe(ObserveEvents, () => {
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.eventName).toBeUndefined();
+  });
+
+  it('routes to fetchObserveCustomEventsAsync with the session filter when --session-id is set with no positional arg', async () => {
+    const command = createCommand(['--session-id', 'session-xyz']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBeUndefined();
+    expect(options.sessionId).toBe('session-xyz');
   });
 
   it('throws when both an event name argument and --all-events are provided', async () => {
@@ -124,7 +183,8 @@ describe(ObserveEvents, () => {
       appId: projectId,
       startTime: '2025-06-08T12:00:00.000Z',
       endTime: '2025-06-15T12:00:00.000Z',
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
+      environment: undefined,
     });
 
     jest.useRealTimers();
@@ -191,7 +251,20 @@ describe(ObserveEvents, () => {
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Ios);
+    expect(options.platforms).toEqual([AppObservePlatform.Ios]);
+  });
+
+  it('passes --platform apple as every Apple platform', async () => {
+    const command = createCommand(['my_event', '--platform', 'apple']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.platforms).toEqual([
+      AppObservePlatform.Ios,
+      AppObservePlatform.Ipados,
+      AppObservePlatform.Tvos,
+      AppObservePlatform.Macos,
+    ]);
   });
 
   it('passes --app-version', async () => {
@@ -200,6 +273,14 @@ describe(ObserveEvents, () => {
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.appVersion).toBe('2.1.0');
+  });
+
+  it('passes --build-number', async () => {
+    const command = createCommand(['my_event', '--build-number', '42']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.buildNumber).toBe('42');
   });
 
   it('passes --update-id', async () => {
@@ -218,12 +299,12 @@ describe(ObserveEvents, () => {
     expect(options.sessionId).toBe('session-xyz');
   });
 
-  it('does not pass platform, appVersion, updateId, or sessionId when flags are not provided', async () => {
+  it('does not pass platforms, appVersion, updateId, or sessionId when flags are not provided', async () => {
     const command = createCommand(['my_event']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBeUndefined();
+    expect(options.platforms).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
     expect(options.sessionId).toBeUndefined();

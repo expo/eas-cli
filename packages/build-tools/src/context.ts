@@ -45,6 +45,7 @@ export type ArtifactToUpload =
       type: GenericArtifactType;
       name: string;
       paths: string[];
+      metadata?: Record<string, unknown>;
     };
 
 export interface BuildContextOptions {
@@ -62,11 +63,12 @@ export interface BuildContextOptions {
   reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
   expoApiV2BaseUrl?: string;
+  mcpServerUrl?: string;
 }
 
 export class SkipNativeBuildError extends Error {}
@@ -79,10 +81,11 @@ export class BuildContext<TJob extends Job = Job> {
   public readonly reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   public readonly skipNativeBuild?: boolean;
   public readonly expoApiV2BaseUrl?: string;
+  public readonly mcpServerUrl?: string;
   public artifacts: Artifacts = {};
 
   private readonly _isLocal: boolean;
@@ -111,6 +114,7 @@ export class BuildContext<TJob extends Job = Job> {
     this._metadata = options.metadata;
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
+    this.mcpServerUrl = options.mcpServerUrl;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {
@@ -246,9 +250,10 @@ export class BuildContext<TJob extends Job = Job> {
         'Updating environment variables is only allowed when build was triggered by a git-based integration.'
       );
     }
+
     this._env = {
-      ...env,
       ...this._env,
+      ...env,
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
     this._env.PATH = this._env.PATH

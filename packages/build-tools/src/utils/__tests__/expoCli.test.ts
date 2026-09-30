@@ -1,7 +1,7 @@
 import resolveFrom from 'resolve-from';
 import spawnAsync from '@expo/turtle-spawn';
 
-import { expoCommandAsync, ExpoCLIModuleNotFoundError } from '../expoCli';
+import { ExpoCLIModuleNotFoundError, expoCommandAsync } from '../expoCli';
 
 jest.mock('resolve-from', () => ({
   __esModule: true,

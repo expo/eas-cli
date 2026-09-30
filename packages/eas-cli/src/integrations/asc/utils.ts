@@ -33,8 +33,8 @@ export function buildJsonOutput(
       ? {
           id: link.id,
           ascAppIdentifier: link.ascAppIdentifier,
-          name: link.remoteAppStoreConnectApp.name ?? null,
-          bundleIdentifier: link.remoteAppStoreConnectApp.bundleIdentifier ?? null,
+          name: link.remoteAppStoreConnectApp?.name ?? null,
+          bundleIdentifier: link.remoteAppStoreConnectApp?.bundleIdentifier ?? null,
           appleUrl: getAppleAppUrl(link.ascAppIdentifier),
         }
       : null,
@@ -69,8 +69,10 @@ export function formatAscAppLinkStatus(metadata: AscAppLinkMetadata): string {
   ];
 
   const remote = link.remoteAppStoreConnectApp;
-  lines.push(`  Name:        ${remote.name}`);
-  lines.push(`  Bundle ID:   ${remote.bundleIdentifier}`);
+  if (remote) {
+    lines.push(`  Name:        ${remote.name}`);
+    lines.push(`  Bundle ID:   ${remote.bundleIdentifier}`);
+  }
   lines.push(`  Apple URL:   ${getAppleAppUrl(link.ascAppIdentifier)}`);
 
   return lines.join('\n');

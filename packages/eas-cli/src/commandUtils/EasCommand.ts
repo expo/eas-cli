@@ -57,6 +57,7 @@ const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 interface BaseGetContextAsyncArgs {
   nonInteractive: boolean;
   vcsClientOverride?: Client;
+  projectIdOverride?: string;
 }
 
 interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {
@@ -183,6 +184,7 @@ export default abstract class EasCommand extends Command {
     {
       nonInteractive,
       vcsClientOverride,
+      projectIdOverride,
       // if specified and not null, the env vars from the selected environment will be fetched from the server
       // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
       withServerSideEnvironment,
@@ -206,6 +208,7 @@ export default abstract class EasCommand extends Command {
           sessionManager: this.sessionManager,
           analytics: this.analytics,
           vcsClientOverride,
+          projectIdOverride,
           withServerSideEnvironment,
         }),
       ]);

@@ -1,10 +1,11 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { App, User, UserRole } from '@expo/apple-utils';
+import { ExpoConfig } from '@expo/config';
+import { App } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
+import semver from 'semver';
 import { Analytics } from '../analytics/AnalyticsManager';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -15,8 +16,10 @@ import { SetUpAscApiKey } from '../credentials/ios/actions/SetUpAscApiKey';
 import { SetUpBuildCredentials } from '../credentials/ios/actions/SetUpBuildCredentials';
 import { SetUpPushKey } from '../credentials/ios/actions/SetUpPushKey';
 import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExists';
+import { ensureTestFlightGroupExistsAsync } from '../credentials/ios/appstore/ensureTestFlightGroup';
 import { Target } from '../credentials/ios/types';
 import {
+  AccountFragment,
   WorkflowJobStatus,
   WorkflowProjectSourceType,
   WorkflowRunStatus,
@@ -28,11 +31,10 @@ import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
 import { confirmAsync, selectAsync } from '../prompts';
 import { ora } from '../ora';
-import { getPrivateExpoConfigAsync } from '../project/expoConfig';
+import { detectProjectSdkVersionAsync } from '../project/detectProjectSdkVersionAsync';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
-import { ensureActorHasPrimaryAccount } from '../user/actions';
 import { Actor, getActorDisplayName } from '../user/User';
 import { sleepAsync } from '../utils/promise';
 import { Client } from '../vcs/vcs';
@@ -41,81 +43,19 @@ import {
   INVALID_BUNDLE_IDENTIFIER_MESSAGE,
   isBundleIdentifierValid,
 } from '../project/ios/bundleIdentifier';
+import { UserQuery } from '../graphql/queries/UserQuery';
 
 function deriveBundleIdSlug(bundleId: string): string {
   return bundleId.split('.').filter(Boolean).pop()!;
 }
 
-export async function detectProjectSdkVersionAsync(
-  projectDir: string
-): Promise<string | undefined> {
-  const paths = getConfigFilePaths(projectDir);
-  if (!paths.staticConfigPath && !paths.dynamicConfigPath) {
-    return;
-  }
-  try {
-    return (await getPrivateExpoConfigAsync(projectDir)).sdkVersion;
-  } catch {
-    return;
-  }
+export function toRepackTargetSdkVersion(sdkVersion: string | undefined): string | undefined {
+  const coerced = semver.coerce(sdkVersion);
+  return coerced ? `${coerced.major}.0.0` : sdkVersion;
 }
 
-const TESTFLIGHT_GROUP_NAME = 'Team (Expo)';
-
 async function setupTestFlightAsync(ascApp: App): Promise<void> {
-  let group;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const groups = await ascApp.getBetaGroupsAsync({
-        query: { includes: ['betaTesters'] },
-      });
-
-      group = groups.find(
-        g => g.attributes.isInternalGroup && g.attributes.name === TESTFLIGHT_GROUP_NAME
-      );
-
-      if (!group) {
-        group = await ascApp.createBetaGroupAsync({
-          name: TESTFLIGHT_GROUP_NAME,
-          isInternalGroup: true,
-          hasAccessToAllBuilds: true,
-        });
-      }
-      break;
-    } catch (error: any) {
-      // Apple returns this error when the app isn't ready yet
-      if (error?.data?.errors?.some((e: any) => e.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID')) {
-        if (attempt < 9) {
-          await sleepAsync(10_000);
-          continue;
-        }
-      }
-      throw error;
-    }
-  }
-
-  if (!group) {
-    throw new Error('Failed to create TestFlight group');
-  }
-
-  const users = await User.getAsync(ascApp.context);
-  const admins = users.filter(u => u.attributes.roles?.includes(UserRole.ADMIN));
-
-  const existingEmails = new Set(
-    group.attributes.betaTesters?.map((t: any) => t.attributes.email?.toLowerCase()) ?? []
-  );
-
-  const newTesters = admins
-    .filter(u => u.attributes.email && !existingEmails.has(u.attributes.email.toLowerCase()))
-    .map(u => ({
-      email: u.attributes.email!,
-      firstName: u.attributes.firstName ?? '',
-      lastName: u.attributes.lastName ?? '',
-    }));
-
-  if (newTesters.length > 0) {
-    await group.createBulkBetaTesterAssignmentsAsync(newTesters);
-  }
+  await ensureTestFlightGroupExistsAsync(ascApp);
 }
 
 /* eslint-disable no-console */
@@ -173,7 +113,8 @@ export default class Go extends EasCommand {
       default: 'My Expo Go',
     }),
     'sdk-version': Flags.string({
-      description: 'Expo Go SDK version to prepare (default: latest)',
+      description:
+        'Expo Go SDK version to prepare, for example 57 (default: the SDK version of the current project)',
       required: false,
     }),
     credentials: Flags.boolean({
@@ -202,7 +143,10 @@ export default class Go extends EasCommand {
     } = await this.getContextAsync(Go, {
       nonInteractive: false,
     });
+
     Log.withTick(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
+
+    const userPrimaryAccount = await UserQuery.requireCurrentUserPrimaryAccountAsync(graphqlClient);
 
     const detectedSdkVersion = await detectProjectSdkVersionAsync(process.cwd());
     if (detectedSdkVersion && !flags['sdk-version']) {
@@ -210,11 +154,11 @@ export default class Go extends EasCommand {
         `Current project using SDK ${detectedSdkVersion.split('.')[0]}. Auto-selected same version. To use a different version, pass --sdk-version.`
       );
     }
-    let sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
+    let sdkVersion = toRepackTargetSdkVersion(flags['sdk-version'] ?? detectedSdkVersion);
     if (!sdkVersion) {
       ({ sdkVersion } = await this.selectSdkVersionAsync(graphqlClient));
     }
-    const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
+    const bundleId = flags['bundle-id'] ?? this.generateBundleId(userPrimaryAccount);
     if (!isBundleIdentifierValid(bundleId)) {
       throw new Error(
         `"${bundleId}" is not a valid iOS bundle identifier. ${INVALID_BUNDLE_IDENTIFIER_MESSAGE} Pass a valid identifier with --bundle-id.`
@@ -227,7 +171,7 @@ export default class Go extends EasCommand {
     let projectId: string;
     try {
       projectId = await withSuppressedOutputAsync(() =>
-        this.ensureEasProjectAsync(graphqlClient, actor, slug)
+        this.ensureEasProjectAsync(graphqlClient, userPrimaryAccount, slug)
       );
     } catch (error) {
       setupSpinner.fail();
@@ -262,7 +206,7 @@ export default class Go extends EasCommand {
       } = await this.dispatchWorkflowAsync(
         graphqlClient,
         projectId,
-        actor,
+        userPrimaryAccount,
         bundleId,
         appName,
         ascApp.id,
@@ -335,8 +279,8 @@ export default class Go extends EasCommand {
     };
   }
 
-  private generateBundleId(actor: Actor): string {
-    const username = ensureActorHasPrimaryAccount(actor).name;
+  private generateBundleId(userPrimaryAccount: AccountFragment): string {
+    const username = userPrimaryAccount.name;
     const sanitizedUsername = username
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '-')
@@ -347,14 +291,12 @@ export default class Go extends EasCommand {
 
   private async ensureEasProjectAsync(
     graphqlClient: ExpoGraphqlClient,
-    actor: Actor,
+    userPrimaryAccount: AccountFragment,
     slug: string
   ): Promise<string> {
-    const account = ensureActorHasPrimaryAccount(actor);
-
     const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
       graphqlClient,
-      account.name,
+      userPrimaryAccount.name,
       slug
     );
 
@@ -363,7 +305,7 @@ export default class Go extends EasCommand {
     }
 
     return await AppMutation.createAppAsync(graphqlClient, {
-      accountId: account.id,
+      accountId: userPrimaryAccount.id,
       projectName: slug,
     });
   }
@@ -454,7 +396,7 @@ export default class Go extends EasCommand {
   private async dispatchWorkflowAsync(
     graphqlClient: ExpoGraphqlClient,
     projectId: string,
-    actor: Actor,
+    userPrimaryAccount: AccountFragment,
     bundleId: string,
     appName: string,
     ascAppId: string,
@@ -462,8 +404,6 @@ export default class Go extends EasCommand {
     tmpDir: string,
     vcsClient: Client
   ): Promise<{ workflowUrl: string; workflowRunId: string; sdkVersion: string }> {
-    const account = ensureActorHasPrimaryAccount(actor);
-
     const repackConfig = await WorkflowRunQuery.expoGoRepackConfigurationAsync(graphqlClient, {
       appId: projectId,
       ascAppId,
@@ -481,17 +421,17 @@ export default class Go extends EasCommand {
         const { projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
           graphqlClient,
           vcsClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
         });
         const { fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
           filePath: path.join(tmpDir, 'eas.json'),
           maxSizeBytes: 1024 * 1024,
         });
         const { fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
           filePath: path.join(tmpDir, 'package.json'),
           maxSizeBytes: 1024 * 1024,
         });
@@ -509,7 +449,11 @@ export default class Go extends EasCommand {
       },
     });
 
-    const workflowUrl = getWorkflowRunUrl(account.name, deriveBundleIdSlug(bundleId), result.id);
+    const workflowUrl = getWorkflowRunUrl(
+      userPrimaryAccount.name,
+      deriveBundleIdSlug(bundleId),
+      result.id
+    );
 
     return { workflowUrl, workflowRunId: result.id, sdkVersion: repackConfig.sdkVersion };
   }

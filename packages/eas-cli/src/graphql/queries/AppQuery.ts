@@ -7,7 +7,9 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   AppByFullNameQuery,
+  AppByIdProfileImageUrlQuery,
   AppByIdQuery,
+  AppByIdWorkflowFileNamesQuery,
   AppByIdWorkflowRunsFilteredByStatusQuery,
   AppByIdWorkflowsQuery,
   AppFragment,
@@ -72,6 +74,35 @@ export const AppQuery = {
     assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byFullName;
   },
+  async byIdProfileImageUrlAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<string | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdProfileImageUrlQuery>(
+          gql`
+            query AppByIdProfileImageUrlQuery($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  profileImageUrl
+                }
+              }
+            }
+          `,
+          { appId: projectId },
+          {
+            requestPolicy: 'network-only',
+            additionalTypenames: ['App'],
+          }
+        )
+        .toPromise()
+    );
+
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId.profileImageUrl ?? null;
+  },
   async byIdWorkflowsAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string
@@ -95,6 +126,34 @@ export const AppQuery = {
           `,
           { appId },
           { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId.workflows;
+  },
+  async byIdWorkflowFileNamesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<{ id: string; fileName: string }[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdWorkflowFileNamesQuery>(
+          gql`
+            query AppByIdWorkflowFileNamesQuery($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  workflows {
+                    id
+                    fileName
+                  }
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: ['App', 'Workflow'] }
         )
         .toPromise()
     );

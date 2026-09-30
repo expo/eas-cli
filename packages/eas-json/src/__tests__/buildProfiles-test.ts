@@ -40,6 +40,27 @@ test('minimal valid eas.json for both platforms', async () => {
   });
 });
 
+test('source map uploads can be enabled for both platforms', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        uploadSourceMaps: true,
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile.uploadSourceMaps).toBe(true);
+  expect(iosProfile.uploadSourceMaps).toBe(true);
+});
+
 test('minimal valid eas.json for both platforms when reading eas.json from string', async () => {
   const accessor = EasJsonAccessor.fromRawString(
     JSON.stringify({

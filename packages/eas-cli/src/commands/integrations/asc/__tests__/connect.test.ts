@@ -6,6 +6,7 @@ import { AppStoreConnectApiKeyQuery } from '../../../../credentials/ios/api/grap
 import { AscAppLinkMutation } from '../../../../graphql/mutations/AscAppLinkMutation';
 import { AscAppLinkQuery } from '../../../../graphql/queries/AscAppLinkQuery';
 import IntegrationsAscConnect from '../connect';
+import { Role } from '../../../../graphql/generated';
 
 jest.mock('../../../../graphql/queries/AscAppLinkQuery');
 jest.mock('../../../../graphql/mutations/AscAppLinkMutation');
@@ -18,7 +19,12 @@ const testProjectId = 'test-project-id';
 const mockMetadataConnected = {
   id: testProjectId,
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: {
     id: 'asc-app-link-id',
     ascAppIdentifier: '1234567890',
@@ -34,7 +40,12 @@ const mockMetadataConnected = {
 const mockMetadataDisconnected = {
   id: testProjectId,
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: null,
 };
 
@@ -90,6 +101,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'key-id',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -128,6 +140,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'eas-key-uuid',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -196,6 +209,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'key-id',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -223,6 +237,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'eas-key-uuid',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -244,6 +259,35 @@ describe(IntegrationsAscConnect, () => {
     );
   });
 
+  it('fails when --api-key-id points at an individual key', async () => {
+    jest
+      .mocked(AscAppLinkQuery.getAppMetadataAsync)
+      .mockResolvedValueOnce(mockMetadataDisconnected);
+    jest.mocked(AppStoreConnectApiKeyQuery.getAllForAccountAsync).mockResolvedValueOnce([
+      {
+        id: 'key-id',
+        keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: null,
+      },
+    ] as any);
+
+    const command = new IntegrationsAscConnect(
+      ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
+      mockConfig
+    );
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      projectId: testProjectId,
+      projectDir: '/test/project',
+      analytics,
+      vcsClient,
+      loggedIn: { graphqlClient, actor },
+    });
+
+    await expect(command.runAsync()).rejects.toThrow('is an individual key');
+    expect(AscAppLinkQuery.discoverAccessibleAppsAsync).not.toHaveBeenCalled();
+  });
+
   it('fails when multiple keys match Apple key identifier', async () => {
     jest
       .mocked(AscAppLinkQuery.getAppMetadataAsync)
@@ -252,10 +296,12 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'eas-key-uuid-1',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
       {
         id: 'eas-key-uuid-2',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -286,6 +332,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'key-id',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 
@@ -318,6 +365,7 @@ describe(IntegrationsAscConnect, () => {
       {
         id: 'key-id',
         keyIdentifier: 'FAKEKEY000',
+        issuerIdentifier: 'FAKEISSUER',
       },
     ] as any);
 

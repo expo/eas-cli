@@ -1,12 +1,17 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppPlatform } from '../../../graphql/generated';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveNavigationRoutesAsync } from '../../../observe/fetchNavigationRoutes';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import {
   buildObserveNavigationRoutesJson,
   buildObserveNavigationRoutesTable,
 } from '../../../observe/formatNavigationRoutes';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
 import ObserveRoutes from '../routes';
 
 jest.mock('../../../observe/fetchNavigationRoutes');
@@ -26,6 +31,10 @@ const mockBuildObserveNavigationRoutesTable = jest.mocked(buildObserveNavigation
 const mockBuildObserveNavigationRoutesJson = jest.mocked(buildObserveNavigationRoutesJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(ObserveRoutes, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -50,13 +59,34 @@ describe(ObserveRoutes, () => {
     return command;
   }
 
+  it('surfaces the server plan-gate message when navigation is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveNavigationRoutesAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
   it('queries both platforms by default with all three navigation metric full names', async () => {
     const command = createCommand([]);
     await command.runAsync();
 
     expect(mockFetchObserveNavigationRoutesAsync).toHaveBeenCalledTimes(1);
     const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
-    expect(options.platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
+    expect(options.targets).toEqual([
+      target(AppObservePlatform.Android),
+      target(AppObservePlatform.Ios),
+    ]);
     expect(options.limit).toBe(50);
 
     const tableCall = mockBuildObserveNavigationRoutesTable.mock.calls[0];
@@ -73,15 +103,15 @@ describe(ObserveRoutes, () => {
     await command.runAsync();
 
     const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
-    expect(options.platforms).toEqual([AppPlatform.Ios]);
+    expect(options.targets).toEqual([target(AppObservePlatform.Ios)]);
   });
 
   it('resolves --metric short aliases to navigation metric full names and deduplicates', async () => {
     const command = createCommand([
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
       'nav_tti',
     ]);
@@ -150,6 +180,14 @@ describe(ObserveRoutes, () => {
     expect(options.appVersion).toBe('2.1.0');
     expect(options.updateId).toBe('update-xyz');
     expect(options.buildNumber).toBe('42');
+  });
+
+  it('passes --environment through to the fetcher', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
+    expect(options.environment).toBe('production');
   });
 
   it('passes --route-name flags through as routeNames array', async () => {

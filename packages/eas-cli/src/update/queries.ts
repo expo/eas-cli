@@ -202,7 +202,7 @@ export async function selectUpdateGroupOnBranchAsync(
       .map(group => {
         const first = group[0];
         return first
-          ? `${first.group} (runtime: ${first.runtimeVersion}, message: ${first.message ?? 'N/A'})`
+          ? `${first.group} (runtime: ${first.runtime.version}, message: ${first.message ?? 'N/A'})`
           : 'unknown';
       })
       .join('\n  ');

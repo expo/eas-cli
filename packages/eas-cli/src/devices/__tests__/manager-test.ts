@@ -26,26 +26,20 @@ describe(AccountResolver, () => {
       id: 'user_id_666',
       email: 'dominik@example.com',
       username: 'dominik',
-      primaryAccount: {
-        id: 'account_id_777',
-        name: 'dominik',
-        users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
-      },
       accounts: [
         {
           id: 'account_id_777',
           name: 'dominik',
-          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+          viewerUserPermission: { role: Role.Owner },
         },
         {
           id: 'account_id_888',
           name: 'foo',
-          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+          viewerUserPermission: { role: Role.Owner },
         },
       ],
       isExpoAdmin: false,
       featureGates: {},
-      preferences: {},
     };
 
     describe('when inside project dir', () => {
@@ -58,7 +52,7 @@ describe(AccountResolver, () => {
           ownerAccount: {
             id: 'account_id_888',
             name: 'foo',
-            users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
+            viewerUserPermission: { role: Role.Owner },
           },
         });
       });
@@ -74,7 +68,7 @@ describe(AccountResolver, () => {
         expect(account).toEqual({
           id: user.accounts[1].id,
           name: user.accounts[1].name,
-          users: user.accounts[1].users,
+          viewerUserPermission: user.accounts[1].viewerUserPermission,
         });
       });
 

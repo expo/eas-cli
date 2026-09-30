@@ -1,8 +1,10 @@
 import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
 
 import Log from '../../log';
 import {
   EAS_CLI_UPGRADE_REQUIRED_ERROR_CODE,
+  isPermanentGraphqlError,
   withErrorHandlingAsync,
   withUpgradeRequiredErrorHandlingAsync,
 } from '../client';
@@ -38,6 +40,46 @@ describe(withErrorHandlingAsync, () => {
     });
     await expect(withErrorHandlingAsync(Promise.resolve({ error } as any))).rejects.toBe(error);
     expect(mockLogError).not.toHaveBeenCalled();
+  });
+});
+
+describe(isPermanentGraphqlError, () => {
+  it('is true for user errors', () => {
+    expect(isPermanentGraphqlError(makeError('Not authorized', { errorType: 'USER' }))).toBe(true);
+  });
+
+  it('is false for network errors', () => {
+    expect(isPermanentGraphqlError(new CombinedError({ networkError: new Error('offline') }))).toBe(
+      false
+    );
+  });
+
+  it('is false for server faults', () => {
+    expect(isPermanentGraphqlError(makeError('Unexpected', { errorType: 'SYSTEM' }))).toBe(false);
+  });
+
+  it('is false for user errors the server marks transient', () => {
+    expect(
+      isPermanentGraphqlError(makeError('Locked', { errorType: 'USER', isTransient: true }))
+    ).toBe(false);
+  });
+
+  it('is false when any error in the response is not a user error', () => {
+    const mixed = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError('Not authorized', { extensions: { errorType: 'USER' } }),
+        new GraphQLError('Unexpected', { extensions: { errorType: 'SYSTEM' } }),
+      ],
+    });
+    expect(isPermanentGraphqlError(mixed)).toBe(false);
+  });
+
+  it('is false for unclassified GraphQL errors', () => {
+    expect(isPermanentGraphqlError(makeError('Something'))).toBe(false);
+  });
+
+  it('is false for errors that are not GraphQL errors', () => {
+    expect(isPermanentGraphqlError(new Error('boom'))).toBe(false);
   });
 });
 

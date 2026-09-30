@@ -260,7 +260,7 @@ describe(UpdateEmbeddedList, () => {
       pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: 'c1', endCursor: 'c1' },
     });
     await createCommand(['--non-interactive']).run();
-    expect(mockLogLog.mock.calls.some(c => /ago/.test(String(c[0])))).toBe(true);
+    expect(mockLogLog.mock.calls.some(c => String(c[0]).includes('ago'))).toBe(true);
   });
 
   it('puts "All channels" first in the prompt, then channels in order', async () => {

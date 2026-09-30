@@ -3,6 +3,7 @@ import {
   BuildJob,
   BuildPhase,
   BuildTrigger,
+  HookAnchorId,
   Ios,
   Job,
   Platform,
@@ -14,7 +15,9 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from './easBuildInternal';
+import { runHookableBuildPhaseAsync } from './hookableBuildPhase';
 import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
+import { ParsedJobHooks, parseJobHooksAsync } from './jobHooks';
 import { prepareProjectSourcesAsync } from './projectSources';
 import { BuildContext } from '../context';
 import { deleteXcodeEnvLocalIfExistsAsync } from '../ios/xcodeEnv';
@@ -26,7 +29,7 @@ import {
   shouldUseFrozenLockfile,
 } from '../utils/packageManager';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
-import { readAndLogPackageJson, readEasJsonContents } from '../utils/project';
+import { readAndLogPackageJson, readEasJsonContents, readPackageJson } from '../utils/project';
 import { retryAsync } from '../utils/retry';
 
 const MAX_EXPO_DOCTOR_TIMEOUT_MS = 30 * 1000;
@@ -36,7 +39,22 @@ const INSTALL_DEPENDENCIES_KILL_TIMEOUT_MS = 30 * 60 * 1000;
 class DoctorTimeoutError extends Error {}
 class InstallDependenciesTimeoutError extends Error {}
 
-export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>): Promise<void> {
+/**
+ * Mutable holder the builder passes into setupAsync. setupAsync assigns
+ * `current` the moment hooks are parsed (before any hook runs), so the builder's
+ * finally can drain queued metric uploads even if setup fails partway through.
+ */
+export interface JobHooksRef {
+  current: ParsedJobHooks | null;
+}
+
+export async function setupAsync<TJob extends BuildJob>(
+  ctx: BuildContext<TJob>,
+  {
+    wrappedAnchors,
+    jobHooksRef,
+  }: { wrappedAnchors: readonly HookAnchorId[]; jobHooksRef: JobHooksRef }
+): Promise<void> {
   await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
     await retryAsync(
       async () => {
@@ -81,32 +99,48 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
     }
   });
 
-  const packageJson = await ctx.runBuildPhase(BuildPhase.READ_PACKAGE_JSON, async () => {
-    return readAndLogPackageJson(ctx.logger, ctx.getReactNativeProjectDirectory());
+  await ctx.runBuildPhase(BuildPhase.READ_PACKAGE_JSON, async () => {
+    readAndLogPackageJson(ctx.logger, ctx.getReactNativeProjectDirectory());
   });
 
-  await ctx.runBuildPhase(BuildPhase.INSTALL_DEPENDENCIES, async () => {
-    const expoVersion =
-      ctx.metadata?.sdkVersion ??
-      getPackageVersionFromPackageJson({
-        packageJson,
-        packageName: 'expo',
-      });
+  // Parse hooks unconditionally, after every pre-install env mutation
+  // (PREPARE_PROJECT, the git-based profile-env block, PRE_INSTALL_HOOK) and
+  // before the first wrapped phase.
+  jobHooksRef.current = await parseJobHooksAsync(ctx, wrappedAnchors);
 
-    const reactNativeVersion =
-      ctx.metadata?.reactNativeVersion ??
-      getPackageVersionFromPackageJson({
-        packageJson,
-        packageName: 'react-native',
-      });
+  await runHookableBuildPhaseAsync({
+    ctx,
+    hooks: jobHooksRef.current,
+    buildPhase: BuildPhase.INSTALL_DEPENDENCIES,
+    anchor: 'install_node_modules',
+    fn: async () => {
+      // Read package.json fresh here rather than reusing the READ_PACKAGE_JSON
+      // capture: a before_install_node_modules hook may have patched it, and the
+      // steps-world install already reads it fresh. Silent read — READ_PACKAGE_JSON
+      // stays the only logging site.
+      const freshPackageJson = readPackageJson(ctx.getReactNativeProjectDirectory());
+      const expoVersion =
+        ctx.metadata?.sdkVersion ??
+        getPackageVersionFromPackageJson({
+          packageJson: freshPackageJson,
+          packageName: 'expo',
+        });
 
-    await runInstallDependenciesAsync(ctx, {
-      useFrozenLockfile: shouldUseFrozenLockfile({
-        env: ctx.env,
-        sdkVersion: expoVersion,
-        reactNativeVersion,
-      }),
-    });
+      const reactNativeVersion =
+        ctx.metadata?.reactNativeVersion ??
+        getPackageVersionFromPackageJson({
+          packageJson: freshPackageJson,
+          packageName: 'react-native',
+        });
+
+      await runInstallDependenciesAsync(ctx, {
+        useFrozenLockfile: shouldUseFrozenLockfile({
+          env: ctx.env,
+          sdkVersion: expoVersion,
+          reactNativeVersion,
+        }),
+      });
+    },
   });
 
   await ctx.runBuildPhase(BuildPhase.READ_APP_CONFIG, async () => {
@@ -140,7 +174,9 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
     });
   }
 
-  const hasExpoPackage = !!packageJson.dependencies?.expo;
+  // Read fresh: a before_install_node_modules hook may have added or removed
+  // the expo dependency.
+  const hasExpoPackage = !!readPackageJson(ctx.getReactNativeProjectDirectory()).dependencies?.expo;
   if (!ctx.env.EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP && hasExpoPackage) {
     await ctx.runBuildPhase(BuildPhase.RUN_EXPO_DOCTOR, async () => {
       try {

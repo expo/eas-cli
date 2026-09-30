@@ -25,7 +25,6 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
-import { ensureActorHasPrimaryAccount } from '../../user/actions';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -53,6 +52,7 @@ import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/graphql/types/AppLookupParams';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 
 export class ManageIos {
   constructor(
@@ -95,7 +95,7 @@ export class ManageIos {
 
     const account = ctx.hasProjectContext
       ? await getAccountForProjectAsync(await ctx.getProjectIdAsync())
-      : ensureActorHasPrimaryAccount(ctx.user);
+      : await UserQuery.requireCurrentUserPrimaryAccountAsync(ctx.graphqlClient);
 
     let app = null;
     let targets = null;

@@ -1,4 +1,5 @@
 import { type bunyan } from '@expo/logger';
+import assert from 'node:assert';
 import fg from 'fast-glob';
 import { vol } from 'memfs';
 import path from 'node:path';
@@ -27,7 +28,7 @@ describe(createRepackBuildFunction, () => {
     vol.reset();
   });
 
-  it('should set the output path for successful repack', async () => {
+  it('should set generated output path for successful repack', async () => {
     const repack = createRepackBuildFunction();
     const repackStep = repack.createBuildStepFromFunctionCall(
       createGlobalContextMock({
@@ -38,14 +39,33 @@ describe(createRepackBuildFunction, () => {
       {
         callInputs: {
           platform: 'ios',
-          source_app_path: '/path/to/source_app',
-          output_path: '/path/to/output_app',
+          source_app_path: '/path/to/source_app.ipa',
         },
       }
     );
 
     await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app');
+    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.ipa$/);
+  });
+
+  it('should rename generated aab output path to apk', async () => {
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(
+      createGlobalContextMock({
+        staticContextContent: {
+          job: createTestAndroidJob(),
+        },
+      }),
+      {
+        callInputs: {
+          platform: 'android',
+          source_app_path: '/path/to/source_app.aab',
+        },
+      }
+    );
+
+    await repackStep.executeAsync();
+    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.apk$/);
   });
 
   it('should throw for unsupported platforms', async () => {
@@ -174,14 +194,44 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
 
     expect(signingOptions).not.toBeNull();
-    expect(signingOptions?.keychainPath).toEqual('/tmp/ios_keychain');
-    expect(signingOptions?.signingIdentity).toEqual('Test App Certificate');
-    expect(signingOptions?.provisioningProfile).toEqual({
-      'com.example.testapp': '/tmp/ios_provisioning_profile',
+    expect(signingOptions).toMatchObject({
+      keychainPath: '/tmp/ios_keychain',
+      signingIdentity: 'Test App Certificate',
+      provisioningProfile: {
+        'com.example.testapp': '/tmp/ios_provisioning_profile',
+      },
     });
+  });
+
+  it('should resolve zsign signing options without touching the keychain', async () => {
+    const job = createTestIosJob();
+    const tmpDir = '/tmp';
+    vol.mkdirSync(tmpDir, { recursive: true });
+    const credentialsManagerSpy = jest.spyOn(IosCredentialsManager.prototype, 'prepare');
+
+    const signingOptions = await resolveIosSigningOptionsAsync({
+      job,
+      logger: mockLogger,
+      backend: 'zsign',
+      tmpDir,
+    });
+
+    expect(credentialsManagerSpy).not.toHaveBeenCalled();
+    expect(signingOptions).toMatchObject({
+      backend: 'zsign',
+      keyPassword: job.secrets?.buildCredentials?.['testapp'].distributionCertificate.password,
+    });
+    assert(signingOptions?.backend === 'zsign');
+    expect(signingOptions.certificatePath).toMatch(/\/tmp\/dist-cert-.*\.p12/);
+    expect(vol.existsSync(signingOptions.certificatePath)).toBe(true);
+    assert(typeof signingOptions.provisioningProfile === 'object');
+    const profilePath = signingOptions.provisioningProfile['testapp'];
+    expect(profilePath).toMatch(/\/tmp\/profile-testapp-.*\.mobileprovision/);
+    expect(vol.existsSync(profilePath)).toBe(true);
   });
 
   it('should return undefined if no build credentials are provided', async () => {
@@ -190,6 +240,7 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
     expect(signingOptions).toBeUndefined();
   });
@@ -200,6 +251,7 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
     expect(signingOptions).toBeUndefined();
   });

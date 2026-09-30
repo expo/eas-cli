@@ -12,12 +12,10 @@ const AUTO_GROUP_NAME = 'Team (Expo)';
  * Ensure a TestFlight internal group with access to all builds exists for the app and has all admin users invited to it.
  * This allows users to instantly access their builds from TestFlight after it finishes processing.
  */
-export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> {
-  if (process.env.EAS_NO_AUTO_TESTFLIGHT_SETUP) {
-    Log.debug('EAS_NO_AUTO_TESTFLIGHT_SETUP is set, skipping TestFlight setup');
-    return;
-  }
-
+export async function ensureTestFlightGroupExistsAsync(
+  app: App,
+  { nonInteractive = false }: { nonInteractive?: boolean } = {}
+): Promise<void> {
   const groups = await app.getBetaGroupsAsync({
     query: {
       includes: ['betaTesters'],
@@ -33,19 +31,22 @@ export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> 
   const group = await ensureInternalGroupAsync({
     app,
     groups,
+    nonInteractive,
   });
   const users = await User.getAsync(app.context);
   const admins = users.filter(user => user.attributes.roles?.includes(UserRole.ADMIN));
 
-  await addAllUsersToInternalGroupAsync(group, admins);
+  await addAllUsersToInternalGroupAsync(group, admins, app);
 }
 
 async function ensureInternalGroupAsync({
   groups,
   app,
+  nonInteractive,
 }: {
   groups: BetaGroup[];
   app: App;
+  nonInteractive: boolean;
 }): Promise<BetaGroup> {
   let betaGroup = groups.find(group => group.attributes.name === AUTO_GROUP_NAME);
   if (!betaGroup) {
@@ -88,6 +89,13 @@ async function ensureInternalGroupAsync({
 
   // `hasAccessToAllBuilds` is a newer feature that allows the group to automatically have access to all builds. This cannot be patched so we need to recreate the group.
   if (!betaGroup.attributes.hasAccessToAllBuilds) {
+    if (nonInteractive) {
+      // Deleting a group is destructive, so it needs explicit confirmation.
+      Log.warn(
+        `TestFlight group "${AUTO_GROUP_NAME}" does not have automatic access to new builds. Re-run in interactive mode to regenerate it, or recreate it in App Store Connect.`
+      );
+      return betaGroup;
+    }
     if (
       await confirmAsync({
         message: 'Regenerate internal TestFlight group to allow automatic access to all builds?',
@@ -101,6 +109,7 @@ async function ensureInternalGroupAsync({
             includes: ['betaTesters'],
           },
         }),
+        nonInteractive,
       });
     }
   }
@@ -108,7 +117,11 @@ async function ensureInternalGroupAsync({
   return betaGroup;
 }
 
-async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]): Promise<void> {
+async function addAllUsersToInternalGroupAsync(
+  group: BetaGroup,
+  users: User[],
+  app: App
+): Promise<void> {
   let emails = users
     .filter(user => user.attributes.email)
     .map(user => ({
@@ -162,7 +175,7 @@ async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]):
   });
 
   if (!success) {
-    const groupUrl = await getTestFlightGroupUrlAsync(group);
+    const groupUrl = await getTestFlightGroupUrlAsync(group, app);
 
     Log.error(
       `Unable to add all admins to TestFlight group "${
@@ -181,12 +194,12 @@ async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]):
   }
 }
 
-async function getTestFlightGroupUrlAsync(group: BetaGroup): Promise<string | null> {
+async function getTestFlightGroupUrlAsync(group: BetaGroup, app: App): Promise<string | null> {
   if (group.context.providerId) {
     try {
       const session = await Session.getSessionForProviderIdAsync(group.context.providerId);
 
-      return `https://appstoreconnect.apple.com/teams/${session.provider.publicProviderId}/apps/6741088859/testflight/groups/${group.id}`;
+      return `https://appstoreconnect.apple.com/teams/${session.provider.publicProviderId}/apps/${app.id}/testflight/groups/${group.id}`;
     } catch (error) {
       // Avoid crashing if we can't get the session.
       Log.debug('Failed to get session for provider ID', error);

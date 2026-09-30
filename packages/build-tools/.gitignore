@@ -1,5 +1,6 @@
 node_modules/
 dist/
+bin/record-sim
 
 .secrets*
 !.secrets.example
@@ -7,3 +8,5 @@ dist/
 
 src/graphql-env.d.ts
 schema.graphql
+bin/egress-guard.dylib
+bin/egress-guard-check

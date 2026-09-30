@@ -9,6 +9,7 @@ import {
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorList from '../list';
 
@@ -40,6 +41,8 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 function makeSession(overrides: Partial<DeviceRunSessionNode> = {}): DeviceRunSessionNode {
   return {
     id: 'session-123',
+    name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -109,7 +112,7 @@ describe(SimulatorList, () => {
   }
 
   it('emits JSON when --json is passed', async () => {
-    const session = makeSession();
+    const session = makeSession({ type: DeviceRunSessionType.ServeSim });
     mockListByAppIdAsync.mockResolvedValue(makeConnection([session]));
 
     const { command, getContextAsync } = createCommand(['--json']);
@@ -129,13 +132,16 @@ describe(SimulatorList, () => {
       sessions: [
         {
           id: 'session-123',
-          type: 'agent-device',
+          name: undefined,
+          tags: [],
+          type: 'web-preview-only',
           status: DeviceRunSessionStatus.InProgress,
           platform: AppPlatform.Ios,
           createdAt: '2025-01-01T00:00:00.000Z',
           startedAt: '2025-01-01T00:00:05.000Z',
           finishedAt: undefined,
-          jobRunUrl: 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123',
+          deviceRunSessionUrl:
+            'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
         },
       ],
       pageInfo: {
@@ -157,9 +163,17 @@ describe(SimulatorList, () => {
       '--status',
       'new',
       '--type',
-      'argent',
+      'appium',
+      '--type',
+      'web-preview-only',
       '--platform',
       'ios',
+      '--name',
+      'checkout',
+      '--tag',
+      'variant:pro',
+      '--tag',
+      'nightly',
       '--limit',
       '25',
       '--after',
@@ -173,10 +187,55 @@ describe(SimulatorList, () => {
       after: 'page-cursor',
       filter: {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Argent],
+        types: [
+          DeviceRunSessionType.Appium,
+          DeviceRunSessionType.ServeSim,
+          DeviceRunSessionType.WebPreviewOnly,
+        ],
         platforms: [AppPlatform.Ios],
+        name: 'checkout',
+        tags: ['variant:pro', 'nightly'],
       },
     });
+  });
+
+  it('prints a tags row for every session, tagged or not', async () => {
+    mockListByAppIdAsync.mockResolvedValue(
+      makeConnection([
+        makeSession({ id: 'session-1', tags: ['variant:pro', 'nightly'] }),
+        makeSession({ id: 'session-2' }),
+      ])
+    );
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    const printed = jest
+      .mocked(Log.log)
+      .mock.calls.map(([entry]) => String(entry))
+      .join('\n');
+    expect(printed).toContain('Tags:     variant:pro, nightly');
+    expect(printed).toContain('Tags:     none');
+  });
+
+  it('prints a name row for every session, named or not', async () => {
+    mockListByAppIdAsync.mockResolvedValue(
+      makeConnection([
+        makeSession({ id: 'session-1', name: 'Checkout regression' }),
+        makeSession({ id: 'session-2' }),
+      ])
+    );
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    const printed = jest
+      .mocked(Log.log)
+      .mock.calls.map(([entry]) => String(entry))
+      .join('\n');
+    expect(printed).toContain('Name:     Checkout regression');
+    expect(printed).toContain('Name:     null');
+    expect(printed.match(/Name:/g)).toHaveLength(2);
   });
 
   it('runs non-interactively without --json', async () => {

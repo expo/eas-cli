@@ -17,6 +17,10 @@ const errorReal = console.error;
 
 const isCi = boolish('CI', false);
 
+export function isSpinnerEnabled(): boolean {
+  return !(Log.isDebug || !process.stdin.isTTY || isCi);
+}
+
 /**
  * A custom ora spinner that sends the stream to stdout in CI, or non-TTY, instead of stderr (the default).
  *
@@ -25,14 +29,22 @@ const isCi = boolish('CI', false);
  */
 export function ora(options?: Options | string): Ora {
   const inputOptions = typeof options === 'string' ? { text: options } : (options ?? {});
-  const disabled = Log.isDebug || !process.stdin.isTTY || isCi;
+  const disabled = !isSpinnerEnabled();
+  // In non-interactive mode, send the stream to stdout so it prevents looking like an error.
+  const stream: NodeJS.WritableStream =
+    inputOptions.stream ?? (disabled ? process.stdout : process.stderr);
   const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
     isEnabled: !disabled,
-    // In non-interactive mode, send the stream to stdout so it prevents looking like an error.
-    stream: disabled ? process.stdout : process.stderr,
     ...inputOptions,
+    stream,
   });
+
+  // ora only recounts the wrapped lines of its text when the text changes. After the
+  // terminal gets narrower, it clears too few lines and every frame leaves a copy behind.
+  const onResize = (): void => {
+    spinner.text = spinner.text;
+  };
 
   const oraStart = spinner.start.bind(spinner);
   const oraStop = spinner.stop.bind(spinner);
@@ -91,6 +103,8 @@ export function ora(options?: Options | string): Ora {
     // Skipping wrapping native logs removes the repeated interleaved "Exporting..." messages.
     if (!disabled) {
       wrapNativeLogs();
+      stream.off('resize', onResize);
+      stream.on('resize', onResize);
     }
 
     return oraStart(text);
@@ -99,14 +113,31 @@ export function ora(options?: Options | string): Ora {
   spinner.stopAndPersist = (options): Ora => {
     const result = oraStopAndPersist(options);
     resetNativeLogs();
+    stream.off('resize', onResize);
     return result;
   };
 
   spinner.stop = (): Ora => {
     const result = oraStop();
     resetNativeLogs();
+    stream.off('resize', onResize);
     return result;
   };
 
   return spinner;
+}
+
+/**
+ * Updates the text of a spinner. Does nothing if new text is the same as old text to prevent flickering.
+ */
+export function updateSpinnerText(
+  spinner: Ora,
+  { prefixText, text }: { prefixText?: string; text?: string }
+): void {
+  if (prefixText !== undefined && spinner.prefixText !== prefixText) {
+    spinner.prefixText = prefixText;
+  }
+  if (text !== undefined && spinner.text !== text) {
+    spinner.text = text;
+  }
 }

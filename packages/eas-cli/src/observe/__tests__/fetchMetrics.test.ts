@@ -1,10 +1,19 @@
-import { AppObserveAppVersion, AppObservePlatform, AppPlatform } from '../../graphql/generated';
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
+import { AppObserveAppVersion, AppObservePlatform } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { makeMetricsKey } from '../formatMetrics';
 import { fetchObserveMetricsAsync } from '../fetchMetrics';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
+import { ObservePlatformTarget } from '../platforms';
 
 jest.mock('../../graphql/queries/ObserveQuery');
 jest.mock('../../log');
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 function makeAppVersion(
   appVersion: string,
@@ -86,7 +95,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti', 'expo.app_startup.cold_launch_time'],
-      [AppPlatform.Ios],
+      [target(AppObservePlatform.Ios)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -94,13 +103,13 @@ describe('fetchObserveMetricsAsync', () => {
     expect(mockAppVersionsAsync).toHaveBeenCalledTimes(1);
     expect(mockAppVersionsAsync).toHaveBeenCalledWith(mockGraphqlClient, {
       appId: 'project-123',
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
       metricNames: ['expo.app_startup.tti', 'expo.app_startup.cold_launch_time'],
     });
 
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     expect(metricsMap.has(key)).toBe(true);
 
     const metricsForVersion = metricsMap.get(key)!;
@@ -133,21 +142,21 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      [AppPlatform.Ios, AppPlatform.Android],
+      [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
 
     expect(mockAppVersionsAsync).toHaveBeenCalledTimes(2);
 
-    const platforms = mockAppVersionsAsync.mock.calls.map(call => call[1].platform);
+    const platforms = mockAppVersionsAsync.mock.calls.flatMap(call => call[1].platforms);
     expect(platforms).toContain(AppObservePlatform.Ios);
     expect(platforms).toContain(AppObservePlatform.Android);
   });
 
   it('handles partial failures gracefully', async () => {
-    mockAppVersionsAsync.mockImplementation(async (_client, { platform }) => {
-      if (platform === AppObservePlatform.Android) {
+    mockAppVersionsAsync.mockImplementation(async (_client, { platforms }) => {
+      if (platforms.includes(AppObservePlatform.Android)) {
         throw new Error('Network error');
       }
       return [
@@ -173,12 +182,12 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      [AppPlatform.Ios, AppPlatform.Android],
+      [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
 
-    const key = makeMetricsKey('2.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('2.0.0', AppObservePlatform.Ios);
     expect(metricsMap.has(key)).toBe(true);
     expect(metricsMap.get(key)!.get('expo.app_startup.tti')).toEqual({
       min: 0.1,
@@ -199,7 +208,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      [AppPlatform.Ios],
+      [target(AppObservePlatform.Ios)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -207,7 +216,37 @@ describe('fetchObserveMetricsAsync', () => {
     expect(metricsMap.size).toBe(0);
   });
 
-  it('maps AppObservePlatform back to AppPlatform correctly in metricsMap keys', async () => {
+  it('rethrows plan-gate errors instead of swallowing them as a partial failure', async () => {
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'Subscription to EAS is required for this feature.',
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }
+        ),
+      ],
+    });
+    mockAppVersionsAsync.mockRejectedValue(gateError);
+
+    await expect(
+      fetchObserveMetricsAsync(
+        mockGraphqlClient,
+        'project-123',
+        ['expo.navigation.tti'],
+        [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
+        '2025-01-01T00:00:00.000Z',
+        '2025-03-01T00:00:00.000Z'
+      )
+    ).rejects.toBe(gateError);
+  });
+
+  it('uses the target key in metricsMap keys', async () => {
     mockAppVersionsAsync.mockResolvedValue([
       makeAppVersion('3.0.0', [
         {
@@ -230,7 +269,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      [AppPlatform.Android],
+      [target(AppObservePlatform.Android)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -261,7 +300,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      [AppPlatform.Ios],
+      [target(AppObservePlatform.Ios)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );

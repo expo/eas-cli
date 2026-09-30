@@ -504,7 +504,10 @@ async function prepareAndStartBuildAsync({
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
-  if (buildCtx.workflow === Workflow.MANAGED) {
+  // Custom builds run the steps from the profile's config file instead of the
+  // standard managed pipeline, so the managed-workflow checks do not apply.
+  const isCustomBuild = !!buildProfile.profile.config;
+  if (buildCtx.workflow === Workflow.MANAGED && !isCustomBuild) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);
       sdkVersionChecked = true;
@@ -597,7 +600,7 @@ export async function downloadAndRunAsync(
   simulator?: SimulatorRunTarget
 ): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
-  const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
+  const cachedAppPath = getEasBuildRunCachedAppPath(build.app.id, build.id, build.platform);
 
   if (await pathExists(cachedAppPath)) {
     Log.newLine();

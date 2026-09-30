@@ -7,17 +7,24 @@ import path from 'path';
 
 import { findPackagerRootDir } from './packageManager';
 
-const IOS_CACHE_KEY_PREFIX = 'ios-ccache-';
+const IOS_DEVICE_CACHE_KEY_PREFIX = 'ios-device-ccache-';
+const IOS_SIMULATOR_CACHE_KEY_PREFIX = 'ios-simulator-ccache-';
 const ANDROID_CACHE_KEY_PREFIX = 'android-ccache-';
 const PUBLIC_IOS_CACHE_KEY_PREFIX = 'public-ios-ccache-';
 const PUBLIC_ANDROID_CACHE_KEY_PREFIX = 'public-android-ccache-';
 const DARWIN_CACHE_PATH = 'Library/Caches/ccache';
 const LINUX_CACHE_PATH = '.cache/ccache';
 
-export const CACHE_KEY_PREFIX_BY_PLATFORM: Record<Platform, string> = {
-  [Platform.ANDROID]: ANDROID_CACHE_KEY_PREFIX,
-  [Platform.IOS]: IOS_CACHE_KEY_PREFIX,
-};
+export type CcacheBuildTarget =
+  | { platform: Platform.ANDROID }
+  | { platform: Platform.IOS; simulator: boolean };
+
+export function getCcacheKeyPrefix(target: CcacheBuildTarget): string {
+  if (target.platform === Platform.IOS) {
+    return target.simulator ? IOS_SIMULATOR_CACHE_KEY_PREFIX : IOS_DEVICE_CACHE_KEY_PREFIX;
+  }
+  return ANDROID_CACHE_KEY_PREFIX;
+}
 
 export const PUBLIC_CACHE_KEY_PREFIX_BY_PLATFORM: Record<Platform, string> = {
   [Platform.ANDROID]: PUBLIC_ANDROID_CACHE_KEY_PREFIX,
@@ -36,7 +43,7 @@ export function getCcachePath(env: Record<string, string | undefined>): string {
 
 export async function generateDefaultBuildCacheKeyAsync(
   workingDirectory: string,
-  platform: Platform
+  target: CcacheBuildTarget
 ): Promise<string> {
   // This will resolve which package manager and use the relevant lock file
   // The lock file hash is the key and ensures cache is fresh
@@ -45,7 +52,7 @@ export async function generateDefaultBuildCacheKeyAsync(
   const lockPath = path.join(packagerRunDir, manager.lockFile);
 
   try {
-    return `${CACHE_KEY_PREFIX_BY_PLATFORM[platform]}${hashFiles([lockPath])}`;
+    return `${getCcacheKeyPrefix(target)}${hashFiles([lockPath])}`;
   } catch (err: any) {
     throw new Error(`Failed to read lockfile for cache key generation: ${err.message}`);
   }

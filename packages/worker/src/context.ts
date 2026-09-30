@@ -13,6 +13,7 @@ import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadSourceMapAsync,
   uploadWithAnalyticsAsync,
   uploadWorkflowArtifactAsync,
 } from './upload';
@@ -67,6 +68,13 @@ export async function createBuildContext<TJob extends Job>({
           analytics
         );
       }
+      case ManagedArtifactType.SOURCE_MAP: {
+        assert(job.platform, 'Uploading source maps outside of builds is not supported.');
+        return await uploadWithAnalyticsAsync(
+          () => uploadSourceMapAsync(ctx, { sourceMapPath: paths[0], buildId, logger }),
+          analytics
+        );
+      }
       default: {
         return await uploadWithAnalyticsAsync(
           () =>
@@ -74,6 +82,7 @@ export async function createBuildContext<TJob extends Job>({
               artifactPaths: paths,
               logger,
               name: artifact.name,
+              metadata: artifact.metadata,
             }),
           analytics
         );
@@ -94,6 +103,7 @@ export async function createBuildContext<TJob extends Job>({
     cacheManager: new GCSCacheManager(),
     metadata,
     expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+    mcpServerUrl: config.mcpServerUrl,
   });
   return ctx;
 }

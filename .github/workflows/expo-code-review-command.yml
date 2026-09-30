@@ -1,0 +1,148 @@
+name: AI code review (command)
+
+# On-demand, ONE-SHOT reviewer triggered by a PR comment (maintainers only):
+#   /review                        run once now; the router picks the agents
+#   /review all                    run once with every agent
+#   /review correctness security   run once with just those agents
+# This never changes configuration. CONTINUOUS review is configured by labels
+# (see expo-code-review.yml): add `ai-review` (or `ai-review:all` /
+# `ai-review:<agent>`) to auto-review every push; `ai-review:skip` opts out.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  # Published reviewer run via npx (override with repo variable ECR_VERSION).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.10.0' }}
+
+concurrency:
+  group: ai-code-review-cmd-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  command:
+    # Only PR comments starting with /review, from a maintainer.
+    if: >-
+      github.event.issue.pull_request != null &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    # Bound the run so a slow/stalled review fails fast rather than hanging.
+    timeout-minutes: 50
+    continue-on-error: true
+    steps:
+      - name: Parse command
+        id: cmd
+        env:
+          # Via env (never inline ${{ }}) so an untrusted comment can't inject shell.
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          line=$(printf '%s' "$COMMENT" | head -n1 | tr -d '\r')
+          verb=$(printf '%s' "$line" | awk '{print $1}')
+          rest=$(printf '%s' "$line" | cut -s -d' ' -f2-)
+          # Only /review (one-shot). Continuous review is label-driven, not a
+          # comment; /review no longer changes any configuration.
+          if [ "$verb" != "/review" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Bare "/review" -> router picks; "all" -> every agent; names -> subset.
+          # Sanitize agent ids to [a-z0-9,_-] to keep the value shell-safe.
+          agents=""
+          route=false
+          if [ -z "$rest" ]; then
+            route=true
+          elif [ "$rest" != "all" ]; then
+            agents=$(printf '%s' "$rest" | tr ' ' ',' | tr -cd 'a-zA-Z0-9,_-')
+          fi
+          {
+            echo "run=true"
+            echo "agents=$agents"
+            echo "route=$route"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge
+        if: steps.cmd.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
+
+      # SECURITY: `issue_comment` is NOT fork-restricted by GitHub — it always
+      # runs in the base-repo context with full secrets and a write-scoped token,
+      # regardless of whether the commented-on PR is from a fork. We check out ONLY
+      # the trusted base ref (the default branch) for the `.expo-code-review/`
+      # config, and never `gh pr checkout` the PR head. The reviewer engine itself
+      # is the PUBLISHED @expo/code-review-cli (fetched by npx), not built from any
+      # checkout, so attacker-controlled PR code never runs here. The diff + PR
+      # metadata come from the API (`gh pr diff`/`gh pr view`); `ecr ci` (0.6.0+)
+      # loads configuration from the PR's immutable base commit and reads source
+      # from a head worktree scrubbed of ambient runtime config — the same trust
+      # model as the pull_request workflow.
+      - name: Checkout (base ref only — never the PR head)
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 1
+          # The CLI's git fetches authenticate through `gh` from GH_TOKEN; keep the
+          # token out of .git/config.
+          persist-credentials: false
+
+      # Corepack so setup-node's yarn probe doesn't fail on the repo's yarn@4 pin
+      # (the reviewer runs via npx, not yarn).
+      - name: Enable Corepack
+        if: steps.cmd.outputs.run == 'true'
+        run: corepack enable
+
+      - name: Set up Node
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          # No yarn install here (runs via npx) — disable the auto yarn cache so the
+          # post step doesn't error trying to save an empty cache.
+          package-manager-cache: false
+
+      # Unblocked CLI — installer drops a checksum-verified glibc-Linux binary in
+      # ~/.unblocked/bin, which we put on PATH. Auth is headless via
+      # UNBLOCKED_API_TOKEN on the run step, so no `unblocked auth` here.
+      # Non-fatal: the reviewer runs fine without it.
+      - name: Install Unblocked CLI
+        if: steps.cmd.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://getunblocked.com/install.sh | bash
+          echo "$HOME/.unblocked/bin" >> "$GITHUB_PATH"
+
+      # The anthropic/… models run through the Claude Code CLI (claude-code
+      # engine). Pinned exactly — see expo-code-review.yml.
+      - name: Install Claude Code CLI
+        if: steps.cmd.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.212
+
+      - name: Run AI review
+        if: steps.cmd.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Shared Anthropic review credential — see expo-code-review.yml.
+          CLAUDE_CODE_REVIEW_SHARED_API_TOKEN: ${{ secrets.CLAUDE_CODE_REVIEW_SHARED_API_TOKEN }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CLAUDE_CODE_REVIEW_SHARED_API_TOKEN' }}
+          # Unblocked CLI headless auth (PAT or team access token). Absent =>
+          # the CLI stays unauthenticated; the review still runs.
+          UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
+          AGENTS: ${{ steps.cmd.outputs.agents }}
+          ROUTE: ${{ steps.cmd.outputs.route }}
+        run: |
+          ARGS=()
+          if [ -n "$AGENTS" ]; then
+            ARGS=(--agents "$AGENTS")
+          elif [ "$ROUTE" = "true" ]; then
+            ARGS=(--route)
+          fi
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci "${ARGS[@]}"

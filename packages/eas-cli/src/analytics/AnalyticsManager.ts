@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Actor, getActorDisplayName } from '../user/User';
 import UserSettings from '../user/UserSettings';
 import { easCliVersion } from '../utils/easCli';
+import { getAgentTelemetryContext } from './agent';
+import { getSandboxTelemetryContext } from './sandbox';
 
 const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> = {
   darwin: 'Mac',
@@ -13,10 +15,19 @@ const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> =
   linux: 'Linux',
 };
 
-export type AnalyticsEvent = CommandEvent | BuildEvent | SubmissionEvent | MetadataEvent;
+export type AnalyticsEvent =
+  | CommandEvent
+  | BuildEvent
+  | SubmissionEvent
+  | MetadataEvent
+  | BillingEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
+}
+
+export enum BillingEvent {
+  SUBSCRIBE_COMMAND = 'billing cli subscribe command',
 }
 
 export enum SubmissionEvent {
@@ -225,10 +236,14 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
 
   private getRudderStackContext(): Record<string, any> {
     const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
+    const agent = getAgentTelemetryContext();
+    const sandboxProvider = getSandboxTelemetryContext();
     return {
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },
       app: { name: 'eas cli', version: easCliVersion ?? undefined },
+      ...(sandboxProvider ? { sandbox_provider: sandboxProvider } : {}),
+      ...(agent ? { agent } : {}),
     };
   }
 }

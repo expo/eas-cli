@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['20', '22', '24']
+        node: ['20.18.3', '22', '24']
         include:
-          - node: '20'
+          - node: '20.18.3'
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
@@ -26,6 +26,9 @@ jobs:
         uses: ./.github/actions/setup-mise
         env:
           MISE_NODE_VERSION: ${{ matrix.node }}
+      - name: Install ffmpeg
+        # build-tools recording-recovery tests cut and decode real MP4 files with ffmpeg and ffprobe.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install dependencies
         run: yarn install --immutable
         env:
@@ -60,6 +63,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
+      - run: yarn actionlint
       - name: Install scripts dependencies
         if: ${{ matrix.coverage }}
         run: yarn install --immutable

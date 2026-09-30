@@ -28,7 +28,7 @@ export async function runDeveloperPortalMethodAsync(
   account: AccountFragment,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
-  const appleAuthCtx = await appStoreApi.ensureAuthenticatedAsync();
+  const appleAuthCtx = await appStoreApi.ensureProvisioningAuthenticatedAsync();
   const unregisteredPortalDevices = await findUnregisteredPortalDevicesAsync(
     graphqlClient,
     appleAuthCtx,

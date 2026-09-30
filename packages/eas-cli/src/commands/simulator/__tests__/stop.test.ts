@@ -10,6 +10,7 @@ import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
+  resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorStop from '../stop';
@@ -18,6 +19,7 @@ jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
   loadSimulatorEnvAsync: jest.fn(),
+  resetSimulatorEnvAsync: jest.fn(),
 }));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
@@ -40,6 +42,7 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 );
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockLoadSimulatorEnvironmentVariablesAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 function makeStoppedDeviceRunSession(
@@ -70,6 +73,7 @@ describe(SimulatorStop, () => {
     jest.clearAllMocks();
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue(makeStoppedDeviceRunSession());
     mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockResetSimulatorEnvAsync.mockResolvedValue();
   });
 
   function createCommand(argv: string[]): {
@@ -98,6 +102,7 @@ describe(SimulatorStop, () => {
       graphqlClient,
       'session-123'
     );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
       status: DeviceRunSessionStatus.Stopped,
@@ -120,6 +125,7 @@ describe(SimulatorStop, () => {
         graphqlClient,
         'session-from-env'
       );
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-from-env');
     } finally {
       if (previousDeviceRunSessionId === undefined) {
         delete process.env[EAS_SIMULATOR_SESSION_ID];

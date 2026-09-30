@@ -1,11 +1,10 @@
 import chalk from 'chalk';
 
 import { EasCommandError } from '../commandUtils/errors';
-import { AppPlatform } from '../graphql/generated';
-import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
 import { buildTimeRangeDescription } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
+import { ObservePlatformKey, observePlatformDisplayNames } from './platforms';
 
 export type StatisticKey =
   | 'min'
@@ -84,21 +83,27 @@ export interface MetricValues {
   eventCount: number | null | undefined;
 }
 
-type ObserveMetricsKey = `${string}:${AppPlatform}`;
+type ObserveMetricsKey = `${string}:${ObservePlatformKey}`;
 
 export type ObserveMetricsMap = Map<ObserveMetricsKey, Map<string, MetricValues>>;
 export type BuildNumbersMap = Map<ObserveMetricsKey, string[]>;
 export type UpdateIdsMap = Map<ObserveMetricsKey, string[]>;
 
-export function makeMetricsKey(appVersion: string, platform: AppPlatform): ObserveMetricsKey {
+export function makeMetricsKey(
+  appVersion: string,
+  platform: ObservePlatformKey
+): ObserveMetricsKey {
   return `${appVersion}:${platform}`;
 }
 
-function parseMetricsKey(key: ObserveMetricsKey): { appVersion: string; platform: AppPlatform } {
+function parseMetricsKey(key: ObserveMetricsKey): {
+  appVersion: string;
+  platform: ObservePlatformKey;
+} {
   const lastColon = key.lastIndexOf(':');
   return {
     appVersion: key.slice(0, lastColon),
-    platform: key.slice(lastColon + 1) as AppPlatform,
+    platform: key.slice(lastColon + 1) as ObservePlatformKey,
   };
 }
 
@@ -106,7 +111,7 @@ export type MetricValuesJson = Partial<Record<StatisticKey, number | null>>;
 
 export interface ObserveMetricsVersionResult {
   appVersion: string;
-  platform: AppPlatform;
+  platform: ObservePlatformKey;
   buildNumbers: string[];
   updateIds: string[];
   metrics: Record<string, MetricValuesJson>;
@@ -196,7 +201,7 @@ export function buildObserveMetricsTable(
   const summaryLine = `${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
 
   // Group results by platform
-  const byPlatform = new Map<AppPlatform, ObserveMetricsVersionResult[]>();
+  const byPlatform = new Map<ObservePlatformKey, ObserveMetricsVersionResult[]>();
   for (const result of results) {
     if (!byPlatform.has(result.platform)) {
       byPlatform.set(result.platform, []);
@@ -226,7 +231,7 @@ export function buildObserveMetricsTable(
 
   for (const [platform, platformResults] of byPlatform) {
     sections.push('');
-    sections.push(chalk.bold(appPlatformDisplayNames[platform]));
+    sections.push(chalk.bold(observePlatformDisplayNames[platform]));
 
     const rows: string[][] = [];
     for (const result of platformResults) {

@@ -112,3 +112,13 @@ export function getEASUpdateURL(projectId: string, manifestHostOverride: string 
 export function getExpoApiWorkflowSchemaURL(): string {
   return getExpoApiBaseUrl() + '/v2/workflows/schema';
 }
+
+export function getEASLogsWebsocketUrl(): string {
+  if (process.env.EXPO_STAGING) {
+    return `wss://staging-logs.expo.dev/connection/websocket`;
+  } else if (process.env.EXPO_LOCAL) {
+    return `ws://localhost:4997/connection/websocket`;
+  } else {
+    return `wss://logs.expo.dev/connection/websocket`;
+  }
+}

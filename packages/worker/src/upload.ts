@@ -1,4 +1,4 @@
-import { BuildContext, GCS } from '@expo/build-tools';
+import { BuildContext, type SignedUrl, uploadWithSignedUrl } from '@expo/build-tools';
 import { ArchiveSourceType, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
@@ -42,7 +42,7 @@ export async function uploadApplicationArchiveAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `application-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -54,7 +54,7 @@ export async function uploadApplicationArchiveAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -98,7 +98,7 @@ export async function uploadBuildArtifactsAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `artifacts-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -110,7 +110,7 @@ export async function uploadBuildArtifactsAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -137,16 +137,71 @@ export async function uploadBuildArtifactsAsync(
   }
 }
 
+export async function uploadSourceMapAsync(
+  ctx: BuildContext,
+  {
+    sourceMapPath,
+    buildId,
+    logger,
+  }: {
+    sourceMapPath: string;
+    buildId: string;
+    logger: bunyan;
+  }
+): Promise<{ filename: string | null }> {
+  const { localPath, size } = await prepareArtifactsForUploadAsync(logger, [sourceMapPath]);
+  const filename = `source-map-${buildId}.map`;
+
+  let uploadSession: SignedUrl | null = null;
+
+  try {
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Source Map',
+      size,
+      artifactType: 'sourceMap',
+    });
+
+    uploadSession = signedUrl;
+
+    await uploadWithSignedUrl({
+      signedUrl,
+      srcGeneratorAsync: async () => {
+        return fs.createReadStream(localPath);
+      },
+    });
+
+    await saveArtifactAsync(ctx, { bucketKey, type: 'sourceMap', storageType });
+
+    return { filename: null };
+  } catch (err: any) {
+    logger.error({ err, filename, size }, 'Source map upload failed');
+
+    throw new errors.SystemError('Failed to upload source map.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_SOURCE_MAP_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
+      cause: err,
+    });
+  }
+}
+
 export async function uploadWorkflowArtifactAsync(
   ctx: BuildContext,
   {
     name: _name,
     logger,
     artifactPaths,
+    metadata,
   }: {
     name: string;
     logger: bunyan;
     artifactPaths: string[];
+    metadata?: Record<string, unknown>;
   }
 ): Promise<{ artifactId: string | null }> {
   const { localPath, filename, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
@@ -157,9 +212,10 @@ export async function uploadWorkflowArtifactAsync(
       filename,
       name,
       size,
+      metadata,
     });
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl: uploadSession,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -238,10 +294,22 @@ function getCommonParentDir(path1: string, path2: string): string {
 
 async function createUploadSessionAsync(
   ctx: BuildContext,
-  { filename, name, size }: { filename: string; name: string; size: number }
+  {
+    filename,
+    name,
+    size,
+    metadata,
+    artifactType,
+  }: {
+    filename: string;
+    name: string;
+    size: number;
+    metadata?: Record<string, unknown>;
+    artifactType?: 'sourceMap';
+  }
 ): Promise<{
   bucketKey: string;
-  signedUrl: GCS.SignedUrl;
+  signedUrl: SignedUrl;
   storageType: ArchiveSourceType;
   artifactId: string | null;
 }> {
@@ -265,7 +333,13 @@ async function createUploadSessionAsync(
         'POST',
         // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
         {
-          json: { filename, name, size },
+          json: {
+            filename,
+            name,
+            size,
+            metadata,
+            ...(artifactType ? { type: artifactType } : {}),
+          },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
@@ -282,7 +356,7 @@ async function createUploadSessionAsync(
         new URL(`workflows/${workflowJobId}/upload-sessions/`, config.wwwApiV2BaseUrl).toString(),
         'POST',
         {
-          json: { filename, name, size },
+          json: { filename, name, size, metadata },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
@@ -369,7 +443,7 @@ async function saveArtifactAsync(
     storageType,
   }: {
     bucketKey: string;
-    type: 'applicationArchive' | 'buildArtifacts';
+    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap';
     storageType: ArchiveSourceType | null;
   }
 ): Promise<void> {

@@ -6,7 +6,7 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { UpdateInsightsQuery } from '../../graphql/queries/UpdateInsightsQuery';
-import { INSIGHTS_DEFAULT_DAYS_BACK, resolveInsightsTimeRange } from '../../insights/timeRange';
+import { InsightsTimeRangeFlags, resolveInsightsTimeRange } from '../../insights/timeRange';
 import Log from '../../log';
 import {
   buildUpdateInsightsJson,
@@ -31,19 +31,7 @@ export default class UpdateInsights extends EasCommand {
       description: 'Filter to a single platform.',
       options: ['ios', 'android'] as const,
     })(),
-    days: Flags.integer({
-      description: `Show insights from the last N days (default ${INSIGHTS_DEFAULT_DAYS_BACK}, mutually exclusive with --start/--end).`,
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    start: Flags.string({
-      description: 'Start of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of insights time range (ISO date).',
-      exclusive: ['days'],
-    }),
+    ...InsightsTimeRangeFlags,
     ...EasNonInteractiveAndJsonFlags,
   };
 

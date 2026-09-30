@@ -1,39 +1,53 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import {
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
   AppObservePlatform,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
-import { EventsOrderPreset, fetchObserveEventsAsync, resolveOrderBy } from '../fetchEvents';
+import {
+  EventsOrderPreset,
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../fetchEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
+import { ObservePlatformTarget } from '../platforms';
 
 jest.mock('../../graphql/queries/ObserveQuery');
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(resolveOrderBy, () => {
   it('maps "slowest" to METRIC_VALUE DESC', () => {
     expect(resolveOrderBy(EventsOrderPreset.Slowest)).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('maps "fastest" to METRIC_VALUE ASC', () => {
     expect(resolveOrderBy(EventsOrderPreset.Fastest)).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Value,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 
   it('maps "newest" to TIMESTAMP DESC', () => {
     expect(resolveOrderBy(EventsOrderPreset.Newest)).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Desc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
   it('maps "oldest" to TIMESTAMP ASC', () => {
     expect(resolveOrderBy(EventsOrderPreset.Oldest)).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
+      field: AppObserveMetricsListOrderByField.Timestamp,
+      direction: AppObserveOrderDirection.Asc,
     });
   });
 });
@@ -55,8 +69,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -67,14 +81,14 @@ describe(fetchObserveEventsAsync, () => {
     expect(mockEventsAsync).toHaveBeenCalledWith(mockGraphqlClient, {
       appId: 'app-123',
       filter: {
-        metricName: 'expo.app_startup.tti',
+        name: 'expo.app_startup.tti',
         startTime: '2025-01-01T00:00:00.000Z',
         endTime: '2025-03-01T00:00:00.000Z',
       },
       first: 10,
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
     });
   });
@@ -88,20 +102,20 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 5,
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
     });
 
     expect(mockEventsAsync).toHaveBeenCalledWith(
       mockGraphqlClient,
       expect.objectContaining({
         filter: expect.objectContaining({
-          platform: AppObservePlatform.Ios,
+          platforms: [AppObservePlatform.Ios],
         }),
       })
     );
@@ -116,8 +130,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -144,8 +158,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -172,8 +186,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -189,10 +203,10 @@ describe(fetchObserveEventsAsync, () => {
   it('returns events and pageInfo from the query result', async () => {
     const mockEvents = [
       {
-        __typename: 'AppObserveEvent' as const,
+        __typename: 'AppObserveMetric' as const,
         id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        name: 'expo.app_startup.tti',
+        value: 1.23,
         timestamp: '2025-01-15T10:30:00.000Z',
         appVersion: '1.0.0',
         appBuildNumber: '42',
@@ -216,8 +230,8 @@ describe(fetchObserveEventsAsync, () => {
     const result = await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -225,7 +239,7 @@ describe(fetchObserveEventsAsync, () => {
     });
 
     expect(result.events).toHaveLength(1);
-    expect(result.events[0].metricValue).toBe(1.23);
+    expect(result.events[0].value).toBe(1.23);
     expect(result.pageInfo.hasNextPage).toBe(true);
   });
 
@@ -238,8 +252,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       after: 'cursor-abc',
@@ -262,8 +276,8 @@ describe(fetchObserveEventsAsync, () => {
     await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
       metricName: 'expo.app_startup.tti',
       orderBy: {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       },
       limit: 10,
       startTime: '2025-01-01T00:00:00.000Z',
@@ -272,5 +286,59 @@ describe(fetchObserveEventsAsync, () => {
 
     const calledVars = mockEventsAsync.mock.calls[0][1];
     expect(calledVars).not.toHaveProperty('after');
+  });
+});
+
+describe(fetchTotalEventCountAsync, () => {
+  const mockAppVersionsAsync = jest.mocked(ObserveQuery.appVersionsAsync);
+  const mockGraphqlClient = {} as any;
+
+  beforeEach(() => {
+    mockAppVersionsAsync.mockReset();
+  });
+
+  it('rethrows plan-gate errors instead of swallowing them as zero', async () => {
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'Subscription to EAS is required for this feature.',
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }
+        ),
+      ],
+    });
+    mockAppVersionsAsync.mockRejectedValue(gateError);
+
+    await expect(
+      fetchTotalEventCountAsync(
+        mockGraphqlClient,
+        'project-123',
+        'expo.navigation.tti',
+        [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
+        '2025-01-01T00:00:00.000Z',
+        '2025-03-01T00:00:00.000Z'
+      )
+    ).rejects.toBe(gateError);
+  });
+
+  it('swallows non-gate errors and counts them as zero', async () => {
+    mockAppVersionsAsync.mockRejectedValue(new Error('Network error'));
+
+    const total = await fetchTotalEventCountAsync(
+      mockGraphqlClient,
+      'project-123',
+      'expo.app_startup.tti',
+      [target(AppObservePlatform.Ios)],
+      '2025-01-01T00:00:00.000Z',
+      '2025-03-01T00:00:00.000Z'
+    );
+
+    expect(total).toBe(0);
   });
 });

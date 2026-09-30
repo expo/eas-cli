@@ -43,6 +43,10 @@ export function createSaveCacheFunction(): BuildFunction {
           .filter(path => path.length > 0);
         const key = z.string().parse(inputs.key.value);
         const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+        const expoApiServerURL = nullthrows(
+          stepsCtx.global.staticContext.expoApiServerURL,
+          'expoApiServerURL is not set'
+        );
         const robotAccessToken = nullthrows(
           stepsCtx.global.staticContext.job.secrets?.robotAccessToken,
           'robotAccessToken is not set'
@@ -61,7 +65,7 @@ export function createSaveCacheFunction(): BuildFunction {
           await uploadPublicCacheAsync({
             logger,
             jobId,
-            expoApiServerURL: stepsCtx.global.staticContext.expoApiServerURL,
+            expoApiServerURL,
             robotAccessToken,
             archivePath,
             key,
@@ -73,7 +77,7 @@ export function createSaveCacheFunction(): BuildFunction {
           await uploadCacheAsync({
             logger,
             jobId,
-            expoApiServerURL: stepsCtx.global.staticContext.expoApiServerURL,
+            expoApiServerURL,
             robotAccessToken,
             archivePath,
             key,
@@ -99,6 +103,7 @@ export async function uploadCacheAsync({
   archivePath,
   size,
   platform,
+  force = false,
 }: {
   logger: bunyan;
   jobId: string;
@@ -109,6 +114,7 @@ export async function uploadCacheAsync({
   archivePath: string;
   size: number;
   platform: Platform | undefined;
+  force?: boolean;
 }): Promise<void> {
   const routerURL = platform
     ? 'v2/turtle-builds/caches/upload-sessions'
@@ -123,12 +129,14 @@ export async function uploadCacheAsync({
           key,
           version: getCacheVersion(paths),
           size,
+          force,
         })
       : JSON.stringify({
           jobRunId: jobId,
           key,
           version: getCacheVersion(paths),
           size,
+          force,
         }),
     headers: {
       Authorization: `Bearer ${robotAccessToken}`,
@@ -344,7 +352,10 @@ export async function compressCacheAsync({
     for (const { absolutePath, archivePath: targetRelativePath } of allFiles) {
       const targetPath = path.join(tempDir, targetRelativePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+      // We want to keep source timestamps since Gradle may check them when pruning cache.
+      const { atime, mtime } = await fs.promises.stat(absolutePath);
       await fs.promises.copyFile(absolutePath, targetPath);
+      await fs.promises.utimes(targetPath, atime, mtime);
 
       if (verbose) {
         logger.info(`- ${targetRelativePath}`);

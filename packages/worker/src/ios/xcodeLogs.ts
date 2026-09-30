@@ -1,4 +1,4 @@
-import { GCS } from '@expo/build-tools';
+import { uploadWithSignedUrl } from '@expo/build-tools';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import os from 'os';
@@ -14,7 +14,7 @@ export async function uploadXcodeBuildLogs(logger: bunyan, logsPath: string): Pr
   if (!config.loggers.gcs.signedUploadUrlForXcodeBuildLogs) {
     logger.warn('GCS Presigned URL for Xcode logs was not specified, skipping upload');
   } else {
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl: config.loggers.gcs.signedUploadUrlForXcodeBuildLogs,
       srcGeneratorAsync: async () => {
         const stat = await fs.stat(logsPath);
@@ -28,7 +28,7 @@ export async function uploadXcodeBuildLogs(logger: bunyan, logsPath: string): Pr
   }
 }
 
-// HACK(Mike): Copypasta of a fragment of functionality from GCSLoggerStream.
+// HACK(Mike): Copypasta of a fragment of functionality from RemoteLoggerStream.
 async function compress(
   src: { stream: Readable; length: number },
   method: 'gzip' | 'br' | null

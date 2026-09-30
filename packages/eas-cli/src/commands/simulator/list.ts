@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { getBareJobRunUrl } from '../../build/utils/url';
+import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -17,9 +17,9 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
-  DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
-  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   deviceRunSessionTypeToFlagValue,
+  deviceRunSessionTypesForFlagValue,
 } from '../../simulator/utils';
 import { fromNow } from '../../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -49,7 +49,7 @@ const PLATFORM_BY_FLAG_VALUE = Object.fromEntries(
 );
 
 export default class SimulatorList extends EasCommand {
-  static override hidden = true;
+  static override aliases = ['sim:list'];
   static override description =
     '[EXPERIMENTAL] list remote simulator sessions for the current project';
 
@@ -60,8 +60,9 @@ export default class SimulatorList extends EasCommand {
       multiple: true,
     })(),
     type: Flags.option({
-      description: 'Filter by session type (repeatable)',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      description:
+        'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       multiple: true,
     })(),
     platform: Flags.option({
@@ -69,6 +70,13 @@ export default class SimulatorList extends EasCommand {
       options: Object.values(PLATFORM_FLAG_VALUES),
       multiple: true,
     })(),
+    name: Flags.string({
+      description: 'Filter by session name (case-insensitive prefix match)',
+    }),
+    tag: Flags.string({
+      description: 'Filter by tag (repeatable). A session must carry every tag listed.',
+      multiple: true,
+    }),
     limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_LIMIT, limit: MAX_LIMIT }),
     after: Flags.string({
       description:
@@ -102,15 +110,21 @@ export default class SimulatorList extends EasCommand {
       filter.statuses = flags.status.map(value => STATUS_BY_FLAG_VALUE[value]);
     }
     if (flags.type && flags.type.length > 0) {
-      filter.types = flags.type.map(value => DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[value]);
+      filter.types = flags.type.flatMap(deviceRunSessionTypesForFlagValue);
     }
     if (flags.platform && flags.platform.length > 0) {
       filter.platforms = flags.platform.map(value => PLATFORM_BY_FLAG_VALUE[value]);
     }
+    if (flags.name) {
+      filter.name = flags.name;
+    }
+    if (flags.tag && flags.tag.length > 0) {
+      filter.tags = flags.tag;
+    }
 
     const limit = flags.limit ?? DEFAULT_LIMIT;
 
-    const fetchSpinner = jsonFlag ? null : ora('Fetching device run sessions').start();
+    const fetchSpinner = jsonFlag ? null : ora('Fetching simulator sessions').start();
     let connection;
     try {
       connection = await DeviceRunSessionQuery.listByAppIdAsync(graphqlClient, {
@@ -119,9 +133,9 @@ export default class SimulatorList extends EasCommand {
         after: flags.after,
         filter: Object.keys(filter).length > 0 ? filter : undefined,
       });
-      fetchSpinner?.succeed(`Fetched ${connection.edges.length} device run session(s)`);
+      fetchSpinner?.succeed(`Fetched ${connection.edges.length} simulator session(s)`);
     } catch (err) {
-      fetchSpinner?.fail('Failed to fetch device run sessions');
+      fetchSpinner?.fail('Failed to fetch simulator sessions');
       throw err;
     }
 
@@ -131,19 +145,19 @@ export default class SimulatorList extends EasCommand {
       printJsonOnlyOutput({
         sessions: sessions.map(session => ({
           id: session.id,
+          name: session.name ?? undefined,
+          tags: session.tags,
           type: deviceRunSessionTypeToFlagValue(session.type),
           status: session.status,
           platform: session.platform,
           createdAt: session.createdAt,
           startedAt: session.startedAt ?? undefined,
           finishedAt: session.finishedAt ?? undefined,
-          jobRunUrl: session.turtleJobRun
-            ? getBareJobRunUrl(
-                session.app.ownerAccount.name,
-                session.app.slug,
-                session.turtleJobRun.id
-              )
-            : undefined,
+          deviceRunSessionUrl: getDeviceRunSessionUrl(
+            session.app.ownerAccount.name,
+            session.app.slug,
+            session.id
+          ),
         })),
         pageInfo: connection.pageInfo,
       });
@@ -152,25 +166,27 @@ export default class SimulatorList extends EasCommand {
 
     if (sessions.length === 0) {
       Log.newLine();
-      Log.log('No device run sessions found.');
+      Log.log('No simulator sessions found.');
       return;
     }
 
     Log.newLine();
     const formattedEntries = sessions.map(session => {
-      const jobRunUrl = session.turtleJobRun
-        ? getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, session.turtleJobRun.id)
-        : null;
+      const deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        session.id
+      );
       const lines = [
         `ID:       ${session.id}`,
+        `Name:     ${session.name ?? 'null'}`,
+        `Tags:     ${session.tags.length > 0 ? session.tags.join(', ') : 'none'}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,
         `Created:  ${fromNow(new Date(session.createdAt))} ago`,
+        `URL:      ${link(deviceRunSessionUrl)}`,
       ];
-      if (jobRunUrl) {
-        lines.push(`URL:      ${link(jobRunUrl)}`);
-      }
       return lines.join('\n');
     });
     Log.log(formattedEntries.join(`\n\n${chalk.dim('———')}\n\n`));

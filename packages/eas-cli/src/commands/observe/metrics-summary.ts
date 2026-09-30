@@ -1,12 +1,16 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
 } from '../../observe/flags';
 import {
@@ -16,8 +20,8 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
-import { appPlatformsFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -58,7 +62,8 @@ export default class ObserveMetricsSummary extends EasCommand {
       options: DEFAULT_STATS_JSON,
     })(),
     ...ObserveTimeRangeFlags,
-    ...ObserveProjectIdFlag,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -67,22 +72,19 @@ export default class ObserveMetricsSummary extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetricsSummary);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveMetricsSummary,
-      loggedInOnlyContextDefinition: ObserveMetricsSummary.loggedInOnlyContextDefinition,
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveMetricsSummary, {
+      nonInteractive,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -92,23 +94,26 @@ export default class ObserveMetricsSummary extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
-      await fetchObserveMetricsAsync(
-        graphqlClient,
-        projectId,
-        metricNames,
-        platforms,
-        startTime,
-        endTime
+      await withObservePlanGateHandlingAsync(() =>
+        fetchObserveMetricsAsync(
+          graphqlClient,
+          projectId,
+          metricNames,
+          targets,
+          startTime,
+          endTime,
+          flags.environment
+        )
       );
 
     const argumentsStat = flags.stat?.length
       ? Array.from(new Set(flags.stat.map(resolveStatKey)))
       : undefined;
 
-    if (flags.json) {
+    if (json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
         buildObserveMetricsJson(

@@ -7,7 +7,6 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import fs from 'fs-extra';
-import * as jose from 'jose';
 import fetch from 'node-fetch';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -23,6 +22,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
     id: 'upload_to_asc',
     name: 'Upload to App Store Connect',
     __metricsId: 'eas/upload_to_asc',
+    __hookId: 'submit',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'ipa_path',
@@ -86,23 +86,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
       }
 
-      const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
-      const ascApiKey = z
-        .object({
-          issuer_id: z.string(),
-          key_id: z.string(),
-          key: z.string(),
-        })
-        .parse(ascApiKeyJson);
-
-      const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
-      const token = await new jose.SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
-        .setIssuer(ascApiKey.issuer_id)
-        .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m')
-        .sign(privateKey);
-
+      const token = await AscApiUtils.signTokenAsync({ keyPath: ascApiKeyPath });
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
       stepsCtx.logger.info(
@@ -114,16 +98,27 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         `Uploading Build to "${appResponse.data.attributes.name}" (${ascAppBundleIdentifier})...`
       );
 
+      // Derive the App Store Connect platform from the IPA itself so tvOS (and
+      // other) binaries are uploaded to the correct version train instead of the
+      // iOS one. Falls back to `IOS` if the platform cannot be read.
+      const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
+      const platform = ipaInfoResult.ok
+        ? AscApiUtils.ascPlatformFromDtPlatformName(ipaInfoResult.value.dtPlatformName)
+        : 'IOS';
+      stepsCtx.logger.info(`Detected App Store Connect platform: ${platform}`);
+
       stepsCtx.logger.info('Creating Build Upload...');
       const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
         client,
         appleAppIdentifier,
         bundleShortVersion,
         bundleVersion,
+        platform,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
-      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/ios/${buildUploadId}`;
+      const platformPathSegment = AscApiUtils.testFlightPlatformPathSegment(platform);
+      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/${platformPathSegment}/${buildUploadId}`;
       outputs.build_upload_id.set(buildUploadId);
       outputs.build_upload_url.set(buildUploadUrl);
 

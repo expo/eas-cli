@@ -16,6 +16,7 @@ export function createInstallNodeModulesBuildFunction(): BuildFunction {
     id: 'install_node_modules',
     name: 'Install node modules',
     __metricsId: 'eas/install_node_modules',
+    __hookId: 'install_node_modules',
     fn: async (stepCtx, { env }) => {
       await installNodeModules(stepCtx, env);
     },
