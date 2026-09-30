@@ -587,9 +587,12 @@ async function waitForSessionEndOrInterruptAsync({
   projectDir: string;
   sessionInterrupt: SessionInterrupt;
 }): Promise<void> {
-  const spinner = ora(
-    `Simulator session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
-  ).start();
+  Log.log(
+    `To stop the session from another shell, run: eas simulator:stop --id ${deviceRunSessionId}`
+  );
+  // Keep the spinner text short so it fits on one line. When the text wraps, resizing the
+  // terminal can leave copies of the spinner line behind.
+  const spinner = ora('Simulator session active — press Ctrl+C to stop').start();
 
   const { signal } = sessionInterrupt;
   try {

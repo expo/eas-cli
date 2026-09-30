@@ -59,6 +59,7 @@ import { createCollectServeSimMetricsBuildFunction } from './functions/collectSe
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
+import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
@@ -128,6 +129,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
 
     createSubmissionEntityFunction(),
     createUploadToAscBuildFunction(),
+    createUpdateTestFlightMetadataBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
     createMaestroTestsBuildFunction(ctx),
