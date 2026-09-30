@@ -206,7 +206,7 @@ it('rereads the PNG when the artifact PUT is retried', async () => {
   await expect(stat(path.join(directory, filename))).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
-it('aborts a stalled GraphQL upload request and retains the PNG', async () => {
+it('aborts a stalled GraphQL upload request and keeps the PNG', async () => {
   stallCreation = true;
   const filename = 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png';
   await writeFile(path.join(directory, filename), 'png');

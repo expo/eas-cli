@@ -143,7 +143,7 @@ function recordUploadFailure(
   const error = err instanceof Error ? err : new Error(String(err));
   const attempt = (failedUploads.get(name)?.attempts ?? 0) + 1;
   failedUploads.set(name, { attempts: attempt, lastError: error });
-  // A sustained outage would otherwise warn for every retained file on each 30 s scan.
+  // A sustained outage would otherwise warn for every waiting file on each 30 s scan.
   if (attempt <= 3 || attempt % 10 === 0) {
     logger.warn(
       { err: error, file, attempt, size },
@@ -259,8 +259,8 @@ function watchScreenshotDirectory(
   return () => watcher?.close();
 }
 
-// A capture can land after the final scan. rmdir refuses a non-empty directory, so that capture is
-// reported as retained instead of being deleted with the directory.
+// rmdir refuses a non-empty directory, so a file still there at the end is reported as not uploaded,
+// never deleted.
 async function removeEmptyDirectoryAsync(directory: string): Promise<boolean> {
   try {
     await rmdir(directory);
@@ -273,7 +273,7 @@ async function removeEmptyDirectoryAsync(directory: string): Promise<boolean> {
   }
 }
 
-async function reportRetainedScreenshotsAsync({
+async function reportNotUploadedScreenshotsAsync({
   directory,
   hostStopped,
   failedUploads,
@@ -291,16 +291,16 @@ async function reportRetainedScreenshotsAsync({
   if (files.length === 0) {
     return;
   }
-  const retained = files.map(name => {
+  const notUploaded = files.map(name => {
     const failure = failedUploads.get(name);
     return failure
       ? { name, attempts: failure.attempts, lastError: failure.lastError.message }
       : { name };
   });
-  const message = `Retained ${files.length} preview screenshots that were not uploaded.`;
-  logger.warn({ directory, files: retained }, message);
+  const message = `${files.length} preview screenshot${files.length === 1 ? ' was' : 's were'} not uploaded.`;
+  logger.warn({ directory, files: notUploaded }, message);
   Sentry.capture('Preview screenshots were not uploaded', new Error(message), {
-    extras: { files: retained },
+    extras: { files: notUploaded },
   });
 }
 
@@ -328,7 +328,7 @@ async function finishCollectionAsync({
   stopWatching();
   clearInterval(timer);
   // This shutdown budget wins over the uploader's own 90 s stall deadline, so a slow upload
-  // at shutdown is retained rather than delaying teardown.
+  // at shutdown is reported as not uploaded rather than delaying teardown.
   const deadline = setTimeout(() => controller.abort(), 30_000);
   try {
     await drainAsync();
@@ -346,7 +346,7 @@ async function finishCollectionAsync({
         'The session host is still running, so preview screenshots it saves from now on are not uploaded.'
       );
     }
-    await reportRetainedScreenshotsAsync({ directory, hostStopped, failedUploads, logger });
+    await reportNotUploadedScreenshotsAsync({ directory, hostStopped, failedUploads, logger });
   } catch (err) {
     logger.warn({ err, directory }, 'Could not finish preview screenshot uploads.');
   } finally {
