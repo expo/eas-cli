@@ -228,7 +228,18 @@ async function buildInnerAsync(
 
   if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      await uploadEmbeddedBundleAsync(ctx);
+      const result = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (result === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (result === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
     });
   }
 

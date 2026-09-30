@@ -62,6 +62,7 @@ import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
+import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbeddedBundle';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
@@ -147,6 +148,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     functions.push(
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
+        createUploadEmbeddedBundleBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),
       ]

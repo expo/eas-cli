@@ -344,7 +344,29 @@ describe(androidBuilder, () => {
 
       await androidBuilder(ctx);
 
-      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job, env: ctx.env, projectDir: '/workingdir/build' })
+      );
+    });
+
+    it.each([
+      ['uploaded', BuildPhaseResult.SUCCESS],
+      ['skipped', BuildPhaseResult.SKIPPED],
+      ['failed', BuildPhaseResult.WARNING],
+    ] as const)('marks the phase from the %s result', async (uploadResult, phaseResult) => {
+      jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValueOnce(uploadResult);
+      const ctx = createContext({ sdkVersion: '58.0.0' });
+
+      await androidBuilder(ctx);
+
+      expect(datadogDistributionMock).toHaveBeenCalledWith(
+        'eas.build.phase_duration',
+        expect.any(Number),
+        expect.objectContaining({
+          build_phase: BuildPhase.UPLOAD_EMBEDDED_BUNDLE.toLowerCase(),
+          result: phaseResult,
+        })
+      );
     });
 
     it('skips by default on SDK 57 and earlier', async () => {
@@ -371,7 +393,9 @@ describe(androidBuilder, () => {
 
       await androidBuilder(ctx);
 
-      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job })
+      );
     });
 
     it('skips on SDK 58 and later when EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE is 0', async () => {
@@ -393,7 +417,9 @@ describe(androidBuilder, () => {
 
       await androidBuilder(ctx);
 
-      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job })
+      );
     });
   });
 });
