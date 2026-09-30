@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Fix `eas workflow:validate` crashing with certain workflow schemas, and exit with a non-zero code when validation fails. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
 - [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Poll the web preview readiness every 250 ms instead of every second, so a session goes live sooner after its host is ready. ([#4496](https://github.com/expo/eas-cli/pull/4496) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Keep the `eas simulator` session spinner on one line, so resizing the terminal no longer leaves copies of it behind. The `eas simulator:stop` command is now printed once before the spinner starts. ([#4488](https://github.com/expo/eas-cli/pull/4488) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Keep `eas simulator:events --follow` running while a session is queued or starting. ([#4506](https://github.com/expo/eas-cli/pull/4506) by [@sjkim-expo](https://github.com/sjkim-expo))

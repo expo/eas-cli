@@ -54,6 +54,7 @@ const EXPO_DEVICE_HUB_EXIT_LEEWAY_MS = 10_000;
 const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
+const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -214,7 +215,7 @@ export async function waitForWebPreviewReadyAsync({
     } catch (error) {
       lastError = error;
     }
-    await sleepAsync(1_000);
+    await sleepAsync(WEB_PREVIEW_READY_POLL_INTERVAL_MS);
   }
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${

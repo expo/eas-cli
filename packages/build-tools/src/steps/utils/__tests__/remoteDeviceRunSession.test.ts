@@ -573,6 +573,7 @@ describe(waitForWebPreviewReadyAsync, () => {
       expect.objectContaining({ retries: 0 })
     );
     expect(sleepAsync).toHaveBeenCalledTimes(1);
+    expect(sleepAsync).toHaveBeenCalledWith(250);
   });
 });
 
