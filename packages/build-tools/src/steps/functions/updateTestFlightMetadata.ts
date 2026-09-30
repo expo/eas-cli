@@ -96,30 +96,19 @@ export async function updateTestFlightMetadataAsync({
   }
   logger.info(`Updating TestFlight metadata for Apple build ${buildId}...`);
   const { data: app } = await client.getAsync('/v1/builds/:id/app', {}, { id: buildId });
+  logger.info(`Apple app: ${app.id}. Requested groups: ${JSON.stringify(groups)}.`);
+  logger.info(changelog ? `Changelog: ${JSON.stringify(changelog)}` : 'Changelog: unchanged.');
 
-  const groupIds: string[] = [];
+  const requestedGroups: BetaGroup[] = [];
   if (groups.length) {
     const requestedNames = new Set(groups);
     const foundNames = new Set<string>();
-    let response = await client.getAsync('/v1/betaGroups', {
-      'filter[app]': app.id,
-      limit: 200,
-    });
-    for (let page = 1; page <= 20; page++) {
-      for (const group of response.data) {
-        const name = group.attributes?.name;
-        if (name && requestedNames.has(name)) {
-          foundNames.add(name);
-          groupIds.push(group.id);
-        }
+    for (const group of await getBetaGroupsAsync(client, app.id)) {
+      const name = group.attributes?.name;
+      if (name && requestedNames.has(name)) {
+        foundNames.add(name);
+        requestedGroups.push(group);
       }
-      if (!response.links?.next) {
-        break;
-      }
-      if (page === 20) {
-        throw new SystemError('The TestFlight group list has more than 20 pages.');
-      }
-      response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
     }
     const missingNames = [...requestedNames].filter(name => !foundNames.has(name));
     if (missingNames.length) {
@@ -128,20 +117,22 @@ export async function updateTestFlightMetadataAsync({
         `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
       );
     }
-    logger.info(`Found ${groupIds.length} TestFlight group(s).`);
+    logger.info(`Found ${requestedGroups.length} TestFlight group(s).`);
   }
 
+  let localizationsUpdated = 0;
+  let localizationsCreated = 0;
   const limit = limitFactory<void>(1);
   const results = await Promise.allSettled([
     limit(async () => {
       if (!changelog) {
         return;
       }
-      logger.info('Updating TestFlight changelog...');
       const primaryLocale = app.attributes?.primaryLocale;
       if (!primaryLocale) {
         throw new SystemError('App Store Connect did not return the app primary locale.');
       }
+      logger.info(`Primary locale: ${JSON.stringify(primaryLocale)}.`);
       const response = await client.getAsync(
         '/v1/builds/:id/betaBuildLocalizations',
         { limit: 200 },
@@ -156,6 +147,9 @@ export async function updateTestFlightMetadataAsync({
         throw new SystemError('App Store Connect did not return a TestFlight localization locale.');
       }
       for (const localization of response.data) {
+        logger.info(
+          `Updating whatsNew for locale ${JSON.stringify(localization.attributes?.locale)} (${localization.id})...`
+        );
         await client.patchAsync(
           '/v1/betaBuildLocalizations/:id',
           {
@@ -167,8 +161,11 @@ export async function updateTestFlightMetadataAsync({
           },
           { id: localization.id }
         );
+        localizationsUpdated++;
+        logger.info(`Localization ${localization.id}: changelog updated.`);
       }
       if (!response.data.some(localization => localization.attributes?.locale === primaryLocale)) {
+        logger.info(`Creating localization ${JSON.stringify(primaryLocale)} with whatsNew...`);
         await client.postAsync('/v1/betaBuildLocalizations', {
           data: {
             type: 'betaBuildLocalizations',
@@ -176,22 +173,70 @@ export async function updateTestFlightMetadataAsync({
             relationships: { build: { data: { type: 'builds', id: buildId } } },
           },
         });
+        localizationsCreated++;
+        logger.info(`Locale ${JSON.stringify(primaryLocale)}: localization created.`);
       }
     }),
     limit(async () => {
-      if (!groupIds.length) {
+      if (!requestedGroups.length) {
         return;
       }
-      logger.info(`Adding Apple build to ${groupIds.length} TestFlight group(s)...`);
+      const assignedGroups = await getBetaGroupsAsync(client, app.id, buildId);
+      const assignedIds = new Set(assignedGroups.map(group => group.id));
+      const groupsToAdd = requestedGroups.filter(group => {
+        const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
+        if (assignedIds.has(group.id)) {
+          logger.info(`Group ${label}: build already assigned; no assignment needed.`);
+          return false;
+        }
+        if (hasAutomaticBuildAccess(group)) {
+          logger.info(`Group ${label}: automatic access to all builds; no assignment needed.`);
+          return false;
+        }
+        logger.info(`Group ${label}: build not assigned; adding it.`);
+        return true;
+      });
+      if (!groupsToAdd.length) {
+        return;
+      }
       try {
         await client.postAsync(
           '/v1/builds/:id/relationships/betaGroups',
           {
-            data: groupIds.map(id => ({ type: 'betaGroups', id })),
+            data: groupsToAdd.map(({ id }) => ({ type: 'betaGroups', id })),
           },
           { id: buildId }
         );
       } catch (error) {
+        // Apple may apply the assignment, or enable automatic access, before returning an error.
+        // Only accept the error when a fresh read confirms access for every requested group.
+        logger.warn('Apple returned an assignment error; checking current group access...');
+        try {
+          const currentGroups = await getBetaGroupsAsync(client, app.id);
+          const currentAssignedGroups = await getBetaGroupsAsync(client, app.id, buildId);
+          const currentAssignedIds = new Set(currentAssignedGroups.map(group => group.id));
+          const automaticIds = new Set(
+            currentGroups.filter(hasAutomaticBuildAccess).map(group => group.id)
+          );
+          if (
+            requestedGroups.every(
+              group => currentAssignedIds.has(group.id) || automaticIds.has(group.id)
+            )
+          ) {
+            for (const group of requestedGroups) {
+              const access = currentAssignedIds.has(group.id)
+                ? 'build assigned'
+                : 'automatic access to all builds';
+              logger.info(
+                `Group ${JSON.stringify(group.attributes?.name)} (${group.id}): ${access}.`
+              );
+            }
+            logger.info('Apple returned an assignment error, but group access is now confirmed.');
+            return;
+          }
+        } catch {
+          logger.warn('Could not verify group access after the assignment error.');
+        }
         if (isInternalGroupAssignmentError(error)) {
           throw new UserError(
             'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
@@ -203,6 +248,11 @@ export async function updateTestFlightMetadataAsync({
           );
         }
         throw error;
+      }
+      for (const group of groupsToAdd) {
+        logger.info(
+          `Group ${JSON.stringify(group.attributes?.name)} (${group.id}): assignment completed.`
+        );
       }
     }),
   ]);
@@ -218,6 +268,35 @@ export async function updateTestFlightMetadataAsync({
         .join('; ')}`
     );
   }
+  logger.info(
+    `Metadata complete: ${requestedGroups.length} requested group(s) have build access; ` +
+      `${localizationsUpdated} localization(s) updated, ${localizationsCreated} created.`
+  );
+}
+
+type BetaGroup = Awaited<ReturnType<typeof getBetaGroupsAsync>>[number];
+
+function hasAutomaticBuildAccess(group: BetaGroup): boolean {
+  return (
+    group.attributes?.isInternalGroup === true && group.attributes.hasAccessToAllBuilds === true
+  );
+}
+
+async function getBetaGroupsAsync(client: AscApiClient, appId: string, buildId?: string) {
+  let response = await client.getAsync('/v1/betaGroups', {
+    'filter[app]': appId,
+    ...(buildId ? { 'filter[builds]': buildId } : {}),
+    limit: 200,
+  });
+  const groups = [...response.data];
+  for (let page = 1; response.links?.next; page++) {
+    if (page === 20) {
+      throw new SystemError('The TestFlight group list has more than 20 pages.');
+    }
+    response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
+    groups.push(...response.data);
+  }
+  return groups;
 }
 
 // Apple returns a generic 422 code, so match the title or detail too.

@@ -43,11 +43,24 @@ function mockBuild(state = 'COMPLETE', buildId: string | null = 'build'): void {
   }
 }
 
+function mockAssignedGroups(ids: string[] = []): void {
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .reply(200, { data: ids.map(id => ({ id })) });
+}
+
 beforeAll(() => nock.disableNetConnect());
+beforeEach(() => {
+  options.logger = createMockLogger();
+});
 afterAll(() => nock.enableNetConnect());
 afterEach(() => {
-  expect(nock.pendingMocks()).toEqual([]);
-  nock.cleanAll();
+  try {
+    expect(nock.pendingMocks()).toEqual([]);
+  } finally {
+    nock.cleanAll();
+  }
 });
 
 it('accepts group arrays and preserves changelog input without shell parsing', async () => {
@@ -81,6 +94,49 @@ it('uses empty metadata defaults', async () => {
   expect(spy).toHaveBeenCalled();
 });
 
+it('skips automatic internal groups and groups that already contain the build', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, {
+      data: [
+        {
+          id: 'automatic',
+          attributes: { name: 'Internal', isInternalGroup: true, hasAccessToAllBuilds: true },
+        },
+        { id: 'assigned', attributes: { name: 'QA' } },
+        {
+          id: 'manual',
+          attributes: { name: 'External', isInternalGroup: false, hasAccessToAllBuilds: true },
+        },
+      ],
+    });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .reply(200, { data: [{ id: 'assigned', attributes: { name: 'QA' } }] });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', {
+      data: [{ type: 'betaGroups', id: 'manual' }],
+    })
+    .reply(204);
+  await updateTestFlightMetadataAsync({
+    ...options,
+    changelog: '',
+    groups: ['Internal', 'QA', 'External'],
+  });
+  expect(options.logger.info).toHaveBeenCalledWith(
+    expect.stringContaining('"Internal" (automatic): automatic access')
+  );
+  expect(options.logger.info).toHaveBeenCalledWith(
+    expect.stringContaining('"QA" (assigned): build already assigned')
+  );
+  expect(options.logger.info).toHaveBeenCalledWith(
+    expect.stringContaining('"External" (manual): assignment completed')
+  );
+});
+
 it('creates the primary localization when none exist', async () => {
   mockBuild();
   api().get('/v1/builds/build/betaBuildLocalizations').query(true).reply(200, { data: [] });
@@ -94,6 +150,10 @@ it('creates the primary localization when none exist', async () => {
     })
     .reply(201, { data: { id: 'locale' } });
   await updateTestFlightMetadataAsync(options);
+  expect(options.logger.info).toHaveBeenCalledWith(`Changelog: ${JSON.stringify(changelog)}`);
+  expect(options.logger.info).toHaveBeenCalledWith(
+    expect.stringContaining('Locale "en-US": localization created')
+  );
 });
 
 it('updates all existing localizations without replacing them', async () => {
@@ -112,6 +172,11 @@ it('updates all existing localizations without replacing them', async () => {
       .reply(200, { data: { id } });
   }
   await updateTestFlightMetadataAsync(options);
+  for (const id of ['en-US', 'pl']) {
+    expect(options.logger.info).toHaveBeenCalledWith(
+      expect.stringContaining(`locale "${id}" (${id})`)
+    );
+  }
 });
 
 it('stops before changing metadata when Apple omits a localization locale', async () => {
@@ -128,6 +193,7 @@ it('stops before changing metadata when Apple omits a localization locale', asyn
 
 it('adds groups without changing changelog or submitting beta review', async () => {
   mockBuild();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
@@ -153,6 +219,7 @@ it('fails before changing metadata when no requested group exists', async () => 
 
 it('reads all pages and adds every group with a requested name', async () => {
   mockBuild();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
@@ -197,9 +264,12 @@ it('fails without adding found groups when another requested name is missing', a
 
 it('explains when Apple rejects an internal group with automatic distribution', async () => {
   mockBuild();
+  mockAssignedGroups();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
+    .twice()
     .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
   api()
     .post('/v1/builds/build/relationships/betaGroups')
@@ -239,6 +309,7 @@ it('stops after 20 group pages', async () => {
 
 it('tries group assignment if the changelog update fails', async () => {
   mockBuild();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
@@ -257,6 +328,7 @@ it('tries group assignment if the changelog update fails', async () => {
 
 it('reports both write failures', async () => {
   mockBuild();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
@@ -268,9 +340,89 @@ it('reports both write failures', async () => {
   api()
     .post('/v1/builds/build/relationships/betaGroups')
     .reply(403, { errors: [{ code: 'GROUPS_FAILED' }] });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(403, { errors: [{ code: 'VERIFICATION_FAILED' }] });
   await expect(updateTestFlightMetadataAsync({ ...options, groups: ['A'] })).rejects.toThrow(
     /CHANGELOG_FAILED.*GROUPS_FAILED/
   );
+});
+
+it.each(['assigned', 'automatic', 'unconfirmed'])(
+  'checks fresh group access after an assignment error: %s',
+  async access => {
+    mockBuild();
+    mockAssignedGroups();
+    api()
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+    api()
+      .post('/v1/builds/build/relationships/betaGroups')
+      .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Assignment rejected' }] });
+    api()
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, {
+        data: [
+          {
+            id: 'group',
+            attributes: {
+              name: 'A',
+              isInternalGroup: true,
+              hasAccessToAllBuilds: access === 'automatic',
+            },
+          },
+        ],
+      });
+    mockAssignedGroups(access === 'assigned' ? ['group'] : []);
+    const result = updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
+    if (access === 'unconfirmed') {
+      await expect(result).rejects.toThrow('Assignment rejected');
+    } else {
+      await expect(result).resolves.toBeUndefined();
+    }
+  }
+);
+
+it('does not accept a partial assignment after an error', async () => {
+  mockBuild();
+  mockAssignedGroups();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .twice()
+    .reply(200, { data: ['A', 'B'].map(id => ({ id, attributes: { name: id } })) });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups')
+    .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Partial assignment' }] });
+  mockAssignedGroups(['A']);
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B'] })
+  ).rejects.toThrow('Partial assignment');
+});
+
+it('reads all membership pages before assigning groups', async () => {
+  mockBuild();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .reply(200, {
+      data: [],
+      links: {
+        next: 'https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app&filter%5Bbuilds%5D=build&limit=200&cursor=next',
+      },
+    });
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200', cursor: 'next' })
+    .reply(200, { data: [{ id: 'group' }] });
+  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
 });
 
 it.each(['PROCESSING', 'FAILED'])('rejects a %s upload', async state => {
