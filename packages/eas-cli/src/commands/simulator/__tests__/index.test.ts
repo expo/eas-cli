@@ -566,6 +566,20 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
+  it('keeps the live spinner text short and prints the stop command once', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(
+      'To stop the session from another shell, run: eas simulator:stop --id session-123'
+    );
+    expect(mockOra).toHaveBeenLastCalledWith('Simulator session active — press Ctrl+C to stop');
+  });
+
   it('forwards --name to the create mutation', async () => {
     const { command } = createCommand([
       '--platform',
