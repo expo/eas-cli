@@ -3892,23 +3892,31 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "isSecondFactorAuthenticationEnabled",
-            "description": "Filter members by 2FA status. Only regular users are returned when set, since SSO users\nand robots don't have 2FA. Requires admin permission on the account.",
+            "name": "exactPermissions",
+            "description": "Filter by members containing all of the specified permissions.",
             "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "Permission",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "role",
-            "description": "Filter members by role. Only OWNER, ADMIN, DEVELOPER, and VIEW_ONLY are supported.",
+            "name": "isSecondFactorAuthenticationEnabled",
+            "description": "Filter members by 2FA status. Only regular users are returned when set, since SSO users\nand robots don't have 2FA. Requires admin permission on the account.",
             "type": {
-              "kind": "ENUM",
-              "name": "Role",
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -27683,6 +27691,18 @@
             "deprecationReason": null
           },
           {
+            "name": "branchName",
+            "description": "Branch the update was published to.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "downloadCount",
             "description": null,
             "args": [],
@@ -27715,6 +27735,18 @@
             "deprecationReason": null
           },
           {
+            "name": "gitCommitHash",
+            "description": "Git commit the update was published from, when it was recorded.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "medianDownloadTime",
             "description": null,
             "args": [],
@@ -27742,6 +27774,54 @@
                 "name": "Float",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platform",
+            "description": "Platform the update was published for: ios, android, or web.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "publishedAt",
+            "description": "When the update was published, from the EAS Update record.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "DateTime",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "runtimeVersion",
+            "description": "Runtime version the update is compatible with.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateGroupId",
+            "description": "ID of the update group this update belongs to.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -33348,7 +33428,7 @@
           },
           {
             "name": "runsOverTime",
-            "description": null,
+            "description": "Buckets start at the requested timespan start and advance by the granularity interval, so\ntheir boundaries follow the requested range. The last bucket is shorter when the timespan is\nnot a whole number of intervals.",
             "args": [
               {
                 "name": "filters",
@@ -45468,7 +45548,7 @@
           },
           {
             "name": "name",
-            "description": "Human-readable label for the session, at most 255 characters. If omitted, the\nsession is unnamed and clients fall back to identifying it by id.",
+            "description": "Human-readable label for the session, at most 255 characters after leading and\ntrailing whitespace is trimmed. If omitted, the session is unnamed and clients\nfall back to identifying it by id.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -45513,6 +45593,18 @@
                 "name": "AppPlatform",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "requestOrigin",
+            "description": "The client sending this request, recorded for analytics only. Omit it when the\nclient is not one of the listed values; the session is then reported as unknown.",
+            "type": {
+              "kind": "ENUM",
+              "name": "DeviceRunSessionRequestOrigin",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -48837,6 +48929,33 @@
       },
       {
         "kind": "OBJECT",
+        "name": "DeleteDeviceRunSessionResult",
+        "description": null,
+        "fields": [
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "DeleteDiscordUserResult",
         "description": null,
         "fields": [
@@ -50435,7 +50554,7 @@
           },
           {
             "name": "name",
-            "description": "Human-readable label chosen by whoever started the session. Null when the\nsession was started without one.",
+            "description": "Human-readable label set when the session is created or changed later with\nupdateDeviceRunSession. Null when the session has no name.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -50901,7 +51020,7 @@
         "inputFields": [
           {
             "name": "name",
-            "description": "Case-insensitive prefix match on the session name.",
+            "description": "Case-insensitive match anywhere in the session name.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -51117,6 +51236,39 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteDeviceRunSession",
+            "description": "Permanently delete a finished session and its artifacts. The backing job,\nif present, must also have finished. Returns the deleted session ID.",
+            "args": [
+              {
+                "name": "deviceRunSessionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeleteDeviceRunSessionResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "ensureDeviceRunSessionStopped",
             "description": "Ensure a device run session is stopped. Idempotent: if the session has already\nfinished, the existing session is returned unchanged (an ERRORED session stays\nERRORED).",
             "args": [
@@ -51178,6 +51330,55 @@
                   "ofType": {
                     "kind": "SCALAR",
                     "name": "JSONObject",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeviceRunSession",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateDeviceRunSession",
+            "description": "Update a device run session. Only the name can be changed, including on sessions\nthat have already finished.",
+            "args": [
+              {
+                "name": "deviceRunSessionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "UpdateDeviceRunSessionInput",
                     "ofType": null
                   }
                 },
@@ -51283,6 +51484,35 @@
             "ofType": null
           }
         ]
+      },
+      {
+        "kind": "ENUM",
+        "name": "DeviceRunSessionRequestOrigin",
+        "description": "The client that sent a session creation request, as reported by that client. Recorded\nfor analytics only and never used for authorization.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "EAS_CLI",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MCP",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "WEBSITE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
       },
       {
         "kind": "ENUM",
@@ -63964,8 +64194,8 @@
               "name": "String",
               "ofType": null
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "This mutation is scheduled for removal."
           }
         ],
         "inputFields": null,
@@ -72739,6 +72969,18 @@
             "deprecationReason": null
           },
           {
+            "name": "sourceMapGroup",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "SourceMapGroup",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "turtleJobRunId",
             "description": null,
             "type": {
@@ -74106,14 +74348,14 @@
           {
             "name": "HAS_ADMIN",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer supported"
           },
           {
             "name": "NOT_ADMIN",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer supported"
           },
           {
             "name": "OWNER",
@@ -74654,7 +74896,7 @@
           },
           {
             "name": "deviceRunSession",
-            "description": "Mutations that create, start, and stop device run sessions",
+            "description": "Mutations that create, start, stop, and update device run sessions",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -80308,6 +80550,101 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "SourceMapGroup",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "android",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "SourceMapSourceInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ios",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "SourceMapSourceInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "SourceMapSourceInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketKey",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "SourceMapSourceType",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "SourceMapSourceType",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "GCS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "ENUM",
         "name": "StandardOffer",
         "description": null,
@@ -83832,22 +84169,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "host",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "reconnecting",
             "description": null,
             "type": {
@@ -86618,6 +86939,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "UpdateDeviceRunSessionInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "name",
+            "description": "New human-readable label for the session, at most 255 characters after leading\nand trailing whitespace is trimmed. Pass null to clear the name so clients fall\nback to identifying the session by id.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "UpdateDiffReceipt",
         "description": null,
@@ -89328,6 +89672,12 @@
           },
           {
             "name": "EAS_UPDATE_FINGERPRINT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "EAS_UPDATE_SOURCE_MAPS",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -92801,8 +93151,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Derive role from permissions instead"
           }
         ],
         "inputFields": null,
@@ -93519,8 +93869,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Derive role from permissions instead"
           },
           {
             "name": "userActor",
@@ -100651,7 +101001,7 @@
       {
         "kind": "OBJECT",
         "name": "WorkflowDeviceTestCaseInsightsBucket",
-        "description": "Mutually exclusive bucket counts (passedClean + flaky + failed = totalRuns for the bucket).\nBuckets are aligned to the UTC start of the requested granularity interval\n(minute / hour / day).",
+        "description": "Mutually exclusive bucket counts (passedClean + flaky + failed = totalRuns for the bucket).\nBuckets start at the requested timespan start and advance by the granularity interval, so\ntheir boundaries follow the requested range. The last bucket is shorter when the timespan is\nnot a whole number of intervals.",
         "fields": [
           {
             "name": "bucketStartAt",
@@ -103450,6 +103800,12 @@
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "WORKFLOW_CALL",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "possibleTypes": null
@@ -105424,6 +105780,36 @@
           },
           {
             "name": "SCHEDULE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SENTRY_ISSUE_ARCHIVED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SENTRY_ISSUE_ASSIGNED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SENTRY_ISSUE_CREATED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SENTRY_ISSUE_RESOLVED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SENTRY_ISSUE_UNRESOLVED",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
