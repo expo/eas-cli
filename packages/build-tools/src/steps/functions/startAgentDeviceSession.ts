@@ -21,6 +21,10 @@ import {
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
+import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { createStartupTasks } from '../utils/startupTasks';
 
 import { downloadBuildAsync } from './downloadBuild';
@@ -112,6 +116,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       // Session.
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -154,6 +159,13 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         );
       }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
+      const capture = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture.value,
+          networkCaptureFields: inputs.network_capture_fields.value,
+        },
+        { runtimePlatform }
+      );
 
       if (isIos) {
         // Before the boot, so every Xcode tool below uses the same developer directory.
@@ -251,6 +263,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
         // The app is launched with simctl / adb above, not by serve-sim.
         launch: parseServeSimLaunchInputs({}, { runtimePlatform }),
+        capture,
         tasks,
         device: { booted, ready },
       });

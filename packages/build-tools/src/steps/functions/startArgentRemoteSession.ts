@@ -19,6 +19,10 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -76,6 +80,7 @@ export function createStartArgentRemoteSessionBuildFunction(
     __metricsId: 'eas/start_argent_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -113,6 +118,13 @@ export function createStartArgentRemoteSessionBuildFunction(
           launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
           launchArgs: inputs.launch_args?.value,
           openUrl: inputs.open_url?.value as string | undefined,
+        },
+        { runtimePlatform }
+      );
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
         },
         { runtimePlatform }
       );
@@ -244,6 +256,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
+          networkCapture,
+          networkCaptureFields,
         });
         const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(

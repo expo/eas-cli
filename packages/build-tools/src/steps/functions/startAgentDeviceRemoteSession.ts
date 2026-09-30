@@ -26,6 +26,10 @@ import {
   resolvePackageInstall,
 } from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
+import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import { type StartupTasks, createStartupTasks } from '../utils/startupTasks';
 import {
@@ -72,6 +76,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
     __metricsId: 'eas/start_agent_device_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -105,6 +110,13 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
+      const capture = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform }
+      );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
@@ -121,6 +133,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         maxIdleTimeMinutes,
         maxDurationSeconds,
         launch,
+        capture,
         tasks: createStartupTasks(logger),
         device: { booted: Promise.resolve(), ready: Promise.resolve() },
       });
@@ -174,6 +187,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes,
     maxDurationSeconds,
     launch,
+    capture,
     tasks,
     device,
   }: {
@@ -186,6 +200,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes: number | undefined;
     maxDurationSeconds: number | undefined;
     launch: ReturnType<typeof parseServeSimLaunchInputs>;
+    capture: ReturnType<typeof parseNetworkCaptureInputs>;
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -244,6 +259,8 @@ export async function runAgentDeviceRemoteSessionAsync(
       launchAppIdentifier: launch.launchAppIdentifier,
       launchArgs: launch.launchArgs,
       openUrl: launch.openUrl,
+      networkCapture: capture.networkCapture,
+      networkCaptureFields: capture.networkCaptureFields,
     });
     tasks.signal.throwIfAborted();
     const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
