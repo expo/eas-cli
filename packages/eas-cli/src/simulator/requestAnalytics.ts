@@ -79,6 +79,11 @@ export function simulatorRequestFailureReason(
   if (!(error instanceof CombinedError) || !error.networkError || error.graphQLErrors.length > 0) {
     return null;
   }
+  // urql attaches the HTTP response to non-2xx answers too, such as a 504 from the load balancer.
+  // An answer arrived, so www may have seen the request already.
+  if (error.response) {
+    return null;
+  }
   const networkError = error.networkError as Error & { code?: string; cause?: { code?: string } };
   const code = networkError.code ?? networkError.cause?.code;
   if (
