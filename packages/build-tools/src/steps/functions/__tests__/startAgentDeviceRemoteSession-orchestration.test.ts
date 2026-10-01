@@ -186,6 +186,29 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     );
   });
 
+  it('hands network capture to serve-sim on an iOS session', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      network_capture: { value: true },
+      network_capture_fields: { value: ['header'] },
+    });
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ networkCapture: true, networkCaptureFields: ['header'] })
+    );
+  });
+
+  it('fails before starting the daemon when network capture is asked for on Android', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await expect(
+      runAsync(logger, BuildRuntimePlatform.LINUX, { network_capture: { value: true } })
+    ).rejects.toThrow('records traffic through serve-sim on an iOS simulator');
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
+
   it('fails before starting the daemon when a launch is asked for on Android', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
@@ -301,6 +324,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
         maxIdleTimeMinutes: undefined,
         maxDurationSeconds: undefined,
         launch: {},
+        capture: { networkCapture: false, networkCaptureFields: [] },
         tasks,
         device: typeof device === 'function' ? device(tasks) : device,
       });
