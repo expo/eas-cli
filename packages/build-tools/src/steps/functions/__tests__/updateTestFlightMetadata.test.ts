@@ -238,14 +238,13 @@ it('reads all pages and adds every group with a requested name', async () => {
         { id: 'other', attributes: { name: 'B' } },
       ],
     });
-  api()
-    .post('/v1/builds/build/relationships/betaGroups', {
-      data: [
-        { type: 'betaGroups', id: 'first' },
-        { type: 'betaGroups', id: 'second' },
-      ],
-    })
-    .reply(204);
+  for (const id of ['first', 'second']) {
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id }],
+      })
+      .reply(204);
+  }
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
 });
 
@@ -304,7 +303,7 @@ it('stops after 20 group pages', async () => {
     .reply(200, { data: [], links: { next } });
   await expect(
     updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] })
-  ).rejects.toThrow('more than 20 pages');
+  ).rejects.toThrow('We only support TestFlight group lists with up to 20 pages');
 });
 
 it('tries group assignment if the changelog update fails', async () => {
@@ -395,12 +394,33 @@ it('does not accept a partial assignment after an error', async () => {
     .twice()
     .reply(200, { data: ['A', 'B'].map(id => ({ id, attributes: { name: id } })) });
   api()
-    .post('/v1/builds/build/relationships/betaGroups')
+    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'A' }] })
+    .reply(204);
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'B' }] })
     .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Partial assignment' }] });
   mockAssignedGroups(['A']);
   await expect(
     updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B'] })
   ).rejects.toThrow('Partial assignment');
+});
+
+it('continues to the next group after confirming an assignment error was harmless', async () => {
+  mockBuild();
+  mockAssignedGroups();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .twice()
+    .reply(200, { data: ['A', 'B'].map(id => ({ id, attributes: { name: id } })) });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'A' }] })
+    .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Already assigned' }] });
+  mockAssignedGroups(['A']);
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'B' }] })
+    .reply(204);
+  await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B'] });
 });
 
 it('reads all membership pages before assigning groups', async () => {

@@ -99,11 +99,11 @@ export async function updateTestFlightMetadataAsync({
   logger.info(`Apple app: ${app.id}. Requested groups: ${JSON.stringify(groups)}.`);
   logger.info(changelog ? `Changelog: ${JSON.stringify(changelog)}` : 'Changelog: unchanged.');
 
-  const requestedGroups: BetaGroup[] = [];
+  const requestedGroups: Awaited<ReturnType<typeof getAllBetaGroupsAsync>>[number][] = [];
   if (groups.length) {
     const requestedNames = new Set(groups);
     const foundNames = new Set<string>();
-    for (const group of await getBetaGroupsAsync(client, app.id)) {
+    for (const group of await getAllBetaGroupsAsync({ client, appId: app.id })) {
       const name = group.attributes?.name;
       if (name && requestedNames.has(name)) {
         foundNames.add(name);
@@ -181,78 +181,70 @@ export async function updateTestFlightMetadataAsync({
       if (!requestedGroups.length) {
         return;
       }
-      const assignedGroups = await getBetaGroupsAsync(client, app.id, buildId);
+      const assignedGroups = await getAllBetaGroupsAsync({ client, appId: app.id, buildId });
       const assignedIds = new Set(assignedGroups.map(group => group.id));
-      const groupsToAdd = requestedGroups.filter(group => {
+      for (const group of requestedGroups) {
         const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
         if (assignedIds.has(group.id)) {
-          logger.info(`Group ${label}: build already assigned; no assignment needed.`);
-          return false;
+          logger.info(`✅ Group ${label}: build already assigned; no assignment needed.`);
+          continue;
         }
-        if (hasAutomaticBuildAccess(group)) {
-          logger.info(`Group ${label}: automatic access to all builds; no assignment needed.`);
-          return false;
+        if (
+          group.attributes?.isInternalGroup === true &&
+          group.attributes.hasAccessToAllBuilds === true
+        ) {
+          logger.info(`✅ Group ${label}: automatic access to all builds; no assignment needed.`);
+          continue;
         }
         logger.info(`Group ${label}: build not assigned; adding it.`);
-        return true;
-      });
-      if (!groupsToAdd.length) {
-        return;
-      }
-      try {
-        await client.postAsync(
-          '/v1/builds/:id/relationships/betaGroups',
-          {
-            data: groupsToAdd.map(({ id }) => ({ type: 'betaGroups', id })),
-          },
-          { id: buildId }
-        );
-      } catch (error) {
-        // Apple may apply the assignment, or enable automatic access, before returning an error.
-        // Only accept the error when a fresh read confirms access for every requested group.
-        logger.warn('Apple returned an assignment error; checking current group access...');
         try {
-          const currentGroups = await getBetaGroupsAsync(client, app.id);
-          const currentAssignedGroups = await getBetaGroupsAsync(client, app.id, buildId);
-          const currentAssignedIds = new Set(currentAssignedGroups.map(group => group.id));
-          const automaticIds = new Set(
-            currentGroups.filter(hasAutomaticBuildAccess).map(group => group.id)
+          await client.postAsync(
+            '/v1/builds/:id/relationships/betaGroups',
+            {
+              data: [{ type: 'betaGroups', id: group.id }],
+            },
+            { id: buildId }
           );
-          if (
-            requestedGroups.every(
-              group => currentAssignedIds.has(group.id) || automaticIds.has(group.id)
-            )
-          ) {
-            for (const group of requestedGroups) {
-              const access = currentAssignedIds.has(group.id)
-                ? 'build assigned'
-                : 'automatic access to all builds';
-              logger.info(
-                `Group ${JSON.stringify(group.attributes?.name)} (${group.id}): ${access}.`
-              );
+        } catch (error) {
+          // Apple may apply the assignment, or enable automatic access, before returning an error.
+          // Only accept the error when a fresh read confirms access for this group.
+          logger.warn('Apple returned an assignment error; checking current group access...');
+          try {
+            const currentGroups = await getAllBetaGroupsAsync({ client, appId: app.id });
+            const currentAssignedGroups = await getAllBetaGroupsAsync({
+              client,
+              appId: app.id,
+              buildId,
+            });
+            const isAssigned = currentAssignedGroups.some(current => current.id === group.id);
+            const hasAutomaticAccess = currentGroups.some(
+              current =>
+                current.id === group.id &&
+                current.attributes?.isInternalGroup === true &&
+                current.attributes.hasAccessToAllBuilds === true
+            );
+            if (isAssigned || hasAutomaticAccess) {
+              const access = isAssigned ? 'build assigned' : 'automatic access to all builds';
+              logger.info(`✅ Group ${label}: ${access}.`);
+              logger.info('Apple returned an assignment error, but group access is now confirmed.');
+              continue;
             }
-            logger.info('Apple returned an assignment error, but group access is now confirmed.');
-            return;
+          } catch {
+            logger.warn('Could not verify group access after the assignment error.');
           }
-        } catch {
-          logger.warn('Could not verify group access after the assignment error.');
+          if (isInternalGroupAssignmentError(error)) {
+            throw new UserError(
+              'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
+              "App Store Connect can't add this build to a requested internal TestFlight group. " +
+                "Internal groups that automatically receive new builds can't be assigned to manually. " +
+                'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
+                `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
+              { cause: error }
+            );
+          }
+          throw error;
         }
-        if (isInternalGroupAssignmentError(error)) {
-          throw new UserError(
-            'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
-            "App Store Connect can't add this build to a requested internal TestFlight group. " +
-              "Internal groups that automatically receive new builds can't be assigned to manually. " +
-              'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
-              `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
-            { cause: error }
-          );
-        }
-        throw error;
-      }
-      for (const group of groupsToAdd) {
-        logger.info(
-          `Group ${JSON.stringify(group.attributes?.name)} (${group.id}): assignment completed.`
-        );
+        logger.info(`✅ Group ${label}: assignment completed.`);
       }
     }),
   ]);
@@ -274,15 +266,15 @@ export async function updateTestFlightMetadataAsync({
   );
 }
 
-type BetaGroup = Awaited<ReturnType<typeof getBetaGroupsAsync>>[number];
-
-function hasAutomaticBuildAccess(group: BetaGroup): boolean {
-  return (
-    group.attributes?.isInternalGroup === true && group.attributes.hasAccessToAllBuilds === true
-  );
-}
-
-async function getBetaGroupsAsync(client: AscApiClient, appId: string, buildId?: string) {
+async function getAllBetaGroupsAsync({
+  client,
+  appId,
+  buildId,
+}: {
+  client: AscApiClient;
+  appId: string;
+  buildId?: string;
+}) {
   let response = await client.getAsync('/v1/betaGroups', {
     'filter[app]': appId,
     ...(buildId ? { 'filter[builds]': buildId } : {}),
@@ -291,7 +283,9 @@ async function getBetaGroupsAsync(client: AscApiClient, appId: string, buildId?:
   const groups = [...response.data];
   for (let page = 1; response.links?.next; page++) {
     if (page === 20) {
-      throw new SystemError('The TestFlight group list has more than 20 pages.');
+      throw new SystemError(
+        'We only support TestFlight group lists with up to 20 pages (4,000 groups). Contact Expo support if you need a larger group list.'
+      );
     }
     response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
     groups.push(...response.data);
