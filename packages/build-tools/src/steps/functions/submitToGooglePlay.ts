@@ -16,7 +16,7 @@ import {
   GoogleServiceAccount,
 } from '../utils/android/GooglePlayClient';
 import { GooglePlayUtils } from '../utils/android/GooglePlayUtils';
-import { prepareAndroidArtifactAsync } from '../utils/android/appArtifact';
+import { readAndroidArtifactInfoAsync } from '../utils/android/appArtifact';
 
 const submissionSchema = z.object({
   artifact_path: z.string().min(1),
@@ -172,7 +172,7 @@ async function submitToGooglePlayAsync({
   logger: bunyan;
   signal: AbortSignal;
 }): Promise<{ packageName: string; versionCode: number; track: string }> {
-  const artifact = await prepareAndroidArtifactAsync(submission.artifact_path, signal);
+  const artifact = await readAndroidArtifactInfoAsync(submission.artifact_path, signal);
   let editId: string | undefined;
   let committed = false;
   try {
@@ -266,11 +266,6 @@ async function submitToGooglePlayAsync({
           'Could not delete the Google Play edit after failure. The original submission error is preserved.'
         );
       }
-    }
-    if (artifact.extractionDirectory) {
-      await fs.rm(artifact.extractionDirectory, { recursive: true, force: true }).catch(() => {
-        logger.warn('Could not remove the temporary Android artifact directory.');
-      });
     }
   }
 }
