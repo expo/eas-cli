@@ -131,6 +131,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
       closeAsync: jest.fn(),
     });
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      device: 'SIMULATOR-UDID',
       openPreviewAsync: openPreview,
       finishAsync: stopPreview,
     });

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { Sentry } from '../../../sentry';
 import { spawnDetached } from '../../utils/remoteDeviceRunSession';
 import {
+  type AgentDeviceDaemonPolicy,
   startAgentDeviceDaemonAsync,
   stopAgentDeviceEventCollectionSafelyAsync,
 } from '../startAgentDeviceRemoteSession';
@@ -67,6 +68,19 @@ describe(stopAgentDeviceEventCollectionSafelyAsync, () => {
 });
 
 describe(startAgentDeviceDaemonAsync, () => {
+  const policy: AgentDeviceDaemonPolicy = {
+    version: 1,
+    devices: { allow: [{ udid: 'SIMULATOR-UDID' }] },
+    commands: { deny: ['boot', 'shutdown'] },
+    capabilities: { deny: ['device-shutdown'] },
+  };
+  const waitForPolicyAsync = jest.fn(async () => policy);
+
+  async function expectLaunchedWithPolicyAsync(): Promise<void> {
+    const policyPath = jest.mocked(spawnDetached).mock.calls[0][0].env?.AGENT_DEVICE_DAEMON_POLICY;
+    expect(JSON.parse(await fs.promises.readFile(policyPath as string, 'utf8'))).toEqual(policy);
+    await fs.promises.rm(path.dirname(policyPath as string), { recursive: true, force: true });
+  }
   const stopAsync = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
@@ -96,6 +110,7 @@ describe(startAgentDeviceDaemonAsync, () => {
   it('installs with bun add by default and launches the published daemon', async () => {
     const handle = await startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
+      waitForPolicyAsync,
       env: {},
       logger,
     });
@@ -114,8 +129,10 @@ describe(startAgentDeviceDaemonAsync, () => {
         AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
         AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
         AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
+        AGENT_DEVICE_DAEMON_POLICY: expect.any(String),
       }),
     });
+    await expectLaunchedWithPolicyAsync();
 
     await handle.stopAsync();
     await expect(fs.promises.access(addCwd)).rejects.toThrow();
@@ -124,6 +141,7 @@ describe(startAgentDeviceDaemonAsync, () => {
   it('installs with npm when EAS_OVERRIDE_PACKAGE_MANAGER is npm', async () => {
     await startAgentDeviceDaemonAsync({
       packageVersion: undefined,
+      waitForPolicyAsync,
       env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' },
       logger,
     });
@@ -147,6 +165,7 @@ describe(startAgentDeviceDaemonAsync, () => {
 
     const daemon = startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
+      waitForPolicyAsync,
       env: {},
       logger,
       signal: controller.signal,
@@ -175,6 +194,7 @@ describe(startAgentDeviceDaemonAsync, () => {
 
     await startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
+      waitForPolicyAsync,
       env: {},
       logger,
     });
@@ -206,8 +226,10 @@ describe(startAgentDeviceDaemonAsync, () => {
         AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
         AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
         AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
+        AGENT_DEVICE_DAEMON_POLICY: expect.any(String),
       }),
     });
+    await expectLaunchedWithPolicyAsync();
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Failed to start agent-device daemon from the configured package manager; falling back to git clone',
       expect.any(Error),
@@ -231,6 +253,7 @@ describe(startAgentDeviceDaemonAsync, () => {
 
     await startAgentDeviceDaemonAsync({
       packageVersion: undefined,
+      waitForPolicyAsync,
       env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' },
       logger,
     });

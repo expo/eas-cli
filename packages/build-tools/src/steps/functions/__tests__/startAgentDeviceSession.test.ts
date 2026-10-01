@@ -197,7 +197,9 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(downloadBuildAsync).not.toHaveBeenCalled();
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
-    await expect(sessionDevice().ready).resolves.toBeUndefined();
+    // The boot reports the device, so the daemon policy can name it.
+    await expect(sessionDevice().booted).resolves.toBe('udid');
+    await sessionDevice().ready;
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -226,6 +228,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
+    await expect(sessionDevice().booted).resolves.toBe('emulator-5554');
   });
 
   it('fails the session when the download fails, without an unhandled rejection', async () => {
