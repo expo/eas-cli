@@ -580,20 +580,21 @@ async function reconcileAdbReverseAsync({
   env,
   logger,
   chiselPid,
-  proxyPort,
+  tunnelPorts,
   reported,
   serialIds,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
   chiselPid: number;
-  proxyPort: number;
+  /** chisel's own listeners: the proxy port and the control port ngrok forwards to. */
+  tunnelPorts: readonly number[];
   reported: Set<string>;
   serialIds?: AndroidDeviceSerialId[];
 }): Promise<void> {
   const listeners = await spawn('ss', ['-Hltnp'], { env, stdio: 'pipe' });
   const ports = parseLoopbackListenerPorts(listeners.stdout, chiselPid).filter(
-    port => port !== proxyPort
+    port => !tunnelPorts.includes(port)
   );
   if (ports.length === 0) {
     return;
@@ -638,7 +639,7 @@ type AndroidLocalEgressSession = {
   cgroupPath: string;
   env: BuildStepEnv;
   chiselPid: number;
-  proxyPort: number;
+  tunnelPorts: number[];
   relay: LocalEgressRelay;
   reportedReverse: Set<string>;
   reverseTimer?: NodeJS.Timeout;
@@ -659,12 +660,14 @@ export async function startAndroidLocalEgressAsync({
   workDir,
   chiselPid,
   proxyPort,
+  controlPort,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
   workDir: string;
   chiselPid: number;
   proxyPort: number;
+  controlPort: number;
 }): Promise<{ stopAsync: () => Promise<void> }> {
   if (activeSession) {
     throw new SystemError('Android local egress is already started for this job.');
@@ -703,7 +706,7 @@ export async function startAndroidLocalEgressAsync({
       cgroupPath,
       env,
       chiselPid,
-      proxyPort,
+      tunnelPorts: [proxyPort, controlPort],
       relay,
       reportedReverse: new Set(),
       logger,
@@ -713,7 +716,7 @@ export async function startAndroidLocalEgressAsync({
         env,
         logger: guardLogger,
         chiselPid,
-        proxyPort,
+        tunnelPorts: session.tunnelPorts,
         reported: session.reportedReverse,
       }).catch(() => {});
     }, ADB_REVERSE_INTERVAL_MS);
@@ -815,7 +818,7 @@ export async function resolveAndroidEmulatorLocalEgressAsync({
         env: session.env,
         logger,
         chiselPid: session.chiselPid,
-        proxyPort: session.proxyPort,
+        tunnelPorts: session.tunnelPorts,
         reported: session.reportedReverse,
         serialIds: [serialId],
       }).catch(err =>

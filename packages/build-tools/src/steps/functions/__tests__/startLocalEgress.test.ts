@@ -111,6 +111,7 @@ describe('local egress platforms', () => {
       expect.objectContaining({
         chiselPid: server.pid,
         proxyPort: 8899,
+        controlPort: 52001,
         workDir: '/tmp/egress-acquisition-test',
       })
     );

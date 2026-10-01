@@ -184,6 +184,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
             workDir,
             chiselPid: server.pid,
             proxyPort: LOCAL_EGRESS_PROXY_PORT,
+            controlPort,
           });
           startupSignal.throwIfAborted();
           await writeLocalEgressHandoffAsync({
