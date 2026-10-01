@@ -1,10 +1,9 @@
-import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
+import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
@@ -21,10 +20,7 @@ import {
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { type StartupTasks, createStartupTasks } from '../../utils/startupTasks';
-import {
-  createStartAgentDeviceRemoteSessionBuildFunction,
-  runAgentDeviceRemoteSessionAsync,
-} from '../startAgentDeviceRemoteSession';
+import { runAgentDeviceRemoteSessionAsync } from '../startAgentDeviceRemoteSession';
 
 // The daemon entry path and the state directory are resolved from the home directory when
 // the module loads, so point it at a temp home we can populate.
@@ -70,28 +66,34 @@ const mockTunnelStopAsync = jest.fn();
 const mockDaemonStopAsync = jest.fn();
 const mockEventCollectionStopAsync = jest.fn();
 
+type CaptureInputs = Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]['capture'];
+const NO_CAPTURE: CaptureInputs = { networkCapture: false, networkCaptureFields: [] };
+
+/** Runs the session for a device that is already booted, with the app (if any) launched. */
 async function runAsync(
-  logger: { info: jest.Mock; warn: jest.Mock },
+  logger: { info: jest.Mock; warn: jest.Mock; child: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
-  launchInputs: Record<string, { value: unknown }> = {}
+  capture: CaptureInputs = NO_CAPTURE
 ): Promise<void> {
-  const buildFunction = createStartAgentDeviceRemoteSessionBuildFunction(ctx);
-  await buildFunction.fn!(
-    { logger, global: { runtimePlatform } } as unknown as BuildStepContext,
-    {
-      inputs: {
-        package_version: { value: undefined },
-        max_idle_time_minutes: { value: undefined },
-        max_duration_seconds: { value: undefined },
-        ...launchInputs,
-      },
-      outputs: {},
-      env: {},
-    } as never
-  );
+  await runAgentDeviceRemoteSessionAsync(ctx, {
+    env: {},
+    logger: logger as never,
+    runtimePlatform,
+    sessionEnv: {
+      deviceRunSessionId: 'device-run-session-id',
+      ngrokTunnelDomain: 'tunnel.example.com',
+      ngrokAuthtoken: 'ngrok-token',
+    },
+    packageVersion: undefined,
+    maxIdleTimeMinutes: undefined,
+    maxDurationSeconds: undefined,
+    capture,
+    tasks: createStartupTasks(logger as never),
+    device: { booted: Promise.resolve(), ready: Promise.resolve() },
+  });
 }
 
-describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () => {
+describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -141,7 +143,6 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
 
     await runAsync(logger, BuildRuntimePlatform.LINUX);
 
-    expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
@@ -162,62 +163,18 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
+  it('hands network capture to serve-sim', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await runAsync(logger, BuildRuntimePlatform.DARWIN, {
-      launch_app_identifier: { value: 'host.exp.Exponent' },
-      launch_args: { value: ['-EXDevMenuIsOnboardingFinished', '1'] },
-      open_url: { value: 'exp://127.0.0.1:8081' },
-    });
-
-    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({
-        runtimePlatform: BuildRuntimePlatform.DARWIN,
-        launchAppIdentifier: 'host.exp.Exponent',
-        launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
-        openUrl: 'exp://127.0.0.1:8081',
-      })
-    );
-    expect(logger.info).toHaveBeenCalledWith(
-      'serve-sim will launch host.exp.Exponent with arguments ' +
-        '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
-    );
-  });
-
-  it('hands network capture to serve-sim on an iOS session', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
-      network_capture: { value: true },
-      network_capture_fields: { value: ['header'] },
+      networkCapture: true,
+      networkCaptureFields: ['header'],
     });
 
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ networkCapture: true, networkCaptureFields: ['header'] })
     );
-  });
-
-  it('fails before starting the daemon when network capture is asked for on Android', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await expect(
-      runAsync(logger, BuildRuntimePlatform.LINUX, { network_capture: { value: true } })
-    ).rejects.toThrow('records traffic through serve-sim on an iOS simulator');
-    expect(spawnDetached).not.toHaveBeenCalled();
-  });
-
-  it('fails before starting the daemon when a launch is asked for on Android', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await expect(
-      runAsync(logger, BuildRuntimePlatform.LINUX, {
-        launch_app_identifier: { value: 'host.exp.Exponent' },
-      })
-    ).rejects.toThrow('runs on linux');
-    expect(spawnDetached).not.toHaveBeenCalled();
   });
 
   it('starts the session host without waiting for the agent-device daemon', async () => {
@@ -323,8 +280,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
         packageVersion: undefined,
         maxIdleTimeMinutes: undefined,
         maxDurationSeconds: undefined,
-        launch: {},
-        capture: { networkCapture: false, networkCaptureFields: [] },
+        capture: NO_CAPTURE,
         tasks,
         device: typeof device === 'function' ? device(tasks) : device,
       });
@@ -414,14 +370,5 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
       expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
     });
-  });
-
-  it('declares the launch inputs', () => {
-    const buildFunction = createStartAgentDeviceRemoteSessionBuildFunction(ctx);
-    const globalCtx = createGlobalContextMock();
-
-    expect(
-      buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
-    ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
   });
 });

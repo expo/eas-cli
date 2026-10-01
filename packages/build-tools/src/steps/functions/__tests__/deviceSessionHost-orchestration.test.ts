@@ -16,7 +16,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
-import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentDeviceRemoteSession';
+import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceSession';
 import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemoteSession';
 
 jest.mock('@expo/turtle-spawn');
@@ -27,6 +27,14 @@ jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceEvents');
 jest.mock('../../utils/appiumEvents');
 jest.mock('../../utils/agentDeviceArtifacts');
+// The agent-device session step boots the emulator itself; this test covers the session host.
+jest.mock('../startAndroidEmulator', () => ({
+  startAndroidEmulatorAsync: jest.fn().mockResolvedValue({
+    serialId: 'emulator-5554',
+    emulatorPromise: Promise.resolve(),
+    shouldAdjustAnimationScale: true,
+  }),
+}));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   spawnDetached: jest.fn(),
@@ -48,6 +56,15 @@ beforeEach(() => {
   jest.clearAllMocks();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+  // Only the emulator logcat folder: the Appium step writes into its own temp folder.
+  const mkdtemp = fs.promises.mkdtemp.bind(fs.promises);
+  jest
+    .spyOn(fs.promises, 'mkdtemp')
+    .mockImplementation(async prefix =>
+      String(prefix).includes('eas-android-emulator-logcat-')
+        ? '/tmp/eas-android-emulator-logcat-test'
+        : mkdtemp(prefix)
+    );
   jest.mocked(spawn).mockResolvedValue({ stdout: '{}' } as never);
   jest
     .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
@@ -89,7 +106,7 @@ afterEach(() => {
 
 describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
-  ['Agent Device', createStartAgentDeviceRemoteSessionBuildFunction],
+  ['Agent Device', createStartAgentDeviceSessionBuildFunction],
 ] as const)('%s host ownership', (name, createFunction) => {
   async function runAsync() {
     const fn = createFunction({} as CustomBuildContext);
@@ -99,10 +116,10 @@ describe.each([
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
-        inputs: {
-          package_version: { value: undefined },
-          max_idle_time_minutes: { value: undefined },
-        },
+        // Inputs a step does not get default to undefined, like in a real step call.
+        inputs: new Proxy({} as Record<string, { value: unknown }>, {
+          get: (target, id: string) => target[id] ?? { value: undefined },
+        }),
         outputs: {},
         env: {
           DEVICE_RUN_SESSION_ID: 'session-id',
