@@ -50,7 +50,7 @@ function mockBuild(
 function mockAssignedGroups(ids: string[] = []): void {
   api()
     .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .query({ 'filter[builds]': 'build', limit: '200' })
     .reply(200, { data: ids.map(id => ({ id })) });
 }
 
@@ -118,7 +118,7 @@ it('skips automatic internal groups and groups that already contain the build', 
     });
   api()
     .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .query({ 'filter[builds]': 'build', limit: '200' })
     .reply(200, { data: [{ id: 'assigned', attributes: { name: 'QA' } }] });
   api()
     .post('/v1/builds/build/relationships/betaGroups', {
@@ -458,16 +458,16 @@ it('reads all membership pages before assigning groups', async () => {
     .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
   api()
     .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200' })
+    .query({ 'filter[builds]': 'build', limit: '200' })
     .reply(200, {
       data: [],
       links: {
-        next: 'https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bapp%5D=app&filter%5Bbuilds%5D=build&limit=200&cursor=next',
+        next: 'https://api.appstoreconnect.apple.com/v1/betaGroups?filter%5Bbuilds%5D=build&limit=200&cursor=next',
       },
     });
   api()
     .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', 'filter[builds]': 'build', limit: '200', cursor: 'next' })
+    .query({ 'filter[builds]': 'build', limit: '200', cursor: 'next' })
     .reply(200, { data: [{ id: 'group' }] });
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
 });

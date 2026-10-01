@@ -55,11 +55,16 @@ const GetApi = {
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups
   '/v1/betaGroups': {
     path: z.object({}),
-    request: z.object({
-      'filter[app]': z.string(),
-      'filter[builds]': z.string().optional(),
-      limit: z.number().int().max(200),
-    }),
+    request: z
+      .object({
+        'filter[app]': z.string().optional(),
+        'filter[builds]': z.string().optional(),
+        limit: z.number().int().max(200),
+      })
+      .refine(
+        filters => Boolean(filters['filter[app]']) !== Boolean(filters['filter[builds]']),
+        'Exactly one relationship filter is required when listing TestFlight groups.'
+      ),
     response: z.object({
       data: z.array(
         z.object({

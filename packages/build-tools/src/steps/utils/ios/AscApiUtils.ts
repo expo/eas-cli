@@ -50,8 +50,7 @@ export namespace AscApiUtils {
     buildId?: string;
   }) {
     let response = await client.getAsync('/v1/betaGroups', {
-      'filter[app]': appId,
-      ...(buildId ? { 'filter[builds]': buildId } : {}),
+      ...(buildId ? { 'filter[builds]': buildId } : { 'filter[app]': appId }),
       limit: 200,
     });
     const groups = [...response.data];
