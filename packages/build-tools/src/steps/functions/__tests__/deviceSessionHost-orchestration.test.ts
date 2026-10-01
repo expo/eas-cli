@@ -42,7 +42,7 @@ const stopTool = jest.fn();
 const stopTunnel = jest.fn();
 const stopEvents = jest.fn();
 const openPreview = jest.fn();
-const logger = { info: jest.fn(), warn: jest.fn() };
+const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -224,7 +224,13 @@ describe.each([
     await expect(runAsync()).rejects.toBe(error);
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(stopTool).toHaveBeenCalledTimes(1);
-    expect(stopTunnel).toHaveBeenCalledTimes(1);
+    // An agent-device preview failure aborts the daemon task, which then may not start its
+    // tunnel. Every tunnel that started must be stopped.
+    expect(stopTunnel).toHaveBeenCalledTimes(
+      name === 'Agent Device' && phase === 'preview'
+        ? jest.mocked(startNgrokTunnelAsync).mock.calls.length
+        : 1
+    );
     expect(logger.warn).toHaveBeenCalledWith(
       { err: expect.objectContaining({ message: 'recording cleanup failed' }) },
       'Could not stop the session host during remote session teardown.'

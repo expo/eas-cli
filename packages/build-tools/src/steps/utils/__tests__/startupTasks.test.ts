@@ -3,7 +3,11 @@ import { bunyan } from '@expo/logger';
 import { createStartupTasks } from '../startupTasks';
 
 function createLoggerMock(): bunyan {
-  return { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  return {
+    info: jest.fn(),
+    warn: jest.fn(),
+    child: jest.fn().mockReturnThis(),
+  } as unknown as bunyan;
 }
 
 describe(createStartupTasks, () => {
@@ -47,5 +51,41 @@ describe(createStartupTasks, () => {
     await expect(failing).rejects.toThrow('boom');
     expect(logger.warn).toHaveBeenCalledWith(expect.stringMatching(/^failing task failed after/));
     expect(tasks.summary()).toMatch(/\(\)\.$/);
+  });
+
+  it('aborts the signal with the first failure and gives each task a child logger', async () => {
+    const logger = createLoggerMock();
+    const tasks = createStartupTasks(logger);
+
+    let taskLogger: unknown;
+    await tasks.run('named task', async l => {
+      taskLogger = l;
+    });
+    expect(logger.child).toHaveBeenCalledWith({ startupTask: 'named task' });
+    expect(taskLogger).toBe(logger);
+    expect(tasks.signal.aborted).toBe(false);
+
+    const first = new Error('first failure');
+    await expect(tasks.run('first', async () => Promise.reject(first))).rejects.toBe(first);
+    await expect(
+      tasks.run('second', async () => Promise.reject(new Error('second failure')))
+    ).rejects.toThrow('second failure');
+    expect(tasks.signal.aborted).toBe(true);
+    expect(tasks.signal.reason).toBe(first);
+  });
+
+  it('stops waiting on untilAborted when startup is aborted', async () => {
+    const tasks = createStartupTasks(createLoggerMock());
+    const never = new Promise<void>(() => {});
+    const waiting = tasks.untilAborted(never);
+    const failure = new Error('boot failed');
+
+    tasks.abort(failure);
+
+    await expect(waiting).rejects.toBe(failure);
+    await expect(tasks.untilAborted(Promise.resolve('late'))).rejects.toBe(failure);
+    await expect(
+      createStartupTasks(createLoggerMock()).untilAborted(Promise.resolve('ok'))
+    ).resolves.toBe('ok');
   });
 });

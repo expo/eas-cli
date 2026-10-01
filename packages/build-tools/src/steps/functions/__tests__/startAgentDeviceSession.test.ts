@@ -2,10 +2,7 @@ import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
-import {
-  ensureFfmpegInstalledOnceAsync,
-  selectXcodeDeveloperDirectoryAsync,
-} from '../../utils/remoteDeviceRunSession';
+import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
 import { launchApplicationAsync } from '../launchApplication';
@@ -22,7 +19,6 @@ jest.mock('../../utils/localEgressSession', () => ({
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
-  ensureFfmpegInstalledOnceAsync: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
 }));
 jest.mock('../startIosSimulator', () => ({ bootIosSimulatorAsync: jest.fn() }));
@@ -74,7 +70,7 @@ function runStep(
   inputValues: Record<string, unknown> = {}
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
-  const logger = { info: jest.fn(), warn: jest.fn() };
+  const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
   const inputs = Object.fromEntries(
     [
       'device_identifier',
@@ -204,7 +200,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     await expect(sessionDevice().ready).resolves.toBeUndefined();
   });
 
-  it('boots the Android Emulator with the device inputs and installs ffmpeg in parallel', async () => {
+  it('boots the Android Emulator with the device inputs', async () => {
     await runStep(BuildRuntimePlatform.LINUX, {
       device_identifier: 'pixel_7',
       system_image_package: 'system-images;android-35-ext15;google_apis_playstore;x86_64',
@@ -215,7 +211,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
-    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledTimes(1);
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceIdentifier: 'pixel_7',
@@ -252,6 +247,92 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
 
     await stepFailure;
     expect(installBuildAsync).not.toHaveBeenCalled();
+  });
+
+  /** A download that runs until its abort signal fires, like a stalled one. */
+  function mockStalledDownload(): { aborted: () => boolean; settled: () => boolean } {
+    let aborted = false;
+    let settled = false;
+    jest.mocked(downloadBuildAsync).mockImplementation(
+      ({ signal }) =>
+        new Promise((_resolve, reject) => {
+          signal!.addEventListener('abort', () => {
+            aborted = true;
+            // Settles a bit later, like a request that winds down.
+            setImmediate(() => {
+              settled = true;
+              reject(new Error('The user aborted a request.'));
+            });
+          });
+        })
+    );
+    return { aborted: () => aborted, settled: () => settled };
+  }
+
+  /** Runs the session like the real one: fails with the daemon, then waits for every part. */
+  function mockSessionWithFailingDaemon(beforeFailure?: () => Promise<void>): void {
+    jest
+      .mocked(runAgentDeviceRemoteSessionAsync)
+      .mockImplementation(async (_ctx, { tasks, device }) => {
+        await beforeFailure?.();
+        const daemon = tasks.run('agent-device daemon', async () => {
+          throw new Error('daemon failed');
+        });
+        try {
+          await Promise.all([daemon, device.ready]);
+        } finally {
+          await Promise.allSettled([daemon, device.ready]);
+        }
+      });
+  }
+
+  it('stops the download and waits for it when the boot fails', async () => {
+    const download = mockStalledDownload();
+    jest.mocked(bootIosSimulatorAsync).mockRejectedValue(new Error('boot failed'));
+
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'boot failed'
+    );
+
+    expect(download.aborted()).toBe(true);
+    // The step returned only after the download stopped.
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('stops a stalled download and does not install when the daemon fails', async () => {
+    const download = mockStalledDownload();
+    mockSessionWithFailingDaemon();
+
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'daemon failed'
+    );
+
+    expect(download.aborted()).toBe(true);
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not launch the app when startup fails during the install', async () => {
+    const install = deferred<Awaited<ReturnType<typeof installBuildAsync>>>();
+    const installStarted = deferred();
+    jest.mocked(installBuildAsync).mockImplementation(() => {
+      installStarted.resolve();
+      return install.promise;
+    });
+    mockSessionWithFailingDaemon(async () => {
+      await installStarted.promise;
+      // The install finishes only after the daemon failed.
+      setImmediate(() => install.resolve({ applicationIdentifier: 'dev.example.app' }));
+    });
+
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'daemon failed'
+    );
+
+    expect(installBuildAsync).toHaveBeenCalledTimes(1);
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
   });
 
   it('rejects conflicting application inputs before it boots anything', async () => {

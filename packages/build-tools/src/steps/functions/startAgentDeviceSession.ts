@@ -18,7 +18,6 @@ import {
 import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
-  ensureFfmpegInstalledOnceAsync,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -52,7 +51,10 @@ const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
  *   download ─────────┘                      │
  *   boot ─► session host ─► web preview ─────┼─► ready
  *   agent-device daemon ─► tunnel ───────────┘
- *   ffmpeg (Android) ─► (session host waits for it)
+ *
+ * The first failure aborts the rest: the download stops, and nothing installs, launches
+ * or starts after it. A boot cannot be cancelled, so it can still run when a failed
+ * step returns.
  */
 export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -160,58 +162,71 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
 
       const tasks = createStartupTasks(logger);
 
-      if (!isIos) {
-        // expo-device-hub needs ffmpeg, and the Android image does not ship it. The
-        // session host waits for this same install. It never rejects.
-        void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
-      }
-
-      const booted = tasks.run(isIos ? 'iOS Simulator boot' : 'Android Emulator boot', async () => {
-        if (isIos) {
-          await bootIosSimulatorAsync({
-            deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
+      const booted = tasks.run(
+        isIos ? 'iOS Simulator boot' : 'Android Emulator boot',
+        async taskLogger => {
+          if (isIos) {
+            await bootIosSimulatorAsync({
+              deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
+              env,
+              logger: taskLogger,
+            });
+            return;
+          }
+          await startAndroidEmulatorAsync({
+            deviceName: ANDROID_DEVICE_NAME,
+            systemImagePackage: `${inputs.system_image_package.value}`,
+            deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
+            lcdWidth: inputs.lcd_width.value as number | undefined,
+            lcdHeight: inputs.lcd_height.value as number | undefined,
+            lcdDensity: inputs.lcd_density.value as number | undefined,
+            logcatDirectory: await fs.promises.mkdtemp(
+              path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
+            ),
             env,
-            logger,
+            logger: taskLogger,
           });
-          return;
         }
-        await startAndroidEmulatorAsync({
-          deviceName: ANDROID_DEVICE_NAME,
-          systemImagePackage: `${inputs.system_image_package.value}`,
-          deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
-          lcdWidth: inputs.lcd_width.value as number | undefined,
-          lcdHeight: inputs.lcd_height.value as number | undefined,
-          lcdDensity: inputs.lcd_density.value as number | undefined,
-          logcatDirectory: await fs.promises.mkdtemp(
-            path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
-          ),
-          env,
-          logger,
-        });
-      });
+      );
 
       const downloaded = hasApplication
-        ? tasks.run('build download', async () => {
+        ? tasks.run('build download', async taskLogger => {
             const { artifactPath } = await downloadBuildAsync({
-              logger,
+              logger: taskLogger,
               ...(buildId ? { buildId } : { applicationArchiveUrl: applicationArchiveUrl! }),
               graphqlClient: ctx.graphqlClient,
               robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
               extensions: isIos ? ['app'] : ['apk'],
+              signal: tasks.signal,
             });
             return artifactPath;
           })
         : undefined;
 
+      // `ready` settles only after everything it started has settled, so the session
+      // teardown, which waits for it, never leaves a download running. It must also settle
+      // soon after an abort: it stops waiting for the boot then, and the download stops.
       const ready = downloaded
-        ? tasks.run('app install and launch', async () => {
-            const [artifactPath] = await Promise.all([downloaded, booted]);
+        ? tasks.run('app install and launch', async taskLogger => {
+            const [download, boot] = await Promise.allSettled([
+              downloaded,
+              tasks.untilAborted(booted),
+            ]);
+            // After a failure elsewhere, report that failure, not the abort it caused here.
+            tasks.signal.throwIfAborted();
+            if (download.status === 'rejected') {
+              throw download.reason;
+            }
+            if (boot.status === 'rejected') {
+              throw boot.reason;
+            }
             const { applicationIdentifier, activityName } = await installBuildAsync({
-              artifactPath,
+              artifactPath: download.value,
               runtimePlatform,
               env,
-              logger,
+              logger: taskLogger,
             });
+            tasks.signal.throwIfAborted();
             await launchApplicationAsync({
               applicationIdentifier,
               activityName,
@@ -219,10 +234,10 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
               openUrl,
               runtimePlatform,
               env,
-              logger,
+              logger: taskLogger,
             });
           })
-        : booted;
+        : tasks.untilAborted(booted);
 
       await runAgentDeviceRemoteSessionAsync(ctx, {
         env,

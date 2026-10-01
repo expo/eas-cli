@@ -157,6 +157,10 @@ export function getAgentDeviceRemoteSessionEnvOrThrow(
  * The daemon does not need the device, so it starts at once. The session host starts
  * when `device.booted` resolves. The session is reported as ready only when both are
  * up and `device.ready` (the app is installed and launched) resolved too.
+ *
+ * The first failure aborts `tasks.signal`: each part stops before its next stage, and
+ * the teardown then stops whatever was started. `device.ready` must settle soon after
+ * an abort, because the teardown waits for it.
  */
 export async function runAgentDeviceRemoteSessionAsync(
   ctx: CustomBuildContext,
@@ -198,41 +202,47 @@ export async function runAgentDeviceRemoteSessionAsync(
 
   // Each task stores what it started, so the teardown below can stop it even when
   // another task failed first.
-  const agentDeviceStartup = tasks.run('agent-device daemon', async () => {
-    logger.info('Launching agent-device daemon.');
-    daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
+  const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
+    taskLogger.info('Launching agent-device daemon.');
+    daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger: taskLogger });
 
-    logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
+    taskLogger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
     const daemonInfo = await waitForDaemonInfoAsync({ daemonProcess });
-    logger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
+    taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
 
+    tasks.signal.throwIfAborted();
     agentDeviceTunnel = await startNgrokTunnelAsync({
       port: daemonInfo.port,
       subdomainPrefix: 'agent-device',
       baseDomain: ngrokTunnelDomain,
       authtoken: ngrokAuthtoken,
-      logger,
+      logger: taskLogger,
     });
-    logger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
     return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
   });
-  const sessionHostStartup = tasks.run('session host', async () => {
-    await device.booted;
+  const sessionHostStartup = tasks.run('session host', async taskLogger => {
+    // A boot cannot be cancelled, so stop waiting for it when startup is aborted.
+    await tasks.untilAborted(device.booted);
+    tasks.signal.throwIfAborted();
     const launchDescription = describeServeSimLaunch(launch);
     if (launchDescription) {
-      logger.info(launchDescription);
+      taskLogger.info(launchDescription);
     }
     sessionHost = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform,
       env,
-      logger,
+      logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
       launchAppIdentifier: launch.launchAppIdentifier,
       launchArgs: launch.launchArgs,
       openUrl: launch.openUrl,
     });
+    tasks.signal.throwIfAborted();
     const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
-    logger.info(`Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
+    taskLogger.info(
+      `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+    );
     return webPreview;
   });
 
@@ -240,7 +250,13 @@ export async function runAgentDeviceRemoteSessionAsync(
     const [
       { port: daemonPort, token: daemonToken, remoteSessionUrl: agentDeviceRemoteSessionUrl },
       webPreview,
-    ] = await Promise.all([agentDeviceStartup, sessionHostStartup, device.ready]);
+    ] = await Promise.all([agentDeviceStartup, sessionHostStartup, device.ready]).catch(
+      (err: unknown) => {
+        // Also aborts for a `device.ready` that does not come from `tasks.run`.
+        tasks.abort(err);
+        throw err;
+      }
+    );
     logger.info(tasks.summary());
 
     await uploadRemoteSessionConfigWithLocalEgressAsync({
@@ -290,7 +306,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     throw error;
   } finally {
     // Promise.all rejects on the first failure while other tasks can still be starting.
-    // Wait for all of them, so the teardown sees everything that was started.
+    // They stop at their next abort check. Wait for all of them, so the teardown sees
+    // everything that was started.
     await Promise.allSettled([agentDeviceStartup, sessionHostStartup, device.ready]);
     const startedDaemon = daemonProcess;
     await finishRemoteSessionAsync({

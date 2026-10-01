@@ -161,9 +161,11 @@ export async function downloadBuildAsync(
     graphqlClient: Client;
     robotAccessToken: string | null;
     extensions: string[];
+    /** Stops the download (the request and the file write) when aborted. */
+    signal?: AbortSignal;
   }
 ): Promise<{ artifactPath: string }> {
-  const { logger, graphqlClient, robotAccessToken, extensions } = params;
+  const { logger, graphqlClient, robotAccessToken, extensions, signal } = params;
 
   let downloadUrl: string;
   let headers: { Authorization: string } | undefined;
@@ -191,7 +193,8 @@ export async function downloadBuildAsync(
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers });
+  signal?.throwIfAborted();
+  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers, signal });
 
   if (!response.ok) {
     const textResult = await asyncResult(response.text());
@@ -201,7 +204,9 @@ export async function downloadBuildAsync(
   const archiveFilename = resolveArchiveFilename({ response, extensions });
   const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
 
+  // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
   await streamPipeline(response.body, fs.createWriteStream(archivePath));
+  signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(archivePath);
 
