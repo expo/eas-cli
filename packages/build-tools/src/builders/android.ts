@@ -69,6 +69,20 @@ async function buildInnerAsync(
   const workingDirectory = ctx.getReactNativeProjectDirectory();
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
 
+  const resolvedExpoUpdatesRuntimeVersion = await ctx.runBuildPhase(
+    BuildPhase.CALCULATE_EXPO_UPDATES_RUNTIME_VERSION,
+    async () => {
+      return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
+        cwd: ctx.getReactNativeProjectDirectory(),
+        logger: ctx.logger,
+        appConfig: await ctx.appConfig,
+        platform: ctx.job.platform,
+        workflow: ctx.job.type,
+        env: ctx.env,
+      });
+    }
+  );
+
   if (hasNativeCode) {
     await ctx.runBuildPhase(BuildPhase.FIX_GRADLEW, async () => {
       await ensureLFLineEndingsInGradlewScript(ctx);
@@ -113,20 +127,6 @@ async function buildInnerAsync(
   await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.POST_INSTALL);
   });
-
-  const resolvedExpoUpdatesRuntimeVersion = await ctx.runBuildPhase(
-    BuildPhase.CALCULATE_EXPO_UPDATES_RUNTIME_VERSION,
-    async () => {
-      return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
-        cwd: ctx.getReactNativeProjectDirectory(),
-        logger: ctx.logger,
-        appConfig: await ctx.appConfig,
-        platform: ctx.job.platform,
-        workflow: ctx.job.type,
-        env: ctx.env,
-      });
-    }
-  );
 
   if (
     nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials
