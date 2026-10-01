@@ -207,7 +207,7 @@ async function submitToGooglePlayAsync({
       client,
       packageName,
       editId,
-      artifactPath: artifact.artifactPath,
+      artifactPath: submission.artifact_path,
       artifactType: artifact.artifactType,
       signal,
       onProgress: (uploaded, total) => {
