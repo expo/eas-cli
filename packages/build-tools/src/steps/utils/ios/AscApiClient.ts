@@ -384,10 +384,14 @@ export class AscApiRequestError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly responseJson: z.output<typeof AscErrorResponseSchema>,
+    public readonly responseJson: z.output<typeof AscErrorResponseSchema>['errors'][number],
     options?: { cause?: unknown }
   ) {
     super(message, { cause: options?.cause });
+  }
+
+  get code(): string | undefined {
+    return this.responseJson.code;
   }
 }
 
@@ -546,7 +550,7 @@ export class AscApiClient {
           return new AscApiRequestError(
             `Unexpected response (${response.status}) from App Store Connect: ${JSON.stringify(ascError)}`,
             response.status,
-            { errors: [ascError] },
+            ascError,
             { cause: response }
           );
         });

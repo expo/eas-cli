@@ -276,11 +276,8 @@ function isInternalGroupAssignmentError(error: unknown): boolean {
   return (
     error instanceof AscApiRequestError &&
     error.status === 422 &&
-    error.responseJson.errors.some(
-      ({ code, title, detail }) =>
-        code === 'ENTITY_UNPROCESSABLE' &&
-        (title === 'Builds cannot be assigned to this internal group.' ||
-          detail === 'Cannot add internal group to a build.')
-    )
+    error.code === 'ENTITY_UNPROCESSABLE' &&
+    (error.responseJson.title === 'Builds cannot be assigned to this internal group.' ||
+      error.responseJson.detail === 'Cannot add internal group to a build.')
   );
 }

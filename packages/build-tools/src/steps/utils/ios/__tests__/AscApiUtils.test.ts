@@ -39,7 +39,7 @@ describe('AscApiUtils', () => {
         const notFoundError = new AscApiRequestError(
           'Unexpected response (404) from App Store Connect',
           404,
-          notFoundPayload
+          notFoundPayload.errors[0]
         );
         const client = {
           getAsync: jest
@@ -84,7 +84,7 @@ describe('AscApiUtils', () => {
       const notFoundError = new AscApiRequestError(
         'Unexpected response (404) from App Store Connect',
         404,
-        notFoundPayload
+        notFoundPayload.errors[0]
       );
 
       const listingError = new Error('listing failed');
@@ -140,7 +140,7 @@ describe('AscApiUtils', () => {
       const duplicateError = new AscApiRequestError(
         'Unexpected response (409) from App Store Connect',
         409,
-        payload
+        payload.errors[0]
       );
 
       const client = {
@@ -220,7 +220,7 @@ describe('AscApiUtils', () => {
       );
     });
 
-    it.each([false, true])('rethrows mixed error codes (aggregate: %s)', async aggregate => {
+    it.each([false, true])('rethrows unrelated errors (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [
           {
@@ -233,12 +233,8 @@ describe('AscApiUtils', () => {
           },
         ],
       };
-      const errors = payload.errors.map(
-        error => new AscApiRequestError('API error', 409, { errors: [error] })
-      );
-      const mixedError = aggregate
-        ? new AggregateError(errors)
-        : new AscApiRequestError('API error', 409, payload);
+      const errors = payload.errors.map(error => new AscApiRequestError('API error', 409, error));
+      const mixedError = aggregate ? new AggregateError(errors) : errors[1];
       const client = {
         postAsync: jest.fn().mockRejectedValue(mixedError),
       };

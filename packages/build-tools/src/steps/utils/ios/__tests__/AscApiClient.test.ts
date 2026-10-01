@@ -334,7 +334,8 @@ describe(AscApiClient, () => {
     ).rejects.toMatchObject({
       message: `Unexpected response (409) from App Store Connect: ${JSON.stringify(responseFixture.errors[0])}`,
       status: 409,
-      responseJson: responseFixture,
+      code: 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE',
+      responseJson: responseFixture.errors[0],
     });
   });
 
@@ -359,7 +360,7 @@ describe(AscApiClient, () => {
     ]);
     await expect(request).rejects.toThrow(/Account Holder/);
     await expect(request).rejects.toThrow(/Access denied/);
-    await expect(request).rejects.toHaveProperty('errors.1.responseJson', { errors: [forbidden] });
+    await expect(request).rejects.toHaveProperty('errors.1.responseJson', forbidden);
   });
 
   it('throws regular Error for non-structured ASC error payload', async () => {

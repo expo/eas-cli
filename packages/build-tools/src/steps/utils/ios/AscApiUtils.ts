@@ -135,10 +135,7 @@ export namespace AscApiUtils {
         errors.length > 0 &&
         errors.every(
           item =>
-            item instanceof AscApiRequestError &&
-            item.status === 404 &&
-            item.responseJson.errors.length > 0 &&
-            item.responseJson.errors.every(error => error.code === 'NOT_FOUND')
+            item instanceof AscApiRequestError && item.status === 404 && item.code === 'NOT_FOUND'
         );
       if (!isAppNotFoundError) {
         throw error;
@@ -208,10 +205,7 @@ export namespace AscApiUtils {
           item =>
             item instanceof AscApiRequestError &&
             item.status === 409 &&
-            item.responseJson.errors.length > 0 &&
-            item.responseJson.errors.every(
-              error => error.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE'
-            )
+            item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE'
         );
 
       if (isDuplicateVersionError) {
