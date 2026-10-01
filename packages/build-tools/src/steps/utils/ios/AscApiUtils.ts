@@ -46,9 +46,7 @@ export namespace AscApiUtils {
     buildId,
   }: {
     client: AscApiClient;
-    appId: string;
-    buildId?: string;
-  }) {
+  } & ({ appId: string; buildId?: never } | { appId?: never; buildId: string })) {
     let response = await client.getAsync('/v1/betaGroups', {
       ...(buildId ? { 'filter[builds]': buildId } : { 'filter[app]': appId }),
       limit: 200,

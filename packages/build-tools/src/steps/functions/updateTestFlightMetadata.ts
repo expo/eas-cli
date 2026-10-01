@@ -186,7 +186,6 @@ export async function updateTestFlightMetadataAsync({
       const assignedGroups = requestedGroups.length
         ? await AscApiUtils.getAllBetaGroupsAsync({
             client,
-            appId: app.id,
             buildId,
           })
         : [];
