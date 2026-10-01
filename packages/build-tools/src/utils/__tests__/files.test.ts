@@ -54,36 +54,4 @@ describe('decompressTarAsync', () => {
     expect(vol.readFileSync('test/README.md', 'utf8')).toBe('hello\n');
     expect(vol.readFileSync('test/apps/mobile/package.json', 'utf8')).toBe('{}\n');
   });
-
-  it('extracts with an abort signal', async () => {
-    vol.fromNestedJSON({
-      'test.tar.gz': HELLO_TAR_GZ_BUFFER,
-      test: {},
-    });
-
-    await decompressTarAsync({
-      archivePath: 'test.tar.gz',
-      destinationDirectory: 'test',
-      signal: new AbortController().signal,
-    });
-
-    expect(vol.readFileSync('test/README.md', 'utf8')).toBe('hello\n');
-  });
-
-  it('extracts nothing when the signal is already aborted', async () => {
-    vol.fromNestedJSON({
-      'test.tar.gz': HELLO_TAR_GZ_BUFFER,
-      test: {},
-    });
-    const failure = new Error('daemon failed');
-
-    await expect(
-      decompressTarAsync({
-        archivePath: 'test.tar.gz',
-        destinationDirectory: 'test',
-        signal: AbortSignal.abort(failure),
-      })
-    ).rejects.toBe(failure);
-    expect(vol.existsSync('test/README.md')).toBe(false);
-  });
 });

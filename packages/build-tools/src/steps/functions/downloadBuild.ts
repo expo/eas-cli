@@ -168,7 +168,7 @@ export async function downloadBuildAsync(
     graphqlClient: Client;
     robotAccessToken: string | null;
     extensions: string[];
-    /** Stops the build lookup, the request, the file write and the extraction when aborted. */
+    /** Stops the build lookup, the request and the file write when aborted, and skips the rest. */
     signal?: AbortSignal;
   }
 ): Promise<{ artifactPath: string }> {
@@ -229,10 +229,13 @@ export async function downloadBuildAsync(
   const extractionDirectory = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'download_build-extracted-')
   );
+  // Not interrupted on abort: tar cannot stop its in-flight file writes, so an abort during
+  // the extraction lets it finish (local, bounded work) and is reported right after it.
+  // This way no file is written after this function settles.
+  signal?.throwIfAborted();
   await decompressTarAsync({
     archivePath,
     destinationDirectory: extractionDirectory,
-    signal,
   });
   signal?.throwIfAborted();
 

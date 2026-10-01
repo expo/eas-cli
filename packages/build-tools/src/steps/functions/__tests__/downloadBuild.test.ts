@@ -11,6 +11,7 @@ import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import * as files from '../../../utils/files';
 import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
 
 // contains a 'TestApp.app/TestApp' file with 'i am executable' content
@@ -326,6 +327,50 @@ describe('downloadBuild', () => {
       expect(jest.mocked(fetch)).not.toHaveBeenCalled();
     } finally {
       globalThis.fetch = realFetch;
+    }
+  });
+
+  it('lets a started extraction finish before it reports an abort', async () => {
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const { decompressTarAsync } = jest.requireActual<typeof files>('../../../utils/files');
+    const controller = new AbortController();
+    const failure = new Error('daemon failed');
+    let extractionDirectory: string | undefined;
+    let extractionFinished = false;
+    const decompressSpy = jest.spyOn(files, 'decompressTarAsync').mockImplementation(async args => {
+      extractionDirectory = args.destinationDirectory;
+      // The startup fails while the archive is being extracted.
+      controller.abort(failure);
+      await decompressTarAsync(args);
+      extractionFinished = true;
+    });
+
+    try {
+      await expect(
+        downloadBuildAsync({
+          logger: createLogger({ name: 'test' }),
+          applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+          graphqlClient: createMockGraphqlClient({}),
+          robotAccessToken: null,
+          extensions: ['app'],
+          signal: controller.signal,
+        })
+      ).rejects.toBe(failure);
+
+      // The download settled only after the extraction wrote its last file.
+      expect(extractionFinished).toBe(true);
+      expect(
+        await fs.promises.readFile(
+          path.join(extractionDirectory!, 'TestApp.app', 'TestApp'),
+          'utf8'
+        )
+      ).toBe('i am executable\n');
+    } finally {
+      decompressSpy.mockRestore();
     }
   });
 

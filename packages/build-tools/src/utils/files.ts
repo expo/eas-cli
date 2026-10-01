@@ -1,46 +1,17 @@
-import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import * as tar from 'tar';
 
 export async function decompressTarAsync({
   archivePath,
   destinationDirectory,
-  signal,
 }: {
   archivePath: string;
   destinationDirectory: string;
-  /** Stops the extraction when aborted; the promise then rejects with the abort reason. */
-  signal?: AbortSignal;
 }): Promise<void> {
-  if (!signal) {
-    await tar.extract({
-      file: archivePath,
-      cwd: destinationDirectory,
-    });
-    return;
-  }
-
-  signal.throwIfAborted();
-  // tar.extract({ file }) cannot be stopped, so feed the file to an Unpack that can be.
-  const unpack = new tar.Unpack({ cwd: destinationDirectory });
-  const source = fs.createReadStream(archivePath);
-  const onAbort = (): void => {
-    source.destroy();
-    unpack.abort(
-      signal.reason instanceof Error ? signal.reason : new Error('The extraction was aborted.')
-    );
-  };
-  try {
-    await new Promise<void>((resolve, reject) => {
-      unpack.on('error', reject);
-      unpack.on('close', () => resolve());
-      source.on('error', reject);
-      signal.addEventListener('abort', onAbort, { once: true });
-      source.pipe(unpack);
-    });
-  } finally {
-    signal.removeEventListener('abort', onAbort);
-  }
+  await tar.extract({
+    file: archivePath,
+    cwd: destinationDirectory,
+  });
 }
 
 export async function isFileTarGzAsync(path: string): Promise<boolean> {
