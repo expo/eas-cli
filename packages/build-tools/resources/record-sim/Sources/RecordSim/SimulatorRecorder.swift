@@ -1,4 +1,5 @@
 import AVFoundation
+import Accelerate
 import CoreVideo
 import Foundation
 import IOSurface
@@ -27,10 +28,9 @@ public final class SimulatorRecorder {
     private var monotonicClock = MonotonicClock()
     private var firstAcceptedCaptureTime: CMTime?
     private var firstAcceptedWallClock: Date?
-    private var recordingWidth: Int?
-    private var recordingHeight: Int?
+    private var canvasLayout: PanelCanvasLayout?
     private var lastPTS: CMTime?
-    private var lastSeed: UInt32?
+    private var lastSeeds: [UInt32?]?
     private var lastFrameCallbackElapsed: TimeInterval?
     private var lastFirstFrameRewireElapsed: TimeInterval = 0
     private var lastAppendedPixelBuffer: CVPixelBuffer?
@@ -147,14 +147,14 @@ public final class SimulatorRecorder {
             guard let firstAcceptedWallClock else {
                 throw RecorderError.make(25, "Missing first frame wall-clock timestamp")
             }
-            guard let recordingWidth, let recordingHeight else {
+            guard let canvasLayout else {
                 throw RecorderError.make(27, "Missing recording dimensions")
             }
             return try outputWriter.writeManifest(
                 configuration: configuration,
                 firstFrameWallClock: firstAcceptedWallClock,
-                width: recordingWidth,
-                height: recordingHeight
+                width: canvasLayout.width,
+                height: canvasLayout.height
             )
         }
     }
@@ -239,19 +239,13 @@ public final class SimulatorRecorder {
         if reason == .callback {
             lastFrameCallbackElapsed = monotonicClock.elapsedSeconds()
         }
-        guard let snapshot = displaySource?.surfaceSnapshot() else {
-            return
-        }
-        let surface = snapshot.surface
-        let surfaceWidth = snapshot.width
-        let surfaceHeight = snapshot.height
-        guard surfaceWidth > 0, surfaceHeight > 0 else {
+        guard let snapshot = displaySource?.frameSnapshot() else {
             return
         }
 
-        let seed = snapshot.seed
-        let matchesLastAppendedSeed = writerQueue.sync { lastSeed == seed }
-        if !force, matchesLastAppendedSeed {
+        let seeds = snapshot.seeds
+        let matchesLastAppendedSeeds = writerQueue.sync { lastSeeds == seeds }
+        if !force, matchesLastAppendedSeeds {
             return
         }
 
@@ -262,14 +256,10 @@ public final class SimulatorRecorder {
         let capturedAt = monotonicClock.elapsedTime()
         let capturedAtWallClock = Date()
         do {
-            let pixelBuffer = try copySurfaceToOwnedPixelBuffer(
-                surface,
-                width: surfaceWidth,
-                height: surfaceHeight
-            )
+            let pixelBuffer = try copyFrameToOwnedPixelBuffer(snapshot)
             appendOwned(
                 pixelBuffer: pixelBuffer,
-                seed: seed,
+                seeds: seeds,
                 capturedAt: capturedAt,
                 capturedAtWallClock: capturedAtWallClock
             )
@@ -296,17 +286,14 @@ public final class SimulatorRecorder {
             return
         }
 
-        guard let snapshot = displaySource.surfaceSnapshot(),
-            snapshot.width > 0,
-            snapshot.height > 0
-        else {
+        guard let snapshot = displaySource.frameSnapshot() else {
             rewireFramebuffer()
             return
         }
 
-        let observedSeed = snapshot.seed
-        let lastAppendedSeed = writerQueue.sync { lastSeed }
-        guard let lastAppendedSeed, observedSeed != lastAppendedSeed else {
+        let observedSeeds = snapshot.seeds
+        let lastAppendedSeeds = writerQueue.sync { lastSeeds }
+        guard let lastAppendedSeeds, observedSeeds != lastAppendedSeeds else {
             return
         }
 
@@ -369,22 +356,20 @@ public final class SimulatorRecorder {
         pendingLock.unlock()
     }
 
-    private func copySurfaceToOwnedPixelBuffer(
-        _ surface: IOSurface,
-        width: Int,
-        height: Int
+    private func copyFrameToOwnedPixelBuffer(
+        _ snapshot: FramebufferDisplaySource.FrameSnapshot
     ) throws -> CVPixelBuffer {
-        let pool = try writerQueue.sync {
+        let (pool, layout) = try writerQueue.sync {
             if let firstError {
                 throw firstError
             }
             if writer == nil {
-                try startWriter(width: width, height: height)
+                try startWriter(layout: PanelCanvasLayout(panels: snapshot.panels))
             }
-            guard let pool = adaptor?.pixelBufferPool else {
+            guard let pool = adaptor?.pixelBufferPool, let canvasLayout else {
                 throw RecorderError.make(40, "AVAssetWriter pixel buffer pool is unavailable")
             }
-            return pool
+            return (pool, canvasLayout)
         }
 
         var output: CVPixelBuffer?
@@ -397,39 +382,129 @@ public final class SimulatorRecorder {
         guard destinationLockStatus == kCVReturnSuccess else {
             throw RecorderError.make(50, "Failed to lock pixel buffer: \(destinationLockStatus)")
         }
-        let surfaceLockStatus = IOSurfaceLock(surface, .readOnly, nil)
-        guard surfaceLockStatus == KERN_SUCCESS else {
-            CVPixelBufferUnlockBaseAddress(destination, [])
-            throw RecorderError.make(49, "Failed to lock IOSurface: \(surfaceLockStatus)")
-        }
-        defer {
-            IOSurfaceUnlock(surface, .readOnly, nil)
-            CVPixelBufferUnlockBaseAddress(destination, [])
-        }
-
+        defer { CVPixelBufferUnlockBaseAddress(destination, []) }
         guard let destinationAddress = CVPixelBufferGetBaseAddress(destination) else {
             throw RecorderError.make(42, "Pixel buffer has no base address")
         }
-        let sourceAddress = IOSurfaceGetBaseAddress(surface)
-        let sourceStride = IOSurfaceGetBytesPerRow(surface)
+
         let destinationStride = CVPixelBufferGetBytesPerRow(destination)
-        let copyWidth = min(width, IOSurfaceGetWidth(surface), CVPixelBufferGetWidth(destination))
-        let copyHeight = min(
-            height, IOSurfaceGetHeight(surface), CVPixelBufferGetHeight(destination))
-        let copyBytes = min(copyWidth * 4, sourceStride, destinationStride)
-        for row in 0..<copyHeight {
-            memcpy(
-                destinationAddress.advanced(by: row * destinationStride),
-                sourceAddress.advanced(by: row * sourceStride),
-                copyBytes
+        let destinationWidth = CVPixelBufferGetWidth(destination)
+        let destinationHeight = CVPixelBufferGetHeight(destination)
+        for (index, slot) in layout.slots.enumerated() {
+            let slotWidth = max(0, min(slot.width, destinationWidth - slot.x))
+            guard slotWidth > 0 else {
+                continue
+            }
+            let panel = index < snapshot.panels.count ? snapshot.panels[index] : nil
+            try copyPanel(
+                panel?.surface,
+                rotation: panel?.rotation ?? 0,
+                into: destinationAddress.advanced(by: slot.x * 4),
+                stride: destinationStride,
+                width: slotWidth,
+                height: destinationHeight
             )
         }
         return destination
     }
 
+    /// Pool buffers are reused, so every pixel of the region that the surface does not cover,
+    /// including the whole region of a panel without a surface, is cleared to black.
+    private func copyPanel(
+        _ surface: IOSurface?,
+        rotation: Int,
+        into destinationAddress: UnsafeMutableRawPointer,
+        stride destinationStride: Int,
+        width: Int,
+        height: Int
+    ) throws {
+        let regionBytes = width * 4
+        guard let surface else {
+            for row in 0..<height {
+                memset(destinationAddress.advanced(by: row * destinationStride), 0, regionBytes)
+            }
+            return
+        }
+
+        let surfaceLockStatus = IOSurfaceLock(surface, .readOnly, nil)
+        guard surfaceLockStatus == KERN_SUCCESS else {
+            throw RecorderError.make(49, "Failed to lock IOSurface: \(surfaceLockStatus)")
+        }
+        defer { IOSurfaceUnlock(surface, .readOnly, nil) }
+
+        let sourceAddress = IOSurfaceGetBaseAddress(surface)
+        let sourceStride = IOSurfaceGetBytesPerRow(surface)
+        if rotation != 0 {
+            try rotatePanel(
+                surface,
+                rotation: rotation,
+                into: destinationAddress,
+                stride: destinationStride,
+                width: width,
+                height: height
+            )
+            return
+        }
+        let copyHeight = min(height, IOSurfaceGetHeight(surface))
+        let copyBytes = min(min(width, IOSurfaceGetWidth(surface)) * 4, sourceStride)
+        for row in 0..<height {
+            let destinationRow = destinationAddress.advanced(by: row * destinationStride)
+            let copiedBytes = row < copyHeight ? copyBytes : 0
+            if copiedBytes > 0 {
+                memcpy(destinationRow, sourceAddress.advanced(by: row * sourceStride), copiedBytes)
+            }
+            if copiedBytes < regionBytes {
+                memset(destinationRow.advanced(by: copiedBytes), 0, regionBytes - copiedBytes)
+            }
+        }
+    }
+
+    /// Expects the surface to be locked. vImage centers a surface whose upright size differs from
+    /// the region and fills the rest with black.
+    private func rotatePanel(
+        _ surface: IOSurface,
+        rotation: Int,
+        into destinationAddress: UnsafeMutableRawPointer,
+        stride destinationStride: Int,
+        width: Int,
+        height: Int
+    ) throws {
+        let rotationConstant: Int
+        switch rotation {
+        case 90: rotationConstant = kRotate90DegreesClockwise
+        case 180: rotationConstant = kRotate180DegreesClockwise
+        case 270: rotationConstant = kRotate270DegreesClockwise
+        default: throw RecorderError.make(51, "Unsupported panel rotation: \(rotation)")
+        }
+        let surfaceWidth = IOSurfaceGetWidth(surface)
+        let surfaceHeight = IOSurfaceGetHeight(surface)
+        let rotatedHeight = min(height, rotation == 180 ? surfaceHeight : surfaceWidth)
+        var source = vImage_Buffer(
+            data: IOSurfaceGetBaseAddress(surface),
+            height: vImagePixelCount(surfaceHeight),
+            width: vImagePixelCount(surfaceWidth),
+            rowBytes: IOSurfaceGetBytesPerRow(surface)
+        )
+        var destination = vImage_Buffer(
+            data: destinationAddress,
+            height: vImagePixelCount(rotatedHeight),
+            width: vImagePixelCount(width),
+            rowBytes: destinationStride
+        )
+        var black: [UInt8] = [0, 0, 0, 0]
+        let error = vImageRotate90_ARGB8888(
+            &source, &destination, UInt8(rotationConstant), &black, vImage_Flags(kvImageNoFlags))
+        guard error == kvImageNoError else {
+            throw RecorderError.make(52, "Failed to rotate panel: \(error)")
+        }
+        for row in rotatedHeight..<height {
+            memset(destinationAddress.advanced(by: row * destinationStride), 0, width * 4)
+        }
+    }
+
     private func appendOwned(
         pixelBuffer: CVPixelBuffer,
-        seed: UInt32,
+        seeds: [UInt32?],
         capturedAt: CMTime,
         capturedAtWallClock: Date
     ) {
@@ -441,7 +516,7 @@ public final class SimulatorRecorder {
             do {
                 try self.appendOnWriterQueue(
                     pixelBuffer: pixelBuffer,
-                    seed: seed,
+                    seeds: seeds,
                     capturedAt: capturedAt,
                     capturedAtWallClock: capturedAtWallClock
                 )
@@ -454,7 +529,7 @@ public final class SimulatorRecorder {
 
     private func appendOnWriterQueue(
         pixelBuffer: CVPixelBuffer,
-        seed: UInt32,
+        seeds: [UInt32?],
         capturedAt: CMTime,
         capturedAtWallClock: Date
     ) throws {
@@ -480,7 +555,7 @@ public final class SimulatorRecorder {
             firstAcceptedWallClock = capturedAtWallClock
         }
         lastPTS = pts
-        lastSeed = seed
+        lastSeeds = seeds
         lastAppendedPixelBuffer = pixelBuffer
         signalFirstFrameReadyIfNeeded()
     }
@@ -552,7 +627,9 @@ public final class SimulatorRecorder {
         return CMTimeSubtract(capturedAt, start)
     }
 
-    private func startWriter(width: Int, height: Int) throws {
+    private func startWriter(layout: PanelCanvasLayout) throws {
+        let width = layout.width
+        let height = layout.height
         guard let outputWriter else {
             throw RecorderError.make(46, "Missing output writer")
         }
@@ -600,8 +677,7 @@ public final class SimulatorRecorder {
         self.writer = writer
         self.input = input
         self.adaptor = adaptor
-        recordingWidth = width
-        recordingHeight = height
+        canvasLayout = layout
     }
 
     private func assetWriterSettings(width: Int, height: Int) -> [String: Any] {
@@ -640,5 +716,31 @@ public final class SimulatorRecorder {
         writerQueue.sync {
             firstFrameReady
         }
+    }
+}
+
+/// Upright panels side by side, top aligned, sized from the first frame. A panel without a
+/// surface in that frame gets no region.
+private struct PanelCanvasLayout {
+    struct Slot {
+        let x: Int
+        let width: Int
+    }
+
+    let slots: [Slot]
+    let width: Int
+    let height: Int
+
+    init(panels: [FramebufferDisplaySource.SurfaceSnapshot?]) {
+        var x = 0
+        var slots: [Slot] = []
+        for panel in panels {
+            let width = panel?.uprightWidth ?? 0
+            slots.append(Slot(x: x, width: width))
+            x += width
+        }
+        self.slots = slots
+        width = x
+        height = panels.compactMap { $0?.uprightHeight }.max() ?? 0
     }
 }

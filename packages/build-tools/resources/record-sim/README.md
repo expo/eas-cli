@@ -9,6 +9,13 @@ It implements one recording path:
 3. Feed one continuous `AVAssetWriter`.
 4. Emit Apple HLS/CMAF-style fragmented MP4 segments.
 
+Foldable simulators such as iPhone Duo keep a framebuffer for every integrated
+panel. The recorder puts all integrated panels side by side in one video, in
+screen ID order, so the video follows the device when it folds. The panel that
+is not in use is black. Each panel is rotated upright by the `nativeRotation`
+in the device profile, which turns the iPhone Duo inner panel 90 degrees
+clockwise. Other simulators record their largest framebuffer.
+
 The output is suitable for uploading while recording. `session.json` contains
 the ordered segment metadata needed to build a playlist later.
 

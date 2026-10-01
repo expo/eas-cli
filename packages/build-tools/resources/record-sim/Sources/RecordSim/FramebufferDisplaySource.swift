@@ -8,6 +8,18 @@ final class FramebufferDisplaySource {
         let width: Int
         let height: Int
         let seed: UInt32
+        /// Clockwise rotation in degrees (0, 90, 180, or 270) that shows the panel upright.
+        let rotation: Int
+
+        var uprightWidth: Int { rotation % 180 == 0 ? width : height }
+        var uprightHeight: Int { rotation % 180 == 0 ? height : width }
+    }
+
+    /// The panels to record, in a stable order. A nil entry is a panel that has no surface yet.
+    struct FrameSnapshot {
+        let panels: [SurfaceSnapshot?]
+
+        var seeds: [UInt32?] { panels.map { $0?.seed } }
     }
 
     private let deviceUDID: String
@@ -15,6 +27,10 @@ final class FramebufferDisplaySource {
     private let onFrame: () -> Void
     private let onSurfaceChange: () -> Void
     private var descriptors: [NSObject] = []
+    /// Integrated panels in screen ID order, which puts the iPhone Duo front panel first.
+    private var integratedPanels: [(descriptor: NSObject, rotation: Int)] = []
+    /// Mounting rotation of each integrated panel from the device profile, by screen ID.
+    private var nativeRotations: [UInt32: Int] = [:]
     private var callbackUUIDs: [ObjectIdentifier: NSUUID] = [:]
     private var retainedBlocks: [AnyObject] = []
     private var ioClient: NSObject?
@@ -46,40 +62,54 @@ final class FramebufferDisplaySource {
             throw RecorderError.make(3, "Failed to get simulator IO client")
         }
         ioClient = io
+        nativeRotations = Self.nativeRotations(device: device)
         try wireUpFramebuffer()
     }
 
     func stop() {
         unregisterCallbacks()
         descriptors.removeAll()
+        integratedPanels.removeAll()
         retainedBlocks.removeAll()
         ioClient = nil
     }
 
-    func surfaceSnapshot() -> SurfaceSnapshot? {
-        let surfaceSelector = NSSelectorFromString("framebufferSurface")
-        var bestSnapshot: SurfaceSnapshot?
-        var bestArea = 0
-        for descriptor in descriptors {
-            guard let surfaceObject = descriptor.perform(surfaceSelector)?.takeUnretainedValue()
-            else {
-                continue
+    /// Foldable simulators such as iPhone Duo keep an IOSurface alive for every integrated panel,
+    /// and the panel that is not in use stays black. Record all integrated panels so the video
+    /// follows a fold; other simulators record their largest surface.
+    func frameSnapshot() -> FrameSnapshot? {
+        if integratedPanels.count >= 2 {
+            let panels = integratedPanels.map {
+                surfaceSnapshot(for: $0.descriptor, rotation: $0.rotation)
             }
-            let surface = unsafeBitCast(surfaceObject, to: IOSurface.self)
-            let width = IOSurfaceGetWidth(surface)
-            let height = IOSurfaceGetHeight(surface)
-            let area = width * height
-            if area > bestArea {
-                bestSnapshot = SurfaceSnapshot(
-                    surface: surface,
-                    width: width,
-                    height: height,
-                    seed: IOSurfaceGetSeed(surface)
-                )
-                bestArea = area
-            }
+            return panels.contains { $0 != nil } ? FrameSnapshot(panels: panels) : nil
         }
-        return bestSnapshot
+        let largest = descriptors.compactMap { surfaceSnapshot(for: $0, rotation: 0) }.max {
+            $0.width * $0.height < $1.width * $1.height
+        }
+        return largest.map { FrameSnapshot(panels: [$0]) }
+    }
+
+    private func surfaceSnapshot(for descriptor: NSObject, rotation: Int) -> SurfaceSnapshot? {
+        guard
+            let surfaceObject = descriptor.perform(NSSelectorFromString("framebufferSurface"))?
+                .takeUnretainedValue()
+        else {
+            return nil
+        }
+        let surface = unsafeBitCast(surfaceObject, to: IOSurface.self)
+        let width = IOSurfaceGetWidth(surface)
+        let height = IOSurfaceGetHeight(surface)
+        guard width > 0, height > 0 else {
+            return nil
+        }
+        return SurfaceSnapshot(
+            surface: surface,
+            width: width,
+            height: height,
+            seed: IOSurfaceGetSeed(surface),
+            rotation: rotation
+        )
     }
 
     func rewireFramebuffer() throws {
@@ -94,6 +124,12 @@ final class FramebufferDisplaySource {
         let nextDescriptors = try findFramebufferDescriptors(io: io)
         unregisterCallbacks()
         descriptors = nextDescriptors
+        integratedPanels = Self.integratedPanels(in: nextDescriptors).map { panel in
+            // A panel mounted at 270 degrees, such as the iPhone Duo inner panel, turns 90
+            // degrees clockwise to be upright.
+            let nativeRotation = nativeRotations[panel.screenID] ?? 0
+            return (panel.descriptor, (360 - nativeRotation) % 360)
+        }
         retainedBlocks.removeAll()
         do {
             for descriptor in descriptors {
@@ -102,6 +138,7 @@ final class FramebufferDisplaySource {
         } catch {
             unregisterCallbacks()
             descriptors.removeAll()
+            integratedPanels.removeAll()
             retainedBlocks.removeAll()
             throw error
         }
@@ -134,6 +171,61 @@ final class FramebufferDisplaySource {
         }
         return candidates
     }
+
+    /// Xcode releases without the screen properties API report no integrated panels, which keeps
+    /// them on the largest-surface path.
+    private static func integratedPanels(
+        in descriptors: [NSObject]
+    ) -> [(screenID: UInt32, descriptor: NSObject)] {
+        typealias Panel = (screenID: UInt32, descriptor: NSObject)
+        let panels = descriptors.compactMap { descriptor -> Panel? in
+            let selector = NSSelectorFromString("screenProperties")
+            guard descriptor.responds(to: selector),
+                let properties = descriptor.perform(selector)?.takeUnretainedValue()
+            else {
+                return nil
+            }
+            let object: AnyObject = properties
+            guard object.recordSimScreenType?() == integratedScreenType,
+                let screenID = object.recordSimScreenID?()
+            else {
+                return nil
+            }
+            return (screenID, descriptor)
+        }
+        return panels.sorted { $0.screenID < $1.screenID }
+    }
+
+    /// The device profile that serve-sim also reads. A missing profile means no rotation.
+    private static func nativeRotations(device: NSObject) -> [UInt32: Int] {
+        let typeSelector = NSSelectorFromString("deviceType")
+        let capabilitiesSelector = NSSelectorFromString("capabilities")
+        guard device.responds(to: typeSelector),
+            let type = device.perform(typeSelector)?.takeUnretainedValue() as? NSObject,
+            type.responds(to: capabilitiesSelector),
+            let profile = type.perform(capabilitiesSelector)?.takeUnretainedValue()
+                as? [String: Any],
+            let capabilities = profile["capabilities"] as? [String: Any],
+            let displays = capabilities["displays"] as? [[String: Any]]
+        else {
+            return [:]
+        }
+        var rotations: [UInt32: Int] = [:]
+        for display in displays {
+            guard display["displayType"] as? String == "integrated",
+                let id = display["screenID"] as? NSNumber,
+                let screenID = UInt32(exactly: id.int64Value),
+                let rotation = display["nativeRotation"] as? NSNumber,
+                [0, 90, 180, 270].contains(rotation.intValue)
+            else {
+                continue
+            }
+            rotations[screenID] = rotation.intValue
+        }
+        return rotations
+    }
+
+    private static let integratedScreenType: UInt64 = 0
 
     private func registerCallbacks(descriptor: NSObject) throws {
         let selector = NSSelectorFromString(
@@ -189,4 +281,11 @@ final class FramebufferDisplaySource {
         }
         callbackUUIDs.removeAll()
     }
+}
+
+/// Getters from the CoreSimDeviceIO SimScreenProperties protocol. Optional dispatch keeps Xcode
+/// releases that lack them working.
+@objc private protocol SimScreenPropertiesAccess {
+    @objc(screenID) func recordSimScreenID() -> UInt32
+    @objc(screenType) func recordSimScreenType() -> UInt64
 }
