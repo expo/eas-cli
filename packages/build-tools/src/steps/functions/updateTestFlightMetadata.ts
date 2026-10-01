@@ -190,6 +190,7 @@ export async function updateTestFlightMetadataAsync({
           })
         : [];
       const assignedIds = new Set(assignedGroups.map(group => group.id));
+      let internalReadiness: Promise<void> | undefined;
       const groupLimit = limitFactory<void>(1);
       const groupResults = await Promise.allSettled(
         requestedGroups.map(group =>
@@ -209,6 +210,13 @@ export async function updateTestFlightMetadataAsync({
               return;
             }
             try {
+              internalReadiness ??= AscApiUtils.waitForInternalTestFlightReadinessAsync({
+                client,
+                buildId,
+                appId: app.id,
+                logger,
+              });
+              await internalReadiness;
               await client.postAsync(
                 '/v1/builds/:id/relationships/betaGroups',
                 {
