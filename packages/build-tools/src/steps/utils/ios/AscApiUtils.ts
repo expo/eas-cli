@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import { z } from 'zod';
@@ -12,6 +12,33 @@ import {
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  export async function getAllBetaGroupsAsync({
+    client,
+    appId,
+    buildId,
+  }: {
+    client: Pick<AscApiClient, 'getAsync' | 'getNextPageAsync'>;
+    appId: string;
+    buildId?: string;
+  }) {
+    let response = await client.getAsync('/v1/betaGroups', {
+      'filter[app]': appId,
+      ...(buildId ? { 'filter[builds]': buildId } : {}),
+      limit: 200,
+    });
+    const groups = [...response.data];
+    for (let page = 1; response.links?.next; page++) {
+      if (page === 20) {
+        throw new SystemError(
+          'We only support TestFlight group lists with up to 20 pages (4,000 groups). Contact Expo support if you need a larger group list.'
+        );
+      }
+      response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
+      groups.push(...response.data);
+    }
+    return groups;
+  }
+
   export async function signTokenAsync({ keyPath }: { keyPath: string }): Promise<string> {
     const keyJson = z
       .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })

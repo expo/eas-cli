@@ -150,7 +150,9 @@ it('creates the primary localization when none exist', async () => {
     })
     .reply(201, { data: { id: 'locale' } });
   await updateTestFlightMetadataAsync(options);
-  expect(options.logger.info).toHaveBeenCalledWith(`Changelog: ${JSON.stringify(changelog)}`);
+  expect(options.logger.info).toHaveBeenCalledWith(
+    `Updating changelog: ${JSON.stringify(changelog)}`
+  );
   expect(options.logger.info).toHaveBeenCalledWith(
     expect.stringContaining('Locale "en-US": localization created')
   );
@@ -346,23 +348,38 @@ it('reports both write failures', async () => {
   );
 });
 
-it('does not accept a partial assignment after an error', async () => {
-  mockBuild();
-  mockAssignedGroups();
-  api()
-    .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', limit: '200' })
-    .reply(200, { data: ['A', 'B'].map(id => ({ id, attributes: { name: id } })) });
-  api()
-    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'A' }] })
-    .reply(204);
-  api()
-    .post('/v1/builds/build/relationships/betaGroups', { data: [{ type: 'betaGroups', id: 'B' }] })
-    .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Partial assignment' }] });
-  await expect(
-    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B'] })
-  ).rejects.toThrow('Partial assignment');
-});
+it.each([false, true])(
+  'attempts all groups and reports assignment errors (multiple: %s)',
+  async multiple => {
+    mockBuild();
+    mockAssignedGroups();
+    api()
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, { data: ['A', 'B', 'C'].map(id => ({ id, attributes: { name: id } })) });
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'A' }],
+      })
+      .reply(
+        multiple ? 403 : 204,
+        multiple ? { errors: [{ code: 'FIRST_GROUP_FAILED' }] } : undefined
+      );
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'B' }],
+      })
+      .reply(422, { errors: [{ code: 'ENTITY_UNPROCESSABLE', title: 'Partial assignment' }] });
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'C' }],
+      })
+      .reply(204);
+    await expect(
+      updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
+    ).rejects.toThrow(multiple ? /FIRST_GROUP_FAILED.*Partial assignment/ : 'Partial assignment');
+  }
+);
 
 it('reads all membership pages before assigning groups', async () => {
   mockBuild();

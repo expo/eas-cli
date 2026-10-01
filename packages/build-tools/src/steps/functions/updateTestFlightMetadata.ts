@@ -96,18 +96,13 @@ export async function updateTestFlightMetadataAsync({
   }
   logger.info(`Updating TestFlight metadata for Apple build ${buildId}...`);
   const { data: app } = await client.getAsync('/v1/builds/:id/app', {}, { id: buildId });
-  logger.info(`Apple app: ${app.id}. Requested groups: ${JSON.stringify(groups)}.`);
-  logger.info(changelog ? `Changelog: ${JSON.stringify(changelog)}` : 'Changelog: unchanged.');
-
-  let groupsWithAccess = 0;
-  let localizationsUpdated = 0;
-  let localizationsCreated = 0;
   const limit = limitFactory<void>(1);
   const results = await Promise.allSettled([
     limit(async () => {
       if (!changelog) {
         return;
       }
+      logger.info(`Updating changelog: ${JSON.stringify(changelog)}`);
       const primaryLocale = app.attributes?.primaryLocale;
       if (!primaryLocale) {
         throw new SystemError('App Store Connect did not return the app primary locale.');
@@ -141,7 +136,6 @@ export async function updateTestFlightMetadataAsync({
           },
           { id: localization.id }
         );
-        localizationsUpdated++;
         logger.info(`Localization ${localization.id}: changelog updated.`);
       }
       if (!response.data.some(localization => localization.attributes?.locale === primaryLocale)) {
@@ -153,7 +147,6 @@ export async function updateTestFlightMetadataAsync({
             relationships: { build: { data: { type: 'builds', id: buildId } } },
           },
         });
-        localizationsCreated++;
         logger.info(`Locale ${JSON.stringify(primaryLocale)}: localization created.`);
       }
     }),
@@ -161,8 +154,9 @@ export async function updateTestFlightMetadataAsync({
       if (!groups.length) {
         return;
       }
+      logger.info(`Apple app: ${app.id}. Requested groups: ${JSON.stringify(groups)}.`);
       const requestedNames = new Set(groups);
-      const allGroups = await getAllBetaGroupsAsync({ client, appId: app.id });
+      const allGroups = await AscApiUtils.getAllBetaGroupsAsync({ client, appId: app.id });
       const requestedGroups = allGroups.filter(group =>
         requestedNames.has(group.attributes?.name ?? '')
       );
@@ -175,46 +169,64 @@ export async function updateTestFlightMetadataAsync({
         );
       }
       logger.info(`Found ${requestedGroups.length} TestFlight group(s).`);
-      const assignedGroups = await getAllBetaGroupsAsync({ client, appId: app.id, buildId });
+      const assignedGroups = await AscApiUtils.getAllBetaGroupsAsync({
+        client,
+        appId: app.id,
+        buildId,
+      });
       const assignedIds = new Set(assignedGroups.map(group => group.id));
-      for (const group of requestedGroups) {
-        const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
-        if (assignedIds.has(group.id)) {
-          logger.info(`✅ Group ${label}: build already assigned; no assignment needed.`);
-          groupsWithAccess++;
-          continue;
-        }
-        if (
-          group.attributes?.isInternalGroup === true &&
-          group.attributes.hasAccessToAllBuilds === true
-        ) {
-          logger.info(`✅ Group ${label}: automatic access to all builds; no assignment needed.`);
-          groupsWithAccess++;
-          continue;
-        }
-        try {
-          await client.postAsync(
-            '/v1/builds/:id/relationships/betaGroups',
-            {
-              data: [{ type: 'betaGroups', id: group.id }],
-            },
-            { id: buildId }
-          );
-        } catch (error) {
-          if (isInternalGroupAssignmentError(error)) {
-            throw new UserError(
-              'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
-              "App Store Connect can't add this build to a requested internal TestFlight group. " +
-                "Internal groups that automatically receive new builds can't be assigned to manually. " +
-                'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
-                `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
-              { cause: error }
-            );
-          }
-          throw error;
-        }
-        logger.info(`✅ Group ${label}: assignment completed.`);
-        groupsWithAccess++;
+      const groupLimit = limitFactory<void>(1);
+      const groupResults = await Promise.allSettled(
+        requestedGroups.map(group =>
+          groupLimit(async () => {
+            const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
+            if (assignedIds.has(group.id)) {
+              logger.info(`✅ Group ${label}: build already assigned; no assignment needed.`);
+              return;
+            }
+            if (
+              group.attributes?.isInternalGroup === true &&
+              group.attributes.hasAccessToAllBuilds === true
+            ) {
+              logger.info(
+                `✅ Group ${label}: automatic access to all builds; no assignment needed.`
+              );
+              return;
+            }
+            try {
+              await client.postAsync(
+                '/v1/builds/:id/relationships/betaGroups',
+                {
+                  data: [{ type: 'betaGroups', id: group.id }],
+                },
+                { id: buildId }
+              );
+            } catch (error) {
+              if (isInternalGroupAssignmentError(error)) {
+                throw new UserError(
+                  'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
+                  "App Store Connect can't add this build to a requested internal TestFlight group. " +
+                    "Internal groups that automatically receive new builds can't be assigned to manually. " +
+                    'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
+                    `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
+                  { cause: error }
+                );
+              }
+              throw error;
+            }
+            logger.info(`✅ Group ${label}: assignment completed.`);
+          })
+        )
+      );
+      const groupFailures = groupResults.filter(result => result.status === 'rejected');
+      if (groupFailures.length === 1) {
+        throw groupFailures[0].reason;
+      }
+      if (groupFailures.length > 1) {
+        throw new AggregateError(
+          groupFailures.map(failure => failure.reason),
+          `Failed to assign TestFlight groups: ${groupFailures.map(failure => String(failure.reason)).join('; ')}`
+        );
       }
     }),
   ]);
@@ -230,37 +242,6 @@ export async function updateTestFlightMetadataAsync({
         .join('; ')}`
     );
   }
-  logger.info(
-    `Metadata complete: ${groupsWithAccess} requested group(s) have build access; ` +
-      `${localizationsUpdated} localization(s) updated, ${localizationsCreated} created.`
-  );
-}
-
-async function getAllBetaGroupsAsync({
-  client,
-  appId,
-  buildId,
-}: {
-  client: AscApiClient;
-  appId: string;
-  buildId?: string;
-}) {
-  let response = await client.getAsync('/v1/betaGroups', {
-    'filter[app]': appId,
-    ...(buildId ? { 'filter[builds]': buildId } : {}),
-    limit: 200,
-  });
-  const groups = [...response.data];
-  for (let page = 1; response.links?.next; page++) {
-    if (page === 20) {
-      throw new SystemError(
-        'We only support TestFlight group lists with up to 20 pages (4,000 groups). Contact Expo support if you need a larger group list.'
-      );
-    }
-    response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
-    groups.push(...response.data);
-  }
-  return groups;
 }
 
 // Apple returns a generic 422 code, so match the title or detail too.
