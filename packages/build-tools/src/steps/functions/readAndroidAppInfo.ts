@@ -22,17 +22,16 @@ export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    outputProviders: ['artifact_path', 'artifact_type', 'package_name'].map(id =>
-      BuildStepOutput.createProvider({ id, required: true })
-    ),
+    outputProviders: [
+      BuildStepOutput.createProvider({ id: 'artifact_type', required: true }),
+      BuildStepOutput.createProvider({ id: 'package_name', required: true }),
+    ],
     fn: async (ctx, { inputs, outputs }) => {
       const artifact = await readAndroidArtifactInfoAsync(
         path.resolve(ctx.workingDirectory, z.string().min(1).parse(inputs.artifact_path.value))
       );
-      ctx.logger.info(
-        `Android package: ${artifact.packageName}. Artifact type: ${artifact.artifactType}.`
-      );
-      outputs.artifact_path.set(artifact.artifactPath);
+      ctx.logger.info(`Android artifact type: ${artifact.artifactType}.`);
+      ctx.logger.info(`Android package name: ${artifact.packageName}.`);
       outputs.artifact_type.set(artifact.artifactType);
       outputs.package_name.set(artifact.packageName);
     },
