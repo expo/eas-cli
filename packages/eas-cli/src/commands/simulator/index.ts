@@ -321,7 +321,9 @@ export default class Simulator extends EasCommand {
             ...(egress ? { egress } : {}),
             maxRunTimeMinutes: flags['max-duration-minutes'],
             maxIdleTimeMinutes: flags['max-idle-time-minutes'],
-          })
+          }),
+        createdSession =>
+          stopDeviceRunSessionCreatedAfterCancelAsync(graphqlClient, createdSession.id)
       );
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
@@ -719,6 +721,23 @@ async function stopDeviceRunSessionAfterInterruptAsync({
     sessionInterrupt.dispose();
   }
   process.exit(130);
+}
+
+async function stopDeviceRunSessionCreatedAfterCancelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string
+): Promise<void> {
+  const spinner = ora(
+    `Stopping simulator session ${deviceRunSessionId}, which the request created after Ctrl+C`
+  ).start();
+  const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+  if (stopped) {
+    spinner.succeed(`Simulator session ${deviceRunSessionId} stopped`);
+  } else {
+    spinner.fail(
+      `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+  }
 }
 
 async function resetSimulatorEnvVerboseAsync(

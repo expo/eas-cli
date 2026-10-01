@@ -281,6 +281,7 @@ describe(Simulator, () => {
 
   it('logs "request cancelled", stops the spinner, and exits with 130 on Ctrl+C while the session is being created', async () => {
     mockLogEvent.mockClear();
+    jest.useFakeTimers();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
@@ -303,7 +304,9 @@ describe(Simulator, () => {
       process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
         'SIGINT'
       );
-      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await jest.advanceTimersByTimeAsync(5_000);
+      await exited;
 
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
@@ -313,10 +316,62 @@ describe(Simulator, () => {
       expect(mockOra.mock.results[0]?.value.fail).toHaveBeenCalledWith(
         'Simulator session request canceled'
       );
+      expect(Log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Run `eas simulator:list` to check for a running session')
+      );
       expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
       expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
     } finally {
       processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('stops a session that the create request returns after Ctrl+C and prints its ID', async () => {
+    jest.useFakeTimers();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      let notifyCreateStarted!: () => void;
+      const createStarted = new Promise<void>(resolve => {
+        notifyCreateStarted = resolve;
+      });
+      let resolveCreate!: (session: CreatedDeviceRunSession) => void;
+      mockCreateDeviceRunSessionAsync.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveCreate = resolve;
+            notifyCreateStarted();
+          })
+      );
+      const existingSigintListeners = new Set(process.listeners('SIGINT'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      await createStarted;
+      process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
+        'SIGINT'
+      );
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await jest.advanceTimersByTimeAsync(2_000);
+      resolveCreate(makeCreatedDeviceRunSession());
+      await exited;
+
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockOra.mock.results[1]?.value.succeed).toHaveBeenCalledWith(
+        'Simulator session session-123 stopped'
+      );
+      expect(Log.warn).not.toHaveBeenCalled();
+      expect(mockByIdAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 
