@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Upload the embedded bundle after build by default for projects on SDK 58 and later. Set `EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE` to `0` to disable it. On SDK 57 and below the feature remains experimental and opt-in via `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE`. ([#4433](https://github.com/expo/eas-cli/pull/4433) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Save manual iOS and Android live preview screenshots as session artifacts when supported by the preview server. ([#4481](https://github.com/expo/eas-cli/pull/4481) by [@vonovak](https://github.com/vonovak))
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
