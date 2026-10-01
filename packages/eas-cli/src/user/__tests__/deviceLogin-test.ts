@@ -108,7 +108,7 @@ it('resumes across fresh sessions, keeps secrets private, and installs a normal 
 
 it('keeps the poll interval across invocations, including slow_down', async () => {
   const id = await startAsync();
-  expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(5);
+  expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({ retry_after: 5 });
   MockDate.set(now + 5000);
   token({ error: 'slow_down' });
   expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({
@@ -116,7 +116,7 @@ it('keeps the poll interval across invocations, including slow_down', async () =
     retry_after: 10,
   });
   MockDate.set(now + 6000);
-  expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(9);
+  expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({ retry_after: 9 });
 });
 
 it.each([
@@ -134,7 +134,7 @@ it.each([
     status: 'slow_down',
     retry_after: delay,
   });
-  expect((await resumeDeviceLoginAsync(id, manager())).retry_after).toBe(delay);
+  expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({ retry_after: delay });
 });
 
 it('expires without a network call and removes the private request', async () => {

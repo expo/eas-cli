@@ -17,17 +17,11 @@ const grantSchema = z.object({
   expires_in: z.number().positive(),
   interval: z.number().positive(),
 });
-const tokenErrorSchema = z.enum([
-  'authorization_pending',
-  'slow_down',
-  'access_denied',
-  'expired_token',
-  'invalid_grant',
-]);
+const terminalErrorSchema = z.enum(['access_denied', 'expired_token', 'invalid_grant']);
 const tokenSchema = z.union([
   z.object({ session_secret: z.string().min(1), expires_at: z.iso.datetime() }),
   z.object({ error: z.literal('matching_required'), match_options: z.array(z.string()).min(1) }),
-  z.object({ error: tokenErrorSchema }),
+  z.object({ error: z.enum(['authorization_pending', 'slow_down']).or(terminalErrorSchema) }),
 ]);
 const stateSchema = z.object({
   apiUrl: z.string(),
@@ -41,18 +35,29 @@ const stateSchema = z.object({
 });
 type DeviceLoginState = z.infer<typeof stateSchema>;
 
-export type DeviceLoginResult = {
+type PendingDeviceLogin = {
   request_id: string;
-  verification_uri?: string;
-  verification_uri_complete?: string;
-  user_code?: string;
-  expires_at?: string;
-  retry_after?: number;
-} & (
-  | { status: 'authenticated'; username: string }
-  | { status: 'matching_required'; match_options: string[] }
-  | { status: z.infer<typeof tokenErrorSchema> }
-);
+  verification_uri: string;
+  verification_uri_complete: string;
+  user_code: string;
+  expires_at: string;
+  retry_after: number;
+};
+
+export type DeviceLoginResult =
+  | { request_id: string; status: 'authenticated'; username: string }
+  | { request_id: string; status: z.infer<typeof terminalErrorSchema> }
+  | (PendingDeviceLogin &
+      (
+        | { status: 'authorization_pending' | 'slow_down' }
+        | { status: 'matching_required'; match_options: string[] }
+      ));
+
+export function isDeviceLoginFailure(result: {
+  status: string;
+}): result is { status: z.infer<typeof terminalErrorSchema> } {
+  return terminalErrorSchema.safeParse(result.status).success;
+}
 
 function getRequestPath(requestId: string): string {
   if (!z.uuid().safeParse(requestId).success) {
@@ -71,7 +76,10 @@ async function postAsync(endpoint: string, body: object): Promise<unknown> {
   return (await response.json()).data;
 }
 
-function publicResult(requestId: string, state: DeviceLoginState): DeviceLoginResult {
+function publicResult(
+  requestId: string,
+  state: DeviceLoginState
+): PendingDeviceLogin & { status: 'authorization_pending' } {
   const verificationUrl = new URL(state.verificationUri);
   verificationUrl.searchParams.set('user_code', state.userCode);
   return {
@@ -85,7 +93,9 @@ function publicResult(requestId: string, state: DeviceLoginState): DeviceLoginRe
   };
 }
 
-export async function startDeviceLoginAsync(): Promise<DeviceLoginResult> {
+export async function startDeviceLoginAsync(): Promise<
+  PendingDeviceLogin & { status: 'authorization_pending' }
+> {
   const result = grantSchema.safeParse(
     await postAsync('device_authorization', {
       device_name: os.hostname().slice(0, 255),
@@ -174,12 +184,12 @@ export async function resumeDeviceLoginAsync(
     }
     if ('error' in result.data) {
       const response = result.data;
+      const failure = { request_id: requestId, status: response.error };
+      if (isDeviceLoginFailure(failure)) {
+        await fs.remove(requestPath);
+        return failure;
+      }
       switch (response.error) {
-        case 'access_denied':
-        case 'expired_token':
-        case 'invalid_grant':
-          await fs.remove(requestPath);
-          return { request_id: requestId, status: response.error };
         case 'slow_down':
           state.interval += 5;
           state.nextPollAt = Date.now() + Math.max(state.interval, retryAfter) * 1000;
@@ -191,9 +201,8 @@ export async function resumeDeviceLoginAsync(
             status: response.error,
             match_options: response.match_options,
           };
-        case 'authorization_pending':
-          return publicResult(requestId, state);
       }
+      return publicResult(requestId, state);
     }
     // The grant is single-use. Persist its secret before fetching the user/installing the
     // session, so a later invocation can finish if those operations fail.

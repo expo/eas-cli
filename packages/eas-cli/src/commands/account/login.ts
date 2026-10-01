@@ -7,7 +7,7 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import SessionManager from '../../user/SessionManager';
 import { getActorDisplayName } from '../../user/User';
 import {
-  DeviceLoginResult,
+  isDeviceLoginFailure,
   resumeDeviceLoginAsync,
   startDeviceLoginAsync,
 } from '../../user/deviceLogin';
@@ -112,20 +112,20 @@ export default class AccountLogin extends EasCommand {
       : await startDeviceLoginAsync();
     if (options.json) {
       printJsonOnlyOutput(result);
-      if (this.isTerminalFailure(result)) {
+      if (isDeviceLoginFailure(result)) {
         this.exit(1);
       }
       return;
     }
 
-    if (result.verification_uri_complete) {
+    if ('verification_uri_complete' in result) {
       Log.log(`Open ${result.verification_uri_complete}`);
       Log.log(`Code: ${result.user_code}`);
       Log.log(`To continue after exiting: eas login --device --resume ${result.request_id}`);
     }
     let match = options.match;
     while (result.status !== 'authenticated') {
-      if (this.isTerminalFailure(result)) {
+      if (isDeviceLoginFailure(result)) {
         throw new Error(
           `Device login failed (${result.status}). Start again with eas login --device.`
         );
@@ -139,13 +139,10 @@ export default class AccountLogin extends EasCommand {
         });
         match = answer.match;
       }
-      await new Promise(resolve => setTimeout(resolve, (result.retry_after ?? 5) * 1000));
+      const delayMs = result.retry_after * 1000;
+      await new Promise(resolve => setTimeout(resolve, delayMs));
       result = await resumeDeviceLoginAsync(result.request_id, sessionManager, match);
     }
     Log.log(`Logged in as ${result.username}`);
-  }
-
-  private isTerminalFailure(result: DeviceLoginResult): boolean {
-    return ['access_denied', 'expired_token', 'invalid_grant'].includes(result.status);
   }
 }
