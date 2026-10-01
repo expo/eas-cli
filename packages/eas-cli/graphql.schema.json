@@ -8293,6 +8293,84 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AndroidDeviceRunSessionDevice",
+        "description": null,
+        "fields": [
+          {
+            "name": "displayName",
+            "description": "Human-readable device name to show to users (e.g. \"Pixel 9\").",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "identifier",
+            "description": "AVD hardware profile id accepted by android.deviceIdentifier (e.g. \"pixel_9\").",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AndroidDeviceRunSessionProfiles",
+        "description": null,
+        "fields": [
+          {
+            "name": "devices",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AndroidDeviceRunSessionDevice",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AndroidFcm",
         "description": null,
         "fields": [
@@ -44905,7 +44983,7 @@
           },
           {
             "name": "systemImagePackage",
-            "description": "Android SDK system image package to use for the emulator (e.g.\n\"system-images;android-35-ext15;google_apis_playstore;x86_64\").",
+            "description": "Android SDK system image package to use for the emulator (e.g.\n\"system-images;android-35;google_apis;x86_64\").",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -45402,6 +45480,30 @@
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "agentId",
+            "description": "The coding agent sending this request, recorded for analytics only and never used for\nauthorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters\nis treated as omitted.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "agentSessionId",
+            "description": "The coding agent's own session identifier, recorded for analytics only and never used for\nauthorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters\nis treated as omitted.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "android",
             "description": "Android emulator options. Only supported when platform is ANDROID.",
@@ -51352,7 +51454,7 @@
           },
           {
             "name": "updateDeviceRunSession",
-            "description": "Update a device run session. Only the name can be changed, including on sessions\nthat have already finished.",
+            "description": "Update a device run session name and tags, including on sessions\nthat have already finished.",
             "args": [
               {
                 "name": "deviceRunSessionId",
@@ -51407,6 +51509,49 @@
       },
       {
         "kind": "OBJECT",
+        "name": "DeviceRunSessionProfiles",
+        "description": "Virtual device profiles available for new device run sessions.",
+        "fields": [
+          {
+            "name": "android",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AndroidDeviceRunSessionProfiles",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ios",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "IosDeviceRunSessionProfiles",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "DeviceRunSessionQuery",
         "description": null,
         "fields": [
@@ -51437,6 +51582,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "DeviceRunSession",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "profiles",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeviceRunSessionProfiles",
                 "ofType": null
               }
             },
@@ -66407,6 +66568,84 @@
           }
         ],
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "IosDeviceRunSessionDevice",
+        "description": null,
+        "fields": [
+          {
+            "name": "displayName",
+            "description": "Human-readable device name to show to users (e.g. \"iPhone 17 Pro\").",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "identifier",
+            "description": "Simulator device name accepted by ios.deviceIdentifier (e.g. \"iPhone 17 Pro\").",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "IosDeviceRunSessionProfiles",
+        "description": null,
+        "fields": [
+          {
+            "name": "devices",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "IosDeviceRunSessionDevice",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -86951,6 +87190,26 @@
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tags",
+            "description": "Replace the session tags. Tags are trimmed, lowercased and deduplicated.\nPass an empty list or null to clear them. Omit to leave tags unchanged.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
