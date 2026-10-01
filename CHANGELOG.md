@@ -32,6 +32,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Retry temporary App Store Connect read and update failures without restarting the upload or repeating creation requests. ([#4520](https://github.com/expo/eas-cli/pull/4520) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Stop `eas update:rollback` from always forcing non-interactive mode. ([#4504](https://github.com/expo/eas-cli/pull/4504) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Pass the step cancellation signal to `eas/download_build`. ([#4511](https://github.com/expo/eas-cli/pull/4511) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Accept `null` for the TestFlight group `hasAccessToAllBuilds` attribute from App Store Connect. ([#4528](https://github.com/expo/eas-cli/pull/4528) by [@sswrk](https://github.com/sswrk))
