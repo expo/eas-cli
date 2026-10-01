@@ -158,14 +158,21 @@ it('creates the primary localization when none exist', async () => {
   );
 });
 
-it('updates all existing localizations without replacing them', async () => {
+it('reads all localization pages and updates existing localizations without replacing them', async () => {
   mockBuild();
   api()
     .get('/v1/builds/build/betaBuildLocalizations')
     .query(true)
     .reply(200, {
-      data: ['en-US', 'pl'].map(locale => ({ id: locale, attributes: { locale } })),
+      data: [{ id: 'en-US', attributes: { locale: 'en-US' } }],
+      links: {
+        next: 'https://api.appstoreconnect.apple.com/v1/builds/build/betaBuildLocalizations?limit=200&cursor=next',
+      },
     });
+  api()
+    .get('/v1/builds/build/betaBuildLocalizations')
+    .query({ limit: '200', cursor: 'next' })
+    .reply(200, { data: [{ id: 'pl', attributes: { locale: 'pl' } }] });
   for (const id of ['en-US', 'pl']) {
     api()
       .patch(`/v1/betaBuildLocalizations/${id}`, {
@@ -176,7 +183,7 @@ it('updates all existing localizations without replacing them', async () => {
   await updateTestFlightMetadataAsync(options);
   for (const id of ['en-US', 'pl']) {
     expect(options.logger.info).toHaveBeenCalledWith(
-      expect.stringContaining(`locale "${id}" (${id})`)
+      expect.stringContaining(`Locale "${id}" (${id})`)
     );
   }
 });
@@ -254,17 +261,53 @@ it('reads all pages and adds every group with a requested name', async () => {
   await updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] });
 });
 
-it('fails without adding found groups when another requested name is missing', async () => {
+it('assigns found groups before reporting missing requested names', async () => {
   mockBuild();
+  mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
     .reply(200, { data: [{ id: 'group', attributes: { name: 'A' } }] });
+  api()
+    .post('/v1/builds/build/relationships/betaGroups', {
+      data: [{ type: 'betaGroups', id: 'group' }],
+    })
+    .reply(204);
   await expect(
     updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
   ).rejects.toThrow(
     'The following TestFlight groups were not found in App Store Connect: "B", "C".'
   );
+});
+
+it('attempts all localization changes and reports every failed update', async () => {
+  mockBuild();
+  api()
+    .get('/v1/builds/build/betaBuildLocalizations')
+    .query(true)
+    .reply(200, {
+      data: ['pl', 'fr', 'de'].map(locale => ({ id: locale, attributes: { locale } })),
+    });
+  for (const id of ['pl', 'fr', 'de']) {
+    api()
+      .patch(`/v1/betaBuildLocalizations/${id}`)
+      .reply(
+        id === 'de' ? 200 : 403,
+        id === 'de' ? { data: { id } } : { errors: [{ code: `${id}_FAILED` }] }
+      );
+  }
+  api()
+    .post('/v1/betaBuildLocalizations', {
+      data: {
+        type: 'betaBuildLocalizations',
+        attributes: { locale: 'en-US', whatsNew: changelog },
+        relationships: { build: { data: { type: 'builds', id: 'build' } } },
+      },
+    })
+    .reply(201, { data: { id: 'locale' } });
+  await expect(updateTestFlightMetadataAsync(options)).rejects.toThrow(/pl_FAILED.*fr_FAILED/);
+  expect(options.logger.error).toHaveBeenCalledWith(expect.stringContaining('"pl" (pl)'));
+  expect(options.logger.error).toHaveBeenCalledWith(expect.stringContaining('"fr" (fr)'));
 });
 
 it('explains when Apple rejects an internal group with automatic distribution', async () => {
@@ -378,6 +421,9 @@ it.each([false, true])(
     await expect(
       updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
     ).rejects.toThrow(multiple ? /FIRST_GROUP_FAILED.*Partial assignment/ : 'Partial assignment');
+    expect(options.logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Group "B" (B): assignment failed.')
+    );
   }
 );
 

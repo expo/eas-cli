@@ -12,6 +12,34 @@ import {
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  export async function getAllBetaBuildLocalizationsAsync({
+    client,
+    buildId,
+  }: {
+    client: Pick<AscApiClient, 'getAsync' | 'getNextPageAsync'>;
+    buildId: string;
+  }) {
+    let response = await client.getAsync(
+      '/v1/builds/:id/betaBuildLocalizations',
+      { limit: 200 },
+      { id: buildId }
+    );
+    const localizations = [...response.data];
+    for (let page = 1; response.links?.next; page++) {
+      if (page === 20) {
+        throw new SystemError(
+          'We only support TestFlight localization lists with up to 20 pages (4,000 localizations). Contact Expo support if you need a larger localization list.'
+        );
+      }
+      response = await client.getNextPageAsync(
+        '/v1/builds/:id/betaBuildLocalizations',
+        response.links.next
+      );
+      localizations.push(...response.data);
+    }
+    return localizations;
+  }
+
   export async function getAllBetaGroupsAsync({
     client,
     appId,

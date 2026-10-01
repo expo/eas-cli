@@ -108,46 +108,69 @@ export async function updateTestFlightMetadataAsync({
         throw new SystemError('App Store Connect did not return the app primary locale.');
       }
       logger.info(`Primary locale: ${JSON.stringify(primaryLocale)}.`);
-      const response = await client.getAsync(
-        '/v1/builds/:id/betaBuildLocalizations',
-        { limit: 200 },
-        { id: buildId }
-      );
-      if (response.links?.next) {
-        throw new SystemError(
-          'Cannot update all TestFlight localizations in one page. Update the changelog in App Store Connect.'
-        );
-      }
-      if (response.data.some(localization => !localization.attributes?.locale)) {
+      const localizations = await AscApiUtils.getAllBetaBuildLocalizationsAsync({
+        client,
+        buildId,
+      });
+      if (localizations.some(localization => !localization.attributes?.locale)) {
         throw new SystemError('App Store Connect did not return a TestFlight localization locale.');
       }
-      for (const localization of response.data) {
-        logger.info(
-          `Updating whatsNew for locale ${JSON.stringify(localization.attributes?.locale)} (${localization.id})...`
+      const localizationLimit = limitFactory<void>(1);
+      const updates = localizations.map(localization =>
+        localizationLimit(async () => {
+          const label = `${JSON.stringify(localization.attributes?.locale)} (${localization.id})`;
+          try {
+            await client.patchAsync(
+              '/v1/betaBuildLocalizations/:id',
+              {
+                data: {
+                  type: 'betaBuildLocalizations',
+                  id: localization.id,
+                  attributes: { whatsNew: changelog },
+                },
+              },
+              { id: localization.id }
+            );
+          } catch (error) {
+            logger.error(`❌ Locale ${label}: changelog update failed. ${String(error)}`);
+            throw error;
+          }
+          logger.info(`✅ Locale ${label}: changelog updated.`);
+        })
+      );
+      if (!localizations.some(localization => localization.attributes?.locale === primaryLocale)) {
+        updates.push(
+          localizationLimit(async () => {
+            try {
+              await client.postAsync('/v1/betaBuildLocalizations', {
+                data: {
+                  type: 'betaBuildLocalizations',
+                  attributes: { locale: primaryLocale, whatsNew: changelog },
+                  relationships: { build: { data: { type: 'builds', id: buildId } } },
+                },
+              });
+            } catch (error) {
+              logger.error(
+                `❌ Locale ${JSON.stringify(primaryLocale)}: localization creation failed. ${String(error)}`
+              );
+              throw error;
+            }
+            logger.info(`✅ Locale ${JSON.stringify(primaryLocale)}: localization created.`);
+          })
         );
-        await client.patchAsync(
-          '/v1/betaBuildLocalizations/:id',
-          {
-            data: {
-              type: 'betaBuildLocalizations',
-              id: localization.id,
-              attributes: { whatsNew: changelog },
-            },
-          },
-          { id: localization.id }
-        );
-        logger.info(`Localization ${localization.id}: changelog updated.`);
       }
-      if (!response.data.some(localization => localization.attributes?.locale === primaryLocale)) {
-        logger.info(`Creating localization ${JSON.stringify(primaryLocale)} with whatsNew...`);
-        await client.postAsync('/v1/betaBuildLocalizations', {
-          data: {
-            type: 'betaBuildLocalizations',
-            attributes: { locale: primaryLocale, whatsNew: changelog },
-            relationships: { build: { data: { type: 'builds', id: buildId } } },
-          },
-        });
-        logger.info(`Locale ${JSON.stringify(primaryLocale)}: localization created.`);
+      const localizationResults = await Promise.allSettled(updates);
+      const localizationFailures = localizationResults.filter(
+        result => result.status === 'rejected'
+      );
+      if (localizationFailures.length === 1) {
+        throw localizationFailures[0].reason;
+      }
+      if (localizationFailures.length > 1) {
+        throw new AggregateError(
+          localizationFailures.map(failure => failure.reason),
+          `Failed to update TestFlight localizations: ${localizationFailures.map(failure => String(failure.reason)).join('; ')}`
+        );
       }
     }),
     limit(async () => {
@@ -162,18 +185,14 @@ export async function updateTestFlightMetadataAsync({
       );
       const foundNames = new Set(requestedGroups.map(group => group.attributes?.name));
       const missingNames = [...requestedNames].filter(name => !foundNames.has(name));
-      if (missingNames.length) {
-        throw new UserError(
-          'EAS_TESTFLIGHT_GROUPS_NOT_FOUND',
-          `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
-        );
-      }
       logger.info(`Found ${requestedGroups.length} TestFlight group(s).`);
-      const assignedGroups = await AscApiUtils.getAllBetaGroupsAsync({
-        client,
-        appId: app.id,
-        buildId,
-      });
+      const assignedGroups = requestedGroups.length
+        ? await AscApiUtils.getAllBetaGroupsAsync({
+            client,
+            appId: app.id,
+            buildId,
+          })
+        : [];
       const assignedIds = new Set(assignedGroups.map(group => group.id));
       const groupLimit = limitFactory<void>(1);
       const groupResults = await Promise.allSettled(
@@ -202,6 +221,7 @@ export async function updateTestFlightMetadataAsync({
                 { id: buildId }
               );
             } catch (error) {
+              logger.error(`❌ Group ${label}: assignment failed. ${String(error)}`);
               if (isInternalGroupAssignmentError(error)) {
                 throw new UserError(
                   'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
@@ -219,6 +239,14 @@ export async function updateTestFlightMetadataAsync({
         )
       );
       const groupFailures = groupResults.filter(result => result.status === 'rejected');
+      if (missingNames.length) {
+        const error = new UserError(
+          'EAS_TESTFLIGHT_GROUPS_NOT_FOUND',
+          `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
+        );
+        logger.error(`❌ ${error.message}`);
+        groupFailures.push({ status: 'rejected', reason: error });
+      }
       if (groupFailures.length === 1) {
         throw groupFailures[0].reason;
       }
