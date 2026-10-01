@@ -15,14 +15,13 @@ type ApiSchema = {
 const AscErrorResponseSchema = z.object({
   errors: z
     .array(
-      z.object({
+      z.looseObject({
         id: z.string().optional(),
         status: z.string().optional(),
         code: z.string().optional(),
         title: z.string().optional(),
         detail: z.string().optional(),
         source: z.unknown().optional(),
-        links: z.unknown().optional(),
       })
     )
     .min(1),
