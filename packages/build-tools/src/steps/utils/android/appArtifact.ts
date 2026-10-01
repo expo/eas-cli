@@ -10,19 +10,23 @@ export async function readAndroidArtifactInfoAsync(
 ): Promise<{ artifactType: AndroidArtifactType; packageName: string }> {
   signal.throwIfAborted();
   const artifactType = await detectAndroidArtifactTypeAsync(artifactPath);
-  if (artifactType === 'apk') {
-    const packageName = await readApkPackageNameAsync(artifactPath, signal);
-    return { artifactType, packageName };
+  switch (artifactType) {
+    case 'apk': {
+      const packageName = await readApkPackageNameAsync(artifactPath, signal);
+      return { artifactType, packageName };
+    }
+    case 'aab': {
+      const packageName = await readAabPackageNameAsync(artifactPath, signal);
+      return { artifactType, packageName };
+    }
   }
-  const packageName = await readAabPackageNameAsync(artifactPath, signal);
-  return { artifactType, packageName };
 }
 
 async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<AndroidArtifactType> {
   const zip = new StreamZip.async({ file: artifactPath });
   try {
-    const entries = await zip.entries();
-    return entries['BundleConfig.pb'] ? 'aab' : 'apk';
+    const bundleConfig = await zip.entry('BundleConfig.pb');
+    return bundleConfig ? 'aab' : 'apk';
   } catch (error) {
     throw new UserError(
       'EAS_ANDROID_ARTIFACT_INVALID',
@@ -42,7 +46,6 @@ async function readApkPackageNameAsync(artifactPath: string, signal: AbortSignal
       signal,
       killSignal: 'SIGKILL',
     });
-    signal.throwIfAborted();
     return stdout.trim();
   } catch (error) {
     signal.throwIfAborted();
@@ -67,7 +70,6 @@ async function readAabPackageNameAsync(artifactPath: string, signal: AbortSignal
       ['dump', 'manifest', '--bundle', artifactPath, '--xpath', '/manifest/@package'],
       { stdio: 'pipe', signal, killSignal: 'SIGKILL' }
     );
-    signal.throwIfAborted();
     return stdout.trim();
   } catch (error) {
     signal.throwIfAborted();
