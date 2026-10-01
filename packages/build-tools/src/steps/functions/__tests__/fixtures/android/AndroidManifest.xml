@@ -1,1 +1,0 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.expo.submitfixture" android:versionCode="42" android:versionName="1.0"><uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36"/><application android:label="Submit fixture" android:hasCode="false"/></manifest>

@@ -4,14 +4,10 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 
-import {
-  prepareAndroidArtifactAsync,
-  readAndroidPackageNameAsync,
-} from '../utils/android/appArtifact';
+import { prepareAndroidArtifactAsync } from '../utils/android/appArtifact';
 
 export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -33,27 +29,13 @@ export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
       const artifact = await prepareAndroidArtifactAsync(
         path.resolve(ctx.workingDirectory, z.string().min(1).parse(inputs.artifact_path.value))
       );
-      try {
-        const packageName = await readAndroidPackageNameAsync(
-          artifact.artifactPath,
-          artifact.artifactType,
-          AbortSignal.timeout(60_000)
-        );
-        ctx.logger.info(
-          `Android package: ${packageName}. Artifact type: ${artifact.artifactType}.`
-        );
-        outputs.artifact_path.set(artifact.artifactPath);
-        outputs.artifact_type.set(artifact.artifactType);
-        outputs.package_name.set(packageName);
-        // Keep an extracted binary for later steps. The job owns its temporary directory.
-      } catch (error) {
-        if (artifact.extractionDirectory) {
-          await fs
-            .rm(artifact.extractionDirectory, { recursive: true, force: true })
-            .catch(() => {});
-        }
-        throw error;
-      }
+      ctx.logger.info(
+        `Android package: ${artifact.packageName}. Artifact type: ${artifact.artifactType}.`
+      );
+      outputs.artifact_path.set(artifact.artifactPath);
+      outputs.artifact_type.set(artifact.artifactType);
+      outputs.package_name.set(artifact.packageName);
+      // Keep an extracted binary for later steps. The job owns its temporary directory.
     },
   });
 }

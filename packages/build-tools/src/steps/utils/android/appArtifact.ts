@@ -3,16 +3,19 @@ import spawn from '@expo/spawn-async';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import StreamZip from 'node-stream-zip';
 
 import { decompressTarAsync } from '../../../utils/files';
 
 export type AndroidArtifactType = 'apk' | 'aab';
 
 /** Resolve exactly one app. The caller owns removal of extractionDirectory, if present. */
-export async function prepareAndroidArtifactAsync(artifactPath: string): Promise<{
+export async function prepareAndroidArtifactAsync(
+  artifactPath: string,
+  signal: AbortSignal = AbortSignal.timeout(60_000)
+): Promise<{
   artifactPath: string;
   artifactType: AndroidArtifactType;
+  packageName: string;
   extractionDirectory?: string;
 }> {
   let extractionDirectory: string | undefined;
@@ -31,7 +34,7 @@ export async function prepareAndroidArtifactAsync(artifactPath: string): Promise
       }
       // Inspect bytes, not the extension. A ZIP can have a misleading .tar.gz suffix.
       if (!header.equals(Buffer.from([0x1f, 0x8b, 0x08]))) {
-        return { artifactPath, artifactType: await detectAndroidArtifactTypeAsync(artifactPath) };
+        return { artifactPath, ...(await readAndroidArtifactInfoAsync(artifactPath, signal)) };
       }
       extractionDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'android-submit-'));
       await decompressTarAsync({
@@ -43,7 +46,11 @@ export async function prepareAndroidArtifactAsync(artifactPath: string): Promise
       throw new Error('The artifact must be a file or an extracted artifact directory.');
     }
 
-    const candidates: { artifactPath: string; artifactType: AndroidArtifactType }[] = [];
+    const candidates: {
+      artifactPath: string;
+      artifactType: AndroidArtifactType;
+      packageName: string;
+    }[] = [];
     async function visitAsync(directory: string): Promise<void> {
       for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
         const entryPath = path.join(directory, entry.name);
@@ -54,9 +61,10 @@ export async function prepareAndroidArtifactAsync(artifactPath: string): Promise
           await visitAsync(entryPath);
         } else if (entry.isFile()) {
           try {
-            const artifactType = await detectAndroidArtifactTypeAsync(entryPath);
-            candidates.push({ artifactPath: entryPath, artifactType });
+            const info = await readAndroidArtifactInfoAsync(entryPath, signal);
+            candidates.push({ artifactPath: entryPath, ...info });
           } catch (error) {
+            signal.throwIfAborted();
             // A named app binary that is damaged must not be silently skipped.
             if (/\.(apk|aab)$/i.test(entry.name)) {
               throw error;
@@ -86,29 +94,22 @@ export async function prepareAndroidArtifactAsync(artifactPath: string): Promise
   }
 }
 
-async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<AndroidArtifactType> {
-  const zip = new StreamZip.async({ file: artifactPath });
-  try {
-    const entries = await zip.entries();
-    if (
-      entries['BundleConfig.pb'] &&
-      !entries['BundleConfig.pb'].isDirectory &&
-      entries['base/manifest/AndroidManifest.xml'] &&
-      !entries['base/manifest/AndroidManifest.xml'].isDirectory
-    ) {
-      return 'aab';
+async function readAndroidArtifactInfoAsync(
+  artifactPath: string,
+  signal: AbortSignal
+): Promise<{ artifactType: AndroidArtifactType; packageName: string }> {
+  for (const artifactType of ['apk', 'aab'] as const) {
+    try {
+      const packageName = await readAndroidPackageNameAsync(artifactPath, artifactType, signal);
+      return { artifactType, packageName };
+    } catch {
+      signal.throwIfAborted();
     }
-    if (
-      entries['AndroidManifest.xml'] &&
-      !entries['AndroidManifest.xml'].isDirectory &&
-      !entries['BundleConfig.pb']
-    ) {
-      return 'apk';
-    }
-    throw new Error('The ZIP is not an APK or AAB.');
-  } finally {
-    await zip.close().catch(() => {});
   }
+  throw new UserError(
+    'EAS_ANDROID_MANIFEST_INVALID',
+    'Cannot read the artifact as an APK or AAB. Check the binary and ensure aapt2 and bundletool are installed on the worker.'
+  );
 }
 
 export async function readAndroidPackageNameAsync(
