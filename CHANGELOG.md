@@ -14,9 +14,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Fix `eas workflow:validate` crashing with `Cannot read properties of undefined (reading 'const')` when the workflow schema includes jobs that call a reusable workflow. ([#PR](https://github.com/expo/eas-cli/pull/PR) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
-- [eas-cli] Fix `eas workflow:validate` crashing on `repack` jobs that omit `params.profile`. ([#PR](https://github.com/expo/eas-cli/pull/PR) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
-- [eas-cli] Exit `eas workflow:validate` with a non-zero code when validation fails. ([#PR](https://github.com/expo/eas-cli/pull/PR) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
+- [eas-cli] Fix `eas workflow:validate` crashing with `Cannot read properties of undefined (reading 'const')` when the workflow schema includes jobs that call a reusable workflow. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
+- [eas-cli] Fix `eas workflow:validate` crashing on `repack` jobs that omit `params.profile`. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
+- [eas-cli] Exit `eas workflow:validate` with a non-zero code when validation fails. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
 - [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Keep the `eas simulator` session spinner on one line, so resizing the terminal no longer leaves copies of it behind. The `eas simulator:stop` command is now printed once before the spinner starts. ([#4488](https://github.com/expo/eas-cli/pull/4488) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
