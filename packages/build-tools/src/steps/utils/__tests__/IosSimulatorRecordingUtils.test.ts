@@ -20,8 +20,14 @@ const SIMULATOR = {
   name: 'iPhone 16',
   runtimeDisplayName: 'iOS 18.6',
 };
+const SECOND_SIMULATOR = {
+  udid: 'FEDCBA98-7654-3210-FEDC-BA9876543210' as IosSimulatorUuid,
+  name: 'iPhone 16 Pro',
+  runtimeDisplayName: 'iOS 18.6',
+};
 
 type RecordSimAttempt = {
+  udid: string;
   outputDirectory: string;
   resolve: () => void;
   reject: (error: Error) => void;
@@ -93,6 +99,7 @@ describe('IosSimulatorRecordingUtils', () => {
       });
       child.kill.mockImplementation(() => resolve());
       attempts.push({
+        udid: args[args.indexOf('--udid') + 1],
         outputDirectory: args[args.indexOf('--output') + 1],
         resolve,
         reject,
@@ -107,10 +114,16 @@ describe('IosSimulatorRecordingUtils', () => {
     await Promise.all([...roots].map(root => fs.rm(root, { recursive: true, force: true })));
   });
 
-  it('records each simulator once per session and retries only attempts without a video', async () => {
+  it('records one video from one simulator per session', async () => {
     const logger = createMockLogger();
     await IosSimulatorRecordingUtils.startAsync({ env: {}, logger });
     await waitForAsync(() => attempts.length === 1 && pollSleeps.length === 1);
+
+    // A second simulator is not recorded while the first one is.
+    bootedDevices = [SIMULATOR, SECOND_SIMULATOR];
+    await pollAgainAsync();
+    await pollAgainAsync();
+    expect(attempts).toHaveLength(1);
 
     // The first recorder fails before it saves a video, so the next poll retries.
     attempts[0].reject(new Error('record-sim crashed'));
@@ -121,13 +134,23 @@ describe('IosSimulatorRecordingUtils', () => {
     attempts[1].resolve();
     await pollAgainAsync();
 
-    // Neither a later poll nor a reboot of the same simulator starts another recording.
+    // Neither a later poll nor a reboot starts another recording on any simulator.
     bootedDevices = [];
     await pollAgainAsync();
-    bootedDevices = [SIMULATOR];
+    bootedDevices = [SECOND_SIMULATOR, SIMULATOR];
     await pollAgainAsync();
     await pollAgainAsync();
-    expect(attempts).toHaveLength(2);
+    expect(attempts.map(attempt => attempt.udid)).toEqual([SIMULATOR.udid, SIMULATOR.udid]);
+    expect(
+      jest
+        .mocked(logger.warn)
+        .mock.calls.filter(([message]) => String(message).startsWith('Not recording'))
+    ).toEqual([
+      [
+        `Not recording ${SECOND_SIMULATOR.name}; a session records only one video from one simulator.`,
+      ],
+      [`Not recording ${SIMULATOR.name}; a session records only one video from one simulator.`],
+    ]);
 
     await expect(IosSimulatorRecordingUtils.finishAsync({ logger })).resolves.toEqual([
       {

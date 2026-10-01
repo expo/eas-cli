@@ -39,7 +39,7 @@ type IosSimulatorRecordingSession = {
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
   completedRecordings: IosSimulatorRecording[];
-  recordedUdids: Set<IosSimulatorUuid>;
+  skippedUdids: Set<IosSimulatorUuid>;
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -72,7 +72,7 @@ export namespace IosSimulatorRecordingUtils {
       recordingsRootDirectory,
       activeRecordings: new Map(),
       completedRecordings: [],
-      recordedUdids: new Set(),
+      skippedUdids: new Set(),
       recordingFailureCounts: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -187,9 +187,18 @@ async function pollIosSimulatorRecordingsAsync(
       for (const device of bootedDevices) {
         if (
           session.activeRecordings.has(device.udid) ||
-          session.recordedUdids.has(device.udid) ||
           (session.recordingFailureCounts.get(device.udid) ?? 0) >= RECORD_SIM_MAX_ATTEMPTS_PER_BOOT
         ) {
+          continue;
+        }
+        // A session records one video from one simulator.
+        if (session.activeRecordings.size > 0 || session.completedRecordings.length > 0) {
+          if (!session.skippedUdids.has(device.udid)) {
+            session.skippedUdids.add(device.udid);
+            session.logger.warn(
+              `Not recording ${device.name}; a session records only one video from one simulator.`
+            );
+          }
           continue;
         }
         await startIosSimulatorRecordingAsync(session, {
@@ -263,13 +272,12 @@ async function startIosSimulatorRecordingAsync(
     })
     .then(async () => {
       // record-sim writes session.json once it saves the video. Only an attempt without one is
-      // retried, so each simulator gets at most one video per session, even after a reboot.
+      // retried, so a session gets at most one video, even after a reboot.
       const saved = await access(path.join(outputDirectory, 'session.json')).then(
         () => true,
         () => false
       );
       if (saved) {
-        session.recordedUdids.add(udid);
         session.completedRecordings.push({
           id: recordingId,
           udid,
