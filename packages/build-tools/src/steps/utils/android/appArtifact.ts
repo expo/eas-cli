@@ -48,8 +48,8 @@ async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<And
 }
 
 async function readApkPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
-  const stdout = await runManifestToolAsync('aapt2', ['dump', 'badging', artifactPath], signal);
-  return parsePackageName(/package:\s+name='([^']+)'/m.exec(stdout)?.[1]);
+  const stdout = await runManifestToolAsync('aapt2', ['dump', 'packagename', artifactPath], signal);
+  return parsePackageName(stdout.trim());
 }
 
 async function readAabPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
