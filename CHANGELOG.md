@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [build-tools] Add `eas/start_agent_device_session`, one step for agent-device sessions that boots the device, downloads, installs and launches the app, and starts the session, with the independent parts in parallel. ([#4491](https://github.com/expo/eas-cli/pull/4491) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-build-job] Add `sentry` workflow interpolation context schema for Sentry-triggered workflow runs. ([#4453](https://github.com/expo/eas-cli/pull/4453) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
