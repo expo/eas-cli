@@ -104,6 +104,39 @@ describe(listAgentDeviceArtifactsAsync, () => {
       })
     ).rejects.toThrow('agent-device daemon does not expose artifact inventory.');
   });
+
+  it('keeps a screenshot display rotation and drops an unknown one', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          artifacts: [
+            {
+              id: 'rotated',
+              artifactType: 'screenshot',
+              filename: 'rotated.png',
+              displayRotation: 'landscape-left',
+            },
+            {
+              id: 'future',
+              artifactType: 'screenshot',
+              filename: 'future.png',
+              displayRotation: 'sideways',
+            },
+          ],
+        })
+      )
+    );
+
+    const artifacts = await listAgentDeviceArtifactsAsync({
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+    });
+
+    expect(artifacts.map(artifact => artifact.displayRotation)).toEqual([
+      'landscape-left',
+      undefined,
+    ]);
+  });
 });
 
 describe(uploadAgentDeviceArtifactAsync, () => {
@@ -179,6 +212,63 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       expect.objectContaining({
         kind: undefined,
       })
+    );
+  });
+
+  it('uploads a screenshot display rotation as artifact metadata', async () => {
+    const data = Buffer.from('png-data');
+    const ctx = {} as unknown as CustomBuildContext;
+
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadAgentDeviceArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger: createLoggerMock(),
+      artifact: {
+        id: 'artifact-id',
+        artifactType: 'screenshot',
+        filename: 'shot.png',
+        displayRotation: 'landscape-right',
+      },
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        kind: 'screenshot',
+        metadata: { displayRotation: 'landscape-right' },
+      })
+    );
+  });
+
+  it('uploads no metadata when the artifact has no display rotation', async () => {
+    const data = Buffer.from('artifact-data');
+    const ctx = {} as unknown as CustomBuildContext;
+
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadAgentDeviceArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger: createLoggerMock(),
+      artifact: { id: 'artifact-id', artifactType: 'screenshot', filename: 'shot.png' },
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls[0][1]).not.toHaveProperty(
+      'metadata'
     );
   });
 });
