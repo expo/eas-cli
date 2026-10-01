@@ -8,7 +8,7 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 
 import * as distributionCertificateUtils from './distributionCertificate';
-import Keychain from './keychain';
+import Keychain from '../../../../ios/credentials/keychain';
 import ProvisioningProfile, {
   DistributionType,
   ProvisioningProfileData,
@@ -36,7 +36,7 @@ export default class IosCredentialsManager {
 
     logger.info('Creating keychain');
     this.keychain = new Keychain();
-    await this.keychain.create(logger);
+    await this.keychain.create({ logger });
 
     const targets = Object.keys(this.buildCredentials);
     const targetProvisioningProfiles: TargetProvisioningProfiles = {};
@@ -70,7 +70,7 @@ export default class IosCredentialsManager {
     }
 
     if (this.keychain) {
-      await this.keychain.destroy(logger);
+      await this.keychain.destroy({ logger });
     }
     if (this.provisioningProfiles) {
       for (const provisioningProfile of this.provisioningProfiles) {
@@ -109,11 +109,11 @@ export default class IosCredentialsManager {
       );
 
       logger.info('Importing distribution certificate into the keychain');
-      await this.keychain.importCertificate(
+      await this.keychain.importCertificate({
         logger,
-        distCertPath,
-        targetCredentials.distributionCertificate.password
-      );
+        certPath: distCertPath,
+        certPassword: targetCredentials.distributionCertificate.password,
+      });
 
       logger.info('Initializing provisioning profile');
       const provisioningProfile = new ProvisioningProfile(
@@ -125,10 +125,10 @@ export default class IosCredentialsManager {
       await provisioningProfile.init(logger);
 
       logger.info('Validating whether distribution certificate has been imported successfully');
-      await this.keychain.ensureCertificateImported(
-        provisioningProfile.data.teamId,
-        certificateFingerprint
-      );
+      await this.keychain.ensureCertificateImported({
+        teamId: provisioningProfile.data.teamId,
+        fingerprint: certificateFingerprint,
+      });
 
       logger.info('Verifying whether the distribution certificate and provisioning profile match');
       provisioningProfile.verifyCertificate(certificateFingerprint);

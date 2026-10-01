@@ -454,6 +454,7 @@ describe(startChiselServerAsync, () => {
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 12345,
       getOutput: () => output,
+      getExitError: () => undefined,
       stopAsync,
     });
   });

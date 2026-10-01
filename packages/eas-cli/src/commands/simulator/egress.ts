@@ -10,7 +10,6 @@ import {
 } from '../../simulator/env';
 
 export default class SimulatorEgress extends EasCommand {
-  static override hidden = true;
   static override aliases = ['sim:egress'];
   static override description = `[EXPERIMENTAL] run the local egress client for a simulator session to route proxied HTTP(S) requests through this machine`;
 

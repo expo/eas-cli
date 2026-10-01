@@ -27,6 +27,7 @@ import {
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
+import * as promiseUtils from '../../../utils/promise';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -475,6 +476,20 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
+  it('keeps the live spinner text short and prints the stop command once', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(
+      'To stop the session from another shell, run: eas simulator:stop --id session-123'
+    );
+    expect(mockOra).toHaveBeenLastCalledWith('Simulator session active — press Ctrl+C to stop');
+  });
+
   it('forwards --name to the create mutation', async () => {
     const { command } = createCommand([
       '--platform',
@@ -614,6 +629,40 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ buildId: '8d8b713c-1834-4bd3-91e6-46f895422cbc' })
+    );
+  });
+
+  it('forwards --build-fingerprint to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '  4b1f2c9e7a3d  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d' })
+    );
+  });
+
+  it('accepts launch options with --build-fingerprint', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      '--open-url',
+      'exp://example.test',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d', openUrl: 'exp://example.test' })
     );
   });
 
@@ -813,6 +862,25 @@ describe(Simulator, () => {
   it.each([
     ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
     ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
+  ])('rejects passing --build-fingerprint with %s', async (sourceFlag, sourceValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      sourceFlag,
+      sourceValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--build-fingerprint', '4b1f2c9e7a3d'],
+    ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
   ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
     const { command } = createCommand([
       '--platform',
@@ -826,6 +894,100 @@ describe(Simulator, () => {
     await expect(command.runAsync()).rejects.toThrow();
     expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  describe('waiting for concurrency', () => {
+    let elapsedMs: number;
+
+    beforeEach(() => {
+      elapsedMs = 0;
+      jest.spyOn(Date, 'now').mockImplementation(() => elapsedMs);
+      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(async () => {
+        elapsedMs += 5 * 60 * 1_000;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([JobRunStatus.New, JobRunStatus.InQueue])(
+      'allows more than 15 minutes in %s and then a full startup window',
+      async status => {
+        mockByIdAsync.mockImplementation(async () => {
+          if (elapsedMs < 20 * 60 * 1_000) {
+            return makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            });
+          }
+          expect(mockOra.mock.results[1].value.text).toContain(
+            elapsedMs === 20 * 60 * 1_000
+              ? '⏳ Simulator session queued or waiting for available concurrency'
+              : 'session to start'
+          );
+          return makeDeviceRunSession({
+            ...(elapsedMs < 30 * 60 * 1_000 ? { remoteConfig: null } : {}),
+          });
+        });
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await command.runAsync();
+
+        expect(elapsedMs).toBe(30 * 60 * 1_000);
+        expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      }
+    );
+
+    it('times out and stops a session that does not start within 15 minutes after queuing', async () => {
+      mockByIdAsync.mockImplementation(async () =>
+        makeDeviceRunSession({
+          remoteConfig: null,
+          turtleJobRun: {
+            id: 'job-123',
+            status: elapsedMs < 20 * 60 * 1_000 ? JobRunStatus.InQueue : JobRunStatus.InProgress,
+          },
+        })
+      );
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        'session to start (excluding time in the queue)'
+      );
+
+      expect(elapsedMs).toBe(35 * 60 * 1_000);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+    });
+
+    it.each([JobRunStatus.Canceled, JobRunStatus.Errored, JobRunStatus.Finished])(
+      'reports %s while queued without waiting for a timeout',
+      async status => {
+        mockByIdAsync
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status: JobRunStatus.InQueue },
+            })
+          )
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            })
+          );
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await expect(command.runAsync()).rejects.toThrow(status.toLowerCase());
+
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+      }
+    );
   });
 
   it('stops the simulator session when interrupted before the session is ready', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@expo/worker",
-  "version": "24.7.0",
+  "version": "24.8.0",
   "private": true,
   "scripts": {
     "start": "yarn watch",
@@ -19,17 +19,17 @@
   },
   "dependencies": {
     "@babel/core": "7.24.7",
-    "@expo/build-tools": "24.7.0",
+    "@expo/build-tools": "24.8.0",
     "@expo/config-plugins": "55.0.7",
     "@expo/config-types": "55.0.5",
-    "@expo/eas-build-job": "24.5.0",
-    "@expo/logger": "24.0.0",
+    "@expo/eas-build-job": "24.8.0",
+    "@expo/logger": "24.8.0",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "24.5.0",
-    "@expo/template-file": "24.0.0",
-    "@expo/turtle-spawn": "24.0.0",
+    "@expo/steps": "24.8.0",
+    "@expo/template-file": "24.8.0",
+    "@expo/turtle-spawn": "24.8.0",
     "@hapi/boom": "10.0.1",
     "check-disk-space": "3.4.0",
     "fast-glob": "3.3.2",
@@ -59,7 +59,7 @@
     "@types/koa-router": "7.4.9",
     "@types/lodash": "4.17.4",
     "@types/micromatch": "4.0.7",
-    "@types/node": "20.14.8",
+    "@types/node": "20.19.43",
     "@types/node-fetch": "2.6.7",
     "@types/node-os-utils": "1.3.0",
     "@types/semver": "7.5.8",
@@ -71,8 +71,8 @@
     "memfs": "3.4.1",
     "rimraf": "3.0.2",
     "supertest": "7.2.2",
-    "ts-jest": "29.1.4",
-    "typescript": "5.5.4"
+    "ts-jest": "29.4.12",
+    "typescript": "6.0.3"
   },
   "engines": {
     "node": ">=20.0.0"
