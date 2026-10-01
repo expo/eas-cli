@@ -35,6 +35,27 @@ const AscErrorResponseSchema = z.object({
 });
 
 const GetApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-buildbetadetail
+  '/v1/builds/:id/buildBetaDetail': {
+    path: z.object({ id: z.string() }),
+    request: z.object({}),
+    response: z.object({
+      data: z.object({
+        id: z.string(),
+        attributes: z.object({
+          internalBuildState: z.enum([
+            'PROCESSING',
+            'PROCESSING_EXCEPTION',
+            'MISSING_EXPORT_COMPLIANCE',
+            'READY_FOR_BETA_TESTING',
+            'IN_BETA_TESTING',
+            'EXPIRED',
+            'IN_EXPORT_COMPLIANCE_REVIEW',
+          ]),
+        }),
+      }),
+    }),
+  },
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-app
   '/v1/builds/:id/app': {
     path: z.object({ id: z.string() }),

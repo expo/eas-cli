@@ -1,5 +1,6 @@
 import nock from 'nock';
 import { generateKeyPairSync } from 'node:crypto';
+import { setTimeout } from 'timers/promises';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -10,6 +11,7 @@ import {
 } from '../updateTestFlightMetadata';
 
 jest.unmock('node-fetch');
+jest.mock('timers/promises', () => ({ setTimeout: jest.fn().mockResolvedValue(undefined) }));
 
 const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
 const key = { keyId: 'TESTKEY', privateKey };
@@ -26,7 +28,8 @@ const api = () => nock('https://api.appstoreconnect.apple.com');
 function mockBuild(
   state = 'COMPLETE',
   buildId: string | null = 'build',
-  primaryLocale: string | null = 'en-US'
+  primaryLocale: string | null = 'en-US',
+  mockReadiness = true
 ): void {
   api()
     .get('/v1/buildUploads/upload')
@@ -40,6 +43,15 @@ function mockBuild(
       },
     });
   if (state === 'COMPLETE' && buildId) {
+    if (mockReadiness) {
+      api()
+        .get(`/v1/builds/${buildId}/buildBetaDetail`)
+        .query(true)
+        .optionally()
+        .reply(200, {
+          data: { id: 'detail', attributes: { internalBuildState: 'READY_FOR_BETA_TESTING' } },
+        });
+    }
     api()
       .get(`/v1/builds/${buildId}/app`)
       .query(true)
@@ -530,4 +542,93 @@ it('propagates Apple write failures', async () => {
     .post('/v1/betaBuildLocalizations')
     .reply(403, { errors: [{ code: 'FORBIDDEN', detail: 'Not allowed' }] });
   await expect(updateTestFlightMetadataAsync(options)).rejects.toThrow('403');
+});
+
+function mockManualInternalGroups(): void {
+  mockBuild('COMPLETE', 'build', 'en-US', /* mockReadiness */ false);
+  mockAssignedGroups();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, {
+      data: ['Internal A', 'Internal B', 'External'].map(name => ({
+        id: name,
+        attributes: { name, isInternalGroup: name !== 'External' },
+      })),
+    });
+}
+
+function mockInternalState(state: string): nock.Scope {
+  return api()
+    .get('/v1/builds/build/buildBetaDetail')
+    .query(true)
+    .reply(200, {
+      data: { id: 'detail', attributes: { internalBuildState: state } },
+    });
+}
+
+it.each(['READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'])(
+  'waits past upload completion until internal testing is %s',
+  async state => {
+    mockManualInternalGroups();
+    mockInternalState('PROCESSING');
+    mockInternalState(state);
+    for (const id of ['Internal A', 'Internal B', 'External']) {
+      api()
+        .post('/v1/builds/build/relationships/betaGroups', {
+          data: [{ type: 'betaGroups', id }],
+        })
+        .reply(204);
+    }
+    await updateTestFlightMetadataAsync({
+      ...options,
+      changelog: '',
+      groups: ['Internal A', 'Internal B', 'External'],
+    });
+    expect(options.logger.info).toHaveBeenCalledWith(expect.stringContaining(`state = ${state}`));
+  }
+);
+
+it.each([
+  'MISSING_EXPORT_COMPLIANCE',
+  'IN_EXPORT_COMPLIANCE_REVIEW',
+  'EXPIRED',
+  'PROCESSING_EXCEPTION',
+])('reports %s without assigning an unready build to any group', async state => {
+  mockManualInternalGroups();
+  mockInternalState(state);
+  await expect(
+    updateTestFlightMetadataAsync({
+      ...options,
+      changelog: '',
+      groups: ['Internal A', 'Internal B', 'External'],
+    })
+  ).rejects.toThrow(state);
+  expect(options.logger.error).toHaveBeenCalledWith(
+    expect.stringContaining('"External" (External): assignment failed')
+  );
+});
+
+it('stops waiting after 30 minutes without assigning an unready build', async () => {
+  mockManualInternalGroups();
+  api()
+    .get('/v1/builds/build/buildBetaDetail')
+    .query(true)
+    .times(180)
+    .reply(200, {
+      data: { id: 'detail', attributes: { internalBuildState: 'PROCESSING' } },
+    });
+  let now = 0;
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  jest.mocked(setTimeout).mockImplementation(async delay => {
+    now += Number(delay);
+  });
+  try {
+    await expect(
+      updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['Internal A'] })
+    ).rejects.toThrow('after 30 minutes');
+  } finally {
+    clock.mockRestore();
+    jest.mocked(setTimeout).mockReset().mockResolvedValue(undefined);
+  }
 });

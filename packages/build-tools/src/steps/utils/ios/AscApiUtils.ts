@@ -2,6 +2,7 @@ import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
+import { setTimeout } from 'timers/promises';
 import { z } from 'zod';
 
 import { isConnectionInterruptedError } from '../../../utils/networkErrors';
@@ -74,6 +75,49 @@ export namespace AscApiUtils {
       }
       throw error;
     }
+  }
+
+  export async function waitForInternalTestFlightReadinessAsync({
+    client,
+    buildId,
+    appId,
+    logger,
+  }: {
+    client: AscApiClient;
+    buildId: string;
+    appId: string;
+    logger: bunyan;
+  }): Promise<void> {
+    const deadline = Date.now() + 30 * 60 * 1000;
+    let lastState: string | undefined;
+    while (Date.now() < deadline) {
+      const { data } = await client.getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId });
+      const state = data.attributes.internalBuildState;
+      if (state !== lastState) {
+        logger.info(`Apple build ${buildId}: internal TestFlight state = ${state}.`);
+        lastState = state;
+      }
+      if (state === 'READY_FOR_BETA_TESTING' || state === 'IN_BETA_TESTING') {
+        return;
+      }
+      if (state !== 'PROCESSING') {
+        throw new UserError(
+          'EAS_TESTFLIGHT_BUILD_NOT_TESTABLE',
+          `Apple build ${buildId} cannot be assigned to a TestFlight group (state: ${state}). ` +
+            (state === 'MISSING_EXPORT_COMPLIANCE' || state === 'IN_EXPORT_COMPLIANCE_REVIEW'
+              ? 'Complete the export compliance requirements or wait for Apple to approve them. '
+              : 'Check the build status and messages in App Store Connect. ') +
+            `The binary is already uploaded. Manage this build at https://appstoreconnect.apple.com/apps/${appId}/testflight`
+        );
+      }
+      await setTimeout(10_000);
+    }
+    throw new UserError(
+      'EAS_TESTFLIGHT_READINESS_TIMEOUT',
+      `Apple build ${buildId} is still not ready for internal TestFlight testing after 30 minutes. ` +
+        'The binary is already uploaded. Check its status and assign the groups in App Store Connect when processing finishes: ' +
+        `https://appstoreconnect.apple.com/apps/${appId}/testflight`
+    );
   }
 
   export async function getAllBetaBuildLocalizationsAsync({
