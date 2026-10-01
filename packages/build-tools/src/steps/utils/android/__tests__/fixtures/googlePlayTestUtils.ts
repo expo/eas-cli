@@ -1,9 +1,7 @@
 import nock from 'nock';
 import { generateKeyPairSync } from 'node:crypto';
 
-import { packageName } from '../../../../functions/__tests__/fixtures/androidTestUtils';
-
-export { packageName };
+export const packageName = 'dev.expo.submitfixture';
 
 export const editPath = `/androidpublisher/v3/applications/${packageName}/edits/edit`;
 export const serviceAccount = {
