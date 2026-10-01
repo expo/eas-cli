@@ -564,6 +564,76 @@ describe(Simulator, () => {
     );
   });
 
+  it('forwards --system-image in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image',
+      '  system-images;android-35-ext15;google_apis_playstore;x86_64  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          systemImagePackage: 'system-images;android-35-ext15;google_apis_playstore;x86_64',
+        },
+      })
+    );
+  });
+
+  it('forwards --device and --system-image together in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+      '--system-image',
+      'system-images;android-35-ext15;google_apis_playstore;x86_64',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          deviceIdentifier: 'pixel_9',
+          systemImagePackage: 'system-images;android-35-ext15;google_apis_playstore;x86_64',
+        },
+      })
+    );
+  });
+
+  it('omits a blank --system-image', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image',
+      '  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('android');
+  });
+
+  it('rejects --system-image for iOS before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--system-image',
+      'system-images;android-35-ext15;google_apis_playstore;x86_64',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--system-image is only supported with --platform android.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('trims --device before sending it', async () => {
     const { command } = createCommand([
       '--platform',
