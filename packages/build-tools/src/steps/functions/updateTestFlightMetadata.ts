@@ -99,27 +99,7 @@ export async function updateTestFlightMetadataAsync({
   logger.info(`Apple app: ${app.id}. Requested groups: ${JSON.stringify(groups)}.`);
   logger.info(changelog ? `Changelog: ${JSON.stringify(changelog)}` : 'Changelog: unchanged.');
 
-  const requestedGroups: Awaited<ReturnType<typeof getAllBetaGroupsAsync>>[number][] = [];
-  if (groups.length) {
-    const requestedNames = new Set(groups);
-    const foundNames = new Set<string>();
-    for (const group of await getAllBetaGroupsAsync({ client, appId: app.id })) {
-      const name = group.attributes?.name;
-      if (name && requestedNames.has(name)) {
-        foundNames.add(name);
-        requestedGroups.push(group);
-      }
-    }
-    const missingNames = [...requestedNames].filter(name => !foundNames.has(name));
-    if (missingNames.length) {
-      throw new UserError(
-        'EAS_TESTFLIGHT_GROUPS_NOT_FOUND',
-        `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
-      );
-    }
-    logger.info(`Found ${requestedGroups.length} TestFlight group(s).`);
-  }
-
+  let groupsWithAccess = 0;
   let localizationsUpdated = 0;
   let localizationsCreated = 0;
   const limit = limitFactory<void>(1);
@@ -178,15 +158,30 @@ export async function updateTestFlightMetadataAsync({
       }
     }),
     limit(async () => {
-      if (!requestedGroups.length) {
+      if (!groups.length) {
         return;
       }
+      const requestedNames = new Set(groups);
+      const allGroups = await getAllBetaGroupsAsync({ client, appId: app.id });
+      const requestedGroups = allGroups.filter(group =>
+        requestedNames.has(group.attributes?.name ?? '')
+      );
+      const foundNames = new Set(requestedGroups.map(group => group.attributes?.name));
+      const missingNames = [...requestedNames].filter(name => !foundNames.has(name));
+      if (missingNames.length) {
+        throw new UserError(
+          'EAS_TESTFLIGHT_GROUPS_NOT_FOUND',
+          `The following TestFlight group${missingNames.length > 1 ? 's were' : ' was'} not found in App Store Connect: ${missingNames.map(name => `"${name}"`).join(', ')}. Check the group names and try again.`
+        );
+      }
+      logger.info(`Found ${requestedGroups.length} TestFlight group(s).`);
       const assignedGroups = await getAllBetaGroupsAsync({ client, appId: app.id, buildId });
       const assignedIds = new Set(assignedGroups.map(group => group.id));
       for (const group of requestedGroups) {
         const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
         if (assignedIds.has(group.id)) {
           logger.info(`✅ Group ${label}: build already assigned; no assignment needed.`);
+          groupsWithAccess++;
           continue;
         }
         if (
@@ -194,9 +189,9 @@ export async function updateTestFlightMetadataAsync({
           group.attributes.hasAccessToAllBuilds === true
         ) {
           logger.info(`✅ Group ${label}: automatic access to all builds; no assignment needed.`);
+          groupsWithAccess++;
           continue;
         }
-        logger.info(`Group ${label}: build not assigned; adding it.`);
         try {
           await client.postAsync(
             '/v1/builds/:id/relationships/betaGroups',
@@ -206,32 +201,6 @@ export async function updateTestFlightMetadataAsync({
             { id: buildId }
           );
         } catch (error) {
-          // Apple may apply the assignment, or enable automatic access, before returning an error.
-          // Only accept the error when a fresh read confirms access for this group.
-          logger.warn('Apple returned an assignment error; checking current group access...');
-          try {
-            const currentGroups = await getAllBetaGroupsAsync({ client, appId: app.id });
-            const currentAssignedGroups = await getAllBetaGroupsAsync({
-              client,
-              appId: app.id,
-              buildId,
-            });
-            const isAssigned = currentAssignedGroups.some(current => current.id === group.id);
-            const hasAutomaticAccess = currentGroups.some(
-              current =>
-                current.id === group.id &&
-                current.attributes?.isInternalGroup === true &&
-                current.attributes.hasAccessToAllBuilds === true
-            );
-            if (isAssigned || hasAutomaticAccess) {
-              const access = isAssigned ? 'build assigned' : 'automatic access to all builds';
-              logger.info(`✅ Group ${label}: ${access}.`);
-              logger.info('Apple returned an assignment error, but group access is now confirmed.');
-              continue;
-            }
-          } catch {
-            logger.warn('Could not verify group access after the assignment error.');
-          }
           if (isInternalGroupAssignmentError(error)) {
             throw new UserError(
               'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
@@ -245,6 +214,7 @@ export async function updateTestFlightMetadataAsync({
           throw error;
         }
         logger.info(`✅ Group ${label}: assignment completed.`);
+        groupsWithAccess++;
       }
     }),
   ]);
@@ -261,7 +231,7 @@ export async function updateTestFlightMetadataAsync({
     );
   }
   logger.info(
-    `Metadata complete: ${requestedGroups.length} requested group(s) have build access; ` +
+    `Metadata complete: ${groupsWithAccess} requested group(s) have build access; ` +
       `${localizationsUpdated} localization(s) updated, ${localizationsCreated} created.`
   );
 }
