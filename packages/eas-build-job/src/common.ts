@@ -301,6 +301,49 @@ const AppStoreConnectContextZ = z.looseObject({
     .optional(),
 });
 
+const SentryIssueContextZ = z.looseObject({
+  id: z.string(),
+  short_id: z.string().optional(),
+  title: z.string().optional(),
+  culprit: z.string().nullable().optional(),
+  permalink: z.string().nullable().optional(),
+  level: z.string().optional(),
+  status: z.string().optional(),
+  substatus: z.string().nullable().optional(),
+  platform: z.string().nullable().optional(),
+  first_seen: z.string().optional(),
+  last_seen: z.string().optional(),
+  priority: z.string().nullable().optional(),
+  issue_category: z.string().optional(),
+  issue_type: z.string().optional(),
+  count: z.string().optional(),
+  user_count: z.number().optional(),
+  assigned_to: z
+    .looseObject({
+      type: z.string(),
+      id: z.string(),
+    })
+    .nullable()
+    .optional(),
+  project: z.looseObject({
+    id: z.string(),
+    slug: z.string().optional(),
+    name: z.string().optional(),
+  }),
+});
+
+const SentryContextZ = z.looseObject({
+  action: z.enum(['created', 'resolved', 'assigned', 'archived', 'unresolved']),
+  issue: SentryIssueContextZ,
+  actor: z
+    .looseObject({
+      type: z.string(),
+      id: z.union([z.string(), z.number()]),
+    })
+    .optional(),
+  resolution_type: z.string().optional(),
+});
+
 export const StaticWorkflowInterpolationContextZ = z.object({
   after: z.record(
     z.string(),
@@ -336,6 +379,8 @@ export const StaticWorkflowInterpolationContextZ = z.object({
   }),
   // We need to .optional() to support jobs that are not triggered by an App Store Connect event.
   app_store_connect: AppStoreConnectContextZ.optional(),
+  // We need to .optional() to support jobs that are not triggered by a Sentry event.
+  sentry: SentryContextZ.optional(),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<

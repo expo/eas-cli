@@ -99,7 +99,7 @@ async function putArtifactWithRetriesAsync({
         error instanceof ArtifactPutError
           ? [408, 429, 500, 502, 503, 504].includes(error.status)
           : error instanceof DeviceRunSessionTimeoutError ||
-            (error instanceof Error && error.name === 'FetchError');
+            error instanceof ArtifactPutNetworkError;
       if (!retryable || attempt + 1 === attempts) {
         throw error;
       }
@@ -133,7 +133,14 @@ async function putArtifactAsync({
     });
     // fetch has piped the body already, so this listener observes flow without starting it.
     stream.on('data', onProgress);
-    const response = await responding;
+    let response;
+    try {
+      response = await responding;
+    } catch (error) {
+      throw error instanceof Error && error.name === 'FetchError'
+        ? new ArtifactPutNetworkError(artifactId, error)
+        : error;
+    }
     signal.throwIfAborted();
     if (!response.ok) {
       throw new ArtifactPutError(artifactId, response);
@@ -153,6 +160,20 @@ class ArtifactPutError extends SystemError {
       `Failed to upload device run session artifact ${artifactId}: HTTP ${response.status} ${response.statusText}.`
     );
     this.status = response.status;
+  }
+}
+
+// node-fetch names the request URL in its message, and here that URL is signed. The message keeps
+// only the error code, and the original is not kept as the cause because loggers and Sentry print causes.
+class ArtifactPutNetworkError extends SystemError {
+  readonly code: string | undefined;
+
+  constructor(artifactId: string, error: Error & { code?: unknown }) {
+    const code = typeof error.code === 'string' ? error.code : undefined;
+    super(
+      `Failed to upload device run session artifact ${artifactId}: ${code ?? 'network error'}.`
+    );
+    this.code = code;
   }
 }
 

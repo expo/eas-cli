@@ -55,15 +55,29 @@ const GetApi = {
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups
   '/v1/betaGroups': {
     path: z.object({}),
-    request: z.object({
-      'filter[app]': z.string(),
-      limit: z.number().int().max(200),
-    }),
+    request: z.union([
+      z.object({
+        'filter[app]': z.string(),
+        'filter[builds]': z.never().optional(),
+        limit: z.number().int().max(200),
+      }),
+      z.object({
+        'filter[app]': z.never().optional(),
+        'filter[builds]': z.string(),
+        limit: z.number().int().max(200),
+      }),
+    ]),
     response: z.object({
       data: z.array(
         z.object({
           id: z.string(),
-          attributes: z.object({ name: z.string().optional() }).optional(),
+          attributes: z
+            .object({
+              name: z.string().optional(),
+              isInternalGroup: z.boolean().optional(),
+              hasAccessToAllBuilds: z.boolean().optional(),
+            })
+            .optional(),
         })
       ),
       links: z.object({ next: z.string().nullish() }).optional(),

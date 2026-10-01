@@ -25,6 +25,7 @@ import plist from 'plist';
 import { CustomBuildContext } from '../../customBuildContext';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { pluralize } from '../../utils/strings';
 
@@ -129,11 +130,17 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 async function fetchApplicationArchiveUrlAsync({
   buildId,
   graphqlClient,
+  signal,
 }: {
   buildId: string;
   graphqlClient: Client;
+  signal?: AbortSignal;
 }): Promise<string> {
-  const result = await graphqlClient.query(BUILD_BY_ID_QUERY, { buildId }).toPromise();
+  signal?.throwIfAborted();
+  const result = await graphqlClient
+    .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
+    .toPromise();
+  signal?.throwIfAborted();
 
   if (result.error) {
     const { error } = result;
@@ -161,9 +168,11 @@ export async function downloadBuildAsync(
     graphqlClient: Client;
     robotAccessToken: string | null;
     extensions: string[];
+    /** Stops the build lookup, the request and the file write when aborted, and skips the rest. */
+    signal?: AbortSignal;
   }
 ): Promise<{ artifactPath: string }> {
-  const { logger, graphqlClient, robotAccessToken, extensions } = params;
+  const { logger, graphqlClient, robotAccessToken, extensions, signal } = params;
 
   let downloadUrl: string;
   let headers: { Authorization: string } | undefined;
@@ -178,7 +187,7 @@ export async function downloadBuildAsync(
     headers = undefined;
   } else if (params.buildId) {
     const buildId = z.string().uuid().parse(params.buildId);
-    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient });
+    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient, signal });
     headers = robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined;
   } else {
     throw new UserError(
@@ -191,7 +200,8 @@ export async function downloadBuildAsync(
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers });
+  signal?.throwIfAborted();
+  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers, signal });
 
   if (!response.ok) {
     const textResult = await asyncResult(response.text());
@@ -201,7 +211,9 @@ export async function downloadBuildAsync(
   const archiveFilename = resolveArchiveFilename({ response, extensions });
   const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
 
+  // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
   await streamPipeline(response.body, fs.createWriteStream(archivePath));
+  signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(archivePath);
 
@@ -217,10 +229,15 @@ export async function downloadBuildAsync(
   const extractionDirectory = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'download_build-extracted-')
   );
+  // Not interrupted on abort: tar cannot stop its in-flight file writes, so an abort during
+  // the extraction lets it finish (local, bounded work) and is reported right after it.
+  // This way no file is written after this function settles.
+  signal?.throwIfAborted();
   await decompressTarAsync({
     archivePath,
     destinationDirectory: extractionDirectory,
   });
+  signal?.throwIfAborted();
 
   const matchingFiles = await glob(`**/*.(${extensions.join('|')})`, {
     absolute: true,
