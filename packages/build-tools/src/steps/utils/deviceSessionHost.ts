@@ -21,6 +21,7 @@ import {
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
+import { startDeviceRunSessionScreenshotsAsync } from './deviceRunSessionScreenshots';
 import {
   type DetachedProcessHandle,
   type ServeSimLaunchOptions,
@@ -324,14 +325,27 @@ export async function startDeviceSessionHostAsync(
   logger.info(
     `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
   );
-  const previewServer = spawnDetached({
-    command: previewExec.command,
-    args: previewExec.args,
-    env: recording
-      ? { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken }
-      : env,
-    stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
+  const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
+    deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
+    logger,
   });
+  let previewServer: DetachedProcessHandle;
+  try {
+    previewServer = spawnDetached({
+      command: previewExec.command,
+      args: previewExec.args,
+      env: {
+        ...env,
+        EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
+        ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
+      },
+      stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
+    });
+  } catch (error) {
+    // Nothing was spawned, so nothing can still write into the directory.
+    await screenshots.finishAsync(true);
+    throw error;
+  }
 
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
@@ -395,6 +409,7 @@ export async function startDeviceSessionHostAsync(
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
         previewTask,
         previewServer,
+        screenshots,
         serverName,
         port,
         // A host that never answered /readyz has nothing to finalize or upload.
@@ -435,6 +450,7 @@ async function finishDeviceSessionHostAsync(
   {
     previewTask,
     previewServer,
+    screenshots,
     serverName,
     port,
     recording,
@@ -442,6 +458,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
     previewServer: DetachedProcessHandle;
+    screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
     port: number;
     recording: AndroidSessionRecording | null;
@@ -480,6 +497,7 @@ async function finishDeviceSessionHostAsync(
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
   await retirePreview;
+  await screenshots.finishAsync(hostStopped);
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
   let uploaded = false;
