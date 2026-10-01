@@ -130,12 +130,16 @@ export namespace AscApiUtils {
         { id: appleAppIdentifier }
       );
     } catch (error) {
-      const notFoundErrors =
-        error instanceof AscApiRequestError && error.status === 404
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isAppNotFoundError =
-        notFoundErrors.length > 0 && notFoundErrors.every(item => item.code === 'NOT_FOUND');
+        errors.length > 0 &&
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError &&
+            item.status === 404 &&
+            item.responseJson.errors.length > 0 &&
+            item.responseJson.errors.every(error => error.code === 'NOT_FOUND')
+        );
       if (!isAppNotFoundError) {
         throw error;
       }
@@ -197,13 +201,18 @@ export namespace AscApiUtils {
         },
       });
     } catch (error) {
-      const errors =
-        error instanceof AscApiRequestError && error.status === 409
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isDuplicateVersionError =
         errors.length > 0 &&
-        errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError &&
+            item.status === 409 &&
+            item.responseJson.errors.length > 0 &&
+            item.responseJson.errors.every(
+              error => error.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE'
+            )
+        );
 
       if (isDuplicateVersionError) {
         throw new UserError(

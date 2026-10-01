@@ -270,6 +270,9 @@ export async function updateTestFlightMetadataAsync({
 
 // Apple returns a generic 422 code, so match the title or detail too.
 function isInternalGroupAssignmentError(error: unknown): boolean {
+  if (error instanceof AggregateError) {
+    return error.errors.some(isInternalGroupAssignmentError);
+  }
   return (
     error instanceof AscApiRequestError &&
     error.status === 422 &&
