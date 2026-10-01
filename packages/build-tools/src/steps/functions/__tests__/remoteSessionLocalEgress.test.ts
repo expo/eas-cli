@@ -18,7 +18,7 @@ import {
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
-import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentDeviceRemoteSession';
+import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceSession';
 import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemoteSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
@@ -29,6 +29,12 @@ jest.mock('../../../utils/processes');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceArtifacts');
+// The agent-device session step boots the Simulator itself; this test covers local egress.
+jest.mock('../startIosSimulator', () => ({
+  bootIosSimulatorAsync: jest
+    .fn()
+    .mockResolvedValue({ deviceIdentifier: 'sim', udid: 'sim', displayName: 'iPhone' }),
+}));
 jest.mock('../../utils/argentArtifacts');
 jest.mock('../../utils/agentDeviceEvents', () => ({
   startAgentDeviceEventCollectionAsync: async () => ({ stopAsync: jest.fn() }),
@@ -78,7 +84,7 @@ const fields = {
   egressPort: handoff.port,
 };
 const controllers = [
-  ['agent-device', createStartAgentDeviceRemoteSessionBuildFunction, 'agentDeviceRemoteSessionUrl'],
+  ['agent-device', createStartAgentDeviceSessionBuildFunction, 'agentDeviceRemoteSessionUrl'],
   ['Appium', createStartAppiumRemoteSessionBuildFunction, 'appiumUrl'],
   ['Argent', createStartArgentRemoteSessionBuildFunction, 'toolsUrl'],
   ['web preview', createStartWebPreviewRemoteSessionBuildFunction, 'previewUrl'],
@@ -93,10 +99,10 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     await createFunction(ctx).fn!(
       { logger, global: { runtimePlatform: BuildRuntimePlatform.DARWIN } } as BuildStepContext,
       {
-        inputs: {
-          package_version: { value: undefined },
-          max_idle_time_minutes: { value: undefined },
-        },
+        // Inputs a step does not get default to undefined, like in a real step call.
+        inputs: new Proxy({} as Record<string, { value: unknown }>, {
+          get: (target, id: string) => target[id] ?? { value: undefined },
+        }),
         outputs: {},
         env,
         signal,
