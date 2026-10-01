@@ -1038,7 +1038,7 @@ export async function runLocalEgressAsync({
     });
     signal.throwIfAborted();
     Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
-    const forwards = getLoopbackForwardPlan(allow, port);
+    const forwards = getLoopbackForwardPlan(allow, port, { androidEmulator });
     for (const forwardPort of forwards.ports) {
       Log.debug(
         `[egress] forwarding ${LOCAL_EGRESS_PROXY_HOST}:${forwardPort} on the device host to this machine`

@@ -245,6 +245,9 @@ describe(readLocalEgressConfigFromEnv, () => {
     };
     expect(readLocalEgressConfigFromEnv(env)).not.toHaveProperty('androidEmulator');
     expect(
+      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'ios' })
+    ).not.toHaveProperty('androidEmulator');
+    expect(
       readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'android' })
         .androidEmulator
     ).toBe(true);

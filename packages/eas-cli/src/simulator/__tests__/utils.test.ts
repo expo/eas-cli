@@ -61,6 +61,7 @@ describe('local egress configuration', () => {
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
       EAS_SIMULATOR_EGRESS_ALLOW: '',
+      EAS_SIMULATOR_EGRESS_PLATFORM: 'ios',
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain(
@@ -160,6 +161,16 @@ describe(getLoopbackForwardPlan, () => {
 
   it('returns an empty plan without allow entries', () => {
     expect(getLoopbackForwardPlan([], 8899)).toEqual({ ports: [], skipped: [] });
+  });
+
+  it('also skips the relay port the Android emulator proxy uses', () => {
+    expect(getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899)).toEqual({
+      ports: [8081, 8898],
+      skipped: [],
+    });
+    expect(
+      getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899, { androidEmulator: true })
+    ).toEqual({ ports: [8081], skipped: ['localhost:8898'] });
   });
 });
 
@@ -571,6 +582,7 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       EAS_SIMULATOR_EGRESS_FINGERPRINT: egress.egressFingerprint,
       EAS_SIMULATOR_EGRESS_PORT: '8899',
       EAS_SIMULATOR_EGRESS_ALLOW: '',
+      EAS_SIMULATOR_EGRESS_PLATFORM: 'ios',
     });
     expect(getLocalEgressConfig(withEgress)).toEqual({
       url: egress.egressUrl,

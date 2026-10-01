@@ -1113,9 +1113,9 @@ describe(Simulator, () => {
       );
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:egress'));
       expect(runLocalEgressAsync).not.toHaveBeenCalled();
-      expect(fs.writeFile).not.toHaveBeenCalledWith(
+      expect(fs.writeFile).toHaveBeenCalledWith(
         simulatorDotenvPath,
-        expect.stringContaining('EAS_SIMULATOR_EGRESS_PLATFORM')
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_PLATFORM='ios'")
       );
     }
   );

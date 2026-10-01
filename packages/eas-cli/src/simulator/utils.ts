@@ -140,6 +140,9 @@ export function getLocalEgressConfig(
   };
 }
 
+/** The worker relay that the Android emulator's proxy points at; see build-tools androidLocalEgress.ts. */
+export const ANDROID_EMULATOR_EGRESS_RELAY_PORT = 8898;
+
 export type LoopbackForwardPlan = {
   /** Ports the tunnel client forwards on the device host's loopback interface. */
   ports: number[];
@@ -159,8 +162,13 @@ export type LoopbackForwardPlan = {
  */
 export function getLoopbackForwardPlan(
   allow: readonly string[],
-  proxyPort: number
+  proxyPort: number,
+  { androidEmulator = false }: { androidEmulator?: boolean } = {}
 ): LoopbackForwardPlan {
+  const reservedPorts = new Set([
+    proxyPort,
+    ...(androidEmulator ? [ANDROID_EMULATOR_EGRESS_RELAY_PORT] : []),
+  ]);
   const ports = new Set<number>();
   const skipped: string[] = [];
   for (const destination of allow) {
@@ -169,7 +177,7 @@ export function getLoopbackForwardPlan(
       continue;
     }
     const port = Number(match[1]);
-    if (port < 1024 || port === proxyPort) {
+    if (port < 1024 || reservedPorts.has(port)) {
       skipped.push(destination);
       continue;
     }
@@ -204,7 +212,8 @@ export function getLocalEgressEnvironmentVariables(
     [EAS_SIMULATOR_EGRESS_FINGERPRINT]: egress.fingerprint,
     [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
     [EAS_SIMULATOR_EGRESS_ALLOW]: egress.allow.join(','),
-    ...(egress.androidEmulator ? { [EAS_SIMULATOR_EGRESS_PLATFORM]: 'android' } : {}),
+    // Always written, so pasted exports for one session replace another session's value.
+    [EAS_SIMULATOR_EGRESS_PLATFORM]: egress.androidEmulator ? 'android' : 'ios',
   };
 }
 
@@ -340,7 +349,9 @@ export function formatRemoteSessionInstructions(
     '',
     summary,
     guardNotice,
-    ...formatLoopbackForwardNotice(getLoopbackForwardPlan(egress.allow, egress.port)),
+    ...formatLoopbackForwardNotice(
+      getLoopbackForwardPlan(egress.allow, egress.port, { androidEmulator: egress.androidEmulator })
+    ),
     // In interactive mode the client starts in this terminal once the session is
     // ready and stops with it, so there is nothing for the reader to run.
     ...(egressClientRunsInline
