@@ -141,85 +141,221 @@ export namespace AndroidEmulatorUtils {
     // Add extra config to the device's ini file.
     const configIniFile = `${env.HOME}/.android/avd/${deviceName}.avd/config.ini`;
     try {
-      let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
-
-      logger.info('Setting hw.ramSize to 2048.');
-      configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
-
-      const shouldResizeScreen =
-        env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';
-      if (shouldResizeScreen) {
-        const currentDensityString = configIniFileContent.match(/hw.lcd.density=(\d+)/)?.[1];
-        const currentDensity = currentDensityString
-          ? parseInt(currentDensityString, 10)
-          : undefined;
-        const currentHeightString = configIniFileContent.match(/hw.lcd.height=(\d+)/)?.[1];
-        const currentHeight = currentHeightString ? parseInt(currentHeightString, 10) : undefined;
-        const currentWidthString = configIniFileContent.match(/hw.lcd.width=(\d+)/)?.[1];
-        const currentWidth = currentWidthString ? parseInt(currentWidthString, 10) : undefined;
-
-        if (currentDensity && currentDensity > 220) {
-          logger.info(
-            `Current density is ${currentDensity}, which we believe may impact performance.`
-          );
-          if (currentHeight && currentWidth) {
-            const newDensity = 220;
-            logger.info(`Setting hw.lcd.density to ${newDensity}.`);
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.density=${newDensity}\n`;
-
-            const newHeight = Math.round((currentHeight * newDensity) / currentDensity);
-            const newWidth = Math.round((currentWidth * newDensity) / currentDensity);
-            logger.info(
-              `Setting scaled screen resolution: hw.lcd.height to ${newHeight} and hw.lcd.width to ${newWidth}.`
-            );
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${newHeight}\nhw.lcd.width=${newWidth}\n`;
-          } else {
-            logger.info(
-              'Could not find current screen resolution, setting to 1170x540 and 220 ppi.'
-            );
-            configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${1170}\nhw.lcd.width=${540}\nhw.lcd.density=220\n`;
-          }
-        }
-      }
-
-      if (lcdWidth !== null && lcdHeight !== null && lcdDensity !== null) {
-        logger.info(
-          `Setting screen resolution to ${lcdWidth}x${lcdHeight} and density to ${lcdDensity} ppi.`
-        );
-        configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${lcdHeight}\nhw.lcd.width=${lcdWidth}\nhw.lcd.density=${lcdDensity}\n`;
-      }
-
-      const shouldAdjustHeapSize =
-        env.ANDROID_EMULATOR_ADJUST_HEAP_SIZE !== 'false' &&
-        env.ANDROID_EMULATOR_ADJUST_HEAP_SIZE !== '0';
-      if (shouldAdjustHeapSize) {
-        const heapSizeString = configIniFileContent.match(/vm.heapSize=(\d\w+)/)?.[1];
-        if (!heapSizeString) {
-          logger.info('Setting vm.heapSize to 768 MB.');
-          configIniFileContent = `${configIniFileContent}\nvm.heapSize=768\n`;
-        } else if (heapSizeString) {
-          const heapSize = parseInt(heapSizeString, 10);
-          const lowerCaseHeapSizeString = heapSizeString.toLocaleLowerCase();
-          if (lowerCaseHeapSizeString.includes('g')) {
-            logger.info('vm.heapSize is in GB, skipping adjustment.');
-          } else if (heapSize < 768) {
-            logger.info('Bumping vm.heapSize to 768 MB.');
-            configIniFileContent = `${configIniFileContent}\nvm.heapSize=768\n`;
-          }
-        }
-      }
-
-      if (env.ANDROID_EMULATOR_EXTRA_CONFIG) {
-        logger.info(
-          `Adding extra config from $ANDROID_EMULATOR_EXTRA_CONFIG:\n${env.ANDROID_EMULATOR_EXTRA_CONFIG}`
-        );
-        configIniFileContent = `${configIniFileContent}\n${env.ANDROID_EMULATOR_EXTRA_CONFIG}\n`;
-      }
-
+      const avdManagerConfigIni = await fs.promises.readFile(configIniFile, 'utf-8');
+      const configIniFileContent = getConfigIniContent({
+        avdManagerConfigIni,
+        lcdWidth,
+        lcdHeight,
+        lcdDensity,
+        env,
+        logger,
+      });
       await fs.promises.writeFile(configIniFile, configIniFileContent);
     } catch (err) {
       logger.warn({ err }, `Failed to add extra config to ${configIniFile}.`);
     }
+  }
+
+  /**
+   * Returns the config.ini content `createAsync` writes, given the content `avdmanager` wrote.
+   */
+  export function getConfigIniContent({
+    avdManagerConfigIni,
+    lcdWidth,
+    lcdHeight,
+    lcdDensity,
+    env,
+    logger,
+  }: {
+    avdManagerConfigIni: string;
+    lcdWidth: number | null;
+    lcdHeight: number | null;
+    lcdDensity: number | null;
+    env: NodeJS.ProcessEnv;
+    logger?: bunyan;
+  }): string {
+    let configIniFileContent = avdManagerConfigIni;
+
+    logger?.info('Setting hw.ramSize to 2048.');
+    configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
+
+    const shouldResizeScreen =
+      env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';
+    if (shouldResizeScreen) {
+      const currentDensityString = configIniFileContent.match(/hw.lcd.density=(\d+)/)?.[1];
+      const currentDensity = currentDensityString ? parseInt(currentDensityString, 10) : undefined;
+      const currentHeightString = configIniFileContent.match(/hw.lcd.height=(\d+)/)?.[1];
+      const currentHeight = currentHeightString ? parseInt(currentHeightString, 10) : undefined;
+      const currentWidthString = configIniFileContent.match(/hw.lcd.width=(\d+)/)?.[1];
+      const currentWidth = currentWidthString ? parseInt(currentWidthString, 10) : undefined;
+
+      if (currentDensity && currentDensity > 220) {
+        logger?.info(
+          `Current density is ${currentDensity}, which we believe may impact performance.`
+        );
+        if (currentHeight && currentWidth) {
+          const newDensity = 220;
+          logger?.info(`Setting hw.lcd.density to ${newDensity}.`);
+          configIniFileContent = `${configIniFileContent}\nhw.lcd.density=${newDensity}\n`;
+
+          const newHeight = Math.round((currentHeight * newDensity) / currentDensity);
+          const newWidth = Math.round((currentWidth * newDensity) / currentDensity);
+          logger?.info(
+            `Setting scaled screen resolution: hw.lcd.height to ${newHeight} and hw.lcd.width to ${newWidth}.`
+          );
+          configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${newHeight}\nhw.lcd.width=${newWidth}\n`;
+        } else {
+          logger?.info(
+            'Could not find current screen resolution, setting to 1170x540 and 220 ppi.'
+          );
+          configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${1170}\nhw.lcd.width=${540}\nhw.lcd.density=220\n`;
+        }
+      }
+    }
+
+    if (lcdWidth !== null && lcdHeight !== null && lcdDensity !== null) {
+      logger?.info(
+        `Setting screen resolution to ${lcdWidth}x${lcdHeight} and density to ${lcdDensity} ppi.`
+      );
+      configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${lcdHeight}\nhw.lcd.width=${lcdWidth}\nhw.lcd.density=${lcdDensity}\n`;
+    }
+
+    const shouldAdjustHeapSize =
+      env.ANDROID_EMULATOR_ADJUST_HEAP_SIZE !== 'false' &&
+      env.ANDROID_EMULATOR_ADJUST_HEAP_SIZE !== '0';
+    if (shouldAdjustHeapSize) {
+      const heapSizeString = configIniFileContent.match(/vm.heapSize=(\d\w+)/)?.[1];
+      if (!heapSizeString) {
+        logger?.info('Setting vm.heapSize to 768 MB.');
+        configIniFileContent = `${configIniFileContent}\nvm.heapSize=768\n`;
+      } else if (heapSizeString) {
+        const heapSize = parseInt(heapSizeString, 10);
+        const lowerCaseHeapSizeString = heapSizeString.toLocaleLowerCase();
+        if (lowerCaseHeapSizeString.includes('g')) {
+          logger?.info('vm.heapSize is in GB, skipping adjustment.');
+        } else if (heapSize < 768) {
+          logger?.info('Bumping vm.heapSize to 768 MB.');
+          configIniFileContent = `${configIniFileContent}\nvm.heapSize=768\n`;
+        }
+      }
+    }
+
+    if (env.ANDROID_EMULATOR_EXTRA_CONFIG) {
+      logger?.info(
+        `Adding extra config from $ANDROID_EMULATOR_EXTRA_CONFIG:\n${env.ANDROID_EMULATOR_EXTRA_CONFIG}`
+      );
+      configIniFileContent = `${configIniFileContent}\n${env.ANDROID_EMULATOR_EXTRA_CONFIG}\n`;
+    }
+
+    return configIniFileContent;
+  }
+
+  /**
+   * Worker images can ship an AVD that was created and booted once at image build time,
+   * so its first-boot setup is already done. The image build writes this manifest into
+   * the AVD directory to record how the AVD was created.
+   */
+  export const PREBUILT_AVD_MANIFEST_FILE_NAME = 'eas-prebuilt-avd.json';
+
+  const PrebuiltAvdManifestSchema = z.object({
+    deviceIdentifier: z.string().nullable(),
+    systemImagePackage: z.string(),
+    /** config.ini as `avdmanager create avd` wrote it. */
+    avdManagerConfigIni: z.string(),
+    /** config.ini after the image build added the `createAsync` settings, before the first boot. */
+    configIni: z.string(),
+  });
+
+  export type PrebuiltAvdCheckResult =
+    | { status: 'missing' }
+    | { status: 'mismatch'; reason: string }
+    | { status: 'reusable' };
+
+  /**
+   * Checks whether the image ships an AVD named `deviceName` that `createAsync` would
+   * create with the same arguments. Only then is it safe to start it instead of creating one.
+   */
+  export async function checkPrebuiltAvdAsync({
+    deviceName,
+    systemImagePackage,
+    deviceIdentifier,
+    lcdWidth,
+    lcdHeight,
+    lcdDensity,
+    env,
+  }: {
+    deviceName: AndroidVirtualDeviceName;
+    systemImagePackage: string;
+    deviceIdentifier: AndroidDeviceName | null;
+    lcdWidth: number | null;
+    lcdHeight: number | null;
+    lcdDensity: number | null;
+    env: NodeJS.ProcessEnv;
+  }): Promise<PrebuiltAvdCheckResult> {
+    const avdDirectory = `${env.HOME}/.android/avd/${deviceName}.avd`;
+
+    let manifestContent: string;
+    try {
+      manifestContent = await fs.promises.readFile(
+        path.join(avdDirectory, PREBUILT_AVD_MANIFEST_FILE_NAME),
+        'utf-8'
+      );
+    } catch {
+      return { status: 'missing' };
+    }
+
+    let manifest: z.infer<typeof PrebuiltAvdManifestSchema>;
+    try {
+      manifest = PrebuiltAvdManifestSchema.parse(JSON.parse(manifestContent));
+    } catch (err) {
+      return { status: 'mismatch', reason: `the manifest is not valid (${err})` };
+    }
+
+    if (manifest.systemImagePackage !== systemImagePackage) {
+      return {
+        status: 'mismatch',
+        reason: `it uses system image "${manifest.systemImagePackage}"`,
+      };
+    }
+    if (manifest.deviceIdentifier !== deviceIdentifier) {
+      return {
+        status: 'mismatch',
+        reason: `it uses device "${manifest.deviceIdentifier ?? 'default'}"`,
+      };
+    }
+    const expectedConfigIni = getConfigIniContent({
+      avdManagerConfigIni: manifest.avdManagerConfigIni,
+      lcdWidth,
+      lcdHeight,
+      lcdDensity,
+      env,
+    });
+    if (manifest.configIni !== expectedConfigIni) {
+      return { status: 'mismatch', reason: 'its config.ini has different settings' };
+    }
+
+    try {
+      await fs.promises.access(`${env.HOME}/.android/avd/${deviceName}.ini`);
+      await fs.promises.access(path.join(avdDirectory, 'config.ini'));
+    } catch {
+      return { status: 'mismatch', reason: 'its AVD files are missing' };
+    }
+
+    return { status: 'reusable' };
+  }
+
+  export async function removeLockFilesAsync({
+    deviceName,
+    env,
+  }: {
+    deviceName: AndroidVirtualDeviceName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    const lockfiles = await FastGlob('./**/*.lock', {
+      cwd: `${env.HOME}/.android/avd/${deviceName}.avd`,
+      absolute: true,
+    });
+    await Promise.all(lockfiles.map(lockfile => fs.promises.rm(lockfile, { force: true })));
   }
 
   export async function cloneAsync({
@@ -247,12 +383,7 @@ export namespace AndroidEmulatorUtils {
     }
 
     try {
-      // Remove lockfiles from source device
-      const sourceLockfiles = await FastGlob('./**/*.lock', {
-        cwd: `${env.HOME}/.android/avd/${sourceDeviceName}.avd`,
-        absolute: true,
-      });
-      await Promise.all(sourceLockfiles.map(lockfile => fs.promises.rm(lockfile, { force: true })));
+      await removeLockFilesAsync({ deviceName: sourceDeviceName, env });
     } catch (err) {
       logger.warn({ err }, `Failed to remove lockfiles from source device ${sourceDeviceName}.`);
     }
@@ -269,13 +400,8 @@ export namespace AndroidEmulatorUtils {
       force: true,
     });
 
-    // Remove lockfiles from destination device
     try {
-      const lockfiles = await FastGlob('./**/*.lock', {
-        cwd: `${env.HOME}/.android/avd/${destinationDeviceName}.avd`,
-        absolute: true,
-      });
-      await Promise.all(lockfiles.map(lockfile => fs.promises.rm(lockfile, { force: true })));
+      await removeLockFilesAsync({ deviceName: destinationDeviceName, env });
     } catch (err) {
       logger.warn(
         { err },

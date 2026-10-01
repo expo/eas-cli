@@ -262,6 +262,19 @@ export async function startAndroidEmulatorAsync({
     }
   );
 
+  const prebuiltAvd = await AndroidEmulatorUtils.checkPrebuiltAvdAsync({
+    deviceName,
+    systemImagePackage,
+    deviceIdentifier: deviceIdentifier ?? null,
+    lcdWidth: lcdWidth ?? null,
+    lcdHeight: lcdHeight ?? null,
+    lcdDensity: lcdDensity ?? null,
+    env,
+  });
+  if (prebuiltAvd.status === 'mismatch') {
+    logger.info(`Not using the prebuilt ${deviceName}, because ${prebuiltAvd.reason}.`);
+  }
+
   let emulatorPromise = null;
   let serialId = null;
   await retryAsync(
@@ -273,17 +286,23 @@ export async function startAndroidEmulatorAsync({
       let attemptSerialId = null;
 
       try {
-        logger.info(`Creating emulator device${attemptSuffix}.`);
-        await AndroidEmulatorUtils.createAsync({
-          deviceName,
-          systemImagePackage,
-          deviceIdentifier: deviceIdentifier ?? null,
-          lcdWidth: lcdWidth ?? null,
-          lcdHeight: lcdHeight ?? null,
-          lcdDensity: lcdDensity ?? null,
-          env,
-          logger,
-        });
+        // A failed attempt deletes the device, so later attempts create a new one.
+        if (attemptCount === 0 && prebuiltAvd.status === 'reusable') {
+          logger.info(`Using the prebuilt ${deviceName} from the worker image.`);
+          await AndroidEmulatorUtils.removeLockFilesAsync({ deviceName, env });
+        } else {
+          logger.info(`Creating emulator device${attemptSuffix}.`);
+          await AndroidEmulatorUtils.createAsync({
+            deviceName,
+            systemImagePackage,
+            deviceIdentifier: deviceIdentifier ?? null,
+            lcdWidth: lcdWidth ?? null,
+            lcdHeight: lcdHeight ?? null,
+            lcdDensity: lcdDensity ?? null,
+            env,
+            logger,
+          });
+        }
 
         logger.info(`Starting emulator device${attemptSuffix}.`);
         const startResult = await AndroidEmulatorUtils.startAsync({
