@@ -22,26 +22,11 @@ async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<And
   const zip = new StreamZip.async({ file: artifactPath });
   try {
     const entries = await zip.entries();
-    if (
-      entries['BundleConfig.pb'] &&
-      !entries['BundleConfig.pb'].isDirectory &&
-      entries['base/manifest/AndroidManifest.xml'] &&
-      !entries['base/manifest/AndroidManifest.xml'].isDirectory
-    ) {
-      return 'aab';
-    }
-    if (
-      entries['AndroidManifest.xml'] &&
-      !entries['AndroidManifest.xml'].isDirectory &&
-      !entries['BundleConfig.pb']
-    ) {
-      return 'apk';
-    }
-    throw new Error('Missing Android manifest.');
+    return entries['BundleConfig.pb'] ? 'aab' : 'apk';
   } catch (error) {
     throw new UserError(
       'EAS_ANDROID_ARTIFACT_INVALID',
-      'Expected an APK or AAB file with an Android manifest.',
+      'Cannot read the Android artifact as a ZIP archive.',
       { cause: error }
     );
   } finally {

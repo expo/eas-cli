@@ -26,10 +26,13 @@ export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
       BuildStepOutput.createProvider({ id: 'artifact_type', required: true }),
       BuildStepOutput.createProvider({ id: 'package_name', required: true }),
     ],
-    fn: async (ctx, { inputs, outputs }) => {
-      const artifact = await readAndroidArtifactInfoAsync(
-        path.resolve(ctx.workingDirectory, z.string().min(1).parse(inputs.artifact_path.value))
+    fn: async (ctx, { inputs, outputs, signal }) => {
+      const artifactPath = path.resolve(
+        ctx.workingDirectory,
+        z.string().min(1).parse(inputs.artifact_path.value)
       );
+      ctx.logger.info(`Reading Android artifact: ${artifactPath}.`);
+      const artifact = await readAndroidArtifactInfoAsync(artifactPath, signal);
       ctx.logger.info(`Android artifact type: ${artifact.artifactType}.`);
       ctx.logger.info(`Android package name: ${artifact.packageName}.`);
       outputs.artifact_type.set(artifact.artifactType);
