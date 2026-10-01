@@ -242,8 +242,9 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     );
 
     expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
-    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
-    // The failure aborts the daemon task before its tunnel; a tunnel that started is stopped.
+    // The failure aborts the daemon task, which then may not start its daemon or tunnel.
+    // Whatever started is stopped.
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(jest.mocked(spawnDetached).mock.calls.length);
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(
       jest.mocked(startNgrokTunnelAsync).mock.calls.length
     );
@@ -350,6 +351,30 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
 
       expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
       expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('stops the session host when the app fails while the daemon install hangs', async () => {
+      jest.mocked(spawn).mockImplementation(((
+        command: string,
+        args: string[],
+        options?: { signal?: AbortSignal }
+      ) =>
+        command === 'bun' && args[0] === 'add'
+          ? new Promise((_resolve, reject) => {
+              options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason));
+            })
+          : Promise.resolve(undefined)) as never);
+      const ready = deferred();
+      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      await flushAsync();
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+
+      ready.reject(new Error('simctl install failed'));
+
+      await expect(session).rejects.toThrow('simctl install failed');
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(spawnDetached).not.toHaveBeenCalled();
       expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
     });
 

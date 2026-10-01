@@ -25,6 +25,7 @@ import plist from 'plist';
 import { CustomBuildContext } from '../../customBuildContext';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { pluralize } from '../../utils/strings';
 
@@ -129,11 +130,17 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 async function fetchApplicationArchiveUrlAsync({
   buildId,
   graphqlClient,
+  signal,
 }: {
   buildId: string;
   graphqlClient: Client;
+  signal?: AbortSignal;
 }): Promise<string> {
-  const result = await graphqlClient.query(BUILD_BY_ID_QUERY, { buildId }).toPromise();
+  signal?.throwIfAborted();
+  const result = await graphqlClient
+    .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
+    .toPromise();
+  signal?.throwIfAborted();
 
   if (result.error) {
     const { error } = result;
@@ -161,7 +168,7 @@ export async function downloadBuildAsync(
     graphqlClient: Client;
     robotAccessToken: string | null;
     extensions: string[];
-    /** Stops the download (the request and the file write) when aborted. */
+    /** Stops the build lookup, the request, the file write and the extraction when aborted. */
     signal?: AbortSignal;
   }
 ): Promise<{ artifactPath: string }> {
@@ -180,7 +187,7 @@ export async function downloadBuildAsync(
     headers = undefined;
   } else if (params.buildId) {
     const buildId = z.string().uuid().parse(params.buildId);
-    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient });
+    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient, signal });
     headers = robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined;
   } else {
     throw new UserError(
@@ -225,7 +232,9 @@ export async function downloadBuildAsync(
   await decompressTarAsync({
     archivePath,
     destinationDirectory: extractionDirectory,
+    signal,
   });
+  signal?.throwIfAborted();
 
   const matchingFiles = await glob(`**/*.(${extensions.join('|')})`, {
     absolute: true,

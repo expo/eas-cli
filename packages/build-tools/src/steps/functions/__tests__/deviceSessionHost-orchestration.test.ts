@@ -223,13 +223,14 @@ describe.each([
     }
     await expect(runAsync()).rejects.toBe(error);
     expect(finishHost).toHaveBeenCalledTimes(1);
-    expect(stopTool).toHaveBeenCalledTimes(1);
     // An agent-device preview failure aborts the daemon task, which then may not start its
-    // tunnel. Every tunnel that started must be stopped.
+    // daemon or tunnel. Everything that started must be stopped.
+    const abortsDaemonTask = name === 'Agent Device' && phase === 'preview';
+    expect(stopTool).toHaveBeenCalledTimes(
+      abortsDaemonTask ? jest.mocked(spawnDetached).mock.calls.length : 1
+    );
     expect(stopTunnel).toHaveBeenCalledTimes(
-      name === 'Agent Device' && phase === 'preview'
-        ? jest.mocked(startNgrokTunnelAsync).mock.calls.length
-        : 1
+      abortsDaemonTask ? jest.mocked(startNgrokTunnelAsync).mock.calls.length : 1
     );
     expect(logger.warn).toHaveBeenCalledWith(
       { err: expect.objectContaining({ message: 'recording cleanup failed' }) },

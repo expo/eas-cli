@@ -204,10 +204,17 @@ export async function runAgentDeviceRemoteSessionAsync(
   // another task failed first.
   const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
     taskLogger.info('Launching agent-device daemon.');
-    daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger: taskLogger });
+    daemonProcess = await startAgentDeviceDaemonAsync({
+      packageVersion,
+      env,
+      logger: taskLogger,
+      signal: tasks.signal,
+    });
 
     taskLogger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-    const daemonInfo = await waitForDaemonInfoAsync({ daemonProcess });
+    // The daemon is stored above, so the teardown stops it. The wait itself is bounded
+    // (STARTUP_TIMEOUT_MS) and only reads a file, so it may finish in the background.
+    const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
     taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
 
     tasks.signal.throwIfAborted();
@@ -342,10 +349,13 @@ export async function startAgentDeviceDaemonAsync({
   packageVersion,
   env,
   logger,
+  signal,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
+  /** Kills the install and stops before the daemon starts, when aborted. No git fallback then. */
+  signal?: AbortSignal;
 }): Promise<DetachedProcessHandle> {
   const packageSpec = createAgentDevicePackageSpec(packageVersion);
   const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
@@ -358,13 +368,14 @@ export async function startAgentDeviceDaemonAsync({
   try {
     const add = resolvePackageAdd(packageManager, packageSpec);
     logger.info(`Installing ${packageSpec} with ${add.command}.`);
-    await spawn(add.command, add.args, { cwd: installDir, env, logger });
+    await spawn(add.command, add.args, { cwd: installDir, env, logger, signal });
 
     const daemonPath = getInstalledAgentDeviceDaemonPath(installDir);
     if (!fs.existsSync(daemonPath)) {
       throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
     }
 
+    signal?.throwIfAborted();
     logger.info(`Launching daemon from ${daemonPath} after ${add.command} install.`);
     const daemonProcess = spawnDetached({
       command: 'node',
@@ -380,6 +391,10 @@ export async function startAgentDeviceDaemonAsync({
     };
   } catch (err) {
     await fs.promises.rm(installDir, { recursive: true, force: true });
+    // An abort is not an install problem: stop instead of falling back to git.
+    if (signal?.aborted) {
+      throw err;
+    }
     const error = err instanceof Error ? err : new Error(String(err));
     const bunVersion = await getBunVersionForDiagnosticsAsync(env);
     Sentry.capture(
@@ -402,7 +417,7 @@ export async function startAgentDeviceDaemonAsync({
     logger.warn(
       `Failed to start daemon from ${packageSpec} via ${packageManager}; falling back to git clone: ${error.message}`
     );
-    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
+    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger, signal });
   }
 }
 
@@ -432,17 +447,19 @@ async function startAgentDeviceDaemonFromGitAsync({
   packageVersion,
   env,
   logger,
+  signal,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<DetachedProcessHandle> {
   logger.info(
     packageVersion
       ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
       : `Cloning agent-device (latest) into ${SRC_DIR}.`
   );
-  await cloneAgentDeviceAsync({ packageVersion, env, logger });
+  await cloneAgentDeviceAsync({ packageVersion, env, logger, signal });
 
   const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
   const install = resolvePackageInstall(packageManager, { production: true });
@@ -451,8 +468,10 @@ async function startAgentDeviceDaemonFromGitAsync({
     cwd: SRC_DIR,
     env,
     logger,
+    signal,
   });
 
+  signal?.throwIfAborted();
   logger.info('Launching daemon from cloned agent-device source.');
   // Git fallback is TypeScript source. The published path runs node on dist JS.
   return spawnDetached({
@@ -467,15 +486,18 @@ async function cloneAgentDeviceAsync({
   packageVersion,
   env,
   logger,
+  signal,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
   const branchArgs = packageVersion ? ['--branch', `v${packageVersion}`] : [];
   await spawn('git', ['clone', '--depth', '1', ...branchArgs, AGENT_DEVICE_REPO_URL, SRC_DIR], {
     env,
     logger,
+    signal,
   });
 }
 
