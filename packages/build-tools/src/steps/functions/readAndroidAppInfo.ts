@@ -7,7 +7,7 @@ import {
 import path from 'node:path';
 import { z } from 'zod';
 
-import { prepareAndroidArtifactAsync } from '../utils/android/appArtifact';
+import { readAndroidArtifactInfoAsync } from '../utils/android/appArtifact';
 
 export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -26,7 +26,7 @@ export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
       BuildStepOutput.createProvider({ id, required: true })
     ),
     fn: async (ctx, { inputs, outputs }) => {
-      const artifact = await prepareAndroidArtifactAsync(
+      const artifact = await readAndroidArtifactInfoAsync(
         path.resolve(ctx.workingDirectory, z.string().min(1).parse(inputs.artifact_path.value))
       );
       ctx.logger.info(
@@ -35,7 +35,6 @@ export function createReadAndroidAppInfoBuildFunction(): BuildFunction {
       outputs.artifact_path.set(artifact.artifactPath);
       outputs.artifact_type.set(artifact.artifactType);
       outputs.package_name.set(artifact.packageName);
-      // Keep an extracted binary for later steps. The job owns its temporary directory.
     },
   });
 }
