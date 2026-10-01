@@ -16,10 +16,7 @@ import {
   GoogleServiceAccount,
 } from '../utils/android/GooglePlayClient';
 import { GooglePlayUtils } from '../utils/android/GooglePlayUtils';
-import {
-  prepareAndroidArtifactAsync,
-  readAndroidPackageNameAsync,
-} from '../utils/android/appArtifact';
+import { prepareAndroidArtifactAsync } from '../utils/android/appArtifact';
 
 const submissionSchema = z.object({
   artifact_path: z.string().min(1),
@@ -175,15 +172,11 @@ async function submitToGooglePlayAsync({
   logger: bunyan;
   signal: AbortSignal;
 }): Promise<{ packageName: string; versionCode: number; track: string }> {
-  const artifact = await prepareAndroidArtifactAsync(submission.artifact_path);
+  const artifact = await prepareAndroidArtifactAsync(submission.artifact_path, signal);
   let editId: string | undefined;
   let committed = false;
   try {
-    const packageName = await readAndroidPackageNameAsync(
-      artifact.artifactPath,
-      artifact.artifactType,
-      signal
-    );
+    const { packageName } = artifact;
     if (packageName !== submission.package_name) {
       throw new UserError(
         'EAS_GOOGLE_PLAY_PACKAGE_MISMATCH',
