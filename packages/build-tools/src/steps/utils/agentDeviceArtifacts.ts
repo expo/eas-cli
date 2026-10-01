@@ -20,6 +20,11 @@ const AgentDeviceArtifactSchema = z.object({
   id: z.string(),
   artifactType: z.string().nullish(),
   filename: z.string(),
+  // Display rotation of a screenshot. An unknown value is dropped so it cannot block the upload.
+  displayRotation: z
+    .enum(['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right'])
+    .nullish()
+    .catch(undefined),
 });
 const AgentDeviceArtifactsListResponseSchema = z.object({
   artifacts: z.array(AgentDeviceArtifactSchema),
@@ -154,6 +159,9 @@ export async function uploadAgentDeviceArtifactAsync(
       name: `${artifact.filename} (${artifact.id})`,
       filename: artifact.filename,
       kind: artifact.artifactType ?? undefined,
+      ...(artifact.displayRotation
+        ? { metadata: { displayRotation: artifact.displayRotation } }
+        : {}),
       size,
       stream: createReadStream(temporaryArtifactPath),
     });
