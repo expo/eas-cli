@@ -2,7 +2,8 @@ import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import * as jose from 'jose';
-import fetch from 'node-fetch';
+import fetch, { FetchError } from 'node-fetch';
+import { setTimeout } from 'timers/promises';
 import { ZodError, z } from 'zod';
 
 const TOKEN_LIFETIME_SECONDS = 20 /* minutes */ * 60 /* seconds */;
@@ -562,17 +563,77 @@ export class AscApiClient {
       );
     }
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${await this.getTokenAsync()}`,
-      },
-      body: method === 'GET' ? undefined : JSON.stringify(parsedBody.value),
-    });
+    const { response, text } = await (async () => {
+      for (let attempt = 0; ; attempt++) {
+        let delayMs = 1000 * 2 ** attempt;
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${await this.getTokenAsync()}`,
+            },
+            body: method === 'GET' ? undefined : JSON.stringify(parsedBody.value),
+            timeout: 60_000,
+          });
+          const text = await response.text();
+          if (
+            attempt < 2 &&
+            (method === 'GET' || method === 'PATCH') &&
+            [429, 502, 503, 504].includes(response.status)
+          ) {
+            const retryAfter = response.headers.get('retry-after');
+            if (retryAfter) {
+              const seconds = Number(retryAfter);
+              delayMs = Math.max(
+                delayMs,
+                Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now()
+              );
+            }
+            // Do not retry earlier than Apple asks, or hold a worker indefinitely.
+            if (!Number.isFinite(delayMs) || delayMs > 30_000) {
+              return { response, text };
+            }
+          } else {
+            return { response, text };
+          }
+        } catch (error) {
+          if (
+            attempt >= 2 ||
+            (method !== 'GET' && method !== 'PATCH') ||
+            !(error instanceof FetchError) ||
+            !(
+              ['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNREFUSED', 'EPIPE'].includes(
+                error.code ?? ''
+              ) || ['request-timeout', 'body-timeout'].includes(error.type)
+            )
+          ) {
+            throw error;
+          }
+        }
+
+        // A lost commit response does not mean Apple failed to accept the upload.
+        if (method === 'PATCH' && /^\/v1\/buildUploadFiles\/[^/]+$/.test(path)) {
+          const committed = await this.getAsync(
+            '/v1/buildUploadFiles/:id',
+            { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+            { id: path.slice('/v1/buildUploadFiles/'.length) }
+          );
+          if (committed.data.attributes.assetDeliveryState.state !== 'AWAITING_UPLOAD') {
+            this.logger?.info(
+              'Apple accepted the upload commit; continuing without another commit.'
+            );
+            return { response: { ok: true, status: 200 }, text: JSON.stringify(committed) };
+          }
+        }
+        this.logger?.warn(
+          `Temporary Apple request failure (${method} ${path}); retrying in ${delayMs / 1000}s (retry ${attempt + 1}/2).`
+        );
+        await setTimeout(delayMs);
+      }
+    })();
 
     if (!response.ok) {
-      const text = await response.text();
       const parsedAscErrorResponse = await asyncResult(
         (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
       );
@@ -614,7 +675,6 @@ export class AscApiClient {
     if (response.status === 204) {
       return responseSchema.parse(undefined);
     }
-    const text = await response.text();
     const parsedJson = await asyncResult((async () => JSON.parse(text))());
     if (!parsedJson.ok) {
       throw new Error(
