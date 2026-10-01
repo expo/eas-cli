@@ -524,7 +524,7 @@ describe(AscApiClient, () => {
           type: 'buildUploadFiles',
           id: 'file',
           attributes: {
-            assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+            assetDeliveryState: { state: 'COMPLETE' },
           },
         },
       });
@@ -539,49 +539,52 @@ describe(AscApiClient, () => {
     ).resolves.toMatchObject({
       data: {
         attributes: {
-          assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+          assetDeliveryState: { state: 'COMPLETE' },
         },
       },
     });
     expect(scope.isDone()).toBe(true);
   });
 
-  it('replays a commit only when Apple still awaits the upload', async () => {
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .patch('/v1/buildUploadFiles/file')
-      .reply(503)
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: {
-            assetDeliveryState: { state: 'AWAITING_UPLOAD' },
+  it.each(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE'])(
+    'replays a commit when the file state is %s',
+    async state => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .patch('/v1/buildUploadFiles/file')
+        .reply(503)
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: {
+              assetDeliveryState: { state },
+            },
           },
-        },
-      })
-      .patch('/v1/buildUploadFiles/file')
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: {
-            assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+        })
+        .patch('/v1/buildUploadFiles/file')
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: {
+              assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+            },
           },
-        },
-      });
-    await expect(
-      client.patchAsync(
-        '/v1/buildUploadFiles/:id',
-        {
-          data: { type: 'buildUploadFiles', id: 'file', attributes: { uploaded: true } },
-        },
-        { id: 'file' }
-      )
-    ).resolves.toMatchObject({ data: { id: 'file' } });
-    expect(scope.isDone()).toBe(true);
-  });
+        });
+      await expect(
+        client.patchAsync(
+          '/v1/buildUploadFiles/:id',
+          {
+            data: { type: 'buildUploadFiles', id: 'file', attributes: { uploaded: true } },
+          },
+          { id: 'file' }
+        )
+      ).resolves.toMatchObject({ data: { id: 'file' } });
+      expect(scope.isDone()).toBe(true);
+    }
+  );
 
   it.each([401, 422])('does not retry permanent HTTP %s errors', async status => {
     const scope = nock('https://api.appstoreconnect.apple.com')

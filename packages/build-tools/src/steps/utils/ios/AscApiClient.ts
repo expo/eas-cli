@@ -619,9 +619,10 @@ export class AscApiClient {
             { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
             { id: path.slice('/v1/buildUploadFiles/'.length) }
           );
-          if (committed.data.attributes.assetDeliveryState.state !== 'AWAITING_UPLOAD') {
+          const state = committed.data.attributes.assetDeliveryState.state;
+          if (state === 'COMPLETE' || state === 'FAILED') {
             this.logger?.info(
-              'Apple accepted the upload commit; continuing without another commit.'
+              `Apple upload file state is ${state}; continuing without another commit.`
             );
             return { response: { ok: true, status: 200 }, text: JSON.stringify(committed) };
           }
