@@ -10,6 +10,7 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createDownloadSubmissionArchiveFunction } from './functions/downloadSubmissionArchive';
 import { createEasDeployBuildFunction } from './functions/deploy';
 import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
@@ -82,6 +83,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(ctx),
+    createDownloadSubmissionArchiveFunction(ctx),
     createInstallBuildFunction(),
     createLaunchApplicationFunction(),
     createEasExportBuildFunction(),
