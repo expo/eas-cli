@@ -135,9 +135,22 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
     return true;
   }
 
+  // A session keeps one video per device. iOS lists recordings by start time, so this keeps the first.
+  const uploadedUdids = new Set<string>();
+  const uniqueRecordings = recordings.filter(recording => {
+    if (uploadedUdids.has(recording.udid)) {
+      logger.warn(
+        `Skipping an extra screen recording for ${recording.deviceName}; a session uploads one recording per device.`
+      );
+      return false;
+    }
+    uploadedUdids.add(recording.udid);
+    return true;
+  });
+
   const limit = limitFactory(5);
   const uploaded = await Promise.all(
-    recordings.map(recording =>
+    uniqueRecordings.map(recording =>
       limit(async () => {
         try {
           const metadata = RecordingManifestSchema.parse(

@@ -39,6 +39,7 @@ type IosSimulatorRecordingSession = {
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
   completedRecordings: IosSimulatorRecording[];
+  recordedUdids: Set<IosSimulatorUuid>;
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -71,6 +72,7 @@ export namespace IosSimulatorRecordingUtils {
       recordingsRootDirectory,
       activeRecordings: new Map(),
       completedRecordings: [],
+      recordedUdids: new Set(),
       recordingFailureCounts: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -185,6 +187,7 @@ async function pollIosSimulatorRecordingsAsync(
       for (const device of bootedDevices) {
         if (
           session.activeRecordings.has(device.udid) ||
+          session.recordedUdids.has(device.udid) ||
           (session.recordingFailureCounts.get(device.udid) ?? 0) >= RECORD_SIM_MAX_ATTEMPTS_PER_BOOT
         ) {
           continue;
@@ -251,7 +254,6 @@ async function startIosSimulatorRecordingAsync(
   const completionPromise = recordingSpawn
     .then(() => undefined)
     .catch((err: unknown) => {
-      session.recordingFailureCounts.set(udid, (session.recordingFailureCounts.get(udid) ?? 0) + 1);
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('iOS Simulator screen recording process failed', error);
       session.logger.warn(
@@ -259,17 +261,32 @@ async function startIosSimulatorRecordingAsync(
         `Screen recording process failed for ${deviceName}.`
       );
     })
-    .finally(() => {
+    .then(async () => {
+      // record-sim writes session.json once it saves the video. Only an attempt without one is
+      // retried, so each simulator gets at most one video per session, even after a reboot.
+      const saved = await access(path.join(outputDirectory, 'session.json')).then(
+        () => true,
+        () => false
+      );
+      if (saved) {
+        session.recordedUdids.add(udid);
+        session.completedRecordings.push({
+          id: recordingId,
+          udid,
+          deviceName,
+          runtimeDisplayName,
+          outputDirectory,
+          startedAt,
+          getOutput,
+        });
+      } else {
+        session.recordingFailureCounts.set(
+          udid,
+          (session.recordingFailureCounts.get(udid) ?? 0) + 1
+        );
+      }
+      // Delete last, so the poller cannot start another recording before the check above.
       session.activeRecordings.delete(udid);
-      session.completedRecordings.push({
-        id: recordingId,
-        udid,
-        deviceName,
-        runtimeDisplayName,
-        outputDirectory,
-        startedAt,
-        getOutput,
-      });
     });
 
   session.activeRecordings.set(udid, {
