@@ -1,22 +1,13 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import {
-  BuildFunction,
-  BuildRuntimePlatform,
-  type BuildStepEnv,
-  BuildStepInput,
-  BuildStepInputValueTypeName,
-} from '@expo/steps';
+import { type BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
-import {
-  uploadRemoteSessionConfigWithLocalEgressAsync,
-  withLocalEgressSession,
-} from '../utils/localEgressSession';
+import { uploadRemoteSessionConfigWithLocalEgressAsync } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
 import {
@@ -27,17 +18,13 @@ import {
 } from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
-import { type StartupTasks, createStartupTasks } from '../utils/startupTasks';
+import { type StartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
-  createServeSimLaunchInputProviders,
-  describeServeSimLaunch,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
-  parseServeSimLaunchInputs,
-  selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -61,72 +48,6 @@ const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
   AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
 };
-
-export function createStartAgentDeviceRemoteSessionBuildFunction(
-  ctx: CustomBuildContext
-): BuildFunction {
-  return new BuildFunction({
-    namespace: 'eas',
-    id: 'start_agent_device_remote_session',
-    name: 'Start agent device remote session',
-    __metricsId: 'eas/start_agent_device_remote_session',
-    inputProviders: [
-      ...createServeSimLaunchInputProviders(),
-      BuildStepInput.createProvider({
-        id: 'package_version',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-      }),
-      BuildStepInput.createProvider({
-        id: 'max_idle_time_minutes',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
-      }),
-      BuildStepInput.createProvider({
-        id: 'max_duration_seconds',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
-      }),
-    ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
-      // Fail fast before any expensive setup if the injected env vars are missing.
-      const sessionEnv = getAgentDeviceRemoteSessionEnvOrThrow(env);
-
-      const packageVersion = inputs.package_version.value as string | undefined;
-      // A missing or non-positive value disables the idle timeout (opt-in feature).
-      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
-      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      const { runtimePlatform } = global;
-      const launch = parseServeSimLaunchInputs(
-        {
-          launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
-          launchArgs: inputs.launch_args?.value,
-          openUrl: inputs.open_url?.value as string | undefined,
-        },
-        { runtimePlatform }
-      );
-
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-
-      // Earlier steps booted the device and installed and launched the app.
-      await runAgentDeviceRemoteSessionAsync(ctx, {
-        env,
-        logger,
-        signal,
-        runtimePlatform,
-        sessionEnv,
-        packageVersion,
-        maxIdleTimeMinutes,
-        maxDurationSeconds,
-        launch,
-        tasks: createStartupTasks(logger),
-        device: { booted: Promise.resolve(), ready: Promise.resolve() },
-      });
-    }),
-  });
-}
 
 export type AgentDeviceRemoteSessionEnv = {
   deviceRunSessionId: string;
@@ -173,7 +94,6 @@ export async function runAgentDeviceRemoteSessionAsync(
     packageVersion,
     maxIdleTimeMinutes,
     maxDurationSeconds,
-    launch,
     tasks,
     device,
   }: {
@@ -185,7 +105,6 @@ export async function runAgentDeviceRemoteSessionAsync(
     packageVersion: string | undefined;
     maxIdleTimeMinutes: number | undefined;
     maxDurationSeconds: number | undefined;
-    launch: ReturnType<typeof parseServeSimLaunchInputs>;
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -232,18 +151,11 @@ export async function runAgentDeviceRemoteSessionAsync(
     // A boot cannot be cancelled, so stop waiting for it when startup is aborted.
     await tasks.untilAborted(device.booted);
     tasks.signal.throwIfAborted();
-    const launchDescription = describeServeSimLaunch(launch);
-    if (launchDescription) {
-      taskLogger.info(launchDescription);
-    }
     sessionHost = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform,
       env,
       logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
-      launchAppIdentifier: launch.launchAppIdentifier,
-      launchArgs: launch.launchArgs,
-      openUrl: launch.openUrl,
     });
     tasks.signal.throwIfAborted();
     const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
