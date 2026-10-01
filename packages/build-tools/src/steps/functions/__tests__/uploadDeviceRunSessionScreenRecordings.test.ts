@@ -99,7 +99,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
     }
   });
 
-  it('uses unique names for recordings from rebooted and same-model simulators', async () => {
+  it('uploads only the first recording of a session', async () => {
     const recordingDirectories = await Promise.all(
       ['2026-07-10T10:00:00.000Z', '2026-07-10T10:05:00.000Z', '2026-07-10T10:00:00.000Z'].map(
         async firstFrameAt => {
@@ -142,14 +142,9 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       const names = jest
         .mocked(uploadDeviceRunSessionArtifactAsync)
         .mock.calls.map(([, options]) => options.name);
-      expect(names).toEqual(
-        expect.arrayContaining([
-          'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
-          'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:05:00.000 UTC)',
-          'iPhone 16 screen recording (FEDCBA98-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
-        ])
-      );
-      expect(new Set(names).size).toBe(3);
+      expect(names).toEqual([
+        'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
+      ]);
     } finally {
       await Promise.all(
         recordingDirectories.map(directory => fs.rm(directory, { recursive: true, force: true }))

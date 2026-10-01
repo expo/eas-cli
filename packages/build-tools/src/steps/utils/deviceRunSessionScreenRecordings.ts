@@ -5,7 +5,6 @@ import spawn from '@expo/turtle-spawn';
 import { createReadStream } from 'node:fs';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import limitFactory from 'promise-limit';
 import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
@@ -135,69 +134,63 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
     return true;
   }
 
-  const limit = limitFactory(5);
-  const uploaded = await Promise.all(
-    recordings.map(recording =>
-      limit(async () => {
-        try {
-          const metadata = RecordingManifestSchema.parse(
-            JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
-          );
-          if (path.basename(metadata.recording) !== metadata.recording) {
-            throw new Error('Recording filename must not contain a directory.');
-          }
-          const startedAt = recordingStartTimeFormatter.format(
-            new Date(metadata.firstFrameWallClock.iso8601)
-          );
-          const partial = metadata.status !== undefined && metadata.status !== 'complete';
-          const shortUdid = `${recording.udid.slice(0, 8)}-…`;
-          const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt}${partial ? ', partial' : ''})`;
-          const recordingPath = path.join(recording.directory, metadata.recording);
-          const { size } = await stat(recordingPath);
-          const recordingId = path.basename(recording.directory);
-          logger.info(
-            `Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`
-          );
-          await uploadDeviceRunSessionArtifactAsync(ctx, {
-            deviceRunSessionId,
-            artifactId: recordingId,
-            name: displayName,
-            filename: `${recordingId}.mp4`,
-            kind: 'screen-recording',
-            metadata: {
-              __eas_type: 'screen-recording',
-              __eas_screen_recording: '1',
-              udid: recording.udid,
-              deviceName: recording.deviceName,
-              runtimeDisplayName: recording.runtimeDisplayName,
-              firstFrameAt: metadata.firstFrameWallClock.iso8601,
-              width: metadata.width,
-              height: metadata.height,
-              ...(partial
-                ? {
-                    partial: true,
-                    partialReason:
-                      metadata.error ??
-                      'The Device Hub stopped before it could finalize the recording.',
-                  }
-                : {}),
-            },
-            size,
-            stream: createReadStream(recordingPath),
-            reopenStream: () => createReadStream(recordingPath),
-          });
-          return true;
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not upload device screen recording', error);
-          logger.warn(
-            { err: error },
-            `Could not upload screen recording for ${recording.deviceName}.`
-          );
-          return false;
-        }
-      })
-    )
-  );
-  return uploaded.every(Boolean);
+  // A session keeps one video from one device. iOS lists recordings by start time.
+  const [recording] = recordings;
+  if (recordings.length > 1) {
+    logger.warn(
+      `Uploading only the first of ${recordings.length} screen recordings; a session keeps one recording.`
+    );
+  }
+
+  try {
+    const metadata = RecordingManifestSchema.parse(
+      JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
+    );
+    if (path.basename(metadata.recording) !== metadata.recording) {
+      throw new Error('Recording filename must not contain a directory.');
+    }
+    const startedAt = recordingStartTimeFormatter.format(
+      new Date(metadata.firstFrameWallClock.iso8601)
+    );
+    const partial = metadata.status !== undefined && metadata.status !== 'complete';
+    const shortUdid = `${recording.udid.slice(0, 8)}-…`;
+    const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt}${partial ? ', partial' : ''})`;
+    const recordingPath = path.join(recording.directory, metadata.recording);
+    const { size } = await stat(recordingPath);
+    const recordingId = path.basename(recording.directory);
+    logger.info(`Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`);
+    await uploadDeviceRunSessionArtifactAsync(ctx, {
+      deviceRunSessionId,
+      artifactId: recordingId,
+      name: displayName,
+      filename: `${recordingId}.mp4`,
+      kind: 'screen-recording',
+      metadata: {
+        __eas_type: 'screen-recording',
+        __eas_screen_recording: '1',
+        udid: recording.udid,
+        deviceName: recording.deviceName,
+        runtimeDisplayName: recording.runtimeDisplayName,
+        firstFrameAt: metadata.firstFrameWallClock.iso8601,
+        width: metadata.width,
+        height: metadata.height,
+        ...(partial
+          ? {
+              partial: true,
+              partialReason:
+                metadata.error ?? 'The Device Hub stopped before it could finalize the recording.',
+            }
+          : {}),
+      },
+      size,
+      stream: createReadStream(recordingPath),
+      reopenStream: () => createReadStream(recordingPath),
+    });
+    return true;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not upload device screen recording', error);
+    logger.warn({ err: error }, `Could not upload screen recording for ${recording.deviceName}.`);
+    return false;
+  }
 }

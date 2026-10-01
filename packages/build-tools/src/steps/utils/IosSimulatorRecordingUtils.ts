@@ -39,6 +39,7 @@ type IosSimulatorRecordingSession = {
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
   completedRecordings: IosSimulatorRecording[];
+  skippedUdids: Set<IosSimulatorUuid>;
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -71,6 +72,7 @@ export namespace IosSimulatorRecordingUtils {
       recordingsRootDirectory,
       activeRecordings: new Map(),
       completedRecordings: [],
+      skippedUdids: new Set(),
       recordingFailureCounts: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -189,6 +191,16 @@ async function pollIosSimulatorRecordingsAsync(
         ) {
           continue;
         }
+        // A session records one video from one simulator.
+        if (session.activeRecordings.size > 0 || session.completedRecordings.length > 0) {
+          if (!session.skippedUdids.has(device.udid)) {
+            session.skippedUdids.add(device.udid);
+            session.logger.warn(
+              `Not recording ${device.name}; a session records only one video from one simulator.`
+            );
+          }
+          continue;
+        }
         await startIosSimulatorRecordingAsync(session, {
           udid: device.udid,
           deviceName: device.name,
@@ -251,7 +263,6 @@ async function startIosSimulatorRecordingAsync(
   const completionPromise = recordingSpawn
     .then(() => undefined)
     .catch((err: unknown) => {
-      session.recordingFailureCounts.set(udid, (session.recordingFailureCounts.get(udid) ?? 0) + 1);
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('iOS Simulator screen recording process failed', error);
       session.logger.warn(
@@ -259,17 +270,31 @@ async function startIosSimulatorRecordingAsync(
         `Screen recording process failed for ${deviceName}.`
       );
     })
-    .finally(() => {
+    .then(async () => {
+      // record-sim writes session.json once it saves the video. Only an attempt without one is
+      // retried, so a session gets at most one video, even after a reboot.
+      const saved = await access(path.join(outputDirectory, 'session.json')).then(
+        () => true,
+        () => false
+      );
+      if (saved) {
+        session.completedRecordings.push({
+          id: recordingId,
+          udid,
+          deviceName,
+          runtimeDisplayName,
+          outputDirectory,
+          startedAt,
+          getOutput,
+        });
+      } else {
+        session.recordingFailureCounts.set(
+          udid,
+          (session.recordingFailureCounts.get(udid) ?? 0) + 1
+        );
+      }
+      // Delete last, so the poller cannot start another recording before the check above.
       session.activeRecordings.delete(udid);
-      session.completedRecordings.push({
-        id: recordingId,
-        udid,
-        deviceName,
-        runtimeDisplayName,
-        outputDirectory,
-        startedAt,
-        getOutput,
-      });
     });
 
   session.activeRecordings.set(udid, {
