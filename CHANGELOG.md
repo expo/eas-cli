@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--upload-source-maps` to `eas update`, which uploads the generated source maps to EAS so that stack traces from an update can be symbolicated. Source maps are stripped of `sourcesContent` before upload. ([#4436](https://github.com/expo/eas-cli/pull/4436) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Upload the embedded bundle after build by default for projects on SDK 58 and later. Set `EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE` to `0` to disable it. On SDK 57 and below the feature remains experimental and opt-in via `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE`. ([#4433](https://github.com/expo/eas-cli/pull/4433) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Save manual iOS and Android live preview screenshots as session artifacts when supported by the preview server. ([#4481](https://github.com/expo/eas-cli/pull/4481) by [@vonovak](https://github.com/vonovak))
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
@@ -52,7 +53,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [eas-cli] Stop creating `CLAUDE.md` in new apps; use `AGENTS.md` for agent instructions. ([#4446](https://github.com/expo/eas-cli/pull/4446) by [@davidmokos](https://github.com/davidmokos))
-- Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
+- Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#4400](https://github.com/expo/eas-cli/pull/4400) by [@wschurman](https://github.com/wschurman))
 - [build-tools] Use the website origin for simulator preview CORS and framing, and allow deploy previews and local website dev servers on staging. ([#4437](https://github.com/expo/eas-cli/pull/4437) by [@gwdp](https://github.com/gwdp))
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16

@@ -679,13 +679,13 @@ export type AccountMembersEdge = {
 };
 
 export type AccountMembersFilterInput = {
+  /** Filter by members containing all of the specified permissions. */
+  exactPermissions?: InputMaybe<Array<Permission>>;
   /**
    * Filter members by 2FA status. Only regular users are returned when set, since SSO users
    * and robots don't have 2FA. Requires admin permission on the account.
    */
   isSecondFactorAuthenticationEnabled?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Filter members by role. Only OWNER, ADMIN, DEVELOPER, and VIEW_ONLY are supported. */
-  role?: InputMaybe<Role>;
   /** Case-insensitive substring match on username, email, and name */
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
@@ -3922,10 +3922,22 @@ export type AppObserveUpdate = {
   appUpdateId: Scalars['String']['output'];
   appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
+  /** Branch the update was published to. */
+  branchName?: Maybe<Scalars['String']['output']>;
   downloadCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /** Git commit the update was published from, when it was recorded. */
+  gitCommitHash?: Maybe<Scalars['String']['output']>;
   medianDownloadTime: Scalars['Float']['output'];
   p90DownloadTime: Scalars['Float']['output'];
+  /** Platform the update was published for: ios, android, or web. */
+  platform?: Maybe<Scalars['String']['output']>;
+  /** When the update was published, from the EAS Update record. */
+  publishedAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Runtime version the update is compatible with. */
+  runtimeVersion?: Maybe<Scalars['String']['output']>;
+  /** ID of the update group this update belongs to. */
+  updateGroupId?: Maybe<Scalars['String']['output']>;
 };
 
 export type AppObserveUpdateEdge = {
@@ -4680,6 +4692,11 @@ export type AppWorkflowRunsConnection = {
 export type AppWorkflowsInsights = {
   __typename?: 'AppWorkflowsInsights';
   overviewMetrics: WorkflowsInsightsOverviewMetrics;
+  /**
+   * Buckets start at the requested timespan start and advance by the granularity interval, so
+   * their boundaries follow the requested range. The last bucket is shorter when the timespan is
+   * not a whole number of intervals.
+   */
   runsOverTime: WorkflowsInsightsRunsOverTimeData;
   workflows: WorkflowsInsightsWorkflowConnection;
 };
@@ -6405,8 +6422,9 @@ export type CreateDeviceRunSessionInput = {
    */
   maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
   /**
-   * Human-readable label for the session, at most 255 characters. If omitted, the
-   * session is unnamed and clients fall back to identifying it by id.
+   * Human-readable label for the session, at most 255 characters after leading and
+   * trailing whitespace is trimmed. If omitted, the session is unnamed and clients
+   * fall back to identifying it by id.
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
@@ -6420,6 +6438,11 @@ export type CreateDeviceRunSessionInput = {
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
+  /**
+   * The client sending this request, recorded for analytics only. Omit it when the
+   * client is not one of the listed values; the session is then reported as unknown.
+   */
+  requestOrigin?: InputMaybe<DeviceRunSessionRequestOrigin>;
   resourceClass?: InputMaybe<DeviceRunSessionResourceClass>;
   /**
    * Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is
@@ -6822,6 +6845,11 @@ export type DeleteCustomDomainResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteDeviceRunSessionResult = {
+  __typename?: 'DeleteDeviceRunSessionResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteDiscordUserResult = {
   __typename?: 'DeleteDiscordUserResult';
   id: Scalars['ID']['output'];
@@ -7079,8 +7107,8 @@ export type DeviceRunSession = {
    */
   maxIdleTimeMinutes?: Maybe<Scalars['Int']['output']>;
   /**
-   * Human-readable label chosen by whoever started the session. Null when the
-   * session was started without one.
+   * Human-readable label set when the session is created or changed later with
+   * updateDeviceRunSession. Null when the session has no name.
    */
   name?: Maybe<Scalars['String']['output']>;
   /**
@@ -7152,7 +7180,7 @@ export type DeviceRunSessionEventLogUploadSession = {
 };
 
 export type DeviceRunSessionFilterInput = {
-  /** Case-insensitive prefix match on the session name. */
+  /** Case-insensitive match anywhere in the session name. */
   name?: InputMaybe<Scalars['String']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
@@ -7173,6 +7201,11 @@ export type DeviceRunSessionMutation = {
    */
   createEventLogUploadSession: CreateDeviceRunSessionEventLogUploadSessionResult;
   /**
+   * Permanently delete a finished session and its artifacts. The backing job,
+   * if present, must also have finished. Returns the deleted session ID.
+   */
+  deleteDeviceRunSession: DeleteDeviceRunSessionResult;
+  /**
    * Ensure a device run session is stopped. Idempotent: if the session has already
    * finished, the existing session is returned unchanged (an ERRORED session stays
    * ERRORED).
@@ -7180,6 +7213,11 @@ export type DeviceRunSessionMutation = {
   ensureDeviceRunSessionStopped: DeviceRunSession;
   /** Mark a device run session as started and persist remote connection details */
   startDeviceRunSession: DeviceRunSession;
+  /**
+   * Update a device run session. Only the name can be changed, including on sessions
+   * that have already finished.
+   */
+  updateDeviceRunSession: DeviceRunSession;
 };
 
 
@@ -7199,6 +7237,11 @@ export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
 };
 
 
+export type DeviceRunSessionMutation_DeleteDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+
 export type DeviceRunSessionMutation_EnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
@@ -7207,6 +7250,12 @@ export type DeviceRunSessionMutation_EnsureDeviceRunSessionStoppedArgs = {
 export type DeviceRunSessionMutation_StartDeviceRunSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
   remoteConfig: Scalars['JSONObject']['input'];
+};
+
+
+export type DeviceRunSessionMutation_UpdateDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+  input: UpdateDeviceRunSessionInput;
 };
 
 export type DeviceRunSessionQuery = {
@@ -7220,6 +7269,16 @@ export type DeviceRunSessionQuery_ByIdArgs = {
 };
 
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
+
+/**
+ * The client that sent a session creation request, as reported by that client. Recorded
+ * for analytics only and never used for authorization.
+ */
+export enum DeviceRunSessionRequestOrigin {
+  EasCli = 'EAS_CLI',
+  Mcp = 'MCP',
+  Website = 'WEBSITE'
+}
 
 export enum DeviceRunSessionResourceClass {
   Large = 'LARGE',
@@ -9132,7 +9191,10 @@ export type GitHubUserMutation = {
   __typename?: 'GitHubUserMutation';
   /** Delete a GitHub User by ID */
   deleteGitHubUser: DeleteGitHubUserResult;
-  /** Generate a GitHub User Access Token */
+  /**
+   * Generate a GitHub User Access Token
+   * @deprecated This mutation is scheduled for removal.
+   */
   generateGitHubUserAccessToken?: Maybe<Scalars['String']['output']>;
 };
 
@@ -10359,6 +10421,7 @@ export type PublishUpdateGroupInput = {
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
   runtimeVersion: Scalars['String']['input'];
+  sourceMapGroup?: InputMaybe<SourceMapGroup>;
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
@@ -10552,7 +10615,9 @@ export enum Role {
   Admin = 'ADMIN',
   Custom = 'CUSTOM',
   Developer = 'DEVELOPER',
+  /** @deprecated No longer supported */
   HasAdmin = 'HAS_ADMIN',
+  /** @deprecated No longer supported */
   NotAdmin = 'NOT_ADMIN',
   Owner = 'OWNER',
   ReleaseManager = 'RELEASE_MANAGER',
@@ -10617,7 +10682,7 @@ export type RootMutation = {
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
-  /** Mutations that create, start, and stop device run sessions */
+  /** Mutations that create, start, stop, and update device run sessions */
   deviceRunSession: DeviceRunSessionMutation;
   /** Mutations for Discord users */
   discordUser: DiscordUserMutation;
@@ -11395,6 +11460,20 @@ export type SnackQuery_ByHashIdArgs = {
   hashId: Scalars['ID']['input'];
 };
 
+export type SourceMapGroup = {
+  android?: InputMaybe<SourceMapSourceInput>;
+  ios?: InputMaybe<SourceMapSourceInput>;
+};
+
+export type SourceMapSourceInput = {
+  bucketKey: Scalars['String']['input'];
+  type: SourceMapSourceType;
+};
+
+export enum SourceMapSourceType {
+  Gcs = 'GCS'
+}
+
 export enum StandardOffer {
   /** $29 USD per month, 30 day trial */
   Default = 'DEFAULT',
@@ -11946,7 +12025,6 @@ export type TurtleSshConnectionConfig = {
 };
 
 export type TurtleSshConnectionConfigInput = {
-  host: Scalars['String']['input'];
   reconnecting?: InputMaybe<Scalars['Boolean']['input']>;
   secret: Scalars['String']['input'];
   type: TurtleSshTransportType;
@@ -12328,6 +12406,15 @@ export type UpdateDeploymentsConnection = {
   pageInfo: PageInfo;
 };
 
+export type UpdateDeviceRunSessionInput = {
+  /**
+   * New human-readable label for the session, at most 255 characters after leading
+   * and trailing whitespace is trimmed. Pass null to clear the name so clients fall
+   * back to identifying the session by id.
+   */
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateDiffReceipt = {
   __typename?: 'UpdateDiffReceipt';
   appId: Scalars['ID']['output'];
@@ -12683,7 +12770,8 @@ export enum UploadSessionType {
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
   EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE',
   EasUpdateAssetsMetadata = 'EAS_UPDATE_ASSETS_METADATA',
-  EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT'
+  EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT',
+  EasUpdateSourceMaps = 'EAS_UPDATE_SOURCE_MAPS'
 }
 
 export type UsageBudget = {
@@ -13157,7 +13245,10 @@ export type UserInvitation = {
   isForOrganization: Scalars['Boolean']['output'];
   /** Account permissions to be granted upon acceptance of this invitation */
   permissions: Array<Permission>;
-  /** Role to be granted upon acceptance of this invitation */
+  /**
+   * Role to be granted upon acceptance of this invitation
+   * @deprecated Derive role from permissions instead
+   */
   role: Role;
 };
 
@@ -13280,6 +13371,7 @@ export type UserPermission = {
   /** Composite identifier for this account membership (accountId:actorId) */
   id: Scalars['ID']['output'];
   permissions: Array<Permission>;
+  /** @deprecated Derive role from permissions instead */
   role: Role;
   userActor?: Maybe<UserActor>;
 };
@@ -14199,8 +14291,9 @@ export type WorkflowDeviceTestCaseInsights_TimeSeriesArgs = {
 
 /**
  * Mutually exclusive bucket counts (passedClean + flaky + failed = totalRuns for the bucket).
- * Buckets are aligned to the UTC start of the requested granularity interval
- * (minute / hour / day).
+ * Buckets start at the requested timespan start and advance by the granularity interval, so
+ * their boundaries follow the requested range. The last bucket is shorter when the timespan is
+ * not a whole number of intervals.
  */
 export type WorkflowDeviceTestCaseInsightsBucket = {
   __typename?: 'WorkflowDeviceTestCaseInsightsBucket';
@@ -14599,7 +14692,8 @@ export enum WorkflowJobType {
   Submission = 'SUBMISSION',
   Testflight = 'TESTFLIGHT',
   Update = 'UPDATE',
-  UpdateRollout = 'UPDATE_ROLLOUT'
+  UpdateRollout = 'UPDATE_ROLLOUT',
+  WorkflowCall = 'WORKFLOW_CALL'
 }
 
 export type WorkflowProjectSourceInput = {
@@ -14877,7 +14971,12 @@ export enum WorkflowRunTriggerEventType {
   GithubRefDelete = 'GITHUB_REF_DELETE',
   Manual = 'MANUAL',
   RepackExpoGo = 'REPACK_EXPO_GO',
-  Schedule = 'SCHEDULE'
+  Schedule = 'SCHEDULE',
+  SentryIssueArchived = 'SENTRY_ISSUE_ARCHIVED',
+  SentryIssueAssigned = 'SENTRY_ISSUE_ASSIGNED',
+  SentryIssueCreated = 'SENTRY_ISSUE_CREATED',
+  SentryIssueResolved = 'SENTRY_ISSUE_RESOLVED',
+  SentryIssueUnresolved = 'SENTRY_ISSUE_UNRESOLVED'
 }
 
 export type WorkflowRunsConnection = {
@@ -17031,6 +17130,13 @@ export type WorkflowJobSshPollQueryVariables = Exact<{
 
 
 export type WorkflowJobSshPollQuery = { __typename?: 'RootQuery', workflowJobs: { __typename?: 'WorkflowJobQuery', byId: { __typename?: 'WorkflowJob', id: string, status: WorkflowJobStatus, workflowRun: { __typename?: 'WorkflowRun', id: string, sshSettings?: { __typename?: 'WorkflowRunSshSettings', idleTimeoutSeconds: number } | null }, turtleJobRun?: { __typename?: 'JobRun', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null, turtleBuild?: { __typename?: 'Build', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null } } };
+
+export type BuildSshPollQueryVariables = Exact<{
+  buildId: Scalars['ID']['input'];
+}>;
+
+
+export type BuildSshPollQuery = { __typename?: 'RootQuery', builds: { __typename?: 'BuildQuery', byId: { __typename?: 'Build', id: string, status: BuildStatus, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } } };
 
 export type JobRunSshPollQueryVariables = Exact<{
   jobRunId: Scalars['ID']['input'];
