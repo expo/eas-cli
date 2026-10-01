@@ -239,6 +239,8 @@ export type DeviceWebPreview = {
 };
 
 export type DeviceSessionHost = {
+  /** The device the host serves: a Simulator UDID on iOS, an emulator serial on Android. */
+  device: string;
   openPreviewAsync(options: { baseDomain: string }): Promise<DeviceWebPreview>;
   /**
    * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
@@ -338,7 +340,7 @@ export async function startDeviceSessionHostAsync(
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
 
-  const host: DeviceSessionHost = {
+  const host: Omit<DeviceSessionHost, 'device'> = {
     openPreviewAsync({ baseDomain }) {
       if (finishTask) {
         return Promise.reject(
@@ -423,7 +425,7 @@ export async function startDeviceSessionHostAsync(
         );
       }
     }
-    return host;
+    return { ...host, device };
   } catch (error) {
     await host.finishAsync();
     throw error;

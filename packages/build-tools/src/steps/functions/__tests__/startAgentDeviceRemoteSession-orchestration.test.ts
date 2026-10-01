@@ -118,6 +118,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       stopAsync: mockTunnelStopAsync,
     });
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      device: 'SIMULATOR-UDID',
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.tunnel.example.com',
@@ -265,14 +266,14 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
   });
 
   describe('runAgentDeviceRemoteSessionAsync with a device that is still starting', () => {
-    function deferred(): {
-      promise: Promise<void>;
-      resolve: () => void;
+    function deferred<T = void>(): {
+      promise: Promise<T>;
+      resolve: (value: T) => void;
       reject: (e: Error) => void;
     } {
-      let resolve!: () => void;
+      let resolve!: (value: T) => void;
       let reject!: (e: Error) => void;
-      const promise = new Promise<void>((res, rej) => {
+      const promise = new Promise<T>((res, rej) => {
         resolve = res;
         reject = rej;
       });
@@ -280,7 +281,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       return { promise, resolve, reject };
     }
 
-    type Device = { booted: Promise<unknown>; ready: Promise<unknown> };
+    type Device = { booted: Promise<string | undefined>; ready: Promise<unknown> };
     function startSession(device: Device | ((tasks: StartupTasks) => Device)) {
       const logger = {
         info: jest.fn(),
@@ -306,30 +307,106 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       });
     }
 
+    async function readDaemonPolicyAsync(): Promise<Record<string, unknown>> {
+      const policyPath =
+        jest.mocked(spawnDetached).mock.calls[0][0].env?.AGENT_DEVICE_DAEMON_POLICY;
+      const policy = JSON.parse(await fs.promises.readFile(policyPath as string, 'utf8'));
+      await fs.promises.rm(path.dirname(policyPath as string), { recursive: true, force: true });
+      return policy;
+    }
+
     async function flushAsync(): Promise<void> {
       for (let i = 0; i < 20; i++) {
         await new Promise(resolve => setImmediate(resolve));
       }
     }
 
-    it('starts the daemon during the boot and the session host after it', async () => {
-      const booted = deferred();
+    it('installs agent-device during the boot and launches the daemon for the booted device', async () => {
+      const booted = deferred<string | undefined>();
       const session = startSession({ booted: booted.promise, ready: booted.promise });
       await flushAsync();
 
-      expect(spawnDetached).toHaveBeenCalledTimes(1);
-      expect(startNgrokTunnelAsync).toHaveBeenCalledTimes(1);
+      expect(spawn).toHaveBeenCalledWith('bun', ['add', 'agent-device@latest'], expect.anything());
+      expect(spawnDetached).not.toHaveBeenCalled();
       expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
 
-      booted.resolve();
+      booted.resolve('SIMULATOR-UDID');
       await session;
+      expect(await readDaemonPolicyAsync()).toEqual({
+        version: 1,
+        devices: { allow: [{ udid: 'SIMULATOR-UDID' }] },
+        commands: { deny: ['boot', 'shutdown'] },
+        capabilities: { deny: ['device-shutdown'] },
+      });
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
       expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     });
 
+    it('confines the daemon to the session host device when an earlier step booted it', async () => {
+      const hostStarted = deferred<Awaited<ReturnType<typeof startDeviceSessionHostAsync>>>();
+      jest.mocked(startDeviceSessionHostAsync).mockReturnValueOnce(hostStarted.promise);
+      const session = startSession({
+        booted: Promise.resolve(undefined),
+        ready: Promise.resolve(),
+      });
+      await flushAsync();
+      expect(spawnDetached).not.toHaveBeenCalled();
+
+      hostStarted.resolve({
+        device: 'EARLIER-STEP-UDID',
+        openPreviewAsync: jest.fn().mockResolvedValue({
+          previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+          apiUrl: 'https://web-preview.tunnel.example.com',
+          closeAsync: jest.fn(),
+        }),
+        finishAsync: mockPreviewStopAsync,
+      });
+      await session;
+      expect((await readDaemonPolicyAsync()).devices).toEqual({
+        allow: [{ udid: 'EARLIER-STEP-UDID' }],
+      });
+    });
+
+    it('fails when the session host serves another device than the session booted', async () => {
+      await expect(
+        startSession({ booted: Promise.resolve('BOOTED-UDID'), ready: Promise.resolve() })
+      ).rejects.toThrow('serves device SIMULATOR-UDID, but the session booted BOOTED-UDID');
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('names an Android device by its serial', async () => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+      await runAsync(logger, BuildRuntimePlatform.LINUX);
+      expect((await readDaemonPolicyAsync()).devices).toEqual({
+        allow: [{ serial: 'SIMULATOR-UDID' }],
+      });
+    });
+
+    it('warns when the daemon does not enforce the policy', async () => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+      await runAsync(logger, BuildRuntimePlatform.DARWIN);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('does not enforce daemon policies')
+      );
+
+      jest
+        .mocked(waitForFileAsync)
+        .mockResolvedValue({ port: 5678, token: 'daemon-token', policyDigest: 'digest' });
+      const enforcedLogger = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      };
+      await runAsync(enforcedLogger, BuildRuntimePlatform.DARWIN);
+      expect(enforcedLogger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('does not enforce daemon policies')
+      );
+    });
+
     it('reports the session as ready only after the app is launched', async () => {
       const ready = deferred();
-      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      const session = startSession({ booted: Promise.resolve(undefined), ready: ready.promise });
       await flushAsync();
 
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
@@ -340,17 +417,17 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     });
 
-    it('stops waiting for the boot when the daemon fails', async () => {
-      jest.mocked(waitForFileAsync).mockRejectedValue(new Error('no daemon credentials'));
-      const neverBooted = new Promise<void>(() => {});
+    it('stops waiting for the boot when the agent-device install fails', async () => {
+      jest.mocked(spawn).mockRejectedValue(new Error('agent-device install failed'));
+      const neverBooted = new Promise<string | undefined>(() => {});
 
       // In the combined step, `ready` stops waiting for the boot on an abort, like this.
       await expect(
         startSession(tasks => ({ booted: neverBooted, ready: tasks.untilAborted(neverBooted) }))
-      ).rejects.toThrow('no daemon credentials');
+      ).rejects.toThrow('agent-device install failed');
 
       expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
-      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+      expect(spawnDetached).not.toHaveBeenCalled();
       expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
     });
 
@@ -366,7 +443,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
             })
           : Promise.resolve(undefined)) as never);
       const ready = deferred();
-      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      const session = startSession({ booted: Promise.resolve(undefined), ready: ready.promise });
       await flushAsync();
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
 
@@ -380,7 +457,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
 
     it('stops everything it started when the app install fails', async () => {
       const ready = deferred();
-      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      const session = startSession({ booted: Promise.resolve(undefined), ready: ready.promise });
       await flushAsync();
       ready.reject(new Error('simctl install failed'));
 

@@ -97,6 +97,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       stopAsync: mockTunnelStopAsync,
     });
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      device: 'SIMULATOR-UDID',
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.tunnel.example.com',
@@ -156,6 +157,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       const error = new Error(`${phase} failed`);
       if (phase === 'preview') {
         jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+          device: 'SIMULATOR-UDID',
           openPreviewAsync: jest.fn().mockRejectedValue(error),
           finishAsync: mockPreviewStopAsync,
         });

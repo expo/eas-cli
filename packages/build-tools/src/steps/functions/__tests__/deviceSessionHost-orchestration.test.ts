@@ -62,9 +62,11 @@ beforeEach(() => {
     apiUrl: 'https://preview.example.test',
     closeAsync: closePreview,
   });
-  jest
-    .mocked(startDeviceSessionHostAsync)
-    .mockResolvedValue({ openPreviewAsync: openPreview, finishAsync: finishHost });
+  jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+    device: 'SIMULATOR-UDID',
+    openPreviewAsync: openPreview,
+    finishAsync: finishHost,
+  });
   jest.mocked(spawnDetached).mockReturnValue({
     pid: undefined,
     getOutput: () => '',

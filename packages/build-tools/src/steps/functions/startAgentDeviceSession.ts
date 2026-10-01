@@ -166,14 +166,14 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         isIos ? 'iOS Simulator boot' : 'Android Emulator boot',
         async taskLogger => {
           if (isIos) {
-            await bootIosSimulatorAsync({
+            const { udid } = await bootIosSimulatorAsync({
               deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
               env,
               logger: taskLogger,
             });
-            return;
+            return udid;
           }
-          await startAndroidEmulatorAsync({
+          const { serialId } = await startAndroidEmulatorAsync({
             deviceName: ANDROID_DEVICE_NAME,
             systemImagePackage: `${inputs.system_image_package.value}`,
             deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
@@ -186,6 +186,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
             env,
             logger: taskLogger,
           });
+          return serialId;
         }
       );
 
