@@ -10,9 +10,11 @@ export async function readAndroidArtifactInfoAsync(
 ): Promise<{ artifactType: AndroidArtifactType; packageName: string }> {
   signal.throwIfAborted();
   const artifactType = await detectAndroidArtifactTypeAsync(artifactPath);
-  const packageName = await (artifactType === 'apk'
-    ? readApkPackageNameAsync(artifactPath, signal)
-    : readAabPackageNameAsync(artifactPath, signal));
+  if (artifactType === 'apk') {
+    const packageName = await readApkPackageNameAsync(artifactPath, signal);
+    return { artifactType, packageName };
+  }
+  const packageName = await readAabPackageNameAsync(artifactPath, signal);
   return { artifactType, packageName };
 }
 
@@ -48,57 +50,51 @@ async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<And
 }
 
 async function readApkPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
-  const stdout = await runManifestToolAsync('aapt2', ['dump', 'packagename', artifactPath], signal);
-  return parsePackageName(stdout.trim());
-}
-
-async function readAabPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
-  const stdout = await runManifestToolAsync(
-    'bundletool',
-    ['dump', 'manifest', '--bundle', artifactPath, '--xpath', '/manifest/@package'],
-    signal
-  );
-  return parsePackageName(stdout.trim());
-}
-
-function parsePackageName(packageName: string | undefined): string {
-  if (!packageName || !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/.test(packageName)) {
-    throw new UserError(
-      'EAS_ANDROID_MANIFEST_INVALID',
-      'Missing or invalid package name in the Android manifest.'
-    );
-  }
-  return packageName;
-}
-
-async function runManifestToolAsync(
-  command: string,
-  args: string[],
-  signal: AbortSignal
-): Promise<string> {
   signal.throwIfAborted();
-  const child = spawn(command, args, { stdio: 'pipe' });
-  const abort = (): void => {
-    child.child.kill('SIGKILL');
-  };
-  signal.addEventListener('abort', abort, { once: true });
   try {
-    const { stdout } = await child;
+    const { stdout } = await spawn('aapt2', ['dump', 'packagename', artifactPath], {
+      stdio: 'pipe',
+      signal,
+      killSignal: 'SIGKILL',
+    });
     signal.throwIfAborted();
-    return stdout;
+    return stdout.trim();
   } catch (error) {
     signal.throwIfAborted();
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new SystemError(`${command} is not installed or is not available on the worker PATH.`, {
+      throw new SystemError('aapt2 is not installed or is not available on the worker PATH.', {
         cause: error,
       });
     }
     throw new UserError(
       'EAS_ANDROID_MANIFEST_INVALID',
-      `Cannot read the Android manifest with ${command}. Check the app binary.`,
+      'Cannot read the APK manifest with aapt2. Check the app binary.',
       { cause: error }
     );
-  } finally {
-    signal.removeEventListener('abort', abort);
+  }
+}
+
+async function readAabPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
+  signal.throwIfAborted();
+  try {
+    const { stdout } = await spawn(
+      'bundletool',
+      ['dump', 'manifest', '--bundle', artifactPath, '--xpath', '/manifest/@package'],
+      { stdio: 'pipe', signal, killSignal: 'SIGKILL' }
+    );
+    signal.throwIfAborted();
+    return stdout.trim();
+  } catch (error) {
+    signal.throwIfAborted();
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new SystemError('bundletool is not installed or is not available on the worker PATH.', {
+        cause: error,
+      });
+    }
+    throw new UserError(
+      'EAS_ANDROID_MANIFEST_INVALID',
+      'Cannot read the AAB manifest with bundletool. Check the app binary.',
+      { cause: error }
+    );
   }
 }
