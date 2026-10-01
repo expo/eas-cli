@@ -23,6 +23,8 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
     defaultSystemImagePackage: 'system-images;android-30;default;x86_64',
     getAvailableDevicesAsync: jest.fn(),
+    checkPrebuiltAvdAsync: jest.fn(),
+    removeLockFilesAsync: jest.fn(),
     createAsync: jest.fn(),
     cloneAsync: jest.fn(),
     startAsync: jest.fn(),
@@ -59,6 +61,8 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
+    mockedAndroidUtils.checkPrebuiltAvdAsync.mockResolvedValue({ status: 'missing' });
+    mockedAndroidUtils.removeLockFilesAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-default'));
@@ -106,6 +110,71 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.createAsync.mock.invocationCallOrder[0]).toBeLessThan(
       mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
     );
+  });
+
+  it('starts the prebuilt device without creating one when it matches the inputs', async () => {
+    mockedAndroidUtils.checkPrebuiltAvdAsync.mockResolvedValue({ status: 'reusable' });
+    const systemImagePackage = 'system-images;android-35;default;x86_64';
+
+    await createStep({
+      device_identifier: 'medium_phone',
+      system_image_package: systemImagePackage,
+      lcd_width: 720,
+      lcd_height: 1600,
+      lcd_density: 300,
+    }).executeAsync();
+
+    expect(mockedAndroidUtils.checkPrebuiltAvdAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceName: 'EasAndroidDevice01',
+        deviceIdentifier: 'medium_phone',
+        systemImagePackage,
+        lcdWidth: 720,
+        lcdHeight: 1600,
+        lcdDensity: 300,
+      })
+    );
+    expect(mockedAndroidUtils.createAsync).not.toHaveBeenCalled();
+    expect(mockedAndroidUtils.removeLockFilesAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceName: 'EasAndroidDevice01' })
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a new device when the prebuilt device fails to start', async () => {
+    mockedAndroidUtils.checkPrebuiltAvdAsync.mockResolvedValue({ status: 'reusable' });
+    mockedAndroidUtils.startAsync
+      .mockResolvedValueOnce(createStartResult('emulator-1111'))
+      .mockResolvedValueOnce(createStartResult('emulator-2222'));
+    mockedAndroidUtils.waitForReadyAsync
+      .mockRejectedValueOnce(new Error('boot has not completed'))
+      .mockResolvedValueOnce(undefined);
+
+    await createStep().executeAsync();
+
+    expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ serialId: 'emulator-1111' })
+    );
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledTimes(1);
+    expect(mockedAndroidUtils.deleteAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.createAsync.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('creates a new device and logs the reason when the prebuilt device does not match', async () => {
+    mockedAndroidUtils.checkPrebuiltAvdAsync.mockResolvedValue({
+      status: 'mismatch',
+      reason: 'its config.ini has different settings',
+    });
+
+    const step = createStep();
+    await step.executeAsync();
+
+    expect(step.ctx.logger.info).toHaveBeenCalledWith(
+      'Not using the prebuilt EasAndroidDevice01, because its config.ini has different settings.'
+    );
+    expect(mockedAndroidUtils.removeLockFilesAsync).not.toHaveBeenCalled();
+    expect(mockedAndroidUtils.createAsync).toHaveBeenCalledTimes(1);
   });
 
   it('retries base emulator startup with increasing readiness timeouts', async () => {

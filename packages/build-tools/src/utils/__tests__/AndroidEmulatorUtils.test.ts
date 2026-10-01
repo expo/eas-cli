@@ -166,6 +166,149 @@ describe('AndroidEmulatorUtils', () => {
     });
   });
 
+  describe(AndroidEmulatorUtils.checkPrebuiltAvdAsync, () => {
+    const deviceName = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
+    const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+    const systemImagePackage = 'system-images;android-35-ext15;google_apis_playstore;x86_64';
+    const avdManagerConfigIni = ['hw.device.name=medium_phone', 'hw.lcd.density=420'].join('\n');
+    const env = { HOME: '/home/expo' };
+    const inputs = {
+      deviceName,
+      systemImagePackage,
+      deviceIdentifier: 'medium_phone' as AndroidDeviceName,
+      lcdWidth: 720,
+      lcdHeight: 1600,
+      lcdDensity: 300,
+      env,
+    };
+
+    async function writePrebuiltAvdAsync(manifest: unknown): Promise<void> {
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(`/home/expo/.android/avd/${deviceName}.ini`, '');
+      await fs.promises.writeFile(`${avdDirectory}/config.ini`, '');
+      await fs.promises.writeFile(
+        `${avdDirectory}/${AndroidEmulatorUtils.PREBUILT_AVD_MANIFEST_FILE_NAME}`,
+        typeof manifest === 'string' ? manifest : JSON.stringify(manifest)
+      );
+    }
+
+    function createManifest(overrides: Record<string, unknown> = {}) {
+      return {
+        deviceIdentifier: 'medium_phone',
+        systemImagePackage,
+        avdManagerConfigIni,
+        configIni: AndroidEmulatorUtils.getConfigIniContent({
+          avdManagerConfigIni,
+          lcdWidth: 720,
+          lcdHeight: 1600,
+          lcdDensity: 300,
+          env,
+        }),
+        ...overrides,
+      };
+    }
+
+    afterEach(async () => {
+      await fs.promises.rm('/home/expo/.android', { recursive: true, force: true });
+    });
+
+    it('reports a missing prebuilt device when there is no manifest', async () => {
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toEqual({
+        status: 'missing',
+      });
+    });
+
+    it('reports a reusable device when the manifest matches the inputs', async () => {
+      await writePrebuiltAvdAsync(createManifest());
+
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toEqual({
+        status: 'reusable',
+      });
+    });
+
+    it('reports a mismatch when the system image is different', async () => {
+      await writePrebuiltAvdAsync(
+        createManifest({ systemImagePackage: 'system-images;android-35;default;x86_64' })
+      );
+
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toEqual({
+        status: 'mismatch',
+        reason: 'it uses system image "system-images;android-35;default;x86_64"',
+      });
+    });
+
+    it('reports a mismatch when the device profile is different', async () => {
+      await writePrebuiltAvdAsync(createManifest({ deviceIdentifier: 'pixel_9' }));
+
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toEqual({
+        status: 'mismatch',
+        reason: 'it uses device "pixel_9"',
+      });
+    });
+
+    it('reports a mismatch when the requested LCD settings are different', async () => {
+      await writePrebuiltAvdAsync(createManifest());
+
+      await expect(
+        AndroidEmulatorUtils.checkPrebuiltAvdAsync({ ...inputs, lcdDensity: 262 })
+      ).resolves.toEqual({
+        status: 'mismatch',
+        reason: 'its config.ini has different settings',
+      });
+    });
+
+    it('reports a mismatch when the environment changes the config.ini settings', async () => {
+      await writePrebuiltAvdAsync(createManifest());
+
+      await expect(
+        AndroidEmulatorUtils.checkPrebuiltAvdAsync({
+          ...inputs,
+          env: { ...env, ANDROID_EMULATOR_EXTRA_CONFIG: 'hw.keyboard=yes' },
+        })
+      ).resolves.toEqual({
+        status: 'mismatch',
+        reason: 'its config.ini has different settings',
+      });
+    });
+
+    it('reports a mismatch when the manifest is not valid', async () => {
+      await writePrebuiltAvdAsync('{"deviceIdentifier":');
+
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toMatchObject({
+        status: 'mismatch',
+        reason: expect.stringContaining('the manifest is not valid'),
+      });
+    });
+
+    it('reports a mismatch when the AVD ini file is missing', async () => {
+      await writePrebuiltAvdAsync(createManifest());
+      await fs.promises.rm(`/home/expo/.android/avd/${deviceName}.ini`);
+
+      await expect(AndroidEmulatorUtils.checkPrebuiltAvdAsync(inputs)).resolves.toEqual({
+        status: 'mismatch',
+        reason: 'its AVD files are missing',
+      });
+    });
+  });
+
+  describe(AndroidEmulatorUtils.removeLockFilesAsync, () => {
+    it('removes lock files from the AVD directory', async () => {
+      const deviceName = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      await fs.promises.mkdir(`${avdDirectory}/snapshots/default_boot`, { recursive: true });
+      await fs.promises.writeFile(`${avdDirectory}/hardware-qemu.ini.lock`, '');
+      await fs.promises.writeFile(`${avdDirectory}/snapshots/default_boot/ram.img.lock`, '');
+      await fs.promises.writeFile(`${avdDirectory}/config.ini`, '');
+
+      await AndroidEmulatorUtils.removeLockFilesAsync({ deviceName, env: { HOME: '/home/expo' } });
+
+      await expect(fs.promises.readdir(avdDirectory)).resolves.toEqual(['config.ini', 'snapshots']);
+      await expect(fs.promises.readdir(`${avdDirectory}/snapshots/default_boot`)).resolves.toEqual(
+        []
+      );
+    });
+  });
+
   describe(AndroidEmulatorUtils.startAsync, () => {
     function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
       // Under `stdio: 'pipe'` these are net.Sockets, which is what startAsync
