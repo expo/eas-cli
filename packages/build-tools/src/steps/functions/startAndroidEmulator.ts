@@ -21,6 +21,10 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
+import {
+  type AndroidEmulatorLocalEgress,
+  resolveAndroidEmulatorLocalEgressAsync,
+} from '../utils/androidLocalEgress';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -109,6 +113,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         // We don't care about resolved/rejected.
         await asyncResult(emulatorPromise);
 
+        const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
         for (let i = 0; i < count; i++) {
           const cloneIdentifier = `eas-simulator-${i + 1}` as AndroidVirtualDeviceName;
           await retryAsync(
@@ -132,6 +137,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   deviceName: cloneIdentifier,
                   env,
                   logcatDirectory,
+                  ...getLocalEgressStartOptions(localEgress),
                 });
                 cloneSerialId = startResult.serialId;
 
@@ -141,6 +147,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   env,
                   timeoutMs,
                   logger,
+                  ...getLocalEgressReadyOptions(localEgress),
                 });
                 if (shouldAdjustAnimationScale) {
                   await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
@@ -149,6 +156,10 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                     serialId: cloneSerialId,
                   });
                 }
+                await localEgress?.configureBootedEmulatorAsync({
+                  serialId: cloneSerialId,
+                  logger,
+                });
 
                 logger.info(`${cloneIdentifier} is ready.`);
               } catch (err) {
@@ -245,6 +256,8 @@ export async function startAndroidEmulatorAsync({
     );
   }
 
+  const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
+
   logger.info('Making sure system image is installed');
   await retryAsync(
     async () => {
@@ -290,6 +303,7 @@ export async function startAndroidEmulatorAsync({
           deviceName,
           env,
           logcatDirectory,
+          ...getLocalEgressStartOptions(localEgress),
         });
         attemptSerialId = startResult.serialId;
         await AndroidEmulatorUtils.waitForReadyAsync({
@@ -297,6 +311,7 @@ export async function startAndroidEmulatorAsync({
           serialId: attemptSerialId,
           timeoutMs,
           logger,
+          ...getLocalEgressReadyOptions(localEgress),
         });
         if (shouldAdjustAnimationScale) {
           await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
@@ -305,6 +320,7 @@ export async function startAndroidEmulatorAsync({
             serialId: attemptSerialId,
           });
         }
+        await localEgress?.configureBootedEmulatorAsync({ serialId: attemptSerialId, logger });
         logger.info(`${deviceName} is ready.`);
 
         serialId = attemptSerialId;
@@ -343,6 +359,18 @@ export async function startAndroidEmulatorAsync({
     throw new Error(`Failed to start emulator ${deviceName}.`);
   }
   return { serialId, emulatorPromise, shouldAdjustAnimationScale };
+}
+
+function getLocalEgressStartOptions(
+  localEgress: AndroidEmulatorLocalEgress | null
+): Pick<Parameters<typeof AndroidEmulatorUtils.startAsync>[0], 'launchGate'> {
+  return localEgress ? { launchGate: localEgress.launchGate } : {};
+}
+
+function getLocalEgressReadyOptions(
+  localEgress: AndroidEmulatorLocalEgress | null
+): Pick<Parameters<typeof AndroidEmulatorUtils.waitForReadyAsync>[0], 'networkReadyTarget'> {
+  return localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {};
 }
 
 async function assertAndroidEmulatorHostSupportAsync({

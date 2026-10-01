@@ -1,7 +1,8 @@
 import { type bunyan } from '@expo/logger';
-import { type BuildStepContext } from '@expo/steps';
+import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import fs from 'node:fs';
 
+import { startAndroidLocalEgressAsync } from '../../utils/androidLocalEgress';
 import {
   LOCAL_EGRESS_HANDOFF_PATH,
   configureSystemProxyAsync,
@@ -19,6 +20,9 @@ jest.mock('../../utils/localEgress', () => ({
   downloadChiselAsync: jest.fn(),
   startChiselServerAsync: jest.fn(),
   writeLocalEgressHandoffAsync: jest.fn(),
+}));
+jest.mock('../../utils/androidLocalEgress', () => ({
+  startAndroidLocalEgressAsync: jest.fn(),
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
   stopLocalEgressGuardRelaysAsync: jest.fn().mockResolvedValue(undefined),
@@ -51,6 +55,81 @@ async function start(signal?: AbortSignal): Promise<void> {
     signal,
   });
 }
+
+async function startOn(runtimePlatform: BuildRuntimePlatform): Promise<void> {
+  await createStartLocalEgressBuildFunction().fn!(
+    { logger, global: { runtimePlatform } } as unknown as BuildStepContext,
+    {
+      env: {},
+      inputs: {},
+      outputs: {},
+    } as any
+  );
+}
+
+describe('local egress platforms', () => {
+  const androidStop = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(fs.promises, 'mkdtemp').mockResolvedValue('/tmp/egress-acquisition-test');
+    jest.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined);
+    jest.spyOn(fs.promises, 'rm').mockResolvedValue(undefined);
+    server.stopAsync.mockResolvedValue(undefined);
+    tunnel.stopAsync.mockResolvedValue(undefined);
+    androidStop.mockResolvedValue(undefined);
+    jest.mocked(findAvailablePortAsync).mockResolvedValue(52001);
+    jest.mocked(downloadChiselAsync).mockResolvedValue('/tmp/egress-acquisition-test/chisel');
+    jest.mocked(startChiselServerAsync).mockResolvedValue({ process: server, fingerprint: 'key=' });
+    jest.mocked(startNgrokTunnelAsync).mockResolvedValue(tunnel);
+    jest.mocked(configureSystemProxyAsync).mockResolvedValue({ service: 'Ethernet' });
+    jest.mocked(writeLocalEgressHandoffAsync).mockResolvedValue(undefined);
+    jest.mocked(startAndroidLocalEgressAsync).mockResolvedValue({ stopAsync: androidStop });
+  });
+
+  afterEach(async () => {
+    await stopLocalEgressResourcesAsync(logger);
+    jest.restoreAllMocks();
+  });
+
+  it('sets the macOS system proxy and writes the same handoff as before', async () => {
+    await startOn(BuildRuntimePlatform.DARWIN);
+    expect(configureSystemProxyAsync).toHaveBeenCalled();
+    expect(startAndroidLocalEgressAsync).not.toHaveBeenCalled();
+    expect(writeLocalEgressHandoffAsync).toHaveBeenCalledWith({
+      url: tunnel.url,
+      token: expect.any(String),
+      fingerprint: 'key=',
+      port: 8899,
+    });
+  });
+
+  it('starts the Android relay and fence on Linux instead of the system proxy', async () => {
+    await startOn(BuildRuntimePlatform.LINUX);
+    expect(configureSystemProxyAsync).not.toHaveBeenCalled();
+    expect(startAndroidLocalEgressAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chiselPid: server.pid,
+        proxyPort: 8899,
+        workDir: '/tmp/egress-acquisition-test',
+      })
+    );
+    expect(writeLocalEgressHandoffAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ platform: 'android' })
+    );
+    await stopLocalEgressResourcesAsync(logger);
+    expect(androidStop).toHaveBeenCalledTimes(1);
+    expect(server.stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the tunnel when the Android fence cannot start', async () => {
+    jest.mocked(startAndroidLocalEgressAsync).mockRejectedValue(new Error('nft failed'));
+    await expect(startOn(BuildRuntimePlatform.LINUX)).rejects.toThrow('nft failed');
+    expect(server.stopAsync).toHaveBeenCalledTimes(1);
+    expect(tunnel.stopAsync).toHaveBeenCalledTimes(1);
+    expect(writeLocalEgressHandoffAsync).not.toHaveBeenCalled();
+  });
+});
 
 describe('local egress acquisition', () => {
   beforeEach(() => {
