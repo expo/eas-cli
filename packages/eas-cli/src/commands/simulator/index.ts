@@ -145,12 +145,12 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) exit from this machine and fail while the egress client is disconnected. Connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+        'With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
       description:
-        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. Requires --egress local.',
+        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. On Android, such an entry also covers 10.0.2.2 on the same port. Requires --egress local.',
       multiple: true,
       dependsOn: ['egress'],
     }),
@@ -243,9 +243,6 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
-    if (egress && platform !== AppPlatform.Ios) {
-      throw new EasCommandError('--egress local is only supported with --platform ios.');
-    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
@@ -409,7 +406,7 @@ export default class Simulator extends EasCommand {
 
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
       await writeSimulatorEnvSafelyAsync(projectDir, {
-        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow }),
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
         [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
       });
     }
@@ -443,11 +440,12 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        platform,
       })
     );
     Log.newLine();
 
-    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow);
+    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
 
     if (nonInteractive) {
       sessionInterrupt.dispose();

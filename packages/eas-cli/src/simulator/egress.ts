@@ -13,6 +13,7 @@ import zlib from 'node:zlib';
 import {
   EAS_SIMULATOR_EGRESS_ALLOW,
   EAS_SIMULATOR_EGRESS_FINGERPRINT,
+  EAS_SIMULATOR_EGRESS_PLATFORM,
   EAS_SIMULATOR_EGRESS_PORT,
   EAS_SIMULATOR_EGRESS_TOKEN,
   EAS_SIMULATOR_EGRESS_URL,
@@ -86,13 +87,20 @@ export function readLocalEgressConfigFromEnv(env: NodeJS.ProcessEnv): LocalEgres
     throw new Error(
       'The current simulator session was not started with local egress, so there is no egress ' +
         `client to run (${EAS_SIMULATOR_EGRESS_URL} is not set). Start one with ` +
-        '`eas simulator:start --platform ios --egress local`.'
+        '`eas simulator:start --egress local`.'
     );
   }
   const allow = parseEgressAllowList(
     (env[EAS_SIMULATOR_EGRESS_ALLOW] ?? '').split(',').filter(entry => entry.trim().length > 0)
   );
-  return { url, token, fingerprint, port, allow };
+  return {
+    url,
+    token,
+    fingerprint,
+    port,
+    allow,
+    ...(env[EAS_SIMULATOR_EGRESS_PLATFORM] === 'android' ? { androidEmulator: true } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -293,30 +301,56 @@ export function parseEgressAllowList(entries: readonly string[]): string[] {
 }
 
 /**
+ * How this machine's loopback appears to an Android emulator guest: 10.0.2.2
+ * from proxy-aware clients, 127.0.0.1 after the emulator's own proxy rewrites
+ * 10.0.2.2, and localhost.
+ */
+const ANDROID_EMULATOR_LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '10.0.2.2'];
+
+/**
  * Wrap the default destination policy with the `--egress-allow` list. A listed
  * destination connects to this machine's loopback or network exactly as named;
  * every other destination keeps the default refusals. `localhost` maps to the
- * loopback addresses directly and never goes through DNS.
+ * loopback addresses directly and never goes through DNS. For an Android
+ * emulator, every name for this machine's loopback matches an entry for any
+ * of them on the same port.
  */
 export function createEgressTargetResolver({
   allow,
   onAllowed,
+  androidEmulator = false,
 }: {
   allow: readonly string[];
   onAllowed?: (destination: string) => void;
+  androidEmulator?: boolean;
 }): EgressTargetResolver {
   const allowed = new Set(allow);
   if (allowed.size === 0) {
     return resolveEgressTargetAsync;
   }
+  const findAllowedDestination = (host: string, port: number): string | undefined => {
+    const destination = formatEgressDestination(host, port);
+    if (allowed.has(destination)) {
+      return destination;
+    }
+    if (androidEmulator && ANDROID_EMULATOR_LOOPBACK_HOSTS.includes(host)) {
+      return ANDROID_EMULATOR_LOOPBACK_HOSTS.map(alias =>
+        formatEgressDestination(alias, port)
+      ).find(alias => allowed.has(alias));
+    }
+    return undefined;
+  };
   return async (hostname, port) => {
     const host = normalizeEgressHostname(hostname);
-    const destination = formatEgressDestination(host, port);
-    if (!allowed.has(destination)) {
+    const destination = findAllowedDestination(host, port);
+    if (!destination) {
       return await resolveEgressTargetAsync(hostname, port);
     }
     onAllowed?.(destination);
-    if (host === 'localhost') {
+    if (
+      host === 'localhost' ||
+      (androidEmulator && ANDROID_EMULATOR_LOOPBACK_HOSTS.includes(host))
+    ) {
       return ['127.0.0.1', '::1'];
     }
     if (net.isIP(host)) {
@@ -431,6 +465,23 @@ function pipeBothWays(a: Duplex, b: net.Socket, onClose: () => void): void {
   b.pipe(a);
 }
 
+function getRequestDestination(url: string | undefined): string {
+  try {
+    const parsed = new URL(url ?? '');
+    return `${parsed.hostname}:${parsed.port || 80}`;
+  } catch {
+    return url ?? '';
+  }
+}
+
+/**
+ * Android's Private DNS probe (DNS over TLS to the emulator's resolver) is
+ * refused in every session and falls back on its own; it is not worth a warning.
+ */
+function isAndroidPrivateDnsProbe(destination: string): boolean {
+  return /^(10\.0\.2\.3|127\.0\.0\.\d+):853$/.test(destination);
+}
+
 function statusForError(err: unknown): number {
   return err instanceof EgressPolicyError ? 403 : 502;
 }
@@ -461,10 +512,13 @@ export async function startLocalEgressProxyServerAsync({
   host = LOCAL_EGRESS_PROXY_HOST,
   port,
   resolveTargetAsync = resolveEgressTargetAsync,
+  onPolicyRefusal,
 }: {
   host?: string;
   port: number;
   resolveTargetAsync?: EgressTargetResolver;
+  /** Called with the requested `host:port` when the destination policy refuses it. */
+  onPolicyRefusal?: (destination: string, error: EgressPolicyError) => void;
 }): Promise<LocalEgressProxyServer> {
   const stats: LocalEgressProxyStats = { active: 0, total: 0, refused: 0 };
   const sockets = new Set<net.Socket>();
@@ -554,6 +608,9 @@ export async function startLocalEgressProxyServerAsync({
         Log.debug(
           `[egress] CONNECT ${req.url} refused: ${err instanceof Error ? err.message : err}`
         );
+        if (err instanceof EgressPolicyError) {
+          onPolicyRefusal?.(req.url ?? '', err);
+        }
         if (!clientSocket.destroyed) {
           clientSocket.end(
             `HTTP/1.1 ${statusForError(err)} ${http.STATUS_CODES[statusForError(err)]}\r\nConnection: close\r\n\r\n`
@@ -727,6 +784,9 @@ export async function startLocalEgressProxyServerAsync({
         Log.debug(
           `[egress] ${req.method} ${req.url} refused: ${err instanceof Error ? err.message : err}`
         );
+        if (err instanceof EgressPolicyError) {
+          onPolicyRefusal?.(getRequestDestination(req.url), err);
+        }
       }
     })();
   };
@@ -906,6 +966,7 @@ export async function runLocalEgressAsync({
   fingerprint,
   port,
   allow = [],
+  androidEmulator = false,
   localPort = 0,
   signal,
   onConnected,
@@ -946,6 +1007,7 @@ export async function runLocalEgressAsync({
     const reportedAllowed = new Set<string>();
     const resolveAllowedTarget = createEgressTargetResolver({
       allow,
+      androidEmulator,
       onAllowed: destination => {
         if (reportedAllowed.has(destination)) {
           Log.debug(`[egress] ${destination} allowed by --egress-allow`);
@@ -955,10 +1017,24 @@ export async function runLocalEgressAsync({
         Log.log(`The simulator reached ${destination} on this machine's network.`);
       },
     });
+    const reportedRefusals = new Set<string>();
     proxy = await startLocalEgressProxyServerAsync({
       port: localPort,
       resolveTargetAsync: async (hostname, targetPort) =>
         await resolveAllowedTarget(hostname, targetPort),
+      ...(androidEmulator
+        ? {
+            onPolicyRefusal: (destination: string, error: EgressPolicyError) => {
+              if (reportedRefusals.has(destination) || isAndroidPrivateDnsProbe(destination)) {
+                return;
+              }
+              reportedRefusals.add(destination);
+              Log.warn(
+                `${error.message} To let the emulator reach ${destination}, pass --egress-allow ${destination}.`
+              );
+            },
+          }
+        : {}),
     });
     signal.throwIfAborted();
     Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);

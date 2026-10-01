@@ -236,6 +236,20 @@ describe(readLocalEgressConfigFromEnv, () => {
     ).toEqual(['localhost:3000', '192.168.1.20:8080']);
   });
 
+  it('reads the Android emulator marker', () => {
+    const env = {
+      EAS_SIMULATOR_EGRESS_URL: 'https://egress-abc.eas-simulator.ngrok.dev',
+      EAS_SIMULATOR_EGRESS_TOKEN: 'pw',
+      EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
+      EAS_SIMULATOR_EGRESS_PORT: '8899',
+    };
+    expect(readLocalEgressConfigFromEnv(env)).not.toHaveProperty('androidEmulator');
+    expect(
+      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'android' })
+        .androidEmulator
+    ).toBe(true);
+  });
+
   it('explains how to start a session with egress when the variables are missing', () => {
     expect(() => readLocalEgressConfigFromEnv({ EAS_SIMULATOR_SESSION_ID: 'abc' })).toThrow(
       'was not started with local egress'
@@ -307,6 +321,27 @@ describe(createEgressTargetResolver, () => {
     await expect(resolve('LocalHost', 3000)).resolves.toEqual(['127.0.0.1', '::1']);
     await expect(resolve('192.168.1.20', 8080)).resolves.toEqual(['192.168.1.20']);
     expect(allowed).toEqual(['localhost:3000', '192.168.1.20:8080']);
+  });
+
+  it('treats every name for this machine as the same port for an Android emulator', async () => {
+    const allowed: string[] = [];
+    const resolve = createEgressTargetResolver({
+      allow: ['localhost:8081'],
+      androidEmulator: true,
+      onAllowed: destination => allowed.push(destination),
+    });
+    await expect(resolve('10.0.2.2', 8081)).resolves.toEqual(['127.0.0.1', '::1']);
+    await expect(resolve('127.0.0.1', 8081)).resolves.toEqual(['127.0.0.1', '::1']);
+    await expect(resolve('localhost', 8081)).resolves.toEqual(['127.0.0.1', '::1']);
+    expect(allowed).toEqual(['localhost:8081', 'localhost:8081', 'localhost:8081']);
+    await expect(resolve('10.0.2.2', 8082)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('10.0.2.3', 8081)).rejects.toBeInstanceOf(EgressPolicyError);
+  });
+
+  it('does not map 10.0.2.2 outside Android emulator sessions', async () => {
+    const resolve = createEgressTargetResolver({ allow: ['localhost:8081'] });
+    await expect(resolve('10.0.2.2', 8081)).rejects.toBeInstanceOf(EgressPolicyError);
+    await expect(resolve('127.0.0.1', 8081)).rejects.toBeInstanceOf(EgressPolicyError);
   });
 
   it('keeps refusing the same host on other ports and unlisted private addresses', async () => {
