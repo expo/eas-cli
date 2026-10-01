@@ -39,14 +39,15 @@ export async function chooseDevicesAsync(
 ): Promise<AppleDevice[]> {
   const preselectedDeviceIdentifierSet = new Set(preselectedDeviceIdentifiers);
   const isSelected = (device: AppleDeviceFragment): boolean =>
-    preselectedDeviceIdentifierSet.size === 0 ||
     preselectedDeviceIdentifierSet.has(device.identifier);
   const { devices } = await promptAsync({
     type: 'multiselect',
     name: 'devices',
     selectionFormat: '<num> devices selected',
     message: 'Select devices for the ad hoc build:',
-    hint: '- Space to select. Return to submit',
+    hint:
+      '- / search. Enter applies search; Enter again submits. Space toggles; a toggles visible',
+    searchable: true,
     choices: allDevices.map(device => ({
       value: device,
       title: formatDeviceLabel(device),
