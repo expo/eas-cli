@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
@@ -21,6 +22,7 @@ const AscErrorResponseSchema = z.object({
         title: z.string().optional(),
         detail: z.string().optional(),
         source: z.unknown().optional(),
+        links: z.unknown().optional(),
       })
     )
     .min(1),
@@ -530,10 +532,31 @@ export class AscApiClient {
         (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
       );
       if (parsedAscErrorResponse.ok) {
-        throw new AscApiRequestError(
-          `Unexpected response (${response.status}) from App Store Connect: ${text}`,
-          response.status,
-          parsedAscErrorResponse.value,
+        const errors = parsedAscErrorResponse.value.errors.map(ascError => {
+          if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
+            return new UserError(
+              'EAS_ASC_REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED',
+              'A required Apple agreement is missing or has expired. ' +
+                "Ask your Apple Developer team's Account Holder to review and accept the required agreements " +
+                'in App Store Connect: https://appstoreconnect.apple.com/business. ' +
+                'If prompted, also accept the Apple Developer Program License Agreement at https://developer.apple.com/account. ' +
+                'Then try again.',
+              { cause: ascError }
+            );
+          }
+          return new AscApiRequestError(
+            `Unexpected response (${response.status}) from App Store Connect: ${JSON.stringify(ascError)}`,
+            response.status,
+            { errors: [ascError] },
+            { cause: response }
+          );
+        });
+        if (errors.length === 1) {
+          throw errors[0];
+        }
+        throw new AggregateError(
+          errors,
+          `App Store Connect returned multiple errors:\n${errors.map(error => error.message).join('\n')}`,
           { cause: response }
         );
       }

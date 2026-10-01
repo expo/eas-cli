@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import nock from 'nock';
 
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
@@ -289,6 +290,25 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBeTruthy();
   });
 
+  it('explains how to resolve a missing agreement', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/6817395749')
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(403, {
+        errors: [{ code: 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED' }],
+      });
+
+    const request = client.getAsync(
+      '/v1/apps/:id',
+      { 'fields[apps]': ['bundleId', 'name'] },
+      { id: '6817395749' }
+    );
+    await expect(request).rejects.toBeInstanceOf(UserError);
+    await expect(request).rejects.toThrow(
+      /Account Holder.*https:\/\/appstoreconnect.apple.com\/business/
+    );
+  });
+
   it('throws AscApiRequestError for structured ASC error payload', async () => {
     const appId = '1491144534';
     const responseFixture = {
@@ -299,6 +319,7 @@ describe(AscApiClient, () => {
           title:
             'The provided entity includes an attribute with a value that has already been used',
           detail: 'The bundle version must be higher than the previously uploaded version.',
+          links: { see: '/business' },
         },
       ],
     };
@@ -310,7 +331,35 @@ describe(AscApiClient, () => {
 
     await expect(
       client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
-    ).rejects.toBeInstanceOf(AscApiRequestError);
+    ).rejects.toMatchObject({
+      message: `Unexpected response (409) from App Store Connect: ${JSON.stringify(responseFixture.errors[0])}`,
+      status: 409,
+      responseJson: responseFixture,
+    });
+  });
+
+  it('aggregates agreement and generic errors without losing either', async () => {
+    const forbidden = { code: 'FORBIDDEN', detail: 'Access denied.' };
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/6817395749')
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(403, {
+        errors: [{ code: 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED' }, forbidden],
+      });
+
+    const request = client.getAsync(
+      '/v1/apps/:id',
+      { 'fields[apps]': ['bundleId', 'name'] },
+      { id: '6817395749' }
+    );
+    await expect(request).rejects.toBeInstanceOf(AggregateError);
+    await expect(request).rejects.toHaveProperty('errors', [
+      expect.any(UserError),
+      expect.any(AscApiRequestError),
+    ]);
+    await expect(request).rejects.toThrow(/Account Holder/);
+    await expect(request).rejects.toThrow(/Access denied/);
+    await expect(request).rejects.toHaveProperty('errors.1.responseJson', { errors: [forbidden] });
   });
 
   it('throws regular Error for non-structured ASC error payload', async () => {
