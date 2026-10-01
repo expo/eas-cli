@@ -21,7 +21,11 @@ const options = {
 };
 const api = () => nock('https://api.appstoreconnect.apple.com');
 
-function mockBuild(state = 'COMPLETE', buildId: string | null = 'build'): void {
+function mockBuild(
+  state = 'COMPLETE',
+  buildId: string | null = 'build',
+  primaryLocale: string | null = 'en-US'
+): void {
   api()
     .get('/v1/buildUploads/upload')
     .query(true)
@@ -38,7 +42,7 @@ function mockBuild(state = 'COMPLETE', buildId: string | null = 'build'): void {
       .get(`/v1/builds/${buildId}/app`)
       .query(true)
       .reply(200, {
-        data: { id: 'app', attributes: { primaryLocale: 'en-US' } },
+        data: { id: 'app', attributes: primaryLocale ? { primaryLocale } : {} },
       });
   }
 }
@@ -137,26 +141,29 @@ it('skips automatic internal groups and groups that already contain the build', 
   );
 });
 
-it('creates the primary localization when none exist', async () => {
-  mockBuild();
-  api().get('/v1/builds/build/betaBuildLocalizations').query(true).reply(200, { data: [] });
-  api()
-    .post('/v1/betaBuildLocalizations', {
-      data: {
-        type: 'betaBuildLocalizations',
-        attributes: { locale: 'en-US', whatsNew: changelog },
-        relationships: { build: { data: { type: 'builds', id: 'build' } } },
-      },
-    })
-    .reply(201, { data: { id: 'locale' } });
-  await updateTestFlightMetadataAsync(options);
-  expect(options.logger.info).toHaveBeenCalledWith(
-    `Updating changelog: ${JSON.stringify(changelog)}`
-  );
-  expect(options.logger.info).toHaveBeenCalledWith(
-    expect.stringContaining('Locale "en-US": localization created')
-  );
-});
+it.each(['en-US', null])(
+  'creates a localization when none exist (primary locale: %s)',
+  async primaryLocale => {
+    mockBuild('COMPLETE', 'build', primaryLocale);
+    api().get('/v1/builds/build/betaBuildLocalizations').query(true).reply(200, { data: [] });
+    api()
+      .post('/v1/betaBuildLocalizations', {
+        data: {
+          type: 'betaBuildLocalizations',
+          attributes: { locale: 'en-US', whatsNew: changelog },
+          relationships: { build: { data: { type: 'builds', id: 'build' } } },
+        },
+      })
+      .reply(201, { data: { id: 'locale' } });
+    await updateTestFlightMetadataAsync(options);
+    expect(options.logger.info).toHaveBeenCalledWith(
+      `Updating changelog: ${JSON.stringify(changelog)}`
+    );
+    expect(options.logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Locale "en-US": localization created')
+    );
+  }
+);
 
 it('reads all localization pages and updates existing localizations without replacing them', async () => {
   mockBuild();
@@ -188,16 +195,32 @@ it('reads all localization pages and updates existing localizations without repl
   }
 });
 
-it('stops before changing metadata when Apple omits a localization locale', async () => {
+it('updates by ID when Apple omits a localization locale and creates the primary locale', async () => {
   mockBuild();
   api()
     .get('/v1/builds/build/betaBuildLocalizations')
     .query(true)
     .reply(200, { data: [{ id: 'localization' }] });
 
-  await expect(updateTestFlightMetadataAsync(options)).rejects.toThrow(
-    'App Store Connect did not return a TestFlight localization locale.'
-  );
+  api()
+    .patch('/v1/betaBuildLocalizations/localization', {
+      data: {
+        type: 'betaBuildLocalizations',
+        id: 'localization',
+        attributes: { whatsNew: changelog },
+      },
+    })
+    .reply(200, { data: { id: 'localization' } });
+  api()
+    .post('/v1/betaBuildLocalizations', {
+      data: {
+        type: 'betaBuildLocalizations',
+        attributes: { locale: 'en-US', whatsNew: changelog },
+        relationships: { build: { data: { type: 'builds', id: 'build' } } },
+      },
+    })
+    .reply(201, { data: { id: 'primary' } });
+  await updateTestFlightMetadataAsync(options);
 });
 
 it('adds groups without changing changelog or submitting beta review', async () => {

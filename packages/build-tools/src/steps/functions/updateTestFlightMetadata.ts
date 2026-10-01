@@ -1,4 +1,4 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import path from 'node:path';
@@ -103,22 +103,19 @@ export async function updateTestFlightMetadataAsync({
         return;
       }
       logger.info(`Updating changelog: ${JSON.stringify(changelog)}`);
-      const primaryLocale = app.attributes?.primaryLocale;
-      if (!primaryLocale) {
-        throw new SystemError('App Store Connect did not return the app primary locale.');
+      const primaryLocale = app.attributes?.primaryLocale || 'en-US';
+      if (!app.attributes?.primaryLocale) {
+        logger.warn('App Store Connect did not return the primary locale; using "en-US".');
       }
       logger.info(`Primary locale: ${JSON.stringify(primaryLocale)}.`);
       const localizations = await AscApiUtils.getAllBetaBuildLocalizationsAsync({
         client,
         buildId,
       });
-      if (localizations.some(localization => !localization.attributes?.locale)) {
-        throw new SystemError('App Store Connect did not return a TestFlight localization locale.');
-      }
       const localizationLimit = limitFactory<void>(1);
       const updates = localizations.map(localization =>
         localizationLimit(async () => {
-          const label = `${JSON.stringify(localization.attributes?.locale)} (${localization.id})`;
+          const label = `${JSON.stringify(localization.attributes?.locale ?? 'unknown')} (${localization.id})`;
           try {
             await client.patchAsync(
               '/v1/betaBuildLocalizations/:id',

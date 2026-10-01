@@ -16,7 +16,7 @@ export namespace AscApiUtils {
     client,
     buildId,
   }: {
-    client: Pick<AscApiClient, 'getAsync' | 'getNextPageAsync'>;
+    client: AscApiClient;
     buildId: string;
   }) {
     let response = await client.getAsync(
@@ -45,7 +45,7 @@ export namespace AscApiUtils {
     appId,
     buildId,
   }: {
-    client: Pick<AscApiClient, 'getAsync' | 'getNextPageAsync'>;
+    client: AscApiClient;
     appId: string;
     buildId?: string;
   }) {
