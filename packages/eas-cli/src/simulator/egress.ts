@@ -19,6 +19,7 @@ import {
   EAS_SIMULATOR_EGRESS_URL,
 } from './env';
 import { LocalEgressConfig, getLoopbackForwardPlan } from './utils';
+import { AppPlatform } from '../graphql/generated';
 import fetch from '../fetch';
 import Log from '../log';
 import { getCacheDirectory } from '../utils/paths';
@@ -99,7 +100,8 @@ export function readLocalEgressConfigFromEnv(env: NodeJS.ProcessEnv): LocalEgres
     fingerprint,
     port,
     allow,
-    ...(env[EAS_SIMULATOR_EGRESS_PLATFORM] === 'android' ? { androidEmulator: true } : {}),
+    platform:
+      env[EAS_SIMULATOR_EGRESS_PLATFORM] === 'android' ? AppPlatform.Android : AppPlatform.Ios,
   };
 }
 
@@ -318,13 +320,15 @@ const ANDROID_EMULATOR_LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '10.0.2.2'];
 export function createEgressTargetResolver({
   allow,
   onAllowed,
-  androidEmulator = false,
+  platform = AppPlatform.Ios,
 }: {
   allow: readonly string[];
   onAllowed?: (destination: string) => void;
-  androidEmulator?: boolean;
+  platform?: AppPlatform;
 }): EgressTargetResolver {
   const allowed = new Set(allow);
+  const isAndroidLoopbackHost = (host: string): boolean =>
+    platform === AppPlatform.Android && ANDROID_EMULATOR_LOOPBACK_HOSTS.includes(host);
   if (allowed.size === 0) {
     return resolveEgressTargetAsync;
   }
@@ -333,7 +337,7 @@ export function createEgressTargetResolver({
     if (allowed.has(destination)) {
       return destination;
     }
-    if (androidEmulator && ANDROID_EMULATOR_LOOPBACK_HOSTS.includes(host)) {
+    if (isAndroidLoopbackHost(host)) {
       return ANDROID_EMULATOR_LOOPBACK_HOSTS.map(alias =>
         formatEgressDestination(alias, port)
       ).find(alias => allowed.has(alias));
@@ -347,10 +351,7 @@ export function createEgressTargetResolver({
       return await resolveEgressTargetAsync(hostname, port);
     }
     onAllowed?.(destination);
-    if (
-      host === 'localhost' ||
-      (androidEmulator && ANDROID_EMULATOR_LOOPBACK_HOSTS.includes(host))
-    ) {
+    if (host === 'localhost' || isAndroidLoopbackHost(host)) {
       return ['127.0.0.1', '::1'];
     }
     if (net.isIP(host)) {
@@ -966,12 +967,13 @@ export async function runLocalEgressAsync({
   fingerprint,
   port,
   allow = [],
-  androidEmulator = false,
+  platform = AppPlatform.Ios,
   localPort = 0,
   signal,
   onConnected,
   onDisconnected,
-}: Omit<LocalEgressConfig, 'allow'> & {
+}: Omit<LocalEgressConfig, 'allow' | 'platform'> & {
+  platform?: AppPlatform;
   /** Normalized `--egress-allow` destinations; see createEgressTargetResolver. */
   allow?: readonly string[];
   /** Defaults to an available ephemeral port; the remote worker port stays fixed. */
@@ -1007,7 +1009,7 @@ export async function runLocalEgressAsync({
     const reportedAllowed = new Set<string>();
     const resolveAllowedTarget = createEgressTargetResolver({
       allow,
-      androidEmulator,
+      platform,
       onAllowed: destination => {
         if (reportedAllowed.has(destination)) {
           Log.debug(`[egress] ${destination} allowed by --egress-allow`);
@@ -1022,7 +1024,7 @@ export async function runLocalEgressAsync({
       port: localPort,
       resolveTargetAsync: async (hostname, targetPort) =>
         await resolveAllowedTarget(hostname, targetPort),
-      ...(androidEmulator
+      ...(platform === AppPlatform.Android
         ? {
             onPolicyRefusal: (destination: string, error: EgressPolicyError) => {
               if (reportedRefusals.has(destination) || isAndroidPrivateDnsProbe(destination)) {
@@ -1038,7 +1040,7 @@ export async function runLocalEgressAsync({
     });
     signal.throwIfAborted();
     Log.debug(`[egress] proxy listening on ${LOCAL_EGRESS_PROXY_HOST}:${proxy.port}`);
-    const forwards = getLoopbackForwardPlan(allow, port, { androidEmulator });
+    const forwards = getLoopbackForwardPlan(allow, port, platform);
     for (const forwardPort of forwards.ports) {
       Log.debug(
         `[egress] forwarding ${LOCAL_EGRESS_PROXY_HOST}:${forwardPort} on the device host to this machine`

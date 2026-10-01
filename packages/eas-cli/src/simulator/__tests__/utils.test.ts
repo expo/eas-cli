@@ -1,4 +1,8 @@
-import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graphql/generated';
+import {
+  AppPlatform,
+  DeviceRunSessionResourceClass,
+  DeviceRunSessionType,
+} from '../../graphql/generated';
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
@@ -52,6 +56,7 @@ describe('local egress configuration', () => {
       fingerprint: 'fp=',
       port: 8899,
       allow: [],
+      platform: AppPlatform.Ios,
     });
     expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
       AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
@@ -169,7 +174,7 @@ describe(getLoopbackForwardPlan, () => {
       skipped: [],
     });
     expect(
-      getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899, { androidEmulator: true })
+      getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899, AppPlatform.Android)
     ).toEqual({ ports: [8081], skipped: ['localhost:8898'] });
   });
 });
@@ -590,6 +595,7 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       fingerprint: egress.egressFingerprint,
       port: 8899,
       allow: [],
+      platform: AppPlatform.Ios,
     });
     const dotenvInstructions = formatRemoteSessionInstructions(withEgress, 'dotenv');
     expect(dotenvInstructions).toContain('eas simulator:egress');

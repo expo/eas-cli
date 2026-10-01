@@ -93,10 +93,10 @@ export type LocalEgressConfig = {
    */
   allow: string[];
   /**
-   * The session runs an Android emulator, whose guest reaches this machine's
-   * loopback as 10.0.2.2 (and, through the emulator's proxy, as 127.0.0.1).
+   * An Android emulator guest reaches this machine's loopback as 10.0.2.2 (and,
+   * through the emulator's proxy, as 127.0.0.1); an iOS Simulator does not.
    */
-  androidEmulator?: boolean;
+  platform: AppPlatform;
 };
 
 export type LocalEgressOptions = {
@@ -124,7 +124,7 @@ export type LocalEgressOptions = {
 export function getLocalEgressConfig(
   remoteConfig: DeviceRunSessionRemoteConfig,
   allow: readonly string[] = [],
-  platform?: AppPlatform
+  platform: AppPlatform = AppPlatform.Ios
 ): LocalEgressConfig | null {
   const { egressUrl, egressToken, egressFingerprint, egressPort } = remoteConfig;
   if (!egressUrl || !egressToken || !egressFingerprint || egressPort == null) {
@@ -136,7 +136,7 @@ export function getLocalEgressConfig(
     fingerprint: egressFingerprint,
     port: egressPort,
     allow: [...allow],
-    ...(platform === AppPlatform.Android ? { androidEmulator: true } : {}),
+    platform,
   };
 }
 
@@ -163,11 +163,11 @@ export type LoopbackForwardPlan = {
 export function getLoopbackForwardPlan(
   allow: readonly string[],
   proxyPort: number,
-  { androidEmulator = false }: { androidEmulator?: boolean } = {}
+  platform: AppPlatform = AppPlatform.Ios
 ): LoopbackForwardPlan {
   const reservedPorts = new Set([
     proxyPort,
-    ...(androidEmulator ? [ANDROID_EMULATOR_EGRESS_RELAY_PORT] : []),
+    ...(platform === AppPlatform.Android ? [ANDROID_EMULATOR_EGRESS_RELAY_PORT] : []),
   ]);
   const ports = new Set<number>();
   const skipped: string[] = [];
@@ -213,7 +213,7 @@ export function getLocalEgressEnvironmentVariables(
     [EAS_SIMULATOR_EGRESS_PORT]: String(egress.port),
     [EAS_SIMULATOR_EGRESS_ALLOW]: egress.allow.join(','),
     // Always written, so pasted exports for one session replace another session's value.
-    [EAS_SIMULATOR_EGRESS_PLATFORM]: egress.androidEmulator ? 'android' : 'ios',
+    [EAS_SIMULATOR_EGRESS_PLATFORM]: egress.platform === AppPlatform.Android ? 'android' : 'ios',
   };
 }
 
@@ -339,18 +339,19 @@ export function formatRemoteSessionInstructions(
   const summary =
     "🔀 Local egress: the simulator's HTTP(S) traffic exits from this machine." +
     (egress.allow.length > 0 ? ` It can also reach ${egress.allow.join(', ')}.` : '');
-  const guardNotice = egress.androidEmulator
-    ? 'Traffic that cannot use the tunnel, such as UDP, is refused on the device host. The Logs ' +
-      `section of the session page lists what was refused${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`
-    : 'Connections that bypass the proxy are refused inside the simulator. The Logs section of the ' +
-      `session page lists what was refused and which library tried${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`;
+  const guardNotice =
+    egress.platform === AppPlatform.Android
+      ? 'Traffic that cannot use the tunnel, such as UDP, is refused on the device host. The Logs ' +
+        `section of the session page lists what was refused${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`
+      : 'Connections that bypass the proxy are refused inside the simulator. The Logs section of the ' +
+        `session page lists what was refused and which library tried${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`;
   return [
     instructions,
     '',
     summary,
     guardNotice,
     ...formatLoopbackForwardNotice(
-      getLoopbackForwardPlan(egress.allow, egress.port, { androidEmulator: egress.androidEmulator })
+      getLoopbackForwardPlan(egress.allow, egress.port, egress.platform)
     ),
     // In interactive mode the client starts in this terminal once the session is
     // ready and stops with it, so there is nothing for the reader to run.

@@ -21,6 +21,7 @@ import {
   runLocalEgressAsync,
   startLocalEgressProxyServerAsync,
 } from '../egress';
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 
 jest.mock('../../log');
@@ -221,6 +222,7 @@ describe(readLocalEgressConfigFromEnv, () => {
       fingerprint: 'fp=',
       port: 8899,
       allow: [],
+      platform: AppPlatform.Ios,
     });
   });
 
@@ -243,14 +245,13 @@ describe(readLocalEgressConfigFromEnv, () => {
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
     };
-    expect(readLocalEgressConfigFromEnv(env)).not.toHaveProperty('androidEmulator');
+    expect(readLocalEgressConfigFromEnv(env).platform).toBe(AppPlatform.Ios);
     expect(
-      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'ios' })
-    ).not.toHaveProperty('androidEmulator');
+      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'ios' }).platform
+    ).toBe(AppPlatform.Ios);
     expect(
-      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'android' })
-        .androidEmulator
-    ).toBe(true);
+      readLocalEgressConfigFromEnv({ ...env, EAS_SIMULATOR_EGRESS_PLATFORM: 'android' }).platform
+    ).toBe(AppPlatform.Android);
   });
 
   it('explains how to start a session with egress when the variables are missing', () => {
@@ -330,7 +331,7 @@ describe(createEgressTargetResolver, () => {
     const allowed: string[] = [];
     const resolve = createEgressTargetResolver({
       allow: ['localhost:8081'],
-      androidEmulator: true,
+      platform: AppPlatform.Android,
       onAllowed: destination => allowed.push(destination),
     });
     await expect(resolve('10.0.2.2', 8081)).resolves.toEqual(['127.0.0.1', '::1']);
