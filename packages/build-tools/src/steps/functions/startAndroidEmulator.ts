@@ -21,6 +21,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
+import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -245,6 +246,8 @@ export async function startAndroidEmulatorAsync({
     );
   }
 
+  const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
+
   logger.info('Making sure system image is installed');
   await retryAsync(
     async () => {
@@ -290,6 +293,7 @@ export async function startAndroidEmulatorAsync({
           deviceName,
           env,
           logcatDirectory,
+          ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
         });
         attemptSerialId = startResult.serialId;
         await AndroidEmulatorUtils.waitForReadyAsync({
@@ -297,6 +301,7 @@ export async function startAndroidEmulatorAsync({
           serialId: attemptSerialId,
           timeoutMs,
           logger,
+          ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
         });
         if (shouldAdjustAnimationScale) {
           await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
@@ -305,6 +310,7 @@ export async function startAndroidEmulatorAsync({
             serialId: attemptSerialId,
           });
         }
+        await localEgress?.configureBootedEmulatorAsync({ serialId: attemptSerialId, logger });
         logger.info(`${deviceName} is ready.`);
 
         serialId = attemptSerialId;

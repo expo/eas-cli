@@ -82,6 +82,8 @@ function runStep(
       'application_archive_url',
       'launch_args',
       'open_url',
+      'network_capture',
+      'network_capture_fields',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -366,9 +368,33 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'application_archive_url',
       'launch_args',
       'open_url',
+      'network_capture',
+      'network_capture_fields',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
     ]);
+  });
+
+  it('passes network capture to the session', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, {
+      network_capture: true,
+      network_capture_fields: ['header', 'response-body'],
+    });
+
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        capture: { networkCapture: true, networkCaptureFields: ['header', 'response-body'] },
+      })
+    );
+  });
+
+  it('rejects network capture on Android before it boots anything', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, { network_capture: true, system_image_package: 'x' })
+    ).rejects.toThrow('records traffic through serve-sim on an iOS simulator');
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
   });
 });

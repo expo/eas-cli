@@ -12,6 +12,7 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
+import { promptAsync } from '../../../prompts';
 import UpdateRepublish from '../republish';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 import UpdateRollback from '../rollback';
@@ -40,6 +41,7 @@ jest.mock('@expo/config');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
+jest.mock('../../../prompts');
 
 describe(UpdateRollback.name, () => {
   beforeEach(() => {
@@ -65,64 +67,70 @@ describe(UpdateRollback.name, () => {
     expect(UpdateRollBackToEmbedded.run).not.toHaveBeenCalled();
   });
 
-  it('republishes the previous update group when the source group is the latest', async () => {
-    const flags = ['group-source', '--non-interactive'];
-    mockTestProject();
+  it.each([false, true])(
+    'republishes the previous update group when the source group is the latest (nonInteractive: %s)',
+    async nonInteractive => {
+      const flags = ['group-source', ...(nonInteractive ? ['--non-interactive'] : [])];
+      mockTestProject();
 
-    jest
-      .mocked(UpdateQuery.viewUpdateGroupAsync)
-      .mockResolvedValue([{ ...updateStub, group: 'group-source' }]);
+      jest
+        .mocked(UpdateQuery.viewUpdateGroupAsync)
+        .mockResolvedValue([{ ...updateStub, group: 'group-source' }]);
 
-    // Most-recent-first: the source group is the latest, the previous group follows.
-    jest
-      .mocked(UpdateQuery.viewUpdateGroupsPaginatedOnBranchAsync)
-      .mockResolvedValue([
-        [{ ...updateStub, group: 'group-source', message: 'source message' }],
-        [{ ...updateStub, group: 'group-previous', message: 'previous message' }],
+      // Most-recent-first: the source group is the latest, the previous group follows.
+      jest
+        .mocked(UpdateQuery.viewUpdateGroupsPaginatedOnBranchAsync)
+        .mockResolvedValue([
+          [{ ...updateStub, group: 'group-source', message: 'source message' }],
+          [{ ...updateStub, group: 'group-previous', message: 'previous message' }],
+        ]);
+
+      await new UpdateRollback(flags, commandOptions).run();
+
+      expect(UpdateRollBackToEmbedded.run).not.toHaveBeenCalled();
+      expect(UpdateRepublish.run).toHaveBeenCalledWith([
+        '--group',
+        'group-previous',
+        '--message',
+        'Roll back to "previous message" (group: group-previous)',
+        ...(nonInteractive ? ['--non-interactive'] : []),
+        '--platform',
+        'all',
       ]);
+    }
+  );
 
-    await new UpdateRollback(flags, commandOptions).run();
+  it.each([false, true])(
+    'rolls back to embedded when the source group is the only update for its runtime version (nonInteractive: %s)',
+    async nonInteractive => {
+      const flags = ['group-source', ...(nonInteractive ? ['--non-interactive'] : [])];
+      mockTestProject();
 
-    expect(UpdateRollBackToEmbedded.run).not.toHaveBeenCalled();
-    expect(UpdateRepublish.run).toHaveBeenCalledWith([
-      '--group',
-      'group-previous',
-      '--message',
-      'Roll back to "previous message" (group: group-previous)',
-      '--non-interactive',
-      '--platform',
-      'all',
-    ]);
-  });
+      jest
+        .mocked(UpdateQuery.viewUpdateGroupAsync)
+        .mockResolvedValue([{ ...updateStub, group: 'group-source' }]);
 
-  it('rolls back to embedded when the source group is the only update for its runtime version', async () => {
-    const flags = ['group-source', '--non-interactive'];
-    mockTestProject();
+      // Only the source group exists for this runtime version -> no previous group.
+      jest
+        .mocked(UpdateQuery.viewUpdateGroupsPaginatedOnBranchAsync)
+        .mockResolvedValue([[{ ...updateStub, group: 'group-source', message: 'source message' }]]);
 
-    jest
-      .mocked(UpdateQuery.viewUpdateGroupAsync)
-      .mockResolvedValue([{ ...updateStub, group: 'group-source' }]);
+      await new UpdateRollback(flags, commandOptions).run();
 
-    // Only the source group exists for this runtime version -> no previous group.
-    jest
-      .mocked(UpdateQuery.viewUpdateGroupsPaginatedOnBranchAsync)
-      .mockResolvedValue([[{ ...updateStub, group: 'group-source', message: 'source message' }]]);
-
-    await new UpdateRollback(flags, commandOptions).run();
-
-    expect(UpdateRepublish.run).not.toHaveBeenCalled();
-    expect(UpdateRollBackToEmbedded.run).toHaveBeenCalledWith([
-      '--branch',
-      'main',
-      '--runtime-version',
-      'exposdk:47.0.0',
-      '--message',
-      'Roll back to embedded',
-      '--non-interactive',
-      '--platform',
-      'all',
-    ]);
-  });
+      expect(UpdateRepublish.run).not.toHaveBeenCalled();
+      expect(UpdateRollBackToEmbedded.run).toHaveBeenCalledWith([
+        '--branch',
+        'main',
+        '--runtime-version',
+        'exposdk:47.0.0',
+        '--message',
+        'Roll back to embedded',
+        ...(nonInteractive ? ['--non-interactive'] : []),
+        '--platform',
+        'all',
+      ]);
+    }
+  );
 
   it('forwards --message, --platform, and --private-key-path to the republish path', async () => {
     const flags = [
@@ -219,6 +227,26 @@ describe(UpdateRollback.name, () => {
       '--private-key-path',
       './keys/private-key.pem',
     ]);
+  });
+
+  it('forwards --force-end-active-rollout when interactively choosing a published update', async () => {
+    mockTestProject();
+    jest.mocked(promptAsync).mockResolvedValue({ choice: 'published' });
+
+    await new UpdateRollback(['--force-end-active-rollout'], commandOptions).run();
+
+    expect(UpdateRollBackToEmbedded.run).not.toHaveBeenCalled();
+    expect(UpdateRepublish.run).toHaveBeenCalledWith(['--force-end-active-rollout']);
+  });
+
+  it('forwards --force-end-active-rollout when interactively choosing the embedded update', async () => {
+    mockTestProject();
+    jest.mocked(promptAsync).mockResolvedValue({ choice: 'embedded' });
+
+    await new UpdateRollback(['--force-end-active-rollout'], commandOptions).run();
+
+    expect(UpdateRepublish.run).not.toHaveBeenCalled();
+    expect(UpdateRollBackToEmbedded.run).toHaveBeenCalledWith(['--force-end-active-rollout']);
   });
 
   it('errors when the source group is not the latest update for its runtime version', async () => {

@@ -8,6 +8,10 @@ import {
 import { CustomBuildContext } from '../../customBuildContext';
 import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
+import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
@@ -33,6 +37,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
     __metricsId: 'eas/start_serve_sim_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -58,6 +63,13 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform }
+      );
 
       logger.info(`Starting web preview remote session (runtime: ${runtimePlatform}).`);
       const launchDescription = describeServeSimLaunch(launch);
@@ -78,6 +90,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,
+        networkCapture,
+        networkCaptureFields,
       });
 
       try {

@@ -54,6 +54,7 @@ const EXPO_DEVICE_HUB_EXIT_LEEWAY_MS = 10_000;
 const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
+const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -104,12 +105,16 @@ export function createServeSimArgs({
   launchAppIdentifier,
   launchArgs = [],
   openUrl,
+  networkCapture = false,
+  networkCaptureFields = [],
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -136,6 +141,14 @@ export function createServeSimArgs({
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
     ...(openUrl ? ['--open-url', openUrl] : []),
+    // `--network-capture` also covers an already booted simulator. Fields are repeated, not
+    // comma-joined, so serve-sim's error names the bad value.
+    ...(networkCapture
+      ? [
+          '--network-capture',
+          ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
+        ]
+      : []),
   ];
 }
 
@@ -214,7 +227,7 @@ export async function waitForWebPreviewReadyAsync({
     } catch (error) {
       lastError = error;
     }
-    await sleepAsync(1_000);
+    await sleepAsync(WEB_PREVIEW_READY_POLL_INTERVAL_MS);
   }
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${
@@ -266,17 +279,27 @@ export async function startDeviceSessionHostAsync(
     launchAppIdentifier,
     launchArgs,
     openUrl,
+    networkCapture = false,
+    networkCaptureFields = [],
   }: {
     runtimePlatform: BuildRuntimePlatform;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<DeviceSessionHost> {
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
   // Unreachable from the step functions, which reject a non-Darwin launch while parsing.
   // Kept because this function is exported and expo-device-hub cannot launch.
+  if (isAndroid && networkCapture) {
+    throw new UserError(
+      'EAS_NETWORK_CAPTURE_INVALID_INPUT',
+      `Cannot record network traffic: capture runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
+    );
+  }
   if (isAndroid && launchAppIdentifier) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
@@ -320,6 +343,8 @@ export async function startDeviceSessionHostAsync(
           launchAppIdentifier,
           launchArgs,
           openUrl,
+          networkCapture,
+          networkCaptureFields,
         })
   );
   logger.info(

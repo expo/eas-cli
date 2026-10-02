@@ -79,7 +79,7 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         required: true,
       }),
     ],
-    fn: async (stepsCtx, { inputs, outputs }) => {
+    fn: async (stepsCtx, { inputs, outputs, signal }) => {
       const { logger } = stepsCtx;
 
       const extensions = z.array(z.string()).parse(inputs.extensions.value);
@@ -120,6 +120,7 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         graphqlClient: ctx.graphqlClient,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
+        signal,
       });
 
       outputs.artifact_path.set(artifactPath);

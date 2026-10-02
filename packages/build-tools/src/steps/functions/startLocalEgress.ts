@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { startAndroidLocalEgressAsync } from '../utils/androidLocalEgress';
 import {
   CHISEL_VERSION,
   LOCAL_EGRESS_HANDOFF_PATH,
@@ -79,8 +80,9 @@ function awaitLocalEgressAcquisitionAsync<T>(
  * at boot. Once a simulator boots, `eas/start_ios_simulator` also sets proxy
  * environment variables inside it for clients that read them (gRPC, libcurl)
  * and installs the local egress guard, which refuses connections that ignore
- * both. The shared session cleanup releases the resources started here when
- * the session ends, with a job finalizer as a fallback.
+ * both. On Linux it starts the Android emulator relay and fence instead; see
+ * androidLocalEgress.ts. The shared session cleanup releases the resources
+ * started here when the session ends, with a job finalizer as a fallback.
  */
 export function createStartLocalEgressBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -88,13 +90,15 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
     id: 'start_local_egress',
     name: 'Start local egress',
     __metricsId: 'eas/start_local_egress',
-    supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
-    fn: async ({ logger }, { env, signal }) => {
+    supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX],
+    fn: async ({ logger, global }, { env, signal }) => {
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      const isAndroid = global?.runtimePlatform === BuildRuntimePlatform.LINUX;
       let workDir: string | undefined;
       let server: DetachedProcessHandle | undefined;
       let tunnel: NgrokTunnelHandle | undefined;
+      let android: { stopAsync: () => Promise<void> } | undefined;
       let finishSetup!: () => void;
       const setupFinished = new Promise<void>(resolve => {
         finishSetup = resolve;
@@ -105,6 +109,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
         await setupFinished;
         const results = await Promise.allSettled([
           Promise.resolve().then(() => stopLocalEgressGuardRelaysAsync(logger)),
+          Promise.resolve().then(() => android?.stopAsync()),
           Promise.resolve().then(() => tunnel?.stopAsync()),
           Promise.resolve().then(() => server?.stopAsync()),
         ]);
@@ -168,6 +173,35 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           logger
         );
         startupSignal.throwIfAborted();
+
+        if (isAndroid) {
+          if (server.pid === undefined) {
+            throw new Error('The reverse tunnel server has no process id.');
+          }
+          android = await startAndroidLocalEgressAsync({
+            env,
+            logger,
+            workDir,
+            chiselPid: server.pid,
+            proxyPort: LOCAL_EGRESS_PROXY_PORT,
+            controlPort,
+          });
+          startupSignal.throwIfAborted();
+          await writeLocalEgressHandoffAsync({
+            url: tunnel.url,
+            token: credentials.password,
+            fingerprint: started.fingerprint,
+            port: LOCAL_EGRESS_PROXY_PORT,
+            platform: 'android',
+          });
+          startupSignal.throwIfAborted();
+          logger.info(
+            "Local egress is configured for the Android emulator. Its TCP traffic goes through the emulator's " +
+              'proxy and fails until the EAS CLI egress client connects, then exits from that machine. ' +
+              'Traffic that cannot use the tunnel, such as UDP, is refused and reported here.'
+          );
+          return;
+        }
 
         const { service } = await configureSystemProxyAsync({
           env,

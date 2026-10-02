@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { generateKeyPairSync } from 'node:crypto';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -10,10 +11,11 @@ import {
 
 jest.unmock('node-fetch');
 
-const client = new AscApiClient({ token: 'test-token' });
+const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const key = { keyId: 'TESTKEY', privateKey };
 const changelog = 'Test "quotes"\n$(not-a-command)';
 const options = {
-  client,
+  client: new AscApiClient({ key }),
   buildUploadId: 'upload',
   changelog,
   groups: [] as string[],
@@ -57,6 +59,7 @@ function mockAssignedGroups(ids: string[] = []): void {
 beforeAll(() => nock.disableNetConnect());
 beforeEach(() => {
   options.logger = createMockLogger();
+  options.client = new AscApiClient({ key });
 });
 afterAll(() => nock.enableNetConnect());
 afterEach(() => {
@@ -223,6 +226,46 @@ it('updates by ID when Apple omits a localization locale and creates the primary
   await updateTestFlightMetadataAsync(options);
 });
 
+it('assigns requested groups when hasAccessToAllBuilds is null', async () => {
+  mockBuild();
+  mockAssignedGroups();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, {
+      data: [
+        {
+          id: 'internal',
+          attributes: { name: 'Internal', isInternalGroup: true, hasAccessToAllBuilds: false },
+        },
+        {
+          id: 'external',
+          attributes: {
+            name: 'test external',
+            isInternalGroup: false,
+            hasAccessToAllBuilds: null,
+            publicLinkEnabled: false,
+            publicLink: 'https://testflight.apple.com/join/abc',
+          },
+        },
+        {
+          id: 'requested-external',
+          attributes: { name: 'Beta', isInternalGroup: false, hasAccessToAllBuilds: null },
+        },
+      ],
+    });
+  for (const id of ['internal', 'requested-external']) {
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id }],
+      })
+      .reply(204);
+  }
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['Internal', 'Beta'] })
+  ).resolves.toBeUndefined();
+});
+
 it('adds groups without changing changelog or submitting beta review', async () => {
   mockBuild();
   mockAssignedGroups();
@@ -333,7 +376,7 @@ it('attempts all localization changes and reports every failed update', async ()
   expect(options.logger.error).toHaveBeenCalledWith(expect.stringContaining('"fr" (fr)'));
 });
 
-it('explains when Apple rejects an internal group with automatic distribution', async () => {
+it.each([1, 2])('explains automatic internal group rejection (%s errors)', async errorCount => {
   mockBuild();
   mockAssignedGroups();
   api()
@@ -343,13 +386,11 @@ it('explains when Apple rejects an internal group with automatic distribution', 
   api()
     .post('/v1/builds/build/relationships/betaGroups')
     .reply(422, {
-      errors: [
-        {
-          code: 'ENTITY_UNPROCESSABLE',
-          title: 'Builds cannot be assigned to this internal group.',
-          detail: 'Cannot add internal group to a build.',
-        },
-      ],
+      errors: Array.from({ length: errorCount }, () => ({
+        code: 'ENTITY_UNPROCESSABLE',
+        title: 'Builds cannot be assigned to this internal group.',
+        detail: 'Cannot add internal group to a build.',
+      })),
     });
   await expect(
     updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] })

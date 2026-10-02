@@ -261,6 +261,150 @@ describe('AndroidEmulatorUtils', () => {
       await emulatorOutputStreamClosed;
     });
 
+    it('spawns the emulator directly with the same arguments when there is no launch gate', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      mockSuccessfulStart(deviceName);
+      const env = { ANDROID_EMULATOR_EXTRA_ARGS: '-gpu swiftshader_indirect' };
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env,
+        logcatDirectory: outputDir,
+      });
+
+      const emulatorCalls = mockedSpawn.mock.calls.filter(([command]) =>
+        command.endsWith('/emulator/emulator')
+      );
+      expect(emulatorCalls).toEqual([
+        [
+          `${process.env.ANDROID_HOME}/emulator/emulator`,
+          [
+            '-no-window',
+            '-no-boot-anim',
+            '-writable-system',
+            '-noaudio',
+            '-no-snapshot-save',
+            '-logcat',
+            '*:v',
+            '-logcat-output',
+            result.logcatOutputPath,
+            '-avd',
+            deviceName,
+            '-accel',
+            'on',
+            '-gpu',
+            'swiftshader_indirect',
+          ],
+          {
+            detached: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            ignoreStdio: true,
+            env: { ...env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+          },
+        ],
+      ]);
+      expect(
+        mockedSpawn.mock.calls.filter(([command]) =>
+          ['sudo', 'nft', 'systemd-run', 'bash'].includes(command)
+        )
+      ).toEqual([]);
+    });
+
+    it('starts the emulator behind the launch gate and releases it once admitted', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const stdin = { end: jest.fn() };
+      Object.assign(child, { stdin });
+      const gatedSpawn = mockedSpawn.getMockImplementation()!;
+      mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
+        command === 'bash'
+          ? gatedSpawn('/android/emulator/emulator', args, options as any)
+          : gatedSpawn(command, args, options as any)) as any);
+      const admitAsync = jest.fn().mockResolvedValue(undefined);
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        launchGate: {
+          emulatorArgs: ['-http-proxy', '127.0.0.1:8898', '-no-metrics'],
+          wrapperCommand: 'bash',
+          wrapperArgs: ['-c', 'gate', 'eas-egress-gate'],
+          admitAsync,
+        },
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'bash',
+        [
+          '-c',
+          'gate',
+          'eas-egress-gate',
+          `${process.env.ANDROID_HOME}/emulator/emulator`,
+          '-no-window',
+          '-no-boot-anim',
+          '-writable-system',
+          '-noaudio',
+          '-no-snapshot-save',
+          '-logcat',
+          '*:v',
+          '-logcat-output',
+          result.logcatOutputPath,
+          '-avd',
+          deviceName,
+          '-accel',
+          'on',
+          '-http-proxy',
+          '127.0.0.1:8898',
+          '-no-metrics',
+        ],
+        expect.objectContaining({ detached: true, stdio: ['pipe', 'pipe', 'pipe'] })
+      );
+      expect(admitAsync).toHaveBeenCalledWith(1234);
+      expect(stdin.end).toHaveBeenCalledWith('go\n');
+      expect(admitAsync.mock.invocationCallOrder[0]).toBeLessThan(
+        stdin.end.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('kills the gated wrapper and throws when admission fails', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const stdin = { end: jest.fn() };
+      const kill = jest.fn();
+      Object.assign(child, { stdin, kill });
+      const gatedSpawn = mockedSpawn.getMockImplementation()!;
+      mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
+        gatedSpawn(
+          command === 'bash' ? '/android/emulator/emulator' : command,
+          args,
+          options as any
+        )) as any);
+      const admissionError = new Error('not fenced');
+
+      await expect(
+        AndroidEmulatorUtils.startAsync({
+          deviceName,
+          env: {},
+          logcatDirectory: outputDir,
+          launchGate: {
+            emulatorArgs: [],
+            wrapperCommand: 'bash',
+            wrapperArgs: ['-c', 'gate', 'eas-egress-gate'],
+            admitAsync: jest.fn().mockRejectedValue(admissionError),
+          },
+        })
+      ).rejects.toBe(admissionError);
+      expect(kill).toHaveBeenCalledWith('SIGKILL');
+      expect(stdin.end).not.toHaveBeenCalled();
+    });
+
     it('throws a SystemError when the staging directory cannot be prepared', async () => {
       const outputDir = '/unwritable/logcat-staging';
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
@@ -337,6 +481,30 @@ describe('AndroidEmulatorUtils', () => {
           env: process.env,
         })
       ).rejects.toThrow('network is not ready');
+    });
+
+    it('checks the given readiness target instead of 1.1.1.1:443', async () => {
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (args[3] === 'getprop') {
+          return { stdout: '1\n', stderr: '' } as any;
+        }
+        if (args[3] === 'nc' && args[6] === '192.0.2.1' && args[7] === '443') {
+          return { stdout: '', stderr: '' } as any;
+        }
+        throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
+      }) as any);
+
+      await AndroidEmulatorUtils.waitForReadyAsync({
+        serialId: 'emulator-5554' as any,
+        env: process.env,
+        networkReadyTarget: { host: '192.0.2.1', port: 443 },
+      });
+
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        expect.arrayContaining(['1.1.1.1']),
+        expect.anything()
+      );
     });
 
     it('uses overridden network readiness command when provided', async () => {
