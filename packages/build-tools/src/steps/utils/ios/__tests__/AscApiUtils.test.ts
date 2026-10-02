@@ -3,7 +3,6 @@ import fs from 'fs-extra';
 import * as jose from 'jose';
 import nock from 'nock';
 
-import { Sentry } from '../../../../sentry';
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
@@ -326,6 +325,13 @@ describe('AscApiUtils', () => {
 
 describe('commitBuildUploadFileAsync', () => {
   const logger = createLogger({ name: 'test' });
+  const fileResponse = (state: string) => ({
+    data: {
+      type: 'buildUploadFiles',
+      id: 'file',
+      attributes: { assetDeliveryState: { state } },
+    },
+  });
   let client: AscApiClient;
   beforeAll(async () => {
     const { privateKey } = await jose.generateKeyPair('ES256');
@@ -338,256 +344,90 @@ describe('commitBuildUploadFileAsync', () => {
       expect(nock.pendingMocks()).toEqual([]);
     } finally {
       nock.cleanAll();
-      jest.restoreAllMocks();
     }
   });
-  it.each(['COMPLETE', 'FAILED'])(
-    'does not commit a file already in terminal state %s',
+
+  it.each(['COMPLETE', 'FAILED'])('does not commit a terminal file: %s', async state => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fileResponse(state));
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).resolves.toBeUndefined();
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD'])(
+    'reads the file before retrying an interrupted commit: %s',
     async state => {
       const scope = nock('https://api.appstoreconnect.apple.com')
         .get('/v1/buildUploadFiles/file')
         .query(true)
-        .reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: { assetDeliveryState: { state } },
-          },
-        });
-      await expect(
-        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-      ).resolves.toBeUndefined();
-      expect(scope.isDone()).toBe(true);
-    }
-  );
-  it('does not replay an upload commit when Apple already accepted it', async () => {
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
-        },
-      })
-      .patch('/v1/buildUploadFiles/file')
-      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: {
-            assetDeliveryState: { state: 'COMPLETE' },
-          },
-        },
-      });
-    await expect(
-      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-    ).resolves.toBeUndefined();
-    expect(scope.isDone()).toBe(true);
-  });
-
-  it.each(['AWAITING_UPLOAD'])('replays a commit when the file state is %s', async state => {
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state } },
-        },
-      })
-      .patch('/v1/buildUploadFiles/file')
-      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: {
-            assetDeliveryState: { state },
-          },
-        },
-      })
-      .patch('/v1/buildUploadFiles/file')
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: {
-            assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
-          },
-        },
-      });
-    await expect(
-      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-    ).resolves.toBeUndefined();
-    expect(scope.isDone()).toBe(true);
-  });
-
-  it.each(['reset', 'invalid-state'])(
-    'retries an UPLOAD_COMPLETE commit after %s and a fresh state read',
-    async failure => {
-      const capture = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
-      const state = (value: string) => ({
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state: value } },
-        },
-      });
-      const scope = nock('https://api.appstoreconnect.apple.com')
-        .get('/v1/buildUploadFiles/file')
-        .query(true)
-        .reply(200, state('UPLOAD_COMPLETE'));
-      const patch = scope.patch('/v1/buildUploadFiles/file');
-      if (failure === 'reset') {
-        patch.replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
-      } else {
-        patch.reply(409, { errors: [{ code: 'STATE_ERROR.INVALID_STATE' }] });
-      }
-      scope
-        .get('/v1/buildUploadFiles/file')
-        .query(true)
-        .reply(200, state('UPLOAD_COMPLETE'))
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
         .patch('/v1/buildUploadFiles/file')
-        .reply(200, state('COMPLETE'));
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, fileResponse(state));
+      if (state === 'AWAITING_UPLOAD') {
+        scope.patch('/v1/buildUploadFiles/file').reply(200, fileResponse('COMPLETE'));
+      }
       await expect(
         AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
       ).resolves.toBeUndefined();
-      expect(capture).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ tags: { outcome: 'uncertain' } })
-      );
-      expect(scope.isDone()).toBe(true);
     }
   );
 
   it.each([
     [401, 'NOT_AUTHORIZED'],
     [403, 'FORBIDDEN'],
-    [409, 'OTHER_CONFLICT'],
-  ])('does not retry an unrelated Apple error: %s %s', async (status, code) => {
-    const scope = nock('https://api.appstoreconnect.apple.com')
+    [409, 'STATE_ERROR.INVALID_STATE'],
+  ])('preserves Apple errors without retrying: %s %s', async (status, code) => {
+    nock('https://api.appstoreconnect.apple.com')
       .get('/v1/buildUploadFiles/file')
       .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
-        },
-      })
+      .reply(200, fileResponse('UPLOAD_COMPLETE'))
       .patch('/v1/buildUploadFiles/file')
       .reply(status, { errors: [{ code }] });
     await expect(
       AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
     ).rejects.toMatchObject({ status, code });
-    expect(scope.isDone()).toBe(true);
   });
 
-  it.each(['COMPLETE', 'UPLOAD_COMPLETE', 'FAILED', 'read-error'])(
-    'checks the final uncertain commit before returning: %s',
+  it('does not commit when the initial state read fails', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(503, 'Unavailable');
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).rejects.toThrow('503');
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED', 'read-error'])(
+    'checks the file after the final interrupted commit: %s',
     async finalState => {
       const scope = nock('https://api.appstoreconnect.apple.com')
         .get('/v1/buildUploadFiles/file')
         .query(true)
         .times(4)
-        .reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
-          },
-        })
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
         .patch('/v1/buildUploadFiles/file')
         .times(4)
-        .reply(409, { errors: [{ code: 'STATE_ERROR.INVALID_STATE' }] });
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
       const finalRead = scope.get('/v1/buildUploadFiles/file').query(true);
       if (finalState === 'read-error') {
         finalRead.reply(503, 'Unavailable');
       } else {
-        finalRead.reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: { assetDeliveryState: { state: finalState } },
-          },
-        });
+        finalRead.reply(200, fileResponse(finalState));
       }
       const result = AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
       if (finalState === 'COMPLETE') {
         await expect(result).resolves.toBeUndefined();
       } else {
-        await expect(result).rejects.toMatchObject({
-          message: expect.stringContaining('Could not confirm the commit'),
-          cause: expect.objectContaining({ status: 409, code: 'STATE_ERROR.INVALID_STATE' }),
-        });
+        await expect(result).rejects.toMatchObject({ code: 'ECONNRESET' });
       }
-      expect(scope.isDone()).toBe(true);
     },
     15_000
   );
-
-  it('recovers a lost response from the last normal commit', async () => {
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .times(4)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state: 'AWAITING_UPLOAD' } },
-        },
-      })
-      .patch('/v1/buildUploadFiles/file')
-      .times(4)
-      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, {
-        data: {
-          type: 'buildUploadFiles',
-          id: 'file',
-          attributes: { assetDeliveryState: { state: 'COMPLETE' } },
-        },
-      });
-    await expect(
-      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-    ).resolves.toBeUndefined();
-    expect(scope.isDone()).toBe(true);
-  }, 15_000);
-
-  it('reports a successful commit from UPLOAD_COMPLETE', async () => {
-    const capture = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
-    const state = (value: string) => ({
-      data: {
-        type: 'buildUploadFiles',
-        id: 'file',
-        attributes: {
-          assetDeliveryState: { state: value },
-        },
-      },
-    });
-    const scope = nock('https://api.appstoreconnect.apple.com')
-      .get('/v1/buildUploadFiles/file')
-      .query(true)
-      .reply(200, state('UPLOAD_COMPLETE'))
-      .patch('/v1/buildUploadFiles/file')
-      .reply(200, state('COMPLETE'));
-    await AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
-    expect(capture).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        tags: expect.objectContaining({ outcome: 'commit_succeeded' }),
-      })
-    );
-    expect(scope.isDone()).toBe(true);
-  });
 });

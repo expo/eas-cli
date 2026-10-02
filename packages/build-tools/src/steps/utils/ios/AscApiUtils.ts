@@ -6,7 +6,6 @@ import { z } from 'zod';
 
 import { isConnectionInterruptedError } from '../../../utils/networkErrors';
 import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
-import { Sentry } from '../../../sentry';
 
 import {
   AscApiClient,
@@ -38,17 +37,13 @@ export namespace AscApiUtils {
           if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
             return;
           }
-          if (data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE') {
-            await commitUploadCompleteFileAsync({ client, fileId, logger });
-            return;
-          }
           await client.patchAsync(
             '/v1/buildUploadFiles/:id',
             { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
             { id: fileId }
           );
         },
-        error => error instanceof UploadCompletePendingError || isConnectionInterruptedError(error),
+        error => isConnectionInterruptedError(error),
         { retries: 3, factor: 1, minTimeout: 2000 },
         ({ attemptNumber, maxAttemptsCount, error }) =>
           logger.warn(
@@ -57,7 +52,7 @@ export namespace AscApiUtils {
           )
       )();
     } catch (error) {
-      if (!(error instanceof UploadCompletePendingError || isConnectionInterruptedError(error))) {
+      if (!isConnectionInterruptedError(error)) {
         throw error;
       }
       // Apple may have accepted the final commit even though its response was lost.
@@ -78,60 +73,6 @@ export namespace AscApiUtils {
         );
       }
       throw error;
-    }
-  }
-
-  // Temporary handling until we understand UPLOAD_COMPLETE for build upload files.
-  class UploadCompletePendingError extends SystemError {}
-
-  async function commitUploadCompleteFileAsync({
-    client,
-    fileId,
-    logger,
-  }: {
-    client: AscApiClient;
-    fileId: string;
-    logger: bunyan;
-  }): Promise<void> {
-    logger.warn(`Upload file ${fileId} is UPLOAD_COMPLETE; checking whether it needs a commit.`);
-    let outcome = 'failed';
-    let commitError: unknown;
-    try {
-      const { data } = await client.patchAsync(
-        '/v1/buildUploadFiles/:id',
-        { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
-        { id: fileId }
-      );
-      outcome = 'commit_succeeded';
-      logger.info(
-        `Upload file ${fileId}: commit accepted (state = ${data.attributes.assetDeliveryState.state}).`
-      );
-    } catch (error) {
-      commitError = error;
-      if (
-        isConnectionInterruptedError(error) ||
-        (error instanceof AscApiRequestError &&
-          error.status === 409 &&
-          error.code === 'STATE_ERROR.INVALID_STATE')
-      ) {
-        outcome = 'uncertain';
-        throw new UploadCompletePendingError(
-          `Could not confirm the commit for upload file ${fileId} in UPLOAD_COMPLETE. Check the upload in App Store Connect before retrying the submission.`,
-          { cause: error }
-        );
-      }
-      throw error;
-    } finally {
-      Sentry.capture('App Store Connect upload file entered UPLOAD_COMPLETE', {
-        level: outcome === 'failed' ? 'error' : 'warning',
-        tags: { outcome },
-        extras: {
-          fileId,
-          commitStatus: commitError instanceof AscApiRequestError ? commitError.status : undefined,
-          commitErrorCode:
-            commitError instanceof Error && 'code' in commitError ? commitError.code : undefined,
-        },
-      });
     }
   }
 
