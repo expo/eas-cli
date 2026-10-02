@@ -444,6 +444,42 @@ test('reports a finalized recording whose manifest is gone at finish', async () 
   );
 });
 
+test.each([0, 20])(
+  'keeps a started recording that exits with an error when its manifest appears after %i ms',
+  async manifestDelayMs => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid, url: 'http://127.0.0.1:43563', token: 'session-token' }]);
+    const recorder = mockRecorder();
+
+    await IosSimulatorRecordingUtils.startAsync({ env, logger });
+    await waitForRecorderSpawnAsync();
+    const outputDirectory = jest.mocked(spawn).mock.calls[0][1][6];
+    recorder.child.stderr?.emit('data', 'serve-sim:recording-started\n');
+    const manifestWritten = setTimeout(manifestDelayMs).then(() =>
+      writeFile(`${outputDirectory}/session.json`, JSON.stringify({ recording: 'recording.mp4' }))
+    );
+    if (manifestDelayMs === 0) {
+      await manifestWritten;
+    }
+    recorder.fail(new Error('record-video exited with code 1'));
+
+    const recordings = await IosSimulatorRecordingUtils.finishAsync({ logger });
+    await manifestWritten;
+
+    expect(recordings).toEqual([
+      {
+        udid,
+        deviceName: 'iPhone 17 Pro',
+        runtimeDisplayName: 'iOS 26.4',
+        directory: outputDirectory,
+      },
+    ]);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  }
+);
+
 test('reports a started recorder that fails without a manifest', async () => {
   let currentTime = Date.now();
   jest.spyOn(Date, 'now').mockImplementation(() => currentTime);

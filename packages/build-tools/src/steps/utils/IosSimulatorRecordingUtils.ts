@@ -367,6 +367,10 @@ async function startIosSimulatorRecordingAsync(
     // A package-manager wrapper can exit while its record-video child still
     // runs in the detached group. Keep this device active until the group exits.
     await waitForRecordingProcessGroupExitAsync(recordingSpawn.child);
+    // Host shutdown can end the recorder's lease after its video has been saved.
+    if ((hasStarted() || !spawnError) && (await saveFinalizedRecordingAsync())) {
+      return;
+    }
     if (spawnError) {
       const err = spawnError;
       const error = err instanceof Error ? err : new Error(String(err));
@@ -374,23 +378,16 @@ async function startIosSimulatorRecordingAsync(
         { err: error, recorderOutput: getOutput() },
         `Screen recording process failed for ${deviceName}.`
       );
-      if (!hasStarted()) {
-        scheduleRecordingRetry(session, udid);
-      } else if (!(await saveFinalizedRecordingAsync())) {
-        reportLostRecording(session.logger, deviceName, getOutput().trim());
-        scheduleRecordingRetry(session, udid);
-      }
-    } else if (!(await saveFinalizedRecordingAsync())) {
-      if (hasStarted()) {
-        reportLostRecording(session.logger, deviceName, getOutput().trim());
-      } else {
-        session.logger.warn(
-          { recorderOutput: getOutput().trim() },
-          `Screen recording for ${deviceName} exited before it started; it will be retried.`
-        );
-      }
-      scheduleRecordingRetry(session, udid);
     }
+    if (hasStarted()) {
+      reportLostRecording(session.logger, deviceName, getOutput().trim());
+    } else if (!spawnError) {
+      session.logger.warn(
+        { recorderOutput: getOutput().trim() },
+        `Screen recording for ${deviceName} exited before it started; it will be retried.`
+      );
+    }
+    scheduleRecordingRetry(session, udid);
   })().finally(() => {
     session.activeRecordings.delete(udid);
   });
