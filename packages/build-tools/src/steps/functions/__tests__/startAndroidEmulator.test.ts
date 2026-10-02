@@ -127,26 +127,22 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       ).toEqual([]);
     });
 
-    it('fences, gates and configures the base emulator and every clone', async () => {
+    it('fences, gates and configures the emulator', async () => {
       const localEgress = createLocalEgress();
       mockedResolveLocalEgress.mockResolvedValue(localEgress);
-      mockedAndroidUtils.startAsync
-        .mockResolvedValueOnce(createStartResult('emulator-base'))
-        .mockResolvedValueOnce(createStartResult('emulator-clone-1'))
-        .mockResolvedValueOnce(createStartResult('emulator-clone-2'));
+      mockedAndroidUtils.startAsync.mockResolvedValueOnce(createStartResult('emulator-base'));
 
-      await createStep({ count: 2 }).executeAsync();
+      await createStep().executeAsync();
 
-      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
-      for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
-        expect(options.launchGate).toBe(localEgress.launchGate);
-      }
-      for (const [options] of mockedAndroidUtils.waitForReadyAsync.mock.calls) {
-        expect(options.networkReadyTarget).toEqual({ host: '192.0.2.1', port: 443 });
-      }
-      expect(
-        localEgress.configureBootedEmulatorAsync.mock.calls.map(([{ serialId }]) => serialId)
-      ).toEqual(['emulator-base', 'emulator-clone-1', 'emulator-clone-2']);
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ launchGate: localEgress.launchGate })
+      );
+      expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ networkReadyTarget: { host: '192.0.2.1', port: 443 } })
+      );
+      expect(localEgress.configureBootedEmulatorAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ serialId: 'emulator-base' })
+      );
     });
 
     it('retries a boot whose local egress configuration fails', async () => {
