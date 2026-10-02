@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Retry App Store Connect connection failures and safely recover interrupted status reads and upload commits. ([#4520](https://github.com/expo/eas-cli/pull/4520) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [24.10.0](https://github.com/expo/eas-cli/releases/tag/v24.10.0) - 2026-10-02

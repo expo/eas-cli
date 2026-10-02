@@ -1,7 +1,11 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import { z } from 'zod';
+
+import { isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 
 import {
   AscApiClient,
@@ -13,6 +17,65 @@ import {
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  export async function commitBuildUploadFileAsync({
+    client,
+    fileId,
+    logger,
+  }: {
+    client: AscApiClient;
+    fileId: string;
+    logger: bunyan;
+  }): Promise<void> {
+    try {
+      await promiseRetryWithCondition(
+        async () => {
+          const { data } = await client.getAsync(
+            '/v1/buildUploadFiles/:id',
+            { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+            { id: fileId }
+          );
+          if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
+            return;
+          }
+          await client.patchAsync(
+            '/v1/buildUploadFiles/:id',
+            { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
+            { id: fileId }
+          );
+        },
+        error => isConnectionInterruptedError(error),
+        { retries: 3, factor: 1, minTimeout: 2000 },
+        ({ attemptNumber, maxAttemptsCount, error }) =>
+          logger.warn(
+            { err: error },
+            `Checking upload file before commit attempt ${attemptNumber}/${maxAttemptsCount}.`
+          )
+      )();
+    } catch (error) {
+      if (!isConnectionInterruptedError(error)) {
+        throw error;
+      }
+      // Apple may have accepted the final commit even though its response was lost.
+      try {
+        const { data } = await client.getAsync(
+          '/v1/buildUploadFiles/:id',
+          { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+          { id: fileId }
+        );
+        if (data.attributes.assetDeliveryState.state === 'COMPLETE') {
+          logger.info(`Upload file ${fileId}: COMPLETE confirmed after the final commit error.`);
+          return;
+        }
+      } catch (readError) {
+        logger.warn(
+          { err: readError },
+          `Could not check upload file ${fileId} after the final commit error.`
+        );
+      }
+      throw error;
+    }
+  }
+
   export async function getAllBetaBuildLocalizationsAsync({
     client,
     buildId,
