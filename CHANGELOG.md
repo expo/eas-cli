@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device, and `--network-capture-field` to also keep headers, query values, or request and response bodies. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -24,7 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Save manual iOS and Android live preview screenshots as session artifacts when supported by the preview server. ([#4481](https://github.com/expo/eas-cli/pull/4481) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Add the `eas/install_mitmproxy` step. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Start serve-sim with `--network-capture`, and with `--network-capture-field` for each requested field, when a simulator session requests network capture. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device, and `--network-capture-field` to also keep headers, query values, or request and response bodies. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
