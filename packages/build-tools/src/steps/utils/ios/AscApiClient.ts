@@ -5,6 +5,9 @@ import * as jose from 'jose';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
 
+const TOKEN_LIFETIME_SECONDS = 20 /* minutes */ * 60 /* seconds */;
+const TOKEN_REFRESH_MARGIN_SECONDS = 60 /* seconds */;
+
 type ApiSchema = {
   [Path in string]: {
     path?: z.ZodType<Record<string, string>>;
@@ -416,8 +419,8 @@ export class AscApiClient {
   private async getTokenAsync(): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
     // Reuse valid tokens, but leave time for a request to reach Apple before expiry.
-    if (!this.cachedToken || this.cachedToken.expiresAt <= now + 60) {
-      const expiresAt = now + 20 * 60;
+    if (!this.cachedToken || this.cachedToken.expiresAt <= now + TOKEN_REFRESH_MARGIN_SECONDS) {
+      const expiresAt = now + TOKEN_LIFETIME_SECONDS;
       this.cachedToken = { value: this.signTokenAsync(expiresAt), expiresAt };
     }
     const cachedToken = this.cachedToken;
