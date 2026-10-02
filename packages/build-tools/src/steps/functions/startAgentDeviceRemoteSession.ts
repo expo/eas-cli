@@ -398,6 +398,7 @@ export async function startAgentDeviceDaemonAsync({
       command: 'node',
       args: [daemonPath],
       env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+      logger,
     });
     return {
       ...daemonProcess,
@@ -496,6 +497,7 @@ async function startAgentDeviceDaemonFromGitAsync({
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
     env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+    logger,
   });
 }
 

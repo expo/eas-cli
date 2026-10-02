@@ -28,7 +28,7 @@ import {
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
-import { type CircularFile } from './circularFile';
+import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
@@ -548,13 +548,12 @@ export function isProcessRunning(pid: number): boolean {
 
 async function stopDetachedProcessAsync(
   pid: number | undefined,
-  gracePeriodMs = 5_000,
-  waitForProcessGroup = false
+  gracePeriodMs = 5_000
 ): Promise<void> {
   if (pid === undefined) {
     return;
   }
-  const isRunning = () => isProcessRunning(waitForProcessGroup ? -pid : pid);
+  const isRunning = () => isProcessRunning(-pid);
   if (!isRunning()) {
     return;
   }
@@ -629,25 +628,31 @@ export function spawnDetached({
   cwd,
   env,
   stopGracePeriodMs,
-  outputLog,
+  logger,
+  secrets,
 }: {
   command: string;
   args: string[];
   cwd?: string;
   env: BuildStepEnv;
   stopGracePeriodMs?: number;
-  outputLog?: CircularFile;
+  logger?: bunyan;
+  secrets?: string[];
 }): DetachedProcessHandle {
   const promise = spawn(command, args, {
     cwd,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
-    ignoreStdio: outputLog !== undefined,
+    ignoreStdio: true,
   });
-  const outputDrained = outputLog
-    ? new Promise<void>(resolve => promise.child.once('close', () => resolve()))
-    : undefined;
+  const output = createProcessOutput(logger, secrets);
+  const outputDrained = new Promise<void>(resolve =>
+    promise.child.once('close', () => {
+      output.finish();
+      resolve();
+    })
+  );
   // Observe completion without rejecting in the background. Startup callers can
   // distinguish a dead process from one that is still preparing its state file.
   let exitError: Error | undefined;
@@ -666,52 +671,26 @@ export function spawnDetached({
   );
   promise.child.unref();
 
-  let output = '';
-  let outputError: Error | undefined;
-  const appendChunk = (chunk: Buffer | string): void => {
-    if (!outputLog) {
-      output += chunk.toString();
-    } else if (!outputError) {
-      try {
-        outputLog.append(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      } catch (err) {
-        outputError = err instanceof Error ? err : new Error(String(err));
-      }
-    }
-  };
-  promise.child.stdout?.on('data', appendChunk);
-  promise.child.stderr?.on('data', appendChunk);
+  promise.child.stdout?.on('data', chunk => output.stdout.append(chunk));
+  promise.child.stderr?.on('data', chunk => output.stderr.append(chunk));
 
   const pid = promise.child.pid;
   return {
     pid,
-    getOutput: () => {
-      if (!outputLog) {
-        return output;
-      }
-      try {
-        return outputLog.read(64 * 1024).toString('utf8');
-      } catch {
-        return '';
-      }
-    },
+    getOutput: output.getOutput,
     getExitError: () => exitError,
     stopAsync: async () => {
-      await stopDetachedProcessAsync(pid, stopGracePeriodMs, outputLog !== undefined);
-      if (outputLog) {
-        try {
-          await withDeviceRunSessionTimeoutAsync(
-            { name: 'Serve-sim output drain', timeoutMs: 5_000 },
-            async () => await outputDrained
-          );
-        } catch (err) {
-          promise.child.stdout?.destroy();
-          promise.child.stderr?.destroy();
-          throw err;
-        }
-        if (outputError) {
-          throw outputError;
-        }
+      await stopDetachedProcessAsync(pid, stopGracePeriodMs);
+      try {
+        await withDeviceRunSessionTimeoutAsync(
+          { name: 'Process output drain', timeoutMs: 5_000 },
+          async () => await outputDrained
+        );
+      } catch (err) {
+        promise.child.stdout?.destroy();
+        promise.child.stderr?.destroy();
+        output.finish();
+        throw err;
       }
     },
   };
