@@ -468,14 +468,15 @@ describe(AscApiClient, () => {
   it('throws regular Error for non-structured ASC error payload', async () => {
     const appId = '1491144534';
 
-    nock('https://api.appstoreconnect.apple.com')
+    const scope = nock('https://api.appstoreconnect.apple.com')
       .get(`/v1/apps/${appId}`)
       .query({ 'fields[apps]': 'bundleId,name' })
       .reply(503, 'Service unavailable');
 
     await expect(
       client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
-    ).rejects.not.toBeInstanceOf(AscApiRequestError);
+    ).rejects.toThrow('Unexpected response (503)');
+    expect(scope.isDone()).toBe(true);
   });
 
   it('throws controlled error when success response body is not valid JSON', async () => {
@@ -489,5 +490,109 @@ describe(AscApiClient, () => {
     await expect(
       client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
     ).rejects.toThrow('Malformed JSON response from App Store Connect (200): not-json');
+  });
+
+  it.each(['ECONNRESET', 'EAI_AGAIN'])('recovers a status read after %s', async code => {
+    const fixture = require('./fixtures/buildUploadFiles/get-buildUploadFiles-200.json');
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .replyWithError({ code, message: 'Temporary network failure' })
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fixture);
+    await expect(
+      client.getAsync(
+        '/v1/buildUploadFiles/:id',
+        { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+        { id: 'file' }
+      )
+    ).resolves.toMatchObject({ data: { id: fixture.data.id } });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it.each([401, 422, 429, 503])('does not retry permanent HTTP %s errors', async status => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/app')
+      .query(true)
+      .reply(status, { errors: [{ status: String(status) }] });
+    await expect(
+      client.getAsync(
+        '/v1/apps/:id',
+        {
+          'fields[apps]': ['bundleId', 'name'],
+        },
+        { id: 'app' }
+      )
+    ).rejects.toBeInstanceOf(AscApiRequestError);
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('does not retry creating a localization after a lost response', async () => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .post('/v1/betaBuildLocalizations')
+      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
+    await expect(
+      client.postAsync('/v1/betaBuildLocalizations', {
+        data: {
+          type: 'betaBuildLocalizations',
+          attributes: { locale: 'en-US', whatsNew: 'Hello' },
+          relationships: { build: { data: { type: 'builds', id: 'build' } } },
+        },
+      })
+    ).rejects.toMatchObject({ code: 'ECONNRESET' });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('retries connection establishment failure before a creation request', async () => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .post('/v1/betaBuildLocalizations')
+      .replyWithError({ code: 'EAI_AGAIN', message: 'DNS failure' })
+      .post('/v1/betaBuildLocalizations')
+      .reply(201, { data: { id: 'localization' } });
+    await expect(
+      client.postAsync('/v1/betaBuildLocalizations', {
+        data: {
+          type: 'betaBuildLocalizations',
+          attributes: { locale: 'en-US', whatsNew: 'Hello' },
+          relationships: { build: { data: { type: 'builds', id: 'build' } } },
+        },
+      })
+    ).resolves.toEqual({ data: { id: 'localization' } });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('stops after three retries of an interrupted read', async () => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/app')
+      .query(true)
+      .times(4)
+      .replyWithError({ code: 'ECONNRESET', message: 'Connection reset' });
+    await expect(
+      client.getAsync(
+        '/v1/apps/:id',
+        {
+          'fields[apps]': ['bundleId', 'name'],
+        },
+        { id: 'app' }
+      )
+    ).rejects.toMatchObject({ code: 'ECONNRESET' });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('does not repeat an interrupted changelog update', async () => {
+    const body = {
+      data: { type: 'betaBuildLocalizations', id: 'locale', attributes: { whatsNew: 'Hello' } },
+    } as const;
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .patch('/v1/betaBuildLocalizations/locale', body)
+      .replyWithError({ code: 'ECONNRESET', message: 'Response lost' })
+      .patch('/v1/betaBuildLocalizations/locale', body)
+      .optionally()
+      .reply(200, { data: { id: 'locale' } });
+    await expect(
+      client.patchAsync('/v1/betaBuildLocalizations/:id', body, { id: 'locale' })
+    ).rejects.toMatchObject({ code: 'ECONNRESET' });
+    expect(scope.isDone()).toBe(true);
   });
 });

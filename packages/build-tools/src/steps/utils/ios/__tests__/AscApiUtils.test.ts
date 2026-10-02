@@ -1,3 +1,4 @@
+import { createLogger } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import nock from 'nock';
@@ -320,4 +321,113 @@ describe('AscApiUtils', () => {
       expect(AscApiUtils.testFlightPlatformPathSegment('VISION_OS')).toBe('visionos');
     });
   });
+});
+
+describe('commitBuildUploadFileAsync', () => {
+  const logger = createLogger({ name: 'test' });
+  const fileResponse = (state: string) => ({
+    data: {
+      type: 'buildUploadFiles',
+      id: 'file',
+      attributes: { assetDeliveryState: { state } },
+    },
+  });
+  let client: AscApiClient;
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey } });
+    nock.disableNetConnect();
+  });
+  afterAll(() => nock.enableNetConnect());
+  afterEach(() => {
+    try {
+      expect(nock.pendingMocks()).toEqual([]);
+    } finally {
+      nock.cleanAll();
+    }
+  });
+
+  it.each(['COMPLETE', 'FAILED'])('does not commit a terminal file: %s', async state => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fileResponse(state));
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).resolves.toBeUndefined();
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD'])(
+    'reads the file before retrying an interrupted commit: %s',
+    async state => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
+        .patch('/v1/buildUploadFiles/file')
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, fileResponse(state));
+      if (state === 'AWAITING_UPLOAD') {
+        scope.patch('/v1/buildUploadFiles/file').reply(200, fileResponse('COMPLETE'));
+      }
+      await expect(
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+      ).resolves.toBeUndefined();
+    }
+  );
+
+  it.each([
+    [401, 'NOT_AUTHORIZED'],
+    [403, 'FORBIDDEN'],
+    [409, 'STATE_ERROR.INVALID_STATE'],
+  ])('preserves Apple errors without retrying: %s %s', async (status, code) => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fileResponse('UPLOAD_COMPLETE'))
+      .patch('/v1/buildUploadFiles/file')
+      .reply(status, { errors: [{ code }] });
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).rejects.toMatchObject({ status, code });
+  });
+
+  it('does not commit when the initial state read fails', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(503, 'Unavailable');
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).rejects.toThrow('503');
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED', 'read-error'])(
+    'checks the file after the final interrupted commit: %s',
+    async finalState => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .times(4)
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
+        .patch('/v1/buildUploadFiles/file')
+        .times(4)
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
+      const finalRead = scope.get('/v1/buildUploadFiles/file').query(true);
+      if (finalState === 'read-error') {
+        finalRead.reply(503, 'Unavailable');
+      } else {
+        finalRead.reply(200, fileResponse(finalState));
+      }
+      const result = AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
+      if (finalState === 'COMPLETE') {
+        await expect(result).resolves.toBeUndefined();
+      } else {
+        await expect(result).rejects.toMatchObject({ code: 'ECONNRESET' });
+      }
+    },
+    15_000
+  );
 });
