@@ -6,9 +6,9 @@ export type AndroidArtifactType = 'apk' | 'aab';
 
 export async function readAndroidArtifactInfoAsync(
   artifactPath: string,
-  signal: AbortSignal = AbortSignal.timeout(60_000)
+  signal?: AbortSignal
 ): Promise<{ artifactType: AndroidArtifactType; packageName: string }> {
-  signal.throwIfAborted();
+  signal?.throwIfAborted();
   const artifactType = await detectAndroidArtifactTypeAsync(artifactPath);
   switch (artifactType) {
     case 'apk': {
@@ -38,17 +38,19 @@ async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<And
   }
 }
 
-async function readApkPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
-  signal.throwIfAborted();
+async function readApkPackageNameAsync(
+  artifactPath: string,
+  signal?: AbortSignal
+): Promise<string> {
+  signal?.throwIfAborted();
   try {
     const { stdout } = await spawn('aapt2', ['dump', 'packagename', artifactPath], {
       stdio: 'pipe',
       signal,
-      killSignal: 'SIGKILL',
     });
     return stdout.trim();
   } catch (error) {
-    signal.throwIfAborted();
+    signal?.throwIfAborted();
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new SystemError('aapt2 is not installed or is not available on the worker PATH.', {
         cause: error,
@@ -62,17 +64,20 @@ async function readApkPackageNameAsync(artifactPath: string, signal: AbortSignal
   }
 }
 
-async function readAabPackageNameAsync(artifactPath: string, signal: AbortSignal): Promise<string> {
-  signal.throwIfAborted();
+async function readAabPackageNameAsync(
+  artifactPath: string,
+  signal?: AbortSignal
+): Promise<string> {
+  signal?.throwIfAborted();
   try {
     const { stdout } = await spawn(
       'bundletool',
       ['dump', 'manifest', '--bundle', artifactPath, '--xpath', '/manifest/@package'],
-      { stdio: 'pipe', signal, killSignal: 'SIGKILL' }
+      { stdio: 'pipe', signal }
     );
     return stdout.trim();
   } catch (error) {
-    signal.throwIfAborted();
+    signal?.throwIfAborted();
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new SystemError('bundletool is not installed or is not available on the worker PATH.', {
         cause: error,
