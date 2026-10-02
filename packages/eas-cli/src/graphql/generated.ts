@@ -1344,6 +1344,19 @@ export type AndroidBuilderEnvironmentInput = {
   yarn?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type AndroidDeviceRunSessionDevice = {
+  __typename?: 'AndroidDeviceRunSessionDevice';
+  /** Human-readable device name to show to users (e.g. "Pixel 9"). */
+  displayName: Scalars['String']['output'];
+  /** AVD hardware profile id accepted by android.deviceIdentifier (e.g. "pixel_9"). */
+  identifier: Scalars['String']['output'];
+};
+
+export type AndroidDeviceRunSessionProfiles = {
+  __typename?: 'AndroidDeviceRunSessionProfiles';
+  devices: Array<AndroidDeviceRunSessionDevice>;
+};
+
 export type AndroidFcm = {
   __typename?: 'AndroidFcm';
   account: Account;
@@ -6302,7 +6315,7 @@ export type CreateAndroidDeviceRunSessionInput = {
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
   /**
    * Android SDK system image package to use for the emulator (e.g.
-   * "system-images;android-35-ext15;google_apis_playstore;x86_64").
+   * "system-images;android-35;google_apis;x86_64").
    */
   systemImagePackage?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6368,6 +6381,18 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 };
 
 export type CreateDeviceRunSessionInput = {
+  /**
+   * The coding agent sending this request, recorded for analytics only and never used for
+   * authorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters
+   * is treated as omitted.
+   */
+  agentId?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * The coding agent's own session identifier, recorded for analytics only and never used for
+   * authorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters
+   * is treated as omitted.
+   */
+  agentSessionId?: InputMaybe<Scalars['String']['input']>;
   /** Android emulator options. Only supported when platform is ANDROID. */
   android?: InputMaybe<CreateAndroidDeviceRunSessionInput>;
   appId: Scalars['ID']['input'];
@@ -6389,8 +6414,7 @@ export type CreateDeviceRunSessionInput = {
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
    * Where the virtual device's proxied network traffic exits to the internet. If
-   * omitted, all traffic exits from EAS infrastructure. LOCAL is only supported for
-   * sessions on IOS.
+   * omitted, all traffic exits from EAS infrastructure.
    */
   egress?: InputMaybe<DeviceRunSessionEgress>;
   /**
@@ -7214,7 +7238,7 @@ export type DeviceRunSessionMutation = {
   /** Mark a device run session as started and persist remote connection details */
   startDeviceRunSession: DeviceRunSession;
   /**
-   * Update a device run session. Only the name can be changed, including on sessions
+   * Update a device run session name and tags, including on sessions
    * that have already finished.
    */
   updateDeviceRunSession: DeviceRunSession;
@@ -7258,9 +7282,17 @@ export type DeviceRunSessionMutation_UpdateDeviceRunSessionArgs = {
   input: UpdateDeviceRunSessionInput;
 };
 
+/** Virtual device profiles available for new device run sessions. */
+export type DeviceRunSessionProfiles = {
+  __typename?: 'DeviceRunSessionProfiles';
+  android: AndroidDeviceRunSessionProfiles;
+  ios: IosDeviceRunSessionProfiles;
+};
+
 export type DeviceRunSessionQuery = {
   __typename?: 'DeviceRunSessionQuery';
   byId: DeviceRunSession;
+  profiles: DeviceRunSessionProfiles;
 };
 
 
@@ -7289,6 +7321,10 @@ export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
   InProgress = 'IN_PROGRESS',
   New = 'NEW',
+  /** The session's job run waits in the queue for a worker. */
+  Queued = 'QUEUED',
+  /** A worker runs the session's job and prepares the virtual device. */
+  Starting = 'STARTING',
   Stopped = 'STOPPED'
 }
 
@@ -9521,6 +9557,19 @@ export type IosBuilderEnvironmentInput = {
   node?: InputMaybe<Scalars['String']['input']>;
   pnpm?: InputMaybe<Scalars['String']['input']>;
   yarn?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type IosDeviceRunSessionDevice = {
+  __typename?: 'IosDeviceRunSessionDevice';
+  /** Human-readable device name to show to users (e.g. "iPhone 17 Pro"). */
+  displayName: Scalars['String']['output'];
+  /** Simulator device name accepted by ios.deviceIdentifier (e.g. "iPhone 17 Pro"). */
+  identifier: Scalars['String']['output'];
+};
+
+export type IosDeviceRunSessionProfiles = {
+  __typename?: 'IosDeviceRunSessionProfiles';
+  devices: Array<IosDeviceRunSessionDevice>;
 };
 
 export enum IosDistributionType {
@@ -12413,6 +12462,11 @@ export type UpdateDeviceRunSessionInput = {
    * back to identifying the session by id.
    */
   name?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Replace the session tags. Tags are trimmed, lowercased and deduplicated.
+   * Pass an empty list or null to clear them. Omit to leave tags unchanged.
+   */
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdateDiffReceipt = {
