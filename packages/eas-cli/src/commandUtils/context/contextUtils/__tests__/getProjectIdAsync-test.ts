@@ -1,5 +1,6 @@
 import { getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
+import resolveFrom from 'resolve-from';
 import { anything, instance, mock, when } from 'ts-mockito';
 
 import { Role } from '../../../../graphql/generated';
@@ -14,6 +15,11 @@ import { getProjectIdAsync } from '../getProjectIdAsync';
 
 jest.mock('@expo/config');
 jest.mock('fs');
+jest.mock('resolve-from', () => {
+  const resolveFrom: any = jest.fn();
+  resolveFrom.silent = jest.fn();
+  return resolveFrom;
+});
 
 jest.mock('../../../../graphql/queries/AppQuery');
 jest.mock('../../contextUtils/findProjectDirAndVerifyProjectSetupAsync');
@@ -37,6 +43,10 @@ describe(getProjectIdAsync, () => {
     jest
       .mocked(getConfigFilePaths)
       .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+
+    // Simulate an old SDK project: `expo` is installed but doesn't include Expo CLI, so the
+    // config is read with the copy of `@expo/config` bundled with EAS CLI.
+    jest.mocked(resolveFrom.silent).mockReturnValue('/app/node_modules/expo/package.json');
 
     const sessionManagerMock = mock<SessionManager>();
     when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
