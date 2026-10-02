@@ -394,6 +394,7 @@ export async function startDeviceSessionHostAsync(
           subdomainId,
           baseDomain,
           authtoken: getNgrokAuthtokenOrThrow(env),
+          healthCheck: { path: isAndroid ? '/readyz' : '/healthz' },
           logger,
         });
         if (finishTask) {
