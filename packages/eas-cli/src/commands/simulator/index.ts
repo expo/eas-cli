@@ -130,7 +130,7 @@ export default class Simulator extends EasCommand {
     }),
     'max-duration-minutes': Flags.integer({
       description:
-        'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
+        "Maximum duration of the simulator session in minutes before it is automatically stopped. Defaults to, and cannot exceed, the maximum session duration of the account's plan.",
       min: 0,
     }),
     'max-idle-time-minutes': Flags.integer({
