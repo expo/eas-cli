@@ -106,6 +106,21 @@ it('resumes across fresh sessions, keeps secrets private, and installs a normal 
   expect(await fs.readdir(path.dirname(requestPath))).toEqual([]);
 });
 
+it('accepts a direct session secret without a matching response', async () => {
+  const id = await startAsync();
+  MockDate.set(now + 5000);
+  token({ session_secret: 'PRIVATE_SESSION', expires_at: '2027-01-01T00:00:00Z' });
+  expect(await resumeDeviceLoginAsync(id, manager())).toEqual({
+    request_id: id,
+    status: 'authenticated',
+    username: 'demo-user',
+  });
+  expect(await fs.readJson(getStateJsonPath())).toMatchObject({
+    auth: { sessionSecret: 'PRIVATE_SESSION' },
+  });
+  expect(await fs.readdir(path.join(directory, 'device-login'))).toEqual([]);
+});
+
 it('keeps the poll interval across invocations, including slow_down', async () => {
   const id = await startAsync();
   expect(await resumeDeviceLoginAsync(id, manager())).toMatchObject({ retry_after: 5 });

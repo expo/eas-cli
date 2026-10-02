@@ -118,10 +118,10 @@ export default class AccountLogin extends EasCommand {
       if (!options.resume) {
         Log.log(`Open ${result.verification_uri_complete}`);
         Log.log(`Code: ${result.user_code}`);
-        Log.log(
-          'Ask the user to approve the login and send you the number shown in their browser.'
-        );
-        Log.log(`After they reply, run: ${resumeCommand} --match NUMBER_FROM_USER`);
+        Log.log('Ask the user to approve the login in their browser.');
+        Log.log('If the browser shows a number, ask them to send it to you.');
+        Log.log(`After approval, run: ${resumeCommand}`);
+        Log.log('Add --match NUMBER_FROM_USER if a number was shown.');
       } else if (result.status === 'matching_required') {
         Log.log('Ask the user for the number shown in their browser, then run:');
         Log.log(`${resumeCommand} --match NUMBER_FROM_USER`);
@@ -135,9 +135,7 @@ export default class AccountLogin extends EasCommand {
     if ('verification_uri_complete' in result) {
       Log.log(`Open ${result.verification_uri_complete}`);
       Log.log(`Code: ${result.user_code}`);
-      Log.log(
-        `Hint: if you need to leave, resume with eas login --device --resume ${result.request_id}`
-      );
+      Log.log(`You can resume with eas login --device --resume ${result.request_id}`);
     }
     let match = options.match;
     while (result.status !== 'authenticated') {

@@ -66,17 +66,17 @@ afterEach(() => {
   }
 });
 
-it('starts once with closed stdin and gives the agent a matching resume command', async () => {
+it('starts once with closed stdin and explains optional matching', async () => {
   jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
   await command([]).runAsync();
   expect(Log.log).toHaveBeenCalledWith(`Open ${pending.verification_uri_complete}`);
   expect(Log.log).toHaveBeenCalledWith(`Code: ${pending.user_code}`);
+  expect(Log.log).toHaveBeenCalledWith('Ask the user to approve the login in their browser.');
   expect(Log.log).toHaveBeenCalledWith(
-    'Ask the user to approve the login and send you the number shown in their browser.'
+    'If the browser shows a number, ask them to send it to you.'
   );
-  expect(Log.log).toHaveBeenCalledWith(
-    `After they reply, run: ${resumeCommand} --match NUMBER_FROM_USER`
-  );
+  expect(Log.log).toHaveBeenCalledWith(`After approval, run: ${resumeCommand}`);
+  expect(Log.log).toHaveBeenCalledWith('Add --match NUMBER_FROM_USER if a number was shown.');
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
   expect(resumeDeviceLoginAsync).not.toHaveBeenCalled();
 });
@@ -92,12 +92,12 @@ it.each([
   jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
   await command(flag ? [flag] : []).runAsync();
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
+  expect(Log.log).toHaveBeenCalledWith('Ask the user to approve the login in their browser.');
   expect(Log.log).toHaveBeenCalledWith(
-    'Ask the user to approve the login and send you the number shown in their browser.'
+    'If the browser shows a number, ask them to send it to you.'
   );
-  expect(Log.log).toHaveBeenCalledWith(
-    `After they reply, run: ${resumeCommand} --match NUMBER_FROM_USER`
-  );
+  expect(Log.log).toHaveBeenCalledWith(`After approval, run: ${resumeCommand}`);
+  expect(Log.log).toHaveBeenCalledWith('Add --match NUMBER_FROM_USER if a number was shown.');
 });
 
 it('reports pending approval and when to retry', async () => {
@@ -139,14 +139,18 @@ it('preserves the supplied number when matching must be retried', async () => {
   expect(Log.log).toHaveBeenCalledWith(`${resumeCommand} --match 42`);
 });
 
-it('authenticates on the first resume when given the browser number', async () => {
+it.each([
+  { label: 'with a browser number', args: ['--match', '42'], match: '42' },
+  { label: 'without a browser number', args: [], match: undefined },
+])('authenticates on the first resume $label', async ({ args, match }) => {
   jest.mocked(resumeDeviceLoginAsync).mockResolvedValue({
     request_id: pending.request_id,
     status: 'authenticated',
     username: 'demo-user',
   });
-  await command(['--resume', pending.request_id, '--match', '42']).runAsync();
+  await command(['--resume', pending.request_id, ...args]).runAsync();
   expect(Log.log).toHaveBeenCalledWith('Logged in as demo-user');
+  expect(resumeDeviceLoginAsync).toHaveBeenCalledWith(pending.request_id, sessionManager, match);
   expect(resumeDeviceLoginAsync).toHaveBeenCalledTimes(1);
 });
 
