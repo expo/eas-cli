@@ -23,6 +23,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Accept `null` for the TestFlight group `hasAccessToAllBuilds` attribute from App Store Connect. ([#4528](https://github.com/expo/eas-cli/pull/4528) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Support `queued` and `starting` status filters in `eas simulator:list` and keep simulator commands compatible with the current GraphQL schema. ([#4527](https://github.com/expo/eas-cli/pull/4527) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Explain how to resolve missing or expired Apple agreements when App Store Connect rejects a request. ([#4513](https://github.com/expo/eas-cli/pull/4513) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Correct the `eas simulator:start --max-duration-minutes` help text: every plan can set a custom duration up to the plan's maximum, which is also the default. ([#4524](https://github.com/expo/eas-cli/pull/4524) by [@brentvatne](https://github.com/brentvatne))

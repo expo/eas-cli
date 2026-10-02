@@ -76,7 +76,7 @@ const GetApi = {
             .object({
               name: z.string().optional(),
               isInternalGroup: z.boolean().optional(),
-              hasAccessToAllBuilds: z.boolean().optional(),
+              hasAccessToAllBuilds: z.boolean().nullish(),
             })
             .optional(),
         })

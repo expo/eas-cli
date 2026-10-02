@@ -50,6 +50,45 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBeTruthy();
   });
 
+  it('accepts null or missing hasAccessToAllBuilds for TestFlight groups', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, {
+        data: [
+          {
+            type: 'betaGroups',
+            id: 'external',
+            attributes: {
+              name: 'test external',
+              isInternalGroup: false,
+              hasAccessToAllBuilds: null,
+              publicLinkEnabled: false,
+            },
+          },
+          {
+            type: 'betaGroups',
+            id: 'internal',
+            attributes: { name: 'Internal', isInternalGroup: true },
+          },
+        ],
+        links: { self: 'https://api.appstoreconnect.apple.com/v1/betaGroups' },
+      });
+
+    await expect(
+      client.getAsync('/v1/betaGroups', { 'filter[app]': 'app', limit: 200 })
+    ).resolves.toEqual({
+      data: [
+        {
+          id: 'external',
+          attributes: { name: 'test external', isInternalGroup: false, hasAccessToAllBuilds: null },
+        },
+        { id: 'internal', attributes: { name: 'Internal', isInternalGroup: true } },
+      ],
+      links: {},
+    });
+  });
+
   it('creates build upload', async () => {
     const buildUploadId = 'fdf9c476-aaa4-4ead-b91c-6e3cc3a47805';
     const responseFixture = require('./fixtures/buildUploads/post-buildUploads-200.json');
