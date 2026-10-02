@@ -118,10 +118,10 @@ export default class AccountLogin extends EasCommand {
       if (!options.resume) {
         Log.log(`Open ${result.verification_uri_complete}`);
         Log.log(`Code: ${result.user_code}`);
-        Log.log('Ask the user to approve the login in their browser.');
-        Log.log('If the browser shows a number, ask them to send it to you.');
-        Log.log(`After approval, run: ${resumeCommand}`);
-        Log.log('Add --match NUMBER_FROM_USER if a number was shown.');
+        Log.log(
+          'Ask the user to approve the login in their browser and send you any number shown.'
+        );
+        Log.log(`Then run ${resumeCommand}, adding --match NUMBER_FROM_USER if they saw a number.`);
       } else if (result.status === 'matching_required') {
         Log.log('Ask the user for the number shown in their browser, then run:');
         Log.log(`${resumeCommand} --match NUMBER_FROM_USER`);

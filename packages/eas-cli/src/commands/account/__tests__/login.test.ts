@@ -71,12 +71,12 @@ it('starts once with closed stdin and explains optional matching', async () => {
   await command([]).runAsync();
   expect(Log.log).toHaveBeenCalledWith(`Open ${pending.verification_uri_complete}`);
   expect(Log.log).toHaveBeenCalledWith(`Code: ${pending.user_code}`);
-  expect(Log.log).toHaveBeenCalledWith('Ask the user to approve the login in their browser.');
   expect(Log.log).toHaveBeenCalledWith(
-    'If the browser shows a number, ask them to send it to you.'
+    'Ask the user to approve the login in their browser and send you any number shown.'
   );
-  expect(Log.log).toHaveBeenCalledWith(`After approval, run: ${resumeCommand}`);
-  expect(Log.log).toHaveBeenCalledWith('Add --match NUMBER_FROM_USER if a number was shown.');
+  expect(Log.log).toHaveBeenCalledWith(
+    `Then run ${resumeCommand}, adding --match NUMBER_FROM_USER if they saw a number.`
+  );
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
   expect(resumeDeviceLoginAsync).not.toHaveBeenCalled();
 });
@@ -92,12 +92,12 @@ it.each([
   jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
   await command(flag ? [flag] : []).runAsync();
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
-  expect(Log.log).toHaveBeenCalledWith('Ask the user to approve the login in their browser.');
   expect(Log.log).toHaveBeenCalledWith(
-    'If the browser shows a number, ask them to send it to you.'
+    'Ask the user to approve the login in their browser and send you any number shown.'
   );
-  expect(Log.log).toHaveBeenCalledWith(`After approval, run: ${resumeCommand}`);
-  expect(Log.log).toHaveBeenCalledWith('Add --match NUMBER_FROM_USER if a number was shown.');
+  expect(Log.log).toHaveBeenCalledWith(
+    `Then run ${resumeCommand}, adding --match NUMBER_FROM_USER if they saw a number.`
+  );
 });
 
 it('reports pending approval and when to retry', async () => {
