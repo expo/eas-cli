@@ -81,7 +81,8 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
     outputProviders: ['package_name', 'version_code', 'track'].map(id =>
       BuildStepOutput.createProvider({ id, required: true })
     ),
-    fn: async (ctx, { inputs, outputs }) => {
+    fn: async (ctx, { inputs, outputs, signal }) => {
+      signal?.throwIfAborted();
       const parsed = submissionSchema.safeParse(
         Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value]))
       );
@@ -104,7 +105,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
         },
         release,
         logger: ctx.logger,
-        signal: AbortSignal.timeout(15 * 60_000),
+        signal,
       });
       outputs.package_name.set(result.packageName);
       outputs.version_code.set(String(result.versionCode));
@@ -170,7 +171,7 @@ async function submitToGooglePlayAsync({
   submission: Submission;
   release: Release;
   logger: bunyan;
-  signal: AbortSignal;
+  signal?: AbortSignal;
 }): Promise<{ packageName: string; versionCode: number; track: string }> {
   const artifact = await readAndroidArtifactInfoAsync(submission.artifact_path, signal);
   let editId: string | undefined;
@@ -259,7 +260,7 @@ async function submitToGooglePlayAsync({
           'DELETE',
           GooglePlayUtils.editPath(submission.package_name, editId),
           undefined,
-          AbortSignal.timeout(10_000)
+          signal
         );
       } catch {
         logger.warn(
@@ -276,7 +277,7 @@ async function commitAsync(
   editId: string,
   review: boolean,
   logger: bunyan,
-  signal: AbortSignal
+  signal?: AbortSignal
 ): Promise<void> {
   const commit = async (flag?: boolean): Promise<void> => {
     try {
