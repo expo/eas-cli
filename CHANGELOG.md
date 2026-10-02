@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Supervise simulator session tunnels with health probes and reopen unhealthy endpoints at the same public URL. ([#4525](https://github.com/expo/eas-cli/pull/4525) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Supervise simulator session tunnels with health probes and reopen unhealthy endpoints at the same public URL. ([#4526](https://github.com/expo/eas-cli/pull/4526) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Allow `eas simulator:start --platform android --egress local`. On Android, `--egress-allow localhost:<port>` also covers `10.0.2.2:<port>`, and refused destinations are shown as warnings. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Support `eas/start_local_egress` on Linux for Android emulators: an always-listening relay for the emulator's proxy, a systemd scope and nftables fence that refuse traffic that cannot use the tunnel, and fence refusals in the session log. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `--upload-source-maps` to `eas update`, which uploads the generated source maps to EAS so that stack traces from an update can be symbolicated. Source maps are stripped of `sourcesContent` before upload. ([#4436](https://github.com/expo/eas-cli/pull/4436) by [@douglowder](https://github.com/douglowder))
