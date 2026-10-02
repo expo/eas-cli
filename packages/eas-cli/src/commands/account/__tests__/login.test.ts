@@ -66,12 +66,17 @@ afterEach(() => {
   }
 });
 
-it('starts once with closed stdin and gives the agent a resume command', async () => {
+it('starts once with closed stdin and gives the agent a matching resume command', async () => {
   jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
   await command([]).runAsync();
   expect(Log.log).toHaveBeenCalledWith(`Open ${pending.verification_uri_complete}`);
   expect(Log.log).toHaveBeenCalledWith(`Code: ${pending.user_code}`);
-  expect(Log.log).toHaveBeenCalledWith(`After approving in your browser, run: ${resumeCommand}`);
+  expect(Log.log).toHaveBeenCalledWith(
+    'Ask the user to approve the login and send you the number shown in their browser.'
+  );
+  expect(Log.log).toHaveBeenCalledWith(
+    `After they reply, run: ${resumeCommand} --match NUMBER_FROM_USER`
+  );
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
   expect(resumeDeviceLoginAsync).not.toHaveBeenCalled();
 });
@@ -87,7 +92,12 @@ it.each([
   jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
   await command(flag ? [flag] : []).runAsync();
   expect(startDeviceLoginAsync).toHaveBeenCalledTimes(1);
-  expect(Log.log).toHaveBeenCalledWith(`After approving in your browser, run: ${resumeCommand}`);
+  expect(Log.log).toHaveBeenCalledWith(
+    'Ask the user to approve the login and send you the number shown in their browser.'
+  );
+  expect(Log.log).toHaveBeenCalledWith(
+    `After they reply, run: ${resumeCommand} --match NUMBER_FROM_USER`
+  );
 });
 
 it('reports pending approval and when to retry', async () => {
@@ -129,7 +139,7 @@ it('preserves the supplied number when matching must be retried', async () => {
   expect(Log.log).toHaveBeenCalledWith(`${resumeCommand} --match 42`);
 });
 
-it('reports completed login', async () => {
+it('authenticates on the first resume when given the browser number', async () => {
   jest.mocked(resumeDeviceLoginAsync).mockResolvedValue({
     request_id: pending.request_id,
     status: 'authenticated',
