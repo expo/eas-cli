@@ -23,33 +23,21 @@ export namespace AscApiUtils {
     client: AscApiClient;
     fileId: string;
   }): Promise<void> {
-    let responseLost = false;
     await promiseRetryWithCondition(
       async () => {
-        if (responseLost) {
-          const { data } = await client.getAsync(
-            '/v1/buildUploadFiles/:id',
-            {
-              'fields[buildUploadFiles]': ['assetDeliveryState'],
-            },
-            { id: fileId }
-          );
-          if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
-            return;
-          }
+        const { data } = await client.getAsync(
+          '/v1/buildUploadFiles/:id',
+          { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+          { id: fileId }
+        );
+        if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
+          return;
         }
-        try {
-          await client.patchAsync(
-            '/v1/buildUploadFiles/:id',
-            {
-              data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } },
-            },
-            { id: fileId }
-          );
-        } catch (error) {
-          responseLost = isConnectionInterruptedError(error);
-          throw error;
-        }
+        await client.patchAsync(
+          '/v1/buildUploadFiles/:id',
+          { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
+          { id: fileId }
+        );
       },
       isConnectionInterruptedError,
       { retries: 3, factor: 2, minTimeout: 100 }

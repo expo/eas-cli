@@ -543,16 +543,14 @@ export class AscApiClient {
   private async sendRequestAsync(
     args: Parameters<AscApiClient['sendRequestOnceAsync']>[0]
   ): Promise<any> {
-    const canRepeat =
-      args.method === 'GET' ||
-      (args.method === 'PATCH' && args.path.startsWith('/v1/betaBuildLocalizations/'));
     return await promiseRetryWithCondition(
       () => this.sendRequestOnceAsync(args),
-      error => isConnectFailure(error) || (canRepeat && isConnectionInterruptedError(error)),
+      error =>
+        isConnectFailure(error) || (args.method === 'GET' && isConnectionInterruptedError(error)),
       { retries: 3, factor: 2, minTimeout: 100 },
-      attempt =>
+      ({ attemptNumber, maxAttemptsCount, error }) =>
         this.logger?.warn(
-          `Retrying Apple request (${args.method} ${args.path}, attempt ${attempt}/4).`
+          `Retrying Apple request (${args.method} ${args.path}, attempt ${attemptNumber}/${maxAttemptsCount}): ${String(error)}`
         )
     )();
   }

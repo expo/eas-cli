@@ -334,8 +334,36 @@ describe('commitBuildUploadFileAsync', () => {
       nock.cleanAll();
     }
   });
+  it.each(['COMPLETE', 'FAILED'])(
+    'does not commit a file already in terminal state %s',
+    async state => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: { assetDeliveryState: { state } },
+          },
+        });
+      await expect(
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+      ).resolves.toBeUndefined();
+      expect(scope.isDone()).toBe(true);
+    }
+  );
   it('does not replay an upload commit when Apple already accepted it', async () => {
     const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
+        },
+      })
       .patch('/v1/buildUploadFiles/file')
       .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
       .get('/v1/buildUploadFiles/file')
@@ -359,6 +387,15 @@ describe('commitBuildUploadFileAsync', () => {
     'replays a commit when the file state is %s',
     async state => {
       const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: { assetDeliveryState: { state } },
+          },
+        })
         .patch('/v1/buildUploadFiles/file')
         .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
         .get('/v1/buildUploadFiles/file')

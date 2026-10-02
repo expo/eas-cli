@@ -580,7 +580,7 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBe(true);
   });
 
-  it('repeats an interrupted changelog update with the same values', async () => {
+  it('does not repeat an interrupted changelog update', async () => {
     const body = {
       data: { type: 'betaBuildLocalizations', id: 'locale', attributes: { whatsNew: 'Hello' } },
     } as const;
@@ -588,10 +588,11 @@ describe(AscApiClient, () => {
       .patch('/v1/betaBuildLocalizations/locale', body)
       .replyWithError({ code: 'ECONNRESET', message: 'Response lost' })
       .patch('/v1/betaBuildLocalizations/locale', body)
+      .optionally()
       .reply(200, { data: { id: 'locale' } });
     await expect(
       client.patchAsync('/v1/betaBuildLocalizations/:id', body, { id: 'locale' })
-    ).resolves.toEqual({ data: { id: 'locale' } });
+    ).rejects.toMatchObject({ code: 'ECONNRESET' });
     expect(scope.isDone()).toBe(true);
   });
 });
