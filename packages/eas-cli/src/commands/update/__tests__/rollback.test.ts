@@ -12,6 +12,7 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
+import { promptAsync } from '../../../prompts';
 import UpdateRepublish from '../republish';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 import UpdateRollback from '../rollback';
@@ -40,6 +41,7 @@ jest.mock('@expo/config');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
+jest.mock('../../../prompts');
 
 describe(UpdateRollback.name, () => {
   beforeEach(() => {
@@ -219,6 +221,26 @@ describe(UpdateRollback.name, () => {
       '--private-key-path',
       './keys/private-key.pem',
     ]);
+  });
+
+  it('forwards --force-end-active-rollout when interactively choosing a published update', async () => {
+    mockTestProject();
+    jest.mocked(promptAsync).mockResolvedValue({ choice: 'published' });
+
+    await new UpdateRollback(['--force-end-active-rollout'], commandOptions).run();
+
+    expect(UpdateRollBackToEmbedded.run).not.toHaveBeenCalled();
+    expect(UpdateRepublish.run).toHaveBeenCalledWith(['--force-end-active-rollout']);
+  });
+
+  it('forwards --force-end-active-rollout when interactively choosing the embedded update', async () => {
+    mockTestProject();
+    jest.mocked(promptAsync).mockResolvedValue({ choice: 'embedded' });
+
+    await new UpdateRollback(['--force-end-active-rollout'], commandOptions).run();
+
+    expect(UpdateRepublish.run).not.toHaveBeenCalled();
+    expect(UpdateRollBackToEmbedded.run).toHaveBeenCalledWith(['--force-end-active-rollout']);
   });
 
   it('errors when the source group is not the latest update for its runtime version', async () => {
