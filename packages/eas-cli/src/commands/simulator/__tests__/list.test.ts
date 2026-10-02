@@ -162,6 +162,10 @@ describe(SimulatorList, () => {
       'in-progress',
       '--status',
       'new',
+      '--status',
+      'queued',
+      '--status',
+      'starting',
       '--type',
       'appium',
       '--type',
@@ -186,7 +190,12 @@ describe(SimulatorList, () => {
       first: 25,
       after: 'page-cursor',
       filter: {
-        statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
+        statuses: [
+          DeviceRunSessionStatus.InProgress,
+          DeviceRunSessionStatus.New,
+          DeviceRunSessionStatus.Queued,
+          DeviceRunSessionStatus.Starting,
+        ],
         types: [
           DeviceRunSessionType.Appium,
           DeviceRunSessionType.ServeSim,

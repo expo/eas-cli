@@ -53,9 +53,10 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
           groups: inputs.groups.value,
         });
       const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
-      const token = await AscApiUtils.signTokenAsync({ keyPath });
+      const key = await AscApiUtils.loadApiKeyAsync({ keyPath });
+      const client = new AscApiClient({ key, logger: ctx.logger });
       await updateTestFlightMetadataAsync({
-        client: new AscApiClient({ token, logger: ctx.logger }),
+        client,
         buildUploadId: parsedInputs.build_upload_id,
         changelog: parsedInputs.changelog,
         groups: parsedInputs.groups,
@@ -270,14 +271,14 @@ export async function updateTestFlightMetadataAsync({
 
 // Apple returns a generic 422 code, so match the title or detail too.
 function isInternalGroupAssignmentError(error: unknown): boolean {
+  if (error instanceof AggregateError) {
+    return error.errors.some(isInternalGroupAssignmentError);
+  }
   return (
     error instanceof AscApiRequestError &&
     error.status === 422 &&
-    error.responseJson.errors.some(
-      ({ code, title, detail }) =>
-        code === 'ENTITY_UNPROCESSABLE' &&
-        (title === 'Builds cannot be assigned to this internal group.' ||
-          detail === 'Cannot add internal group to a build.')
-    )
+    error.code === 'ENTITY_UNPROCESSABLE' &&
+    (error.responseJson.title === 'Builds cannot be assigned to this internal group.' ||
+      error.responseJson.detail === 'Cannot add internal group to a build.')
   );
 }

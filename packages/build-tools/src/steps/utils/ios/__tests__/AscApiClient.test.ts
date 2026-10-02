@@ -1,3 +1,5 @@
+import { UserError } from '@expo/eas-build-job';
+import * as jose from 'jose';
 import nock from 'nock';
 
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
@@ -6,11 +8,17 @@ import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 jest.unmock('node-fetch');
 
 describe(AscApiClient, () => {
-  const token = 'test-token';
-  const client = new AscApiClient({ token });
+  let signingKey: jose.KeyLike;
+  let client: AscApiClient;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    signingKey = privateKey;
     nock.disableNetConnect();
+  });
+
+  beforeEach(() => {
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey: signingKey } });
   });
 
   afterAll(() => {
@@ -19,7 +27,63 @@ describe(AscApiClient, () => {
 
   afterEach(() => {
     nock.cleanAll();
+    jest.useRealTimers();
   });
+
+  it.each([undefined, 'test-issuer'])(
+    'reuses tokens and refreshes before expiry (issuer: %s)',
+    async issuerId => {
+      const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
+      const startTime = Date.now();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+      jest.setSystemTime(startTime);
+      const refreshingClient = new AscApiClient({
+        key: { keyId: 'TESTKEY', issuerId, privateKey },
+      });
+      const responseFixture = require('./fixtures/buildUploads/get-buildUploads-200.json');
+      const tokens: string[] = [];
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploads/upload-id')
+        .query(true)
+        .times(5)
+        .reply(function () {
+          tokens.push(String(this.req.headers.authorization).replace(/^Bearer /, ''));
+          return [200, responseFixture];
+        });
+
+      const requestAsync = async (): Promise<unknown> =>
+        await refreshingClient.getAsync(
+          '/v1/buildUploads/:id',
+          { 'fields[buildUploads]': ['build', 'state'], include: ['build'] },
+          { id: 'upload-id' }
+        );
+      await Promise.all([requestAsync(), requestAsync()]);
+      jest.setSystemTime(startTime + 18 * 60 * 1000);
+      await requestAsync();
+      expect(new Set(tokens).size).toBe(1);
+
+      jest.setSystemTime(startTime + 19 * 60 * 1000);
+      await requestAsync();
+      expect(tokens[3]).not.toBe(tokens[0]);
+      jest.setSystemTime(startTime + 21 * 60 * 1000);
+      await requestAsync();
+      expect(tokens[4]).toBe(tokens[3]);
+
+      const verificationOptions = {
+        currentDate: new Date(Date.now()),
+        audience: 'appstoreconnect-v1',
+      };
+      await expect(jose.jwtVerify(tokens[0], publicKey, verificationOptions)).rejects.toThrow(
+        '"exp" claim timestamp check failed'
+      );
+      await expect(
+        jose.jwtVerify(tokens[4], publicKey, verificationOptions)
+      ).resolves.toMatchObject({
+        payload: issuerId ? { iss: issuerId } : { sub: 'user' },
+      });
+      expect(scope.isDone()).toBe(true);
+    }
+  );
 
   it('fetches app info', async () => {
     const appId = '1491144534';
@@ -47,6 +111,45 @@ describe(AscApiClient, () => {
       },
     });
     expect(scope.isDone()).toBeTruthy();
+  });
+
+  it('accepts null or missing hasAccessToAllBuilds for TestFlight groups', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, {
+        data: [
+          {
+            type: 'betaGroups',
+            id: 'external',
+            attributes: {
+              name: 'test external',
+              isInternalGroup: false,
+              hasAccessToAllBuilds: null,
+              publicLinkEnabled: false,
+            },
+          },
+          {
+            type: 'betaGroups',
+            id: 'internal',
+            attributes: { name: 'Internal', isInternalGroup: true },
+          },
+        ],
+        links: { self: 'https://api.appstoreconnect.apple.com/v1/betaGroups' },
+      });
+
+    await expect(
+      client.getAsync('/v1/betaGroups', { 'filter[app]': 'app', limit: 200 })
+    ).resolves.toEqual({
+      data: [
+        {
+          id: 'external',
+          attributes: { name: 'test external', isInternalGroup: false, hasAccessToAllBuilds: null },
+        },
+        { id: 'internal', attributes: { name: 'Internal', isInternalGroup: true } },
+      ],
+      links: {},
+    });
   });
 
   it('creates build upload', async () => {
@@ -289,6 +392,25 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBeTruthy();
   });
 
+  it('explains how to resolve a missing agreement', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/6817395749')
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(403, {
+        errors: [{ code: 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED' }],
+      });
+
+    const request = client.getAsync(
+      '/v1/apps/:id',
+      { 'fields[apps]': ['bundleId', 'name'] },
+      { id: '6817395749' }
+    );
+    await expect(request).rejects.toBeInstanceOf(UserError);
+    await expect(request).rejects.toThrow(
+      /Account Holder.*https:\/\/appstoreconnect.apple.com\/business/
+    );
+  });
+
   it('throws AscApiRequestError for structured ASC error payload', async () => {
     const appId = '1491144534';
     const responseFixture = {
@@ -299,6 +421,7 @@ describe(AscApiClient, () => {
           title:
             'The provided entity includes an attribute with a value that has already been used',
           detail: 'The bundle version must be higher than the previously uploaded version.',
+          links: { see: '/business' },
         },
       ],
     };
@@ -310,7 +433,36 @@ describe(AscApiClient, () => {
 
     await expect(
       client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
-    ).rejects.toBeInstanceOf(AscApiRequestError);
+    ).rejects.toMatchObject({
+      message: `Unexpected response (409) from App Store Connect: ${JSON.stringify(responseFixture.errors[0])}`,
+      status: 409,
+      code: 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE',
+      responseJson: responseFixture.errors[0],
+    });
+  });
+
+  it('aggregates agreement and generic errors without losing either', async () => {
+    const forbidden = { code: 'FORBIDDEN', detail: 'Access denied.' };
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/6817395749')
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(403, {
+        errors: [{ code: 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED' }, forbidden],
+      });
+
+    const request = client.getAsync(
+      '/v1/apps/:id',
+      { 'fields[apps]': ['bundleId', 'name'] },
+      { id: '6817395749' }
+    );
+    await expect(request).rejects.toBeInstanceOf(AggregateError);
+    await expect(request).rejects.toHaveProperty('errors', [
+      expect.any(UserError),
+      expect.any(AscApiRequestError),
+    ]);
+    await expect(request).rejects.toThrow(/Account Holder/);
+    await expect(request).rejects.toThrow(/Access denied/);
+    await expect(request).rejects.toHaveProperty('errors.1.responseJson', forbidden);
   });
 
   it('throws regular Error for non-structured ASC error payload', async () => {

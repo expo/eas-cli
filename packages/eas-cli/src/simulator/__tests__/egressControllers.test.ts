@@ -1,6 +1,7 @@
 import { parse as parseDotenv } from 'dotenv';
 import * as fs from 'fs-extra';
 
+import { AppPlatform } from '../../graphql/generated';
 import { readLocalEgressConfigFromEnv } from '../egress';
 import { writeSimulatorEnvAsync } from '../env';
 import {
@@ -54,6 +55,7 @@ describe('egress exceptions across simulator controllers', () => {
       fingerprint: egressFields.egressFingerprint,
       port: 8899,
       allow: egressAllow,
+      platform: AppPlatform.Ios,
     });
     const instructions = formatRemoteSessionInstructions(remoteConfig, 'dotenv', { egressAllow });
     expect(instructions).toContain('eas simulator:egress');
