@@ -124,6 +124,23 @@ describe(GuardEventRelay, () => {
     expect(relay.summary()).toEqual({ blocked: 3, logged: 0, distinct: 2, suppressed: 0 });
   });
 
+  it('omits the pid when the source has none and appends a note', () => {
+    const logger = createLogger();
+    const relay = new GuardEventRelay(logger);
+    relay.handle({
+      process: 'Android emulator',
+      pid: null,
+      function: 'udp',
+      action: 'blocked',
+      peer: '142.250.152.94:443',
+      callers: [],
+      note: 'QUIC',
+    });
+    expect(logger.lines.map(l => l.msg)).toEqual([
+      'Local egress guard: refused udp from Android emulator to 142.250.152.94:443 (QUIC)',
+    ]);
+  });
+
   it('words observed events differently and stops logging past the limit', () => {
     const logger = createLogger();
     const relay = new GuardEventRelay(logger, /* limit */ 1);

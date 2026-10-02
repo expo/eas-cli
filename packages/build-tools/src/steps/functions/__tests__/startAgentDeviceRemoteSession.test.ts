@@ -135,6 +135,36 @@ describe(startAgentDeviceDaemonAsync, () => {
     );
   });
 
+  it('kills the install and does not fall back to git when aborted', async () => {
+    jest.mocked(spawn).mockImplementation(
+      ((_command: string, _args: string[], options?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason));
+        })) as never
+    );
+    const controller = new AbortController();
+    const failure = new Error('app install failed');
+
+    const daemon = startAgentDeviceDaemonAsync({
+      packageVersion: '1.2.3',
+      env: {},
+      logger,
+      signal: controller.signal,
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    controller.abort(failure);
+
+    await expect(daemon).rejects.toBe(failure);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['add', 'agent-device@1.2.3'],
+      expect.objectContaining({ signal: controller.signal })
+    );
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+
   it('falls back to git clone when the published daemon is missing', async () => {
     jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => {
       if (command === 'bun' && args[0] === '--version') {

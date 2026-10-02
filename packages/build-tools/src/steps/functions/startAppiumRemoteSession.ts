@@ -20,6 +20,10 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -64,6 +68,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
     __metricsId: 'eas/start_appium_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -87,6 +92,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
           launchAppIdentifier: inputs.launch_app_identifier?.value,
           launchArgs: inputs.launch_args?.value,
           openUrl: inputs.open_url?.value,
+        },
+        { runtimePlatform }
+      );
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
         },
         { runtimePlatform }
       );
@@ -164,6 +176,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
+          networkCapture,
+          networkCaptureFields,
         });
         const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
 

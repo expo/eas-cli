@@ -2838,7 +2838,7 @@ ALIASES
 
 ```
 USAGE
-  $ eas sim:list [--status new|in-progress|stopped|errored...] [--type
+  $ eas sim:list [--status new|queued|starting|in-progress|stopped|errored...] [--type
     agent-device|appium|argent|web-preview-only|web-preview-only...] [--platform android|ios...] [--name <value>] [--tag
     <value>...] [--limit <value>] [--after <value>] [--json] [--non-interactive]
 
@@ -2851,7 +2851,7 @@ FLAGS
   --platform=<option>...  Filter by device platform (repeatable)
                           <options: android|ios>
   --status=<option>...    Filter by session status (repeatable)
-                          <options: new|in-progress|stopped|errored>
+                          <options: new|queued|starting|in-progress|stopped|errored>
   --tag=<value>...        Filter by tag (repeatable). A session must carry every tag listed.
   --type=<option>...      Filter by session type (repeatable). All session types include a web preview. agent-device,
                           appium, and argent also include an automation interface; web-preview-only includes no
@@ -3205,7 +3205,7 @@ _See code: [packages/eas-cli/src/commands/simulator/get.ts](https://github.com/e
 
 ```
 USAGE
-  $ eas simulator:list [--status new|in-progress|stopped|errored...] [--type
+  $ eas simulator:list [--status new|queued|starting|in-progress|stopped|errored...] [--type
     agent-device|appium|argent|web-preview-only|web-preview-only...] [--platform android|ios...] [--name <value>] [--tag
     <value>...] [--limit <value>] [--after <value>] [--json] [--non-interactive]
 
@@ -3218,7 +3218,7 @@ FLAGS
   --platform=<option>...  Filter by device platform (repeatable)
                           <options: android|ios>
   --status=<option>...    Filter by session status (repeatable)
-                          <options: new|in-progress|stopped|errored>
+                          <options: new|queued|starting|in-progress|stopped|errored>
   --tag=<value>...        Filter by tag (repeatable). A session must carry every tag listed.
   --type=<option>...      Filter by session type (repeatable). All session types include a web preview. agent-device,
                           appium, and argent also include an automation interface; web-preview-only includes no

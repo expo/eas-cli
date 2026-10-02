@@ -8,6 +8,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
+import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -17,6 +18,10 @@ jest.mock('@expo/turtle-spawn', () => ({
 
 jest.mock('../../../utils/retry', () => ({
   retryAsync: jest.fn(),
+}));
+
+jest.mock('../../utils/androidLocalEgress', () => ({
+  resolveAndroidEmulatorLocalEgressAsync: jest.fn(),
 }));
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
@@ -35,6 +40,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
+const mockedResolveLocalEgress = jest.mocked(resolveAndroidEmulatorLocalEgressAsync);
 const mockedMkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
 function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
@@ -65,6 +71,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
+    mockedResolveLocalEgress.mockResolvedValue(null);
 
     mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
       let lastErr: unknown;
@@ -81,6 +88,82 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
   afterAll(() => {
     mockedMkdtemp.mockRestore();
+  });
+
+  describe('local egress', () => {
+    function createLocalEgress() {
+      return {
+        launchGate: {
+          emulatorArgs: ['-http-proxy', '127.0.0.1:8898', '-no-metrics'],
+          wrapperCommand: 'bash',
+          wrapperArgs: ['-c', 'gate', 'eas-egress-gate'],
+          admitAsync: jest.fn(),
+        },
+        networkReadyTarget: { host: '192.0.2.1', port: 443 },
+        configureBootedEmulatorAsync: jest.fn().mockResolvedValue(undefined),
+      };
+    }
+
+    it('starts the emulator exactly as before without a local egress session', async () => {
+      await createStep().executeAsync();
+
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith({
+        deviceName: 'EasAndroidDevice01',
+        env: expect.any(Object),
+        logcatDirectory: '/tmp/logcat-directory',
+      });
+      expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
+        env: expect.any(Object),
+        serialId: 'emulator-default',
+        timeoutMs: 60_000,
+        logger: expect.anything(),
+      });
+      expect(
+        mockedSpawn.mock.calls.filter(
+          ([command, args]) =>
+            ['sudo', 'nft', 'systemd-run'].includes(command) ||
+            (command === 'adb' && (args.includes('reverse') || args.includes('http_proxy')))
+        )
+      ).toEqual([]);
+    });
+
+    it('fences, gates and configures the emulator', async () => {
+      const localEgress = createLocalEgress();
+      mockedResolveLocalEgress.mockResolvedValue(localEgress);
+      mockedAndroidUtils.startAsync.mockResolvedValueOnce(createStartResult('emulator-base'));
+
+      await createStep().executeAsync();
+
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ launchGate: localEgress.launchGate })
+      );
+      expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ networkReadyTarget: { host: '192.0.2.1', port: 443 } })
+      );
+      expect(localEgress.configureBootedEmulatorAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ serialId: 'emulator-base' })
+      );
+    });
+
+    it('retries a boot whose local egress configuration fails', async () => {
+      const localEgress = createLocalEgress();
+      localEgress.configureBootedEmulatorAsync
+        .mockRejectedValueOnce(new Error('netsimd outside the fence'))
+        .mockResolvedValueOnce(undefined);
+      mockedResolveLocalEgress.mockResolvedValue(localEgress);
+      mockedAndroidUtils.startAsync
+        .mockResolvedValueOnce(createStartResult('emulator-1111'))
+        .mockResolvedValueOnce(createStartResult('emulator-2222'));
+
+      await createStep().executeAsync();
+
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ serialId: 'emulator-1111' })
+      );
+      expect(localEgress.configureBootedEmulatorAsync).toHaveBeenLastCalledWith(
+        expect.objectContaining({ serialId: 'emulator-2222' })
+      );
+    });
   });
 
   it('passes profile and LCD inputs to emulator creation', async () => {
