@@ -27,34 +27,36 @@ export namespace AscApiUtils {
     fileId: string;
     logger: bunyan;
   }): Promise<void> {
-    await promiseRetryWithCondition(
-      async () => {
-        const { data } = await client.getAsync(
-          '/v1/buildUploadFiles/:id',
-          { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
-          { id: fileId }
-        );
-        if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
-          return;
-        }
-        if (data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE') {
-          await commitUploadCompleteFileAsync({ client, fileId, logger });
-          return;
-        }
-        await client.patchAsync(
-          '/v1/buildUploadFiles/:id',
-          { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
-          { id: fileId }
-        );
-      },
-      error => error instanceof UploadCompletePendingError || isConnectionInterruptedError(error),
-      { retries: 3, factor: 1, minTimeout: 2000 },
-      ({ attemptNumber, maxAttemptsCount, error }) =>
-        logger.warn(
-          { err: error },
-          `Checking upload file before commit attempt ${attemptNumber}/${maxAttemptsCount}.`
-        )
-    )().catch(async error => {
+    try {
+      await promiseRetryWithCondition(
+        async () => {
+          const { data } = await client.getAsync(
+            '/v1/buildUploadFiles/:id',
+            { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+            { id: fileId }
+          );
+          if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
+            return;
+          }
+          if (data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE') {
+            await commitUploadCompleteFileAsync({ client, fileId, logger });
+            return;
+          }
+          await client.patchAsync(
+            '/v1/buildUploadFiles/:id',
+            { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
+            { id: fileId }
+          );
+        },
+        error => error instanceof UploadCompletePendingError || isConnectionInterruptedError(error),
+        { retries: 3, factor: 1, minTimeout: 2000 },
+        ({ attemptNumber, maxAttemptsCount, error }) =>
+          logger.warn(
+            { err: error },
+            `Checking upload file before commit attempt ${attemptNumber}/${maxAttemptsCount}.`
+          )
+      )();
+    } catch (error) {
       if (!(error instanceof UploadCompletePendingError || isConnectionInterruptedError(error))) {
         throw error;
       }
@@ -76,11 +78,11 @@ export namespace AscApiUtils {
         );
       }
       throw error;
-    });
+    }
   }
 
   // Temporary handling until we understand UPLOAD_COMPLETE for build upload files.
-  class UploadCompletePendingError extends Error {}
+  class UploadCompletePendingError extends SystemError {}
 
   async function commitUploadCompleteFileAsync({
     client,
