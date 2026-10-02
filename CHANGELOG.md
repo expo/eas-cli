@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.9.0](https://github.com/expo/eas-cli/releases/tag/v24.9.0) - 2026-10-02
+
+### 🎉 New features
+
 - [eas-cli] Add `--force-end-active-rollout` to `eas update`, `eas update:republish`, `eas update:roll-back-to-embedded` and `eas update:rollback`. ([#4233](https://github.com/expo/eas-cli/pull/4233) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Allow `eas simulator:start --platform android --egress local`. On Android, `--egress-allow localhost:<port>` also covers `10.0.2.2:<port>`, and refused destinations are shown as warnings. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Support `eas/start_local_egress` on Linux for Android emulators: an always-listening relay for the emulator's proxy, a systemd scope and nftables fence that refuse traffic that cannot use the tunnel, and fence refusals in the session log. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
@@ -37,8 +45,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Keep the `eas simulator` session spinner on one line, so resizing the terminal no longer leaves copies of it behind. The `eas simulator:stop` command is now printed once before the spinner starts. ([#4488](https://github.com/expo/eas-cli/pull/4488) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Keep `eas simulator:events --follow` running while a session is queued or starting. ([#4506](https://github.com/expo/eas-cli/pull/4506) by [@sjkim-expo](https://github.com/sjkim-expo))
-
-### 🧹 Chores
 
 ## [24.8.0](https://github.com/expo/eas-cli/releases/tag/v24.8.0) - 2026-09-24
 
