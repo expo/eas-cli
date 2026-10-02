@@ -20,7 +20,8 @@ export type AnalyticsEvent =
   | BuildEvent
   | SubmissionEvent
   | MetadataEvent
-  | BillingEvent;
+  | BillingEvent
+  | SimulatorEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
@@ -75,6 +76,12 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
+}
+
+export enum SimulatorEvent {
+  REQUEST_SENT = 'sim session request sent',
+  REQUEST_CANCELLED = 'sim session request cancelled',
+  REQUEST_FAILED = 'sim session request failed',
 }
 
 export enum MetadataEvent {
