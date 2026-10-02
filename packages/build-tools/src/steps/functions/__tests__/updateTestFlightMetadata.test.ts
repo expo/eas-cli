@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { generateKeyPairSync } from 'node:crypto';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -10,10 +11,11 @@ import {
 
 jest.unmock('node-fetch');
 
-const client = new AscApiClient({ token: 'test-token' });
+const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const key = { keyId: 'TESTKEY', privateKey };
 const changelog = 'Test "quotes"\n$(not-a-command)';
 const options = {
-  client,
+  client: new AscApiClient({ key }),
   buildUploadId: 'upload',
   changelog,
   groups: [] as string[],
@@ -57,6 +59,7 @@ function mockAssignedGroups(ids: string[] = []): void {
 beforeAll(() => nock.disableNetConnect());
 beforeEach(() => {
   options.logger = createMockLogger();
+  options.client = new AscApiClient({ key });
 });
 afterAll(() => nock.enableNetConnect());
 afterEach(() => {

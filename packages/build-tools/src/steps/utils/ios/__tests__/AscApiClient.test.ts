@@ -1,4 +1,5 @@
 import { UserError } from '@expo/eas-build-job';
+import * as jose from 'jose';
 import nock from 'nock';
 
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
@@ -7,11 +8,17 @@ import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 jest.unmock('node-fetch');
 
 describe(AscApiClient, () => {
-  const token = 'test-token';
-  const client = new AscApiClient({ token });
+  let signingKey: jose.KeyLike;
+  let client: AscApiClient;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    signingKey = privateKey;
     nock.disableNetConnect();
+  });
+
+  beforeEach(() => {
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey: signingKey } });
   });
 
   afterAll(() => {
@@ -20,7 +27,63 @@ describe(AscApiClient, () => {
 
   afterEach(() => {
     nock.cleanAll();
+    jest.useRealTimers();
   });
+
+  it.each([undefined, 'test-issuer'])(
+    'reuses tokens and refreshes before expiry (issuer: %s)',
+    async issuerId => {
+      const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
+      const startTime = Date.now();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+      jest.setSystemTime(startTime);
+      const refreshingClient = new AscApiClient({
+        key: { keyId: 'TESTKEY', issuerId, privateKey },
+      });
+      const responseFixture = require('./fixtures/buildUploads/get-buildUploads-200.json');
+      const tokens: string[] = [];
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploads/upload-id')
+        .query(true)
+        .times(5)
+        .reply(function () {
+          tokens.push(String(this.req.headers.authorization).replace(/^Bearer /, ''));
+          return [200, responseFixture];
+        });
+
+      const requestAsync = async (): Promise<unknown> =>
+        await refreshingClient.getAsync(
+          '/v1/buildUploads/:id',
+          { 'fields[buildUploads]': ['build', 'state'], include: ['build'] },
+          { id: 'upload-id' }
+        );
+      await Promise.all([requestAsync(), requestAsync()]);
+      jest.setSystemTime(startTime + 18 * 60 * 1000);
+      await requestAsync();
+      expect(new Set(tokens).size).toBe(1);
+
+      jest.setSystemTime(startTime + 19 * 60 * 1000);
+      await requestAsync();
+      expect(tokens[3]).not.toBe(tokens[0]);
+      jest.setSystemTime(startTime + 21 * 60 * 1000);
+      await requestAsync();
+      expect(tokens[4]).toBe(tokens[3]);
+
+      const verificationOptions = {
+        currentDate: new Date(Date.now()),
+        audience: 'appstoreconnect-v1',
+      };
+      await expect(jose.jwtVerify(tokens[0], publicKey, verificationOptions)).rejects.toThrow(
+        '"exp" claim timestamp check failed'
+      );
+      await expect(
+        jose.jwtVerify(tokens[4], publicKey, verificationOptions)
+      ).resolves.toMatchObject({
+        payload: issuerId ? { iss: issuerId } : { sub: 'user' },
+      });
+      expect(scope.isDone()).toBe(true);
+    }
+  );
 
   it('fetches app info', async () => {
     const appId = '1491144534';

@@ -7,6 +7,7 @@ import {
   AscApiClient,
   AscApiClientGetApi,
   AscApiClientPostApi,
+  AscApiKey,
   AscApiRequestError,
   AscPlatform,
 } from './AscApiClient';
@@ -64,22 +65,15 @@ export namespace AscApiUtils {
     return groups;
   }
 
-  export async function signTokenAsync({ keyPath }: { keyPath: string }): Promise<string> {
+  export async function loadApiKeyAsync({ keyPath }: { keyPath: string }): Promise<AscApiKey> {
     const keyJson = z
       .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
       .parse(await fs.readJson(keyPath));
-    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
-    const jwt = new jose.SignJWT({})
-      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
-      .setAudience('appstoreconnect-v1')
-      .setExpirationTime('20m');
-    if (keyJson.issuer_id) {
-      jwt.setIssuer(keyJson.issuer_id);
-    } else {
-      // An individual API key has no issuer ID.
-      jwt.setSubject('user');
-    }
-    return await jwt.sign(privateKey);
+    return {
+      keyId: keyJson.key_id,
+      issuerId: keyJson.issuer_id,
+      privateKey: await jose.importPKCS8(keyJson.key, 'ES256'),
+    };
   }
 
   /**
