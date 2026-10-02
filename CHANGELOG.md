@@ -9,15 +9,33 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `--force-end-active-rollout` to `eas update`, `eas update:republish`, `eas update:roll-back-to-embedded` and `eas update:rollback`. ([#4233](https://github.com/expo/eas-cli/pull/4233) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Allow `eas simulator:start --platform android --egress local`. On Android, `--egress-allow localhost:<port>` also covers `10.0.2.2:<port>`, and refused destinations are shown as warnings. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
+- [build-tools] Support `eas/start_local_egress` on Linux for Android emulators: an always-listening relay for the emulator's proxy, a systemd scope and nftables fence that refuse traffic that cannot use the tunnel, and fence refusals in the session log. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Add `--upload-source-maps` to `eas update`, which uploads the generated source maps to EAS so that stack traces from an update can be symbolicated. Source maps are stripped of `sourcesContent` before upload. ([#4436](https://github.com/expo/eas-cli/pull/4436) by [@douglowder](https://github.com/douglowder))
+- [build-tools] Upload the embedded bundle after build by default for projects on SDK 58 and later. Set `EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE` to `0` to disable it. On SDK 57 and below the feature remains experimental and opt-in via `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE`. ([#4433](https://github.com/expo/eas-cli/pull/4433) by [@brentvatne](https://github.com/brentvatne))
+- [build-tools] Save manual iOS and Android live preview screenshots as session artifacts when supported by the preview server. ([#4481](https://github.com/expo/eas-cli/pull/4481) by [@vonovak](https://github.com/vonovak))
+- [build-tools] Add the `eas/install_mitmproxy` step. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Start serve-sim with `--network-capture`, and with `--network-capture-field` for each requested field, when a simulator session requests network capture. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Allow workflow submissions to skip loading app config when project and application identifiers are supplied. ([#4471](https://github.com/expo/eas-cli/pull/4471) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Record Android device sessions and upload the screen recording, including the partial recording a killed Device Hub leaves behind. ([#4418](https://github.com/expo/eas-cli/pull/4418) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Add start and collect steps that attach bounded simulator logs from serve-sim to device run sessions. ([#4463](https://github.com/expo/eas-cli/pull/4463) by [@sjkim-expo](https://github.com/sjkim-expo))
+- [build-tools] Add `eas/start_agent_device_session`, one step for agent-device sessions that boots the device, downloads, installs and launches the app, and starts the session, with the independent parts in parallel. ([#4491](https://github.com/expo/eas-cli/pull/4491) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-build-job] Add `sentry` workflow interpolation context schema for Sentry-triggered workflow runs. ([#4453](https://github.com/expo/eas-cli/pull/4453) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
+- [build-tools] Pass the step cancellation signal to `eas/download_build`. ([#4511](https://github.com/expo/eas-cli/pull/4511) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Accept `null` for the TestFlight group `hasAccessToAllBuilds` attribute from App Store Connect. ([#4528](https://github.com/expo/eas-cli/pull/4528) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Support `queued` and `starting` status filters in `eas simulator:list` and keep simulator commands compatible with the current GraphQL schema. ([#4527](https://github.com/expo/eas-cli/pull/4527) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Explain how to resolve missing or expired Apple agreements when App Store Connect rejects a request. ([#4513](https://github.com/expo/eas-cli/pull/4513) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Correct the `eas simulator:start --max-duration-minutes` help text: every plan can set a custom duration up to the plan's maximum, which is also the default. ([#4524](https://github.com/expo/eas-cli/pull/4524) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Fix `eas workflow:validate` crashing with certain workflow schemas, and exit with a non-zero code when validation fails. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
+- [build-tools] Reuse App Store Connect tokens and refresh them before expiry so long uploads and processing waits remain authenticated. ([#4497](https://github.com/expo/eas-cli/pull/4497) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Poll the web preview readiness every 250 ms instead of every second, so a session goes live sooner after its host is ready. ([#4496](https://github.com/expo/eas-cli/pull/4496) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Keep the `eas simulator` session spinner on one line, so resizing the terminal no longer leaves copies of it behind. The `eas simulator:stop` command is now printed once before the spinner starts. ([#4488](https://github.com/expo/eas-cli/pull/4488) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Disable agent-device's internal idle timeouts in remote sessions, so only the session's own idle and duration limits end it. ([#4485](https://github.com/expo/eas-cli/pull/4485) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Keep `eas simulator:events --follow` running while a session is queued or starting. ([#4506](https://github.com/expo/eas-cli/pull/4506) by [@sjkim-expo](https://github.com/sjkim-expo))
 
 ### 🧹 Chores
 
@@ -48,7 +66,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [eas-cli] Stop creating `CLAUDE.md` in new apps; use `AGENTS.md` for agent instructions. ([#4446](https://github.com/expo/eas-cli/pull/4446) by [@davidmokos](https://github.com/davidmokos))
-- Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
+- Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#4400](https://github.com/expo/eas-cli/pull/4400) by [@wschurman](https://github.com/wschurman))
 - [build-tools] Use the website origin for simulator preview CORS and framing, and allow deploy previews and local website dev servers on staging. ([#4437](https://github.com/expo/eas-cli/pull/4437) by [@gwdp](https://github.com/gwdp))
 
 ## [24.7.0](https://github.com/expo/eas-cli/releases/tag/v24.7.0) - 2026-09-16

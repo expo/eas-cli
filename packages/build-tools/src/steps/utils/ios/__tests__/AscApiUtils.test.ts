@@ -1,7 +1,54 @@
-import { AscApiRequestError } from '../AscApiClient';
+import fs from 'fs-extra';
+import * as jose from 'jose';
+import nock from 'nock';
+
+import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
+jest.unmock('node-fetch');
+
 describe('AscApiUtils', () => {
+  describe('loadApiKeyAsync', () => {
+    beforeAll(() => nock.disableNetConnect());
+    afterAll(() => nock.enableNetConnect());
+    afterEach(() => nock.cleanAll());
+
+    it.each([undefined, 'test-issuer'])(
+      'loads a key that authenticates ASC requests (issuer: %s)',
+      async issuerId => {
+        const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
+        const keyPath = '/asc-api-key.json';
+        await fs.writeJson(keyPath, {
+          key_id: 'TESTKEY',
+          issuer_id: issuerId,
+          key: await jose.exportPKCS8(privateKey),
+        });
+        const client = new AscApiClient({ key: await AscApiUtils.loadApiKeyAsync({ keyPath }) });
+        let token = '';
+        const scope = nock('https://api.appstoreconnect.apple.com')
+          .get('/v1/apps/app')
+          .query(true)
+          .reply(function () {
+            token = String(this.req.headers.authorization).replace(/^Bearer /, '');
+            return [200, require('./fixtures/apps/get-apps-200.json')];
+          });
+
+        await client.getAsync(
+          '/v1/apps/:id',
+          { 'fields[apps]': ['bundleId', 'name'] },
+          { id: 'app' }
+        );
+        await expect(
+          jose.jwtVerify(token, publicKey, { audience: 'appstoreconnect-v1' })
+        ).resolves.toMatchObject({
+          protectedHeader: { kid: 'TESTKEY', alg: 'ES256' },
+          payload: issuerId ? { iss: issuerId } : { sub: 'user' },
+        });
+        expect(scope.isDone()).toBe(true);
+      }
+    );
+  });
+
   describe('getAppInfoAsync', () => {
     it('returns app info when lookup succeeds', async () => {
       const response = {
@@ -24,48 +71,53 @@ describe('AscApiUtils', () => {
       ).resolves.toEqual(response);
     });
 
-    it('throws UserError with visible apps when app id is not found', async () => {
-      const notFoundPayload = {
-        errors: [
-          {
-            status: '404',
-            code: 'NOT_FOUND',
-            detail: "There is no resource of type 'apps' with id '1234567890'",
-          },
-        ],
-      };
-      const notFoundError = new AscApiRequestError(
-        'Unexpected response (404) from App Store Connect',
-        404,
-        notFoundPayload
-      );
-      const client = {
-        getAsync: jest
-          .fn()
-          .mockRejectedValueOnce(notFoundError)
-          .mockResolvedValueOnce({
-            data: [
-              {
-                type: 'apps',
-                id: '1111111111',
-                attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
-              },
-            ],
-          }),
-      };
+    it.each([false, true])(
+      'throws UserError with visible apps (aggregate: %s)',
+      async aggregate => {
+        const notFoundPayload = {
+          errors: [
+            {
+              status: '404',
+              code: 'NOT_FOUND',
+              detail: "There is no resource of type 'apps' with id '1234567890'",
+            },
+          ],
+        };
+        const notFoundError = new AscApiRequestError(
+          'Unexpected response (404) from App Store Connect',
+          404,
+          notFoundPayload.errors[0]
+        );
+        const client = {
+          getAsync: jest
+            .fn()
+            .mockRejectedValueOnce(
+              aggregate ? new AggregateError([notFoundError, notFoundError]) : notFoundError
+            )
+            .mockResolvedValueOnce({
+              data: [
+                {
+                  type: 'apps',
+                  id: '1111111111',
+                  attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+                },
+              ],
+            }),
+        };
 
-      await expect(
-        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
-      ).rejects.toEqual(
-        expect.objectContaining({
-          errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
-          docsUrl: 'https://expo.fyi/asc-app-id',
-          message: expect.stringMatching(
-            /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
-          ),
-        })
-      );
-    });
+        await expect(
+          AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
+        ).rejects.toEqual(
+          expect.objectContaining({
+            errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
+            docsUrl: 'https://expo.fyi/asc-app-id',
+            message: expect.stringMatching(
+              /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
+            ),
+          })
+        );
+      }
+    );
 
     it('rethrows original not-found error when app-list lookup fails', async () => {
       const notFoundPayload = {
@@ -79,7 +131,7 @@ describe('AscApiUtils', () => {
       const notFoundError = new AscApiRequestError(
         'Unexpected response (404) from App Store Connect',
         404,
-        notFoundPayload
+        notFoundPayload.errors[0]
       );
 
       const listingError = new Error('listing failed');
@@ -122,7 +174,7 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
-    it('throws UserError when ASC duplicate version error is returned', async () => {
+    it.each([false, true])('explains duplicate versions (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [
           {
@@ -135,11 +187,15 @@ describe('AscApiUtils', () => {
       const duplicateError = new AscApiRequestError(
         'Unexpected response (409) from App Store Connect',
         409,
-        payload
+        payload.errors[0]
       );
 
       const client = {
-        postAsync: jest.fn().mockRejectedValue(duplicateError),
+        postAsync: jest
+          .fn()
+          .mockRejectedValue(
+            aggregate ? new AggregateError([duplicateError, duplicateError]) : duplicateError
+          ),
       };
 
       await expect(
@@ -211,7 +267,7 @@ describe('AscApiUtils', () => {
       );
     });
 
-    it('rethrows when error payload includes mixed error codes', async () => {
+    it.each([false, true])('rethrows unrelated errors (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [
           {
@@ -224,11 +280,8 @@ describe('AscApiUtils', () => {
           },
         ],
       };
-      const mixedError = new AscApiRequestError(
-        'Unexpected response (409) from App Store Connect',
-        409,
-        payload
-      );
+      const errors = payload.errors.map(error => new AscApiRequestError('API error', 409, error));
+      const mixedError = aggregate ? new AggregateError(errors) : errors[1];
       const client = {
         postAsync: jest.fn().mockRejectedValue(mixedError),
       };

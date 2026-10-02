@@ -1,8 +1,10 @@
 import { UserError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
+  type BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
@@ -14,10 +16,12 @@ import path from 'node:path';
 
 import {
   AndroidDeviceName,
+  AndroidDeviceSerialId,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
+import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -80,140 +84,20 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       );
       outputs.logcat_directory.set(logcatDirectory);
 
-      if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
-        await assertAndroidEmulatorHostSupportAsync({ env });
-      } else {
-        logger.info(
-          'Skipping Android emulator host support check because $EAS_NO_EMULATOR_HOST_SUPPORT_CHECK is enabled.'
-        );
-      }
-
-      try {
-        const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
-        logger.info(`Available Android devices:\n- ${availableDevices.join(`\n- `)}`);
-      } catch (error) {
-        logger.info('Failed to list available Android devices.', error);
-      } finally {
-        logger.info('');
-      }
-
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
-      const systemImagePackage = `${inputs.system_image_package.value}`;
-      // We can cast because allowedValueTypeName validated this is a string.
-      const deviceIdentifier = inputs.device_identifier.value as AndroidDeviceName | undefined;
-      const lcdWidth = inputs.lcd_width.value as number | undefined;
-      const lcdHeight = inputs.lcd_height.value as number | undefined;
-      const lcdDensity = inputs.lcd_density.value as number | undefined;
-      const shouldAdjustAnimationScale =
-        env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
-        env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
-
-      if (!shouldAdjustAnimationScale) {
-        logger.info(
-          'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
-        );
-      }
-
-      logger.info('Making sure system image is installed');
-      await retryAsync(
-        async () => {
-          await spawn('sdkmanager', [systemImagePackage], {
-            env,
-            logger,
-          });
-        },
-        {
+      const { serialId, emulatorPromise, shouldAdjustAnimationScale } =
+        await startAndroidEmulatorAsync({
+          deviceName,
+          systemImagePackage: `${inputs.system_image_package.value}`,
+          // We can cast because allowedValueTypeName validated this is a string.
+          deviceIdentifier: inputs.device_identifier.value as AndroidDeviceName | undefined,
+          lcdWidth: inputs.lcd_width.value as number | undefined,
+          lcdHeight: inputs.lcd_height.value as number | undefined,
+          lcdDensity: inputs.lcd_density.value as number | undefined,
+          logcatDirectory,
+          env,
           logger,
-          retryOptions: {
-            retries: 3, // Retry 3 times
-            retryIntervalMs: 1_000,
-          },
-        }
-      );
-
-      let emulatorPromise = null;
-      let serialId = null;
-      await retryAsync(
-        async attemptCount => {
-          const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
-          const attempt = attemptCount + 1;
-          const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
-          const attemptSuffix = attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : '';
-          let attemptSerialId = null;
-
-          try {
-            logger.info(`Creating emulator device${attemptSuffix}.`);
-            await AndroidEmulatorUtils.createAsync({
-              deviceName,
-              systemImagePackage,
-              deviceIdentifier: deviceIdentifier ?? null,
-              lcdWidth: lcdWidth ?? null,
-              lcdHeight: lcdHeight ?? null,
-              lcdDensity: lcdDensity ?? null,
-              env,
-              logger,
-            });
-
-            logger.info(`Starting emulator device${attemptSuffix}.`);
-            const startResult = await AndroidEmulatorUtils.startAsync({
-              deviceName,
-              env,
-              logcatDirectory,
-            });
-            attemptSerialId = startResult.serialId;
-            await AndroidEmulatorUtils.waitForReadyAsync({
-              env,
-              serialId: attemptSerialId,
-              timeoutMs,
-              logger,
-            });
-            if (shouldAdjustAnimationScale) {
-              await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
-                env,
-                logger,
-                serialId: attemptSerialId,
-              });
-            }
-            logger.info(`${deviceName} is ready.`);
-
-            serialId = attemptSerialId;
-            emulatorPromise = startResult.emulatorPromise;
-          } catch (err) {
-            logger.warn(
-              { err },
-              `${deviceName} failed to start on attempt ${attempt}/${maxAttempts}.`
-            );
-            try {
-              if (attemptSerialId) {
-                await AndroidEmulatorUtils.deleteAsync({
-                  serialId: attemptSerialId,
-                  deviceName,
-                  env,
-                });
-              } else {
-                await AndroidEmulatorUtils.deleteAsync({
-                  deviceName,
-                  env,
-                });
-              }
-            } catch (cleanupErr) {
-              logger.warn({ err: cleanupErr }, `Failed to clean up ${deviceName}.`);
-            }
-            throw err;
-          }
-        },
-        {
-          logger,
-          retryOptions: {
-            retries: ANDROID_STARTUP_RETRIES_COUNT,
-            retryIntervalMs: 1_000,
-          },
-        }
-      );
-
-      if (!serialId || !emulatorPromise) {
-        throw new Error(`Failed to start emulator ${deviceName}.`);
-      }
+        });
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
@@ -304,6 +188,167 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+/**
+ * Checks the host, installs the system image, then creates and starts one emulator and
+ * waits until it is ready, with retries.
+ */
+export async function startAndroidEmulatorAsync({
+  deviceName,
+  systemImagePackage,
+  deviceIdentifier,
+  lcdWidth,
+  lcdHeight,
+  lcdDensity,
+  logcatDirectory,
+  env,
+  logger,
+}: {
+  deviceName: AndroidVirtualDeviceName;
+  systemImagePackage: string;
+  deviceIdentifier?: AndroidDeviceName;
+  lcdWidth?: number;
+  lcdHeight?: number;
+  lcdDensity?: number;
+  logcatDirectory: string;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<{
+  serialId: AndroidDeviceSerialId;
+  emulatorPromise: Promise<unknown>;
+  shouldAdjustAnimationScale: boolean;
+}> {
+  if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
+    await assertAndroidEmulatorHostSupportAsync({ env });
+  } else {
+    logger.info(
+      'Skipping Android emulator host support check because $EAS_NO_EMULATOR_HOST_SUPPORT_CHECK is enabled.'
+    );
+  }
+
+  try {
+    const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
+    logger.info(`Available Android devices:\n- ${availableDevices.join(`\n- `)}`);
+  } catch (error) {
+    logger.info('Failed to list available Android devices.', error);
+  } finally {
+    logger.info('');
+  }
+
+  const shouldAdjustAnimationScale =
+    env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
+    env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
+
+  if (!shouldAdjustAnimationScale) {
+    logger.info(
+      'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
+    );
+  }
+
+  const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
+
+  logger.info('Making sure system image is installed');
+  await retryAsync(
+    async () => {
+      await spawn('sdkmanager', [systemImagePackage], {
+        env,
+        logger,
+      });
+    },
+    {
+      logger,
+      retryOptions: {
+        retries: 3, // Retry 3 times
+        retryIntervalMs: 1_000,
+      },
+    }
+  );
+
+  let emulatorPromise = null;
+  let serialId = null;
+  await retryAsync(
+    async attemptCount => {
+      const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
+      const attempt = attemptCount + 1;
+      const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
+      const attemptSuffix = attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : '';
+      let attemptSerialId = null;
+
+      try {
+        logger.info(`Creating emulator device${attemptSuffix}.`);
+        await AndroidEmulatorUtils.createAsync({
+          deviceName,
+          systemImagePackage,
+          deviceIdentifier: deviceIdentifier ?? null,
+          lcdWidth: lcdWidth ?? null,
+          lcdHeight: lcdHeight ?? null,
+          lcdDensity: lcdDensity ?? null,
+          env,
+          logger,
+        });
+
+        logger.info(`Starting emulator device${attemptSuffix}.`);
+        const startResult = await AndroidEmulatorUtils.startAsync({
+          deviceName,
+          env,
+          logcatDirectory,
+          ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
+        });
+        attemptSerialId = startResult.serialId;
+        await AndroidEmulatorUtils.waitForReadyAsync({
+          env,
+          serialId: attemptSerialId,
+          timeoutMs,
+          logger,
+          ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
+        });
+        if (shouldAdjustAnimationScale) {
+          await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+            env,
+            logger,
+            serialId: attemptSerialId,
+          });
+        }
+        await localEgress?.configureBootedEmulatorAsync({ serialId: attemptSerialId, logger });
+        logger.info(`${deviceName} is ready.`);
+
+        serialId = attemptSerialId;
+        emulatorPromise = startResult.emulatorPromise;
+      } catch (err) {
+        logger.warn({ err }, `${deviceName} failed to start on attempt ${attempt}/${maxAttempts}.`);
+        try {
+          if (attemptSerialId) {
+            await AndroidEmulatorUtils.deleteAsync({
+              serialId: attemptSerialId,
+              deviceName,
+              env,
+            });
+          } else {
+            await AndroidEmulatorUtils.deleteAsync({
+              deviceName,
+              env,
+            });
+          }
+        } catch (cleanupErr) {
+          logger.warn({ err: cleanupErr }, `Failed to clean up ${deviceName}.`);
+        }
+        throw err;
+      }
+    },
+    {
+      logger,
+      retryOptions: {
+        retries: ANDROID_STARTUP_RETRIES_COUNT,
+        retryIntervalMs: 1_000,
+      },
+    }
+  );
+
+  if (!serialId || !emulatorPromise) {
+    throw new Error(`Failed to start emulator ${deviceName}.`);
+  }
+  return { serialId, emulatorPromise, shouldAdjustAnimationScale };
 }
 
 async function assertAndroidEmulatorHostSupportAsync({

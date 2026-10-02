@@ -54,12 +54,14 @@ export function buildGuardLaunchdEnvironment({
 
 export type GuardEvent = {
   process: string;
-  pid: number;
+  /** Null when the event source cannot attribute the attempt to a process id. */
+  pid: number | null;
   function: string;
   action: 'blocked' | 'logged';
   peer: string;
   /** Image names above the interposer, innermost first. */
   callers: string[];
+  note?: string;
 };
 
 /** One tab-separated line written by the guard; see policy.h for the format. */
@@ -168,9 +170,11 @@ export class GuardEventRelay {
       return;
     }
     const verb = event.action === 'blocked' ? 'refused' : 'observed';
+    const pid = event.pid === null ? '' : ` (pid ${event.pid})`;
     const callers = event.callers.length ? `; callers: ${event.callers.join(', ')}` : '';
+    const note = event.note ? ` (${event.note})` : '';
     this.logger.info(
-      `Local egress guard: ${verb} ${event.function} from ${event.process} (pid ${event.pid}) to ${event.peer}${callers}`
+      `Local egress guard: ${verb} ${event.function} from ${event.process}${pid} to ${event.peer}${note}${callers}`
     );
   }
 
@@ -314,8 +318,25 @@ export async function resolveLocalEgressBootEnvironmentAsync({
   };
 }
 
-type ActiveRelay = { tailer: GuardLogTailer; relay: GuardEventRelay };
+type ActiveRelay = {
+  source: { stopAsync: () => Promise<void> };
+  relay: GuardEventRelay;
+  onRebind?: (logger: bunyan) => void;
+  afterSummaryAsync?: () => Promise<void>;
+};
 const activeRelays = new Map<string, ActiveRelay>();
+
+/**
+ * Report events from another source, such as the Android emulator's packet
+ * fence, through the same session log lines, step rebinding and summary as the
+ * Simulator guard.
+ */
+export function registerLocalEgressGuardRelay(key: string, entry: ActiveRelay): void {
+  if (activeRelays.has(key)) {
+    throw new SystemError(`A local egress guard relay is already registered for ${key}.`);
+  }
+  activeRelays.set(key, entry);
+}
 
 /**
  * Install the guard into a simulator when a local egress session is active,
@@ -416,7 +437,7 @@ export async function installLocalEgressGuardAsync({
       },
     });
     tailer.start();
-    activeRelays.set(logPath, { tailer, relay });
+    activeRelays.set(logPath, { source: tailer, relay });
   }
 
   logger.info(
@@ -676,8 +697,9 @@ export async function verifyLocalEgressGuardAsync({
  * finished.
  */
 export function rebindLocalEgressGuardRelays(logger: bunyan): void {
-  for (const { relay } of activeRelays.values()) {
+  for (const { relay, onRebind } of activeRelays.values()) {
     relay.setLogger(logger);
+    onRebind?.(logger);
   }
 }
 
@@ -685,9 +707,9 @@ export function rebindLocalEgressGuardRelays(logger: bunyan): void {
 export async function stopLocalEgressGuardRelaysAsync(logger: bunyan): Promise<void> {
   const relays = [...activeRelays.values()];
   activeRelays.clear();
-  for (const { tailer, relay } of relays) {
+  for (const { source, relay, afterSummaryAsync } of relays) {
     try {
-      await tailer.stopAsync();
+      await source.stopAsync();
     } catch (err) {
       logger.warn(
         { err },
@@ -695,5 +717,8 @@ export async function stopLocalEgressGuardRelaysAsync(logger: bunyan): Promise<v
       );
     }
     relay.logSummary();
+    await afterSummaryAsync?.().catch(err =>
+      logger.warn({ err }, 'Local egress guard: could not report the final totals.')
+    );
   }
 }

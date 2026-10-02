@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import { z } from 'zod';
@@ -7,27 +7,73 @@ import {
   AscApiClient,
   AscApiClientGetApi,
   AscApiClientPostApi,
+  AscApiKey,
   AscApiRequestError,
   AscPlatform,
 } from './AscApiClient';
 
 export namespace AscApiUtils {
-  export async function signTokenAsync({ keyPath }: { keyPath: string }): Promise<string> {
+  export async function getAllBetaBuildLocalizationsAsync({
+    client,
+    buildId,
+  }: {
+    client: AscApiClient;
+    buildId: string;
+  }) {
+    let response = await client.getAsync(
+      '/v1/builds/:id/betaBuildLocalizations',
+      { limit: 200 },
+      { id: buildId }
+    );
+    const localizations = [...response.data];
+    for (let page = 1; response.links?.next; page++) {
+      if (page === 20) {
+        throw new SystemError(
+          'We only support TestFlight localization lists with up to 20 pages (4,000 localizations). Contact Expo support if you need a larger localization list.'
+        );
+      }
+      response = await client.getNextPageAsync(
+        '/v1/builds/:id/betaBuildLocalizations',
+        response.links.next
+      );
+      localizations.push(...response.data);
+    }
+    return localizations;
+  }
+
+  export async function getAllBetaGroupsAsync({
+    client,
+    appId,
+    buildId,
+  }: {
+    client: AscApiClient;
+  } & ({ appId: string; buildId?: never } | { appId?: never; buildId: string })) {
+    let response = await client.getAsync('/v1/betaGroups', {
+      ...(buildId !== undefined ? { 'filter[builds]': buildId } : { 'filter[app]': appId }),
+      limit: 200,
+    });
+    const groups = [...response.data];
+    for (let page = 1; response.links?.next; page++) {
+      if (page === 20) {
+        throw new SystemError(
+          'We only support TestFlight group lists with up to 20 pages (4,000 groups). Contact Expo support if you need a larger group list.'
+        );
+      }
+      response = await client.getNextPageAsync('/v1/betaGroups', response.links.next);
+      groups.push(...response.data);
+    }
+    return groups;
+  }
+
+  export async function loadApiKeyAsync({ keyPath }: { keyPath: string }): Promise<AscApiKey> {
     const keyJson = z
       .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
       .parse(await fs.readJson(keyPath));
-    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
-    const jwt = new jose.SignJWT({})
-      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
-      .setAudience('appstoreconnect-v1')
-      .setExpirationTime('20m');
-    if (keyJson.issuer_id) {
-      jwt.setIssuer(keyJson.issuer_id);
-    } else {
-      // An individual API key has no issuer ID.
-      jwt.setSubject('user');
-    }
-    return await jwt.sign(privateKey);
+    return {
+      keyId: keyJson.key_id,
+      issuerId: keyJson.issuer_id,
+      privateKey: await jose.importPKCS8(keyJson.key, 'ES256'),
+    };
   }
 
   /**
@@ -78,12 +124,13 @@ export namespace AscApiUtils {
         { id: appleAppIdentifier }
       );
     } catch (error) {
-      const notFoundErrors =
-        error instanceof AscApiRequestError && error.status === 404
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isAppNotFoundError =
-        notFoundErrors.length > 0 && notFoundErrors.every(item => item.code === 'NOT_FOUND');
+        errors.length > 0 &&
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError && item.status === 404 && item.code === 'NOT_FOUND'
+        );
       if (!isAppNotFoundError) {
         throw error;
       }
@@ -145,13 +192,15 @@ export namespace AscApiUtils {
         },
       });
     } catch (error) {
-      const errors =
-        error instanceof AscApiRequestError && error.status === 409
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isDuplicateVersionError =
         errors.length > 0 &&
-        errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError &&
+            item.status === 409 &&
+            item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE'
+        );
 
       if (isDuplicateVersionError) {
         throw new UserError(

@@ -29,6 +29,8 @@ const MAX_LIMIT = 100;
 
 const STATUS_FLAG_VALUES: Record<DeviceRunSessionStatus, string> = {
   [DeviceRunSessionStatus.New]: 'new',
+  [DeviceRunSessionStatus.Queued]: 'queued',
+  [DeviceRunSessionStatus.Starting]: 'starting',
   [DeviceRunSessionStatus.InProgress]: 'in-progress',
   [DeviceRunSessionStatus.Stopped]: 'stopped',
   [DeviceRunSessionStatus.Errored]: 'errored',
