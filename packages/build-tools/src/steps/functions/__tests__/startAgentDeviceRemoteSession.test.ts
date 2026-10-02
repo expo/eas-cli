@@ -108,6 +108,7 @@ describe(startAgentDeviceDaemonAsync, () => {
     const addCwd = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
     expect(spawnDetached).toHaveBeenCalledWith({
       command: 'node',
+      logger,
       args: [path.join(addCwd, 'node_modules/agent-device/dist/src/internal/daemon.js')],
       env: expect.objectContaining({
         AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
@@ -199,6 +200,7 @@ describe(startAgentDeviceDaemonAsync, () => {
     );
     expect(spawnDetached).toHaveBeenCalledWith({
       command: 'bun',
+      logger,
       args: ['run', 'src/daemon.ts'],
       cwd: '/tmp/agent-device-src',
       env: expect.objectContaining({

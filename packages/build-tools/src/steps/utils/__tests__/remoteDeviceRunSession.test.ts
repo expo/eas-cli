@@ -65,6 +65,7 @@ function createLoggerMock(): bunyan {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
   } as unknown as bunyan;
 }
 
@@ -721,7 +722,11 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);

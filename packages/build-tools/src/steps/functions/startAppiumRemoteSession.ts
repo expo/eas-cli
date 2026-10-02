@@ -135,6 +135,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           JSON.stringify({ 'appium:eventTimings': true }),
         ],
         env: appiumEnv,
+        logger,
       });
       try {
         await waitForAppiumReadyAsync({ appiumProcess, logger });

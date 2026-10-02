@@ -1,0 +1,82 @@
+import { type bunyan } from '@expo/logger';
+
+import { createProcessOutput } from '../processOutput';
+
+const logger = { info: jest.fn() } as unknown as bunyan;
+
+beforeEach(() => jest.clearAllMocks());
+
+it('redacts split credentials before publishing complete lines', () => {
+  const output = createProcessOutput(logger, ['turn secret']);
+  output.stdout.append('https://preview.test/?tok');
+  output.stdout.append('en=preview-secret&ok=true\n');
+  output.stderr.append('Authorization: Bea');
+  output.stderr.append('rer tool-secret\n{"credential":"turn secret"}\n');
+  expect(logger.info).toHaveBeenNthCalledWith(
+    1,
+    { stream: 'stdout' },
+    'https://preview.test/?token=[REDACTED]&ok=true'
+  );
+  expect(logger.info).toHaveBeenNthCalledWith(
+    2,
+    { stream: 'stderr' },
+    'Authorization: Bearer [REDACTED]'
+  );
+  expect(output.getOutput()).not.toMatch(/preview-secret|tool-secret|turn secret/);
+});
+
+it('keeps stdout and stderr fragments separate and decodes split UTF-8', () => {
+  const output = createProcessOutput(logger);
+  const bytes = Buffer.from('hello 🌍\n');
+  output.stdout.append(bytes.subarray(0, 8));
+  output.stderr.append('error\n');
+  output.stdout.append(bytes.subarray(8));
+  expect(logger.info).toHaveBeenNthCalledWith(1, { stream: 'stderr' }, 'error');
+  expect(logger.info).toHaveBeenNthCalledWith(2, { stream: 'stdout' }, 'hello 🌍');
+});
+
+it('omits overlong lines completely and keeps logging the following diagnostics', () => {
+  const output = createProcessOutput(logger);
+  output.stdout.append('https://preview.test/?token=');
+  output.stdout.append('secret'.repeat(20_000));
+  expect(logger.info).not.toHaveBeenCalled();
+  output.stdout.append('\nfatal diagnostic\n');
+  expect(logger.info).toHaveBeenNthCalledWith(
+    1,
+    { stream: 'stdout' },
+    '[Overlong output line omitted.]'
+  );
+  expect(logger.info).toHaveBeenNthCalledWith(2, { stream: 'stdout' }, 'fatal diagnostic');
+  expect(output.getOutput()).not.toContain('secret');
+});
+
+it('redacts final partial lines and bounds diagnostics without capping live output', () => {
+  const output = createProcessOutput(logger);
+  for (let index = 0; index < 100; index++) {
+    output.stdout.append('x'.repeat(1023) + '\n');
+  }
+  output.stderr.append('token=final-secret');
+  output.finish();
+  expect(logger.info).toHaveBeenCalledTimes(101);
+  expect(logger.info).toHaveBeenLastCalledWith({ stream: 'stderr' }, 'token=[REDACTED]');
+  expect(output.getOutput()).toHaveLength(64 * 1024);
+  expect(output.getOutput()).toContain('token=[REDACTED]');
+});
+
+it('applies newly learned secrets to pending output and retained diagnostics', () => {
+  const secrets: string[] = [];
+  const output = createProcessOutput(undefined, secrets);
+  output.stdout.append('opaque-secret\n');
+  output.stderr.append('opaque-secret');
+  secrets.push('opaque-secret');
+  expect(output.getOutput()).not.toContain('opaque-secret');
+});
+
+it('redacts JSON token fields with escaped quotes before the token is known', () => {
+  const output = createProcessOutput(logger);
+  output.stdout.append(JSON.stringify({ authToken: 'a"b', controlToken: 'android-secret' }) + '\n');
+  expect(logger.info).toHaveBeenCalledWith(
+    { stream: 'stdout' },
+    '{"authToken":"[REDACTED]","controlToken":"[REDACTED]"}'
+  );
+});

@@ -182,6 +182,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         command: startServer.command,
         args: startServer.args,
         env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
+        logger,
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
