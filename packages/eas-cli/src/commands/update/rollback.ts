@@ -112,7 +112,7 @@ export default class UpdateRollback extends EasCommand {
     const previousGroup = await getPreviousUpdateGroupAsync(graphqlClient, projectId, sourceGroup);
 
     const commonArgs = [
-      '--non-interactive',
+      ...(nonInteractive ? ['--non-interactive'] : []),
       '--platform',
       platform,
       ...privateKeyPathArg,
