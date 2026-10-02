@@ -23,6 +23,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Correct the `eas simulator:start --max-duration-minutes` help text: every plan can set a custom duration up to the plan's maximum, which is also the default. ([@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Fix `eas workflow:validate` crashing with certain workflow schemas, and exit with a non-zero code when validation fails. ([#4507](https://github.com/expo/eas-cli/pull/4507) by [@yuvalgnessin-qz](https://github.com/yuvalgnessin-qz))
 - [build-tools] Clear old Maestro CLI HTML reports before each test attempt so retries cannot upload an earlier report. ([#4409](https://github.com/expo/eas-cli/pull/4409) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Poll the web preview readiness every 250 ms instead of every second, so a session goes live sooner after its host is ready. ([#4496](https://github.com/expo/eas-cli/pull/4496) by [@gwdp](https://github.com/gwdp))
