@@ -155,7 +155,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       });
 
       stepsCtx.logger.info('Committing upload...');
-      await AscApiUtils.commitBuildUploadFileAsync({ client, fileId: buildFileResponse.data.id });
+      await AscApiUtils.commitBuildUploadFileAsync({
+        client,
+        fileId: buildFileResponse.data.id,
+        logger: stepsCtx.logger,
+      });
 
       stepsCtx.logger.info('Checking upload file status...');
       const waitingForFileStartedAt = Date.now();

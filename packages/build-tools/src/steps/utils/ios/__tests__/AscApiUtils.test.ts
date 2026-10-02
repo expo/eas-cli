@@ -1,11 +1,17 @@
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import nock from 'nock';
+import { setTimeout } from 'node:timers/promises';
 
+import { Sentry } from '../../../../sentry';
 import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
 jest.unmock('node-fetch');
+jest.mock('node:timers/promises', () => ({
+  ...jest.requireActual('node:timers/promises'),
+  setTimeout: jest.fn(),
+}));
 
 describe('AscApiUtils', () => {
   describe('loadApiKeyAsync', () => {
@@ -324,6 +330,7 @@ describe('AscApiUtils', () => {
 
 describe('commitBuildUploadFileAsync', () => {
   let client: AscApiClient;
+  beforeEach(() => jest.mocked(setTimeout).mockResolvedValue(undefined));
   beforeAll(async () => {
     const { privateKey } = await jose.generateKeyPair('ES256');
     client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey } });
@@ -335,6 +342,9 @@ describe('commitBuildUploadFileAsync', () => {
       expect(nock.pendingMocks()).toEqual([]);
     } finally {
       nock.cleanAll();
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+      jest.mocked(setTimeout).mockReset();
     }
   });
   it.each(['COMPLETE', 'FAILED'])(
@@ -386,46 +396,174 @@ describe('commitBuildUploadFileAsync', () => {
     expect(scope.isDone()).toBe(true);
   });
 
-  it.each(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE'])(
-    'replays a commit when the file state is %s',
-    async state => {
+  it.each(['AWAITING_UPLOAD'])('replays a commit when the file state is %s', async state => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: { assetDeliveryState: { state } },
+        },
+      })
+      .patch('/v1/buildUploadFiles/file')
+      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: {
+            assetDeliveryState: { state },
+          },
+        },
+      })
+      .patch('/v1/buildUploadFiles/file')
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: {
+            assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+          },
+        },
+      });
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+    ).resolves.toBeUndefined();
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it.each(['reset', 'invalid-state'])(
+    'recovers an UPLOAD_COMPLETE commit after %s without another PATCH',
+    async failure => {
+      const capture = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
+      const state = (value: string) => ({
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: {
+            assetDeliveryState: { state: value },
+          },
+        },
+      });
       const scope = nock('https://api.appstoreconnect.apple.com')
         .get('/v1/buildUploadFiles/file')
         .query(true)
-        .reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: { assetDeliveryState: { state } },
-          },
-        })
-        .patch('/v1/buildUploadFiles/file')
-        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+        .reply(200, state('UPLOAD_COMPLETE'));
+      const patch = scope.patch('/v1/buildUploadFiles/file');
+      if (failure === 'reset') {
+        patch.replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
+      } else {
+        patch.reply(409, { errors: [{ code: 'STATE_ERROR.INVALID_STATE' }] });
+      }
+      scope
         .get('/v1/buildUploadFiles/file')
         .query(true)
-        .reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: {
-              assetDeliveryState: { state },
-            },
-          },
-        })
-        .patch('/v1/buildUploadFiles/file')
-        .reply(200, {
-          data: {
-            type: 'buildUploadFiles',
-            id: 'file',
-            attributes: {
-              assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
-            },
-          },
-        });
+        .reply(200, state('UPLOAD_COMPLETE'))
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, state('COMPLETE'));
       await expect(
         AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
       ).resolves.toBeUndefined();
+      expect(capture).toHaveBeenCalledTimes(1);
+      expect(capture).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          tags: expect.objectContaining({ outcome: 'recovered' }),
+          extras: expect.objectContaining({ fileId: 'file', finalState: 'COMPLETE' }),
+        })
+      );
       expect(scope.isDone()).toBe(true);
     }
   );
+
+  it.each(['FAILED', 'AWAITING_UPLOAD', 'reset', 'timeout', 'auth'])(
+    'does not hide an UPLOAD_COMPLETE commit failure: %s',
+    async outcome => {
+      jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+      jest.mocked(setTimeout).mockImplementation(async () => {
+        jest.setSystemTime(Date.now() + 30_000);
+      });
+      const state = (value: string) => ({
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: {
+            assetDeliveryState: {
+              state: value,
+              ...(value === 'FAILED'
+                ? { errors: [{ code: 'INVALID_BINARY', description: 'Invalid test binary' }] }
+                : {}),
+            },
+          },
+        },
+      });
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, state('UPLOAD_COMPLETE'));
+      const patch = scope.patch('/v1/buildUploadFiles/file');
+      if (outcome === 'reset') {
+        patch.replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
+      } else {
+        patch.reply(outcome === 'auth' ? 401 : 409, {
+          errors: [{ code: outcome === 'auth' ? 'NOT_AUTHORIZED' : 'STATE_ERROR.INVALID_STATE' }],
+        });
+      }
+      if (outcome !== 'auth') {
+        scope
+          .get('/v1/buildUploadFiles/file')
+          .query(true)
+          .times(outcome === 'timeout' ? 2 : 1)
+          .reply(
+            200,
+            state(
+              outcome === 'timeout'
+                ? 'UPLOAD_COMPLETE'
+                : outcome === 'reset'
+                  ? 'AWAITING_UPLOAD'
+                  : outcome
+            )
+          );
+      }
+      await expect(
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+      ).rejects.toThrow(
+        outcome === 'auth' ? '401' : outcome === 'FAILED' ? 'Invalid test binary' : 'last state'
+      );
+      expect(scope.isDone()).toBe(true);
+    }
+  );
+
+  it('reports a successful commit from UPLOAD_COMPLETE', async () => {
+    const capture = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
+    const state = (value: string) => ({
+      data: {
+        type: 'buildUploadFiles',
+        id: 'file',
+        attributes: {
+          assetDeliveryState: { state: value },
+        },
+      },
+    });
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, state('UPLOAD_COMPLETE'))
+      .patch('/v1/buildUploadFiles/file')
+      .reply(200, state('COMPLETE'));
+    await AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' });
+    expect(capture).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        tags: expect.objectContaining({ outcome: 'commit_succeeded' }),
+      })
+    );
+    expect(scope.isDone()).toBe(true);
+  });
 });

@@ -1,10 +1,13 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
+import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { isConnectionInterruptedError } from '../../../utils/networkErrors';
 import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+import { Sentry } from '../../../sentry';
 
 import {
   AscApiClient,
@@ -19,10 +22,13 @@ export namespace AscApiUtils {
   export async function commitBuildUploadFileAsync({
     client,
     fileId,
+    logger,
   }: {
     client: AscApiClient;
     fileId: string;
+    logger?: bunyan;
   }): Promise<void> {
+    let sawUploadComplete = false;
     await promiseRetryWithCondition(
       async () => {
         const { data } = await client.getAsync(
@@ -33,15 +39,113 @@ export namespace AscApiUtils {
         if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
           return;
         }
+        if (data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE') {
+          sawUploadComplete = true;
+          await commitUploadCompleteFileAsync({ client, fileId, logger });
+          return;
+        }
         await client.patchAsync(
           '/v1/buildUploadFiles/:id',
           { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
           { id: fileId }
         );
       },
-      isConnectionInterruptedError,
+      error => !sawUploadComplete && isConnectionInterruptedError(error),
       { retries: 3, factor: 2, minTimeout: 100 }
     )();
+  }
+
+  async function commitUploadCompleteFileAsync({
+    client,
+    fileId,
+    logger,
+  }: {
+    client: AscApiClient;
+    fileId: string;
+    logger?: bunyan;
+  }): Promise<void> {
+    const startedAt = Date.now();
+    let finalState: string = 'UPLOAD_COMPLETE';
+    let outcome = 'failed';
+    let commitError: unknown;
+    logger?.warn(`Upload file ${fileId} is UPLOAD_COMPLETE; checking whether it needs a commit.`);
+    try {
+      try {
+        const { data } = await client.patchAsync(
+          '/v1/buildUploadFiles/:id',
+          {
+            data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } },
+          },
+          { id: fileId }
+        );
+        finalState = data.attributes.assetDeliveryState.state;
+        outcome = 'commit_succeeded';
+        logger?.info(`Upload file ${fileId}: commit accepted (state = ${finalState}).`);
+        return;
+      } catch (error) {
+        commitError = error;
+        if (
+          !(
+            isConnectionInterruptedError(error) ||
+            (error instanceof AscApiRequestError &&
+              error.status === 409 &&
+              error.code === 'STATE_ERROR.INVALID_STATE')
+          )
+        ) {
+          throw error;
+        }
+      }
+
+      logger?.warn(
+        `Upload file ${fileId}: commit outcome is uncertain; waiting for COMPLETE without another PATCH.`
+      );
+      while (Date.now() - startedAt < 60_000) {
+        const { data } = await client.getAsync(
+          '/v1/buildUploadFiles/:id',
+          {
+            'fields[buildUploadFiles]': ['assetDeliveryState'],
+          },
+          { id: fileId }
+        );
+        const delivery = data.attributes.assetDeliveryState;
+        finalState = delivery.state;
+        if (finalState === 'COMPLETE') {
+          outcome = 'recovered';
+          logger?.info(
+            `Upload file ${fileId}: COMPLETE confirmed after the commit error; continuing.`
+          );
+          return;
+        }
+        if (finalState === 'FAILED') {
+          throw new Error(
+            `Upload file ${fileId} failed: ${delivery.errors?.map(error => `${error.code}: ${error.description}`).join('; ') || 'Apple reported failed delivery'}.`,
+            { cause: commitError }
+          );
+        }
+        if (finalState !== 'UPLOAD_COMPLETE') {
+          break;
+        }
+        await setTimeout(2000);
+      }
+      throw new Error(
+        `Could not confirm the commit for upload file ${fileId}; last state = ${finalState}. Check the upload in App Store Connect before retrying.`,
+        { cause: commitError }
+      );
+    } finally {
+      Sentry.capture('App Store Connect upload file entered UPLOAD_COMPLETE', {
+        level: outcome === 'failed' ? 'error' : 'warning',
+        tags: { outcome },
+        extras: {
+          fileId,
+          initialState: 'UPLOAD_COMPLETE',
+          finalState,
+          elapsedMs: Date.now() - startedAt,
+          commitStatus: commitError instanceof AscApiRequestError ? commitError.status : undefined,
+          commitErrorCode:
+            commitError instanceof Error && 'code' in commitError ? commitError.code : undefined,
+        },
+      });
+    }
   }
 
   export async function getAllBetaBuildLocalizationsAsync({
