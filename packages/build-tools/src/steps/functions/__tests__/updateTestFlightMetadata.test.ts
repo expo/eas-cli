@@ -333,7 +333,7 @@ it('attempts all localization changes and reports every failed update', async ()
   expect(options.logger.error).toHaveBeenCalledWith(expect.stringContaining('"fr" (fr)'));
 });
 
-it('explains when Apple rejects an internal group with automatic distribution', async () => {
+it.each([1, 2])('explains automatic internal group rejection (%s errors)', async errorCount => {
   mockBuild();
   mockAssignedGroups();
   api()
@@ -343,13 +343,11 @@ it('explains when Apple rejects an internal group with automatic distribution', 
   api()
     .post('/v1/builds/build/relationships/betaGroups')
     .reply(422, {
-      errors: [
-        {
-          code: 'ENTITY_UNPROCESSABLE',
-          title: 'Builds cannot be assigned to this internal group.',
-          detail: 'Cannot add internal group to a build.',
-        },
-      ],
+      errors: Array.from({ length: errorCount }, () => ({
+        code: 'ENTITY_UNPROCESSABLE',
+        title: 'Builds cannot be assigned to this internal group.',
+        detail: 'Cannot add internal group to a build.',
+      })),
     });
   await expect(
     updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A'] })

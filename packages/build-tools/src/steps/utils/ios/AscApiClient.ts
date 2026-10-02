@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
@@ -14,7 +15,7 @@ type ApiSchema = {
 const AscErrorResponseSchema = z.object({
   errors: z
     .array(
-      z.object({
+      z.looseObject({
         id: z.string().optional(),
         status: z.string().optional(),
         code: z.string().optional(),
@@ -383,10 +384,14 @@ export class AscApiRequestError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly responseJson: z.output<typeof AscErrorResponseSchema>,
+    public readonly responseJson: z.output<typeof AscErrorResponseSchema>['errors'][number],
     options?: { cause?: unknown }
   ) {
     super(message, { cause: options?.cause });
+  }
+
+  get code(): string | undefined {
+    return this.responseJson.code;
   }
 }
 
@@ -530,10 +535,31 @@ export class AscApiClient {
         (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
       );
       if (parsedAscErrorResponse.ok) {
-        throw new AscApiRequestError(
-          `Unexpected response (${response.status}) from App Store Connect: ${text}`,
-          response.status,
-          parsedAscErrorResponse.value,
+        const errors = parsedAscErrorResponse.value.errors.map(ascError => {
+          if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
+            return new UserError(
+              'EAS_ASC_REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED',
+              'A required Apple agreement is missing or has expired. ' +
+                "Ask your Apple Developer team's Account Holder to review and accept the required agreements " +
+                'in App Store Connect: https://appstoreconnect.apple.com/business. ' +
+                'If prompted, also accept the Apple Developer Program License Agreement at https://developer.apple.com/account. ' +
+                'Then try again.',
+              { cause: ascError }
+            );
+          }
+          return new AscApiRequestError(
+            `Unexpected response (${response.status}) from App Store Connect: ${JSON.stringify(ascError)}`,
+            response.status,
+            ascError,
+            { cause: response }
+          );
+        });
+        if (errors.length === 1) {
+          throw errors[0];
+        }
+        throw new AggregateError(
+          errors,
+          `App Store Connect returned multiple errors:\n${errors.map(error => error.message).join('\n')}`,
           { cause: response }
         );
       }
