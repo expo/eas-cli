@@ -16,6 +16,11 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import {
+  IosSimulatorRecordingUtils,
+  SERVE_SIM_STOP_GRACE_PERIOD_MS,
+} from '../IosSimulatorRecordingUtils';
+import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
@@ -692,6 +697,56 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
+describe('spawnDetached process group shutdown', () => {
+  const env = {} as BuildStepEnv;
+
+  beforeEach(() => {
+    const spawned = Object.assign(Promise.resolve(undefined), {
+      child: { pid: 4321, unref: jest.fn(), once: jest.fn() },
+    });
+    jest.mocked(spawn).mockReturnValue(spawned as never);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('waits for a detached child after its package-manager wrapper exits', async () => {
+    let groupChecks = 0;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -4321 && signal === 0) {
+        groupChecks += 1;
+        if (groupChecks < 4) {
+          return true;
+        }
+        throw new Error('Process group exited');
+      }
+      if (pid === -4321 && signal === 'SIGTERM') {
+        return true;
+      }
+      throw new Error(`Unexpected process signal: ${pid} ${signal}`);
+    });
+
+    const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 90_000 });
+    await detached.stopAsync();
+
+    expect(jest.mocked(sleepAsync)).toHaveBeenCalledWith(100);
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM');
+    expect(kill).not.toHaveBeenCalledWith(-4321, 'SIGKILL');
+    expect(kill).not.toHaveBeenCalledWith(4321, 0);
+  });
+
+  it('kills a detached child that outlives the shutdown deadline', async () => {
+    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+
+    const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 0 });
+    await detached.stopAsync();
+
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM');
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGKILL');
+  });
+});
+
 describe(startDeviceSessionHostAsync, () => {
   const baseDomain = 'eas-simulator.ngrok.dev';
   const turnArgs = [
@@ -746,6 +801,25 @@ describe(startDeviceSessionHostAsync, () => {
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('gives serve-sim its recording grace period on shutdown', async () => {
+    const spawnDetachedSpy = jest.spyOn(remoteDeviceRunSession, 'spawnDetached');
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(spawnDetachedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
+    );
+    await host.finishAsync();
   });
 
   it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
@@ -940,6 +1014,7 @@ describe(startDeviceSessionHostAsync, () => {
   });
 
   it('launches serve-sim with bun x when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
+    const usePackage = jest.spyOn(IosSimulatorRecordingUtils, 'useServeSimPackage');
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -969,6 +1044,7 @@ describe(startDeviceSessionHostAsync, () => {
         packageVersion: '4.5.6',
       }),
     ]);
+    expect(usePackage).toHaveBeenCalledWith('@expo/serve-sim@4.5.6');
 
     await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);

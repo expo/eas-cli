@@ -35,6 +35,10 @@ import {
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  IosSimulatorRecordingUtils,
+  SERVE_SIM_STOP_GRACE_PERIOD_MS,
+} from './IosSimulatorRecordingUtils';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -364,7 +368,10 @@ export async function startDeviceSessionHostAsync(
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
       },
-      stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
+      // Only an Android host records through expo-device-hub; serve-sim records on iOS.
+      stopGracePeriodMs: recording
+        ? RECORDING_STOP_GRACE_PERIOD_MS
+        : SERVE_SIM_STOP_GRACE_PERIOD_MS,
     });
   } catch (error) {
     // Nothing was spawned, so nothing can still write into the directory.
@@ -462,6 +469,7 @@ export async function startDeviceSessionHostAsync(
             'report it if it repeats.'
         );
       }
+      IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
     return host;
   } catch (error) {
