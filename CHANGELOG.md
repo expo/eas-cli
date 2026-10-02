@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add browser device login with resumable commands for chat agents. ([#4502](https://github.com/expo/eas-cli/pull/4502) by [@eiiot](https://github.com/eiiot))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
