@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device, and `--network-capture-field` to also keep headers, query values, or request and response bodies. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [24.10.0](https://github.com/expo/eas-cli/releases/tag/v24.10.0) - 2026-10-02
+
+### 🎉 New features
+
+- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device, and `--network-capture-field` to also keep headers, query values, or request and response bodies. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
 
 ## [24.9.0](https://github.com/expo/eas-cli/releases/tag/v24.9.0) - 2026-10-02
 
