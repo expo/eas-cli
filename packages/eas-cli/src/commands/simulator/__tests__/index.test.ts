@@ -1,12 +1,14 @@
 import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 
+import { getAgentTelemetryContext } from '../../../analytics/agent';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -31,6 +33,7 @@ import * as promiseUtils from '../../../utils/promise';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
+jest.mock('../../../analytics/agent');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
@@ -93,6 +96,7 @@ const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
+const mockGetAgentTelemetryContext = jest.mocked(getAgentTelemetryContext);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -177,6 +181,7 @@ describe(Simulator, () => {
     mockResetSimulatorEnvAsync.mockResolvedValue();
     mockResolveExpoGoSdkVersionAsync.mockResolvedValue('55.0.0');
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
+    mockGetAgentTelemetryContext.mockReturnValue(null);
   });
 
   afterAll(() => {
@@ -249,6 +254,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
@@ -411,6 +417,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -431,6 +438,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -451,6 +459,7 @@ describe(Simulator, () => {
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
       maxIdleTimeMinutes: 30,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -530,6 +539,31 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({ name: undefined })
     );
+  });
+
+  it('sends the detected coding agent with the create request', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'claude', sessionId: 'agent-session-1' });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+        agentId: 'claude',
+        agentSessionId: 'agent-session-1',
+      })
+    );
+  });
+
+  it('leaves out the agent session when the detected agent has none', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'codex', sessionId: undefined });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    const input = mockCreateDeviceRunSessionAsync.mock.calls[0]?.[1];
+    expect(input).toMatchObject({ agentId: 'codex' });
+    expect(input).not.toHaveProperty('agentSessionId');
   });
 
   it('forwards --device in the iOS create options', async () => {

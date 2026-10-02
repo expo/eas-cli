@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
+import { getAgentTelemetryContext } from '../../analytics/agent';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -12,6 +13,7 @@ import {
 import {
   AppPlatform,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -295,6 +297,8 @@ export default class Simulator extends EasCommand {
         ...(openUrl ? { openUrl } : {}),
         ...(resourceClass ? { resourceClass } : {}),
         ...(egress ? { egress } : {}),
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+        ...agentIdentityInput(),
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
@@ -728,4 +732,12 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
     );
     return false;
   }
+}
+
+function agentIdentityInput(): { agentId?: string; agentSessionId?: string } {
+  const agent = getAgentTelemetryContext();
+  if (!agent) {
+    return {};
+  }
+  return { agentId: agent.id, ...(agent.sessionId ? { agentSessionId: agent.sessionId } : {}) };
 }
