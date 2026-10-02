@@ -19,16 +19,20 @@ export namespace AscApiUtils {
     buildId,
     appId,
     logger,
+    signal,
   }: {
     client: AscApiClient;
     buildId: string;
     appId: string;
     logger: bunyan;
+    signal?: AbortSignal;
   }): Promise<void> {
     const deadline = Date.now() + 30 * 60 * 1000;
     let lastState: string | undefined;
     while (Date.now() < deadline) {
+      signal?.throwIfAborted();
       const { data } = await client.getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId });
+      signal?.throwIfAborted();
       const state = data.attributes.internalBuildState;
       if (state !== lastState) {
         logger.info(`Apple build ${buildId}: internal TestFlight state = ${state}.`);
@@ -47,7 +51,7 @@ export namespace AscApiUtils {
             `The binary is already uploaded. Manage this build at https://appstoreconnect.apple.com/apps/${appId}/testflight`
         );
       }
-      await setTimeout(10_000);
+      await setTimeout(10_000, undefined, { signal });
     }
     throw new UserError(
       'EAS_TESTFLIGHT_READINESS_TIMEOUT',

@@ -38,7 +38,7 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
     ],
-    fn: async (ctx, { inputs }) => {
+    fn: async (ctx, { inputs, signal }) => {
       const parsedInputs = z
         .object({
           asc_api_key_path: z.string(),
@@ -55,11 +55,12 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
       const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
       const token = await AscApiUtils.signTokenAsync({ keyPath });
       await updateTestFlightMetadataAsync({
-        client: new AscApiClient({ token, logger: ctx.logger }),
+        client: new AscApiClient({ token, logger: ctx.logger, signal }),
         buildUploadId: parsedInputs.build_upload_id,
         changelog: parsedInputs.changelog,
         groups: parsedInputs.groups,
         logger: ctx.logger,
+        signal,
       });
       ctx.logger.info('TestFlight metadata updated.');
     },
@@ -72,13 +73,16 @@ export async function updateTestFlightMetadataAsync({
   changelog,
   groups,
   logger,
+  signal,
 }: {
   client: AscApiClient;
   buildUploadId: string;
   changelog: string;
   groups: string[];
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
+  signal?.throwIfAborted();
   const { data: upload } = await client.getAsync(
     '/v1/buildUploads/:id',
     {
@@ -195,6 +199,7 @@ export async function updateTestFlightMetadataAsync({
       const groupResults = await Promise.allSettled(
         requestedGroups.map(group =>
           groupLimit(async () => {
+            signal?.throwIfAborted();
             const label = `${JSON.stringify(group.attributes?.name)} (${group.id})`;
             if (assignedIds.has(group.id)) {
               logger.info(`✅ Group ${label}: build already assigned; no assignment needed.`);
@@ -215,8 +220,10 @@ export async function updateTestFlightMetadataAsync({
                 buildId,
                 appId: app.id,
                 logger,
+                signal,
               });
               await internalReadiness;
+              signal?.throwIfAborted();
               await client.postAsync(
                 '/v1/builds/:id/relationships/betaGroups',
                 {
@@ -263,6 +270,7 @@ export async function updateTestFlightMetadataAsync({
     }),
   ]);
   const failures = results.filter(result => result.status === 'rejected');
+  signal?.throwIfAborted();
   if (failures.length === 1) {
     throw failures[0].reason;
   }

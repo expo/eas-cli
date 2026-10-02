@@ -49,6 +49,26 @@ describe(AscApiClient, () => {
     expect(scope.isDone()).toBeTruthy();
   });
 
+  it('aborts an Apple request when the step is cancelled', async () => {
+    const controller = new AbortController();
+    const client = new AscApiClient({ token, signal: controller.signal });
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/apps/app')
+      .query(true)
+      .delay(500)
+      .reply(200, { data: { type: 'apps', id: 'app', attributes: { name: 'App' } } });
+    const started = new Promise<void>(resolve => scope.on('request', () => resolve()));
+    const request = client.getAsync(
+      '/v1/apps/:id',
+      { 'fields[apps]': ['name', 'bundleId'] },
+      { id: 'app' }
+    );
+    const result = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await started;
+    controller.abort();
+    await result;
+  });
+
   it('creates build upload', async () => {
     const buildUploadId = 'fdf9c476-aaa4-4ead-b91c-6e3cc3a47805';
     const responseFixture = require('./fixtures/buildUploads/post-buildUploads-200.json');

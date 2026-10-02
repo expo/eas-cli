@@ -4,6 +4,7 @@ import { setTimeout } from 'timers/promises';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { AscApiClient } from '../../utils/ios/AscApiClient';
+import { AscApiUtils } from '../../utils/ios/AscApiUtils';
 import {
   createUpdateTestFlightMetadataBuildFunction,
   updateTestFlightMetadataAsync,
@@ -525,6 +526,44 @@ function mockInternalState(state: string): nock.Scope {
       data: { id: 'detail', attributes: { internalBuildState: state } },
     });
 }
+
+it('stops the metadata step when cancelled during readiness polling', async () => {
+  mockManualInternalGroups();
+  mockInternalState('PROCESSING');
+  const controller = new AbortController();
+  const reason = new Error('Step cancelled');
+  const token = jest.spyOn(AscApiUtils, 'signTokenAsync').mockResolvedValue('test-token');
+  jest.mocked(setTimeout).mockImplementationOnce(async (_delay, _value, options) => {
+    queueMicrotask(() => controller.abort(reason));
+    await jest
+      .requireActual<typeof import('timers/promises')>('timers/promises')
+      .setTimeout(10_000, undefined, options);
+  });
+  const fn = createUpdateTestFlightMetadataBuildFunction();
+  const run = fn.fn!;
+  try {
+    await expect(
+      run(
+        { workingDirectory: '/tmp', logger: options.logger } as Parameters<typeof run>[0],
+        {
+          inputs: Object.fromEntries(
+            Object.entries({
+              asc_api_key_path: 'key.json',
+              build_upload_id: 'upload',
+              changelog: '',
+              groups: ['Internal A', 'Internal B', 'External'],
+            }).map(([id, value]) => [id, { value }])
+          ),
+          outputs: {},
+          signal: controller.signal,
+        } as Parameters<typeof run>[1]
+      )
+    ).rejects.toBe(reason);
+    expect(options.logger.info).not.toHaveBeenCalledWith('TestFlight metadata updated.');
+  } finally {
+    token.mockRestore();
+  }
+});
 
 it.each(['READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'])(
   'waits past upload completion until internal testing is %s',

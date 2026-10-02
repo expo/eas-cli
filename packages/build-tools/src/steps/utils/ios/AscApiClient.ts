@@ -415,10 +415,12 @@ export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
   private readonly token: string;
   private readonly logger?: bunyan;
+  private readonly signal?: AbortSignal;
 
-  constructor({ token, logger }: { token: string; logger?: bunyan }) {
+  constructor({ token, logger, signal }: { token: string; logger?: bunyan; signal?: AbortSignal }) {
     this.token = token;
     this.logger = logger;
+    this.signal = signal;
   }
 
   public async getAsync<TPath extends keyof typeof GetApi>(
@@ -537,6 +539,7 @@ export class AscApiClient {
     }
 
     const response = await fetch(url, {
+      signal: this.signal,
       method,
       headers: {
         'Content-Type': 'application/json',
