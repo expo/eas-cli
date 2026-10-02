@@ -14,6 +14,7 @@ import {
 } from '../deviceRunSessionScreenRecordings';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
+import { takeServeSimServerLogs } from '../serveSimServerLogs';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../deviceRunSessionArtifacts');
@@ -97,6 +98,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   jest.useRealTimers();
+  directories.push(...takeServeSimServerLogs('drs-id').map(log => log.directory));
   await Promise.all(
     directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))
   );
@@ -450,6 +452,11 @@ it('leaves iOS recording to its existing build steps', async () => {
     timeoutMs: 10_000,
   });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.outputLog?.filePath).toMatch(/serve-sim-server-log-.*\/serve-sim\.log$/);
+  const logs = takeServeSimServerLogs('drs-id');
+  expect(logs).toHaveLength(1);
+  expect(logs[0].secrets).toContain('preview-token');
+  directories.push(logs[0].directory);
   expect(options.args).not.toContain('--android-recording-directory');
   expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
   await host.finishAsync();

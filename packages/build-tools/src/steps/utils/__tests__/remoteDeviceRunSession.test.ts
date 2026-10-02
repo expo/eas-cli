@@ -721,7 +721,11 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);

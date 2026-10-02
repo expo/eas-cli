@@ -36,6 +36,7 @@ import {
 } from './remoteDeviceRunSession';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
+import { createServeSimServerLogAsync } from './serveSimServerLogs';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
 const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
@@ -350,6 +351,19 @@ export async function startDeviceSessionHostAsync(
   logger.info(
     `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
   );
+  const serverLog =
+    !isAndroid && env.DEVICE_RUN_SESSION_ID
+      ? await createServeSimServerLogAsync(
+          env.DEVICE_RUN_SESSION_ID,
+          turnArgs.filter((_, index) => turnArgs[index - 1] === '--turn-credential')
+        ).catch(err => {
+          logger.warn({ err }, 'Could not create the serve-sim log file.');
+          return undefined;
+        })
+      : undefined;
+  if (serverLog) {
+    logger.info(`Saving serve-sim stdout and stderr to ${serverLog.filePath}.`);
+  }
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
     logger,
@@ -365,6 +379,7 @@ export async function startDeviceSessionHostAsync(
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
       },
       stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
+      outputLog: serverLog?.output,
     });
   } catch (error) {
     // Nothing was spawned, so nothing can still write into the directory.
@@ -454,6 +469,9 @@ export async function startDeviceSessionHostAsync(
     hostReady = true;
     if (!isAndroid) {
       previewToken = await readServeSimPreviewTokenAsync(device);
+      if (previewToken) {
+        serverLog?.secrets.push(previewToken);
+      }
       if (!previewToken) {
         throw new SystemError(
           `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
