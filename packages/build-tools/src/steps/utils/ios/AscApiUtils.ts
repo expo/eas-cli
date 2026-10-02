@@ -3,6 +3,9 @@ import fs from 'fs-extra';
 import * as jose from 'jose';
 import { z } from 'zod';
 
+import { isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
 import {
   AscApiClient,
   AscApiClientGetApi,
@@ -13,6 +16,46 @@ import {
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  export async function commitBuildUploadFileAsync({
+    client,
+    fileId,
+  }: {
+    client: AscApiClient;
+    fileId: string;
+  }): Promise<void> {
+    let responseLost = false;
+    await promiseRetryWithCondition(
+      async () => {
+        if (responseLost) {
+          const { data } = await client.getAsync(
+            '/v1/buildUploadFiles/:id',
+            {
+              'fields[buildUploadFiles]': ['assetDeliveryState'],
+            },
+            { id: fileId }
+          );
+          if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
+            return;
+          }
+        }
+        try {
+          await client.patchAsync(
+            '/v1/buildUploadFiles/:id',
+            {
+              data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } },
+            },
+            { id: fileId }
+          );
+        } catch (error) {
+          responseLost = isConnectionInterruptedError(error);
+          throw error;
+        }
+      },
+      isConnectionInterruptedError,
+      { retries: 3, factor: 2, minTimeout: 100 }
+    )();
+  }
+
   export async function getAllBetaBuildLocalizationsAsync({
     client,
     buildId,

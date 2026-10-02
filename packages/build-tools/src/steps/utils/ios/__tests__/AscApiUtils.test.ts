@@ -321,3 +321,71 @@ describe('AscApiUtils', () => {
     });
   });
 });
+
+jest.unmock('node-fetch');
+describe('commitBuildUploadFileAsync', () => {
+  const client = new AscApiClient({ token: 'test-token' });
+  beforeAll(() => nock.disableNetConnect());
+  afterAll(() => nock.enableNetConnect());
+  afterEach(() => {
+    try {
+      expect(nock.pendingMocks()).toEqual([]);
+    } finally {
+      nock.cleanAll();
+    }
+  });
+  it('does not replay an upload commit when Apple already accepted it', async () => {
+    const scope = nock('https://api.appstoreconnect.apple.com')
+      .patch('/v1/buildUploadFiles/file')
+      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: {
+            assetDeliveryState: { state: 'COMPLETE' },
+          },
+        },
+      });
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+    ).resolves.toBeUndefined();
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it.each(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE'])(
+    'replays a commit when the file state is %s',
+    async state => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .patch('/v1/buildUploadFiles/file')
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: {
+              assetDeliveryState: { state },
+            },
+          },
+        })
+        .patch('/v1/buildUploadFiles/file')
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: {
+              assetDeliveryState: { state: 'UPLOAD_COMPLETE' },
+            },
+          },
+        });
+      await expect(
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+      ).resolves.toBeUndefined();
+      expect(scope.isDone()).toBe(true);
+    }
+  );
+});
