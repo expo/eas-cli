@@ -9,11 +9,9 @@ import {
   spawnAsync,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
 import nullthrows from 'nullthrows';
 import { z } from 'zod';
-import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { createServer } from 'node:net';
 import { clearTimeout, setTimeout } from 'node:timers';
@@ -762,62 +760,7 @@ export async function findAvailablePortAsync(): Promise<number> {
   return address.port;
 }
 
-export type NgrokTunnelHandle = {
-  url: string;
-  subdomainId: string;
-  stopAsync: () => Promise<void>;
-};
-
-export async function startNgrokTunnelAsync({
-  port,
-  subdomainPrefix,
-  subdomainId: subdomainIdArg,
-  baseDomain,
-  authtoken,
-  rewriteHostHeader,
-  logger,
-}: {
-  port: number;
-  subdomainPrefix: string;
-  subdomainId?: string;
-  baseDomain: string;
-  authtoken: string;
-  rewriteHostHeader?: boolean;
-  logger: bunyan;
-}): Promise<NgrokTunnelHandle> {
-  const subdomainId = subdomainIdArg ?? randomBytes(16).toString('hex');
-  const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
-  logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
-  // Run the ngrok agent in-process via the SDK; it keeps the session alive until
-  // the process exits, and the step blocks forever to hold it open.
-  const listener = await ngrok.forward({
-    addr: port,
-    authtoken,
-    domain,
-    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
-  });
-  const url = listener.url();
-  if (!url) {
-    await listener.close();
-    throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
-  }
-  let stopped = false;
-  return {
-    url,
-    subdomainId,
-    stopAsync: async () => {
-      if (stopped) {
-        return;
-      }
-      stopped = true;
-      try {
-        await listener.close();
-      } catch (error) {
-        logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
-      }
-    },
-  };
-}
+export { type NgrokTunnelHandle, startNgrokTunnelAsync } from './ngrokTunnel';
 
 export async function waitForFileAsync<T>({
   filePath,
