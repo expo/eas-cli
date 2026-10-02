@@ -26,7 +26,7 @@ export namespace AscApiUtils {
   }: {
     client: AscApiClient;
     fileId: string;
-    logger?: bunyan;
+    logger: bunyan;
   }): Promise<void> {
     let sawUploadComplete = false;
     await promiseRetryWithCondition(
@@ -62,13 +62,13 @@ export namespace AscApiUtils {
   }: {
     client: AscApiClient;
     fileId: string;
-    logger?: bunyan;
+    logger: bunyan;
   }): Promise<void> {
     const startedAt = Date.now();
     let finalState: string = 'UPLOAD_COMPLETE';
     let outcome = 'failed';
     let commitError: unknown;
-    logger?.warn(`Upload file ${fileId} is UPLOAD_COMPLETE; checking whether it needs a commit.`);
+    logger.warn(`Upload file ${fileId} is UPLOAD_COMPLETE; checking whether it needs a commit.`);
     try {
       try {
         const { data } = await client.patchAsync(
@@ -80,7 +80,7 @@ export namespace AscApiUtils {
         );
         finalState = data.attributes.assetDeliveryState.state;
         outcome = 'commit_succeeded';
-        logger?.info(`Upload file ${fileId}: commit accepted (state = ${finalState}).`);
+        logger.info(`Upload file ${fileId}: commit accepted (state = ${finalState}).`);
         return;
       } catch (error) {
         commitError = error;
@@ -96,7 +96,7 @@ export namespace AscApiUtils {
         }
       }
 
-      logger?.warn(
+      logger.warn(
         `Upload file ${fileId}: commit outcome is uncertain; waiting for COMPLETE without another PATCH.`
       );
       while (Date.now() - startedAt < 60_000) {
@@ -111,7 +111,7 @@ export namespace AscApiUtils {
         finalState = delivery.state;
         if (finalState === 'COMPLETE') {
           outcome = 'recovered';
-          logger?.info(
+          logger.info(
             `Upload file ${fileId}: COMPLETE confirmed after the commit error; continuing.`
           );
           return;

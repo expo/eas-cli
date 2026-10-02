@@ -1,3 +1,4 @@
+import { createLogger } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import nock from 'nock';
@@ -329,6 +330,7 @@ describe('AscApiUtils', () => {
 });
 
 describe('commitBuildUploadFileAsync', () => {
+  const logger = createLogger({ name: 'test' });
   let client: AscApiClient;
   beforeEach(() => jest.mocked(setTimeout).mockResolvedValue(undefined));
   beforeAll(async () => {
@@ -361,7 +363,7 @@ describe('commitBuildUploadFileAsync', () => {
           },
         });
       await expect(
-        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
       ).resolves.toBeUndefined();
       expect(scope.isDone()).toBe(true);
     }
@@ -391,7 +393,7 @@ describe('commitBuildUploadFileAsync', () => {
         },
       });
     await expect(
-      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
     ).resolves.toBeUndefined();
     expect(scope.isDone()).toBe(true);
   });
@@ -431,7 +433,7 @@ describe('commitBuildUploadFileAsync', () => {
         },
       });
     await expect(
-      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
     ).resolves.toBeUndefined();
     expect(scope.isDone()).toBe(true);
   });
@@ -467,7 +469,7 @@ describe('commitBuildUploadFileAsync', () => {
         .query(true)
         .reply(200, state('COMPLETE'));
       await expect(
-        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
       ).resolves.toBeUndefined();
       expect(capture).toHaveBeenCalledTimes(1);
       expect(capture).toHaveBeenCalledWith(
@@ -532,7 +534,7 @@ describe('commitBuildUploadFileAsync', () => {
           );
       }
       await expect(
-        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' })
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
       ).rejects.toThrow(
         outcome === 'auth' ? '401' : outcome === 'FAILED' ? 'Invalid test binary' : 'last state'
       );
@@ -557,7 +559,7 @@ describe('commitBuildUploadFileAsync', () => {
       .reply(200, state('UPLOAD_COMPLETE'))
       .patch('/v1/buildUploadFiles/file')
       .reply(200, state('COMPLETE'));
-    await AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file' });
+    await AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
     expect(capture).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
