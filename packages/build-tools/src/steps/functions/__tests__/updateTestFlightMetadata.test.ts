@@ -223,6 +223,46 @@ it('updates by ID when Apple omits a localization locale and creates the primary
   await updateTestFlightMetadataAsync(options);
 });
 
+it('assigns requested groups when hasAccessToAllBuilds is null', async () => {
+  mockBuild();
+  mockAssignedGroups();
+  api()
+    .get('/v1/betaGroups')
+    .query({ 'filter[app]': 'app', limit: '200' })
+    .reply(200, {
+      data: [
+        {
+          id: 'internal',
+          attributes: { name: 'Internal', isInternalGroup: true, hasAccessToAllBuilds: false },
+        },
+        {
+          id: 'external',
+          attributes: {
+            name: 'test external',
+            isInternalGroup: false,
+            hasAccessToAllBuilds: null,
+            publicLinkEnabled: false,
+            publicLink: 'https://testflight.apple.com/join/abc',
+          },
+        },
+        {
+          id: 'requested-external',
+          attributes: { name: 'Beta', isInternalGroup: false, hasAccessToAllBuilds: null },
+        },
+      ],
+    });
+  for (const id of ['internal', 'requested-external']) {
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id }],
+      })
+      .reply(204);
+  }
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['Internal', 'Beta'] })
+  ).resolves.toBeUndefined();
+});
+
 it('adds groups without changing changelog or submitting beta review', async () => {
   mockBuild();
   mockAssignedGroups();
