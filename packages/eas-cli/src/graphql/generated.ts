@@ -6460,7 +6460,7 @@ export type CreateDeviceRunSessionInput = {
   /**
    * What network capture may keep beyond method, URL, status, timing and size: header, query,
    * request-body, response-body. Each can carry credentials, so nothing here is recorded unless
-   * it is asked for. Ignored when networkCapture is not set.
+   * it is asked for. Requires networkCapture.
    */
   networkCaptureFields?: InputMaybe<Array<Scalars['String']['input']>>;
   /**

@@ -45661,6 +45661,38 @@
             "deprecationReason": null
           },
           {
+            "name": "networkCapture",
+            "description": "Record HTTP(S) traffic from apps on the device for the whole session. iOS only.\nHTTPS is decrypted, so recordings contain credentials and cookies in cleartext.\nIf omitted, no traffic is recorded.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "networkCaptureFields",
+            "description": "What network capture may keep beyond method, URL, status, timing and size: header, query,\nrequest-body, response-body. Each can carry credentials, so nothing here is recorded unless\nit is asked for. Requires networkCapture.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "openUrl",
             "description": "Expo or development-client URL to open after launching the installed application. Requires\nbuildId, applicationArchiveUrl, or expoGo.",
             "type": {
