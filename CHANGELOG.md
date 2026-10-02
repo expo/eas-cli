@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Allow `eas simulator:start --platform android --egress local`. On Android, `--egress-allow localhost:<port>` also covers `10.0.2.2:<port>`, and refused destinations are shown as warnings. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
+- [build-tools] Support `eas/start_local_egress` on Linux for Android emulators: an always-listening relay for the emulator's proxy, a systemd scope and nftables fence that refuse traffic that cannot use the tunnel, and fence refusals in the session log. ([#4519](https://github.com/expo/eas-cli/pull/4519) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `--upload-source-maps` to `eas update`, which uploads the generated source maps to EAS so that stack traces from an update can be symbolicated. Source maps are stripped of `sourcesContent` before upload. ([#4436](https://github.com/expo/eas-cli/pull/4436) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Upload the embedded bundle after build by default for projects on SDK 58 and later. Set `EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE` to `0` to disable it. On SDK 57 and below the feature remains experimental and opt-in via `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE`. ([#4433](https://github.com/expo/eas-cli/pull/4433) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Save manual iOS and Android live preview screenshots as session artifacts when supported by the preview server. ([#4481](https://github.com/expo/eas-cli/pull/4481) by [@vonovak](https://github.com/vonovak))

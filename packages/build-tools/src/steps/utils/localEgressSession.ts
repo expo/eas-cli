@@ -54,6 +54,7 @@ export async function uploadRemoteSessionConfigWithLocalEgressAsync({
       env,
       logger: options.logger,
       signal: signal ?? new AbortController().signal,
+      ...(localEgress.platform === 'android' ? { scanSimulatorConnections: false } : {}),
     });
   }
 }

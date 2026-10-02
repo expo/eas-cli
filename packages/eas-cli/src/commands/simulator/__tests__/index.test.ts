@@ -1113,6 +1113,10 @@ describe(Simulator, () => {
       );
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:egress'));
       expect(runLocalEgressAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_PLATFORM='ios'")
+      );
     }
   );
 
@@ -1152,8 +1156,14 @@ describe(Simulator, () => {
   });
 
   it.each(localEgressSessions)(
-    'rejects local egress for Android %s before creating a session',
-    async typeFlag => {
+    'creates Android %s sessions with local egress and marks them as Android',
+    async (typeFlag, type, remoteConfig) => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
       const { command } = createCommand([
         '--platform',
         'android',
@@ -1163,10 +1173,21 @@ describe(Simulator, () => {
         'local',
         '--non-interactive',
       ]);
-      await expect(command.runAsync()).rejects.toThrow(
-        '--egress local is only supported with --platform ios.'
+      await command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          platform: AppPlatform.Android,
+          egress: DeviceRunSessionEgress.Local,
+        })
       );
-      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_PLATFORM='android'")
+      );
+      expect(Log.log).toHaveBeenCalledWith(
+        expect.stringContaining('such as UDP, is refused on the device host')
+      );
     }
   );
 
