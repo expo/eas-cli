@@ -491,7 +491,50 @@ describe('commitBuildUploadFileAsync', () => {
     expect(scope.isDone()).toBe(true);
   });
 
-  it('fails after four uncertain commits and preserves the Apple error', async () => {
+  it.each(['COMPLETE', 'UPLOAD_COMPLETE', 'FAILED', 'read-error'])(
+    'checks the final uncertain commit before returning: %s',
+    async finalState => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .times(4)
+        .reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
+          },
+        })
+        .patch('/v1/buildUploadFiles/file')
+        .times(4)
+        .reply(409, { errors: [{ code: 'STATE_ERROR.INVALID_STATE' }] });
+      const finalRead = scope.get('/v1/buildUploadFiles/file').query(true);
+      if (finalState === 'read-error') {
+        finalRead.reply(503, 'Unavailable');
+      } else {
+        finalRead.reply(200, {
+          data: {
+            type: 'buildUploadFiles',
+            id: 'file',
+            attributes: { assetDeliveryState: { state: finalState } },
+          },
+        });
+      }
+      const result = AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
+      if (finalState === 'COMPLETE') {
+        await expect(result).resolves.toBeUndefined();
+      } else {
+        await expect(result).rejects.toMatchObject({
+          message: expect.stringContaining('Could not confirm the commit'),
+          cause: expect.objectContaining({ status: 409, code: 'STATE_ERROR.INVALID_STATE' }),
+        });
+      }
+      expect(scope.isDone()).toBe(true);
+    },
+    15_000
+  );
+
+  it('recovers a lost response from the last normal commit', async () => {
     const scope = nock('https://api.appstoreconnect.apple.com')
       .get('/v1/buildUploadFiles/file')
       .query(true)
@@ -500,18 +543,24 @@ describe('commitBuildUploadFileAsync', () => {
         data: {
           type: 'buildUploadFiles',
           id: 'file',
-          attributes: { assetDeliveryState: { state: 'UPLOAD_COMPLETE' } },
+          attributes: { assetDeliveryState: { state: 'AWAITING_UPLOAD' } },
         },
       })
       .patch('/v1/buildUploadFiles/file')
       .times(4)
-      .reply(409, { errors: [{ code: 'STATE_ERROR.INVALID_STATE' }] });
+      .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, {
+        data: {
+          type: 'buildUploadFiles',
+          id: 'file',
+          attributes: { assetDeliveryState: { state: 'COMPLETE' } },
+        },
+      });
     await expect(
       AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('Could not confirm the commit'),
-      cause: expect.objectContaining({ status: 409, code: 'STATE_ERROR.INVALID_STATE' }),
-    });
+    ).resolves.toBeUndefined();
     expect(scope.isDone()).toBe(true);
   }, 15_000);
 

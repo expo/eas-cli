@@ -54,7 +54,29 @@ export namespace AscApiUtils {
           { err: error },
           `Checking upload file before commit attempt ${attemptNumber}/${maxAttemptsCount}.`
         )
-    )();
+    )().catch(async error => {
+      if (!(error instanceof UploadCompletePendingError || isConnectionInterruptedError(error))) {
+        throw error;
+      }
+      // Apple may have accepted the final commit even though its response was lost.
+      try {
+        const { data } = await client.getAsync(
+          '/v1/buildUploadFiles/:id',
+          { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+          { id: fileId }
+        );
+        if (data.attributes.assetDeliveryState.state === 'COMPLETE') {
+          logger.info(`Upload file ${fileId}: COMPLETE confirmed after the final commit error.`);
+          return;
+        }
+      } catch (readError) {
+        logger.warn(
+          { err: readError },
+          `Could not check upload file ${fileId} after the final commit error.`
+        );
+      }
+      throw error;
+    });
   }
 
   // Temporary handling until we understand UPLOAD_COMPLETE for build upload files.
