@@ -10,6 +10,7 @@ import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondit
 
 const TOKEN_LIFETIME_SECONDS = 20 /* minutes */ * 60 /* seconds */;
 const TOKEN_REFRESH_MARGIN_SECONDS = 60 /* seconds */;
+
 type ApiSchema = {
   [Path in string]: {
     path?: z.ZodType<Record<string, string>>;

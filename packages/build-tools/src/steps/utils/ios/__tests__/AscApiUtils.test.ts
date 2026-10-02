@@ -322,10 +322,13 @@ describe('AscApiUtils', () => {
   });
 });
 
-jest.unmock('node-fetch');
 describe('commitBuildUploadFileAsync', () => {
-  const client = new AscApiClient({ token: 'test-token' });
-  beforeAll(() => nock.disableNetConnect());
+  let client: AscApiClient;
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey } });
+    nock.disableNetConnect();
+  });
   afterAll(() => nock.enableNetConnect());
   afterEach(() => {
     try {
