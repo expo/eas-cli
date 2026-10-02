@@ -2,6 +2,7 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import SessionManager from '../../user/SessionManager';
@@ -11,15 +12,14 @@ import {
   resumeDeviceLoginAsync,
   startDeviceLoginAsync,
 } from '../../user/deviceLogin';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class AccountLogin extends EasCommand {
   static override description = 'log in with your Expo account';
   static override aliases = ['login'];
   static override examples = [
     '<%= config.bin %> login --device',
-    '<%= config.bin %> login --device --json',
-    '<%= config.bin %> login --device --json --resume REQUEST_ID --match NUMBER_FROM_USER',
+    '<%= config.bin %> login --device --non-interactive',
+    '<%= config.bin %> login --device --non-interactive --resume REQUEST_ID --match NUMBER_FROM_USER',
   ];
 
   static override flags = {
@@ -27,10 +27,7 @@ export default class AccountLogin extends EasCommand {
       description: 'Log in using a code in a browser on any device',
       exclusive: ['sso'],
     }),
-    json: Flags.boolean({
-      description: 'Perform one device login step and output JSON without prompts or waiting',
-      dependsOn: ['device'],
-    }),
+    ...EASNonInteractiveFlag,
     resume: Flags.string({
       description: 'Resume a saved device login using its request ID (one command at a time)',
       dependsOn: ['device'],
@@ -60,20 +57,17 @@ export default class AccountLogin extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { sso, browser, device, json, resume, match },
+      flags: { sso, browser, device, 'non-interactive': nonInteractive, resume, match },
     } = await this.parse(AccountLogin);
 
-    if (json) {
-      enableJsonOutput();
-    }
-    if (device && !json && !process.stdin.isTTY) {
-      throw new Error('Use eas login --device --json to log in without a terminal.');
+    if (nonInteractive && !device) {
+      throw new Error('Use eas login --device --non-interactive to log in without prompts.');
     }
 
     const {
       sessionManager,
       maybeLoggedIn: { actor },
-    } = await this.getContextAsync(AccountLogin, { nonInteractive: false });
+    } = await this.getContextAsync(AccountLogin, { nonInteractive });
 
     if (sessionManager.getAccessToken()) {
       throw new Error(
@@ -85,7 +79,7 @@ export default class AccountLogin extends EasCommand {
       Log.warn(`You are already logged in as ${chalk.bold(getActorDisplayName(actor))}.`);
 
       const shouldContinue =
-        json ||
+        nonInteractive ||
         (await confirmAsync({
           message: 'Do you want to continue?',
         }));
@@ -95,7 +89,7 @@ export default class AccountLogin extends EasCommand {
     }
 
     if (device) {
-      await this.runDeviceLoginAsync(sessionManager, { json, resume, match });
+      await this.runDeviceLoginAsync(sessionManager, { nonInteractive, resume, match });
       return;
     }
 
@@ -105,15 +99,32 @@ export default class AccountLogin extends EasCommand {
 
   private async runDeviceLoginAsync(
     sessionManager: SessionManager,
-    options: { json?: boolean; resume?: string; match?: string }
+    options: { nonInteractive: boolean; resume?: string; match?: string }
   ): Promise<void> {
     let result = options.resume
       ? await resumeDeviceLoginAsync(options.resume, sessionManager, options.match)
       : await startDeviceLoginAsync();
-    if (options.json) {
-      printJsonOnlyOutput(result);
+    if (options.nonInteractive) {
       if (isDeviceLoginFailure(result)) {
-        this.exit(1);
+        throw new Error(
+          `Device login failed (${result.status}). Start again with eas login --device.`
+        );
+      }
+      if (result.status === 'authenticated') {
+        Log.log(`Logged in as ${result.username}`);
+        return;
+      }
+      const resumeCommand = `eas login --device --non-interactive --resume ${result.request_id}`;
+      if (!options.resume) {
+        Log.log(`Open ${result.verification_uri_complete}`);
+        Log.log(`Code: ${result.user_code}`);
+        Log.log(`After approving in your browser, run: ${resumeCommand}`);
+      } else if (result.status === 'matching_required') {
+        Log.log('Ask the user for the number shown in their browser, then run:');
+        Log.log(`${resumeCommand} --match NUMBER_FROM_USER`);
+      } else {
+        Log.log(`Approval pending. Retry after ${result.retry_after} seconds:`);
+        Log.log(`${resumeCommand}${options.match ? ` --match ${options.match}` : ''}`);
       }
       return;
     }
@@ -121,7 +132,9 @@ export default class AccountLogin extends EasCommand {
     if ('verification_uri_complete' in result) {
       Log.log(`Open ${result.verification_uri_complete}`);
       Log.log(`Code: ${result.user_code}`);
-      Log.log(`To continue after exiting: eas login --device --resume ${result.request_id}`);
+      Log.log(
+        `Hint: if you need to leave, resume with eas login --device --resume ${result.request_id}`
+      );
     }
     let match = options.match;
     while (result.status !== 'authenticated') {
