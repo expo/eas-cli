@@ -10,6 +10,7 @@ import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
+import { createProcessOutput } from '../../utils/processOutput';
 import {
   ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
@@ -265,6 +266,52 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       })
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('redacts startup credentials and registers the state token for later output', async () => {
+    const token = 'tool/server "secret"';
+    await fs.promises.writeFile(
+      path.join(ARGENT_STATE_DIR, 'tool-server-orchestration.json'),
+      JSON.stringify({ port: 5678, pid: 9999, token })
+    );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const output = createProcessOutput(options.logger, options.secrets);
+      output.stdout.append(`argent link argent://${encodeURIComponent(token)}@127.0.0.1:5678\n`);
+      return {
+        pid: 4242,
+        getOutput: output.getOutput,
+        getExitError: () => undefined,
+        stopAsync: async () => {
+          output.stderr.append(`opaque ${token}\nencoded ${encodeURIComponent(token)}\n`);
+          output.stderr.append(`escaped ${JSON.stringify(token).slice(1, -1)}\n`);
+          output.finish();
+        },
+      };
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      { source: 'stdout' },
+      'argent link argent://[REDACTED]@127.0.0.1:5678'
+    );
+    for (const label of ['opaque', 'encoded', 'escaped']) {
+      expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, `${label} [REDACTED]`);
+    }
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain('secret');
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {

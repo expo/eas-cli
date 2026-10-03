@@ -360,6 +360,10 @@ it('finishes despite a stalled tunnel close', async () => {
   await finishing;
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('deadline'));
+  expect(logger.info).toHaveBeenLastCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
   closing.resolve();
 });
 
@@ -512,6 +516,22 @@ it('ends the preview phase with failure when the host cannot stop', async () => 
     { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
     'End phase: Simulator preview'
   );
+});
+
+it('ends the preview phase with failure when the tunnel cannot close', async () => {
+  const host = await startHostAsync();
+  await host.openPreviewAsync({ baseDomain });
+  closeTunnel.mockRejectedValue(new Error('tunnel close failure'));
+  jest.useFakeTimers();
+  const finishing = host.finishAsync();
+  await jest.advanceTimersByTimeAsync(4_000);
+  await finishing;
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(logger.info).toHaveBeenLastCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
+  closeTunnel.mockResolvedValue(undefined);
 });
 
 it('ends the preview phase with failure when startup never provides a token', async () => {

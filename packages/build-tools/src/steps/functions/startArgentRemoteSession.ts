@@ -178,11 +178,13 @@ export function createStartArgentRemoteSessionBuildFunction(
       );
       // Keep Argent itself in foreground mode under the detached process. This preserves
       // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+      const secrets: string[] = [];
       const argentServer = spawnDetached({
         command: startServer.command,
         args: startServer.args,
         env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
         logger,
+        secrets,
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
@@ -202,6 +204,9 @@ export function createStartArgentRemoteSessionBuildFunction(
         });
         toolServerPort = toolServerState.port;
         toolServerToken = toolServerState.token;
+        if (toolServerToken) {
+          secrets.push(toolServerToken);
+        }
       } catch (err) {
         const output = argentServer.getOutput();
         throw new SystemError(

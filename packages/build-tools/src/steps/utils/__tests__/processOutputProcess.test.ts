@@ -18,6 +18,11 @@ it.each([0, 1])(
         `
       console.log('stdout-marker');
       console.error('https://preview.test/?token=startup-secret');
+      process.stdout.write('argent link argent://startup-');
+      setTimeout(() => {
+        console.log('secret@127.0.0.1:5678');
+        console.log('argent link --host 127.0.0.1 --port 5678 --token startup-secret');
+      }, 25);
       setTimeout(() => {
         process.stderr.write('final diagnostic');
         process.exit(${exitCode});
@@ -33,12 +38,21 @@ it.each([0, 1])(
       }
       await handle.stopAsync();
       expect(handle.getExitError()?.message).toContain(`code ${exitCode}`);
-      expect(logger.info).toHaveBeenCalledWith({ stream: 'stdout' }, 'stdout-marker');
+      expect(logger.info).toHaveBeenCalledWith({ source: 'stdout' }, 'stdout-marker');
       expect(logger.info).toHaveBeenCalledWith(
-        { stream: 'stderr' },
+        { source: 'stderr' },
         'https://preview.test/?token=[REDACTED]'
       );
-      expect(logger.info).toHaveBeenCalledWith({ stream: 'stderr' }, 'final diagnostic');
+      expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, 'final diagnostic');
+      expect(logger.info).toHaveBeenCalledWith(
+        { source: 'stdout' },
+        'argent link argent://[REDACTED]@127.0.0.1:5678'
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        { source: 'stdout' },
+        'argent link --host 127.0.0.1 --port 5678 --token [REDACTED]'
+      );
+      expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toContain('startup-secret');
       expect(handle.getOutput()).not.toContain('startup-secret');
     } finally {
       await handle.stopAsync();
@@ -72,7 +86,7 @@ it('drains descendant shutdown logs after the launcher has exited', async () => 
     }
     expect(handle.getExitError()).toBeDefined();
     await handle.stopAsync();
-    expect(logger.info).toHaveBeenCalledWith({ stream: 'stderr' }, 'descendant-shutdown-marker');
+    expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, 'descendant-shutdown-marker');
   } finally {
     await handle.stopAsync();
   }

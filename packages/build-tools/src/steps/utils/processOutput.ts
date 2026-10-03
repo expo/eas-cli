@@ -19,22 +19,26 @@ export function createProcessOutput(logger?: bunyan, secrets: string[] = []) {
     }
     return text
       .replace(/([?&]token=)[^\s&#"'<>]+/gi, '$1[REDACTED]')
+      .replace(/(argent:\/\/)[^\s/@]+@/gi, '$1[REDACTED]@')
       .replace(
         /("(?:[a-z_]*token|credential|password)"\s*:\s*")(?:\\.|[^"\\\r\n])*(")/gi,
         '$1[REDACTED]$2'
       )
       .replace(/(Bearer\s+)[^\s"'<>]+/gi, '$1[REDACTED]')
-      .replace(/((?:--)?(?:token|credential|password)[=:]\s*)[^\s,&#"'<>]+/gi, '$1[REDACTED]');
+      .replace(
+        /((?:--)?(?:token|credential|password)[=:]\s*|--(?:token|credential|password)\s+)(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s,&#"'<>()]+)/gi,
+        '$1[REDACTED]'
+      );
   };
   let output = '';
-  const streams = (['stdout', 'stderr'] as const).map(stream => {
+  const streams = (['stdout', 'stderr'] as const).map(source => {
     const decoder = new StringDecoder('utf8');
     let pending = '';
     let omitted = false;
     const publish = (): void => {
       const line = omitted ? '[Overlong output line omitted.]' : redact(pending);
       output = (output + line + '\n').slice(-MAX_OUTPUT_CHARS);
-      logger?.info({ stream }, line);
+      logger?.info({ source }, line);
       pending = '';
       omitted = false;
     };

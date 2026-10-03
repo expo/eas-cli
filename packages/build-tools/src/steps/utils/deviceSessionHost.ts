@@ -542,9 +542,13 @@ async function finishDeviceSessionHostAsync(
       const preview = await previewTask?.catch(() => null);
       await preview?.closeAsync();
     }
-  ).catch(err => {
-    logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
-  });
+  ).then(
+    () => true,
+    err => {
+      logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
+      return false;
+    }
+  );
   let finalization: AndroidRecordingFinalization | null = null;
   if (recording) {
     // stopAsync signals the whole process group, including capture's encoder.
@@ -565,7 +569,7 @@ async function finishDeviceSessionHostAsync(
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
-  await retirePreview;
+  const previewRetired = await retirePreview;
   await screenshots.finishAsync(hostStopped);
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
@@ -580,7 +584,7 @@ async function finishDeviceSessionHostAsync(
       'Session host output around the recording failure.'
     );
   }
-  return hostStopped && !hostExited;
+  return hostStopped && !hostExited && previewRetired;
 }
 
 type AndroidRecordingFinalization = 'finalized' | 'not-recording' | 'failed';

@@ -826,21 +826,22 @@ export async function startNgrokTunnelAsync({
     await listener.close();
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
-  let stopped = false;
+  let stopTask: Promise<void> | undefined;
   return {
     url,
     subdomainId,
-    stopAsync: async () => {
-      if (stopped) {
-        return;
-      }
-      stopped = true;
-      try {
-        await listener.close();
-      } catch (error) {
-        logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
-      }
-    },
+    stopAsync: () =>
+      (stopTask ??= (async () => {
+        try {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: 'Ngrok tunnel stop', timeoutMs: 4_000 },
+            async () => await listener.close()
+          );
+        } catch (error) {
+          logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+          throw error;
+        }
+      })()),
   };
 }
 
