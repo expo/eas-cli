@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -15,6 +16,11 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import {
+  IosSimulatorRecordingUtils,
+  SERVE_SIM_STOP_GRACE_PERIOD_MS,
+} from '../IosSimulatorRecordingUtils';
+import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
@@ -24,6 +30,7 @@ import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   parseServeSimLaunchInputs,
+  spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
@@ -38,6 +45,7 @@ import {
   websiteOrigin,
   websiteOriginServeSimArgs,
 } from '../deviceSessionHost';
+import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('node:timers');
@@ -64,6 +72,69 @@ function createLoggerMock(): bunyan {
     debug: jest.fn(),
   } as unknown as bunyan;
 }
+
+describe(spawnDetached, () => {
+  function mockProcess(promise: Promise<unknown>): void {
+    jest
+      .mocked(spawn)
+      .mockReturnValue(
+        Object.assign(promise, { child: { pid: 1234, unref: jest.fn(), once: jest.fn() } }) as never
+      );
+  }
+
+  it('observes exit without waiting for inherited output pipes to close', () => {
+    const child = Object.assign(new EventEmitter(), { pid: 1234, unref: jest.fn() });
+    jest.mocked(spawn).mockReturnValue(Object.assign(new Promise(() => {}), { child }) as never);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    child.emit('exit', 1, null);
+    expect(handle.getExitError()?.message).toContain('code 1');
+    expect(child.listenerCount('exit')).toBe(0);
+  });
+
+  it('does not report an exit while the process is running', () => {
+    mockProcess(new Promise(() => {}));
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    expect(handle.getExitError()).toBeUndefined();
+  });
+
+  it('reports a clean exit so startup does not keep waiting', async () => {
+    const completion = Promise.resolve();
+    mockProcess(completion);
+    const handle = spawnDetached({ command: 'server', args: [], env: {} });
+    await completion;
+    expect(handle.getExitError()?.message).toContain('code 0');
+  });
+
+  it.each([0, 1])('observes a real subprocess exiting with code %s', async exitCode => {
+    const actualSpawn =
+      jest.requireActual<typeof import('@expo/turtle-spawn')>('@expo/turtle-spawn').default;
+    let completion: ReturnType<typeof actualSpawn>;
+    jest.mocked(spawn).mockImplementationOnce((...args) => {
+      completion = actualSpawn(...args);
+      return completion;
+    });
+    const handle = spawnDetached({
+      command: process.execPath,
+      args: ['-e', `console.error('startup-marker'); process.exit(${exitCode});`],
+      env: {},
+    });
+    await completion!.catch(() => {});
+    expect(handle.getExitError()).toBeInstanceOf(Error);
+    expect(handle.getOutput()).toContain('startup-marker');
+  });
+
+  it.each(['spawn ENOENT', 'server exited with code 1', 'server terminated by SIGTERM'])(
+    'preserves the process failure: %s',
+    async message => {
+      const error = new Error(message);
+      const completion = Promise.reject(error);
+      mockProcess(completion);
+      const handle = spawnDetached({ command: 'server', args: [], env: {} });
+      await completion.catch(() => {});
+      expect(handle.getExitError()).toBe(error);
+    }
+  );
+});
 
 function createCtxMock(): CustomBuildContext {
   return {
@@ -388,6 +459,85 @@ describe(createServeSimArgs, () => {
     expect(args.some(argument => argument.startsWith('--launch'))).toBe(false);
     expect(args).not.toContain('--open-url');
   });
+
+  it('omits --network-capture by default', () => {
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
+      '--network-capture'
+    );
+  });
+
+  it('appends --network-capture when enabled, which also covers an already booted simulator', () => {
+    const args = createServeSimArgs({ port: 4321, networkCapture: true });
+    expect(args).toContain('--network-capture');
+    expect(args).not.toContain('--enable');
+  });
+
+  it('repeats --network-capture-field once per requested field', () => {
+    expect(
+      createServeSimArgs({
+        port: 4321,
+        networkCapture: true,
+        networkCaptureFields: ['header', 'query'],
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        '--network-capture',
+        '--network-capture-field',
+        'header',
+        '--network-capture-field',
+        'query',
+      ])
+    );
+  });
+
+  it('keeps capture metadata-only when no field is requested', () => {
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).not.toContain(
+      '--network-capture-field'
+    );
+  });
+
+  it('does not pass fields when capture itself is off', () => {
+    expect(
+      createServeSimArgs({ port: 4321, networkCapture: false, networkCaptureFields: ['header'] })
+    ).not.toContain('--network-capture-field');
+  });
+
+  it('rejects network capture on a runtime that has no serve-sim', () => {
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCapture: true },
+        { runtimePlatform: BuildRuntimePlatform.LINUX }
+      )
+    ).toThrow('this session runs on linux');
+    expect(() =>
+      parseNetworkCaptureInputs(
+        { networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toThrow('needs "network_capture: true"');
+    expect(parseNetworkCaptureInputs({}, { runtimePlatform: BuildRuntimePlatform.LINUX })).toEqual({
+      networkCapture: false,
+      networkCaptureFields: [],
+    });
+    expect(
+      parseNetworkCaptureInputs(
+        { networkCapture: true, networkCaptureFields: ['header'] },
+        { runtimePlatform: BuildRuntimePlatform.DARWIN }
+      )
+    ).toEqual({ networkCapture: true, networkCaptureFields: ['header'] });
+  });
+
+  it('rejects a step input that is not an array of strings', () => {
+    // A JSON step input is whatever the workflow author wrote, so the shape has to be checked.
+    expect(() => parseNetworkCaptureFieldsInput('header,query')).toThrow(UserError);
+    expect(() => parseNetworkCaptureFieldsInput('header,query')).toThrow(
+      /must be an array of strings/
+    );
+    expect(() => parseNetworkCaptureFieldsInput([1, 2])).toThrow(UserError);
+    expect(parseNetworkCaptureFieldsInput(undefined)).toEqual([]);
+    expect(parseNetworkCaptureFieldsInput(['header'])).toEqual(['header']);
+  });
 });
 
 describe(createExpoDeviceHubArgs, () => {
@@ -521,6 +671,7 @@ describe(waitForWebPreviewReadyAsync, () => {
       expect.objectContaining({ retries: 0 })
     );
     expect(sleepAsync).toHaveBeenCalledTimes(1);
+    expect(sleepAsync).toHaveBeenCalledWith(250);
   });
 });
 
@@ -559,6 +710,56 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
+describe('spawnDetached process group shutdown', () => {
+  const env = {} as BuildStepEnv;
+
+  beforeEach(() => {
+    const spawned = Object.assign(Promise.resolve(undefined), {
+      child: { pid: 4321, unref: jest.fn(), once: jest.fn() },
+    });
+    jest.mocked(spawn).mockReturnValue(spawned as never);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('waits for a detached child after its package-manager wrapper exits', async () => {
+    let groupChecks = 0;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -4321 && signal === 0) {
+        groupChecks += 1;
+        if (groupChecks < 4) {
+          return true;
+        }
+        throw new Error('Process group exited');
+      }
+      if (pid === -4321 && signal === 'SIGTERM') {
+        return true;
+      }
+      throw new Error(`Unexpected process signal: ${pid} ${signal}`);
+    });
+
+    const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 90_000 });
+    await detached.stopAsync();
+
+    expect(jest.mocked(sleepAsync)).toHaveBeenCalledWith(100);
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM');
+    expect(kill).not.toHaveBeenCalledWith(-4321, 'SIGKILL');
+    expect(kill).not.toHaveBeenCalledWith(4321, 0);
+  });
+
+  it('kills a detached child that outlives the shutdown deadline', async () => {
+    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+
+    const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 0 });
+    await detached.stopAsync();
+
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGTERM');
+    expect(kill).toHaveBeenCalledWith(-4321, 'SIGKILL');
+  });
+});
+
 describe(startDeviceSessionHostAsync, () => {
   const baseDomain = 'eas-simulator.ngrok.dev';
   const turnArgs = [
@@ -588,6 +789,7 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
+        once: jest.fn(),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);
@@ -612,6 +814,25 @@ describe(startDeviceSessionHostAsync, () => {
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('gives serve-sim its recording grace period on shutdown', async () => {
+    const spawnDetachedSpy = jest.spyOn(remoteDeviceRunSession, 'spawnDetached');
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+    });
+
+    expect(spawnDetachedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
+    );
+    await host.finishAsync();
   });
 
   it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
@@ -806,6 +1027,7 @@ describe(startDeviceSessionHostAsync, () => {
   });
 
   it('launches serve-sim with bun x when EAS_OVERRIDE_PACKAGE_MANAGER is bun', async () => {
+    const usePackage = jest.spyOn(IosSimulatorRecordingUtils, 'useServeSimPackage');
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://ios-preview.example.test',
@@ -835,6 +1057,7 @@ describe(startDeviceSessionHostAsync, () => {
         packageVersion: '4.5.6',
       }),
     ]);
+    expect(usePackage).toHaveBeenCalledWith('@expo/serve-sim@4.5.6');
 
     await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);

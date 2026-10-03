@@ -75,6 +75,7 @@ describe(startAgentDeviceDaemonAsync, () => {
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 1234,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync,
     });
     jest.mocked(spawn).mockImplementation((async (
@@ -108,7 +109,12 @@ describe(startAgentDeviceDaemonAsync, () => {
     expect(spawnDetached).toHaveBeenCalledWith({
       command: 'node',
       args: [path.join(addCwd, 'node_modules/agent-device/dist/src/internal/daemon.js')],
-      env: expect.objectContaining({ AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' }),
+      env: expect.objectContaining({
+        AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
+        AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
+        AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
+        AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
+      }),
     });
 
     await handle.stopAsync();
@@ -127,6 +133,36 @@ describe(startAgentDeviceDaemonAsync, () => {
       ['install', '--no-audit', 'agent-device@latest'],
       expect.objectContaining({ cwd: expect.stringContaining('eas-agent-device-') })
     );
+  });
+
+  it('kills the install and does not fall back to git when aborted', async () => {
+    jest.mocked(spawn).mockImplementation(
+      ((_command: string, _args: string[], options?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason));
+        })) as never
+    );
+    const controller = new AbortController();
+    const failure = new Error('app install failed');
+
+    const daemon = startAgentDeviceDaemonAsync({
+      packageVersion: '1.2.3',
+      env: {},
+      logger,
+      signal: controller.signal,
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    controller.abort(failure);
+
+    await expect(daemon).rejects.toBe(failure);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['add', 'agent-device@1.2.3'],
+      expect.objectContaining({ signal: controller.signal })
+    );
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it('falls back to git clone when the published daemon is missing', async () => {
@@ -165,7 +201,12 @@ describe(startAgentDeviceDaemonAsync, () => {
       command: 'bun',
       args: ['run', 'src/daemon.ts'],
       cwd: '/tmp/agent-device-src',
-      env: expect.objectContaining({ AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' }),
+      env: expect.objectContaining({
+        AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
+        AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
+        AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
+        AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
+      }),
     });
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Failed to start agent-device daemon from the configured package manager; falling back to git clone',

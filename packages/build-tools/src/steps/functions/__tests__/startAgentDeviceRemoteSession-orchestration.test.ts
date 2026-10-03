@@ -20,7 +20,11 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
-import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentDeviceRemoteSession';
+import { type StartupTasks, createStartupTasks } from '../../utils/startupTasks';
+import {
+  createStartAgentDeviceRemoteSessionBuildFunction,
+  runAgentDeviceRemoteSessionAsync,
+} from '../startAgentDeviceRemoteSession';
 
 // The daemon entry path and the state directory are resolved from the home directory when
 // the module loads, so point it at a temp home we can populate.
@@ -104,6 +108,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 4242,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync: mockDaemonStopAsync,
     });
     jest.mocked(waitForFileAsync).mockResolvedValue({ port: 5678, token: 'daemon-token' });
@@ -132,7 +137,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
   });
 
   it('reports the preview URL and tears every resource down', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn() };
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await runAsync(logger, BuildRuntimePlatform.LINUX);
 
@@ -158,7 +163,7 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn() };
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await runAsync(logger, BuildRuntimePlatform.DARWIN, {
       launch_app_identifier: { value: 'host.exp.Exponent' },
@@ -181,8 +186,31 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
     );
   });
 
+  it('hands network capture to serve-sim on an iOS session', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      network_capture: { value: true },
+      network_capture_fields: { value: ['header'] },
+    });
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ networkCapture: true, networkCaptureFields: ['header'] })
+    );
+  });
+
+  it('fails before starting the daemon when network capture is asked for on Android', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await expect(
+      runAsync(logger, BuildRuntimePlatform.LINUX, { network_capture: { value: true } })
+    ).rejects.toThrow('records traffic through serve-sim on an iOS simulator');
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
+
   it('fails before starting the daemon when a launch is asked for on Android', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn() };
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await expect(
       runAsync(logger, BuildRuntimePlatform.LINUX, {
@@ -190,6 +218,202 @@ describe('createStartAgentDeviceRemoteSessionBuildFunction orchestration', () =>
       })
     ).rejects.toThrow('runs on linux');
     expect(spawnDetached).not.toHaveBeenCalled();
+  });
+
+  it('starts the session host without waiting for the agent-device daemon', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const sessionHost = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      ctx,
+      {} as never
+    );
+    let markHostStarted!: () => void;
+    const hostStarted = new Promise<void>(resolve => {
+      markHostStarted = resolve;
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockImplementation(async () => {
+      markHostStarted();
+      return sessionHost;
+    });
+    // The daemon credentials only appear after the session host started. A sequential
+    // startup would wait here forever.
+    jest.mocked(waitForFileAsync).mockImplementation(async () => {
+      await hostStarted;
+      return { port: 5678, token: 'daemon-token' };
+    });
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          agentDeviceRemoteSessionUrl: 'https://agent-device-abc.tunnel.example.com',
+          agentDeviceRemoteSessionToken: 'daemon-token',
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+        }),
+      })
+    );
+  });
+
+  it('stops the daemon and its tunnel when the session host fails to start', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    jest
+      .mocked(startDeviceSessionHostAsync)
+      .mockRejectedValue(new Error('serve-sim did not start'));
+
+    await expect(runAsync(logger, BuildRuntimePlatform.DARWIN)).rejects.toThrow(
+      'serve-sim did not start'
+    );
+
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    // The failure aborts the daemon task, which then may not start its daemon or tunnel.
+    // Whatever started is stopped.
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(jest.mocked(spawnDetached).mock.calls.length);
+    expect(mockTunnelStopAsync).toHaveBeenCalledTimes(
+      jest.mocked(startNgrokTunnelAsync).mock.calls.length
+    );
+  });
+
+  it('stops the session host and the daemon when the daemon credentials never appear', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    jest.mocked(waitForFileAsync).mockRejectedValue(new Error('no daemon credentials'));
+
+    await expect(runAsync(logger, BuildRuntimePlatform.DARWIN)).rejects.toThrow(
+      'no daemon credentials'
+    );
+
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  describe('runAgentDeviceRemoteSessionAsync with a device that is still starting', () => {
+    function deferred(): {
+      promise: Promise<void>;
+      resolve: () => void;
+      reject: (e: Error) => void;
+    } {
+      let resolve!: () => void;
+      let reject!: (e: Error) => void;
+      const promise = new Promise<void>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      promise.catch(() => {});
+      return { promise, resolve, reject };
+    }
+
+    type Device = { booted: Promise<unknown>; ready: Promise<unknown> };
+    function startSession(device: Device | ((tasks: StartupTasks) => Device)) {
+      const logger = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        child: jest.fn().mockReturnThis(),
+      } as never;
+      const tasks = createStartupTasks(logger);
+      return runAgentDeviceRemoteSessionAsync(ctx, {
+        env: {},
+        logger,
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        sessionEnv: {
+          deviceRunSessionId: 'device-run-session-id',
+          ngrokTunnelDomain: 'tunnel.example.com',
+          ngrokAuthtoken: 'ngrok-token',
+        },
+        packageVersion: undefined,
+        maxIdleTimeMinutes: undefined,
+        maxDurationSeconds: undefined,
+        launch: {},
+        capture: { networkCapture: false, networkCaptureFields: [] },
+        tasks,
+        device: typeof device === 'function' ? device(tasks) : device,
+      });
+    }
+
+    async function flushAsync(): Promise<void> {
+      for (let i = 0; i < 20; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+    }
+
+    it('starts the daemon during the boot and the session host after it', async () => {
+      const booted = deferred();
+      const session = startSession({ booted: booted.promise, ready: booted.promise });
+      await flushAsync();
+
+      expect(spawnDetached).toHaveBeenCalledTimes(1);
+      expect(startNgrokTunnelAsync).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+
+      booted.resolve();
+      await session;
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the session as ready only after the app is launched', async () => {
+      const ready = deferred();
+      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      await flushAsync();
+
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+
+      ready.resolve();
+      await session;
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops waiting for the boot when the daemon fails', async () => {
+      jest.mocked(waitForFileAsync).mockRejectedValue(new Error('no daemon credentials'));
+      const neverBooted = new Promise<void>(() => {});
+
+      // In the combined step, `ready` stops waiting for the boot on an abort, like this.
+      await expect(
+        startSession(tasks => ({ booted: neverBooted, ready: tasks.untilAborted(neverBooted) }))
+      ).rejects.toThrow('no daemon credentials');
+
+      expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('stops the session host when the app fails while the daemon install hangs', async () => {
+      jest.mocked(spawn).mockImplementation(((
+        command: string,
+        args: string[],
+        options?: { signal?: AbortSignal }
+      ) =>
+        command === 'bun' && args[0] === 'add'
+          ? new Promise((_resolve, reject) => {
+              options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason));
+            })
+          : Promise.resolve(undefined)) as never);
+      const ready = deferred();
+      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      await flushAsync();
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+
+      ready.reject(new Error('simctl install failed'));
+
+      await expect(session).rejects.toThrow('simctl install failed');
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(spawnDetached).not.toHaveBeenCalled();
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('stops everything it started when the app install fails', async () => {
+      const ready = deferred();
+      const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
+      await flushAsync();
+      ready.reject(new Error('simctl install failed'));
+
+      await expect(session).rejects.toThrow('simctl install failed');
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('declares the launch inputs', () => {

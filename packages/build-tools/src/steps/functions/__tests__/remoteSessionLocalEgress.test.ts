@@ -63,7 +63,11 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
 
-const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+const logger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  child: jest.fn().mockReturnThis(),
+} as unknown as bunyan;
 const ctx = {} as CustomBuildContext;
 const env = { DEVICE_RUN_SESSION_ID: 'session-id' };
 const handoff = { url: 'https://egress.test', token: 'secret', fingerprint: 'key=', port: 8899 };
