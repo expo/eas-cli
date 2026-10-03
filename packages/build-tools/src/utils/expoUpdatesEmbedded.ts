@@ -1,5 +1,6 @@
-import { Android, BuildJob, Ios, Platform } from '@expo/eas-build-job';
-import { PipeMode } from '@expo/logger';
+import { ExpoConfig } from '@expo/config';
+import { Android, BuildJob, Env, Ios, Metadata, Platform } from '@expo/eas-build-job';
+import { PipeMode, bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import os from 'os';
@@ -9,9 +10,7 @@ import semver from 'semver';
 
 import { findArtifacts } from './artifacts';
 import { runEasCliCommand } from './easCli';
-import { resolveArtifactPath } from '../ios/resolve';
-import { BuildContext } from '../context';
-import { isEASUpdateConfigured } from './expoUpdates';
+import { isEASUpdateConfigured } from '../steps/utils/expoUpdates';
 
 function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
   if (!value) {
@@ -27,55 +26,65 @@ function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
  * On SDK 57 and below the feature is still experimental and off by default. Projects opt in by
  * setting EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE to "1".
  */
-export function shouldUploadEmbeddedBundle(ctx: BuildContext<BuildJob>): boolean {
+export function shouldUploadEmbeddedBundle({
+  env,
+  metadata,
+}: {
+  env: Env;
+  metadata?: Metadata | null;
+}): boolean {
   const explicitFlag =
-    parseBooleanEnvVar(ctx.env.EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE) ??
-    parseBooleanEnvVar(ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE);
+    parseBooleanEnvVar(env.EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE) ??
+    parseBooleanEnvVar(env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE);
   if (explicitFlag !== undefined) {
     return explicitFlag;
   }
 
-  const sdkVersion = ctx.metadata?.sdkVersion;
+  const sdkVersion = metadata?.sdkVersion;
   return !!sdkVersion && semver.satisfies(sdkVersion, '>=58');
 }
 
-export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Promise<void> {
-  if (!(await isEASUpdateConfigured(ctx))) {
-    ctx.markBuildPhaseSkipped();
-    return;
+export async function uploadEmbeddedBundleAsync({
+  job,
+  env,
+  logger,
+  projectDir,
+  appConfig,
+}: {
+  job: BuildJob;
+  env: Env;
+  logger: bunyan;
+  projectDir: string;
+  appConfig: ExpoConfig;
+}): Promise<'uploaded' | 'skipped' | 'failed'> {
+  if (!isEASUpdateConfigured(appConfig, logger)) {
+    return 'skipped';
   }
 
-  if (ctx.job.developmentClient) {
-    ctx.markBuildPhaseSkipped();
-    return;
+  if (job.developmentClient) {
+    return 'skipped';
   }
 
-  const { platform } = ctx.job;
-  if (platform === Platform.IOS && (ctx.job as Ios.Job).simulator) {
-    ctx.markBuildPhaseSkipped();
-    return;
+  const { platform } = job;
+  if (platform === Platform.IOS && (job as Ios.Job).simulator) {
+    return 'skipped';
   }
 
-  const channel = ctx.job.updates?.channel;
+  const channel = job.updates?.channel;
   if (!channel) {
-    ctx.logger.warn(
-      'Skipping embedded bundle upload: no channel configured for this build profile.'
-    );
-    ctx.markBuildPhaseHasWarnings();
-    return;
+    logger.warn('Skipping embedded bundle upload: no channel configured for this build profile.');
+    return 'failed';
   }
-
-  const projectDir = ctx.getReactNativeProjectDirectory();
 
   let archivePattern: string;
   if (platform === Platform.IOS) {
-    archivePattern = resolveArtifactPath(ctx as BuildContext<Ios.Job>);
+    archivePattern = (job as Ios.Job).applicationArchivePath ?? 'ios/build/*.ipa';
   } else if (platform === Platform.ANDROID) {
     archivePattern =
-      (ctx as BuildContext<Android.Job>).job.applicationArchivePath ??
-      'android/app/build/outputs/**/*.{apk,aab}';
+      (job as Android.Job).applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}';
   } else {
-    throw new Error(`Uploading embedded updates is not supported for the ${platform} platform.`);
+    logger.warn(`Skipping embedded bundle upload: the ${platform} platform is not supported.`);
+    return 'failed';
   }
 
   const [archivePath] = await findArtifacts({
@@ -85,9 +94,8 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
   }).catch(() => [] as string[]);
 
   if (!archivePath) {
-    ctx.logger.warn('Skipping embedded bundle upload: build archive not found.');
-    ctx.markBuildPhaseHasWarnings();
-    return;
+    logger.warn('Skipping embedded bundle upload: build archive not found.');
+    return 'failed';
   }
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-embedded-bundle-'));
@@ -109,9 +117,8 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
     );
 
     if (!bundleEntry || !manifestEntry) {
-      ctx.logger.warn('Skipping embedded bundle upload: bundle or manifest not found in archive.');
-      ctx.markBuildPhaseHasWarnings();
-      return;
+      logger.warn('Skipping embedded bundle upload: bundle or manifest not found in archive.');
+      return 'failed';
     }
 
     await zip.extract(bundleEntry.name, bundlePath);
@@ -129,21 +136,22 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
       channel,
       '--non-interactive',
     ];
-    if (ctx.env.EAS_BUILD_ID) {
-      args.push('--build-id', ctx.env.EAS_BUILD_ID);
+    if (env.EAS_BUILD_ID) {
+      args.push('--build-id', env.EAS_BUILD_ID);
     }
     await runEasCliCommand({
       args,
       options: {
         cwd: projectDir,
-        env: ctx.env,
-        logger: ctx.logger,
+        env,
+        logger,
         mode: PipeMode.STDERR_ONLY_AS_STDOUT,
       },
     });
+    return 'uploaded';
   } catch (err: any) {
-    ctx.logger.warn({ err }, 'Failed to upload embedded bundle.');
-    ctx.markBuildPhaseHasWarnings();
+    logger.warn({ err }, 'Failed to upload embedded bundle.');
+    return 'failed';
   } finally {
     await asyncResult(zip.close());
   }
