@@ -56,5 +56,6 @@ export const UpdateFragmentNode = gql`
     }
     manifestHostOverride
     assetHostOverride
+    assetMapUrl
   }
 `;

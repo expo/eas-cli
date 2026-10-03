@@ -36,7 +36,14 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
 
 export type UpdateJsonInfo = { branch: string; runtimeVersion: string } & Pick<
   UpdateFragment,
-  'id' | 'createdAt' | 'group' | 'message' | 'platform' | 'manifestPermalink' | 'gitCommitHash'
+  | 'id'
+  | 'createdAt'
+  | 'group'
+  | 'message'
+  | 'platform'
+  | 'manifestPermalink'
+  | 'gitCommitHash'
+  | 'assetMapUrl'
 >;
 
 export type UpdateGroupDescription = FormatUpdateParameter & {
@@ -221,6 +228,8 @@ export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJ
     manifestPermalink: update.manifestPermalink,
     isRollBackToEmbedded: update.isRollBackToEmbedded,
     gitCommitHash: update.gitCommitHash,
+    // Null unless the update was published with an asset map. The URL is signed and expires.
+    assetMapUrl: update.assetMapUrl ?? null,
   }));
 }
 

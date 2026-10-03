@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Fix `eas workflow:ssh` handling of missing builds IDs. ([#4529](https://github.com/expo/eas-cli/pull/4529) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [build-tools] Upload the embedded bundle from custom builds that use `eas/build`. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add the `eas/upload_embedded_bundle` step for custom build configs. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Include `assetMapUrl` in the `eas update:view --json` output. The value is a signed download URL, or null when the update was published without an asset map. ([#4534](https://github.com/expo/eas-cli/pull/4534) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
