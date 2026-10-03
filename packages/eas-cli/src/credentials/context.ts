@@ -141,6 +141,16 @@ export class CredentialsContext {
           'No problem! 👌 If any of the next steps will require Apple account access we will ask you again about it.'
         )
       );
+      // That promise is only half kept: a step that cannot run without Apple access does not ask
+      // again, it goes straight to the Apple ID prompt, which reads as the decline having been
+      // ignored (expo/eas-cli#4422). Name the reason when that happens.
+      this.appStore.onBeforeForcedAuthentication = () => {
+        this.appStore.onBeforeForcedAuthentication = undefined;
+        Log.newLine();
+        Log.warn(
+          'This step cannot be completed without Apple Developer access, so the login you skipped is needed after all.'
+        );
+      };
     }
     this.shouldAskAuthenticateAppStore = false;
   }
