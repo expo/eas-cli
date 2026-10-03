@@ -9,6 +9,7 @@ import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 
 const PROBE_INTERVAL_MS = 15_000;
 const FAILURE_THRESHOLD = 3;
+const STOP_TIMEOUT_MS = 4_000;
 
 export type NgrokTunnelHandle = {
   url: string;
@@ -46,22 +47,58 @@ export async function startNgrokTunnelAsync({
   };
 
   const retiredListeners = new Set<ngrok.Listener>();
+  const closingListeners = new Map<ngrok.Listener, Promise<void>>();
 
-  async function closeAsync(listener: ngrok.Listener): Promise<void> {
+  async function closeAsync(
+    listener: ngrok.Listener,
+    closeSignal: AbortSignal | undefined,
+    logFailure = true
+  ): Promise<void> {
     retiredListeners.add(listener);
-    try {
-      const closing = listener.close();
+    let closing = closingListeners.get(listener);
+    if (!closing) {
+      closing = Promise.resolve().then(async () => await listener.close());
+      closingListeners.set(listener, closing);
       void closing.then(
-        () => retiredListeners.delete(listener),
-        () => retiredListeners.delete(listener)
+        () => {
+          closingListeners.delete(listener);
+          retiredListeners.delete(listener);
+        },
+        () => closingListeners.delete(listener)
       );
+    }
+    try {
       await withDeviceRunSessionTimeoutAsync(
-        { name: 'Ngrok tunnel close', timeoutMs: 5_000 },
+        { name: 'Ngrok tunnel close', timeoutMs: 5_000, signal: closeSignal },
         async () => await closing
       );
     } catch (err) {
-      logger.warn({ err }, `Could not stop ngrok tunnel ${domain}.`);
+      if (logFailure && !closeSignal?.aborted) {
+        logger.warn({ err }, `Could not stop ngrok tunnel ${domain}.`);
+      }
     }
+  }
+
+  async function retireListenersAsync(retirementSignal: AbortSignal): Promise<void> {
+    while (retiredListeners.size > 0) {
+      retirementSignal.throwIfAborted();
+      await Promise.all(
+        [...retiredListeners].map(retired => closeAsync(retired, retirementSignal, false))
+      );
+      if (retiredListeners.size > 0) {
+        await waitAsync(250, retirementSignal);
+      }
+    }
+  }
+
+  async function retireLateListenerAsync(listener: ngrok.Listener): Promise<void> {
+    retiredListeners.add(listener);
+    try {
+      await withDeviceRunSessionTimeoutAsync(
+        { name: 'Late ngrok tunnel retirement', timeoutMs: STOP_TIMEOUT_MS },
+        retireListenersAsync
+      );
+    } catch {}
   }
 
   let openingInProgress = false;
@@ -69,38 +106,51 @@ export async function startNgrokTunnelAsync({
     if (openingInProgress) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
-    return await withDeviceRunSessionTimeoutAsync(
-      { name: 'Ngrok tunnel open', timeoutMs: 15_000, signal },
-      async openSignal => {
-        openSignal.throwIfAborted();
-        const opening = ngrok
-          .forward({
-            ...config,
-            ...(forceNewSession ? { force_new_session: true } : {}),
-          })
-          .finally(() => {
-            openingInProgress = false;
-          });
-        openingInProgress = true;
-        void opening
-          .then(async listener => {
-            if (openSignal.aborted) {
-              await closeAsync(listener);
-            }
-          })
-          .catch(() => {});
-        const listener = await opening;
-        openSignal.throwIfAborted();
-        return listener;
+    let acquired: ngrok.Listener | undefined;
+    let retirement: Promise<void> | undefined;
+    const retireAcquired = () => {
+      if (acquired) {
+        retirement ??= retireLateListenerAsync(acquired);
       }
-    );
+    };
+    try {
+      return await withDeviceRunSessionTimeoutAsync(
+        { name: 'Ngrok tunnel open', timeoutMs: 15_000, signal },
+        async openSignal => {
+          openSignal.throwIfAborted();
+          const opening = ngrok
+            .forward({
+              ...config,
+              ...(forceNewSession ? { force_new_session: true } : {}),
+            })
+            .finally(() => {
+              openingInProgress = false;
+            });
+          openingInProgress = true;
+          void opening
+            .then(listener => {
+              acquired = listener;
+              if (openSignal.aborted) {
+                retireAcquired();
+              }
+            })
+            .catch(() => {});
+          const listener = await opening;
+          openSignal.throwIfAborted();
+          return listener;
+        }
+      );
+    } catch (err) {
+      retireAcquired();
+      throw err;
+    }
   }
 
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   let listener: ngrok.Listener | undefined = await openAsync();
   const publicUrl = listener.url();
   if (!publicUrl) {
-    await closeAsync(listener);
+    await closeAsync(listener, signal);
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
 
@@ -147,6 +197,10 @@ export async function startNgrokTunnelAsync({
         signal
       )
     ) {
+      await Promise.all([...retiredListeners].map(retired => closeAsync(retired, signal)));
+      if (signal.aborted) {
+        return;
+      }
       if (listener && (await probeAsync(url))) {
         if (failures > 0 || attempts > 0 || localUnhealthy) {
           logger.info(`Ngrok tunnel ${domain} is healthy again.`);
@@ -176,7 +230,7 @@ export async function startNgrokTunnelAsync({
           continue;
         }
         logger.warn(`Ngrok tunnel ${domain} failed ${failures} health probes; reopening it.`);
-        await closeAsync(listener);
+        await closeAsync(listener, signal);
         listener = undefined;
       }
       if (signal.aborted) {
@@ -186,7 +240,7 @@ export async function startNgrokTunnelAsync({
       try {
         const reopened = await openAsync(/* forceNewSession */ true);
         if (reopened.url() !== url) {
-          await closeAsync(reopened);
+          await closeAsync(reopened, signal);
           throw new SystemError(
             `Reopened ngrok tunnel for ${domain} returned a different public URL.`
           );
@@ -206,7 +260,9 @@ export async function startNgrokTunnelAsync({
 
   const supervision = healthCheck
     ? superviseAsync().catch(err => {
-        logger.warn({ err }, `Ngrok tunnel supervision stopped for ${domain}.`);
+        if (!signal.aborted) {
+          logger.warn({ err }, `Ngrok tunnel supervision stopped for ${domain}.`);
+        }
       })
     : Promise.resolve();
   let stopTask: Promise<void> | undefined;
@@ -216,13 +272,22 @@ export async function startNgrokTunnelAsync({
     stopAsync: () =>
       (stopTask ??= (async () => {
         controller.abort();
-        await supervision;
-        const remaining = new Set(retiredListeners);
-        if (listener) {
-          remaining.add(listener);
-          listener = undefined;
+        try {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: 'Ngrok tunnel stop', timeoutMs: STOP_TIMEOUT_MS },
+            async stopSignal => {
+              await supervision;
+              if (listener) {
+                retiredListeners.add(listener);
+                listener = undefined;
+              }
+              await retireListenersAsync(stopSignal);
+            }
+          );
+        } catch (err) {
+          logger.warn({ err }, `Could not stop ngrok tunnel ${domain}.`);
+          throw err;
         }
-        await Promise.all([...remaining].map(closeAsync));
       })()),
   };
 }
