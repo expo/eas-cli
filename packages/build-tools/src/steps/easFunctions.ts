@@ -19,6 +19,7 @@ import { generateGymfileFromTemplateFunction } from './functions/generateGymfile
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallMitmproxyBuildFunction } from './functions/installMitmproxy';
 import { createInstallBuildFunction } from './functions/installBuild';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
@@ -45,6 +46,7 @@ import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
+import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
 import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
@@ -54,11 +56,14 @@ import { createStartIosSimulatorRecordingsBuildFunction } from './functions/star
 import { createStartLocalEgressBuildFunction } from './functions/startLocalEgress';
 import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
+import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
+import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
@@ -100,6 +105,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
     createStartAgentDeviceRemoteSessionBuildFunction(ctx),
+    createStartAgentDeviceSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
     createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
@@ -111,9 +117,12 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
+    createStartServeSimLogsBuildFunction(),
+    createCollectServeSimLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
+    createInstallMitmproxyBuildFunction(),
 
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),
@@ -128,6 +137,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
 
     createSubmissionEntityFunction(),
     createUploadToAscBuildFunction(),
+    createUpdateTestFlightMetadataBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
     createMaestroTestsBuildFunction(ctx),

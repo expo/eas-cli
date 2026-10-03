@@ -113,6 +113,7 @@ export default class SimulatorGet extends EasCommand {
         Log.log(
           formatRemoteSessionInstructions(session.remoteConfig, 'env', {
             sessionUrl: deviceRunSessionUrl,
+            platform: session.platform,
           })
         );
       } else {

@@ -19,6 +19,7 @@ import {
   AssetMapSourceInput,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
+  SourceMapGroup,
   StatuspageServiceName,
   UpdateInfoGroup,
   UpdatePublishMutation,
@@ -29,6 +30,11 @@ import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { maybeUploadAssetMapAsync } from '../../project/maybeUploadAssetMapAsync';
+import {
+  SourceMapSources,
+  isSourceMapPlatform,
+  maybeUploadSourceMapsAsync,
+} from '../../project/maybeUploadSourceMapsAsync';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
@@ -50,6 +56,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from '../../update/active-rollout';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import {
   UpdatePublishPlatform,
@@ -103,9 +110,11 @@ type RawUpdateFlags = {
   'clear-cache': boolean;
   'no-bytecode': boolean;
   'source-maps'?: string;
+  'upload-source-maps': boolean;
   'private-key-path'?: string;
   'emit-metadata': boolean;
   'rollout-percentage'?: number;
+  'force-end-active-rollout': boolean;
   'non-interactive': boolean;
   json: boolean;
   environment?: string;
@@ -122,9 +131,11 @@ type UpdateFlags = {
   clearCache: boolean;
   noBytecode: boolean;
   sourceMaps?: string;
+  uploadSourceMaps: boolean;
   privateKeyPath?: string;
   emitMetadata: boolean;
   rolloutPercentage?: number;
+  forceEndActiveRollout: boolean;
   json: boolean;
   nonInteractive: boolean;
   environment?: string;
@@ -170,6 +181,10 @@ export default class UpdatePublish extends EasCommand {
       default: 'true',
       hidden: true,
     }),
+    'upload-source-maps': Flags.boolean({
+      description: `Upload the generated source maps to EAS so that stack traces from this update can be symbolicated`,
+      default: false,
+    }),
     'emit-metadata': Flags.boolean({
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
       default: false,
@@ -179,6 +194,11 @@ export default class UpdatePublish extends EasCommand {
       required: false,
       min: 0,
       max: 100,
+    }),
+    'force-end-active-rollout': Flags.boolean({
+      description:
+        'End an in-progress rollout on the runtime version being published, so this update supersedes it.',
+      default: false,
     }),
     platform: Flags.option({
       char: 'p',
@@ -221,12 +241,14 @@ export default class UpdatePublish extends EasCommand {
       clearCache,
       noBytecode,
       sourceMaps,
+      uploadSourceMaps,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
+      forceEndActiveRollout,
       environment: environmentFromFlags,
     } = this.sanitizeFlags(rawFlags);
 
@@ -349,13 +371,16 @@ export default class UpdatePublish extends EasCommand {
     let assetLimitPerUpdateGroup = 0;
     let realizedPlatforms: UpdatePublishPlatform[] = [];
     let assetMapSource: AssetMapSourceInput | null = null;
+    let sourceMapSources: SourceMapSources | null = null;
 
     try {
-      const [collectedAssets, maybeAssetMapSource] = await Promise.all([
+      const [collectedAssets, maybeAssetMapSource, maybeSourceMapSources] = await Promise.all([
         collectAssetsAsync(distRoot),
         maybeUploadAssetMapAsync(distRoot, graphqlClient),
+        uploadSourceMaps ? maybeUploadSourceMapsAsync(distRoot, graphqlClient) : null,
       ]);
       assetMapSource = maybeAssetMapSource;
+      sourceMapSources = maybeSourceMapSources;
       const assets = filterCollectedAssetsByRequestedPlatforms(collectedAssets, requestedPlatform);
       realizedPlatforms = Object.keys(assets) as UpdatePublishPlatform[];
 
@@ -564,12 +589,25 @@ export default class UpdatePublish extends EasCommand {
             ? Object.fromEntries(platforms.map(platform => [platform, assetMapSource]))
             : null;
 
+          // Source maps are per platform. The filter narrows to the platforms the
+          // SourceMapGroup input accepts; `web` is already excluded further upstream.
+          const sourceMapGroupEntries = sourceMapSources
+            ? platforms
+                .filter(isSourceMapPlatform)
+                .flatMap(platform =>
+                  sourceMapSources?.[platform] ? [[platform, sourceMapSources[platform]]] : []
+                )
+            : [];
+          const sourceMapGroup: SourceMapGroup | null =
+            sourceMapGroupEntries.length > 0 ? Object.fromEntries(sourceMapGroupEntries) : null;
+
           return {
             branchId: branch.id,
             updateInfoGroup: localUpdateInfoGroup,
             rolloutInfoGroup: localRolloutInfoGroup,
             fingerprintInfoGroup: transformedFingerprintInfoGroup,
             assetMapGroup,
+            sourceMapGroup,
             runtimeVersion,
             message: updateMessage,
             gitCommitHash,
@@ -581,10 +619,24 @@ export default class UpdatePublish extends EasCommand {
           };
         }
       );
+    const updateGroupsToPublish = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
+      graphqlClient,
+      updateGroups,
+      {
+        appId: projectId,
+        branchName: branch.name,
+        forceEndActiveRollout,
+        rolloutPercentage,
+      }
+    );
+
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+      newUpdates = await PublishMutation.publishUpdateGroupAsync(
+        graphqlClient,
+        updateGroupsToPublish
+      );
 
       if (codeSigningInfo) {
         Log.log('🔒 Signing updates');
@@ -756,6 +808,25 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
+    const uploadSourceMaps = flags['upload-source-maps'] ?? false;
+    const sourceMaps = flags['source-maps'];
+
+    // Only the default value reliably writes a standalone source map file. `false` writes none,
+    // and any other value is passed straight to `expo export` on SDK 55+, where `inline` embeds
+    // the map in the bundle instead of writing a file.
+    if (uploadSourceMaps && sourceMaps !== undefined && sourceMaps !== 'true') {
+      Errors.error(
+        `--upload-source-maps requires --source-maps true, which is the default. Other values may not write a separate source map file to upload. Received --source-maps ${sourceMaps}`,
+        { exit: 1 }
+      );
+    }
+
+    if (uploadSourceMaps && skipBundler) {
+      Log.warn(
+        'using --upload-source-maps with --skip-bundler: source maps must already exist in the input directory'
+      );
+    }
+
     return {
       auto,
       branchName,
@@ -765,10 +836,12 @@ export default class UpdatePublish extends EasCommand {
       skipBundler,
       clearCache: flags['clear-cache'] ? true : !!flags['environment'],
       noBytecode: flags['no-bytecode'] ?? false,
-      sourceMaps: flags['source-maps'],
+      sourceMaps,
+      uploadSourceMaps,
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
+      forceEndActiveRollout: flags['force-end-active-rollout'],
       nonInteractive,
       emitMetadata,
       json,

@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 import { fetchSessionSecretAndUserFromBrowserAuthFlowAsync } from './fetchSessionSecretAndUserFromBrowserAuthFlow';
+import { fetchUserAsync } from './fetchUser';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
@@ -209,6 +210,18 @@ export default class SessionManager {
       username,
       currentConnection: 'Browser-Flow-Authentication',
     });
+  }
+
+  public async loginWithDeviceSessionAsync(sessionSecret: string): Promise<string> {
+    const { id, username } = await fetchUserAsync({ sessionSecret });
+    await this.setSessionAsync({
+      sessionSecret,
+      userId: id,
+      username,
+      currentConnection: 'Browser-Flow-Authentication',
+    });
+    this.currentActor = undefined;
+    return username;
   }
 
   private async loginAsync(input: {

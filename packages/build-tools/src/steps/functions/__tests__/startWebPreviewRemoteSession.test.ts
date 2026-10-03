@@ -3,22 +3,22 @@ import { BuildRuntimePlatform, type BuildStepContext, type BuildStepEnv } from '
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
-  startDeviceWebPreviewWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
-  startDeviceWebPreviewWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
@@ -56,10 +56,13 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(getDeviceRunSessionIdOrThrow).mockReturnValue('device-run-session-id');
     jest.mocked(getNgrokTunnelDomainOrThrow).mockReturnValue('tunnel.example.com');
     jest.mocked(selectXcodeDeveloperDirectoryAsync).mockResolvedValue(undefined);
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.example.test',
-      stopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -67,11 +70,14 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
   });
 
   it('reports the session token when serve-sim minted one', async () => {
-    jest.mocked(startDeviceWebPreviewWithTunnelAsync).mockResolvedValue({
-      previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
-      apiUrl: 'https://web-preview.example.test',
-      previewToken: 'tok-1',
-      stopAsync,
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        previewToken: 'tok-1',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
     });
 
     await runAsync(BuildRuntimePlatform.DARWIN);
@@ -87,6 +93,22 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it.each(['preview', 'config', 'wait'])('finishes the session after %s fails', async phase => {
+    const error = new Error(`${phase} failed`);
+    if (phase === 'preview') {
+      jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+        openPreviewAsync: jest.fn().mockRejectedValue(error),
+        finishAsync: stopAsync,
+      });
+    } else if (phase === 'config') {
+      jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
+    } else {
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+    }
+    await expect(runAsync(BuildRuntimePlatform.LINUX)).rejects.toBe(error);
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [BuildRuntimePlatform.DARWIN, true],
     [BuildRuntimePlatform.LINUX, false],
@@ -94,9 +116,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     await runAsync(runtimePlatform);
 
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(selectsXcode ? 1 : 0);
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(ctx, {
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, {
       runtimePlatform,
-      baseDomain: 'tunnel.example.com',
       env,
       logger,
       timeoutMs: 60_000,
@@ -104,6 +125,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
+      networkCapture: false,
+      networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
@@ -134,19 +157,21 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'launch_app_identifier',
       'launch_args',
       'open_url',
+      'network_capture',
+      'network_capture_fields',
       'package_version',
       'max_duration_seconds',
     ]);
   });
 
-  it('hands the launch inputs to the web preview and announces them', async () => {
+  it('hands the launch inputs to the session host and announces them', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {
       launch_app_identifier: { value: 'host.exp.Exponent' },
       launch_args: { value: ['-EXDevMenuIsOnboardingFinished', '1'] },
       open_url: { value: 'exp://127.0.0.1:8081' },
     });
 
-    expect(startDeviceWebPreviewWithTunnelAsync).toHaveBeenCalledWith(
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
         launchAppIdentifier: 'host.exp.Exponent',
@@ -160,12 +185,36 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it('hands network capture to the session host', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      network_capture: { value: true },
+      network_capture_fields: { value: ['header', 'response-body'] },
+    });
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        networkCapture: true,
+        networkCaptureFields: ['header', 'response-body'],
+      })
+    );
+  });
+
+  it('fails before starting anything when network capture is asked for on Android', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.LINUX, {
+        network_capture: { value: true },
+      })
+    ).rejects.toThrow('this session runs on linux');
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+  });
+
   it('fails before starting anything when a launch is asked for on Android', async () => {
     await expect(
       runAsync(BuildRuntimePlatform.LINUX, {
         launch_app_identifier: { value: 'host.exp.Exponent' },
       })
     ).rejects.toThrow('runs on linux');
-    expect(startDeviceWebPreviewWithTunnelAsync).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
   });
 });
