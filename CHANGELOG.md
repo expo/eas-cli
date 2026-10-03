@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Include `assetMapUrl` in the `eas update:view --json` output. The value is a signed download URL, or null when the update was published without an asset map. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Record iOS Simulator sessions through serve-sim. ([#4474](https://github.com/expo/eas-cli/pull/4474) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add browser device login with resumable commands for chat agents. ([#4502](https://github.com/expo/eas-cli/pull/4502) by [@eiiot](https://github.com/eiiot))
 
