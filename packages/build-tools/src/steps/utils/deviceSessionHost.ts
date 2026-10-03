@@ -72,12 +72,8 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-// Website dev servers on expo.test use staging sessions, and CORS matches ports exactly.
-const WEBSITE_DEV_ORIGINS = [
-  'https://expo.test',
-  'https://expo.test:13001',
-  ...Array.from({ length: 16 }, (_, index) => `https://expo.test:${13200 + index}`),
-];
+// Local website hosts are shared by local and staging simulator sessions.
+const WEBSITE_DEV_ORIGINS = ['https://expo.test', 'https://*.expo.test'];
 
 export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
   const origins = new Set([websiteOrigin(env)]);

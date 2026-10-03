@@ -597,19 +597,26 @@ describe(websiteOriginServeSimArgs, () => {
     ]);
   });
 
-  it('names staging, its deploy previews and each website dev port on staging', () => {
+  it('names staging, its deploy previews and local website subdomains on staging', () => {
     const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
-    expect(args.slice(0, 4)).toEqual([
+    expect(args).toEqual([
       '--cors-origin',
       'https://staging.expo.dev',
       '--frame-ancestor',
       'https://staging.expo.dev',
+      '--cors-origin',
+      'https://*.expo.dev',
+      '--frame-ancestor',
+      'https://*.expo.dev',
+      '--cors-origin',
+      'https://expo.test',
+      '--frame-ancestor',
+      'https://expo.test',
+      '--cors-origin',
+      'https://*.expo.test',
+      '--frame-ancestor',
+      'https://*.expo.test',
     ]);
-    expect(args).toContain('https://*.expo.dev');
-    expect(args).toContain('https://expo.test:13001');
-    expect(args).toContain('https://expo.test:13215');
-    expect(args).not.toContain('https://expo.test:13216');
-    expect(args).not.toContain('https://expo.dev');
   });
 
   it('names only https origins', () => {
@@ -619,12 +626,18 @@ describe(websiteOriginServeSimArgs, () => {
     }
   });
 
-  it('names the website dev ports on local, without the deploy-preview wildcard', () => {
+  it('names local website subdomains without the deploy-preview wildcard on local', () => {
     for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
-      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
-      expect(args).toContain('https://expo.test:13001');
-      expect(args).not.toContain('https://*.expo.dev');
-      expect(args.filter(value => value === 'https://expo.test')).toHaveLength(2);
+      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).toEqual([
+        '--cors-origin',
+        'https://expo.test',
+        '--frame-ancestor',
+        'https://expo.test',
+        '--cors-origin',
+        'https://*.expo.test',
+        '--frame-ancestor',
+        'https://*.expo.test',
+      ]);
     }
   });
 });
