@@ -60,8 +60,9 @@ node_modules
     const ignoreFilePaths = (
       await fg(`**/${GITIGNORE_FILENAME}`, {
         cwd: this.rootDir,
-        ignore: ['node_modules'],
+        ignore: ['node_modules', '.git'],
         followSymbolicLinks: false,
+        dot: true,
       })
     )
       // ensure that parent dir is before child directories
