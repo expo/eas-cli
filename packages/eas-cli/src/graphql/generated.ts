@@ -16025,6 +16025,28 @@ export type CreateFingeprintMutationVariables = Exact<{
 
 export type CreateFingeprintMutation = { __typename?: 'RootMutation', fingerprint: { __typename?: 'FingerprintMutation', createOrGetExistingFingerprint: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } } } };
 
+export type CreateGitHubRepositoryMutationVariables = Exact<{
+  githubRepositoryData: CreateGitHubRepositoryInput;
+}>;
+
+
+export type CreateGitHubRepositoryMutation = { __typename?: 'RootMutation', githubRepository: { __typename?: 'GitHubRepositoryMutation', createGitHubRepository: { __typename?: 'GitHubRepository', id: string } } };
+
+export type CreateGitHubRepositorySettingsMutationVariables = Exact<{
+  githubRepositorySettingsData: CreateGitHubRepositorySettingsInput;
+}>;
+
+
+export type CreateGitHubRepositorySettingsMutation = { __typename?: 'RootMutation', githubRepositorySettings: { __typename?: 'GitHubRepositorySettingsMutation', createGitHubRepositorySettings: { __typename?: 'GitHubRepositorySettings', id: string } } };
+
+export type UpdateGitHubRepositorySettingsMutationVariables = Exact<{
+  githubRepositorySettingsId: Scalars['ID']['input'];
+  githubRepositorySettingsData: UpdateGitHubRepositorySettingsInput;
+}>;
+
+
+export type UpdateGitHubRepositorySettingsMutation = { __typename?: 'RootMutation', githubRepositorySettings: { __typename?: 'GitHubRepositorySettingsMutation', updateGitHubRepositorySettings: { __typename?: 'GitHubRepositorySettings', id: string } } };
+
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -16788,6 +16810,29 @@ export type FingerprintsByAppIdQueryVariables = Exact<{
 
 
 export type FingerprintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fingerprintsPaginated: { __typename?: 'AppFingerprintsConnection', edges: Array<{ __typename?: 'AppFingerprintEdge', node: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
+export type GitHubRepositoryAppQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type GitHubRepositoryAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, ownerAccount: { __typename?: 'Account', id: string, name: string }, githubRepository?: { __typename?: 'GitHubRepository', id: string, githubRepositoryIdentifier: number, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string, githubRepoUrl: string } } | null, githubRepositorySettings?: { __typename?: 'GitHubRepositorySettings', id: string, baseDirectory: string } | null } } };
+
+export type GitHubRepositoryInstallationsQueryVariables = Exact<{
+  accountName: Scalars['String']['input'];
+}>;
+
+
+export type GitHubRepositoryInstallationsQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, githubAppInstallations: Array<{ __typename?: 'GitHubAppInstallation', id: string, installationIdentifier: number, metadata: { __typename?: 'GitHubAppInstallationMetadata', githubAccountName?: string | null, installationStatus: GitHubAppInstallationStatus }, registration?: { __typename?: 'GitHubAppRegistration', id: string, origin: string } | null }> } } };
+
+export type GitHubRepositoryPageQueryVariables = Exact<{
+  registrationId: Scalars['ID']['input'];
+  installationIdentifier: Scalars['Int']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type GitHubRepositoryPageQuery = { __typename?: 'RootQuery', githubAppRegistrations: { __typename?: 'GitHubAppRegistrationQuery', byId: { __typename?: 'GitHubAppRegistration', id: string, repositoriesForViewer: { __typename?: 'GitHubAppRegistrationRepositoriesConnection', edges: Array<{ __typename?: 'GitHubAppRegistrationRepositoryEdge', node: { __typename?: 'AccessibleGitHubRepository', id: number, nodeId: string, name: string, owner: { __typename?: 'AccessibleGitHubRepositoryOwner', login: string } } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null } } } } };
 
 export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
   ascApiKeyId: Scalars['ID']['input'];

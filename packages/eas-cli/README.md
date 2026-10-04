@@ -195,6 +195,8 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas integrations:convex:team`](#eas-integrationsconvexteam)
 * [`eas integrations:convex:team:delete [CONVEX_TEAM]`](#eas-integrationsconvexteamdelete-convex_team)
 * [`eas integrations:convex:team:invite [CONVEX_TEAM]`](#eas-integrationsconvexteaminvite-convex_team)
+* [`eas integrations:github:connect`](#eas-integrationsgithubconnect)
+* [`eas integrations:github:status`](#eas-integrationsgithubstatus)
 * [`eas integrations:posthog:connect`](#eas-integrationsposthogconnect)
 * [`eas integrations:posthog:dashboard`](#eas-integrationsposthogdashboard)
 * [`eas integrations:posthog:disconnect`](#eas-integrationsposthogdisconnect)
@@ -2022,6 +2024,53 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/integrations/convex/team/invite.ts](https://github.com/expo/eas-cli/blob/v24.10.0/packages/eas-cli/src/commands/integrations/convex/team/invite.ts)_
+
+## `eas integrations:github:connect`
+
+connect a GitHub repository to the current EAS project
+
+```
+USAGE
+  $ eas integrations:github:connect [--json] [--non-interactive] [--repo <value>] [--base-directory <value>]
+
+FLAGS
+  --base-directory=<value>  Directory containing the app in the repository (defaults to existing settings or /)
+  --json                    Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive         Run the command in non-interactive mode.
+  --repo=<value>            GitHub repository in owner/repo format (github.com)
+
+DESCRIPTION
+  connect a GitHub repository to the current EAS project
+  The Expo GitHub app must already be installed and linked to the Expo account that owns the project. Authorize your
+  GitHub account in your Expo personal settings before running this command. Supports github.com repositories.
+
+EXAMPLES
+  $ eas integrations:github:connect --repo owner/repo
+
+  $ eas integrations:github:connect --repo owner/repo --non-interactive --json
+
+  $ eas integrations:github:connect --repo owner/monorepo --base-directory apps/mobile
+```
+
+_See code: [packages/eas-cli/src/commands/integrations/github/connect.ts](https://github.com/expo/eas-cli/blob/v24.10.0/packages/eas-cli/src/commands/integrations/github/connect.ts)_
+
+## `eas integrations:github:status`
+
+show the GitHub repository linked to the current EAS project
+
+```
+USAGE
+  $ eas integrations:github:status [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show the GitHub repository linked to the current EAS project
+```
+
+_See code: [packages/eas-cli/src/commands/integrations/github/status.ts](https://github.com/expo/eas-cli/blob/v24.10.0/packages/eas-cli/src/commands/integrations/github/status.ts)_
 
 ## `eas integrations:posthog:connect`
 
