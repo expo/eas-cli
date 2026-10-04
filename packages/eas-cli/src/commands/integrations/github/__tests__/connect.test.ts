@@ -1,6 +1,10 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { mockTestCommand } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  GitHubAppInstallationAccountType,
   GitHubAppInstallationStatus,
   GitHubRepositoryAppQuery,
 } from '../../../../graphql/generated';
@@ -21,6 +25,7 @@ const graphqlClient = {} as ExpoGraphqlClient;
 const disconnectedApp: GitHubRepositoryAppQuery['app']['byId'] = {
   id: 'project-id',
   fullName: '@expo/mobile',
+  slug: 'mobile',
   ownerAccount: { id: 'account-id', name: 'expo' },
   githubRepository: null,
   githubRepositorySettings: null,
@@ -43,7 +48,11 @@ const connectedApp: GitHubRepositoryAppQuery['app']['byId'] = {
 const installation = {
   id: 'installation-id',
   installationIdentifier: 456,
-  metadata: { githubAccountName: 'expo', installationStatus: GitHubAppInstallationStatus.Active },
+  metadata: {
+    githubAccountName: 'expo',
+    githubAccountType: GitHubAppInstallationAccountType.Organization,
+    installationStatus: GitHubAppInstallationStatus.Active,
+  },
   registration: null,
 };
 
@@ -182,20 +191,86 @@ describe(IntegrationsGitHubConnect, () => {
         .mocked(GitHubRepositoryQuery.getAccountInstallationsAsync)
         .mockResolvedValue(installations);
       await expect(createCommand(['--repo', 'expo/mobile']).runAsync()).rejects.toThrow(
-        'No active Expo GitHub app installation'
+        'Set up the GitHub connection in the EAS dashboard: https://expo.dev/accounts/expo/projects/mobile/github'
       );
       expect(GitHubRepositoryQuery.findRepositoryAsync).not.toHaveBeenCalled();
       expect(GitHubRepositoryMutation.createAsync).not.toHaveBeenCalled();
     }
   );
 
-  it('fails before linking when the repository is not accessible', async () => {
+  it('links organization installation settings when the repository is not accessible', async () => {
     jest.mocked(GitHubRepositoryQuery.findRepositoryAsync).mockResolvedValue(null);
     await expect(createCommand(['--repo', 'expo/mobile']).runAsync()).rejects.toThrow(
-      'not accessible'
+      'If the Expo GitHub app is configured for "Only select repositories", add expo/mobile under Repository access and save: https://github.com/organizations/expo/settings/installations/456'
     );
     expect(GitHubRepositoryMutation.createAsync).not.toHaveBeenCalled();
     expect(GitHubRepositoryMutation.createSettingsAsync).not.toHaveBeenCalled();
+  });
+
+  it('links personal installation settings when the repository is not accessible', async () => {
+    jest.mocked(GitHubRepositoryQuery.getAccountInstallationsAsync).mockResolvedValue([
+      {
+        ...installation,
+        metadata: {
+          ...installation.metadata,
+          githubAccountType: GitHubAppInstallationAccountType.User,
+        },
+      },
+    ]);
+    jest.mocked(GitHubRepositoryQuery.findRepositoryAsync).mockResolvedValue(null);
+    await expect(createCommand(['--repo', 'expo/mobile']).runAsync()).rejects.toThrow(
+      'https://github.com/settings/installations/456'
+    );
+    expect(GitHubRepositoryMutation.createAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(['GITHUB_USER_NOT_FOUND_ERROR', 'GITHUB_AUTHENTICATION_ERROR'])(
+    'links personal Expo settings for %s',
+    async errorCode => {
+      jest.mocked(GitHubRepositoryQuery.findRepositoryAsync).mockRejectedValue(
+        new CombinedError({
+          graphQLErrors: [
+            new GraphQLError('GitHub authorization failed', {
+              extensions: { errorCode },
+            }),
+          ],
+        })
+      );
+      await expect(createCommand(['--repo', 'expo/mobile', '--json']).runAsync()).rejects.toThrow(
+        'Connect or reconnect GitHub under Connections in your Expo personal settings: https://expo.dev/settings'
+      );
+      expect(GitHubRepositoryMutation.createAsync).not.toHaveBeenCalled();
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    }
+  );
+
+  it('preserves unrelated GraphQL errors', async () => {
+    const error = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError('Permission denied', {
+          extensions: { errorCode: 'FORBIDDEN_ERROR' },
+        }),
+      ],
+    });
+    jest.mocked(GitHubRepositoryQuery.findRepositoryAsync).mockRejectedValue(error);
+    await expect(createCommand(['--repo', 'expo/mobile']).runAsync()).rejects.toBe(error);
+  });
+
+  it('uses the staging EAS dashboard for setup when EXPO_STAGING is enabled', async () => {
+    const previousStaging = process.env.EXPO_STAGING;
+    process.env.EXPO_STAGING = '1';
+    try {
+      jest.mocked(GitHubRepositoryQuery.getAccountInstallationsAsync).mockResolvedValue([]);
+      await expect(createCommand(['--repo', 'expo/mobile']).runAsync()).rejects.toThrow(
+        'https://staging.expo.dev/accounts/expo/projects/mobile/github'
+      );
+    } finally {
+      if (previousStaging === undefined) {
+        delete process.env.EXPO_STAGING;
+      } else {
+        process.env.EXPO_STAGING = previousStaging;
+      }
+    }
   });
 
   it('does not overwrite a different repository connection', async () => {

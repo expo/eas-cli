@@ -28,6 +28,7 @@ export const GitHubRepositoryQuery = {
                 byId(appId: $appId) {
                   id
                   fullName
+                  slug
                   ownerAccount {
                     id
                     name
@@ -77,6 +78,7 @@ export const GitHubRepositoryQuery = {
                     installationIdentifier
                     metadata {
                       githubAccountName
+                      githubAccountType
                       installationStatus
                     }
                     registration {

@@ -15,6 +15,7 @@ describe(IntegrationsGitHubStatus, () => {
   const app: GitHubRepositoryAppQuery['app']['byId'] = {
     id: 'project-id',
     fullName: '@expo/mobile',
+    slug: 'mobile',
     ownerAccount: { id: 'account-id', name: 'expo' },
     githubRepository: null,
     githubRepositorySettings: null,

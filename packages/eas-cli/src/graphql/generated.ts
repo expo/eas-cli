@@ -16816,14 +16816,14 @@ export type GitHubRepositoryAppQueryVariables = Exact<{
 }>;
 
 
-export type GitHubRepositoryAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, ownerAccount: { __typename?: 'Account', id: string, name: string }, githubRepository?: { __typename?: 'GitHubRepository', id: string, githubRepositoryIdentifier: number, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string, githubRepoUrl: string } } | null, githubRepositorySettings?: { __typename?: 'GitHubRepositorySettings', id: string, baseDirectory: string } | null } } };
+export type GitHubRepositoryAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string }, githubRepository?: { __typename?: 'GitHubRepository', id: string, githubRepositoryIdentifier: number, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string, githubRepoUrl: string } } | null, githubRepositorySettings?: { __typename?: 'GitHubRepositorySettings', id: string, baseDirectory: string } | null } } };
 
 export type GitHubRepositoryInstallationsQueryVariables = Exact<{
   accountName: Scalars['String']['input'];
 }>;
 
 
-export type GitHubRepositoryInstallationsQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, githubAppInstallations: Array<{ __typename?: 'GitHubAppInstallation', id: string, installationIdentifier: number, metadata: { __typename?: 'GitHubAppInstallationMetadata', githubAccountName?: string | null, installationStatus: GitHubAppInstallationStatus }, registration?: { __typename?: 'GitHubAppRegistration', id: string, origin: string } | null }> } } };
+export type GitHubRepositoryInstallationsQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, githubAppInstallations: Array<{ __typename?: 'GitHubAppInstallation', id: string, installationIdentifier: number, metadata: { __typename?: 'GitHubAppInstallationMetadata', githubAccountName?: string | null, githubAccountType?: GitHubAppInstallationAccountType | null, installationStatus: GitHubAppInstallationStatus }, registration?: { __typename?: 'GitHubAppRegistration', id: string, origin: string } | null }> } } };
 
 export type GitHubRepositoryPageQueryVariables = Exact<{
   registrationId: Scalars['ID']['input'];
