@@ -126,7 +126,7 @@ export default class IntegrationsGitHubConnect extends EasCommand {
               : '';
           const installationSettingsUrl = `https://github.com${organizationPath}/settings/installations/${installation.installationIdentifier}`;
           throw new EasCommandError(
-            `EAS cannot access GitHub repository ${repo}. If the Expo GitHub app is configured for "Only select repositories", add ${repo} under Repository access and save: ${installationSettingsUrl}\nYou may need a GitHub account or organization admin to grant access. Also check the repository name and that your GitHub user has access to it, then retry this command.`
+            `EAS cannot access GitHub repository ${repo}. If the Expo GitHub app is configured for "Only select repositories", add ${repo} under Repository access and save: ${installationSettingsUrl}`
           );
         }
         await GitHubRepositoryMutation.createAsync(graphqlClient, {
