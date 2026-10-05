@@ -36,13 +36,25 @@ export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext)
         id: 'extensions',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
-        defaultValue: ['apk', 'aab', 'ipa', 'app'],
+        defaultValue: ['apk', 'aab', 'ipa'],
       }),
     ],
-    outputProviders: [BuildStepOutput.createProvider({ id: 'artifact_path', required: true })],
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'artifact_path',
+        required: true,
+      }),
+    ],
     fn: async (stepsCtx, { inputs, outputs, signal }) => {
-      const submissionId = z.string().uuid().parse(inputs.submission_id.value);
-      const extensions = z.array(z.string()).parse(inputs.extensions.value);
+      const { submissionId, extensions } = z
+        .object({
+          submissionId: z.string().uuid(),
+          extensions: z.array(z.string()),
+        })
+        .parse({
+          submissionId: inputs.submission_id.value,
+          extensions: inputs.extensions.value,
+        });
 
       stepsCtx.logger.info(`Downloading archive for submission ${submissionId}...`);
 
