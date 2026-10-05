@@ -192,7 +192,7 @@ export async function updateTestFlightMetadataAsync({
           })
         : [];
       const assignedIds = new Set(assignedGroups.map(group => group.id));
-      let internalBuildState: Promise<string | undefined> | undefined;
+      let assignmentFailure: Promise<never> | undefined;
       const groupLimit = limitFactory<void>(1);
       const groupResults = await Promise.allSettled(
         requestedGroups.map(group =>
@@ -221,63 +221,14 @@ export async function updateTestFlightMetadataAsync({
               );
             } catch (error) {
               logger.error(`❌ Group ${label}: assignment failed. ${String(error)}`);
-              internalBuildState ??= client
-                .getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId })
-                .then(({ data }) => data.attributes.internalBuildState)
-                .catch(diagnosticError => {
-                  logger.warn(`Could not read the TestFlight state: ${String(diagnosticError)}`);
-                  Sentry.capture(
-                    'Could not diagnose TestFlight group assignment failure',
-                    diagnosticError,
-                    {
-                      tags: { step: 'eas/update_testflight_metadata' },
-                      extras: { appId: app.id, buildId },
-                    }
-                  );
-                  return undefined;
-                });
-              const state = await internalBuildState;
-              if (state) {
-                logger.info(`Apple build ${buildId}: internal TestFlight state = ${state}.`);
-              }
-              if (
-                state === 'MISSING_EXPORT_COMPLIANCE' ||
-                state === 'IN_EXPORT_COMPLIANCE_REVIEW'
-              ) {
-                throw new UserError(
-                  'EAS_TESTFLIGHT_GROUP_ASSIGNMENT_FAILED',
-                  `Apple could not add the uploaded build to TestFlight group ${label} (state: ${state}). ` +
-                    (state === 'MISSING_EXPORT_COMPLIANCE'
-                      ? 'Complete the export compliance questions for this build in App Store Connect. For future builds, set ITSAppUsesNonExemptEncryption in the iOS Info.plist to the value that matches your app. '
-                      : 'Wait for Apple to approve the export compliance information, then assign the group in App Store Connect. ') +
-                    `The binary is already uploaded; do not upload it again to fix group assignment. Manage this build at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
-                  { cause: error }
-                );
-              }
-              if (
-                state &&
-                ['PROCESSING', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'].includes(state)
-              ) {
-                Sentry.capture(
-                  'TestFlight group assignment failed',
-                  error instanceof Error ? error : new Error(String(error)),
-                  {
-                    tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
-                    extras: { appId: app.id, buildId, groupId: group.id },
-                  }
-                );
-              }
-              if (isInternalGroupAssignmentError(error)) {
-                throw new UserError(
-                  'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
-                  "App Store Connect can't add this build to a requested internal TestFlight group. " +
-                    "Internal groups that automatically receive new builds can't be assigned to manually. " +
-                    'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
-                    `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
-                  { cause: error }
-                );
-              }
-              throw error;
+              assignmentFailure ??= reportGroupAssignmentFailureAsync({
+                client,
+                appId: app.id,
+                buildId,
+                logger,
+                error,
+              });
+              await assignmentFailure;
             }
             logger.info(`✅ Group ${label}: assignment completed.`);
           })
@@ -315,6 +266,56 @@ export async function updateTestFlightMetadataAsync({
         .join('; ')}`
     );
   }
+}
+
+async function reportGroupAssignmentFailureAsync({
+  client,
+  appId,
+  buildId,
+  logger,
+  error,
+}: {
+  client: AscApiClient;
+  appId: string;
+  buildId: string;
+  logger: bunyan;
+  error: unknown;
+}): Promise<never> {
+  let state = 'UNKNOWN';
+  try {
+    const { data } = await client.getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId });
+    state = data.attributes.internalBuildState;
+  } catch (diagnosticError) {
+    logger.warn(`Could not read the TestFlight state: ${String(diagnosticError)}`);
+  }
+  logger.info(`Apple build ${buildId}: internal TestFlight state = ${state}.`);
+  Sentry.capture(`TestFlight group assignment failed (state: ${state})`, {
+    level: 'error',
+    tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
+    extras: { appId, buildId, assignmentError: String(error) },
+  });
+  if (state === 'MISSING_EXPORT_COMPLIANCE' || state === 'IN_EXPORT_COMPLIANCE_REVIEW') {
+    throw new UserError(
+      'EAS_TESTFLIGHT_GROUP_ASSIGNMENT_FAILED',
+      `Apple could not add the uploaded build to a TestFlight group (state: ${state}). ` +
+        (state === 'MISSING_EXPORT_COMPLIANCE'
+          ? 'Complete the export compliance questions for this build in App Store Connect. For future builds, set ITSAppUsesNonExemptEncryption in the iOS Info.plist to the value that matches your app. '
+          : 'Wait for Apple to approve the export compliance information, then assign the group in App Store Connect. ') +
+        `The binary is already uploaded; do not upload it again to fix group assignment. Manage this build at https://appstoreconnect.apple.com/apps/${appId}/testflight`,
+      { cause: error }
+    );
+  }
+  if (isInternalGroupAssignmentError(error)) {
+    throw new UserError(
+      'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
+      "App Store Connect can't add this build to a requested internal TestFlight group. " +
+        "Internal groups that automatically receive new builds can't be assigned to manually. " +
+        'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
+        `Manage groups at https://appstoreconnect.apple.com/apps/${appId}/testflight`,
+      { cause: error }
+    );
+  }
+  throw error;
 }
 
 // Apple returns a generic 422 code, so match the title or detail too.

@@ -502,7 +502,7 @@ it.each([false, true])(
       .reply(204);
     await expect(
       updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
-    ).rejects.toThrow(multiple ? /FIRST_GROUP_FAILED.*Partial assignment/ : 'Partial assignment');
+    ).rejects.toThrow(multiple ? 'FIRST_GROUP_FAILED' : 'Partial assignment');
     expect(options.logger.error).toHaveBeenCalledWith(
       expect.stringContaining('Group "B" (B): assignment failed.')
     );
@@ -551,16 +551,16 @@ it('propagates Apple write failures', async () => {
 });
 
 it.each([
-  ['MISSING_EXPORT_COMPLIANCE', 'Complete the export compliance questions', false],
-  ['IN_EXPORT_COMPLIANCE_REVIEW', 'Wait for Apple to approve', false],
-  ['EXPIRED', 'ASSIGNMENT_FAILED', false],
-  ['PROCESSING', 'ASSIGNMENT_FAILED', true],
-  ['READY_FOR_BETA_TESTING', 'ASSIGNMENT_FAILED', true],
-  ['IN_BETA_TESTING', 'ASSIGNMENT_FAILED', true],
-  [null, 'ASSIGNMENT_FAILED', true],
+  ['MISSING_EXPORT_COMPLIANCE', 'Complete the export compliance questions'],
+  ['IN_EXPORT_COMPLIANCE_REVIEW', 'Wait for Apple to approve'],
+  ['EXPIRED', 'ASSIGNMENT_FAILED'],
+  ['PROCESSING', 'ASSIGNMENT_FAILED'],
+  ['READY_FOR_BETA_TESTING', 'ASSIGNMENT_FAILED'],
+  ['IN_BETA_TESTING', 'ASSIGNMENT_FAILED'],
+  [null, 'ASSIGNMENT_FAILED'],
 ] as const)(
   'shares one diagnostic lookup across failed assignments (state: %s)',
-  async (state, guidance, report) => {
+  async (state, guidance) => {
     mockBuild();
     mockAssignedGroups();
     api()
@@ -586,18 +586,32 @@ it.each([
         data: [{ type: 'betaGroups', id: 'C' }],
       })
       .reply(204);
-    await expect(
-      updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
-    ).rejects.toThrow(guidance);
-    if (state) {
-      expect(options.logger.info).toHaveBeenCalledWith(expect.stringContaining(`state = ${state}`));
-    }
-    expect(Sentry.capture).toHaveBeenCalledTimes(report ? (state ? 2 : 1) : 0);
-    if (report && state) {
-      expect(Sentry.capture).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
-        tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
-        extras: { appId: 'app', buildId: 'build', groupId: 'A' },
-      });
-    }
+    const failure = await updateTestFlightMetadataAsync({
+      ...options,
+      changelog: '',
+      groups: ['A', 'B', 'C'],
+    }).catch(error => error);
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect(failure.errors).toHaveLength(2);
+    expect(failure.errors[0]).toBe(failure.errors[1]);
+    expect(failure.errors[0].message).toContain(guidance);
+    expect(
+      jest.mocked(options.logger.info).mock.calls.filter(([message]) =>
+        String(message).includes('internal TestFlight state =')
+      )
+    ).toEqual([[`Apple build build: internal TestFlight state = ${state ?? 'UNKNOWN'}.`]]);
+    expect(Sentry.capture).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      `TestFlight group assignment failed (state: ${state ?? 'UNKNOWN'})`,
+      {
+        level: 'error',
+        tags: { step: 'eas/update_testflight_metadata', internal_build_state: state ?? 'UNKNOWN' },
+        extras: {
+          appId: 'app',
+          buildId: 'build',
+          assignmentError: expect.stringContaining('ASSIGNMENT_FAILED'),
+        },
+      }
+    );
   }
 );
