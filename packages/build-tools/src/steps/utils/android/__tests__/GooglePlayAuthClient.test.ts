@@ -1,5 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import nock from 'nock';
+import { inspect } from 'node:util';
 
 import { GooglePlayAuthClient, GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
 
@@ -45,31 +46,44 @@ it.each([
   { access_token: 'example-token', expires_in: '3600', token_type: 'Bearer' },
   { access_token: 'example-token', expires_in: 3600, token_type: 1 },
   { access_token: 'example-token', expires_in: 3600, token_type: 'Basic' },
-])('includes response status and body for invalid OAuth responses (%j)', async body => {
-  nock('https://oauth2.googleapis.com').post('/token').reply(200, body);
-  await expect(client.postAsync('/token', request)).rejects.toThrow(
-    `Malformed response from Google Play OAuth (HTTP 200): ${JSON.stringify(body)}`
-  );
-});
-
-it('includes status and response text in HTTP failures without retrying', async () => {
-  nock('https://oauth2.googleapis.com')
-    .post('/token')
-    .reply(503, { error_description: 'Service unavailable' });
-  let error: unknown;
-  try {
-    await client.postAsync('/token', request);
-  } catch (caught) {
-    error = caught;
+])(
+  'includes validation details without token data for invalid OAuth responses (%j)',
+  async body => {
+    nock('https://oauth2.googleapis.com').post('/token').reply(200, body);
+    const result = client.postAsync('/token', request);
+    await expect(result).rejects.toThrow('Malformed response from Google Play OAuth (HTTP 200):');
+    try {
+      await result;
+    } catch (error) {
+      expect(inspect(error, { depth: null })).not.toContain('example-token');
+      expect((error as Error).message).toMatch(/access_token|expires_in|token_type/);
+    }
   }
-  expect(error).toBeInstanceOf(GooglePlayAuthRequestError);
-  expect(error).toMatchObject({
-    status: 503,
-    responseText: '{"error_description":"Service unavailable"}',
-    message:
-      'Google Play OAuth request failed (HTTP 503): {"error_description":"Service unavailable"}',
-  });
-});
+);
+
+it.each([
+  [{ error: 'invalid_grant', error_description: 'example-token' }, 'invalid_grant'],
+  [{ error: 'example-token' }, undefined],
+  ['<html>example-token</html>', undefined],
+])(
+  'keeps HTTP status and known OAuth codes without retaining response data (%j)',
+  async (body, errorCode) => {
+    nock('https://oauth2.googleapis.com').post('/token').reply(400, body);
+    let error: unknown;
+    try {
+      await client.postAsync('/token', request);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(GooglePlayAuthRequestError);
+    expect(error).toMatchObject({ status: 400, errorCode });
+    expect((error as Error).message).toContain('HTTP 400');
+    if (errorCode) {
+      expect((error as Error).message).toContain(errorCode);
+    }
+    expect(inspect(error, { depth: null })).not.toContain('example-token');
+  }
+);
 
 it.each(['network failure', 'malformed JSON'])('returns a system error for %s', async failure => {
   const endpoint = nock('https://oauth2.googleapis.com').post('/token');
@@ -86,7 +100,12 @@ it.each(['network failure', 'malformed JSON'])('returns a system error for %s', 
     });
   } else {
     await expect(result).rejects.toThrow(
-      'Malformed JSON response from Google Play OAuth (HTTP 200): example-token is not JSON'
+      'Malformed JSON response from Google Play OAuth (HTTP 200).'
     );
+    try {
+      await result;
+    } catch (error) {
+      expect(inspect(error, { depth: null })).not.toContain('example-token');
+    }
   }
 });

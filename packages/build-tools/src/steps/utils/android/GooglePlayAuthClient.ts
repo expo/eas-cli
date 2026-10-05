@@ -17,13 +17,23 @@ const PostApi = {
   },
 };
 
+const OAuthErrorZ = z.enum([
+  'invalid_request',
+  'invalid_client',
+  'invalid_grant',
+  'unauthorized_client',
+  'unsupported_grant_type',
+  'invalid_scope',
+  'server_error',
+  'temporarily_unavailable',
+]);
+
 export class GooglePlayAuthRequestError extends Error {
   constructor(
     public readonly status: number,
-    public readonly responseText: string,
-    options?: { cause?: unknown }
+    public readonly errorCode?: z.output<typeof OAuthErrorZ>
   ) {
-    super(`Google Play OAuth request failed (HTTP ${status}): ${responseText}`, options);
+    super(`Google Play OAuth request failed (HTTP ${status})${errorCode ? `: ${errorCode}` : ''}.`);
   }
 }
 
@@ -66,8 +76,7 @@ export class GooglePlayAuthClient {
       throw new Error(
         `Malformed request to Google Play OAuth: ${z.prettifyError(
           parsedBody.enforceError() as z.ZodError
-        )}`,
-        { cause: parsedBody.enforceError() }
+        )}`
       );
     }
     signal?.throwIfAborted();
@@ -97,14 +106,17 @@ export class GooglePlayAuthClient {
         }
       );
     }
-    if (!response.ok) {
-      throw new GooglePlayAuthRequestError(response.status, text, { cause: response });
-    }
     const parsedJson = await asyncResult((async () => JSON.parse(text))());
+    if (!response.ok) {
+      const errorCode = OAuthErrorZ.safeParse(parsedJson.ok ? parsedJson.value?.error : undefined);
+      throw new GooglePlayAuthRequestError(
+        response.status,
+        errorCode.success ? errorCode.data : undefined
+      );
+    }
     if (!parsedJson.ok) {
       throw new SystemError(
-        `Malformed JSON response from Google Play OAuth (HTTP ${response.status}): ${text}`,
-        { cause: parsedJson.enforceError() }
+        `Malformed JSON response from Google Play OAuth (HTTP ${response.status}).`
       );
     }
     const parsedResponse = await asyncResult(
@@ -112,10 +124,9 @@ export class GooglePlayAuthClient {
     );
     if (!parsedResponse.ok) {
       throw new SystemError(
-        `Malformed response from Google Play OAuth (HTTP ${response.status}): ${text}\n${z.prettifyError(
+        `Malformed response from Google Play OAuth (HTTP ${response.status}): ${z.prettifyError(
           parsedResponse.enforceError() as z.ZodError
-        )}`,
-        { cause: parsedResponse.enforceError() }
+        )}`
       );
     }
     return parsedResponse.value;
