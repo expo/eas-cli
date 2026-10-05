@@ -188,6 +188,11 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         capabilities: { deny: ['device-shutdown'] },
       },
     ]);
+    // The preview shows the same device that the daemon may use.
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ device: 'SIMULATOR-UDID' })
+    );
   });
 
   it('names the booted Android emulator by its serial', async () => {

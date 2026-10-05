@@ -409,6 +409,14 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
+  it('names the device to serve right after the package', () => {
+    expect(createServeSimArgs({ port: 4321, device: 'SIMULATOR-UDID' }).slice(0, 3)).toEqual([
+      '@expo/serve-sim@latest',
+      'SIMULATOR-UDID',
+      '--port',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' })[0]).toBe(
       '@expo/serve-sim@0.1.38'
@@ -1093,6 +1101,53 @@ describe(startDeviceSessionHostAsync, () => {
 
     await host.finishAsync();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the requested Simulator on Darwin', async () => {
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      device: 'device-id',
+    });
+    await host.finishAsync();
+
+    const [, args] = jest.mocked(spawn).mock.calls[0];
+    expect(args[args.indexOf('@expo/serve-sim@latest') + 1]).toBe('device-id');
+  });
+
+  it('fails when serve-sim serves another Simulator than the requested one', async () => {
+    await expect(
+      startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        device: 'booted-id',
+      })
+    ).rejects.toThrow('serve-sim serves device device-id, but the session uses booted-id.');
+  });
+
+  // expo-device-hub serves the connected emulators and reports no device at /readyz.
+  it('does not hand the device to expo-device-hub on Linux', async () => {
+    jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      device: 'emulator-5554',
+    });
+    await host.finishAsync();
+
+    const hubArgs = jest
+      .mocked(spawn)
+      .mock.calls.map(([, args]) => args)
+      .find(args => args.includes('expo-device-hub@latest'));
+    expect(hubArgs).toBeDefined();
+    expect(hubArgs).not.toContain('emulator-5554');
   });
 
   it('hands the launch options to serve-sim on Darwin', async () => {
