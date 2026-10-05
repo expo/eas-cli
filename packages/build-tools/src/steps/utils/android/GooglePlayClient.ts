@@ -2,7 +2,7 @@ import { SystemError } from '@expo/eas-build-job';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
-import { GooglePlayAuthUtils, GoogleServiceAccount } from './googlePlayAuthUtils';
+import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
 
 export class GooglePlayApiError extends Error {
   constructor(

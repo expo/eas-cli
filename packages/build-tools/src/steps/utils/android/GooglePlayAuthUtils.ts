@@ -10,9 +10,7 @@ export type GoogleServiceAccount = {
 };
 
 export namespace GooglePlayAuthUtils {
-  export async function createAssertionAsync(
-    serviceAccount: GoogleServiceAccount
-  ): Promise<string> {
+  async function createAssertionAsync(serviceAccount: GoogleServiceAccount): Promise<string> {
     return await new jose.SignJWT({
       scope: 'https://www.googleapis.com/auth/androidpublisher',
     })
