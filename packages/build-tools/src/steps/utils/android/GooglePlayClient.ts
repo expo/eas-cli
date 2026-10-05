@@ -1,184 +1,293 @@
 import { UserError } from '@expo/eas-build-job';
+import * as jose from 'jose';
+import { KeyObject } from 'node:crypto';
 import fetch, { RequestInit, Response } from 'node-fetch';
-import { createPrivateKey, sign } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
+import { z } from 'zod';
 
-const API_ORIGIN = 'https://androidpublisher.googleapis.com';
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const MAX_RETRIES = 5;
+import { GooglePlayAuthClient } from './GooglePlayAuthClient';
+import { GooglePlayApiError, GooglePlayNetworkError } from './GooglePlayErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 
+export { GooglePlayApiError, GooglePlayNetworkError } from './GooglePlayErrors';
 export type GoogleServiceAccount = {
   client_email: string;
-  private_key: string;
+  private_key: KeyObject;
   private_key_id?: string;
 };
 
-/** Do not retain a request, URL, body, or credentials in errors that the worker may log. */
-export class GooglePlayApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly apiMessage: string,
-    readonly reasons: string[]
-  ) {
-    super(`Google Play request failed (HTTP ${status}).`);
-  }
-}
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const API_ORIGIN = 'https://androidpublisher.googleapis.com';
+const EmptyZ = z.object({});
+const PackagePathZ = z.object({ packageName: z.string().min(1) });
+const EditPathZ = PackagePathZ.extend({ editId: z.string().min(1) });
+const TrackPathZ = EditPathZ.extend({ track: z.string().min(1) });
+const EditZ = z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() });
+const TrackZ = z.object({
+  track: z.string().min(1),
+  releases: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        versionCodes: z.array(z.string()),
+        status: z.enum(['draft', 'inProgress', 'halted', 'completed']),
+        userFraction: z.number().gt(0).lt(1).optional(),
+        releaseNotes: z.array(z.object({ language: z.string(), text: z.string() })).optional(),
+      })
+    )
+    .optional(),
+});
 
-class GooglePlayNetworkError extends Error {
-  constructor() {
-    super('Google Play request failed before a response was received.');
-  }
-}
+const GetApi = {
+  '/androidpublisher/v3/applications/:packageName/edits/:editId': {
+    path: EditPathZ,
+    request: EmptyZ,
+    query: EmptyZ,
+    response: EditZ,
+  },
+  '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track': {
+    path: TrackPathZ,
+    request: EmptyZ,
+    query: EmptyZ,
+    response: TrackZ,
+  },
+};
+const PostApi = {
+  '/androidpublisher/v3/applications/:packageName/edits': {
+    path: PackagePathZ,
+    request: EmptyZ,
+    query: EmptyZ,
+    response: EditZ,
+  },
+  '/androidpublisher/v3/applications/:packageName/edits/:editId:commit': {
+    path: EditPathZ,
+    request: EmptyZ,
+    query: z.object({ changesNotSentForReview: z.boolean().optional() }),
+    response: EditZ,
+  },
+  '/androidpublisher/v3/applications/:packageName/edits/:editId:validate': {
+    path: EditPathZ,
+    request: EmptyZ,
+    query: EmptyZ,
+    response: EditZ,
+  },
+};
+const PutApi = {
+  '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track': {
+    path: TrackPathZ,
+    request: TrackZ,
+    query: EmptyZ,
+    response: TrackZ,
+  },
+};
+const DeleteApi = {
+  '/androidpublisher/v3/applications/:packageName/edits/:editId': { path: EditPathZ },
+};
 
-/** One client per submission. Credentials are parsed at the function boundary. */
 export class GooglePlayClient {
-  private token?: { value: string; expiresAt: number };
-  private tokenRequest?: Promise<string>;
-  private readonly key: ReturnType<typeof createPrivateKey>;
+  private cachedToken?: { value: Promise<string>; expiresAt: number };
 
-  constructor(private readonly credentials: GoogleServiceAccount) {
-    try {
-      this.key = createPrivateKey(credentials.private_key);
-    } catch {
-      throw new UserError(
-        'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
-        'Expected a valid RSA private key for the Google service account; the supplied key could not be parsed.'
-      );
-    }
-    if (this.key.asymmetricKeyType !== 'rsa') {
-      throw new UserError(
-        'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
-        `Expected an RSA private key for the Google service account; received ${this.key.asymmetricKeyType ?? 'unknown'} key type.`
-      );
-    }
-  }
+  constructor(
+    private readonly serviceAccount: GoogleServiceAccount,
+    private readonly authClient = new GooglePlayAuthClient()
+  ) {}
 
-  async requestAsync<T>(
-    method: string,
-    apiPath: string,
-    body?: unknown,
+  async getAsync<TPath extends keyof typeof GetApi>(
+    path: TPath,
+    params: z.input<(typeof GetApi)[TPath]['path']>,
     signal?: AbortSignal
-  ): Promise<T> {
-    const response = await this.requestRawAsync(apiPath, {
-      method,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-    });
-    return response.status === 204 ? (undefined as T) : await this.readJsonAsync<T>(response);
+  ): Promise<z.output<(typeof GetApi)[TPath]['response']>> {
+    return await this.sendJsonRequestAsync('GET', path, GetApi[path], {}, params, {}, signal);
   }
 
-  private checkUrl(url: URL): void {
-    // Use the exact publisher host. Never attach credentials to a supplied host or redirect.
+  async postAsync<TPath extends keyof typeof PostApi>(
+    path: TPath,
+    body: z.input<(typeof PostApi)[TPath]['request']>,
+    params: z.input<(typeof PostApi)[TPath]['path']>,
+    options: { query?: z.input<(typeof PostApi)[TPath]['query']>; signal?: AbortSignal } = {}
+  ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
+    return await this.sendJsonRequestAsync(
+      'POST',
+      path,
+      PostApi[path],
+      body,
+      params,
+      options.query ?? {},
+      options.signal
+    );
+  }
+
+  async putAsync<TPath extends keyof typeof PutApi>(
+    path: TPath,
+    body: z.input<(typeof PutApi)[TPath]['request']>,
+    params: z.input<(typeof PutApi)[TPath]['path']>,
+    signal?: AbortSignal
+  ): Promise<z.output<(typeof PutApi)[TPath]['response']>> {
+    return await this.sendJsonRequestAsync('PUT', path, PutApi[path], body, params, {}, signal);
+  }
+
+  async deleteAsync<TPath extends keyof typeof DeleteApi>(
+    path: TPath,
+    params: z.input<(typeof DeleteApi)[TPath]['path']>,
+    signal?: AbortSignal
+  ): Promise<void> {
+    let url: string = path;
+    for (const [key, value] of Object.entries(DeleteApi[path].path.parse(params))) {
+      url = url.replace(`:${key}`, encodeURIComponent(value));
+    }
+    await this.requestAsync('DELETE', url, undefined, signal);
+  }
+
+  private async sendJsonRequestAsync(
+    method: string,
+    path: string,
+    schema: {
+      path: z.ZodType<Record<string, string>>;
+      request: z.ZodType;
+      query: z.ZodType;
+      response: z.ZodType;
+    },
+    body: unknown,
+    params: unknown,
+    query: unknown,
+    signal?: AbortSignal
+  ): Promise<any> {
+    const parsedBody = schema.request.parse(body);
+    for (const [key, value] of Object.entries(schema.path.parse(params))) {
+      path = path.replace(`:${key}`, encodeURIComponent(value));
+    }
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(
+      schema.query.parse(query) as Record<string, unknown>
+    )) {
+      if (value !== undefined) {
+        search.set(key, String(value));
+      }
+    }
+    const response = await this.requestAsync(
+      method,
+      search.size ? `${path}?${search}` : path,
+      method === 'GET' ? undefined : JSON.stringify(parsedBody),
+      signal,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      signal?.throwIfAborted();
+      throw new GooglePlayNetworkError();
+    }
+    const parsed = schema.response.safeParse(data);
+    if (!parsed.success) {
+      throw new Error('Google Play returned an invalid response.');
+    }
+    return parsed.data;
+  }
+
+  async requestAsync(
+    method: string,
+    apiPath: string | URL,
+    body?: RequestInit['body'],
+    signal?: AbortSignal,
+    options: { headers?: RequestInit['headers']; allowResume?: boolean } = {}
+  ): Promise<Response> {
+    const url = new URL(apiPath, API_ORIGIN);
     if (url.origin !== API_ORIGIN || url.username || url.password) {
       throw new Error('Google returned an unsafe upload URL.');
     }
-  }
-
-  async requestRawAsync(
-    apiPath: string | URL,
-    init: RequestInit,
-    allowResume = false
-  ): Promise<Response> {
-    const url = new URL(apiPath, API_ORIGIN);
-    this.checkUrl(url);
-    const token = await this.getTokenAsync(init.signal ?? undefined);
-    const response = await this.fetchAsync(url.toString(), {
-      ...init,
-      headers: { ...init.headers, Authorization: `Bearer ${token}` },
-      redirect: 'manual',
-    });
-    if (!response.ok && !(allowResume && response.status === 308)) {
-      await this.throwApiErrorAsync(response);
+    const token = await this.getTokenAsync(signal);
+    let response: Response;
+    signal?.throwIfAborted();
+    try {
+      response = await fetch(url.toString(), {
+        method,
+        body,
+        signal,
+        headers: { ...options.headers, Authorization: `Bearer ${token}` },
+        redirect: 'manual',
+      });
+    } catch {
+      signal?.throwIfAborted();
+      throw new GooglePlayNetworkError();
+    }
+    if (!response.ok && !(options.allowResume && response.status === 308)) {
+      let data: { error?: { message?: unknown; errors?: { reason?: unknown }[] } } = {};
+      try {
+        data = await response.json();
+      } catch {
+        // HTML, redirects, and proxy errors must not expose a request URL or token.
+        signal?.throwIfAborted();
+      }
+      throw new GooglePlayApiError(
+        response.status,
+        typeof data?.error?.message === 'string' ? data.error.message : '',
+        Array.isArray(data?.error?.errors)
+          ? data.error.errors.flatMap(error =>
+              typeof error.reason === 'string' ? [error.reason] : []
+            )
+          : []
+      );
     }
     return response;
   }
 
-  private async fetchAsync(url: string, init: RequestInit): Promise<Response> {
-    init.signal?.throwIfAborted();
-    try {
-      return await fetch(url, init);
-    } catch {
-      init.signal?.throwIfAborted();
-      throw new GooglePlayNetworkError();
-    }
-  }
-
-  async readJsonAsync<T>(response: Response): Promise<T> {
-    try {
-      return (await response.json()) as T;
-    } catch {
-      // node-fetch JSON/body errors include the request URL, which can be signed.
-      throw new GooglePlayNetworkError();
-    }
-  }
-
-  private async throwApiErrorAsync(response: Response): Promise<never> {
-    let data: { error?: { message?: unknown; errors?: { reason?: unknown }[] } } = {};
-    try {
-      data = await response.json();
-    } catch {
-      // HTML, redirects, and proxy errors must not expose a request URL or token.
-    }
-    throw new GooglePlayApiError(
-      response.status,
-      typeof data?.error?.message === 'string' ? data.error.message : '',
-      Array.isArray(data?.error?.errors)
-        ? data.error.errors.flatMap(error =>
-            typeof error.reason === 'string' ? [error.reason] : []
-          )
-        : []
-    );
-  }
-
   private async getTokenAsync(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
-    if (this.token && Date.now() < this.token.expiresAt - 60_000) {
-      return this.token.value;
+    if (!this.cachedToken || Date.now() >= this.cachedToken.expiresAt - 60_000) {
+      this.cachedToken = { value: this.refreshTokenAsync(signal), expiresAt: Infinity };
     }
-    if (!this.tokenRequest) {
-      this.tokenRequest = this.refreshTokenAsync(signal).finally(() => {
-        this.tokenRequest = undefined;
-      });
+    const cachedToken = this.cachedToken;
+    try {
+      return await cachedToken.value;
+    } catch (error) {
+      if (this.cachedToken === cachedToken) {
+        this.cachedToken = undefined;
+      }
+      throw error;
     }
-    return await this.tokenRequest;
   }
 
   private async refreshTokenAsync(signal?: AbortSignal): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    const encode = (value: unknown): string =>
-      Buffer.from(JSON.stringify(value)).toString('base64url');
-    const header = encode({
-      alg: 'RS256',
-      typ: 'JWT',
-      ...(this.credentials.private_key_id ? { kid: this.credentials.private_key_id } : {}),
-    });
-    const payload = encode({
-      iss: this.credentials.client_email,
+    const assertion = await new jose.SignJWT({
       scope: 'https://www.googleapis.com/auth/androidpublisher',
-      aud: TOKEN_URL,
-      iat: now,
-      exp: now + 3600,
-    });
-    const unsigned = `${header}.${payload}`;
-    const assertion = `${unsigned}.${sign('RSA-SHA256', Buffer.from(unsigned), this.key).toString('base64url')}`;
+    })
+      .setProtectedHeader({
+        alg: 'RS256',
+        typ: 'JWT',
+        ...(this.serviceAccount.private_key_id ? { kid: this.serviceAccount.private_key_id } : {}),
+      })
+      .setIssuer(this.serviceAccount.client_email)
+      .setAudience(TOKEN_URL)
+      .setIssuedAt(now)
+      .setExpirationTime(now + 3600)
+      .sign(this.serviceAccount.private_key);
     const startedAt = Date.now();
-    const response = await this.retryAsync(async () => {
-      const response = await this.fetchAsync(TOKEN_URL, {
-        method: 'POST',
-        redirect: 'manual',
-        signal,
-        body: new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion,
-        }),
-      });
-      if (!response.ok) {
-        // OAuth error bodies can include parts of the credential assertion.
-        throw new GooglePlayApiError(response.status, '', []);
-      }
-      return response;
-    }, signal).catch(error => {
+    let response: Awaited<ReturnType<GooglePlayAuthClient['postAsync']>>;
+    try {
+      response = await promiseRetryWithCondition(
+        () =>
+          this.authClient.postAsync(
+            '/token',
+            {
+              grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+              assertion,
+            },
+            signal
+          ),
+        error =>
+          error instanceof GooglePlayNetworkError ||
+          (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500)),
+        {
+          retries: 5,
+          factor: 2,
+          minTimeout: 1000,
+          maxTimeout: 32_000,
+          randomize: true,
+          signal,
+        }
+      )();
+    } catch (error) {
       if (error instanceof GooglePlayApiError) {
         throw new UserError(
           'EAS_GOOGLE_PLAY_AUTH_FAILED',
@@ -186,50 +295,10 @@ export class GooglePlayClient {
         );
       }
       throw error;
-    });
-    const data = await this.readJsonAsync<{
-      access_token?: string;
-      expires_in?: number;
-      token_type?: string;
-    }>(response);
-    if (
-      !data?.access_token ||
-      typeof data?.access_token !== 'string' ||
-      !Number.isFinite(data?.expires_in) ||
-      data?.expires_in! <= 60 ||
-      data?.token_type?.toLowerCase() !== 'bearer'
-    ) {
-      throw new Error('Google did not return a valid OAuth token.');
     }
-    this.token = { value: data?.access_token, expiresAt: startedAt + data?.expires_in! * 1000 };
-    return this.token.value;
-  }
-
-  isRetryable(error: unknown): boolean {
-    return (
-      error instanceof GooglePlayNetworkError ||
-      (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500))
-    );
-  }
-
-  async waitAsync(attempt: number, signal?: AbortSignal): Promise<void> {
-    await delay(
-      Math.min(2 ** attempt * 1000, 32_000) + Math.floor(Math.random() * 1000),
-      undefined,
-      { signal }
-    );
-  }
-
-  async retryAsync<T>(request: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await request();
-      } catch (error) {
-        if (!this.isRetryable(error) || attempt >= MAX_RETRIES) {
-          throw error;
-        }
-        await this.waitAsync(attempt, signal);
-      }
+    if (this.cachedToken) {
+      this.cachedToken.expiresAt = startedAt + response.expires_in * 1000;
     }
+    return response.access_token;
   }
 }
