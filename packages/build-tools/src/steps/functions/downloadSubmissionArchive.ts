@@ -32,12 +32,22 @@ export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext)
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'extensions',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+        defaultValue: ['apk', 'aab', 'ipa', 'app'],
+      }),
     ],
     outputProviders: [BuildStepOutput.createProvider({ id: 'artifact_path', required: true })],
     fn: async (stepsCtx, { inputs, outputs, signal }) => {
       const submissionId = z.string().uuid().parse(inputs.submission_id.value);
+      const extensions = z.array(z.string()).parse(inputs.extensions.value);
+
       stepsCtx.logger.info(`Downloading archive for submission ${submissionId}...`);
+
       signal?.throwIfAborted();
+
       const result = await ctx.graphqlClient
         .mutation<{ submission: { generateSubmissionArchiveDownloadUrl: string } }>(
           CREATE_ARCHIVE_DOWNLOAD_URL,
@@ -45,37 +55,39 @@ export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext)
           graphqlAbortContext(signal)
         )
         .toPromise();
+
       signal?.throwIfAborted();
+
       if (result.error) {
-        // Do not include response details, which can contain a signed URL.
         throw result.error.networkError || result.error.response?.status >= 500
-          ? new SystemError('Could not request the submission archive. Try again later.')
+          ? new SystemError('Could not request the submission archive. Try again later.', {
+              cause: result.error,
+            })
           : new UserError(
               'EAS_SUBMISSION_ARCHIVE_FETCH_FAILED',
-              'Could not request the submission archive. Check your project access and submit the IPA file or URL again.'
+              'Could not request the submission archive. Check your project access and the submission archive.',
+              { cause: result.error }
             );
       }
+
       const applicationArchiveUrl = result.data?.submission.generateSubmissionArchiveDownloadUrl;
+
       if (!applicationArchiveUrl) {
         throw new SystemError(
           'The server did not return a submission archive URL. Try again later.'
         );
       }
-      try {
-        const { artifactPath } = await downloadBuildAsync({
-          logger: stepsCtx.logger,
-          graphqlClient: ctx.graphqlClient,
-          applicationArchiveUrl,
-          robotAccessToken: null,
-          extensions: ['ipa'],
-          signal,
-        });
-        outputs.artifact_path.set(artifactPath);
-      } catch (error) {
-        signal?.throwIfAborted();
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(message.replaceAll(applicationArchiveUrl, '[archive URL]'));
-      }
+
+      const { artifactPath } = await downloadBuildAsync({
+        logger: stepsCtx.logger,
+        graphqlClient: ctx.graphqlClient,
+        applicationArchiveUrl,
+        robotAccessToken: null,
+        extensions,
+        signal,
+      });
+
+      outputs.artifact_path.set(artifactPath);
     },
   });
 }

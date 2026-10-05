@@ -43,10 +43,11 @@ it('requests a fresh URL on each execution, downloads without auth and does not 
   expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toContain(url);
 });
 
-it('does not expose a URL returned in an API error', async () => {
+it('preserves the API error as the cause without downloading', async () => {
+  const error = new CombinedError({ networkError: new Error('Connection reset') });
   const mutation = jest.fn(() => ({
     toPromise: async () => ({
-      error: new CombinedError({ networkError: new Error(url) }),
+      error,
     }),
   }));
   const step = createDownloadSubmissionArchiveFunction({
@@ -54,6 +55,53 @@ it('does not expose a URL returned in an API error', async () => {
   } as CustomBuildContext).createBuildStepFromFunctionCall(createGlobalContextMock(), {
     callInputs: { submission_id: submissionId },
   });
-  await expect(step.executeAsync()).rejects.toThrow('Could not request the submission archive');
+  await expect(step.executeAsync()).rejects.toMatchObject({
+    message: 'Could not request the submission archive. Try again later.',
+    cause: error,
+  });
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it('uses the requested extension for an archive without a filename extension', async () => {
+  const mutation = jest.fn(() => ({
+    toPromise: async () => ({
+      data: {
+        submission: { generateSubmissionArchiveDownloadUrl: 'https://storage.example/archive' },
+      },
+    }),
+  }));
+  jest.mocked(fetch).mockResolvedValue({
+    ok: true,
+    url: 'https://storage.example/archive',
+    body: Readable.from(Buffer.from('Android archive bytes')),
+    headers: { get: () => null },
+  } as unknown as Response);
+  const step = createDownloadSubmissionArchiveFunction({
+    graphqlClient: { mutation } as unknown as Client,
+  } as CustomBuildContext).createBuildStepFromFunctionCall(createGlobalContextMock(), {
+    callInputs: { submission_id: submissionId, extensions: ['aab'] },
+  });
+
+  await step.executeAsync();
+
+  const artifactPath = step.getOutputValueByName('artifact_path')!;
+  expect(artifactPath).toMatch(/\.aab$/);
+  expect(await fs.promises.readFile(artifactPath, 'utf8')).toBe('Android archive bytes');
+});
+
+it('propagates the original download error', async () => {
+  const error = new Error('Download failed');
+  const mutation = jest.fn(() => ({
+    toPromise: async () => ({
+      data: { submission: { generateSubmissionArchiveDownloadUrl: url } },
+    }),
+  }));
+  jest.mocked(fetch).mockRejectedValue(error);
+  const step = createDownloadSubmissionArchiveFunction({
+    graphqlClient: { mutation } as unknown as Client,
+  } as CustomBuildContext).createBuildStepFromFunctionCall(createGlobalContextMock(), {
+    callInputs: { submission_id: submissionId },
+  });
+
+  await expect(step.executeAsync()).rejects.toBe(error);
 });
