@@ -100,7 +100,7 @@ it('rejects malformed success responses without exposing their contents', async 
       packageName,
       editId: 'edit',
     })
-  ).rejects.toThrow('Google Play returned an invalid response.');
+  ).rejects.toThrow('Malformed response from Google Play (HTTP 200)');
 });
 
 it('retains structured API errors', async () => {
@@ -115,7 +115,10 @@ it('retains structured API errors', async () => {
   ).rejects.toMatchObject({ status: 403, apiMessage: 'Denied', reasons: ['forbidden'] });
 });
 
-it.each(['body', 'query'])('rejects extra fields in an empty %s', async field => {
+it.each(['body', 'query'])('accepts extra fields in an empty %s object', async field => {
+  api()
+    .post(`/androidpublisher/v3/applications/${packageName}/edits`, {})
+    .reply(200, { id: 'edit' });
   await expect(
     client.postAsync(
       '/androidpublisher/v3/applications/:packageName/edits',
@@ -123,5 +126,5 @@ it.each(['body', 'query'])('rejects extra fields in an empty %s', async field =>
       { packageName },
       { query: (field === 'query' ? { unexpected: true } : {}) as never }
     )
-  ).rejects.toBeInstanceOf(ZodError);
+  ).resolves.toEqual({ id: 'edit' });
 });

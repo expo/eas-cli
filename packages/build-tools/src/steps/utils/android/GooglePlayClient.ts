@@ -8,15 +8,15 @@ export class GooglePlayApiError extends Error {
     readonly apiMessage: string,
     readonly reasons: string[]
   ) {
-    super(`Google Play request failed (HTTP ${status}).`);
+    super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
   }
 }
 
 const GetApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
-    request: z.strictObject({}),
-    query: z.strictObject({}),
+    request: z.object({}),
+    query: z.object({}),
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
   '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track': {
@@ -25,8 +25,8 @@ const GetApi = {
       editId: z.string().min(1),
       track: z.string().min(1),
     }),
-    request: z.strictObject({}),
-    query: z.strictObject({}),
+    request: z.object({}),
+    query: z.object({}),
     response: z.object({
       track: z.string().min(1),
       releases: z
@@ -46,20 +46,20 @@ const GetApi = {
 const PostApi = {
   '/androidpublisher/v3/applications/:packageName/edits': {
     path: z.object({ packageName: z.string().min(1) }),
-    request: z.strictObject({}),
-    query: z.strictObject({}),
+    request: z.object({}),
+    query: z.object({}),
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
   '/androidpublisher/v3/applications/:packageName/edits/:editId:commit': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
-    request: z.strictObject({}),
+    request: z.object({}),
     query: z.object({ changesNotSentForReview: z.boolean().optional() }),
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
   '/androidpublisher/v3/applications/:packageName/edits/:editId:validate': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
-    request: z.strictObject({}),
-    query: z.strictObject({}),
+    request: z.object({}),
+    query: z.object({}),
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
 };
@@ -84,7 +84,7 @@ const PutApi = {
         )
         .optional(),
     }),
-    query: z.strictObject({}),
+    query: z.object({}),
     response: z.object({
       track: z.string().min(1),
       releases: z
@@ -199,11 +199,15 @@ export class GooglePlayClient {
       data = await response.json();
     } catch {
       signal?.throwIfAborted();
-      throw new SystemError('Google Play request failed.');
+      throw new SystemError(
+        `Could not read the Google Play JSON response (HTTP ${response.status}).`
+      );
     }
     const parsed = schema.response.safeParse(data);
     if (!parsed.success) {
-      throw new Error('Google Play returned an invalid response.');
+      throw new SystemError(
+        `Malformed response from Google Play (HTTP ${response.status}): ${z.prettifyError(parsed.error)}`
+      );
     }
     return parsed.data;
   }
@@ -217,7 +221,9 @@ export class GooglePlayClient {
   ): Promise<Response> {
     const url = new URL(apiPath, this.baseUrl);
     if (url.origin !== this.baseUrl || url.username || url.password) {
-      throw new Error('Google returned an unsafe upload URL.');
+      throw new SystemError(
+        'Google Play request URL must use the publisher host without URL credentials.'
+      );
     }
     let response: Response;
     signal?.throwIfAborted();
@@ -231,23 +237,28 @@ export class GooglePlayClient {
       });
     } catch {
       signal?.throwIfAborted();
-      throw new SystemError('Google Play request failed.');
+      throw new SystemError('Google Play request failed before a response was received.');
     }
     if (!response.ok && !(options.allowResume && response.status === 308)) {
-      let data: { error?: { message?: unknown; errors?: { reason?: unknown }[] } } = {};
+      let data: unknown;
       try {
         data = await response.json();
       } catch {
-        // HTML, redirects, and proxy errors must not expose a request URL or token.
         signal?.throwIfAborted();
       }
+      const parsed = z
+        .object({
+          error: z.object({
+            message: z.string().optional(),
+            errors: z.array(z.object({ reason: z.string().optional() })).optional(),
+          }),
+        })
+        .safeParse(data);
       throw new GooglePlayApiError(
         response.status,
-        typeof data?.error?.message === 'string' ? data.error.message : '',
-        Array.isArray(data?.error?.errors)
-          ? data.error.errors.flatMap(error =>
-              typeof error.reason === 'string' ? [error.reason] : []
-            )
+        parsed.success ? (parsed.data.error.message ?? '') : '',
+        parsed.success
+          ? (parsed.data.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [])
           : []
       );
     }
