@@ -58,6 +58,18 @@ function mockAssignedGroups(ids: string[] = []): void {
     .reply(200, { data: ids.map(id => ({ id })) });
 }
 
+function mockInternalBuildState(state: string | null = 'READY_FOR_BETA_TESTING'): void {
+  api()
+    .get('/v1/builds/build/buildBetaDetail')
+    .query(true)
+    .reply(
+      state ? 200 : 503,
+      state
+        ? { data: { id: 'detail', attributes: { internalBuildState: state } } }
+        : { errors: [{ code: 'UNAVAILABLE' }] }
+    );
+}
+
 beforeAll(() => nock.disableNetConnect());
 beforeEach(() => {
   jest.mocked(Sentry.capture).mockClear();
@@ -381,6 +393,7 @@ it('attempts all localization changes and reports every failed update', async ()
 
 it.each([1, 2])('explains automatic internal group rejection (%s errors)', async errorCount => {
   mockBuild();
+  mockInternalBuildState();
   mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
@@ -441,6 +454,7 @@ it('tries group assignment if the changelog update fails', async () => {
 
 it('reports both write failures', async () => {
   mockBuild();
+  mockInternalBuildState();
   mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
@@ -462,6 +476,7 @@ it.each([false, true])(
   'attempts all groups and reports assignment errors (multiple: %s)',
   async multiple => {
     mockBuild();
+    mockInternalBuildState();
     mockAssignedGroups();
     api()
       .get('/v1/betaGroups')
@@ -538,55 +553,51 @@ it('propagates Apple write failures', async () => {
 it.each([
   ['MISSING_EXPORT_COMPLIANCE', 'Complete the export compliance questions', false],
   ['IN_EXPORT_COMPLIANCE_REVIEW', 'Wait for Apple to approve', false],
-  ['EXPIRED', 'Check the build status', false],
-  ['PROCESSING', 'Wait for TestFlight processing', true],
-  ['READY_FOR_BETA_TESTING', 'contact Expo support', true],
-  ['IN_BETA_TESTING', 'contact Expo support', true],
-  [null, 'internally testable', true],
-] as const)('diagnoses a rejected assignment once (state: %s)', async (state, guidance, report) => {
-  mockBuild();
-  mockAssignedGroups();
-  api()
-    .get('/v1/betaGroups')
-    .query({ 'filter[app]': 'app', limit: '200' })
-    .reply(200, {
-      data: ['A', 'B'].map(id => ({ id, attributes: { name: id } })),
-    });
-  api()
-    .post('/v1/builds/build/relationships/betaGroups', {
-      data: [{ type: 'betaGroups', id: 'A' }],
-    })
-    .reply(422, {
-      errors: [
-        { code: 'ENTITY_UNPROCESSABLE', detail: 'Build is not in an internally testable state.' },
-      ],
-    });
-  api()
-    .get('/v1/builds/build/buildBetaDetail')
-    .query(true)
-    .reply(
-      state ? 200 : 503,
-      state
-        ? { data: { id: 'detail', attributes: { internalBuildState: state } } }
-        : { errors: [{ code: 'UNAVAILABLE' }] }
-    );
-  // A failed assignment must not prevent the next group from being assigned.
-  api()
-    .post('/v1/builds/build/relationships/betaGroups', {
-      data: [{ type: 'betaGroups', id: 'B' }],
-    })
-    .reply(204);
-  await expect(
-    updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B'] })
-  ).rejects.toThrow(guidance);
-  if (state) {
-    expect(options.logger.info).toHaveBeenCalledWith(expect.stringContaining(`state = ${state}`));
+  ['EXPIRED', 'ASSIGNMENT_FAILED', false],
+  ['PROCESSING', 'ASSIGNMENT_FAILED', true],
+  ['READY_FOR_BETA_TESTING', 'ASSIGNMENT_FAILED', true],
+  ['IN_BETA_TESTING', 'ASSIGNMENT_FAILED', true],
+  [null, 'ASSIGNMENT_FAILED', true],
+] as const)(
+  'shares one diagnostic lookup across failed assignments (state: %s)',
+  async (state, guidance, report) => {
+    mockBuild();
+    mockAssignedGroups();
+    api()
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, {
+        data: ['A', 'B', 'C'].map(id => ({ id, attributes: { name: id } })),
+      });
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'A' }],
+      })
+      .reply(403, { errors: [{ code: 'ASSIGNMENT_FAILED' }] });
+    mockInternalBuildState(state);
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'B' }],
+      })
+      .reply(422, { errors: [{ code: 'ASSIGNMENT_FAILED' }] });
+    // A failed assignment must not prevent the next group from being assigned.
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'C' }],
+      })
+      .reply(204);
+    await expect(
+      updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
+    ).rejects.toThrow(guidance);
+    if (state) {
+      expect(options.logger.info).toHaveBeenCalledWith(expect.stringContaining(`state = ${state}`));
+    }
+    expect(Sentry.capture).toHaveBeenCalledTimes(report ? (state ? 2 : 1) : 0);
+    if (report && state) {
+      expect(Sentry.capture).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+        tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
+        extras: { appId: 'app', buildId: 'build', groupId: 'A' },
+      });
+    }
   }
-  expect(Sentry.capture).toHaveBeenCalledTimes(report ? 1 : 0);
-  if (report && state) {
-    expect(Sentry.capture).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
-      tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
-      extras: { appId: 'app', buildId: 'build', groupId: 'A' },
-    });
-  }
-});
+);
