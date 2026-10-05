@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.11.0](https://github.com/expo/eas-cli/releases/tag/v24.11.0) - 2026-10-05
+
+### 🎉 New features
+
 - [build-tools] Record iOS Simulator sessions through serve-sim. ([#4474](https://github.com/expo/eas-cli/pull/4474) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add browser device login with resumable commands for chat agents. ([#4502](https://github.com/expo/eas-cli/pull/4502) by [@eiiot](https://github.com/eiiot))
 - [build-tools] Upload the display rotation agent-device reports for a screenshot as device run session artifact metadata. ([#4508](https://github.com/expo/eas-cli/pull/4508) by [@szdziedzic](https://github.com/szdziedzic))
