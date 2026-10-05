@@ -58,7 +58,6 @@ export namespace ServeSimNetworkCaptureRecorder {
     stateDir = SERVE_SIM_STATE_DIR,
     pollIntervalMs = POLL_INTERVAL_MS,
     restartIntervalMs = FOLLOWER_RESTART_INTERVAL_MS,
-    serveSimCommand,
   }: {
     logger: bunyan;
     env: BuildStepEnv;
@@ -66,18 +65,14 @@ export namespace ServeSimNetworkCaptureRecorder {
     stateDir?: string;
     pollIntervalMs?: number;
     restartIntervalMs?: number;
-    /** For a local build, e.g. `['bun', 'dist/serve-sim.js']`. */
-    serveSimCommand?: string[];
   }): Promise<void> {
     if (activeSession) {
       logger.info('The serve-sim network capture recorder is already running.');
       return;
     }
-    const command = serveSimCommand
-      ? { command: serveSimCommand[0], args: serveSimCommand.slice(1) }
-      : resolvePackageExec(resolveConfiguredPackageManager(env, PackageManager.NPM), [
-          createServeSimPackageSpec(packageVersion),
-        ]);
+    const command = resolvePackageExec(resolveConfiguredPackageManager(env, PackageManager.NPM), [
+      createServeSimPackageSpec(packageVersion),
+    ]);
     const session: ServeSimNetworkCaptureSession = {
       logger,
       stateDir,

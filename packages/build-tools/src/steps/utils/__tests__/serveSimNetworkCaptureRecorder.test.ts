@@ -96,7 +96,7 @@ it('starts a new follower only when serve-sim restarts for the device', async ()
     env,
     stateDir,
     pollIntervalMs: 10,
-    serveSimCommand: ['bun', 'serve-sim.js'],
+    packageVersion: '0.5.0',
   });
   await waitForFollowersAsync(1);
   await delay(50);
@@ -104,9 +104,10 @@ it('starts a new follower only when serve-sim restarts for the device', async ()
 
   await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-restarted' });
   await waitForFollowersAsync(2);
-  expect(jest.mocked(spawnDetached).mock.calls[1][0].command).toBe('bun');
+  expect(jest.mocked(spawnDetached).mock.calls[1][0].command).toBe('npx');
   expect(followerArgs()[1]).toEqual([
-    'serve-sim.js',
+    '--yes',
+    '@expo/serve-sim@0.5.0',
     'capture',
     'har',
     '-o',
