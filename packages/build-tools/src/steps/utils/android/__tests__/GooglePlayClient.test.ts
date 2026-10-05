@@ -1,35 +1,22 @@
 import nock from 'nock';
-import { createPrivateKey, createPublicKey, verify } from 'node:crypto';
+import { SystemError } from '@expo/eas-build-job';
 import { ZodError } from 'zod';
 
-import {
-  api,
-  editPath,
-  mockToken,
-  packageName,
-  serviceAccount,
-} from './fixtures/googlePlayTestUtils';
-import { GooglePlayAuthClient } from '../GooglePlayAuthClient';
-import { GooglePlayClient, GooglePlayNetworkError } from '../GooglePlayClient';
+import { GooglePlayClient } from '../GooglePlayClient';
+
+const packageName = 'dev.expo.submitfixture';
+const editPath = `/androidpublisher/v3/applications/${packageName}/edits/edit`;
+const api = (): nock.Scope =>
+  nock('https://androidpublisher.googleapis.com', {
+    reqheaders: { authorization: 'Bearer test-access-token' },
+  });
 
 jest.unmock('node-fetch');
 
 let client: GooglePlayClient;
 beforeEach(() => {
   nock.disableNetConnect();
-  const authClient = new GooglePlayAuthClient();
-  jest.spyOn(authClient, 'postAsync').mockResolvedValue({
-    access_token: 'test-access-token',
-    expires_in: 3600,
-    token_type: 'Bearer',
-  });
-  client = new GooglePlayClient(
-    {
-      ...serviceAccount,
-      private_key: createPrivateKey(serviceAccount.private_key),
-    },
-    authClient
-  );
+  client = new GooglePlayClient({ token: 'test-access-token' });
 });
 afterEach(() => {
   const pending = nock.pendingMocks();
@@ -91,7 +78,7 @@ it('does not retry an ambiguous edit commit', async () => {
       { packageName, editId: 'edit' },
       { query: { changesNotSentForReview: false } }
     )
-  ).rejects.toBeInstanceOf(GooglePlayNetworkError);
+  ).rejects.toBeInstanceOf(SystemError);
 });
 
 it('deletes an edit with an empty response', async () => {
@@ -128,108 +115,13 @@ it('retains structured API errors', async () => {
   ).rejects.toMatchObject({ status: 403, apiMessage: 'Denied', reasons: ['forbidden'] });
 });
 
-it('signs the service-account JWT, shares a token across concurrent requests, and refreshes before expiry', async () => {
-  client = new GooglePlayClient({
-    ...serviceAccount,
-    private_key: createPrivateKey(serviceAccount.private_key),
-  });
-  api().get(editPath).times(3).reply(200, { id: 'edit' });
-  let assertion: string | undefined;
-  nock('https://oauth2.googleapis.com')
-    .post('/token', body => {
-      assertion = body.assertion;
-      return body.grant_type === 'urn:ietf:params:oauth:grant-type:jwt-bearer';
-    })
-    .reply(200, { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' });
-  await Promise.all([
-    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-      packageName,
-      editId: 'edit',
-    }),
-    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-      packageName,
-      editId: 'edit',
-    }),
-  ]);
-  const [header, payload, signature] = assertion!.split('.');
-  expect(JSON.parse(Buffer.from(payload, 'base64url').toString())).toMatchObject({
-    iss: serviceAccount.client_email,
-    aud: 'https://oauth2.googleapis.com/token',
-    scope: 'https://www.googleapis.com/auth/androidpublisher',
-  });
-  expect(
-    verify(
-      'RSA-SHA256',
-      Buffer.from(`${header}.${payload}`),
-      createPublicKey(serviceAccount.private_key),
-      Buffer.from(signature, 'base64url')
+it.each(['body', 'query'])('rejects extra fields in an empty %s', async field => {
+  await expect(
+    client.postAsync(
+      '/androidpublisher/v3/applications/:packageName/edits',
+      (field === 'body' ? { unexpected: true } : {}) as never,
+      { packageName },
+      { query: (field === 'query' ? { unexpected: true } : {}) as never }
     )
-  ).toBe(true);
-  const now = Date.now();
-  jest.spyOn(Date, 'now').mockReturnValue(now + 3540_001);
-  mockToken();
-  await client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-    packageName,
-    editId: 'edit',
-  });
-});
-
-it.each([429, 503])('retries temporary OAuth HTTP %s failures', async status => {
-  client = new GooglePlayClient({
-    ...serviceAccount,
-    private_key: createPrivateKey(serviceAccount.private_key),
-  });
-  nock('https://oauth2.googleapis.com').post('/token').reply(status);
-  mockToken();
-  api().get(editPath).reply(200, { id: 'edit' });
-  await expect(
-    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-      packageName,
-      editId: 'edit',
-    })
-  ).resolves.toEqual({ id: 'edit' });
-});
-
-it('cancels an OAuth retry wait and permits a later token request', async () => {
-  client = new GooglePlayClient({
-    ...serviceAccount,
-    private_key: createPrivateKey(serviceAccount.private_key),
-  });
-  const controller = new AbortController();
-  const reason = new Error('Cancelled by caller');
-  nock('https://oauth2.googleapis.com')
-    .post('/token')
-    .reply(() => {
-      setTimeout(() => controller.abort(reason), 20);
-      return [503, {}];
-    });
-  await expect(
-    client.getAsync(
-      '/androidpublisher/v3/applications/:packageName/edits/:editId',
-      { packageName, editId: 'edit' },
-      controller.signal
-    )
-  ).rejects.toBe(reason);
-  mockToken();
-  api().get(editPath).reply(200, { id: 'edit' });
-  await expect(
-    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-      packageName,
-      editId: 'edit',
-    })
-  ).resolves.toEqual({ id: 'edit' });
-});
-
-it('does not retry a permanent OAuth HTTP failure', async () => {
-  client = new GooglePlayClient({
-    ...serviceAccount,
-    private_key: createPrivateKey(serviceAccount.private_key),
-  });
-  nock('https://oauth2.googleapis.com').post('/token').reply(403);
-  await expect(
-    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
-      packageName,
-      editId: 'edit',
-    })
-  ).rejects.toThrow('Google could not authorize the service account (HTTP 403).');
+  ).rejects.toBeInstanceOf(ZodError);
 });
