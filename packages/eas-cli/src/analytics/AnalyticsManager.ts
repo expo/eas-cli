@@ -122,6 +122,16 @@ export async function getAnalyticsEnabledAsync(): Promise<boolean> {
 }
 
 /**
+ * Returns true when the user opted out of analytics with DISABLE_EAS_ANALYTICS or `eas analytics off`.
+ */
+export async function isAnalyticsOptedOutAsync(): Promise<boolean> {
+  if (process.env.DISABLE_EAS_ANALYTICS) {
+    return true;
+  }
+  return (await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true)) === false;
+}
+
+/**
  * Create an instance of Analytics based on the user's analytics enabled preferences.
  */
 export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration> {

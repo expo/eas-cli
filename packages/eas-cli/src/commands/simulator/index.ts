@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
+import { isAnalyticsOptedOutAsync } from '../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../analytics/agent';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -278,6 +279,7 @@ export default class Simulator extends EasCommand {
     let deviceRunSessionUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
+      const agentIdentity = await agentIdentityInputAsync();
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
         name,
@@ -301,7 +303,7 @@ export default class Simulator extends EasCommand {
         ...(resourceClass ? { resourceClass } : {}),
         ...(egress ? { egress } : {}),
         requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-        ...agentIdentityInput(),
+        ...agentIdentity,
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
@@ -736,7 +738,10 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
   }
 }
 
-function agentIdentityInput(): { agentId?: string; agentSessionId?: string } {
+async function agentIdentityInputAsync(): Promise<{ agentId?: string; agentSessionId?: string }> {
+  if (await isAnalyticsOptedOutAsync()) {
+    return {};
+  }
   const agent = getAgentTelemetryContext();
   if (!agent) {
     return {};
