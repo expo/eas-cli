@@ -45570,7 +45570,7 @@
           },
           {
             "name": "egress",
-            "description": "Where the virtual device's proxied network traffic exits to the internet. If\nomitted, all traffic exits from EAS infrastructure. LOCAL is only supported for\nsessions on IOS.",
+            "description": "Where the virtual device's proxied network traffic exits to the internet. If\nomitted, all traffic exits from EAS infrastructure.",
             "type": {
               "kind": "ENUM",
               "name": "DeviceRunSessionEgress",
@@ -45655,6 +45655,38 @@
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "networkCapture",
+            "description": "Record HTTP(S) traffic from apps on the device for the whole session. iOS only.\nHTTPS is decrypted, so recordings contain credentials and cookies in cleartext.\nIf omitted, no traffic is recorded.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "networkCaptureFields",
+            "description": "What network capture may keep beyond method, URL, status, timing and size: header, query,\nrequest-body, response-body. Each can carry credentials, so nothing here is recorded unless\nit is asked for. Requires networkCapture.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -51721,6 +51753,18 @@
           {
             "name": "NEW",
             "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "QUEUED",
+            "description": "The session's job run waits in the queue for a worker.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "STARTING",
+            "description": "A worker runs the session's job and prepares the virtual device.",
             "isDeprecated": false,
             "deprecationReason": null
           },

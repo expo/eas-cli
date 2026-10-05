@@ -6414,8 +6414,7 @@ export type CreateDeviceRunSessionInput = {
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
    * Where the virtual device's proxied network traffic exits to the internet. If
-   * omitted, all traffic exits from EAS infrastructure. LOCAL is only supported for
-   * sessions on IOS.
+   * omitted, all traffic exits from EAS infrastructure.
    */
   egress?: InputMaybe<DeviceRunSessionEgress>;
   /**
@@ -6452,6 +6451,18 @@ export type CreateDeviceRunSessionInput = {
    * fall back to identifying it by id.
    */
   name?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Record HTTP(S) traffic from apps on the device for the whole session. iOS only.
+   * HTTPS is decrypted, so recordings contain credentials and cookies in cleartext.
+   * If omitted, no traffic is recorded.
+   */
+  networkCapture?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * What network capture may keep beyond method, URL, status, timing and size: header, query,
+   * request-body, response-body. Each can carry credentials, so nothing here is recorded unless
+   * it is asked for. Requires networkCapture.
+   */
+  networkCaptureFields?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Expo or development-client URL to open after launching the installed application. Requires
    * buildId, applicationArchiveUrl, or expoGo.
@@ -7322,6 +7333,10 @@ export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
   InProgress = 'IN_PROGRESS',
   New = 'NEW',
+  /** The session's job run waits in the queue for a worker. */
+  Queued = 'QUEUED',
+  /** A worker runs the session's job and prepares the virtual device. */
+  Starting = 'STARTING',
   Stopped = 'STOPPED'
 }
 

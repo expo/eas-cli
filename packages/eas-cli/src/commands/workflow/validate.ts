@@ -58,6 +58,7 @@ export class WorkflowValidate extends EasCommand {
       spinner.succeed('Workflow configuration YAML is valid.');
     } catch (error) {
       spinner.fail('Workflow configuration YAML is not valid.');
+      process.exitCode = 1;
 
       logWorkflowValidationErrors(error);
     }

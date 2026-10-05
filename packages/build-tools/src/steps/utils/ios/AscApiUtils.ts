@@ -1,17 +1,81 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import * as jose from 'jose';
 import { z } from 'zod';
+
+import { isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 
 import {
   AscApiClient,
   AscApiClientGetApi,
   AscApiClientPostApi,
+  AscApiKey,
   AscApiRequestError,
   AscPlatform,
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  export async function commitBuildUploadFileAsync({
+    client,
+    fileId,
+    logger,
+  }: {
+    client: AscApiClient;
+    fileId: string;
+    logger: bunyan;
+  }): Promise<void> {
+    try {
+      await promiseRetryWithCondition(
+        async () => {
+          const { data } = await client.getAsync(
+            '/v1/buildUploadFiles/:id',
+            { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+            { id: fileId }
+          );
+          if (['COMPLETE', 'FAILED'].includes(data.attributes.assetDeliveryState.state)) {
+            return;
+          }
+          await client.patchAsync(
+            '/v1/buildUploadFiles/:id',
+            { data: { type: 'buildUploadFiles', id: fileId, attributes: { uploaded: true } } },
+            { id: fileId }
+          );
+        },
+        error => isConnectionInterruptedError(error),
+        { retries: 3, factor: 1, minTimeout: 2000 },
+        ({ attemptNumber, maxAttemptsCount, error }) =>
+          logger.warn(
+            { err: error },
+            `Checking upload file before commit attempt ${attemptNumber}/${maxAttemptsCount}.`
+          )
+      )();
+    } catch (error) {
+      if (!isConnectionInterruptedError(error)) {
+        throw error;
+      }
+      // Apple may have accepted the final commit even though its response was lost.
+      try {
+        const { data } = await client.getAsync(
+          '/v1/buildUploadFiles/:id',
+          { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+          { id: fileId }
+        );
+        if (data.attributes.assetDeliveryState.state === 'COMPLETE') {
+          logger.info(`Upload file ${fileId}: COMPLETE confirmed after the final commit error.`);
+          return;
+        }
+      } catch (readError) {
+        logger.warn(
+          { err: readError },
+          `Could not check upload file ${fileId} after the final commit error.`
+        );
+      }
+      throw error;
+    }
+  }
+
   export async function getAllBetaBuildLocalizationsAsync({
     client,
     buildId,
@@ -64,22 +128,15 @@ export namespace AscApiUtils {
     return groups;
   }
 
-  export async function signTokenAsync({ keyPath }: { keyPath: string }): Promise<string> {
+  export async function loadApiKeyAsync({ keyPath }: { keyPath: string }): Promise<AscApiKey> {
     const keyJson = z
       .object({ issuer_id: z.string().nullish(), key_id: z.string(), key: z.string() })
       .parse(await fs.readJson(keyPath));
-    const privateKey = await jose.importPKCS8(keyJson.key, 'ES256');
-    const jwt = new jose.SignJWT({})
-      .setProtectedHeader({ alg: 'ES256', kid: keyJson.key_id })
-      .setAudience('appstoreconnect-v1')
-      .setExpirationTime('20m');
-    if (keyJson.issuer_id) {
-      jwt.setIssuer(keyJson.issuer_id);
-    } else {
-      // An individual API key has no issuer ID.
-      jwt.setSubject('user');
-    }
-    return await jwt.sign(privateKey);
+    return {
+      keyId: keyJson.key_id,
+      issuerId: keyJson.issuer_id,
+      privateKey: await jose.importPKCS8(keyJson.key, 'ES256'),
+    };
   }
 
   /**
@@ -130,12 +187,13 @@ export namespace AscApiUtils {
         { id: appleAppIdentifier }
       );
     } catch (error) {
-      const notFoundErrors =
-        error instanceof AscApiRequestError && error.status === 404
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isAppNotFoundError =
-        notFoundErrors.length > 0 && notFoundErrors.every(item => item.code === 'NOT_FOUND');
+        errors.length > 0 &&
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError && item.status === 404 && item.code === 'NOT_FOUND'
+        );
       if (!isAppNotFoundError) {
         throw error;
       }
@@ -197,13 +255,15 @@ export namespace AscApiUtils {
         },
       });
     } catch (error) {
-      const errors =
-        error instanceof AscApiRequestError && error.status === 409
-          ? error.responseJson.errors
-          : [];
+      const errors = error instanceof AggregateError ? error.errors : [error];
       const isDuplicateVersionError =
         errors.length > 0 &&
-        errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');
+        errors.every(
+          item =>
+            item instanceof AscApiRequestError &&
+            item.status === 409 &&
+            item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE'
+        );
 
       if (isDuplicateVersionError) {
         throw new UserError(

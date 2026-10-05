@@ -1,4 +1,8 @@
-import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graphql/generated';
+import {
+  AppPlatform,
+  DeviceRunSessionResourceClass,
+  DeviceRunSessionType,
+} from '../../graphql/generated';
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
@@ -52,6 +56,7 @@ describe('local egress configuration', () => {
       fingerprint: 'fp=',
       port: 8899,
       allow: [],
+      platform: AppPlatform.Ios,
     });
     expect(getRemoteSessionEnvironmentVariables(agentDeviceConfigWithEgress)).toEqual({
       AGENT_DEVICE_DAEMON_BASE_URL: 'https://agent-device.example.test',
@@ -61,6 +66,7 @@ describe('local egress configuration', () => {
       EAS_SIMULATOR_EGRESS_FINGERPRINT: 'fp=',
       EAS_SIMULATOR_EGRESS_PORT: '8899',
       EAS_SIMULATOR_EGRESS_ALLOW: '',
+      EAS_SIMULATOR_EGRESS_PLATFORM: 'ios',
     });
     const instructions = formatRemoteSessionInstructions(agentDeviceConfigWithEgress, 'dotenv');
     expect(instructions).toContain(
@@ -160,6 +166,16 @@ describe(getLoopbackForwardPlan, () => {
 
   it('returns an empty plan without allow entries', () => {
     expect(getLoopbackForwardPlan([], 8899)).toEqual({ ports: [], skipped: [] });
+  });
+
+  it('also skips the relay port the Android emulator proxy uses', () => {
+    expect(getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899)).toEqual({
+      ports: [8081, 8898],
+      skipped: [],
+    });
+    expect(
+      getLoopbackForwardPlan(['localhost:8898', 'localhost:8081'], 8899, AppPlatform.Android)
+    ).toEqual({ ports: [8081], skipped: ['localhost:8898'] });
   });
 });
 
@@ -571,6 +587,7 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       EAS_SIMULATOR_EGRESS_FINGERPRINT: egress.egressFingerprint,
       EAS_SIMULATOR_EGRESS_PORT: '8899',
       EAS_SIMULATOR_EGRESS_ALLOW: '',
+      EAS_SIMULATOR_EGRESS_PLATFORM: 'ios',
     });
     expect(getLocalEgressConfig(withEgress)).toEqual({
       url: egress.egressUrl,
@@ -578,6 +595,7 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
       fingerprint: egress.egressFingerprint,
       port: 8899,
       allow: [],
+      platform: AppPlatform.Ios,
     });
     const dotenvInstructions = formatRemoteSessionInstructions(withEgress, 'dotenv');
     expect(dotenvInstructions).toContain('eas simulator:egress');

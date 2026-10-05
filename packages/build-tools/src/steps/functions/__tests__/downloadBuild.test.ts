@@ -563,6 +563,34 @@ describe('downloadBuild', () => {
 });
 
 describe('createDownloadBuildFunction', () => {
+  it('aborts a pending archive request when the step times out', async () => {
+    let requestAborted = false;
+    jest.mocked(fetch).mockImplementation(
+      async (_url, options) =>
+        await new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            requestAborted = true;
+            reject(new Error('Archive request aborted'));
+          });
+        })
+    );
+    const graphqlClient = createMockGraphqlClient({});
+    const step = createDownloadBuildFunction({
+      graphqlClient,
+    } as any).createBuildStepFromFunctionCall(
+      createGlobalContextMock({ staticContextContent: { job: {} } }),
+      {
+        callInputs: { application_archive_url: APPLICATION_ARCHIVE_URL, extensions: ['ipa'] },
+        timeoutMs: 100,
+      }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow('timed out');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(requestAborted).toBe(true);
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+  });
+
   it('should download a build', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({

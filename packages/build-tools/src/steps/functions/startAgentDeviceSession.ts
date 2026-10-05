@@ -17,10 +17,11 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { withLocalEgressSession } from '../utils/localEgressSession';
+import { selectXcodeDeveloperDirectoryAsync } from '../utils/remoteDeviceRunSession';
 import {
-  parseServeSimLaunchInputs,
-  selectXcodeDeveloperDirectoryAsync,
-} from '../utils/remoteDeviceRunSession';
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { createStartupTasks } from '../utils/startupTasks';
 
 import { downloadBuildAsync } from './downloadBuild';
@@ -43,9 +44,9 @@ const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
  * One step for a whole agent-device session: boot the device, download, install and
  * launch the app, and start the agent-device daemon and the web preview.
  *
- * It replaces eas/start_ios_simulator or eas/start_android_emulator, eas/download_build,
- * eas/install_build, eas/launch_application and eas/start_agent_device_remote_session,
- * so the parts that do not depend on each other can run at the same time:
+ * It does the work of eas/start_ios_simulator or eas/start_android_emulator,
+ * eas/download_build, eas/install_build and eas/launch_application, plus the agent-device
+ * session, so the parts that do not depend on each other can run at the same time:
  *
  *   boot ─────────────┬─► install ─► launch ─┐
  *   download ─────────┘                      │
@@ -112,6 +113,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       // Session.
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -154,6 +156,13 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         );
       }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
+      const capture = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture.value,
+          networkCaptureFields: inputs.network_capture_fields.value,
+        },
+        { runtimePlatform }
+      );
 
       if (isIos) {
         // Before the boot, so every Xcode tool below uses the same developer directory.
@@ -249,8 +258,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         // A missing or non-positive value disables the idle timeout (opt-in feature).
         maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
         maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
-        // The app is launched with simctl / adb above, not by serve-sim.
-        launch: parseServeSimLaunchInputs({}, { runtimePlatform }),
+        capture,
         tasks,
         device: { booted, ready },
       });

@@ -19,6 +19,7 @@ import { generateGymfileFromTemplateFunction } from './functions/generateGymfile
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallMitmproxyBuildFunction } from './functions/installMitmproxy';
 import { createInstallBuildFunction } from './functions/installBuild';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
@@ -44,7 +45,6 @@ import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
-import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
 import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
@@ -103,7 +103,6 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
-    createStartAgentDeviceRemoteSessionBuildFunction(ctx),
     createStartAgentDeviceSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
     createStartAppiumRemoteSessionBuildFunction(ctx),
@@ -121,6 +120,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartSandboxBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
+    createInstallMitmproxyBuildFunction(),
 
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),
