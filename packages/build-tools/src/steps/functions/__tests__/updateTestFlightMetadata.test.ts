@@ -596,9 +596,9 @@ it.each([
     expect(failure.errors[0]).toBe(failure.errors[1]);
     expect(failure.errors[0].message).toContain(guidance);
     expect(
-      jest.mocked(options.logger.info).mock.calls.filter(([message]) =>
-        String(message).includes('internal TestFlight state =')
-      )
+      jest
+        .mocked(options.logger.info)
+        .mock.calls.filter(([message]) => String(message).includes('internal TestFlight state ='))
     ).toEqual([[`Apple build build: internal TestFlight state = ${state ?? 'UNKNOWN'}.`]]);
     expect(Sentry.capture).toHaveBeenCalledTimes(1);
     expect(Sentry.capture).toHaveBeenCalledWith(
