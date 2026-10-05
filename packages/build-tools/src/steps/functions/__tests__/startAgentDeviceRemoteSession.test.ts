@@ -6,7 +6,6 @@ import path from 'node:path';
 import { Sentry } from '../../../sentry';
 import { spawnDetached } from '../../utils/remoteDeviceRunSession';
 import {
-  type AgentDeviceDaemonPolicy,
   startAgentDeviceDaemonAsync,
   stopAgentDeviceEventCollectionSafelyAsync,
 } from '../startAgentDeviceRemoteSession';
@@ -68,21 +67,6 @@ describe(stopAgentDeviceEventCollectionSafelyAsync, () => {
 });
 
 describe(startAgentDeviceDaemonAsync, () => {
-  const policy: AgentDeviceDaemonPolicy = {
-    version: 1,
-    devices: { allow: [{ udid: 'SIMULATOR-UDID' }] },
-    commands: { deny: ['boot', 'shutdown'] },
-    capabilities: { deny: ['device-shutdown'] },
-  };
-  const waitForPolicyAsync = jest.fn(async () => policy);
-
-  /** Returns the policy file of the launched daemon, after it checks the file's content. */
-  async function expectLaunchedWithPolicyAsync(): Promise<string> {
-    const policyPath = jest.mocked(spawnDetached).mock.calls[0][0].env
-      .AGENT_DEVICE_DAEMON_POLICY as string;
-    expect(JSON.parse(await fs.promises.readFile(policyPath, 'utf8'))).toEqual(policy);
-    return policyPath;
-  }
   const stopAsync = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
@@ -112,7 +96,6 @@ describe(startAgentDeviceDaemonAsync, () => {
   it('installs with bun add by default and launches the published daemon', async () => {
     const handle = await startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
-      waitForPolicyAsync,
       env: {},
       logger,
     });
@@ -131,65 +114,16 @@ describe(startAgentDeviceDaemonAsync, () => {
         AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
         AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
         AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
-        AGENT_DEVICE_DAEMON_POLICY: expect.any(String),
       }),
     });
-    const policyPath = await expectLaunchedWithPolicyAsync();
 
     await handle.stopAsync();
-    expect(stopAsync).toHaveBeenCalledTimes(1);
     await expect(fs.promises.access(addCwd)).rejects.toThrow();
-    await expect(fs.promises.access(path.dirname(policyPath))).rejects.toThrow();
-  });
-
-  it('waits for the policy only after the install', async () => {
-    const order: string[] = [];
-    const baseSpawn = jest.mocked(spawn).getMockImplementation()!;
-    jest.mocked(spawn).mockImplementation(((...args: Parameters<typeof baseSpawn>) => {
-      order.push('install');
-      return baseSpawn(...args);
-    }) as never);
-
-    const handle = await startAgentDeviceDaemonAsync({
-      packageVersion: '1.2.3',
-      waitForPolicyAsync: async () => {
-        order.push('policy');
-        return policy;
-      },
-      env: {},
-      logger,
-    });
-
-    expect(order).toEqual(['install', 'policy']);
-    await handle.stopAsync();
-  });
-
-  it('removes its files and launches nothing when the policy wait fails', async () => {
-    const failure = new Error('boot failed');
-
-    await expect(
-      startAgentDeviceDaemonAsync({
-        packageVersion: '1.2.3',
-        waitForPolicyAsync: async () => {
-          throw failure;
-        },
-        env: {},
-        logger,
-      })
-    ).rejects.toBe(failure);
-
-    const addCwd = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
-    await expect(fs.promises.access(addCwd)).rejects.toThrow();
-    expect(spawnDetached).not.toHaveBeenCalled();
-    // A failed policy wait is not an install problem, so there is no git fallback.
-    expect(spawn).toHaveBeenCalledTimes(1);
-    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it('installs with npm when EAS_OVERRIDE_PACKAGE_MANAGER is npm', async () => {
-    const handle = await startAgentDeviceDaemonAsync({
+    await startAgentDeviceDaemonAsync({
       packageVersion: undefined,
-      waitForPolicyAsync,
       env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' },
       logger,
     });
@@ -199,7 +133,6 @@ describe(startAgentDeviceDaemonAsync, () => {
       ['install', '--no-audit', 'agent-device@latest'],
       expect.objectContaining({ cwd: expect.stringContaining('eas-agent-device-') })
     );
-    await handle.stopAsync();
   });
 
   it('kills the install and does not fall back to git when aborted', async () => {
@@ -214,7 +147,6 @@ describe(startAgentDeviceDaemonAsync, () => {
 
     const daemon = startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
-      waitForPolicyAsync,
       env: {},
       logger,
       signal: controller.signal,
@@ -241,9 +173,8 @@ describe(startAgentDeviceDaemonAsync, () => {
       return { stdout: '' };
     }) as never);
 
-    const handle = await startAgentDeviceDaemonAsync({
+    await startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
-      waitForPolicyAsync,
       env: {},
       logger,
     });
@@ -275,12 +206,8 @@ describe(startAgentDeviceDaemonAsync, () => {
         AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
         AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
         AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
-        AGENT_DEVICE_DAEMON_POLICY: expect.any(String),
       }),
     });
-    const policyPath = await expectLaunchedWithPolicyAsync();
-    await handle.stopAsync();
-    await expect(fs.promises.access(path.dirname(policyPath))).rejects.toThrow();
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Failed to start agent-device daemon from the configured package manager; falling back to git clone',
       expect.any(Error),
@@ -302,13 +229,11 @@ describe(startAgentDeviceDaemonAsync, () => {
       return { stdout: '' };
     }) as never);
 
-    const handle = await startAgentDeviceDaemonAsync({
+    await startAgentDeviceDaemonAsync({
       packageVersion: undefined,
-      waitForPolicyAsync,
       env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' },
       logger,
     });
-    await handle.stopAsync();
 
     expect(spawn).toHaveBeenCalledWith(
       'git',
