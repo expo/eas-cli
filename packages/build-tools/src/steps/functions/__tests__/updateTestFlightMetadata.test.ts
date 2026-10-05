@@ -3,6 +3,7 @@ import { generateKeyPairSync } from 'node:crypto';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
 import { AscApiClient } from '../../utils/ios/AscApiClient';
 import {
   createUpdateTestFlightMetadataBuildFunction,
@@ -10,6 +11,7 @@ import {
 } from '../updateTestFlightMetadata';
 
 jest.unmock('node-fetch');
+jest.mock('../../../sentry', () => ({ Sentry: { capture: jest.fn() } }));
 
 const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
 const key = { keyId: 'TESTKEY', privateKey };
@@ -56,8 +58,21 @@ function mockAssignedGroups(ids: string[] = []): void {
     .reply(200, { data: ids.map(id => ({ id })) });
 }
 
+function mockInternalBuildState(state: string | null = 'READY_FOR_BETA_TESTING'): void {
+  api()
+    .get('/v1/builds/build/buildBetaDetail')
+    .query(true)
+    .reply(
+      state ? 200 : 503,
+      state
+        ? { data: { id: 'detail', attributes: { internalBuildState: state } } }
+        : { errors: [{ code: 'UNAVAILABLE' }] }
+    );
+}
+
 beforeAll(() => nock.disableNetConnect());
 beforeEach(() => {
+  jest.mocked(Sentry.capture).mockClear();
   options.logger = createMockLogger();
   options.client = new AscApiClient({ key });
 });
@@ -378,6 +393,7 @@ it('attempts all localization changes and reports every failed update', async ()
 
 it.each([1, 2])('explains automatic internal group rejection (%s errors)', async errorCount => {
   mockBuild();
+  mockInternalBuildState();
   mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
@@ -438,6 +454,7 @@ it('tries group assignment if the changelog update fails', async () => {
 
 it('reports both write failures', async () => {
   mockBuild();
+  mockInternalBuildState();
   mockAssignedGroups();
   api()
     .get('/v1/betaGroups')
@@ -459,6 +476,7 @@ it.each([false, true])(
   'attempts all groups and reports assignment errors (multiple: %s)',
   async multiple => {
     mockBuild();
+    mockInternalBuildState();
     mockAssignedGroups();
     api()
       .get('/v1/betaGroups')
@@ -484,7 +502,7 @@ it.each([false, true])(
       .reply(204);
     await expect(
       updateTestFlightMetadataAsync({ ...options, changelog: '', groups: ['A', 'B', 'C'] })
-    ).rejects.toThrow(multiple ? /FIRST_GROUP_FAILED.*Partial assignment/ : 'Partial assignment');
+    ).rejects.toThrow(multiple ? 'FIRST_GROUP_FAILED' : 'Partial assignment');
     expect(options.logger.error).toHaveBeenCalledWith(
       expect.stringContaining('Group "B" (B): assignment failed.')
     );
@@ -531,3 +549,73 @@ it('propagates Apple write failures', async () => {
     .reply(403, { errors: [{ code: 'FORBIDDEN', detail: 'Not allowed' }] });
   await expect(updateTestFlightMetadataAsync(options)).rejects.toThrow('403');
 });
+
+it.each([
+  ['MISSING_EXPORT_COMPLIANCE', 'Complete the export compliance questions'],
+  ['IN_EXPORT_COMPLIANCE_REVIEW', 'Wait for Apple to approve'],
+  ['EXPIRED', 'ASSIGNMENT_FAILED'],
+  ['PROCESSING', 'ASSIGNMENT_FAILED'],
+  ['READY_FOR_BETA_TESTING', 'ASSIGNMENT_FAILED'],
+  ['IN_BETA_TESTING', 'ASSIGNMENT_FAILED'],
+  [null, 'ASSIGNMENT_FAILED'],
+] as const)(
+  'shares one diagnostic lookup across failed assignments (state: %s)',
+  async (state, guidance) => {
+    mockBuild();
+    mockAssignedGroups();
+    api()
+      .get('/v1/betaGroups')
+      .query({ 'filter[app]': 'app', limit: '200' })
+      .reply(200, {
+        data: ['A', 'B', 'C'].map(id => ({ id, attributes: { name: id } })),
+      });
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'A' }],
+      })
+      .reply(403, { errors: [{ code: 'ASSIGNMENT_FAILED' }] });
+    mockInternalBuildState(state);
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'B' }],
+      })
+      .reply(422, { errors: [{ code: 'ASSIGNMENT_FAILED' }] });
+    // A failed assignment must not prevent the next group from being assigned.
+    api()
+      .post('/v1/builds/build/relationships/betaGroups', {
+        data: [{ type: 'betaGroups', id: 'C' }],
+      })
+      .reply(204);
+    const failure = await updateTestFlightMetadataAsync({
+      ...options,
+      changelog: '',
+      groups: ['A', 'B', 'C'],
+    }).catch(error => error);
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect(failure.errors).toHaveLength(2);
+    if (state === 'MISSING_EXPORT_COMPLIANCE' || state === 'IN_EXPORT_COMPLIANCE_REVIEW') {
+      expect(failure.errors[0]).toBe(failure.errors[1]);
+    } else {
+      expect(failure.errors[0]).toMatchObject({ status: 403 });
+      expect(failure.errors[1]).toMatchObject({ status: 422 });
+    }
+    expect(failure.errors[0].message).toContain(guidance);
+    expect(
+      jest
+        .mocked(options.logger.info)
+        .mock.calls.filter(([message]) => String(message).includes('internal TestFlight state ='))
+    ).toEqual([[`Apple build build: internal TestFlight state = ${state ?? 'UNKNOWN'}.`]]);
+    expect(Sentry.capture).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      `TestFlight group assignment failed (state: ${state ?? 'UNKNOWN'})`,
+      {
+        level: 'error',
+        tags: { step: 'eas/update_testflight_metadata', internal_build_state: state ?? 'UNKNOWN' },
+        extras: {
+          buildId: 'build',
+          assignmentError: expect.stringContaining('ASSIGNMENT_FAILED'),
+        },
+      }
+    );
+  }
+);
