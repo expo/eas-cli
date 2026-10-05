@@ -1,0 +1,70 @@
+name: worker-preview
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, synchronize, closed]
+
+concurrency:
+  group: worker-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-worker-preview:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed' &&
+      github.event.action != 'unlabeled' &&
+      contains(github.event.pull_request.labels.*.name, 'preview') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'preview')
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-and-deploy-worker.yml
+    secrets: inherit
+    with:
+      environment: preview-pr-${{ github.event.pull_request.number }}
+      ref: ${{ github.event.pull_request.head.sha }}
+
+  summary:
+    needs: deploy-worker-preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print usage instructions
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          Worker from ${{ github.event.pull_request.head.sha }} is deployed as preview \`pr-${{ github.event.pull_request.number }}\`.
+
+          To use it on staging, set this env variable in the eas.json build profile \`env\` or in the workflow job \`env\`:
+
+          \`\`\`
+          __EAS_WORKER_PREVIEW=pr-${{ github.event.pull_request.number }}
+          \`\`\`
+
+          To use it for a simulator session on staging:
+
+          \`\`\`
+          EXPO_STAGING=1 eas simulator:start --worker-preview pr-${{ github.event.pull_request.number }}
+          \`\`\`
+          EOF
+
+  remove-worker-preview:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (github.event.action == 'unlabeled' && github.event.label.name == 'preview') ||
+        (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'preview'))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Remove preview worker tarballs
+        run: |
+          for platform in android ios; do
+            gsutil rm "gs://eas-build-worker-tarballs/worker-$platform-preview-pr-${{ github.event.pull_request.number }}.tar.gz" || true
+          done

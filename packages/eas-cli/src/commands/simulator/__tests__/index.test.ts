@@ -720,6 +720,29 @@ describe(Simulator, () => {
     }
   );
 
+  it('omits workerPreview when --worker-preview is not set', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('workerPreview');
+  });
+
+  it('forwards --worker-preview to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--worker-preview',
+      'pr-1234',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ workerPreview: 'pr-1234' })
+    );
+  });
+
   it('forwards --build-id to the create mutation', async () => {
     const { command } = createCommand([
       '--platform',
