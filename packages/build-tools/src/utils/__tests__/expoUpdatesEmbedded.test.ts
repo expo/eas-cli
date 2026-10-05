@@ -82,21 +82,21 @@ describe('uploadEmbeddedBundleAsync', () => {
     jest.mocked(expoUpdates.isEASUpdateConfigured).mockReturnValue(false);
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('skipped');
+    expect(status).toBe('skipped');
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
   it('warns when no channel is configured and does not look for the archive', async () => {
     const args = makeArgs({ platform: Platform.ANDROID });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
     expect(args.logger.warn).toHaveBeenCalledWith(
       'Skipping embedded bundle upload: no channel configured for this build profile.'
     );
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
@@ -104,9 +104,9 @@ describe('uploadEmbeddedBundleAsync', () => {
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
     (args.job as { platform: string }).platform = 'web';
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
     expect(args.logger.warn).toHaveBeenCalledWith(
       'Skipping embedded bundle upload: the web platform is not supported.'
     );
@@ -127,9 +127,12 @@ describe('uploadEmbeddedBundleAsync', () => {
       env: { EAS_BUILD_ID: 'build-123' },
     });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('uploaded');
+    expect(status).toBe('uploaded');
+    expect(artifacts.findArtifacts).toHaveBeenCalledWith(
+      expect.objectContaining({ patternOrPath: 'android/app/build/outputs/**/*.{apk,aab}' })
+    );
     expect(mockZipExtract).toHaveBeenCalledWith(
       'assets/index.android.bundle',
       expect.stringContaining('index.android.bundle')
@@ -149,6 +152,19 @@ describe('uploadEmbeddedBundleAsync', () => {
     );
   });
 
+  it('uses applicationArchivePath to find the archive', async () => {
+    const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
+
+    await uploadEmbeddedBundleAsync({
+      ...args,
+      job: { ...args.job, applicationArchivePath: 'custom/app.aab' },
+    });
+
+    expect(artifacts.findArtifacts).toHaveBeenCalledWith(
+      expect.objectContaining({ patternOrPath: 'custom/app.aab' })
+    );
+  });
+
   it('uploads from Android AAB archives', async () => {
     jest.mocked(artifacts.findArtifacts).mockResolvedValue(['/tmp/app-release.aab']);
     mockZipEntries.mockResolvedValue(
@@ -159,9 +175,9 @@ describe('uploadEmbeddedBundleAsync', () => {
     );
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('uploaded');
+    expect(status).toBe('uploaded');
     expect(mockZipExtract).toHaveBeenCalledWith(
       'base/assets/index.android.bundle',
       expect.stringContaining('index.android.bundle')
@@ -179,9 +195,9 @@ describe('uploadEmbeddedBundleAsync', () => {
     );
     const args = makeArgs({ platform: Platform.IOS, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('uploaded');
+    expect(status).toBe('uploaded');
     expect(artifacts.findArtifacts).toHaveBeenCalledWith(
       expect.objectContaining({ patternOrPath: 'ios/build/*.ipa' })
     );
@@ -195,9 +211,9 @@ describe('uploadEmbeddedBundleAsync', () => {
   it('skips simulator builds', async () => {
     const args = makeArgs({ platform: Platform.IOS, simulator: true, channel: 'preview' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('skipped');
+    expect(status).toBe('skipped');
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
@@ -208,9 +224,9 @@ describe('uploadEmbeddedBundleAsync', () => {
       channel: 'development',
     });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('skipped');
+    expect(status).toBe('skipped');
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
@@ -223,9 +239,9 @@ describe('uploadEmbeddedBundleAsync', () => {
     );
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
     expect(args.logger.warn).toHaveBeenCalledWith(
       'Skipping embedded bundle upload: bundle or manifest not found in archive.'
     );
@@ -236,12 +252,12 @@ describe('uploadEmbeddedBundleAsync', () => {
     jest.mocked(artifacts.findArtifacts).mockResolvedValue([]);
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
     expect(args.logger.warn).toHaveBeenCalledWith(
       'Skipping embedded bundle upload: build archive not found.'
     );
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
     expect(easCli.runEasCliCommand).not.toHaveBeenCalled();
   });
 
@@ -249,12 +265,12 @@ describe('uploadEmbeddedBundleAsync', () => {
     jest.mocked(artifacts.findArtifacts).mockRejectedValue(new Error('glob failed'));
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
     expect(args.logger.warn).toHaveBeenCalledWith(
       'Skipping embedded bundle upload: build archive not found.'
     );
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
     expect(easCli.runEasCliCommand).not.toHaveBeenCalled();
   });
 
@@ -269,13 +285,13 @@ describe('uploadEmbeddedBundleAsync', () => {
     jest.mocked(easCli.runEasCliCommand).mockRejectedValue(new Error('upload failed'));
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    const result = await uploadEmbeddedBundleAsync(args);
+    const { status } = await uploadEmbeddedBundleAsync(args);
 
     expect(args.logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
       'Failed to upload embedded bundle.'
     );
-    expect(result).toBe('failed');
+    expect(status).toBe('failed');
   });
 
   it('swallows zip.close() failures so they do not mask the upload result', async () => {
@@ -289,7 +305,7 @@ describe('uploadEmbeddedBundleAsync', () => {
     mockZipClose.mockRejectedValue(new Error('close failed'));
     const args = makeArgs({ platform: Platform.ANDROID, channel: 'production' });
 
-    await expect(uploadEmbeddedBundleAsync(args)).resolves.toBe('uploaded');
+    await expect(uploadEmbeddedBundleAsync(args)).resolves.toEqual({ status: 'uploaded' });
     expect(easCli.runEasCliCommand).toHaveBeenCalled();
     expect(mockZipClose).toHaveBeenCalled();
   });

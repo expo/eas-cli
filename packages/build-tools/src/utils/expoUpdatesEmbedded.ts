@@ -10,6 +10,8 @@ import semver from 'semver';
 
 import { findArtifacts } from './artifacts';
 import { runEasCliCommand } from './easCli';
+import { resolveArtifactPath as resolveAndroidArtifactPath } from '../android/resolve';
+import { resolveArtifactPath as resolveIosArtifactPath } from '../ios/resolve';
 import { isEASUpdateConfigured } from '../steps/utils/expoUpdates';
 
 function parseBooleanEnvVar(value: string | undefined): boolean | undefined {
@@ -56,35 +58,34 @@ export async function uploadEmbeddedBundleAsync({
   logger: bunyan;
   projectDir: string;
   appConfig: ExpoConfig;
-}): Promise<'uploaded' | 'skipped' | 'failed'> {
+}): Promise<{ status: 'uploaded' | 'skipped' | 'failed' }> {
   if (!isEASUpdateConfigured(appConfig, logger)) {
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   if (job.developmentClient) {
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   const { platform } = job;
   if (platform === Platform.IOS && (job as Ios.Job).simulator) {
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   const channel = job.updates?.channel;
   if (!channel) {
     logger.warn('Skipping embedded bundle upload: no channel configured for this build profile.');
-    return 'failed';
+    return { status: 'failed' };
   }
 
   let archivePattern: string;
   if (platform === Platform.IOS) {
-    archivePattern = (job as Ios.Job).applicationArchivePath ?? 'ios/build/*.ipa';
+    archivePattern = resolveIosArtifactPath(job as Ios.Job);
   } else if (platform === Platform.ANDROID) {
-    archivePattern =
-      (job as Android.Job).applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}';
+    archivePattern = resolveAndroidArtifactPath(job as Android.Job);
   } else {
     logger.warn(`Skipping embedded bundle upload: the ${platform} platform is not supported.`);
-    return 'failed';
+    return { status: 'failed' };
   }
 
   const [archivePath] = await findArtifacts({
@@ -95,7 +96,7 @@ export async function uploadEmbeddedBundleAsync({
 
   if (!archivePath) {
     logger.warn('Skipping embedded bundle upload: build archive not found.');
-    return 'failed';
+    return { status: 'failed' };
   }
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-embedded-bundle-'));
@@ -118,7 +119,7 @@ export async function uploadEmbeddedBundleAsync({
 
     if (!bundleEntry || !manifestEntry) {
       logger.warn('Skipping embedded bundle upload: bundle or manifest not found in archive.');
-      return 'failed';
+      return { status: 'failed' };
     }
 
     await zip.extract(bundleEntry.name, bundlePath);
@@ -148,10 +149,10 @@ export async function uploadEmbeddedBundleAsync({
         mode: PipeMode.STDERR_ONLY_AS_STDOUT,
       },
     });
-    return 'uploaded';
+    return { status: 'uploaded' };
   } catch (err: any) {
     logger.warn({ err }, 'Failed to upload embedded bundle.');
-    return 'failed';
+    return { status: 'failed' };
   } finally {
     await asyncResult(zip.close());
   }

@@ -248,6 +248,25 @@ describe(createEasBuildBuildFunctionGroup, () => {
       );
     });
 
+    it.each([
+      ['Android', { platform: Platform.ANDROID }],
+      ['Android with credentials', { platform: Platform.ANDROID, buildCredentials: { test: {} } }],
+      ['iOS with credentials', { platform: Platform.IOS, buildCredentials: { test: {} } }],
+    ])('passes ignore_error to the embedded bundle step (%s)', (_, options) => {
+      const functionGroup = createEasBuildBuildFunctionGroup(createMockBuildToolsContext(options));
+      const globalCtx = createGlobalContextMock({
+        logger: createMockLogger(),
+        staticContextContent: { metadata: { sdkVersion: '58.0.0' } },
+      });
+
+      const uploadStep = functionGroup
+        .createBuildStepsFromFunctionGroupCall(globalCtx)
+        .find(step => step.displayName === 'Upload embedded bundle');
+
+      expect(uploadStep).toBeDefined();
+      expect(uploadStep!.inputs?.find(input => input.id === 'ignore_error')?.rawValue).toBe(true);
+    });
+
     it('does not upload the embedded bundle on SDK 57 without the opt-in', () => {
       expect(getStepNames({}, { sdkVersion: '57.0.0' })).not.toContain('Upload embedded bundle');
     });

@@ -41,6 +41,7 @@ describe(createUploadEmbeddedBundleBuildFunction, () => {
 
   it('uploads the embedded bundle from the working directory', async () => {
     mockAppConfig('https://u.expo.dev/project-id');
+    jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValue({ status: 'uploaded' });
     const globalContext = createGlobalContextMock({});
     globalContext.updateEnv({ EAS_BUILD_ID: 'build-123' });
     const buildStep =
@@ -62,7 +63,7 @@ describe(createUploadEmbeddedBundleBuildFunction, () => {
 
   it('logs when the embedded bundle upload is skipped', async () => {
     mockAppConfig('https://u.expo.dev/project-id');
-    jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValue('skipped');
+    jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValue({ status: 'skipped' });
     const buildStep = createUploadEmbeddedBundleBuildFunction(
       customContext
     ).createBuildStepFromFunctionCall(createGlobalContextMock({}));
@@ -72,17 +73,56 @@ describe(createUploadEmbeddedBundleBuildFunction, () => {
     expect(buildStep.ctx.logger.info).toHaveBeenCalledWith('Skipping embedded bundle upload.');
   });
 
-  it('does not fail the step when the app config cannot be read', async () => {
-    jest.mocked(readAppConfig).mockRejectedValue(new Error('Invalid app config'));
+  it('fails the step when the upload fails', async () => {
+    mockAppConfig('https://u.expo.dev/project-id');
+    jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValue({ status: 'failed' });
     const buildStep = createUploadEmbeddedBundleBuildFunction(
       customContext
     ).createBuildStepFromFunctionCall(createGlobalContextMock({}));
+
+    await expect(buildStep.executeAsync()).rejects.toThrow('Failed to upload embedded bundle.');
+  });
+
+  it('does not fail the step when the upload fails and ignore_error is set', async () => {
+    mockAppConfig('https://u.expo.dev/project-id');
+    jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValue({ status: 'failed' });
+    const buildStep = createUploadEmbeddedBundleBuildFunction(
+      customContext
+    ).createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: { ignore_error: true },
+    });
 
     await buildStep.executeAsync();
 
     expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to upload embedded bundle.'
+      'Failed to upload embedded bundle. Ignoring error.'
+    );
+  });
+
+  it('fails the step when the app config cannot be read', async () => {
+    jest.mocked(readAppConfig).mockRejectedValue(new Error('Invalid app config'));
+    const buildStep = createUploadEmbeddedBundleBuildFunction(
+      customContext
+    ).createBuildStepFromFunctionCall(createGlobalContextMock({}));
+
+    await expect(buildStep.executeAsync()).rejects.toThrow('Invalid app config');
+    expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the step when the app config cannot be read and ignore_error is set', async () => {
+    jest.mocked(readAppConfig).mockRejectedValue(new Error('Invalid app config'));
+    const buildStep = createUploadEmbeddedBundleBuildFunction(
+      customContext
+    ).createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: { ignore_error: true },
+    });
+
+    await buildStep.executeAsync();
+
+    expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to upload embedded bundle. Ignoring error.'
     );
     expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
   });

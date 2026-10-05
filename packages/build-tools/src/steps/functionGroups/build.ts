@@ -312,7 +312,10 @@ function createStepsForIosBuildWithCredentials({
       ? [
           createUploadEmbeddedBundleBuildFunction(
             buildToolsContext
-          ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
         ]
       : []),
     saveCache,
@@ -409,7 +412,10 @@ function createStepsForAndroidBuildWithoutCredentials({
       ? [
           createUploadEmbeddedBundleBuildFunction(
             buildToolsContext
-          ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
         ]
       : []),
     saveCache,
@@ -512,7 +518,10 @@ function createStepsForAndroidBuildWithCredentials({
       ? [
           createUploadEmbeddedBundleBuildFunction(
             buildToolsContext
-          ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
         ]
       : []),
     saveCache,

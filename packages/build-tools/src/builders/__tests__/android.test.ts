@@ -61,7 +61,7 @@ jest.mock('../../utils/expoUpdates', () => ({
 }));
 jest.mock('../../utils/expoUpdatesEmbedded', () => ({
   ...jest.requireActual('../../utils/expoUpdatesEmbedded'),
-  uploadEmbeddedBundleAsync: jest.fn(),
+  uploadEmbeddedBundleAsync: jest.fn(async () => ({ status: 'uploaded' })),
 }));
 jest.mock('../../utils/hooks', () => ({
   Hook: {
@@ -354,7 +354,7 @@ describe(androidBuilder, () => {
       ['skipped', BuildPhaseResult.SKIPPED],
       ['failed', BuildPhaseResult.WARNING],
     ] as const)('marks the phase from the %s result', async (uploadResult, phaseResult) => {
-      jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValueOnce(uploadResult);
+      jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValueOnce({ status: uploadResult });
       const ctx = createContext({ sdkVersion: '58.0.0' });
 
       await androidBuilder(ctx);

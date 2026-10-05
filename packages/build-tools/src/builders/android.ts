@@ -11,6 +11,7 @@ import {
   runGradleCommand,
 } from '../android/gradle';
 import { formatGradleProfileReport, parseGradleProfile } from '../android/gradleProfile';
+import { resolveArtifactPath } from '../android/resolve';
 import { Sentry } from '../sentry';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
@@ -220,7 +221,7 @@ async function buildInnerAsync(
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     await uploadApplicationArchive(ctx, {
-      patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
@@ -228,16 +229,16 @@ async function buildInnerAsync(
 
   if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      const result = await uploadEmbeddedBundleAsync({
+      const { status } = await uploadEmbeddedBundleAsync({
         job: ctx.job,
         env: ctx.env,
         logger: ctx.logger,
         projectDir: ctx.getReactNativeProjectDirectory(),
         appConfig: await ctx.appConfig,
       });
-      if (result === 'skipped') {
+      if (status === 'skipped') {
         ctx.markBuildPhaseSkipped();
-      } else if (result === 'failed') {
+      } else if (status === 'failed') {
         ctx.markBuildPhaseHasWarnings();
       }
     });
