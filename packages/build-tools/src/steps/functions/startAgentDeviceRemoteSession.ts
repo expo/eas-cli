@@ -78,9 +78,9 @@ export function getAgentDeviceRemoteSessionEnvOrThrow(
  *
  * agent-device installs at once. Its daemon launches with a daemon policy that confines
  * it to the session's device and denies booting and shutting down devices, so it launches
- * when `device.booted` resolves with that device. The session host also starts then, and
- * on iOS it serves that device. The session is reported as ready only when both are up
- * and `device.ready` (the app is installed and launched) resolved too.
+ * when `device.id` resolves with that device. The session host starts when `device.booted`
+ * resolves, and on iOS it serves that device. The session is reported as ready only when
+ * both are up and `device.ready` (the app is installed and launched) resolved too.
  *
  * The first failure aborts `tasks.signal`: each part stops before its next stage, and
  * the teardown then stops whatever was started. `device.ready` must settle soon after
@@ -111,8 +111,15 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
     tasks: StartupTasks;
-    /** `booted` resolves with the booted device: a Simulator UDID or an emulator serial. */
-    device: { booted: Promise<string>; ready: Promise<unknown> };
+    device: {
+      /**
+       * The session's device: a Simulator UDID or an emulator serial. It can resolve before
+       * `booted`, so the daemon launches while the device boots.
+       */
+      id: Promise<string>;
+      booted: Promise<unknown>;
+      ready: Promise<unknown>;
+    };
   }
 ): Promise<void> {
   logger.info(
@@ -133,11 +140,11 @@ export async function runAgentDeviceRemoteSessionAsync(
       env,
       logger: taskLogger,
       signal: tasks.signal,
-      // A boot cannot be cancelled, so stop waiting for it when startup is aborted.
+      // A device lookup or boot cannot be cancelled, so stop waiting when startup is aborted.
       waitForPolicyAsync: async () =>
         createAgentDeviceDaemonPolicy({
           runtimePlatform,
-          device: await tasks.untilAborted(device.booted),
+          device: await tasks.untilAborted(device.id),
         }),
     });
 
@@ -167,7 +174,8 @@ export async function runAgentDeviceRemoteSessionAsync(
   });
   const sessionHostStartup = tasks.run('session host', async taskLogger => {
     // A boot cannot be cancelled, so stop waiting for it when startup is aborted.
-    const bootedDevice = await tasks.untilAborted(device.booted);
+    await tasks.untilAborted(device.booted);
+    const bootedDevice = await tasks.untilAborted(device.id);
     tasks.signal.throwIfAborted();
     sessionHost = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform,

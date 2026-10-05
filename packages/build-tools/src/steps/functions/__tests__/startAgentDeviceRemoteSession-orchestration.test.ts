@@ -82,6 +82,7 @@ async function runAsync(
   runtimePlatform: BuildRuntimePlatform,
   capture: CaptureInputs = NO_CAPTURE
 ): Promise<void> {
+  const booted = Promise.resolve(BOOTED_DEVICE[runtimePlatform]);
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
     logger: logger as never,
@@ -96,7 +97,7 @@ async function runAsync(
     maxDurationSeconds: undefined,
     capture,
     tasks: createStartupTasks(logger as never),
-    device: { booted: Promise.resolve(BOOTED_DEVICE[runtimePlatform]), ready: Promise.resolve() },
+    device: { id: booted, booted, ready: Promise.resolve() },
   });
 }
 
@@ -328,7 +329,8 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       return { promise, resolve, reject };
     }
 
-    type Device = { booted: Promise<string>; ready: Promise<unknown> };
+    /** `id` defaults to `booted`, as on Android, where the serial is known after the boot. */
+    type Device = { id?: Promise<string>; booted: Promise<string>; ready: Promise<unknown> };
     function startSession(device: Device | ((tasks: StartupTasks) => Device)) {
       const logger = {
         info: jest.fn(),
@@ -350,7 +352,9 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         maxDurationSeconds: undefined,
         capture: NO_CAPTURE,
         tasks,
-        device: typeof device === 'function' ? device(tasks) : device,
+        device: (({ id, booted, ready }) => ({ id: id ?? booted, booted, ready }))(
+          typeof device === 'function' ? device(tasks) : device
+        ),
       });
     }
 
@@ -375,6 +379,30 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         { allow: [{ udid: 'SIMULATOR-UDID' }] },
       ]);
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('launches the daemon during the boot when the device id is known before it', async () => {
+      const booted = deferred<string>();
+      const session = startSession({
+        id: Promise.resolve('SIMULATOR-UDID'),
+        booted: booted.promise,
+        ready: booted.promise,
+      });
+      await flushAsync();
+
+      expect(launchedDaemons.map(({ policy }) => policy.devices)).toEqual([
+        { allow: [{ udid: 'SIMULATOR-UDID' }] },
+      ]);
+      expect(startNgrokTunnelAsync).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+
+      booted.resolve('SIMULATOR-UDID');
+      await session;
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({ device: 'SIMULATOR-UDID' })
+      );
       expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     });
 

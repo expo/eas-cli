@@ -12,7 +12,7 @@ import {
 } from '../startAgentDeviceRemoteSession';
 import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceSession';
 import { startAndroidEmulatorAsync } from '../startAndroidEmulator';
-import { bootIosSimulatorAsync } from '../startIosSimulator';
+import { bootIosSimulatorAsync, resolveIosSimulatorUdidAsync } from '../startIosSimulator';
 
 jest.mock('../../utils/localEgressSession', () => ({
   withLocalEgressSession: (fn: unknown) => fn,
@@ -21,7 +21,10 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
 }));
-jest.mock('../startIosSimulator', () => ({ bootIosSimulatorAsync: jest.fn() }));
+jest.mock('../startIosSimulator', () => ({
+  bootIosSimulatorAsync: jest.fn(),
+  resolveIosSimulatorUdidAsync: jest.fn(),
+}));
 jest.mock('../startAndroidEmulator', () => ({ startAndroidEmulatorAsync: jest.fn() }));
 jest.mock('../downloadBuild', () => ({ downloadBuildAsync: jest.fn() }));
 jest.mock('../installBuild', () => ({ installBuildAsync: jest.fn() }));
@@ -42,7 +45,7 @@ const sessionEnv = {
   ngrokAuthtoken: 'ngrok-token',
 };
 
-type Device = { booted: Promise<unknown>; ready: Promise<unknown> };
+type Device = { id: Promise<string>; booted: Promise<unknown>; ready: Promise<unknown> };
 
 function deferred<T = void>(): {
   promise: Promise<T>;
@@ -113,6 +116,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     jest.mocked(runAgentDeviceRemoteSessionAsync).mockImplementation(async (_ctx, { device }) => {
       await device.ready;
     });
+    jest.mocked(resolveIosSimulatorUdidAsync).mockResolvedValue('udid' as never);
     jest.mocked(bootIosSimulatorAsync).mockResolvedValue({
       deviceIdentifier: 'iPhone 17' as never,
       udid: 'udid' as never,
@@ -155,6 +159,8 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(1);
     // The install needs the booted Simulator.
     expect(installBuildAsync).not.toHaveBeenCalled();
+    // The agent-device daemon gets the UDID before the boot finishes.
+    await expect(sessionDevice().id).resolves.toBe('udid');
 
     boot.resolve({
       deviceIdentifier: 'iPhone 17' as never,
@@ -199,9 +205,32 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(downloadBuildAsync).not.toHaveBeenCalled();
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
-    // The boot reports the device, so the daemon policy can name it.
-    await expect(sessionDevice().booted).resolves.toBe('udid');
     await sessionDevice().ready;
+  });
+
+  it('looks up the Simulator UDID and boots that UDID', async () => {
+    jest.mocked(resolveIosSimulatorUdidAsync).mockResolvedValue('resolved-udid' as never);
+
+    await runStep(BuildRuntimePlatform.DARWIN, { device_identifier: 'iPhone 17' });
+
+    expect(resolveIosSimulatorUdidAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceIdentifier: 'iPhone 17' })
+    );
+    expect(bootIosSimulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceIdentifier: 'resolved-udid' })
+    );
+    await expect(sessionDevice().id).resolves.toBe('resolved-udid');
+  });
+
+  it('fails the session without a boot when the Simulator lookup fails', async () => {
+    jest
+      .mocked(resolveIosSimulatorUdidAsync)
+      .mockRejectedValue(new Error('No available iOS Simulator is named "iPhone 99".'));
+
+    await expect(
+      runStep(BuildRuntimePlatform.DARWIN, { device_identifier: 'iPhone 99' })
+    ).rejects.toThrow('No available iOS Simulator is named "iPhone 99".');
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -230,7 +259,10 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
-    await expect(sessionDevice().booted).resolves.toBe('emulator-5554');
+    // The emulator serial is known only after the boot.
+    expect(resolveIosSimulatorUdidAsync).not.toHaveBeenCalled();
+    expect(sessionDevice().id).toBe(sessionDevice().booted);
+    await expect(sessionDevice().id).resolves.toBe('emulator-5554');
   });
 
   it('fails the session when the download fails, without an unhandled rejection', async () => {

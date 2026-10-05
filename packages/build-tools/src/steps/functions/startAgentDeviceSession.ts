@@ -36,7 +36,7 @@ import {
   runAgentDeviceRemoteSessionAsync,
 } from './startAgentDeviceRemoteSession';
 import { startAndroidEmulatorAsync } from './startAndroidEmulator';
-import { bootIosSimulatorAsync } from './startIosSimulator';
+import { bootIosSimulatorAsync, resolveIosSimulatorUdidAsync } from './startIosSimulator';
 
 const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
 
@@ -52,12 +52,15 @@ const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
  *   download ─────────┘                           │
  *   boot ─► session host ─► web preview ──────────┼─► ready
  *   agent-device install ─┬─► daemon ─► tunnel ───┘
- *   boot ─────────────────┘
+ *   device id ────────────┘
  *
- * The agent-device daemon launches only after the boot, because its daemon policy names
- * the booted device. The first failure aborts the rest: the download stops, and nothing
- * installs, launches or starts after it. A boot cannot be cancelled, so it can still run
- * when a failed step returns.
+ * The agent-device daemon's policy names the device, so the daemon launches when the device
+ * id is known. On iOS that is the Simulator UDID, looked up before the boot, so the daemon
+ * launches during the boot. On Android it is the emulator serial, known after the boot.
+ *
+ * The first failure aborts the rest: the download stops, and nothing installs, launches or
+ * starts after it. A boot cannot be cancelled, so it can still run when a failed step
+ * returns.
  */
 export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -173,12 +176,22 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
 
       const tasks = createStartupTasks(logger);
 
+      // The UDID is known before the boot, so the agent-device daemon can launch during it.
+      const iosSimulatorUdid = isIos
+        ? tasks.run('iOS Simulator lookup', async () =>
+            resolveIosSimulatorUdidAsync({
+              deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
+              env,
+            })
+          )
+        : undefined;
+
       const booted = tasks.run(
         isIos ? 'iOS Simulator boot' : 'Android Emulator boot',
         async taskLogger => {
-          if (isIos) {
+          if (iosSimulatorUdid) {
             const { udid } = await bootIosSimulatorAsync({
-              deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
+              deviceIdentifier: await iosSimulatorUdid,
               env,
               logger: taskLogger,
             });
@@ -263,7 +276,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
         capture,
         tasks,
-        device: { booted, ready },
+        device: { id: iosSimulatorUdid ?? booted, booted, ready },
       });
     }),
   });
