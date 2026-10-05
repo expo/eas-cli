@@ -12,8 +12,9 @@ import {
   findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
+import { startDeviceRunSessionPreview } from '../deviceRunSessionPreview';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
-import { spawnDetached } from '../remoteDeviceRunSession';
+import { ensureFfmpegInstalledOnceAsync, spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../deviceRunSessionArtifacts');
@@ -29,6 +30,10 @@ jest.mock('../remoteDeviceRunSession', () => ({
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   fetchWebPreviewTurnArgsAsync: jest.fn().mockResolvedValue([]),
   spawnDetached: jest.fn(),
+}));
+jest.mock('../deviceRunSessionPreview', () => ({
+  ...jest.requireActual('../deviceRunSessionPreview'),
+  startDeviceRunSessionPreview: jest.fn(),
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
   ...jest.requireActual('../deviceRunSessionScreenRecordings'),
@@ -64,8 +69,13 @@ async function startHostAsync() {
   });
 }
 
+const stopSessionPreview = jest.fn();
+
 beforeEach(() => {
   jest.clearAllMocks();
+  stopSessionPreview.mockResolvedValue(undefined);
+  jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
+  jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
   stopServer.mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
@@ -502,3 +512,58 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
     await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
   }
 );
+
+it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
+  'refreshes the session preview of the ready device until the %s host finishes',
+  async runtimePlatform => {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(startDeviceRunSessionPreview).toHaveBeenCalledTimes(1);
+    expect(startDeviceRunSessionPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceRunSessionId: 'drs-id', captureAsync: expect.any(Function) })
+    );
+    await host.finishAsync();
+    expect(stopSessionPreview).toHaveBeenCalledTimes(1);
+    expect(stopSessionPreview.mock.invocationCallOrder[0]).toBeLessThan(
+      stopServer.mock.invocationCallOrder[0]
+    );
+  }
+);
+
+it('does not delay macOS readiness on FFmpeg setup or start the preview after finish', async () => {
+  const install = deferred<void>();
+  jest.mocked(ensureFfmpegInstalledOnceAsync).mockReturnValueOnce(install.promise);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  await host.finishAsync();
+  install.resolve();
+  await new Promise(resolve => setImmediate(resolve));
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the session running when FFmpeg setup for the preview fails', async () => {
+  jest.mocked(ensureFfmpegInstalledOnceAsync).mockRejectedValueOnce(new Error('brew failed'));
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: expect.objectContaining({ message: 'brew failed' }) },
+    'Could not start refreshing the session preview.'
+  );
+  await host.finishAsync();
+});

@@ -21,6 +21,10 @@ import {
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
+import {
+  captureDeviceRunSessionPreviewAsync,
+  startDeviceRunSessionPreview,
+} from './deviceRunSessionPreview';
 import { startDeviceRunSessionScreenshotsAsync } from './deviceRunSessionScreenshots';
 import {
   type DetachedProcessHandle,
@@ -390,6 +394,7 @@ export async function startDeviceSessionHostAsync(
   let previewTask: Promise<DeviceWebPreview> | null = null;
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
+  let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain }) {
@@ -447,6 +452,7 @@ export async function startDeviceSessionHostAsync(
     finishAsync() {
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
         previewTask,
+        stopSessionPreviewAsync: async () => await sessionPreview?.stopAsync(),
         previewServer,
         screenshots,
         serverName,
@@ -484,6 +490,29 @@ export async function startDeviceSessionHostAsync(
       }
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
+    // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
+    // readiness on macOS, so it starts after FFmpeg is installed there.
+    void (async () => {
+      if (!isAndroid) {
+        await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+      }
+      if (!finishTask) {
+        sessionPreview = startDeviceRunSessionPreview({
+          ctx,
+          deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
+          logger,
+          captureAsync: signal =>
+            captureDeviceRunSessionPreviewAsync({
+              runtimePlatform,
+              device: readyDevice,
+              env,
+              signal,
+            }),
+        });
+      }
+    })().catch(err => {
+      logger.warn({ err }, 'Could not start refreshing the session preview.');
+    });
     return host;
   } catch (error) {
     await host.finishAsync();
@@ -495,6 +524,7 @@ async function finishDeviceSessionHostAsync(
   ctx: CustomBuildContext,
   {
     previewTask,
+    stopSessionPreviewAsync,
     previewServer,
     screenshots,
     serverName,
@@ -503,6 +533,7 @@ async function finishDeviceSessionHostAsync(
     logger,
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
+    stopSessionPreviewAsync: () => Promise<void>;
     previewServer: DetachedProcessHandle;
     screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
@@ -511,6 +542,8 @@ async function finishDeviceSessionHostAsync(
     logger: bunyan;
   }
 ): Promise<void> {
+  // Stop capturing before the host stops, so the last thumbnail shows the session, not shutdown.
+  await stopSessionPreviewAsync();
   // Native ngrok operations have no scoped cancellation. Retire a late listener too.
   const retirePreview = withDeviceRunSessionTimeoutAsync(
     { name: 'Preview tunnel retirement', timeoutMs: 5_000 },
