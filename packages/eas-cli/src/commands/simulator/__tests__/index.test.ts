@@ -1,6 +1,7 @@
 import { Config } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import * as fs from 'fs-extra';
+import { GraphQLError } from 'graphql';
 
 import { SimulatorEvent } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -272,38 +273,78 @@ describe(Simulator, () => {
     expect(mockLogEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('logs "request failed" when the create request gets no answer', async () => {
-    mockLogEvent.mockClear();
-    mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(
-      new CombinedError({
-        networkError: Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }),
-      })
-    );
-    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
-    await expect(command.runAsync()).rejects.toThrow();
+  it.each([
+    ['network_error', Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' })],
+    ['timeout', Object.assign(new Error('connect timeout'), { code: 'ETIMEDOUT' })],
+  ])(
+    'logs "request failed" with reason %s when the create request gets no answer, and rethrows',
+    async (reason, networkError) => {
+      mockLogEvent.mockClear();
+      const error = new CombinedError({ networkError });
+      mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(error);
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      await expect(command.runAsync()).rejects.toBe(error);
 
-    expect(mockLogEvent).toHaveBeenLastCalledWith(
-      SimulatorEvent.REQUEST_FAILED,
-      expect.objectContaining({ project_id: 'project-123', reason: 'network_error' })
-    );
+      expect(mockLogEvent).toHaveBeenCalledTimes(2);
+      expect(mockLogEvent).toHaveBeenLastCalledWith(
+        SimulatorEvent.REQUEST_FAILED,
+        expect.objectContaining({ project_id: 'project-123', reason })
+      );
+    }
+  );
+
+  it.each([
+    [
+      'a GraphQL refusal',
+      new CombinedError({
+        graphQLErrors: [new GraphQLError('Simulator sessions are not enabled')],
+      }),
+    ],
+    [
+      'an HTTP error answer',
+      new CombinedError({
+        networkError: new Error('Gateway Timeout'),
+        response: { status: 504, statusText: 'Gateway Timeout' },
+      }),
+    ],
+  ])('logs only "request sent" when the server answers with %s', async (_, error) => {
+    mockLogEvent.mockClear();
+    mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(error);
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toBe(error);
+
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledWith(SimulatorEvent.REQUEST_SENT, expect.anything());
   });
 
-  it('logs "request cancelled", stops the spinner, and exits with 130 on Ctrl+C while the session is being created', async () => {
-    mockLogEvent.mockClear();
-    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
-      throw new Error(`process.exit(${code})`);
-    });
-    try {
-      let notifyCreateStarted!: () => void;
-      const createStarted = new Promise<void>(resolve => {
-        notifyCreateStarted = resolve;
-      });
+  function mockCreateThatNeverAnswers(): Promise<void> {
+    return new Promise<void>(notifyCreateStarted => {
       mockCreateDeviceRunSessionAsync.mockImplementationOnce(
         () =>
           new Promise(() => {
             notifyCreateStarted();
           })
       );
+    });
+  }
+
+  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created', async () => {
+    mockLogEvent.mockClear();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      let finishFlush!: () => void;
+      const flushStarted = new Promise<void>(notifyFlushStarted => {
+        mockFlushAsync.mockImplementationOnce(
+          () =>
+            new Promise<void>(resolve => {
+              finishFlush = resolve;
+              notifyFlushStarted();
+            })
+        );
+      });
+      const createStarted = mockCreateThatNeverAnswers();
       const existingSigintListeners = new Set(process.listeners('SIGINT'));
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
@@ -312,13 +353,16 @@ describe(Simulator, () => {
       process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
         'SIGINT'
       );
+      await flushStarted;
+      const exitCallsDuringFlush = [...processExitSpy.mock.calls];
+      finishFlush();
       await expect(commandPromise).rejects.toThrow('process.exit(130)');
 
+      expect(exitCallsDuringFlush).toEqual([]);
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
         expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
       );
-      expect(mockFlushAsync).toHaveBeenCalled();
       expect(mockOra.mock.results[0]?.value.fail).toHaveBeenCalledWith(
         'Simulator session request canceled'
       );
@@ -327,6 +371,75 @@ describe(Simulator, () => {
     } finally {
       processExitSpy.mockRestore();
     }
+  });
+
+  it('removes its Ctrl+C listener on the first Ctrl+C during the request, so a second Ctrl+C is not swallowed during the flush', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const createStarted = mockCreateThatNeverAnswers();
+      const existingSigintListeners = [...process.listeners('SIGINT')];
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      await createStarted;
+      process.emit('SIGINT');
+      const listenersAfterFirstCtrlC = process.listeners('SIGINT');
+      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+
+      expect(listenersAfterFirstCtrlC).toEqual(existingSigintListeners);
+    } finally {
+      processExitSpy.mockRestore();
+    }
+  });
+
+  it('exits with 130 after 1 second when the analytics flush hangs after Ctrl+C', async () => {
+    jest.useFakeTimers();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { sleepAsync } = jest.requireActual<typeof promiseUtils>('../../../utils/promise');
+      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(sleepAsync);
+      mockFlushAsync.mockImplementationOnce(() => new Promise<void>(() => {}));
+      const createStarted = mockCreateThatNeverAnswers();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await createStarted;
+      process.emit('SIGINT');
+      await jest.advanceTimersByTimeAsync(999);
+      const exitCallsBeforeOneSecond = [...processExitSpy.mock.calls];
+      await jest.advanceTimersByTimeAsync(1);
+      await exited;
+
+      expect(exitCallsBeforeOneSecond).toEqual([]);
+      expect(mockFlushAsync).toHaveBeenCalled();
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('removes its Ctrl+C listener once the create request answers or fails', async () => {
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    let listenersWhilePolling: Function[] | undefined;
+    mockByIdAsync.mockImplementationOnce(async () => {
+      listenersWhilePolling = [...process.listeners('SIGINT')];
+      return makeDeviceRunSession();
+    });
+    await createCommand(['--platform', 'ios', '--non-interactive']).command.runAsync();
+    // Only the session's own Ctrl+C handler, registered after the request answered, is left.
+    expect(listenersWhilePolling).toHaveLength(existingSigintListeners.length + 1);
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+
+    mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(new Error('boom'));
+    await expect(
+      createCommand(['--platform', 'ios', '--non-interactive']).command.runAsync()
+    ).rejects.toThrow('boom');
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
   });
 
   it('prints environment variables without saving when outputting env', async () => {

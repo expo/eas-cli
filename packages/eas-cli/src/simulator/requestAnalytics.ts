@@ -1,12 +1,6 @@
 import { CombinedError } from '@urql/core';
 
-import {
-  AnalyticsEventProperties,
-  AnalyticsWithOrchestration,
-  SimulatorEvent,
-} from '../analytics/AnalyticsManager';
-import { Ora } from '../ora';
-import { sleepAsync } from '../utils/promise';
+import { AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 
 /** Matches www's `request_origin` value for eas-cli, though this CLI does not send it to www yet. */
 export const SIMULATOR_REQUEST_ORIGIN = 'eas-cli';
@@ -19,12 +13,6 @@ const TIMEOUT_CODES = new Set([
   'UND_ERR_CONNECT_TIMEOUT',
   'UND_ERR_HEADERS_TIMEOUT',
 ]);
-
-/**
- * How long Ctrl+C waits for analytics to flush. The analytics client has no request timeout, so
- * without a limit a hung network would make Ctrl+C look ignored.
- */
-const CANCEL_FLUSH_TIMEOUT_MS = 1_000;
 
 export function simulatorRequestProperties({
   projectId,
@@ -84,51 +72,4 @@ export function simulatorRequestFailureReason(
     return 'timeout';
   }
   return 'network_error';
-}
-
-class SimulatorRequestCancelledError extends Error {}
-
-/**
- * Runs the create request and logs the client-side funnel events around it: "request sent" before
- * it leaves, "request cancelled" on Ctrl+C before an answer, and "request failed" when no answer
- * arrives. Ctrl+C stops the spinner, flushes analytics, and exits with 130, like the session's own
- * Ctrl+C handler: going through the command's error handling would print the exit as an error and
- * report it to Sentry.
- */
-export async function withSimulatorRequestAnalyticsAsync<T>(
-  analytics: AnalyticsWithOrchestration,
-  properties: AnalyticsEventProperties,
-  spinner: Ora,
-  createAsync: () => Promise<T>
-): Promise<T> {
-  let onSigint: (() => void) | undefined;
-  const cancelled = new Promise<never>((_, reject) => {
-    onSigint = () => {
-      reject(new SimulatorRequestCancelledError());
-    };
-  });
-  process.once('SIGINT', onSigint!);
-  analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
-  try {
-    return await Promise.race([createAsync(), cancelled]);
-  } catch (error) {
-    if (error instanceof SimulatorRequestCancelledError) {
-      analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
-      spinner.fail('Simulator session request canceled');
-      const flushTimeout = new AbortController();
-      await Promise.race([
-        analytics.flushAsync(),
-        sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
-      ]);
-      flushTimeout.abort();
-      process.exit(130);
-    }
-    const reason = simulatorRequestFailureReason(error);
-    if (reason) {
-      analytics.logEvent(SimulatorEvent.REQUEST_FAILED, { ...properties, reason });
-    }
-    throw error;
-  } finally {
-    process.removeListener('SIGINT', onSigint!);
-  }
 }

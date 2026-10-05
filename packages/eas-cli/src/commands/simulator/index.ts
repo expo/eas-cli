@@ -1,6 +1,11 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
+import {
+  AnalyticsEventProperties,
+  AnalyticsWithOrchestration,
+  SimulatorEvent,
+} from '../../analytics/AnalyticsManager';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -20,7 +25,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
-import { ora } from '../../ora';
+import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
@@ -33,8 +38,8 @@ import {
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
+  simulatorRequestFailureReason,
   simulatorRequestProperties,
-  withSimulatorRequestAnalyticsAsync,
 } from '../../simulator/requestAnalytics';
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
@@ -781,5 +786,58 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
       }`
     );
     return false;
+  }
+}
+
+/**
+ * How long Ctrl+C waits for analytics to flush. The analytics client has no request timeout, so
+ * without a limit a hung network would make Ctrl+C look ignored.
+ */
+const CANCEL_FLUSH_TIMEOUT_MS = 1_000;
+
+class SimulatorRequestCancelledError extends Error {}
+
+/**
+ * Runs the create request and logs the client-side funnel events around it: "request sent" before
+ * it leaves, "request cancelled" on Ctrl+C before an answer, and "request failed" when no answer
+ * arrives. Ctrl+C stops the spinner, flushes analytics, and exits with 130, like the session's own
+ * Ctrl+C handler: going through the command's error handling would print the exit as an error and
+ * report it to Sentry.
+ */
+async function withSimulatorRequestAnalyticsAsync<T>(
+  analytics: AnalyticsWithOrchestration,
+  properties: AnalyticsEventProperties,
+  spinner: Ora,
+  createAsync: () => Promise<T>
+): Promise<T> {
+  let onSigint: (() => void) | undefined;
+  const cancelled = new Promise<never>((_, reject) => {
+    onSigint = () => {
+      reject(new SimulatorRequestCancelledError());
+    };
+  });
+  process.once('SIGINT', onSigint!);
+  analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
+  try {
+    return await Promise.race([createAsync(), cancelled]);
+  } catch (error) {
+    if (error instanceof SimulatorRequestCancelledError) {
+      analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
+      spinner.fail('Simulator session request canceled');
+      const flushTimeout = new AbortController();
+      await Promise.race([
+        analytics.flushAsync(),
+        sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
+      ]);
+      flushTimeout.abort();
+      process.exit(130);
+    }
+    const reason = simulatorRequestFailureReason(error);
+    if (reason) {
+      analytics.logEvent(SimulatorEvent.REQUEST_FAILED, { ...properties, reason });
+    }
+    throw error;
+  } finally {
+    process.removeListener('SIGINT', onSigint!);
   }
 }
