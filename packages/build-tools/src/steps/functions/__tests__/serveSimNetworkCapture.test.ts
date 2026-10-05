@@ -8,7 +8,7 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import { uploadNetworkCaptureHarsAsync } from '../../utils/networkCaptureArtifacts';
 import { ServeSimNetworkCaptureRecorder } from '../../utils/serveSimNetworkCaptureRecorder';
 import { createCollectServeSimNetworkCaptureBuildFunction } from '../collectServeSimNetworkCapture';
-import { createStartServeSimNetworkCaptureBuildFunction } from '../startServeSimNetworkCapture';
+import { createRecordServeSimNetworkCaptureBuildFunction } from '../recordServeSimNetworkCapture';
 
 jest.mock('../../../sentry');
 jest.mock('../../utils/networkCaptureArtifacts');
@@ -35,7 +35,9 @@ beforeEach(() => {
 });
 
 it('starts the recorder with the session package version and never fails the step', async () => {
-  const { fn } = createStartServeSimNetworkCaptureBuildFunction() as unknown as { fn: Fn };
+  const buildFunction = createRecordServeSimNetworkCaptureBuildFunction();
+  expect(buildFunction.id).toBe('record_serve_sim_network_capture');
+  const { fn } = buildFunction as unknown as { fn: Fn };
   const env = {} as BuildStepEnv;
   await runFn(fn, { env, inputs: { package_version: { value: '0.5.0' } } });
   expect(ServeSimNetworkCaptureRecorder.startAsync).toHaveBeenCalledWith({

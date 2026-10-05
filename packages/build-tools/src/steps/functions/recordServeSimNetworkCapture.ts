@@ -8,12 +8,12 @@ import {
 import { Sentry } from '../../sentry';
 import { ServeSimNetworkCaptureRecorder } from '../utils/serveSimNetworkCaptureRecorder';
 
-export function createStartServeSimNetworkCaptureBuildFunction(): BuildFunction {
+export function createRecordServeSimNetworkCaptureBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
-    id: 'start_serve_sim_network_capture',
-    name: 'Start serve-sim network capture recording',
-    __metricsId: 'eas/start_serve_sim_network_capture',
+    id: 'record_serve_sim_network_capture',
+    name: 'Record serve-sim network capture',
+    __metricsId: 'eas/record_serve_sim_network_capture',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     inputProviders: [
       BuildStepInput.createProvider({
