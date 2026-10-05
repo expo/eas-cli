@@ -11,6 +11,7 @@ import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import * as files from '../../../utils/files';
 import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
 
 // contains a 'TestApp.app/TestApp' file with 'i am executable' content
@@ -255,6 +256,144 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
+  it('passes the abort signal to the build lookup', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const buildId = randomUUID();
+
+    await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+      signal: new AbortController().signal,
+    });
+
+    expect(graphqlClient.query).toHaveBeenCalledWith(
+      expect.anything(),
+      { buildId },
+      { fetch: expect.any(Function) }
+    );
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      APPLICATION_ARCHIVE_URL,
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
+  });
+
+  it('stops a pending build lookup when aborted', async () => {
+    // The lookup request runs through the abort-aware fetch from graphqlAbortContext and
+    // hangs until its signal fires, like a stalled API call.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn(
+      (_input: unknown, init?: RequestInit) =>
+        new Promise<never>((_resolve, reject) => {
+          init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason));
+        })
+    ) as typeof globalThis.fetch;
+    const graphqlClient = {
+      query: jest.fn((_query, _variables, context: { fetch: typeof globalThis.fetch }) => ({
+        toPromise: () =>
+          context.fetch('https://api.expo.dev/graphql', {}).then(
+            () => ({ data: undefined }),
+            (networkError: Error) => ({ error: new CombinedError({ networkError }) })
+          ),
+      })),
+    } as unknown as Client;
+    const controller = new AbortController();
+    const failure = new Error('daemon failed');
+
+    try {
+      const download = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+        signal: controller.signal,
+      });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      controller.abort(failure);
+
+      await expect(download).rejects.toBe(failure);
+      expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('lets a started extraction finish before it reports an abort', async () => {
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const { decompressTarAsync } = jest.requireActual<typeof files>('../../../utils/files');
+    const controller = new AbortController();
+    const failure = new Error('daemon failed');
+    let extractionDirectory: string | undefined;
+    let extractionFinished = false;
+    const decompressSpy = jest.spyOn(files, 'decompressTarAsync').mockImplementation(async args => {
+      extractionDirectory = args.destinationDirectory;
+      // The startup fails while the archive is being extracted.
+      controller.abort(failure);
+      await decompressTarAsync(args);
+      extractionFinished = true;
+    });
+
+    try {
+      await expect(
+        downloadBuildAsync({
+          logger: createLogger({ name: 'test' }),
+          applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+          graphqlClient: createMockGraphqlClient({}),
+          robotAccessToken: null,
+          extensions: ['app'],
+          signal: controller.signal,
+        })
+      ).rejects.toBe(failure);
+
+      // The download settled only after the extraction wrote its last file.
+      expect(extractionFinished).toBe(true);
+      expect(
+        await fs.promises.readFile(
+          path.join(extractionDirectory!, 'TestApp.app', 'TestApp'),
+          'utf8'
+        )
+      ).toBe('i am executable\n');
+    } finally {
+      decompressSpy.mockRestore();
+    }
+  });
+
+  it('does not look up the build when already aborted', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+    const failure = new Error('boot failed');
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+        signal: AbortSignal.abort(failure),
+      })
+    ).rejects.toBe(failure);
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
   it('rejects missing or ambiguous build sources', async () => {
     const graphqlClient = createMockGraphqlClient({
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
@@ -424,6 +563,34 @@ describe('downloadBuild', () => {
 });
 
 describe('createDownloadBuildFunction', () => {
+  it('aborts a pending archive request when the step times out', async () => {
+    let requestAborted = false;
+    jest.mocked(fetch).mockImplementation(
+      async (_url, options) =>
+        await new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            requestAborted = true;
+            reject(new Error('Archive request aborted'));
+          });
+        })
+    );
+    const graphqlClient = createMockGraphqlClient({});
+    const step = createDownloadBuildFunction({
+      graphqlClient,
+    } as any).createBuildStepFromFunctionCall(
+      createGlobalContextMock({ staticContextContent: { job: {} } }),
+      {
+        callInputs: { application_archive_url: APPLICATION_ARCHIVE_URL, extensions: ['ipa'] },
+        timeoutMs: 100,
+      }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow('timed out');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(requestAborted).toBe(true);
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+  });
+
   it('should download a build', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({

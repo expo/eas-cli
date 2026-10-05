@@ -85,8 +85,10 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: {
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
           previewUrl: 'https://expo.dev/simulator-preview/preview-id',
           previewApiUrl: 'https://web-preview.example.test',
+          webPreviewToken: 'tok-1',
           previewToken: 'tok-1',
         },
       })
@@ -125,11 +127,14 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
+      networkCapture: false,
+      networkCaptureFields: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
       deviceRunSessionId: 'device-run-session-id',
       remoteConfig: {
+        webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
         previewUrl: 'https://expo.dev/simulator-preview/preview-id',
         previewApiUrl: 'https://web-preview.example.test',
       },
@@ -155,6 +160,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'launch_app_identifier',
       'launch_args',
       'open_url',
+      'network_capture',
+      'network_capture_fields',
       'package_version',
       'max_duration_seconds',
     ]);
@@ -179,6 +186,30 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'serve-sim will launch host.exp.Exponent with arguments ' +
         '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
     );
+  });
+
+  it('hands network capture to the session host', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      network_capture: { value: true },
+      network_capture_fields: { value: ['header', 'response-body'] },
+    });
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        networkCapture: true,
+        networkCaptureFields: ['header', 'response-body'],
+      })
+    );
+  });
+
+  it('fails before starting anything when network capture is asked for on Android', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.LINUX, {
+        network_capture: { value: true },
+      })
+    ).rejects.toThrow('this session runs on linux');
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
   });
 
   it('fails before starting anything when a launch is asked for on Android', async () => {

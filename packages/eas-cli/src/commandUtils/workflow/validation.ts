@@ -105,7 +105,11 @@ async function validateWorkflowOnServerAsync(
 
 async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: string): Promise<void> {
   const jobs = jobsFromWorkflow(parsedYaml);
-  const buildJobs = jobs.filter(job => jobTypesWithBuildProfile.has(job.value.type));
+  // `profile` is optional (e.g. on `repack`), so only jobs that set one can be checked against eas.json.
+  const buildJobs = jobs.filter(
+    job =>
+      jobTypesWithBuildProfile.has(job.value.type) && typeof job.value.params?.profile === 'string'
+  );
   if (buildJobs.length === 0) {
     return;
   }
@@ -131,6 +135,11 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
 function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): void {
   const jobs = jobsFromWorkflow(parsedYaml);
   const jobTypes = jobTypesFromWorkflowSchema(workflowJsonSchema);
+  if (jobTypes.length === 0) {
+    // The schema no longer lists job types where we expect them; leave job validation to the schema.
+    Log.debug('No job types found in the workflow schema, skipping job type validation.');
+    return;
+  }
   const invalidJobs = jobs.filter(job => job.value.type && !jobTypes.includes(job.value.type));
   if (invalidJobs.length > 0) {
     throw new Error(
@@ -206,7 +215,8 @@ function jobsFromWorkflow(parsedYaml: any): any[] {
 }
 
 function jobTypesFromWorkflowSchema(workflowJsonSchema: any): string[] {
-  return workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf.map(
-    (props: any) => props.properties.type.const
-  );
+  // Not every job variant has a `type` (e.g. a job that calls a reusable workflow with `uses`).
+  return (workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf ?? [])
+    .map((props: any) => props?.properties?.type?.const)
+    .filter((jobType: unknown): jobType is string => typeof jobType === 'string');
 }

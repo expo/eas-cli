@@ -29,7 +29,10 @@ export async function uploadFileAtPathToGCSAsync(
   const signedUrl = await UploadSessionMutation.createUploadSessionAsync(
     graphqlClient,
     type,
-    type === UploadSessionType.EasShareGcsAppArchive ? path : undefined
+    // The server derives the bucket key's file extension from this filename.
+    [UploadSessionType.EasShareGcsAppArchive, UploadSessionType.EasUpdateSourceMaps].includes(type)
+      ? path
+      : undefined
   );
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);

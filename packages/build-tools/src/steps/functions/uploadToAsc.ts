@@ -86,8 +86,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
       }
 
-      const token = await AscApiUtils.signTokenAsync({ keyPath: ascApiKeyPath });
-      const client = new AscApiClient({ token, logger: stepsCtx.logger });
+      const key = await AscApiUtils.loadApiKeyAsync({ keyPath: ascApiKeyPath });
+      const client = new AscApiClient({ key, logger: stepsCtx.logger });
 
       stepsCtx.logger.info(
         `Reading App information for Apple app identifier: ${appleAppIdentifier}...`
@@ -155,21 +155,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       });
 
       stepsCtx.logger.info('Committing upload...');
-      await client.patchAsync(
-        `/v1/buildUploadFiles/:id`,
-        {
-          data: {
-            type: 'buildUploadFiles',
-            id: buildFileResponse.data.id,
-            attributes: {
-              uploaded: true,
-            },
-          },
-        },
-        {
-          id: buildFileResponse.data.id,
-        }
-      );
+      await AscApiUtils.commitBuildUploadFileAsync({
+        client,
+        fileId: buildFileResponse.data.id,
+        logger: stepsCtx.logger,
+      });
 
       stepsCtx.logger.info('Checking upload file status...');
       const waitingForFileStartedAt = Date.now();

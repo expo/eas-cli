@@ -14,6 +14,8 @@ export const EAS_SIMULATOR_EGRESS_FINGERPRINT = 'EAS_SIMULATOR_EGRESS_FINGERPRIN
 export const EAS_SIMULATOR_EGRESS_PORT = 'EAS_SIMULATOR_EGRESS_PORT';
 // Comma-separated host:port destinations from `--egress-allow`.
 export const EAS_SIMULATOR_EGRESS_ALLOW = 'EAS_SIMULATOR_EGRESS_ALLOW';
+// "android" or "ios"; older sessions without it are iOS.
+export const EAS_SIMULATOR_EGRESS_PLATFORM = 'EAS_SIMULATOR_EGRESS_PLATFORM';
 export const SIMULATOR_DOTENV_FILE_HEADER =
   '# Do not commit this file.\n# Do not modify these values manually. They are managed by eas-cli.\n# It holds configuration only for the current simulator session.\n\n';
 
@@ -43,6 +45,7 @@ export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
         EAS_SIMULATOR_EGRESS_TOKEN,
         EAS_SIMULATOR_EGRESS_FINGERPRINT,
         EAS_SIMULATOR_EGRESS_PORT,
+        EAS_SIMULATOR_EGRESS_PLATFORM,
       ]) {
         if (simulatorEnv[key] === undefined) {
           delete process.env[key];
