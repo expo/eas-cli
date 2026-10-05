@@ -31,6 +31,7 @@ jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceArtifacts');
 // The agent-device session step boots the Simulator itself; this test covers local egress.
 jest.mock('../startIosSimulator', () => ({
+  resolveIosSimulatorUdidAsync: jest.fn().mockResolvedValue('sim'),
   bootIosSimulatorAsync: jest
     .fn()
     .mockResolvedValue({ deviceIdentifier: 'sim', udid: 'sim', displayName: 'iPhone' }),

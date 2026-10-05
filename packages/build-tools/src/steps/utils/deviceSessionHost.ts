@@ -97,6 +97,7 @@ function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): str
 }
 
 export function createServeSimArgs({
+  device,
   port,
   turnArgs = [],
   websiteArgs = [],
@@ -108,6 +109,8 @@ export function createServeSimArgs({
   networkCapture = false,
   networkCaptureFields = [],
 }: {
+  /** The Simulator UDID to serve. Without it, serve-sim picks a simulator itself. */
+  device?: string;
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
@@ -118,6 +121,7 @@ export function createServeSimArgs({
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
+    ...(device ? [device] : []),
     '--port',
     String(port),
     '--host',
@@ -276,6 +280,7 @@ export async function startDeviceSessionHostAsync(
     logger,
     timeoutMs,
     packageVersion,
+    device,
     launchAppIdentifier,
     launchArgs,
     openUrl,
@@ -287,6 +292,11 @@ export async function startDeviceSessionHostAsync(
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    /**
+     * The Simulator UDID for serve-sim to serve. Without it, serve-sim picks a simulator itself.
+     * Not used on Android: expo-device-hub serves the connected emulators and reports no device.
+     */
+    device?: string;
     networkCapture?: boolean;
     networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
@@ -335,6 +345,7 @@ export async function startDeviceSessionHostAsync(
           recordingDirectory: recording?.directory,
         })
       : createServeSimArgs({
+          device,
           port,
           turnArgs,
           packageVersion,
@@ -448,18 +459,24 @@ export async function startDeviceSessionHostAsync(
   };
   try {
     logger.info(`Waiting for ${serverName} to become ready.`);
-    const device = await waitForWebPreviewReadyAsync({
+    const readyDevice = await waitForWebPreviewReadyAsync({
       previewServer,
       serverName,
       port,
       timeoutMs,
     });
     hostReady = true;
+    // A caller that names the device relies on the preview showing that device.
+    if (!isAndroid && device && readyDevice !== device) {
+      throw new SystemError(
+        `serve-sim serves device ${readyDevice}, but the session uses ${device}.`
+      );
+    }
     if (!isAndroid) {
-      previewToken = await readServeSimPreviewTokenAsync(device);
+      previewToken = await readServeSimPreviewTokenAsync(readyDevice);
       if (!previewToken) {
         throw new SystemError(
-          `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
+          `serve-sim became ready but wrote no session token for device ${readyDevice}. The preview is ` +
             'on a public tunnel and would be reachable without one, so the session cannot continue. ' +
             'This usually means the state file was not written as expected; retry the session, and ' +
             'report it if it repeats.'
