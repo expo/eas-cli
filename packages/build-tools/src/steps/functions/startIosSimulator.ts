@@ -1,4 +1,3 @@
-import { SystemError } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepEnv,
@@ -145,10 +144,10 @@ export async function bootIosSimulatorAsync({
     logger.info('');
   }
 
-  const deviceIdentifier = await resolveDeviceIdentifierAsync({
-    deviceIdentifier: deviceIdentifierInput,
-    env,
-  });
+  const deviceIdentifier = deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
+  if (!deviceIdentifier) {
+    throw new Error('Could not find an iPhone among available simulator devices.');
+  }
 
   if (enableAccessibilitySettings) {
     await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
@@ -206,38 +205,6 @@ async function bootWithLocalEgressAsync({
     await verifyLocalEgressGuardAsync({ udid, env, logger });
   }
   return udid;
-}
-
-/**
- * The UDID that `bootIosSimulatorAsync` boots for `deviceIdentifier`, before the boot. Boot it
- * by passing it to `bootIosSimulatorAsync` as the `deviceIdentifier`.
- */
-export async function resolveIosSimulatorUdidAsync({
-  deviceIdentifier,
-  env,
-}: {
-  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
-  env: BuildStepEnv;
-}): Promise<IosSimulatorUuid> {
-  return await IosSimulatorUtils.resolveUdidAsync({
-    deviceIdentifier: await resolveDeviceIdentifierAsync({ deviceIdentifier, env }),
-    env,
-  });
-}
-
-/** The given Simulator, or else the most generic available iPhone. */
-async function resolveDeviceIdentifierAsync({
-  deviceIdentifier,
-  env,
-}: {
-  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
-  env: BuildStepEnv;
-}): Promise<IosSimulatorUuid | IosSimulatorName> {
-  const resolved = deviceIdentifier ?? (await findMostGenericIphoneUuidAsync({ env }));
-  if (!resolved) {
-    throw new SystemError('Could not find an iPhone among available simulator devices.');
-  }
-  return resolved;
 }
 
 async function findMostGenericIphoneUuidAsync({

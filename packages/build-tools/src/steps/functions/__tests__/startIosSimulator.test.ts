@@ -9,10 +9,7 @@ import {
   resolveLocalEgressBootEnvironmentAsync,
   verifyLocalEgressGuardAsync,
 } from '../../utils/localEgressGuard';
-import {
-  createStartIosSimulatorBuildFunction,
-  resolveIosSimulatorUdidAsync,
-} from '../startIosSimulator';
+import { createStartIosSimulatorBuildFunction } from '../startIosSimulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -235,39 +232,5 @@ describe(createStartIosSimulatorBuildFunction, () => {
 
     // Startup is not aborted: readiness is still awaited for each device.
     expect(mockedUtils.waitForReadyAsync).toHaveBeenCalled();
-  });
-});
-
-describe(resolveIosSimulatorUdidAsync, () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockedUtils.resolveUdidAsync.mockImplementation(
-      async ({ deviceIdentifier }) => (UDIDS[deviceIdentifier] ?? deviceIdentifier) as any
-    );
-  });
-
-  it('resolves the requested Simulator', async () => {
-    await expect(
-      resolveIosSimulatorUdidAsync({ deviceIdentifier: 'iPhone 15' as any, env: {} })
-    ).resolves.toBe('base');
-    expect(mockedUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
-  });
-
-  it('picks the most generic iPhone when no Simulator is requested', async () => {
-    mockedUtils.getAvailableDevicesAsync.mockResolvedValue([
-      { name: 'iPhone 17 Pro Max', udid: 'pro-max' },
-      { name: 'iPad Pro', udid: 'ipad' },
-      { name: 'iPhone 17', udid: 'iphone-17' },
-    ] as any);
-
-    await expect(resolveIosSimulatorUdidAsync({ env: {} })).resolves.toBe('iphone-17');
-  });
-
-  it('fails when no iPhone is available', async () => {
-    mockedUtils.getAvailableDevicesAsync.mockResolvedValue([] as any);
-
-    await expect(resolveIosSimulatorUdidAsync({ env: {} })).rejects.toThrow(
-      'Could not find an iPhone among available simulator devices.'
-    );
   });
 });
