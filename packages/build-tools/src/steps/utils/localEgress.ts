@@ -56,6 +56,8 @@ const EGRESS_MONITOR_INTERVAL_MS = 2_000;
 const EGRESS_ESCAPE_SCAN_INTERVAL_MS = 5_000;
 const EGRESS_ESCAPE_LOG_LIMIT = 50;
 
+export type LocalEgressPlatform = 'ios' | 'android';
+
 export type LocalEgressHandoff = {
   /** Public URL of the reverse tunnel server, reachable through ngrok. */
   url: string;
@@ -65,6 +67,8 @@ export type LocalEgressHandoff = {
   fingerprint: string;
   /** Loopback port on this host that the client must serve. */
   port: number;
+  /** Missing means `ios`. */
+  platform?: LocalEgressPlatform;
 };
 
 export function getChiselAssetName({
@@ -448,7 +452,8 @@ export async function readLocalEgressHandoffAsync(
     typeof parsed.url !== 'string' ||
     typeof parsed.token !== 'string' ||
     typeof parsed.fingerprint !== 'string' ||
-    typeof parsed.port !== 'number'
+    typeof parsed.port !== 'number' ||
+    (parsed.platform !== undefined && parsed.platform !== 'ios' && parsed.platform !== 'android')
   ) {
     throw new SystemError(`Local egress handoff at ${handoffPath} is malformed.`);
   }
@@ -457,6 +462,7 @@ export async function readLocalEgressHandoffAsync(
     token: parsed.token,
     fingerprint: parsed.fingerprint,
     port: parsed.port,
+    ...(parsed.platform ? { platform: parsed.platform } : {}),
   };
 }
 
@@ -729,15 +735,18 @@ export async function monitorLocalEgressAsync({
   env,
   logger,
   signal,
+  scanSimulatorConnections = true,
 }: {
   port: number;
   env: BuildStepEnv;
   logger: bunyan;
   signal: AbortSignal;
+  /** The scan follows launchd_sim descendants, so it only applies to iOS Simulators. */
+  scanSimulatorConnections?: boolean;
 }): Promise<void> {
   let connected = false;
   let lastEscapeScanAt = 0;
-  let escapeScanBroken = false;
+  let escapeScanBroken = !scanSimulatorConnections;
   const reportedEscapes = new Set<string>();
   const lifetimeSignal = activeLocalEgressResources?.controller.signal;
   try {

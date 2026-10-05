@@ -1,7 +1,15 @@
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
+import * as jose from 'jose';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
+
+import { isConnectFailure, isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
+const TOKEN_LIFETIME_SECONDS = 20 /* minutes */ * 60 /* seconds */;
+const TOKEN_REFRESH_MARGIN_SECONDS = 60 /* seconds */;
 
 type ApiSchema = {
   [Path in string]: {
@@ -14,7 +22,7 @@ type ApiSchema = {
 const AscErrorResponseSchema = z.object({
   errors: z
     .array(
-      z.object({
+      z.looseObject({
         id: z.string().optional(),
         status: z.string().optional(),
         code: z.string().optional(),
@@ -27,6 +35,27 @@ const AscErrorResponseSchema = z.object({
 });
 
 const GetApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-buildbetadetail
+  '/v1/builds/:id/buildBetaDetail': {
+    path: z.object({ id: z.string() }),
+    request: z.object({}),
+    response: z.object({
+      data: z.object({
+        id: z.string(),
+        attributes: z.object({
+          internalBuildState: z.enum([
+            'PROCESSING',
+            'PROCESSING_EXCEPTION',
+            'MISSING_EXPORT_COMPLIANCE',
+            'READY_FOR_BETA_TESTING',
+            'IN_BETA_TESTING',
+            'EXPIRED',
+            'IN_EXPORT_COMPLIANCE_REVIEW',
+          ]),
+        }),
+      }),
+    }),
+  },
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-app
   '/v1/builds/:id/app': {
     path: z.object({ id: z.string() }),
@@ -55,15 +84,29 @@ const GetApi = {
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-betagroups
   '/v1/betaGroups': {
     path: z.object({}),
-    request: z.object({
-      'filter[app]': z.string(),
-      limit: z.number().int().max(200),
-    }),
+    request: z.union([
+      z.object({
+        'filter[app]': z.string(),
+        'filter[builds]': z.never().optional(),
+        limit: z.number().int().max(200),
+      }),
+      z.object({
+        'filter[app]': z.never().optional(),
+        'filter[builds]': z.string(),
+        limit: z.number().int().max(200),
+      }),
+    ]),
     response: z.object({
       data: z.array(
         z.object({
           id: z.string(),
-          attributes: z.object({ name: z.string().optional() }).optional(),
+          attributes: z
+            .object({
+              name: z.string().optional(),
+              isInternalGroup: z.boolean().optional(),
+              hasAccessToAllBuilds: z.boolean().nullish(),
+            })
+            .optional(),
         })
       ),
       links: z.object({ next: z.string().nullish() }).optional(),
@@ -369,21 +412,63 @@ export class AscApiRequestError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly responseJson: z.output<typeof AscErrorResponseSchema>,
+    public readonly responseJson: z.output<typeof AscErrorResponseSchema>['errors'][number],
     options?: { cause?: unknown }
   ) {
     super(message, { cause: options?.cause });
   }
+
+  get code(): string | undefined {
+    return this.responseJson.code;
+  }
 }
+
+export type AscApiKey = {
+  keyId: string;
+  issuerId?: string | null;
+  privateKey: jose.KeyLike;
+};
 
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
-  private readonly token: string;
+  private readonly key: AscApiKey;
+  private cachedToken?: { value: Promise<string>; expiresAt: number };
   private readonly logger?: bunyan;
 
-  constructor({ token, logger }: { token: string; logger?: bunyan }) {
-    this.token = token;
+  constructor({ key, logger }: { key: AscApiKey; logger?: bunyan }) {
+    this.key = key;
     this.logger = logger;
+  }
+
+  private async getTokenAsync(): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    // Reuse valid tokens, but leave time for a request to reach Apple before expiry.
+    if (!this.cachedToken || this.cachedToken.expiresAt <= now + TOKEN_REFRESH_MARGIN_SECONDS) {
+      const expiresAt = now + TOKEN_LIFETIME_SECONDS;
+      this.cachedToken = { value: this.signTokenAsync(expiresAt), expiresAt };
+    }
+    const cachedToken = this.cachedToken;
+    try {
+      return await cachedToken.value;
+    } catch (error) {
+      if (this.cachedToken === cachedToken) {
+        this.cachedToken = undefined;
+      }
+      throw error;
+    }
+  }
+
+  private async signTokenAsync(expiresAt: number): Promise<string> {
+    const jwt = new jose.SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: this.key.keyId })
+      .setAudience('appstoreconnect-v1')
+      .setExpirationTime(expiresAt);
+    if (this.key.issuerId) {
+      jwt.setIssuer(this.key.issuerId);
+    } else {
+      jwt.setSubject('user');
+    }
+    return await jwt.sign(this.key.privateKey);
   }
 
   public async getAsync<TPath extends keyof typeof GetApi>(
@@ -477,7 +562,22 @@ export class AscApiClient {
     });
   }
 
-  private async sendRequestAsync({
+  private async sendRequestAsync(
+    args: Parameters<AscApiClient['sendRequestOnceAsync']>[0]
+  ): Promise<any> {
+    return await promiseRetryWithCondition(
+      () => this.sendRequestOnceAsync(args),
+      error =>
+        isConnectFailure(error) || (args.method === 'GET' && isConnectionInterruptedError(error)),
+      { retries: 3, factor: 2, minTimeout: 100 },
+      ({ attemptNumber, maxAttemptsCount, error }) =>
+        this.logger?.warn(
+          `Retrying Apple request (${args.method} ${args.path}, attempt ${attemptNumber}/${maxAttemptsCount}): ${String(error)}`
+        )
+    )();
+  }
+
+  private async sendRequestOnceAsync({
     path,
     method,
     body,
@@ -505,7 +605,7 @@ export class AscApiClient {
       method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.token}`,
+        Authorization: `Bearer ${await this.getTokenAsync()}`,
       },
       body: method === 'GET' ? undefined : JSON.stringify(parsedBody.value),
     });
@@ -516,10 +616,31 @@ export class AscApiClient {
         (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
       );
       if (parsedAscErrorResponse.ok) {
-        throw new AscApiRequestError(
-          `Unexpected response (${response.status}) from App Store Connect: ${text}`,
-          response.status,
-          parsedAscErrorResponse.value,
+        const errors = parsedAscErrorResponse.value.errors.map(ascError => {
+          if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
+            return new UserError(
+              'EAS_ASC_REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED',
+              'A required Apple agreement is missing or has expired. ' +
+                "Ask your Apple Developer team's Account Holder to review and accept the required agreements " +
+                'in App Store Connect: https://appstoreconnect.apple.com/business. ' +
+                'If prompted, also accept the Apple Developer Program License Agreement at https://developer.apple.com/account. ' +
+                'Then try again.',
+              { cause: ascError }
+            );
+          }
+          return new AscApiRequestError(
+            `Unexpected response (${response.status}) from App Store Connect: ${JSON.stringify(ascError)}`,
+            response.status,
+            ascError,
+            { cause: response }
+          );
+        });
+        if (errors.length === 1) {
+          throw errors[0];
+        }
+        throw new AggregateError(
+          errors,
+          `App Store Connect returned multiple errors:\n${errors.map(error => error.message).join('\n')}`,
           { cause: response }
         );
       }

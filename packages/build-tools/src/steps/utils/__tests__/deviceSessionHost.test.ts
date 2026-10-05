@@ -1,12 +1,13 @@
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
   findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
@@ -15,6 +16,7 @@ import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
   readServeSimServersAsync: jest
@@ -290,13 +292,24 @@ it('rolls back failed host startup without replacing the original error', async 
     })
   ).rejects.toThrow('Timed out waiting');
   expect(stopServer).toHaveBeenCalledTimes(1);
+  const directory =
+    jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
+  if (!directory) {
+    throw new Error('Missing screenshot artifact directory');
+  }
+  // The host could not be stopped, so it may still write captures there.
+  await expect(access(directory)).resolves.toBeUndefined();
   expect(ngrok.forward).not.toHaveBeenCalled();
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
-  expect(logger.warn).not.toHaveBeenCalledWith(
-    expect.anything(),
-    expect.stringMatching(/finalize|upload/)
-  );
+  const hostStillRunning =
+    'The session host is still running, so preview screenshots it saves from now on are not uploaded.';
+  expect(logger.warn).toHaveBeenCalledWith({ directory }, hostStillRunning);
+  const recordingWarnings = jest
+    .mocked(logger.warn)
+    .mock.calls.map(([, message]) => message)
+    .filter(message => message !== hostStillRunning);
+  expect(recordingWarnings).not.toContainEqual(expect.stringMatching(/finalize|upload/));
 });
 
 async function writeRecordingDescriptorAsync(directory: string) {
@@ -444,3 +457,48 @@ it('leaves iOS recording to its existing build steps', async () => {
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
+
+it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
+  'uploads screenshots and flushes them exactly once when the %s host finishes',
+  async runtimePlatform => {
+    const uploads: Buffer[] = [];
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementation(async (_ctx, { stream }) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+          chunks.push(Buffer.from(chunk));
+        }
+        uploads.push(Buffer.concat(chunks));
+      });
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+    await host.openPreviewAsync({ baseDomain });
+    const directory =
+      jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
+    if (!directory) {
+      throw new Error('Missing screenshot artifact directory');
+    }
+    await writeFile(
+      path.join(directory, 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png'),
+      'manual-capture'
+    );
+    let directoryWhenStopping: string[] | undefined;
+    stopServer.mockImplementationOnce(async () => {
+      directoryWhenStopping = await readdir(directory);
+    });
+    const finishing = host.finishAsync();
+    expect(host.finishAsync()).toBe(finishing);
+    await finishing;
+    expect(uploads).toEqual([Buffer.from('manual-capture')]);
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(closeTunnel).toHaveBeenCalledTimes(1);
+    // The collector finishes, and removes its directory, only after the host has stopped.
+    expect(directoryWhenStopping).toBeDefined();
+    await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+  }
+);

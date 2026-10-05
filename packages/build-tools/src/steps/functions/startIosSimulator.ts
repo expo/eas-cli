@@ -47,59 +47,18 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger }, { inputs, env }) => {
-      try {
-        const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
-          env,
-          filter: 'available',
-        });
-        logger.info(
-          `Available Simulator devices:\n- ${availableDevices
-            .map(device => device.displayName)
-            .join(`\n- `)}`
-        );
-      } catch (error) {
-        logger.info('Failed to list available Simulator devices.', error);
-      } finally {
-        logger.info('');
-      }
-
       const deviceIdentifierInput = inputs.device_identifier.value?.toString() as
         | IosSimulatorUuid
         | IosSimulatorName
         | undefined;
-      const originalDeviceIdentifier =
-        deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
       const enableAccessibilitySettings = Boolean(inputs.enable_accessibility_settings.value);
-
-      if (!originalDeviceIdentifier) {
-        throw new Error('Could not find an iPhone among available simulator devices.');
-      }
-
-      if (enableAccessibilitySettings) {
-        await IosSimulatorUtils.enableAccessibilitySettingsAsync({
-          deviceIdentifier: originalDeviceIdentifier,
+      const { deviceIdentifier: originalDeviceIdentifier, displayName: formattedDevice } =
+        await bootIosSimulatorAsync({
+          deviceIdentifier: deviceIdentifierInput,
+          enableAccessibilitySettings,
           env,
+          logger,
         });
-      }
-      const udid = await bootWithLocalEgressAsync({
-        deviceIdentifier: originalDeviceIdentifier,
-        env,
-        logger,
-      });
-
-      try {
-        await IosSimulatorUtils.disableApsdAsync({ udid, env });
-      } catch (err) {
-        logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
-      }
-
-      await IosSimulatorUtils.waitForReadyAsync({ udid, env });
-
-      logger.info('');
-
-      const device = await IosSimulatorUtils.getDeviceAsync({ udid, env });
-      const formattedDevice = device?.displayName ?? originalDeviceIdentifier;
-      logger.info(`${formattedDevice} is ready.`);
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
@@ -148,6 +107,67 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+/**
+ * Boots one iOS Simulator and waits until it is ready: the requested device, or the
+ * most generic iPhone when none is given.
+ */
+export async function bootIosSimulatorAsync({
+  deviceIdentifier: deviceIdentifierInput,
+  enableAccessibilitySettings = false,
+  env,
+  logger,
+}: {
+  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
+  enableAccessibilitySettings?: boolean;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<{
+  deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  udid: IosSimulatorUuid;
+  displayName: string;
+}> {
+  try {
+    const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
+      env,
+      filter: 'available',
+    });
+    logger.info(
+      `Available Simulator devices:\n- ${availableDevices
+        .map(device => device.displayName)
+        .join(`\n- `)}`
+    );
+  } catch (error) {
+    logger.info('Failed to list available Simulator devices.', error);
+  } finally {
+    logger.info('');
+  }
+
+  const deviceIdentifier = deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
+  if (!deviceIdentifier) {
+    throw new Error('Could not find an iPhone among available simulator devices.');
+  }
+
+  if (enableAccessibilitySettings) {
+    await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
+  }
+  const udid = await bootWithLocalEgressAsync({ deviceIdentifier, env, logger });
+
+  try {
+    await IosSimulatorUtils.disableApsdAsync({ udid, env });
+  } catch (err) {
+    logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+  }
+
+  await IosSimulatorUtils.waitForReadyAsync({ udid, env });
+
+  logger.info('');
+
+  const device = await IosSimulatorUtils.getDeviceAsync({ udid, env });
+  const displayName = device?.displayName ?? deviceIdentifier;
+  logger.info(`${displayName} is ready.`);
+  return { deviceIdentifier, udid, displayName };
 }
 
 /**

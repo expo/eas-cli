@@ -21,6 +21,17 @@ export type AndroidVirtualDeviceName = string & z.BRAND<'AndroidVirtualDeviceNam
 export type AndroidDeviceName = string & z.BRAND<'AndroidDeviceName'>;
 export type AndroidDeviceSerialId = string & z.BRAND<'AndroidDeviceSerialId'>;
 
+/**
+ * Starts the emulator through a wrapper that waits on stdin, so the wrapper's
+ * pid can be placed (for example, into a cgroup) before the emulator execs.
+ */
+export type AndroidEmulatorLaunchGate = {
+  emulatorArgs: string[];
+  wrapperCommand: string;
+  wrapperArgs: string[];
+  admitAsync: (pid: number) => Promise<void>;
+};
+
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
 
@@ -312,10 +323,12 @@ export namespace AndroidEmulatorUtils {
     deviceName,
     env,
     logcatDirectory,
+    launchGate,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
+    launchGate?: AndroidEmulatorLaunchGate;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
@@ -341,37 +354,47 @@ export namespace AndroidEmulatorUtils {
       });
     }
 
-    const emulatorPromise = spawn(
-      `${process.env.ANDROID_HOME}/emulator/emulator`,
-      [
-        '-no-window',
-        '-no-boot-anim',
-        '-writable-system',
-        '-noaudio',
-        '-no-snapshot-save',
-        '-logcat',
-        '*:v',
-        '-logcat-output',
-        logcatOutputPath,
-        '-avd',
-        deviceName,
-        '-accel',
-        'on',
-        ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
-          ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
-          : []),
-      ],
-      {
-        detached: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        ignoreStdio: true,
-        env: {
-          ...env,
-          // We don't need to wait for emulator to exit gracefully.
-          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
-        },
-      }
-    );
+    const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
+    const emulatorArgs = [
+      '-no-window',
+      '-no-boot-anim',
+      '-writable-system',
+      '-noaudio',
+      '-no-snapshot-save',
+      '-logcat',
+      '*:v',
+      '-logcat-output',
+      logcatOutputPath,
+      '-avd',
+      deviceName,
+      '-accel',
+      'on',
+      ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
+        ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
+        : []),
+    ];
+    const emulatorEnv = {
+      ...env,
+      // We don't need to wait for emulator to exit gracefully.
+      ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+    };
+    const emulatorPromise = launchGate
+      ? spawn(
+          launchGate.wrapperCommand,
+          [...launchGate.wrapperArgs, emulatorCommand, ...emulatorArgs, ...launchGate.emulatorArgs],
+          {
+            detached: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ignoreStdio: true,
+            env: emulatorEnv,
+          }
+        )
+      : spawn(emulatorCommand, emulatorArgs, {
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          ignoreStdio: true,
+          env: emulatorEnv,
+        });
     const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
     let reportedEmulatorOutputError = false;
     emulatorOutputStream.on('error', err => {
@@ -413,6 +436,16 @@ export namespace AndroidEmulatorUtils {
     if (!emulatorPromise.child.pid) {
       await emulatorPromise;
     }
+    if (launchGate && emulatorPromise.child.pid) {
+      try {
+        await launchGate.admitAsync(emulatorPromise.child.pid);
+      } catch (err) {
+        emulatorPromise.child.kill('SIGKILL');
+        await asyncResult(emulatorPromise);
+        throw err;
+      }
+      emulatorPromise.child.stdin?.end('go\n');
+    }
     emulatorPromise.child.unref();
     // The emulator is detached and managed through adb. Observe its process promise
     // immediately so expected exits during retry cleanup do not become unhandled rejections.
@@ -445,11 +478,14 @@ export namespace AndroidEmulatorUtils {
     env,
     timeoutMs = 3 * 60 * 1_000,
     logger,
+    networkReadyTarget,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
     timeoutMs?: number;
     logger?: bunyan;
+    /** Host and port the guest must reach; 1.1.1.1:443 unless set. */
+    networkReadyTarget?: { host: string; port: number };
   }): Promise<void> {
     const retries = Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1);
     await retryAsync(
@@ -464,7 +500,11 @@ export namespace AndroidEmulatorUtils {
           throw new Error(`Emulator (${serialId}) boot has not completed.`);
         }
 
-        const hasNetworkConnection = await hasNetworkConnectionAsync({ serialId, env });
+        const hasNetworkConnection = await hasNetworkConnectionAsync({
+          serialId,
+          env,
+          target: networkReadyTarget,
+        });
         if (!hasNetworkConnection) {
           throw new Error(`Emulator (${serialId}) network is not ready.`);
         }
@@ -514,9 +554,11 @@ export namespace AndroidEmulatorUtils {
   async function hasNetworkConnectionAsync({
     serialId,
     env,
+    target = { host: '1.1.1.1', port: 443 },
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
+    target?: { host: string; port: number };
   }): Promise<boolean> {
     const networkReadyCheckCommand = env.ANDROID_EMULATOR_NETWORK_READY_COMMAND?.trim();
     if (networkReadyCheckCommand) {
@@ -529,7 +571,7 @@ export namespace AndroidEmulatorUtils {
     const netcatResult = await asyncResult(
       spawn(
         'adb',
-        ['-s', serialId, 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
+        ['-s', serialId, 'shell', 'nc', '-w', '1', target.host, String(target.port)],
         // Close stdin to make netcat exit cleanly on Android images that don't support `-z`.
         { env, stdio: ['ignore', 'pipe', 'pipe'] }
       )

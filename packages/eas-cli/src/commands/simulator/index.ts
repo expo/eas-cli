@@ -23,6 +23,7 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
+import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -132,9 +133,19 @@ export default class Simulator extends EasCommand {
       description:
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'network-capture': Flags.boolean({
+      description:
+        'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
+    }),
+    'network-capture-field': Flags.string({
+      description:
+        'What a recording may keep beyond method, URL, status, timing and size: header, query, request-body, response-body. Repeatable or comma-separated. Defaults to none of them, because each can carry credentials.',
+      multiple: true,
+      dependsOn: ['network-capture'],
+    }),
     'max-duration-minutes': Flags.integer({
       description:
-        'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
+        "Maximum duration of the simulator session in minutes before it is automatically stopped. Defaults to, and cannot exceed, the maximum session duration of the account's plan.",
       min: 0,
     }),
     'max-idle-time-minutes': Flags.integer({
@@ -149,12 +160,12 @@ export default class Simulator extends EasCommand {
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) exit from this machine and fail while the egress client is disconnected. Connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. The egress client must keep running for the life of the session. Only supported with --platform ios.',
+        'With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
       description:
-        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. Requires --egress local.',
+        'Destination on this machine or its network that the simulator may reach through local egress, as an exact host:port (for example localhost:3000). Repeat for multiple destinations. A localhost or 127.0.0.1 entry also forwards that port from the simulator host to this machine (like adb reverse), so dev server URLs that use 127.0.0.1 work. On Android, such an entry also covers 10.0.2.2 on the same port. Requires --egress local.',
       multiple: true,
       dependsOn: ['egress'],
     }),
@@ -247,17 +258,28 @@ export default class Simulator extends EasCommand {
       );
     }
 
+    // Before the platform prompt: a typo here does not depend on the answer.
+    let networkCaptureFields: string[] = [];
+    try {
+      networkCaptureFields = parseNetworkCaptureFields(flags['network-capture-field'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
-    if (egress && platform !== AppPlatform.Ios) {
-      throw new EasCommandError('--egress local is only supported with --platform ios.');
-    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    if (flags['network-capture'] && platform !== AppPlatform.Ios) {
+      throw new EasCommandError(
+        'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
+      );
+    }
+
     if (platform === AppPlatform.Android) {
       Log.warn(
         'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
@@ -304,6 +326,8 @@ export default class Simulator extends EasCommand {
             platform,
             type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
             packageVersion: flags['package-version'],
+            networkCapture: flags['network-capture'],
+            ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
             ...(deviceIdentifier
               ? platform === AppPlatform.Ios
                 ? { ios: { deviceIdentifier } }
@@ -342,6 +366,11 @@ export default class Simulator extends EasCommand {
           simulatorEnvWritten ? `, saved to ${SIMULATOR_DOTENV_FILE_NAME}` : ''
         }) ${link(deviceRunSessionUrl)}`
       );
+      if (flags['network-capture']) {
+        Log.warn(
+          'Network capture was requested. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an installed app to record its traffic.'
+        );
+      }
     } catch (err) {
       createSpinner.fail('Failed to create simulator session');
       sessionInterrupt?.dispose();
@@ -431,7 +460,7 @@ export default class Simulator extends EasCommand {
 
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
       await writeSimulatorEnvSafelyAsync(projectDir, {
-        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow }),
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
         [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
       });
     }
@@ -465,11 +494,12 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        platform,
       })
     );
     Log.newLine();
 
-    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow);
+    const localEgress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
 
     if (nonInteractive) {
       sessionInterrupt.dispose();

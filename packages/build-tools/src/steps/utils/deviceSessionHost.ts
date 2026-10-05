@@ -21,6 +21,7 @@ import {
   parseDeviceScreenRecordings,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
+import { startDeviceRunSessionScreenshotsAsync } from './deviceRunSessionScreenshots';
 import {
   type DetachedProcessHandle,
   type ServeSimLaunchOptions,
@@ -34,6 +35,10 @@ import {
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  IosSimulatorRecordingUtils,
+  SERVE_SIM_STOP_GRACE_PERIOD_MS,
+} from './IosSimulatorRecordingUtils';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -53,6 +58,7 @@ const EXPO_DEVICE_HUB_EXIT_LEEWAY_MS = 10_000;
 const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
+const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -66,12 +72,8 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
   return new URL(`/simulator-preview/${subdomainId}`, websiteOrigin(env)).toString();
 }
 
-// Website dev servers on expo.test use staging sessions, and CORS matches ports exactly.
-const WEBSITE_DEV_ORIGINS = [
-  'https://expo.test',
-  'https://expo.test:13001',
-  ...Array.from({ length: 16 }, (_, index) => `https://expo.test:${13200 + index}`),
-];
+// Local website hosts are shared by local and staging simulator sessions.
+const WEBSITE_DEV_ORIGINS = ['https://expo.test', 'https://*.expo.test'];
 
 export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
   const origins = new Set([websiteOrigin(env)]);
@@ -103,12 +105,16 @@ export function createServeSimArgs({
   launchAppIdentifier,
   launchArgs = [],
   openUrl,
+  networkCapture = false,
+  networkCaptureFields = [],
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
   packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -135,6 +141,14 @@ export function createServeSimArgs({
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
     ...(openUrl ? ['--open-url', openUrl] : []),
+    // `--network-capture` also covers an already booted simulator. Fields are repeated, not
+    // comma-joined, so serve-sim's error names the bad value.
+    ...(networkCapture
+      ? [
+          '--network-capture',
+          ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
+        ]
+      : []),
   ];
 }
 
@@ -213,7 +227,7 @@ export async function waitForWebPreviewReadyAsync({
     } catch (error) {
       lastError = error;
     }
-    await sleepAsync(1_000);
+    await sleepAsync(WEB_PREVIEW_READY_POLL_INTERVAL_MS);
   }
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${
@@ -265,17 +279,27 @@ export async function startDeviceSessionHostAsync(
     launchAppIdentifier,
     launchArgs,
     openUrl,
+    networkCapture = false,
+    networkCaptureFields = [],
   }: {
     runtimePlatform: BuildRuntimePlatform;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
+    networkCaptureFields?: string[];
   } & ServeSimLaunchOptions
 ): Promise<DeviceSessionHost> {
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
   // Unreachable from the step functions, which reject a non-Darwin launch while parsing.
   // Kept because this function is exported and expo-device-hub cannot launch.
+  if (isAndroid && networkCapture) {
+    throw new UserError(
+      'EAS_NETWORK_CAPTURE_INVALID_INPUT',
+      `Cannot record network traffic: capture runs through serve-sim on an iOS simulator, and this session runs expo-device-hub on ${runtimePlatform}.`
+    );
+  }
   if (isAndroid && launchAppIdentifier) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
@@ -319,19 +343,37 @@ export async function startDeviceSessionHostAsync(
           launchAppIdentifier,
           launchArgs,
           openUrl,
+          networkCapture,
+          networkCaptureFields,
         })
   );
   logger.info(
     `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
   );
-  const previewServer = spawnDetached({
-    command: previewExec.command,
-    args: previewExec.args,
-    env: recording
-      ? { ...env, EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken }
-      : env,
-    stopGracePeriodMs: recording ? RECORDING_STOP_GRACE_PERIOD_MS : undefined,
+  const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
+    deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
+    logger,
   });
+  let previewServer: DetachedProcessHandle;
+  try {
+    previewServer = spawnDetached({
+      command: previewExec.command,
+      args: previewExec.args,
+      env: {
+        ...env,
+        EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
+        ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
+      },
+      // Only an Android host records through expo-device-hub; serve-sim records on iOS.
+      stopGracePeriodMs: recording
+        ? RECORDING_STOP_GRACE_PERIOD_MS
+        : SERVE_SIM_STOP_GRACE_PERIOD_MS,
+    });
+  } catch (error) {
+    // Nothing was spawned, so nothing can still write into the directory.
+    await screenshots.finishAsync(true);
+    throw error;
+  }
 
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
@@ -395,6 +437,7 @@ export async function startDeviceSessionHostAsync(
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
         previewTask,
         previewServer,
+        screenshots,
         serverName,
         port,
         // A host that never answered /readyz has nothing to finalize or upload.
@@ -422,6 +465,7 @@ export async function startDeviceSessionHostAsync(
             'report it if it repeats.'
         );
       }
+      IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
     return host;
   } catch (error) {
@@ -435,6 +479,7 @@ async function finishDeviceSessionHostAsync(
   {
     previewTask,
     previewServer,
+    screenshots,
     serverName,
     port,
     recording,
@@ -442,6 +487,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
     previewServer: DetachedProcessHandle;
+    screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
     port: number;
     recording: AndroidSessionRecording | null;
@@ -480,6 +526,7 @@ async function finishDeviceSessionHostAsync(
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
   await retirePreview;
+  await screenshots.finishAsync(hostStopped);
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
   let uploaded = false;

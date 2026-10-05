@@ -17,6 +17,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../env';
+import { AppPlatform } from '../../graphql/generated';
 import { readLocalEgressConfigFromEnv } from '../egress';
 
 jest.mock('fs-extra');
@@ -146,6 +147,7 @@ describe(loadSimulatorEnvAsync, () => {
       fingerprint: 'session-b-fingerprint',
       port: 8900,
       allow: ['localhost:4000'],
+      platform: AppPlatform.Ios,
     });
     expect(process.env[EAS_SIMULATOR_SESSION_ID]).toBe('session-b');
     expect(process.env.AGENT_DEVICE_DAEMON_BASE_URL).toBe('https://agent-b.example.test');
