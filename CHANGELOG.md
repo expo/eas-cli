@@ -18,6 +18,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [build-tools] Remove the `eas/start_agent_device_remote_session` step; agent-device sessions use `eas/start_agent_device_session`. ([#4518](https://github.com/expo/eas-cli/pull/4518) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [24.10.0](https://github.com/expo/eas-cli/releases/tag/v24.10.0) - 2026-10-02
 
 ### 🎉 New features
