@@ -48,14 +48,16 @@ const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
  * eas/download_build, eas/install_build and eas/launch_application, plus the agent-device
  * session, so the parts that do not depend on each other can run at the same time:
  *
- *   boot ─────────────┬─► install ─► launch ─┐
- *   download ─────────┘                      │
- *   boot ─► session host ─► web preview ─────┼─► ready
- *   agent-device daemon ─► tunnel ───────────┘
+ *   boot ─────────────┬─► install ─► launch ──────┐
+ *   download ─────────┘                           │
+ *   boot ─► session host ─► web preview ──────────┼─► ready
+ *   agent-device install ─┬─► daemon ─► tunnel ───┘
+ *   boot ─────────────────┘
  *
- * The first failure aborts the rest: the download stops, and nothing installs, launches
- * or starts after it. A boot cannot be cancelled, so it can still run when a failed
- * step returns.
+ * The agent-device daemon launches only after the boot, because its daemon policy names
+ * the booted device. The first failure aborts the rest: the download stops, and nothing
+ * installs, launches or starts after it. A boot cannot be cancelled, so it can still run
+ * when a failed step returns.
  */
 export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -175,14 +177,14 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         isIos ? 'iOS Simulator boot' : 'Android Emulator boot',
         async taskLogger => {
           if (isIos) {
-            await bootIosSimulatorAsync({
+            const { udid } = await bootIosSimulatorAsync({
               deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
               env,
               logger: taskLogger,
             });
-            return;
+            return udid;
           }
-          await startAndroidEmulatorAsync({
+          const { serialId } = await startAndroidEmulatorAsync({
             deviceName: ANDROID_DEVICE_NAME,
             systemImagePackage: `${inputs.system_image_package.value}`,
             deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
@@ -195,6 +197,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
             env,
             logger: taskLogger,
           });
+          return serialId;
         }
       );
 

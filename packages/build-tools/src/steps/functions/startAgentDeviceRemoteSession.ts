@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -76,9 +76,11 @@ export function getAgentDeviceRemoteSessionEnvOrThrow(
  * Starts the agent-device daemon, its tunnel, the session host and the web preview,
  * reports the session as ready, and keeps it alive until it stops.
  *
- * The daemon does not need the device, so it starts at once. The session host starts
- * when `device.booted` resolves. The session is reported as ready only when both are
- * up and `device.ready` (the app is installed and launched) resolved too.
+ * agent-device installs at once. Its daemon launches with a daemon policy that confines
+ * it to the session's device and denies booting and shutting down devices, so it launches
+ * when `device.booted` resolves with that device. The session host also starts then. The
+ * session is reported as ready only when both are up and `device.ready` (the app is
+ * installed and launched) resolved too.
  *
  * The first failure aborts `tasks.signal`: each part stops before its next stage, and
  * the teardown then stops whatever was started. `device.ready` must settle soon after
@@ -109,7 +111,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
     tasks: StartupTasks;
-    device: { booted: Promise<unknown>; ready: Promise<unknown> };
+    /** `booted` resolves with the booted device: a Simulator UDID or an emulator serial. */
+    device: { booted: Promise<string>; ready: Promise<unknown> };
   }
 ): Promise<void> {
   logger.info(
@@ -125,12 +128,17 @@ export async function runAgentDeviceRemoteSessionAsync(
   // Each task stores what it started, so the teardown below can stop it even when
   // another task failed first.
   const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
-    taskLogger.info('Launching agent-device daemon.');
     daemonProcess = await startAgentDeviceDaemonAsync({
       packageVersion,
       env,
       logger: taskLogger,
       signal: tasks.signal,
+      // A boot cannot be cancelled, so stop waiting for it when startup is aborted.
+      waitForPolicyAsync: async () =>
+        createAgentDeviceDaemonPolicy({
+          runtimePlatform,
+          device: await tasks.untilAborted(device.booted),
+        }),
     });
 
     taskLogger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
@@ -138,6 +146,13 @@ export async function runAgentDeviceRemoteSessionAsync(
     // (STARTUP_TIMEOUT_MS) and only reads a file, so it may finish in the background.
     const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
     taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
+    if (!daemonInfo.policyDigest) {
+      taskLogger.warn(
+        `agent-device ${packageVersion ?? 'latest'} does not enforce daemon policies, so this ` +
+          'session is not confined to its device and can boot or shut down devices. ' +
+          'Use agent-device 0.21.17 or later.'
+      );
+    }
 
     tasks.signal.throwIfAborted();
     agentDeviceTunnel = await startNgrokTunnelAsync({
@@ -267,13 +282,110 @@ export async function startAgentDeviceDaemonAsync({
   env,
   logger,
   signal,
+  waitForPolicyAsync,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
   /** Kills the install and stops before the daemon starts, when aborted. No git fallback then. */
   signal?: AbortSignal;
+  /**
+   * Resolves with the daemon policy. Called after the install, right before the launch, so
+   * the install runs while the device that the policy names is still booting.
+   */
+  waitForPolicyAsync: () => Promise<AgentDeviceDaemonPolicy>;
 }): Promise<DetachedProcessHandle> {
+  const daemon = await installAgentDeviceDaemonAsync({ packageVersion, env, logger, signal });
+  const policyDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-agent-device-policy-'));
+  const removeFilesAsync = async (): Promise<void> => {
+    await fs.promises.rm(policyDir, { recursive: true, force: true });
+    if (daemon.installDir) {
+      await fs.promises.rm(daemon.installDir, { recursive: true, force: true });
+    }
+  };
+
+  try {
+    const policy = await waitForPolicyAsync();
+    signal?.throwIfAborted();
+    const policyPath = path.join(policyDir, 'policy.json');
+    await fs.promises.writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+    logger.info(`${daemon.launchMessage} Daemon policy: ${JSON.stringify(policy)}.`);
+    const daemonProcess = spawnDetached({
+      command: daemon.command,
+      args: daemon.args,
+      cwd: daemon.cwd,
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV, AGENT_DEVICE_DAEMON_POLICY: policyPath },
+    });
+    return {
+      ...daemonProcess,
+      stopAsync: async () => {
+        try {
+          await daemonProcess.stopAsync();
+        } finally {
+          await removeFilesAsync();
+        }
+      },
+    };
+  } catch (err) {
+    await removeFilesAsync();
+    throw err;
+  }
+}
+
+/**
+ * agent-device's daemon policy (AGENT_DEVICE_DAEMON_POLICY, agent-device 0.21.17 and later):
+ * the daemon may use only the session's device, and may not boot or shut down a device, so
+ * it cannot reboot it either. The daemon enforces it for every request, including `batch`
+ * steps and `replay` actions.
+ */
+export type AgentDeviceDaemonPolicy = {
+  version: 1;
+  devices: { allow: [{ udid: string } | { serial: string }] };
+  commands: { deny: string[] };
+  capabilities: { deny: string[] };
+};
+
+function createAgentDeviceDaemonPolicy({
+  runtimePlatform,
+  device,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  /** A Simulator UDID on iOS, an emulator serial on Android. */
+  device: string;
+}): AgentDeviceDaemonPolicy {
+  return {
+    version: 1,
+    devices: {
+      allow: [
+        runtimePlatform === BuildRuntimePlatform.LINUX ? { serial: device } : { udid: device },
+      ],
+    },
+    commands: { deny: ['boot', 'shutdown'] },
+    // Also denies `close --shutdown`.
+    capabilities: { deny: ['device-shutdown'] },
+  };
+}
+
+type InstalledAgentDeviceDaemon = {
+  command: string;
+  args: string[];
+  cwd?: string;
+  /** Removed when the daemon stops. */
+  installDir?: string;
+  launchMessage: string;
+};
+
+async function installAgentDeviceDaemonAsync({
+  packageVersion,
+  env,
+  logger,
+  signal,
+}: {
+  packageVersion: string | undefined;
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<InstalledAgentDeviceDaemon> {
   const packageSpec = createAgentDevicePackageSpec(packageVersion);
   const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
   const installDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-agent-device-'));
@@ -291,20 +403,11 @@ export async function startAgentDeviceDaemonAsync({
     if (!fs.existsSync(daemonPath)) {
       throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
     }
-
-    signal?.throwIfAborted();
-    logger.info(`Launching daemon from ${daemonPath} after ${add.command} install.`);
-    const daemonProcess = spawnDetached({
+    return {
       command: 'node',
       args: [daemonPath],
-      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
-    });
-    return {
-      ...daemonProcess,
-      stopAsync: async () => {
-        await daemonProcess.stopAsync();
-        await fs.promises.rm(installDir, { recursive: true, force: true });
-      },
+      installDir,
+      launchMessage: `Launching daemon from ${daemonPath} after ${add.command} install.`,
     };
   } catch (err) {
     await fs.promises.rm(installDir, { recursive: true, force: true });
@@ -334,7 +437,7 @@ export async function startAgentDeviceDaemonAsync({
     logger.warn(
       `Failed to start daemon from ${packageSpec} via ${packageManager}; falling back to git clone: ${error.message}`
     );
-    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger, signal });
+    return await installAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger, signal });
   }
 }
 
@@ -360,7 +463,7 @@ export async function stopAgentDeviceEventCollectionSafelyAsync({
   }
 }
 
-async function startAgentDeviceDaemonFromGitAsync({
+async function installAgentDeviceDaemonFromGitAsync({
   packageVersion,
   env,
   logger,
@@ -370,7 +473,7 @@ async function startAgentDeviceDaemonFromGitAsync({
   env: BuildStepEnv;
   logger: bunyan;
   signal?: AbortSignal;
-}): Promise<DetachedProcessHandle> {
+}): Promise<InstalledAgentDeviceDaemon> {
   logger.info(
     packageVersion
       ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
@@ -388,15 +491,13 @@ async function startAgentDeviceDaemonFromGitAsync({
     signal,
   });
 
-  signal?.throwIfAborted();
-  logger.info('Launching daemon from cloned agent-device source.');
   // Git fallback is TypeScript source. The published path runs node on dist JS.
-  return spawnDetached({
+  return {
     command: 'bun',
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
-    env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
-  });
+    launchMessage: 'Launching daemon from cloned agent-device source.',
+  };
 }
 
 async function cloneAgentDeviceAsync({
@@ -422,7 +523,7 @@ async function waitForDaemonInfoAsync({
   daemonProcess,
 }: {
   daemonProcess: DetachedProcessHandle;
-}): Promise<{ port: number; token: string }> {
+}): Promise<DaemonInfo> {
   try {
     return await waitForFileAsync({
       filePath: DAEMON_JSON_PATH,
@@ -468,7 +569,14 @@ function getInstalledAgentDeviceDaemonPath(installDir: string): string {
   );
 }
 
-function parseDaemonInfo(raw: string): { port: number; token: string } {
+type DaemonInfo = {
+  port: number;
+  token: string;
+  /** Written by a daemon that enforces a daemon policy: agent-device 0.21.17 and later. */
+  policyDigest?: string;
+};
+
+function parseDaemonInfo(raw: string): DaemonInfo {
   const parsed = JSON.parse(raw) as unknown;
   if (
     !parsed ||
@@ -480,6 +588,14 @@ function parseDaemonInfo(raw: string): { port: number; token: string } {
       'Expected daemon credentials to contain { "httpPort": <number>, "token": "..." }.'
     );
   }
-  const { httpPort, token } = parsed as { httpPort: number; token: string };
-  return { port: httpPort, token };
+  const { httpPort, token, policyDigest } = parsed as {
+    httpPort: number;
+    token: string;
+    policyDigest?: unknown;
+  };
+  return {
+    port: httpPort,
+    token,
+    ...(typeof policyDigest === 'string' ? { policyDigest } : {}),
+  };
 }
