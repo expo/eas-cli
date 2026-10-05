@@ -1,16 +1,9 @@
 import { SystemError } from '@expo/eas-build-job';
-import * as jose from 'jose';
-import { KeyObject } from 'node:crypto';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthClient } from './GooglePlayAuthClient';
-
-export type GoogleServiceAccount = {
-  client_email: string;
-  private_key: KeyObject;
-  private_key_id?: string;
-};
+import { GoogleServiceAccount, createGooglePlayAssertionAsync } from './googlePlayAuthUtils';
 
 export class GooglePlayApiError extends Error {
   constructor(
@@ -153,15 +146,7 @@ export class GooglePlayClient {
     signal?: AbortSignal
   ): Promise<{ value: string; expiresAt: number }> {
     const startedAt = Date.now();
-    const assertion = await new jose.SignJWT({
-      scope: 'https://www.googleapis.com/auth/androidpublisher',
-    })
-      .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid: this.serviceAccount.private_key_id })
-      .setIssuer(this.serviceAccount.client_email)
-      .setAudience('https://oauth2.googleapis.com/token')
-      .setIssuedAt()
-      .setExpirationTime('1h')
-      .sign(this.serviceAccount.private_key);
+    const assertion = await createGooglePlayAssertionAsync(this.serviceAccount);
     const response = await this.authClient.postAsync(
       '/token',
       {
