@@ -1,7 +1,7 @@
+import { SystemError } from '@expo/eas-build-job';
 import nock from 'nock';
 
-import { GooglePlayAuthClient } from '../GooglePlayAuthClient';
-import { GooglePlayApiError } from '../GooglePlayErrors';
+import { GooglePlayAuthClient, GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
 
 jest.unmock('node-fetch');
 
@@ -62,7 +62,17 @@ it('returns HTTP failures without retrying or retaining the response body', asyn
   } catch (caught) {
     error = caught;
   }
-  expect(error).toBeInstanceOf(GooglePlayApiError);
-  expect(error).toMatchObject({ status: 503, apiMessage: '', reasons: [] });
+  expect(error).toBeInstanceOf(GooglePlayAuthRequestError);
+  expect(error).toMatchObject({ status: 503 });
   expect(JSON.stringify(error)).not.toContain('SECRET ASSERTION');
+});
+
+it.each(['network failure', 'malformed JSON'])('returns a system error for %s', async failure => {
+  const endpoint = nock('https://oauth2.googleapis.com').post('/token');
+  if (failure === 'network failure') {
+    endpoint.replyWithError('connection failed');
+  } else {
+    endpoint.reply(200, 'SECRET TOKEN is not JSON');
+  }
+  await expect(client.postAsync('/token', request)).rejects.toBeInstanceOf(SystemError);
 });

@@ -1,7 +1,7 @@
+import { SystemError } from '@expo/eas-build-job';
+import { asyncResult } from '@expo/results';
 import fetch, { Response } from 'node-fetch';
 import { z } from 'zod';
-
-import { GooglePlayApiError, GooglePlayNetworkError } from './GooglePlayErrors';
 
 const PostApi = {
   '/token': {
@@ -16,6 +16,12 @@ const PostApi = {
     }),
   },
 };
+
+export class GooglePlayAuthRequestError extends Error {
+  constructor(public readonly status: number) {
+    super(`Google Play OAuth request failed (HTTP ${status}).`);
+  }
+}
 
 export class GooglePlayAuthClient {
   private readonly baseUrl = 'https://oauth2.googleapis.com';
@@ -47,12 +53,12 @@ export class GooglePlayAuthClient {
     method: 'POST';
     path: string;
     body: unknown;
-    requestSchema: z.ZodType<Record<string, string>>;
-    responseSchema: z.ZodType;
+    requestSchema: z.ZodType<any>;
+    responseSchema: z.ZodType<any>;
     signal?: AbortSignal;
   }): Promise<any> {
-    const parsedBody = requestSchema.safeParse(body);
-    if (!parsedBody.success) {
+    const parsedBody = await asyncResult((async () => requestSchema.parse(body))());
+    if (!parsedBody.ok) {
       throw new Error('Invalid Google OAuth token request.');
     }
     signal?.throwIfAborted();
@@ -62,26 +68,32 @@ export class GooglePlayAuthClient {
         method,
         redirect: 'manual',
         signal,
-        body: new URLSearchParams(parsedBody.data),
+        body: new URLSearchParams(parsedBody.value),
       });
     } catch {
       signal?.throwIfAborted();
-      throw new GooglePlayNetworkError();
+      throw new SystemError('Google Play OAuth request failed before a response was received.');
     }
     if (!response.ok) {
-      throw new GooglePlayApiError(response.status, '', []);
+      throw new GooglePlayAuthRequestError(response.status);
     }
-    let data: unknown;
+    let text: string;
     try {
-      data = await response.json();
+      text = await response.text();
     } catch {
       signal?.throwIfAborted();
-      throw new GooglePlayNetworkError();
+      throw new SystemError('Could not read the Google Play OAuth response.');
     }
-    const parsed = responseSchema.safeParse(data);
-    if (!parsed.success) {
-      throw new Error('Google did not return a valid OAuth token.');
+    const parsedJson = await asyncResult((async () => JSON.parse(text))());
+    if (!parsedJson.ok) {
+      throw new SystemError('Malformed JSON response from Google Play OAuth.');
     }
-    return parsed.data;
+    const parsedResponse = await asyncResult(
+      (async () => responseSchema.parse(parsedJson.value))()
+    );
+    if (!parsedResponse.ok) {
+      throw new SystemError('Google did not return a valid OAuth token.');
+    }
+    return parsedResponse.value;
   }
 }
