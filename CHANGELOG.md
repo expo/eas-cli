@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Select the containing iOS app when its archive also includes a nested App Clip. ([#4541](https://github.com/expo/eas-cli/pull/4541) by [@mozzius](https://github.com/mozzius))
 - [build-tools] Allow expo.test subdomains to open local and staging simulator previews. ([#4480](https://github.com/expo/eas-cli/pull/4480) by [@hirbod](https://github.com/hirbod))
 - [build-tools] Retry App Store Connect connection failures and safely recover interrupted status reads and upload commits. ([#4520](https://github.com/expo/eas-cli/pull/4520) by [@sjchmiela](https://github.com/sjchmiela))
 
