@@ -2,8 +2,7 @@ import { SystemError } from '@expo/eas-build-job';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
-import { GooglePlayAuthClient } from './GooglePlayAuthClient';
-import { GoogleServiceAccount, createGooglePlayAssertionAsync } from './googlePlayAuthUtils';
+import { GooglePlayAuthUtils, GoogleServiceAccount } from './googlePlayAuthUtils';
 
 export class GooglePlayApiError extends Error {
   constructor(
@@ -112,7 +111,6 @@ const DeleteApi = {
 
 export class GooglePlayClient {
   private readonly baseUrl = 'https://androidpublisher.googleapis.com';
-  private readonly authClient = new GooglePlayAuthClient();
   private cachedToken?: Promise<{ value: string; expiresAt: number }>;
 
   constructor(private readonly serviceAccount: GoogleServiceAccount) {}
@@ -130,7 +128,7 @@ export class GooglePlayClient {
         break;
       }
     }
-    const pending = this.loadTokenAsync(signal);
+    const pending = GooglePlayAuthUtils.createTokenAsync(this.serviceAccount, signal);
     this.cachedToken = pending;
     try {
       return (await pending).value;
@@ -140,22 +138,6 @@ export class GooglePlayClient {
       }
       throw error;
     }
-  }
-
-  private async loadTokenAsync(
-    signal?: AbortSignal
-  ): Promise<{ value: string; expiresAt: number }> {
-    const startedAt = Date.now();
-    const assertion = await createGooglePlayAssertionAsync(this.serviceAccount);
-    const response = await this.authClient.postAsync(
-      '/token',
-      {
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      },
-      signal
-    );
-    return { value: response.access_token, expiresAt: startedAt + response.expires_in * 1000 };
   }
 
   async getAsync<TPath extends keyof typeof GetApi>(
