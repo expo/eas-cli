@@ -1,6 +1,8 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
+import { isAnalyticsOptedOutAsync } from '../../analytics/AnalyticsManager';
+import { getAgentTelemetryContext } from '../../analytics/agent';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -12,6 +14,7 @@ import {
 import {
   AppPlatform,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -298,6 +301,7 @@ export default class Simulator extends EasCommand {
     let deviceRunSessionUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
+      const agentIdentity = await agentIdentityInputAsync();
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
         name,
@@ -322,6 +326,8 @@ export default class Simulator extends EasCommand {
         ...(openUrl ? { openUrl } : {}),
         ...(resourceClass ? { resourceClass } : {}),
         ...(egress ? { egress } : {}),
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+        ...agentIdentity,
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
@@ -760,4 +766,15 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
     );
     return false;
   }
+}
+
+async function agentIdentityInputAsync(): Promise<{ agentId?: string; agentSessionId?: string }> {
+  if (await isAnalyticsOptedOutAsync()) {
+    return {};
+  }
+  const agent = getAgentTelemetryContext();
+  if (!agent) {
+    return {};
+  }
+  return { agentId: agent.id, ...(agent.sessionId ? { agentSessionId: agent.sessionId } : {}) };
 }

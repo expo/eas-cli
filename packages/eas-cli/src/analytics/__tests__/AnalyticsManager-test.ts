@@ -1,7 +1,7 @@
 import RudderAnalytics from '@expo/rudder-sdk-node';
 
 import UserSettings from '../../user/UserSettings';
-import { CommandEvent, createAnalyticsAsync } from '../AnalyticsManager';
+import { CommandEvent, createAnalyticsAsync, isAnalyticsOptedOutAsync } from '../AnalyticsManager';
 import { getAgentTelemetryContext } from '../agent';
 import { getSandboxTelemetryContext } from '../sandbox';
 
@@ -121,4 +121,22 @@ it('adds detected sandbox context to analytics events', async () => {
       }),
     })
   );
+});
+
+describe(isAnalyticsOptedOutAsync, () => {
+  it('is false by default', async () => {
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(false);
+  });
+
+  it('is true when DISABLE_EAS_ANALYTICS is set', async () => {
+    process.env.DISABLE_EAS_ANALYTICS = '1';
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(true);
+  });
+
+  it('is true when analytics were turned off with eas analytics off', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsEnabled' ? false : defaultValue
+    );
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(true);
+  });
 });

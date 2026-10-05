@@ -1,12 +1,15 @@
 import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 
+import { isAnalyticsOptedOutAsync } from '../../../analytics/AnalyticsManager';
+import { getAgentTelemetryContext } from '../../../analytics/agent';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -32,6 +35,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
+jest.mock('../../../analytics/AnalyticsManager', () => ({
+  ...jest.requireActual('../../../analytics/AnalyticsManager'),
+  isAnalyticsOptedOutAsync: jest.fn(),
+}));
+jest.mock('../../../analytics/agent');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
@@ -99,6 +107,8 @@ const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
+const mockGetAgentTelemetryContext = jest.mocked(getAgentTelemetryContext);
+const mockIsAnalyticsOptedOutAsync = jest.mocked(isAnalyticsOptedOutAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
@@ -186,6 +196,8 @@ describe(Simulator, () => {
     mockResetSimulatorEnvAsync.mockResolvedValue();
     mockResolveExpoGoSdkVersionAsync.mockResolvedValue('55.0.0');
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
+    mockGetAgentTelemetryContext.mockReturnValue(null);
+    mockIsAnalyticsOptedOutAsync.mockResolvedValue(false);
   });
 
   afterAll(() => {
@@ -258,6 +270,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
@@ -420,6 +433,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -440,6 +454,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -460,6 +475,7 @@ describe(Simulator, () => {
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
       maxIdleTimeMinutes: 30,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -479,6 +495,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -634,6 +651,43 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({ name: undefined })
     );
+  });
+
+  it('sends the detected coding agent with the create request', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'claude', sessionId: 'agent-session-1' });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+        agentId: 'claude',
+        agentSessionId: 'agent-session-1',
+      })
+    );
+  });
+
+  it('leaves out the agent session when the detected agent has none', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'codex', sessionId: undefined });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    const input = mockCreateDeviceRunSessionAsync.mock.calls[0]?.[1];
+    expect(input).toMatchObject({ agentId: 'codex' });
+    expect(input).not.toHaveProperty('agentSessionId');
+  });
+
+  it('leaves out the coding agent when the user opted out of analytics', async () => {
+    mockIsAnalyticsOptedOutAsync.mockResolvedValue(true);
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'claude', sessionId: 'agent-session-1' });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    const input = mockCreateDeviceRunSessionAsync.mock.calls[0]?.[1];
+    expect(input).toMatchObject({ requestOrigin: DeviceRunSessionRequestOrigin.EasCli });
+    expect(input).not.toHaveProperty('agentId');
+    expect(input).not.toHaveProperty('agentSessionId');
   });
 
   it('forwards --device in the iOS create options', async () => {
