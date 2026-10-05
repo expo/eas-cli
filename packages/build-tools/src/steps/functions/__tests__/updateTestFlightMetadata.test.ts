@@ -593,7 +593,12 @@ it.each([
     }).catch(error => error);
     expect(failure).toBeInstanceOf(AggregateError);
     expect(failure.errors).toHaveLength(2);
-    expect(failure.errors[0]).toBe(failure.errors[1]);
+    if (state === 'MISSING_EXPORT_COMPLIANCE' || state === 'IN_EXPORT_COMPLIANCE_REVIEW') {
+      expect(failure.errors[0]).toBe(failure.errors[1]);
+    } else {
+      expect(failure.errors[0]).toMatchObject({ status: 403 });
+      expect(failure.errors[1]).toMatchObject({ status: 422 });
+    }
     expect(failure.errors[0].message).toContain(guidance);
     expect(
       jest
@@ -607,7 +612,6 @@ it.each([
         level: 'error',
         tags: { step: 'eas/update_testflight_metadata', internal_build_state: state ?? 'UNKNOWN' },
         extras: {
-          appId: 'app',
           buildId: 'build',
           assignmentError: expect.stringContaining('ASSIGNMENT_FAILED'),
         },

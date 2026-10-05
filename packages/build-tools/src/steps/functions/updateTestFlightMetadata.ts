@@ -192,7 +192,7 @@ export async function updateTestFlightMetadataAsync({
           })
         : [];
       const assignedIds = new Set(assignedGroups.map(group => group.id));
-      let assignmentFailure: Promise<never> | undefined;
+      let internalBuildStateVerification: Promise<void> | undefined;
       const groupLimit = limitFactory<void>(1);
       const groupResults = await Promise.allSettled(
         requestedGroups.map(group =>
@@ -221,14 +221,29 @@ export async function updateTestFlightMetadataAsync({
               );
             } catch (error) {
               logger.error(`❌ Group ${label}: assignment failed. ${String(error)}`);
-              assignmentFailure ??= reportGroupAssignmentFailureAsync({
-                client,
-                appId: app.id,
-                buildId,
-                logger,
-                error,
-              });
-              await assignmentFailure;
+
+              internalBuildStateVerification ??=
+                verifyInternalBuildStateValidForGroupAssignmentAsync({
+                  client,
+                  buildId,
+                  appId: app.id,
+                  logger,
+                  error,
+                });
+              await internalBuildStateVerification;
+
+              if (isInternalGroupAssignmentError(error)) {
+                throw new UserError(
+                  'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
+                  "App Store Connect can't add this build to a requested internal TestFlight group. " +
+                    "Internal groups that automatically receive new builds can't be assigned to manually. " +
+                    'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
+                    `Manage groups at https://appstoreconnect.apple.com/apps/${app.id}/testflight`,
+                  { cause: error }
+                );
+              }
+
+              throw error;
             }
             logger.info(`✅ Group ${label}: assignment completed.`);
           })
@@ -268,7 +283,7 @@ export async function updateTestFlightMetadataAsync({
   }
 }
 
-async function reportGroupAssignmentFailureAsync({
+async function verifyInternalBuildStateValidForGroupAssignmentAsync({
   client,
   appId,
   buildId,
@@ -280,7 +295,7 @@ async function reportGroupAssignmentFailureAsync({
   buildId: string;
   logger: bunyan;
   error: unknown;
-}): Promise<never> {
+}): Promise<void> {
   let state = 'UNKNOWN';
   try {
     const { data } = await client.getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId });
@@ -288,12 +303,15 @@ async function reportGroupAssignmentFailureAsync({
   } catch (diagnosticError) {
     logger.warn(`Could not read the TestFlight state: ${String(diagnosticError)}`);
   }
+
   logger.info(`Apple build ${buildId}: internal TestFlight state = ${state}.`);
+
   Sentry.capture(`TestFlight group assignment failed (state: ${state})`, {
     level: 'error',
     tags: { step: 'eas/update_testflight_metadata', internal_build_state: state },
-    extras: { appId, buildId, assignmentError: String(error) },
+    extras: { buildId, assignmentError: String(error) },
   });
+
   if (state === 'MISSING_EXPORT_COMPLIANCE' || state === 'IN_EXPORT_COMPLIANCE_REVIEW') {
     throw new UserError(
       'EAS_TESTFLIGHT_GROUP_ASSIGNMENT_FAILED',
@@ -305,17 +323,6 @@ async function reportGroupAssignmentFailureAsync({
       { cause: error }
     );
   }
-  if (isInternalGroupAssignmentError(error)) {
-    throw new UserError(
-      'EAS_TESTFLIGHT_INTERNAL_GROUP_ASSIGNMENT_FAILED',
-      "App Store Connect can't add this build to a requested internal TestFlight group. " +
-        "Internal groups that automatically receive new builds can't be assigned to manually. " +
-        'Remove the group from the list, or turn off automatic distribution in App Store Connect. ' +
-        `Manage groups at https://appstoreconnect.apple.com/apps/${appId}/testflight`,
-      { cause: error }
-    );
-  }
-  throw error;
 }
 
 // Apple returns a generic 422 code, so match the title or detail too.
