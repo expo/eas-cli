@@ -11,6 +11,23 @@ import { createDownloadSubmissionArchiveFunction } from '../downloadSubmissionAr
 const submissionId = 'aabbccdd-1234-4321-abcd-123456789012';
 const url = 'https://storage.example/app.ipa?signature=secret';
 
+it('reports invalid submission ID and extensions together', async () => {
+  const mutation = jest.fn();
+  const step = createDownloadSubmissionArchiveFunction({
+    graphqlClient: { mutation } as unknown as Client,
+  } as CustomBuildContext).createBuildStepFromFunctionCall(createGlobalContextMock(), {
+    callInputs: { submission_id: 'invalid', extensions: [123] },
+  });
+
+  await expect(step.executeAsync()).rejects.toMatchObject({
+    issues: expect.arrayContaining([
+      expect.objectContaining({ path: ['submissionId'] }),
+      expect.objectContaining({ path: ['extensions', 0] }),
+    ]),
+  });
+  expect(mutation).not.toHaveBeenCalled();
+});
+
 it('requests a fresh URL on each execution, downloads without auth and does not log the URL', async () => {
   const mutation = jest.fn(() => ({
     toPromise: async () => ({
