@@ -461,6 +461,8 @@ describe(Simulator, () => {
       expect(fs.writeFile).not.toHaveBeenCalled();
       expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
     } finally {
+      // Drop the pending stop if this test failed before using it, so later tests do not hang.
+      mockEnsureDeviceRunSessionStoppedAsync.mockReset();
       processExitSpy.mockRestore();
       jest.useRealTimers();
     }
