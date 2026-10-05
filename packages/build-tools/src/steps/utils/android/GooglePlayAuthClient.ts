@@ -18,8 +18,12 @@ const PostApi = {
 };
 
 export class GooglePlayAuthRequestError extends Error {
-  constructor(public readonly status: number) {
-    super(`Google Play OAuth request failed (HTTP ${status}).`);
+  constructor(
+    public readonly status: number,
+    public readonly responseText: string,
+    options?: { cause?: unknown }
+  ) {
+    super(`Google Play OAuth request failed (HTTP ${status}): ${responseText}`, options);
   }
 }
 
@@ -59,7 +63,12 @@ export class GooglePlayAuthClient {
   }): Promise<any> {
     const parsedBody = await asyncResult((async () => requestSchema.parse(body))());
     if (!parsedBody.ok) {
-      throw new Error('Invalid Google OAuth token request.');
+      throw new Error(
+        `Malformed request to Google Play OAuth: ${z.prettifyError(
+          parsedBody.enforceError() as z.ZodError
+        )}`,
+        { cause: parsedBody.enforceError() }
+      );
     }
     signal?.throwIfAborted();
     let response: Response;
@@ -70,29 +79,44 @@ export class GooglePlayAuthClient {
         signal,
         body: new URLSearchParams(parsedBody.value),
       });
-    } catch {
+    } catch (cause) {
       signal?.throwIfAborted();
-      throw new SystemError('Google Play OAuth request failed before a response was received.');
-    }
-    if (!response.ok) {
-      throw new GooglePlayAuthRequestError(response.status);
+      throw new SystemError('Google Play OAuth request failed before a response was received.', {
+        cause,
+      });
     }
     let text: string;
     try {
       text = await response.text();
-    } catch {
+    } catch (cause) {
       signal?.throwIfAborted();
-      throw new SystemError('Could not read the Google Play OAuth response.');
+      throw new SystemError(
+        `Could not read the Google Play OAuth response (HTTP ${response.status}).`,
+        {
+          cause,
+        }
+      );
+    }
+    if (!response.ok) {
+      throw new GooglePlayAuthRequestError(response.status, text, { cause: response });
     }
     const parsedJson = await asyncResult((async () => JSON.parse(text))());
     if (!parsedJson.ok) {
-      throw new SystemError('Malformed JSON response from Google Play OAuth.');
+      throw new SystemError(
+        `Malformed JSON response from Google Play OAuth (HTTP ${response.status}): ${text}`,
+        { cause: parsedJson.enforceError() }
+      );
     }
     const parsedResponse = await asyncResult(
       (async () => responseSchema.parse(parsedJson.value))()
     );
     if (!parsedResponse.ok) {
-      throw new SystemError('Google did not return a valid OAuth token.');
+      throw new SystemError(
+        `Malformed response from Google Play OAuth (HTTP ${response.status}): ${text}\n${z.prettifyError(
+          parsedResponse.enforceError() as z.ZodError
+        )}`,
+        { cause: parsedResponse.enforceError() }
+      );
     }
     return parsedResponse.value;
   }
