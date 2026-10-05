@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { generateKeyPairSync } from 'node:crypto';
 import { SystemError } from '@expo/eas-build-job';
 import { ZodError } from 'zod';
 
@@ -13,10 +14,18 @@ const api = (): nock.Scope =>
 
 jest.unmock('node-fetch');
 
+const serviceAccount = {
+  client_email: 'test@example.iam.gserviceaccount.com',
+  private_key: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey,
+};
 let client: GooglePlayClient;
 beforeEach(() => {
   nock.disableNetConnect();
-  client = new GooglePlayClient({ token: 'test-access-token' });
+  client = new GooglePlayClient(serviceAccount);
+  nock('https://oauth2.googleapis.com')
+    .post('/token')
+    .optionally()
+    .reply(200, { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' });
 });
 afterEach(() => {
   const pending = nock.pendingMocks();
@@ -127,4 +136,23 @@ it.each(['body', 'query'])('accepts extra fields in an empty %s object', async f
       { query: (field === 'query' ? { unexpected: true } : {}) as never }
     )
   ).resolves.toEqual({ id: 'edit' });
+});
+
+it('shares a token across concurrent requests and refreshes before expiry', async () => {
+  nock.cleanAll();
+  const now = Date.now();
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+  nock('https://oauth2.googleapis.com')
+    .post('/token')
+    .twice()
+    .reply(200, { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' });
+  api().get(editPath).times(4).reply(200, { id: 'edit' });
+  const get = () =>
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    });
+  await Promise.all([get(), get()]);
+  clock.mockReturnValue(now + 3550_000);
+  await Promise.all([get(), get()]);
 });

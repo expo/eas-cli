@@ -1,6 +1,16 @@
 import { SystemError } from '@expo/eas-build-job';
+import * as jose from 'jose';
+import { KeyObject } from 'node:crypto';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
+
+import { GooglePlayAuthClient } from './GooglePlayAuthClient';
+
+export type GoogleServiceAccount = {
+  client_email: string;
+  private_key: KeyObject;
+  private_key_id?: string;
+};
 
 export class GooglePlayApiError extends Error {
   constructor(
@@ -109,10 +119,58 @@ const DeleteApi = {
 
 export class GooglePlayClient {
   private readonly baseUrl = 'https://androidpublisher.googleapis.com';
-  private readonly token: string;
+  private readonly authClient = new GooglePlayAuthClient();
+  private cachedToken?: Promise<{ value: string; expiresAt: number }>;
 
-  constructor({ token }: { token: string }) {
-    this.token = token;
+  constructor(private readonly serviceAccount: GoogleServiceAccount) {}
+
+  private async getTokenAsync(signal?: AbortSignal): Promise<string> {
+    signal?.throwIfAborted();
+    while (this.cachedToken) {
+      const pending = this.cachedToken;
+      const cached = await pending;
+      signal?.throwIfAborted();
+      if (Date.now() < cached.expiresAt - 60_000) {
+        return cached.value;
+      }
+      if (this.cachedToken === pending) {
+        break;
+      }
+    }
+    const pending = this.loadTokenAsync(signal);
+    this.cachedToken = pending;
+    try {
+      return (await pending).value;
+    } catch (error) {
+      if (this.cachedToken === pending) {
+        this.cachedToken = undefined;
+      }
+      throw error;
+    }
+  }
+
+  private async loadTokenAsync(
+    signal?: AbortSignal
+  ): Promise<{ value: string; expiresAt: number }> {
+    const startedAt = Date.now();
+    const assertion = await new jose.SignJWT({
+      scope: 'https://www.googleapis.com/auth/androidpublisher',
+    })
+      .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid: this.serviceAccount.private_key_id })
+      .setIssuer(this.serviceAccount.client_email)
+      .setAudience('https://oauth2.googleapis.com/token')
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(this.serviceAccount.private_key);
+    const response = await this.authClient.postAsync(
+      '/token',
+      {
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion,
+      },
+      signal
+    );
+    return { value: response.access_token, expiresAt: startedAt + response.expires_in * 1000 };
   }
 
   async getAsync<TPath extends keyof typeof GetApi>(
@@ -225,6 +283,7 @@ export class GooglePlayClient {
         'Google Play request URL must use the publisher host without URL credentials.'
       );
     }
+    const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();
     try {
@@ -232,7 +291,7 @@ export class GooglePlayClient {
         method,
         body,
         signal,
-        headers: { ...options.headers, Authorization: `Bearer ${this.token}` },
+        headers: { ...options.headers, Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
     } catch {
