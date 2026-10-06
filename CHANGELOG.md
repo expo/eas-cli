@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `simulator:network-requests` to list, follow, and inspect captured network requests from a running iOS simulator session, and download them as a HAR file. ([#4546](https://github.com/expo/eas-cli/pull/4546) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
