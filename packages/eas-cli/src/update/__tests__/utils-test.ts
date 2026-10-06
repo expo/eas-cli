@@ -36,22 +36,38 @@ describe('update utility functions', () => {
   });
 
   describe(getUpdateJsonInfosForUpdates, () => {
-    it('includes the signed assetMapUrl when the update has an asset map', () => {
+    it('includes the signed asset map and source map URLs', () => {
+      const [info] = getUpdateJsonInfosForUpdates([
+        makeUpdate({
+          assetMapUrl: 'https://storage.example/assetmap.json?signature',
+          sourceMapUrl: 'https://storage.example/updates/ios.map?signature',
+        }),
+      ]);
+
+      expect(info.assetMapUrl).toBe('https://storage.example/assetmap.json?signature');
+      expect(info.sourceMapUrl).toBe('https://storage.example/updates/ios.map?signature');
+    });
+
+    it.each([[null], [undefined]])(
+      'reports both URLs as null when the server returns %p',
+      value => {
+        const [info] = getUpdateJsonInfosForUpdates([
+          makeUpdate({ assetMapUrl: value, sourceMapUrl: value }),
+        ]);
+
+        expect(info.assetMapUrl).toBeNull();
+        expect(info.sourceMapUrl).toBeNull();
+      }
+    );
+
+    it('reports sourceMapUrl as null for an update published without source maps', () => {
       const [info] = getUpdateJsonInfosForUpdates([
         makeUpdate({ assetMapUrl: 'https://storage.example/assetmap.json?signature' }),
       ]);
 
-      expect(info.assetMapUrl).toBe('https://storage.example/assetmap.json?signature');
+      expect(info.assetMapUrl).not.toBeNull();
+      expect(info.sourceMapUrl).toBeNull();
     });
-
-    it.each([[null], [undefined]])(
-      'reports assetMapUrl as null when the server returns %p',
-      assetMapUrl => {
-        const [info] = getUpdateJsonInfosForUpdates([makeUpdate({ assetMapUrl })]);
-
-        expect(info.assetMapUrl).toBeNull();
-      }
-    );
   });
 
   describe(getPlatformsForGroup.name, () => {

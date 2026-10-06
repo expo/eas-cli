@@ -44,6 +44,7 @@ export type UpdateJsonInfo = { branch: string; runtimeVersion: string } & Pick<
   | 'manifestPermalink'
   | 'gitCommitHash'
   | 'assetMapUrl'
+  | 'sourceMapUrl'
 >;
 
 export type UpdateGroupDescription = FormatUpdateParameter & {
@@ -230,6 +231,8 @@ export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJ
     gitCommitHash: update.gitCommitHash,
     // Null unless the update was published with an asset map. The URL is signed and expires.
     assetMapUrl: update.assetMapUrl ?? null,
+    // Null unless the update was published with `--upload-source-maps`. The URL is signed and expires.
+    sourceMapUrl: update.sourceMapUrl ?? null,
   }));
 }
 
