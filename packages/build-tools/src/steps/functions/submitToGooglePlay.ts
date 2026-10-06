@@ -10,7 +10,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils } from '../utils/android/GooglePlayAuthUtils';
-import { GooglePlayClient } from '../utils/android/GooglePlayClient';
+import { GooglePlayClient, ReleaseStatus, ReleaseStatusZ } from '../utils/android/GooglePlayClient';
 import { GooglePlayUtils } from '../utils/android/GooglePlayUtils';
 import { AndroidArtifactType } from '../utils/android/appArtifact';
 
@@ -21,7 +21,7 @@ const InputsZ = z
     package_name: z.string().regex(/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/),
     service_account_key_path: z.string().min(1),
     track: z.string().trim().min(1).default('internal'),
-    release_status: z.enum(['completed', 'draft', 'halted', 'inProgress']).default('completed'),
+    release_status: ReleaseStatusZ.default('completed'),
     rollout: z.number().finite().gt(0).max(1).optional(),
     changelog: z.string().optional(),
     changes_not_sent_for_review: z.boolean().default(false),
@@ -41,11 +41,11 @@ const InputsZ = z
         message: 'An inProgress release requires a rollout greater than 0 and at most 1.',
       });
     }
-    if (release_status === 'halted' && rollout === 1) {
+    if (release_status === 'halted' && rollout !== undefined) {
       ctx.addIssue({
         code: 'custom',
         path: ['rollout'],
-        message: 'A halted release cannot have rollout 1. Omit rollout or use completed status.',
+        message: 'A halted release cannot have a rollout. Omit rollout or use inProgress status.',
       });
     }
   });
@@ -126,7 +126,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
       const { release_status: requested, rollout } = submission;
       // Match Fastlane: a partial rollout overrides the requested status to inProgress.
       const release: {
-        status: 'completed' | 'draft' | 'halted' | 'inProgress';
+        status: ReleaseStatus;
         userFraction?: number;
       } =
         rollout !== undefined && rollout < 1
@@ -173,13 +173,13 @@ async function submitToGooglePlayAsync({
   submission: {
     package_name: string;
     track: string;
-    release_status: 'completed' | 'draft' | 'halted' | 'inProgress';
+    release_status: ReleaseStatus;
     rollout?: number;
     changelog?: string;
     changes_not_sent_for_review: boolean;
     artifact_path: string;
   };
-  release: { status: 'completed' | 'draft' | 'halted' | 'inProgress'; userFraction?: number };
+  release: { status: ReleaseStatus; userFraction?: number };
   logger: bunyan;
   signal?: AbortSignal;
 }): Promise<{ packageName: string; versionCode: number; track: string }> {
@@ -244,7 +244,7 @@ async function submitToGooglePlayAsync({
         await GooglePlayUtils.deleteEditAsync(client, {
           packageName: submission.package_name,
           editId: edit.id,
-          signal,
+          signal: AbortSignal.timeout(30_000),
         });
       } catch {
         logger.warn(

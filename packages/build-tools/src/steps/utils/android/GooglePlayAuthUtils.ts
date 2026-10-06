@@ -32,7 +32,19 @@ export namespace GooglePlayAuthUtils {
         throw new Error('Expected an RSA private key.');
       }
       return { ...credentials, private_key: privateKey };
-    } catch {
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        throw new UserError(
+          'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
+          `Service-account key file not found at ${keyPath}.`,
+          { cause: error }
+        );
+      }
       // Neither JSON parse errors nor validation errors may include credential content.
       throw new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',

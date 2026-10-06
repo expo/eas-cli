@@ -3,7 +3,8 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
-import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
+import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
+import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -86,7 +87,7 @@ export namespace GooglePlayUtils {
       packageName: string;
       editId: string;
       track: string;
-      release: { status: 'completed' | 'draft' | 'halted' | 'inProgress'; userFraction?: number };
+      release: { status: ReleaseStatus; userFraction?: number };
       versionCode: number;
       changelog?: { locale: string; text: string };
       signal?: AbortSignal;
@@ -143,6 +144,7 @@ export namespace GooglePlayUtils {
     }: {
       changesNotSentForReview?: boolean;
     }): Promise<void> => {
+      signal?.throwIfAborted();
       try {
         const committed = await client.postAsync(
           '/androidpublisher/v3/applications/:packageName/edits/:editId:commit',
@@ -154,6 +156,9 @@ export namespace GooglePlayUtils {
           throw new SystemError('Google did not confirm the committed edit.');
         }
       } catch (error) {
+        if (error instanceof GooglePlayAuthRequestError) {
+          throw error;
+        }
         if (
           !(error instanceof GooglePlayApiError) ||
           error.status >= 500 ||
@@ -198,6 +203,19 @@ export namespace GooglePlayUtils {
   }
 
   export function mapGooglePlayError(error: unknown): unknown {
+    if (
+      error instanceof GooglePlayAuthRequestError &&
+      error.status >= 400 &&
+      error.status < 500 &&
+      error.status !== 408 &&
+      error.status !== 429
+    ) {
+      return new UserError(
+        'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
+        `Google rejected the service-account key (${error.errorCode ?? `HTTP ${error.status}`}). Check that the key is valid and the service account is enabled.`,
+        { cause: error }
+      );
+    }
     if (!(error instanceof GooglePlayApiError)) {
       return error;
     }
@@ -245,6 +263,6 @@ export namespace GooglePlayUtils {
       detail =
         'Google Play rejected the release or review settings. Check the track, release status, rollout, and review settings in Play Console.';
     }
-    return new UserError(code, detail);
+    return new UserError(code, detail, { cause: error });
   }
 }

@@ -40,7 +40,8 @@ export class GooglePlayApiError extends Error {
   }
 }
 
-const ReleaseStatusZ = z.enum(['draft', 'inProgress', 'halted', 'completed']);
+export const ReleaseStatusZ = z.enum(['draft', 'inProgress', 'halted', 'completed']);
+export type ReleaseStatus = z.output<typeof ReleaseStatusZ>;
 
 const ReleaseNoteZ = z.object({
   language: z.string(),
