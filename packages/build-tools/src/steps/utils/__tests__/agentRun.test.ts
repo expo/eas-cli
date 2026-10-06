@@ -241,6 +241,69 @@ describe(runAgentAsync, () => {
     expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
   });
 
+  it('runs Codex with its shell tool off and the credentials in a private home', async () => {
+    leaseMock.mockResolvedValue(openaiLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        const config = agent.readHomeFile('.codex/config.toml');
+        expect(config.content).toContain(
+          '[features]\nshell_tool = false\nview_image = false\nimage_generation = false\napps = false\nplugins = false\n'
+        );
+        expect(config.content).toContain('sandbox_mode = "read-only"');
+        expect(config.content).toContain('[agents]\nenabled = false\n');
+        expect(config.content).toContain(
+          [
+            '[mcp_servers.expo]',
+            'url = "http://localhost:8787/mcp"',
+            'default_tools_approval_mode = "approve"',
+            '',
+            '[mcp_servers.expo.http_headers]',
+            '"Authorization" = "Bearer expo-token"',
+            `"X-Expo-Agent-Run-Id" = "${agentRunId}"`,
+          ].join('\n')
+        );
+        expect(config.mode).toBe(0o600);
+        const auth = agent.readHomeFile('.codex/auth.json');
+        expect(JSON.parse(auth.content)).toEqual({
+          auth_mode: 'chatgptAuthTokens',
+          tokens: {
+            id_token: 'openai-id-token',
+            access_token: 'openai-access-token',
+            refresh_token: '',
+            account_id: 'openai-account-id',
+          },
+          last_refresh: expect.any(String),
+        });
+        expect(auth.mode).toBe(0o600);
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(
+      createOptions({
+        agentKind: 'codex',
+        mcpUrl: 'http://localhost:8787/mcp',
+        npmRegistryUrl: undefined,
+      })
+    );
+
+    const npmArgs = installMock.mock.calls[0][1]!;
+    expect(npmArgs).not.toContain('--registry');
+    expect(npmArgs.at(-1)).toBe('@openai/codex@0.160.1');
+    const [agent] = invocations;
+    const runDirectory = path.dirname(agent.env.HOME);
+    expect(agent.command).toBe(path.join(runDirectory, 'cli', 'node_modules', '.bin', 'codex'));
+    expect(agent.args).toEqual(['exec', '--strict-config', '--json', '--skip-git-repo-check']);
+    expect(agent.cwd).toBe(path.join(runDirectory, 'cwd'));
+    expect(agent.env).toEqual({
+      PATH: '/usr/local/bin:/usr/bin',
+      HOME: path.join(runDirectory, 'home'),
+      TMPDIR: path.join(runDirectory, 'tmp'),
+      LANG: 'C.UTF-8',
+    });
+    expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
   it('stops the agent at its maximum duration, which does not include the installation', async () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
     leaseMock.mockResolvedValue(anthropicLease);
@@ -335,8 +398,47 @@ describe(runAgentAsync, () => {
     expect(resumed.args).toEqual(['-p', '--resume', sessionId, ...first.args.slice(3)]);
     expect(resumed.env.CLAUDE_CODE_OAUTH_TOKEN).toBe('renewed-access-token');
     expect(resumed.stdin).toHaveBeenCalledWith(
-      expect.stringMatching(/^Your previous run of this task stopped/)
+      expect.stringMatching(/^Your previous run of this task stopped.*\n\nFix the failing test\.$/s)
     );
+  });
+
+  it('resumes Codex with new credentials when the lease changed during the run', async () => {
+    const renewedLease: AgentRunProviderCredentials = {
+      ...openaiLease,
+      accessToken: 'renewed-access-token',
+      idToken: 'renewed-id-token',
+    };
+    leaseMock.mockResolvedValueOnce(openaiLease).mockResolvedValueOnce(renewedLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        if (invocations.length === 1) {
+          agent.exit(1);
+          return;
+        }
+        expect(JSON.parse(agent.readHomeFile('.codex/auth.json').content).tokens).toMatchObject({
+          id_token: 'renewed-id-token',
+          access_token: 'renewed-access-token',
+        });
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ agentKind: 'codex' }));
+
+    expect(invocations).toHaveLength(2);
+    expect(invocations[1].args).toEqual([
+      'exec',
+      '--strict-config',
+      '--json',
+      '--skip-git-repo-check',
+      'resume',
+      '--last',
+      '-',
+    ]);
+    expect(invocations[1].stdin).toHaveBeenCalledWith(
+      expect.stringContaining('\n\nFix the failing test.')
+    );
+    expect(invocations[1].cwd).toBe(invocations[0].cwd);
   });
 
   it('gives a resumed agent only the time that is left', async () => {

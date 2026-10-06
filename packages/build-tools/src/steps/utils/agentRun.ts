@@ -12,12 +12,14 @@ import readline from 'node:readline';
 import { leaseAgentRunProviderCredentialsAsync } from './agentRunLease';
 import { type AgentInvocation } from './agents/agent';
 import { CLAUDE_CODE_CLI, prepareClaudeCodeAsync } from './agents/claude';
+import { CODEX_CLI, prepareCodexAsync } from './agents/codex';
 import { killProcessGroup } from '../../utils/processes';
 
-export type AgentKind = 'claude-code';
+export type AgentKind = 'claude-code' | 'codex';
 
 const AGENT_CLIS: Record<AgentKind, { packageSpec: string; bin: string }> = {
   'claude-code': CLAUDE_CODE_CLI,
+  codex: CODEX_CLI,
 };
 export const AGENT_KINDS = Object.keys(AGENT_CLIS) as AgentKind[];
 const KILL_GRACE_PERIOD_MS = 10_000;
@@ -112,6 +114,16 @@ export async function runAgentAsync({
             minimalEnv,
             mcpServer,
             sessionId: claudeSessionId,
+            prompt,
+            credentials,
+            isResuming,
+          });
+          break;
+        case 'codex':
+          invocation = await prepareCodexAsync({
+            homeDirectory,
+            minimalEnv,
+            mcpServer,
             prompt,
             credentials,
             isResuming,

@@ -16,6 +16,12 @@ export interface AgentInvocation {
   secrets: string[];
 }
 
+// Repeats the task because Codex's `resume --last` starts a new session when none was saved,
+// and that session would otherwise have no task.
+export function createContinuationPrompt(prompt: string): string {
+  return `Your previous run of this task stopped before it was finished. Continue it from where it stopped; do not start over. The task was:\n\n${prompt}`;
+}
+
 export function createProviderMismatchError(
   cliName: string,
   credentials: AgentRunProviderCredentials

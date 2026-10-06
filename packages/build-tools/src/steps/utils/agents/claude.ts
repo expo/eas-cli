@@ -5,15 +5,13 @@ import {
   type AgentInvocation,
   MCP_SERVER_NAME,
   type McpServer,
+  createContinuationPrompt,
   createProviderMismatchError,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
 
 // The flags below are only known to hold for this version.
 export const CLAUDE_CODE_CLI = { packageSpec: '@anthropic-ai/claude-code@2.1.291', bin: 'claude' };
-
-const CONTINUATION_PROMPT =
-  'Your previous run of this task stopped before it was finished. Continue it from where it stopped; do not start over.';
 
 export async function prepareClaudeCodeAsync({
   homeDirectory,
@@ -57,7 +55,7 @@ export async function prepareClaudeCodeAsync({
       CLAUDE_CODE_OAUTH_TOKEN: credentials.accessToken,
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     },
-    stdin: isResuming ? CONTINUATION_PROMPT : prompt,
+    stdin: isResuming ? createContinuationPrompt(prompt) : prompt,
     secrets: [credentials.accessToken],
   };
 }
