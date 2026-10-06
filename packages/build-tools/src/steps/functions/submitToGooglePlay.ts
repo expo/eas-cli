@@ -106,11 +106,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
     ],
-    outputProviders: [
-      BuildStepOutput.createProvider({ id: 'package_name', required: true }),
-      BuildStepOutput.createProvider({ id: 'version_code', required: true }),
-      BuildStepOutput.createProvider({ id: 'track', required: true }),
-    ],
+    outputProviders: [BuildStepOutput.createProvider({ id: 'version_code', required: true })],
     fn: async (ctx, { inputs, outputs, signal }) => {
       signal?.throwIfAborted();
       const parsed = InputsZ.safeParse(
@@ -137,7 +133,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
       });
       const artifactPath = path.resolve(ctx.workingDirectory, submission.artifact_path);
       const client = new GooglePlayClient(credentials);
-      const result = await submitToGooglePlayAsync({
+      const versionCode = await submitToGooglePlayAsync({
         artifactType: submission.artifact_type,
         client,
         submission: {
@@ -153,9 +149,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
         logger: ctx.logger,
         signal,
       });
-      outputs.package_name.set(result.packageName);
-      outputs.version_code.set(String(result.versionCode));
-      outputs.track.set(result.track);
+      outputs.version_code.set(String(versionCode));
     },
   });
 }
@@ -182,8 +176,8 @@ async function submitToGooglePlayAsync({
   release: { status: ReleaseStatus; userFraction?: number };
   logger: bunyan;
   signal?: AbortSignal;
-}): Promise<{ packageName: string; versionCode: number; track: string }> {
-  let edit: { id: string } | undefined;
+}): Promise<number> {
+  let editId: string | undefined;
   let committed = false;
   try {
     const packageName = submission.package_name;
@@ -196,11 +190,11 @@ async function submitToGooglePlayAsync({
     if (submission.changelog) {
       logger.info(`Changelog (en-US): ${JSON.stringify(submission.changelog)}`);
     }
-    edit = await GooglePlayUtils.createEditAsync(client, { packageName, signal });
+    editId = (await GooglePlayUtils.createEditAsync(client, { packageName, signal })).id;
     let lastPercent: number | undefined;
     const { versionCode } = await GooglePlayUtils.uploadApplicationAsync(client, {
       packageName,
-      editId: edit.id,
+      editId,
       artifactPath: submission.artifact_path,
       artifactType,
       signal,
@@ -215,7 +209,7 @@ async function submitToGooglePlayAsync({
     logger.info(`Uploaded version code: ${versionCode}.`);
     await GooglePlayUtils.updateTrackAsync(client, {
       packageName,
-      editId: edit.id,
+      editId,
       track: submission.track,
       release,
       versionCode,
@@ -226,7 +220,7 @@ async function submitToGooglePlayAsync({
     // Commit also validates the edit.
     await GooglePlayUtils.commitEditAsync(client, {
       packageName,
-      editId: edit.id,
+      editId,
       changesNotSentForReview: submission.changes_not_sent_for_review,
       logger,
       signal,
@@ -235,15 +229,15 @@ async function submitToGooglePlayAsync({
     logger.info(
       `Submitted ${packageName}, version ${versionCode}, to ${JSON.stringify(submission.track)}.`
     );
-    return { packageName, versionCode, track: submission.track };
+    return versionCode;
   } catch (error) {
     throw GooglePlayUtils.mapGooglePlayError(error);
   } finally {
-    if (edit && !committed) {
+    if (editId && !committed) {
       try {
         await GooglePlayUtils.deleteEditAsync(client, {
           packageName: submission.package_name,
-          editId: edit.id,
+          editId,
           signal: AbortSignal.timeout(30_000),
         });
       } catch {

@@ -118,11 +118,7 @@ it.each(statuses.flatMap(status => rollouts.map(rollout => [status, rollout] as 
         return [200, { id: 'edit' }];
       });
     await task.run();
-    expect(task.setters.map(set => set.mock.calls)).toEqual([
-      [[packageName]],
-      [['145']],
-      [['internal']],
-    ]);
+    expect(task.setters.map(set => set.mock.calls)).toEqual([[['145']]]);
   }
 );
 it.each(['upload', 'track', 'abort'] as const)(
