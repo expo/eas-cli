@@ -6,15 +6,13 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
+import { createPrivateKey } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 
-import {
-  GooglePlayApiError,
-  GooglePlayClient,
-  GoogleServiceAccount,
-} from '../utils/android/GooglePlayClient';
+import { GoogleServiceAccount } from '../utils/android/GooglePlayAuthUtils';
+import { GooglePlayApiError, GooglePlayClient } from '../utils/android/GooglePlayClient';
 import { GooglePlayUtils } from '../utils/android/GooglePlayUtils';
 import { readAndroidArtifactInfoAsync } from '../utils/android/appArtifact';
 
@@ -116,7 +114,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
 
 async function readCredentialsAsync(keyPath: string): Promise<GoogleServiceAccount> {
   try {
-    return z
+    const credentials = z
       .object({
         type: z.literal('service_account'),
         client_email: z.email(),
@@ -124,6 +122,11 @@ async function readCredentialsAsync(keyPath: string): Promise<GoogleServiceAccou
         private_key_id: z.string().optional(),
       })
       .parse(JSON.parse(await fs.readFile(keyPath, 'utf8')));
+    const privateKey = createPrivateKey(credentials.private_key);
+    if (privateKey.asymmetricKeyType !== 'rsa') {
+      throw new Error('Expected an RSA private key.');
+    }
+    return { ...credentials, private_key: privateKey };
   } catch {
     // Neither JSON parse errors nor validation errors may include credential content.
     throw new UserError(
@@ -193,15 +196,12 @@ async function submitToGooglePlayAsync({
     if (submission.changelog) {
       logger.info(`Changelog (en-US): ${JSON.stringify(submission.changelog)}`);
     }
-    const edit = await client.requestAsync<{ id: string }>(
-      'POST',
-      GooglePlayUtils.editPath(packageName),
+    const edit = await client.postAsync(
+      '/androidpublisher/v3/applications/:packageName/edits',
       {},
-      signal
+      { packageName },
+      { signal }
     );
-    if (!edit.id || typeof edit.id !== 'string') {
-      throw new Error('Google did not return an edit ID.');
-    }
     editId = edit.id;
     let lastPercent = -1;
     const versionCode = await GooglePlayUtils.uploadAsync({
@@ -220,9 +220,8 @@ async function submitToGooglePlayAsync({
       },
     });
     logger.info(`Uploaded version code: ${versionCode}.`);
-    await client.requestAsync(
-      'PUT',
-      `${GooglePlayUtils.editPath(packageName, editId)}/tracks/${encodeURIComponent(submission.track)}`,
+    await client.putAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
       {
         track: submission.track,
         releases: [
@@ -235,6 +234,7 @@ async function submitToGooglePlayAsync({
           },
         ],
       },
+      { packageName, editId, track: submission.track },
       signal
     );
     // Commit also validates the edit.
@@ -256,10 +256,9 @@ async function submitToGooglePlayAsync({
   } finally {
     if (editId && !committed) {
       try {
-        await client.requestAsync(
-          'DELETE',
-          GooglePlayUtils.editPath(submission.package_name, editId),
-          undefined,
+        await client.deleteAsync(
+          '/androidpublisher/v3/applications/:packageName/edits/:editId',
+          { packageName: submission.package_name, editId },
           signal
         );
       } catch {
@@ -281,11 +280,11 @@ async function commitAsync(
 ): Promise<void> {
   const commit = async (flag?: boolean): Promise<void> => {
     try {
-      const committed = await client.requestAsync<{ id?: string }>(
-        'POST',
-        `${GooglePlayUtils.editPath(packageName, editId)}:commit${flag === undefined ? '' : `?changesNotSentForReview=${flag}`}`,
+      const committed = await client.postAsync(
+        '/androidpublisher/v3/applications/:packageName/edits/:editId:commit',
         {},
-        signal
+        { packageName, editId },
+        { query: { changesNotSentForReview: flag }, signal }
       );
       if (committed?.id !== editId) {
         throw new Error('Google did not confirm the committed edit.');
