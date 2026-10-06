@@ -51,7 +51,7 @@ export namespace GooglePlayResumableUpload {
           signal?.throwIfAborted();
           if (
             timeout.aborted ||
-            (error instanceof SystemError && error.metadata?.retryableNetworkError === true) ||
+            isNetworkRetryable(error) ||
             (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500))
           ) {
             retry(
@@ -156,7 +156,7 @@ export namespace GooglePlayResumableUpload {
               const failure = new SystemError(
                 'Google Play upload failed before a response was received.'
               );
-              if (timeout.aborted || (error instanceof FetchError && error.type === 'system')) {
+              if (timeout.aborted || isNetworkRetryable(error)) {
                 checkServerOffset = true;
                 retry(failure);
               }
@@ -246,4 +246,16 @@ function getContentTypeFromArtifactType(artifactType: AndroidArtifactType): stri
   return artifactType === 'apk'
     ? 'application/vnd.android.package-archive'
     : 'application/octet-stream';
+}
+
+function isNetworkRetryable(error: unknown): boolean {
+  const visited = new Set<Error>();
+  while (error instanceof Error && !visited.has(error)) {
+    if (error instanceof FetchError && error.type === 'system') {
+      return true;
+    }
+    visited.add(error);
+    error = error.cause;
+  }
+  return false;
 }

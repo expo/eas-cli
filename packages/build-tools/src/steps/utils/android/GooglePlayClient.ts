@@ -1,5 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { FetchError, RequestInit, Response } from 'node-fetch';
+import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -22,6 +22,7 @@ export class GooglePlayApiError extends Error {
       data = await response.json();
     } catch {
       signal?.throwIfAborted();
+      // Raw text or HTML can contain the request URL, including an upload secret.
     }
     const parsed = z
       .object({
@@ -33,10 +34,8 @@ export class GooglePlayApiError extends Error {
       .safeParse(data);
     return new GooglePlayApiError(
       response.status,
-      parsed.success ? (parsed.data.error.message ?? '') : '',
-      parsed.success
-        ? (parsed.data.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [])
-        : []
+      parsed.data?.error.message ?? '',
+      parsed.data?.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? []
     );
   }
 }
@@ -286,7 +285,7 @@ export class GooglePlayClient {
     } catch (error) {
       signal?.throwIfAborted();
       throw new SystemError('Google Play request failed before a response was received.', {
-        metadata: { retryableNetworkError: error instanceof FetchError && error.type === 'system' },
+        cause: error,
       });
     }
 
