@@ -18,7 +18,11 @@ jest.unmock('fs');
 jest.unmock('node:fs');
 jest.unmock('fs/promises');
 jest.unmock('node:fs/promises');
-jest.mock('node:timers/promises', () => ({ setTimeout: jest.fn(async () => {}) }));
+jest.mock('promise-retry', () => {
+  const promiseRetry = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof promiseRetry>[0], options: object) =>
+    promiseRetry(fn, { ...options, minTimeout: 0, maxTimeout: 0 });
+});
 
 let directory: string;
 let artifactPath: string;

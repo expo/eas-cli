@@ -61,7 +61,7 @@ const PostApi = {
     request: z.undefined(),
     query: z.object({ uploadType: z.literal('resumable') }),
     response: z.object({ location: z.string().min(1) }),
-    responseHeaders: true,
+    readResponse: async (response: Response) => ({ location: response.headers.get('location') }),
   },
   '/androidpublisher/v3/applications/:packageName/edits': {
     path: z.object({ packageName: z.string().min(1) }),
@@ -201,7 +201,7 @@ export class GooglePlayClient {
       request: z.ZodType;
       query: z.ZodType;
       response: z.ZodType;
-      responseHeaders?: boolean;
+      readResponse?: (response: Response) => Promise<unknown>;
     },
     body: unknown,
     params: unknown,
@@ -234,9 +234,7 @@ export class GooglePlayClient {
 
     let data: unknown;
     try {
-      data = schema.responseHeaders
-        ? Object.fromEntries(response.headers.entries())
-        : await response.json();
+      data = await (schema.readResponse ? schema.readResponse(response) : response.json());
     } catch {
       signal?.throwIfAborted();
       throw new SystemError(
