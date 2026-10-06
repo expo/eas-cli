@@ -8,12 +8,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+- [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+## [24.11.0](https://github.com/expo/eas-cli/releases/tag/v24.11.0) - 2026-10-05
+
+### 🎉 New features
+
 - [build-tools] Record iOS Simulator sessions through serve-sim. ([#4474](https://github.com/expo/eas-cli/pull/4474) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add browser device login with resumable commands for chat agents. ([#4502](https://github.com/expo/eas-cli/pull/4502) by [@eiiot](https://github.com/eiiot))
 - [build-tools] Upload the display rotation agent-device reports for a screenshot as device run session artifact metadata. ([#4508](https://github.com/expo/eas-cli/pull/4508) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Refresh a WebP thumbnail of the simulator session screen every minute as a reusable session preview artifact. ([#4398](https://github.com/expo/eas-cli/pull/4398) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Select the containing iOS app when its archive also includes a nested App Clip. ([#4541](https://github.com/expo/eas-cli/pull/4541) by [@mozzius](https://github.com/mozzius))
 - [build-tools] Allow expo.test subdomains to open local and staging simulator previews. ([#4480](https://github.com/expo/eas-cli/pull/4480) by [@hirbod](https://github.com/hirbod))
 - [build-tools] Retry App Store Connect connection failures and safely recover interrupted status reads and upload commits. ([#4520](https://github.com/expo/eas-cli/pull/4520) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Stop a simulator session that the server creates after Ctrl+C lands during `eas simulator` create. ([#4522](https://github.com/expo/eas-cli/pull/4522) by [@sjkim-expo](https://github.com/sjkim-expo))
