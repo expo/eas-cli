@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Allow the unnotarized mitmproxy cask to run in iOS network capture sessions. ([#4556](https://github.com/expo/eas-cli/pull/4556) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores

@@ -11,6 +11,20 @@ jest.mock('@expo/turtle-spawn', () => ({
 
 const mockedSpawn = jest.mocked(spawn);
 
+/** Each `mitmdump --version` call takes the next result; other commands succeed. */
+function mockMitmdumpRuns(...runs: boolean[]): void {
+  mockedSpawn.mockImplementation((async (command: string) => {
+    if (command === 'mitmdump' && !runs.shift()) {
+      throw new Error('not found');
+    }
+    return {};
+  }) as never);
+}
+
+function spawnedCommands(): string[] {
+  return mockedSpawn.mock.calls.map(([command]) => command);
+}
+
 describe('createInstallMitmproxyBuildFunction', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -24,28 +38,30 @@ describe('createInstallMitmproxyBuildFunction', () => {
     });
   }
 
-  it('does not install when mitmdump is already on PATH', async () => {
-    mockedSpawn.mockResolvedValueOnce({} as never);
+  it('takes an installed cask out of quarantine before running mitmdump', async () => {
+    mockMitmdumpRuns(true);
 
     await createStep({ EAS_BUILD_RUNNER: 'eas-build' }).executeAsync();
 
-    expect(mockedSpawn).toHaveBeenCalledWith('mitmdump', ['--version'], expect.anything());
-    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      1,
+      'xattr',
+      ['-dr', 'com.apple.quarantine', expect.stringMatching(/\/Caskroom\/mitmproxy$/)],
+      expect.anything()
+    );
+    expect(spawnedCommands()).toEqual(['xattr', 'mitmdump']);
   });
 
-  it('warns instead of installing outside EAS Build VMs', async () => {
-    mockedSpawn.mockRejectedValueOnce(new Error('not found'));
+  it('does not change quarantine outside EAS Build VMs', async () => {
+    mockMitmdumpRuns(false);
 
     await createStep({}).executeAsync();
 
-    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(spawnedCommands()).toEqual(['mitmdump']);
   });
 
-  it('installs the cask with Homebrew and leaves auto-update off', async () => {
-    mockedSpawn
-      .mockRejectedValueOnce(new Error('not found'))
-      .mockResolvedValueOnce({} as never)
-      .mockResolvedValueOnce({} as never);
+  it('installs the cask with Homebrew and takes it out of quarantine', async () => {
+    mockMitmdumpRuns(false, true);
 
     await createStep({ EAS_BUILD_RUNNER: 'eas-build' }).executeAsync();
 
@@ -54,13 +70,24 @@ describe('createInstallMitmproxyBuildFunction', () => {
       ['install', '--cask', 'mitmproxy'],
       expect.objectContaining({ env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }) })
     );
+    expect(spawnedCommands()).toEqual(['xattr', 'mitmdump', 'brew', 'xattr', 'mitmdump']);
+  });
+
+  it('does not fail the job when removing quarantine fails', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'xattr') {
+        throw new Error('No such file');
+      }
+      return {};
+    }) as never);
+
+    await expect(
+      createStep({ EAS_BUILD_RUNNER: 'eas-build' }).executeAsync()
+    ).resolves.toBeUndefined();
   });
 
   it('does not fail the job when mitmdump is still not runnable', async () => {
-    mockedSpawn
-      .mockRejectedValueOnce(new Error('not found'))
-      .mockResolvedValueOnce({} as never)
-      .mockRejectedValueOnce(new Error('not found'));
+    mockMitmdumpRuns(false, false);
 
     await expect(
       createStep({ EAS_BUILD_RUNNER: 'eas-build' }).executeAsync()

@@ -13,6 +13,11 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
     __metricsId: 'eas/install_mitmproxy',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     fn: async ({ logger }, { env }) => {
+      if (env.EAS_BUILD_RUNNER === 'eas-build') {
+        // Some images ship the cask, and its quarantined first launch can hang.
+        await removeMitmproxyQuarantineAsync(env);
+      }
+
       if (await isMitmproxyAvailableAsync(env)) {
         logger.info('mitmproxy is already installed.');
         return;
@@ -28,6 +33,7 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
       try {
         logger.info('Installing mitmproxy with Homebrew.');
         await installMitmproxyWithHomebrewAsync({ env, logger });
+        await removeMitmproxyQuarantineAsync(env);
 
         if (!(await isMitmproxyAvailableAsync(env))) {
           throw new Error('`brew install --cask mitmproxy` succeeded but mitmdump is not on PATH.');
@@ -62,4 +68,14 @@ async function installMitmproxyWithHomebrewAsync({
     env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
     logger,
   });
+}
+
+/**
+ * Gatekeeper has rejected the mitmproxy 12.2.3 cask as unnotarized since 2026-10-06, and a
+ * quarantined first launch then never returns, so take the cask out of quarantine.
+ */
+async function removeMitmproxyQuarantineAsync(env: BuildStepEnv): Promise<void> {
+  const caskroom =
+    process.arch === 'arm64' ? '/opt/homebrew/Caskroom/mitmproxy' : '/usr/local/Caskroom/mitmproxy';
+  await asyncResult(spawn('xattr', ['-dr', 'com.apple.quarantine', caskroom], { env }));
 }
