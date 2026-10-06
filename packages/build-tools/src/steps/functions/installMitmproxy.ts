@@ -2,6 +2,7 @@ import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildFunction, BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
 
 import { Sentry } from '../../sentry';
 
@@ -13,12 +14,10 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
     __metricsId: 'eas/install_mitmproxy',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     fn: async ({ logger }, { env }) => {
-      if (env.EAS_BUILD_RUNNER === 'eas-build') {
-        // Some images ship the cask, and its quarantined first launch can hang.
-        await removeMitmproxyQuarantineAsync(env);
-      }
-
-      if (await isMitmproxyAvailableAsync(env)) {
+      // Some images ship the cask, and its quarantined first launch can hang.
+      const canLaunch =
+        env.EAS_BUILD_RUNNER !== 'eas-build' || (await removeMitmproxyQuarantineAsync(env));
+      if (canLaunch && (await isMitmproxyAvailableAsync(env))) {
         logger.info('mitmproxy is already installed.');
         return;
       }
@@ -33,8 +32,9 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
       try {
         logger.info('Installing mitmproxy with Homebrew.');
         await installMitmproxyWithHomebrewAsync({ env, logger });
-        await removeMitmproxyQuarantineAsync(env);
-
+        if (!(await removeMitmproxyQuarantineAsync(env))) {
+          throw new Error('mitmdump is still quarantined, and its first launch can hang.');
+        }
         if (!(await isMitmproxyAvailableAsync(env))) {
           throw new Error('`brew install --cask mitmproxy` succeeded but mitmdump is not on PATH.');
         }
@@ -72,10 +72,22 @@ async function installMitmproxyWithHomebrewAsync({
 
 /**
  * Gatekeeper has rejected the mitmproxy 12.2.3 cask as unnotarized since 2026-10-06, and a
- * quarantined first launch then never returns, so take the cask out of quarantine.
+ * quarantined first launch then never returns. Takes the app behind the `mitmdump` on PATH out of
+ * quarantine, and returns false when it stays quarantined, so it is not launched.
  */
-async function removeMitmproxyQuarantineAsync(env: BuildStepEnv): Promise<void> {
-  const caskroom =
-    process.arch === 'arm64' ? '/opt/homebrew/Caskroom/mitmproxy' : '/usr/local/Caskroom/mitmproxy';
-  await asyncResult(spawn('xattr', ['-dr', 'com.apple.quarantine', caskroom], { env }));
+async function removeMitmproxyQuarantineAsync(env: BuildStepEnv): Promise<boolean> {
+  const which = await asyncResult(spawn('which', ['mitmdump'], { env, stdio: 'pipe' }));
+  const mitmdump = which.ok
+    ? await fs.promises.realpath(which.value.stdout.trim()).catch(() => null)
+    : null;
+  if (!mitmdump) {
+    return true;
+  }
+  const appEnd = mitmdump.lastIndexOf('.app/');
+  const app = appEnd === -1 ? mitmdump : mitmdump.slice(0, appEnd + '.app'.length);
+  await asyncResult(spawn('xattr', ['-dr', 'com.apple.quarantine', app], { env, stdio: 'pipe' }));
+  const quarantined = await asyncResult(
+    spawn('xattr', ['-p', 'com.apple.quarantine', mitmdump], { env, stdio: 'pipe' })
+  );
+  return !quarantined.ok;
 }
