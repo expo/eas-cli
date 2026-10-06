@@ -23,6 +23,7 @@ import {
 } from './deviceRunSessionScreenRecordings';
 import {
   captureDeviceRunSessionPreviewAsync,
+  ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from './deviceRunSessionPreview';
 import { startDeviceRunSessionScreenshotsAsync } from './deviceRunSessionScreenshots';
@@ -474,10 +475,10 @@ export async function startDeviceSessionHostAsync(
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
-    // readiness on macOS, so it starts after FFmpeg is installed there.
+    // readiness on macOS, so it starts after its encoder is installed there.
     void (async () => {
       if (!isAndroid) {
-        await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+        await ensureMacosPreviewEncoderInstalledAsync({ env, logger });
       }
       if (!finishTask) {
         sessionPreview = startDeviceRunSessionPreview({
