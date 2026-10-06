@@ -118,11 +118,11 @@ export namespace GooglePlayResumableUpload {
 
     while (offset < size) {
       const result = await uploadChunkAsync({ file, size, session, contentType, offset, signal });
-      if (typeof result !== 'number') {
+      if (result.status === 'completed') {
         onProgress?.(size, size);
-        return result;
+        return result.data;
       }
-      offset = result;
+      offset = result.offset;
       onProgress?.(offset, size);
     }
     throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
@@ -142,7 +142,10 @@ export namespace GooglePlayResumableUpload {
     contentType: string;
     offset: number;
     signal?: AbortSignal;
-  }): Promise<z.output<typeof UploadResponseZ> | number> {
+  }): Promise<
+    | { status: 'completed'; data: z.output<typeof UploadResponseZ> }
+    | { status: 'progress'; offset: number }
+  > {
     let checkServerOffset = false;
     // Confirmed progress starts a new retry budget. Retries first check the server offset.
     return await promiseRetry(
@@ -217,7 +220,7 @@ export namespace GooglePlayResumableUpload {
             if (!parsed.success) {
               throw new SystemError('Google completed the upload without a valid version code.');
             }
-            return parsed.data;
+            return { status: 'completed', data: parsed.data };
           }
           if (response.status !== 308) {
             throw new SystemError(`Unexpected Google upload status: ${response.status}.`);
@@ -243,7 +246,7 @@ export namespace GooglePlayResumableUpload {
             );
           }
           if (next > offset) {
-            return next;
+            return { status: 'progress', offset: next };
           }
           if (!checkServerOffset) {
             checkServerOffset = true;
