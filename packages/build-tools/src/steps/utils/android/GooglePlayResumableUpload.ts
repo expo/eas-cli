@@ -68,15 +68,16 @@ export namespace GooglePlayResumableUpload {
       session = new URL(location);
     } catch {
       // Node's URL error retains the input, which can contain the upload secret.
-      throw new SystemError('Google returned an invalid upload URL (ERR_INVALID_URL).');
+      throw new SystemError('Google returned an invalid upload URL.');
     }
-    if (
-      session.origin !== 'https://androidpublisher.googleapis.com' ||
-      session.username ||
-      session.password
-    ) {
+    if (session.origin !== 'https://androidpublisher.googleapis.com') {
       throw new SystemError(
-        `Google returned an unsafe upload URL: expected origin https://androidpublisher.googleapis.com, got ${session.origin}. URL credentials are not permitted.`
+        `Google returned an unsafe upload URL: expected origin https://androidpublisher.googleapis.com, got ${session.origin}.`
+      );
+    }
+    if (session.username || session.password) {
+      throw new SystemError(
+        'Google returned an unsafe upload URL containing a username or password. Upload sessions must not send HTTP Basic credentials.'
       );
     }
     return session;
@@ -101,8 +102,9 @@ export namespace GooglePlayResumableUpload {
     let offset = 0;
     onProgress?.(0, size);
 
-    let completed: z.output<typeof UploadResponseZ> | undefined;
-    do {
+    // Each iteration must advance the confirmed offset or return the final response.
+    // Attempts that make no progress share the five-retry budget below.
+    while (offset < size) {
       let checkServerOffset = false;
       const result = await promiseRetry(async retry => {
         // A retry checks the server before it sends any bytes again.
@@ -170,7 +172,7 @@ export namespace GooglePlayResumableUpload {
             if (!parsed.success) {
               throw new SystemError('Google completed the upload without a valid version code.');
             }
-            return { complete: true as const, data: parsed.data };
+            return parsed.data;
           }
           if (response.status !== 308) {
             throw new SystemError(`Unexpected Google upload status: ${response.status}.`);
@@ -188,7 +190,7 @@ export namespace GooglePlayResumableUpload {
             throw new SystemError('Google returned an invalid upload range.');
           }
           if (next > offset) {
-            return { complete: false as const, offset: next };
+            return { offset: next };
           }
           if (!checkServerOffset) {
             checkServerOffset = true;
@@ -204,15 +206,16 @@ export namespace GooglePlayResumableUpload {
         throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
       }, RETRY_OPTIONS);
 
-      if (result.complete) {
-        completed = result.data;
+      if ('versionCode' in result) {
         onProgress?.(size, size);
-      } else {
-        offset = result.offset;
-        onProgress?.(offset, size);
+        return result;
       }
-    } while (!completed);
-    return completed;
+      offset = result.offset;
+      onProgress?.(offset, size);
+    }
+    throw new SystemError(
+      `Google upload stopped at ${offset} of ${size} bytes without a completion response.`
+    );
   }
 }
 

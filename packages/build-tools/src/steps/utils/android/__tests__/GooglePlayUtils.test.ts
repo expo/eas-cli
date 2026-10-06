@@ -243,3 +243,11 @@ it.each(['bytes=0-100', 'invalid', 'bytes=5-8'])(
     await expect(upload()).rejects.toThrow('invalid upload range');
   }
 );
+
+it('stops when uploads and status checks repeatedly confirm no progress', async () => {
+  mockToken();
+  mockStart();
+  uploadApi().put(session).matchHeader('content-length', '12').times(6).reply(308);
+  status().times(5).reply(308);
+  await expect(upload()).rejects.toThrow('confirmed 0 of 12 bytes');
+});

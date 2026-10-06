@@ -213,7 +213,8 @@ export class GooglePlayClient {
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal
+      signal,
+      { 'Content-Type': 'application/json' }
     );
 
     let data: unknown;
@@ -241,7 +242,7 @@ export class GooglePlayClient {
     path: string,
     body?: string,
     signal?: AbortSignal,
-    headers: RequestInit['headers'] = { 'Content-Type': 'application/json' }
+    headers?: RequestInit['headers']
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     const token = await this.getTokenAsync(signal);
