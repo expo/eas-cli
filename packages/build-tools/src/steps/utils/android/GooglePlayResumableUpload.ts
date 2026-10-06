@@ -12,6 +12,8 @@ const UploadResponseZ = z.object({
 });
 
 const CHUNK_SIZE = 8 * 1024 * 1024;
+// Google recommends a two-minute timeout for bundle uploads, including processing.
+const REQUEST_TIMEOUT_MS = 120_000;
 
 export namespace GooglePlayResumableUpload {
   export async function createUploadSessionAsync({
@@ -33,7 +35,7 @@ export namespace GooglePlayResumableUpload {
     const response = await promiseRetry(
       async retry => {
         signal?.throwIfAborted();
-        const timeout = AbortSignal.timeout(120_000);
+        const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
         const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
         try {
           return await client.requestAsync(
@@ -134,7 +136,7 @@ export namespace GooglePlayResumableUpload {
               }
             }
 
-            const timeout = AbortSignal.timeout(120_000);
+            const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
             const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
             let response: Response;
             try {
@@ -202,10 +204,18 @@ export namespace GooglePlayResumableUpload {
             if (
               !Number.isSafeInteger(next) ||
               next < offset ||
-              next >= size ||
+              next > size ||
+              (!checkServerOffset && next === size) ||
               (!checkServerOffset && next > end)
             ) {
               throw new SystemError('Google returned an invalid upload range.');
+            }
+            if (checkServerOffset && next === size) {
+              // All bytes are stored, but only 200/201 confirms completion.
+              // Keep the current retry budget and send only status checks.
+              return retry(
+                new SystemError(`Google stored all ${size} bytes but has not completed the upload.`)
+              );
             }
             if (next > offset) {
               offset = next;

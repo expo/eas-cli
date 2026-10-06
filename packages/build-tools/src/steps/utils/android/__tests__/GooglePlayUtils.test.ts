@@ -334,3 +334,26 @@ it('stops when the binary becomes shorter during upload', async () => {
     )
   ).rejects.toThrow('expected 12 bytes at offset 0, got 0');
 });
+
+it.each([true, false])(
+  'bounds completion checks after all bytes are stored (completes: %s)',
+  async completes => {
+    mockToken();
+    mockStart();
+    uploadApi()
+      .put(session)
+      .matchHeader('content-length', '12')
+      .replyWithError('lost final response');
+    status()
+      .times(completes ? 1 : 5)
+      .reply(308, '', { Range: 'bytes=0-11' });
+    if (completes) {
+      status().reply(200, { versionCode: 42 });
+      await expect(upload()).resolves.toBe(42);
+    } else {
+      await expect(upload()).rejects.toThrow(
+        'Google stored all 12 bytes but has not completed the upload.'
+      );
+    }
+  }
+);
