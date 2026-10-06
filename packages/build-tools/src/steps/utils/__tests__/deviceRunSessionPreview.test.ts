@@ -10,6 +10,7 @@ import fetch from 'node-fetch';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import {
   captureDeviceRunSessionPreviewAsync,
+  ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
 
@@ -270,6 +271,7 @@ describe('session preview with the real GraphQL client', () => {
 describe(captureDeviceRunSessionPreviewAsync, () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
   const webp = Buffer.from('encoded-webp');
+  const resized = Buffer.from('resized-png');
   it.each([
     [BuildRuntimePlatform.DARWIN, 'selected-device'],
     [BuildRuntimePlatform.LINUX, 'selected-device'],
@@ -293,7 +295,16 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
           if (command === 'xcrun') {
             expect(args.slice(0, 4)).toEqual(['simctl', 'io', 'selected-device', 'screenshot']);
             await writeFile(args[4], Uint8Array.from(png));
+          } else if (command === 'sips') {
+            expect(args.slice(0, 2)).toEqual(['-Z', '320']);
+            expect(await readFile(args[2])).toEqual(png);
+            await writeFile(args[args.indexOf('--out') + 1], Uint8Array.from(resized));
+          } else if (command === 'cwebp') {
+            expect(await readFile(args[args.indexOf('-o') - 1])).toEqual(resized);
+            await writeFile(args[args.indexOf('-o') + 1], Uint8Array.from(webp));
           } else {
+            // Homebrew's FFmpeg cannot encode WebP, so macOS must not use it.
+            expect(runtimePlatform).toBe(BuildRuntimePlatform.LINUX);
             expect(command).toBe('ffmpeg');
             expect(await readFile(args[args.indexOf('-i') + 1])).toEqual(png);
             expect(args).toContain('libwebp');
@@ -345,5 +356,45 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
     expect(
       (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
     ).toEqual([]);
+  });
+});
+
+describe(ensureMacosPreviewEncoderInstalledAsync, () => {
+  const logger = { info: jest.fn() } as unknown as bunyan;
+
+  it.each([true, false])(
+    'installs webp only when cwebp is missing (present: %s)',
+    async present => {
+      jest.mocked(spawn).mockReset();
+      jest
+        .mocked(spawn)
+        .mockImplementation(
+          command =>
+            (command === 'cwebp' && !present
+              ? Promise.reject(new Error('command not found: cwebp'))
+              : Promise.resolve({ stdout: '', stderr: '' })) as ReturnType<typeof spawn>
+        );
+      await ensureMacosPreviewEncoderInstalledAsync({ env: { HOME: '/Users/expo' }, logger });
+      const brewCalls = jest.mocked(spawn).mock.calls.filter(([command]) => command === 'brew');
+      if (present) {
+        expect(brewCalls).toEqual([]);
+      } else {
+        expect(brewCalls).toEqual([
+          [
+            'brew',
+            ['install', 'webp'],
+            { env: { HOME: '/Users/expo', HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+          ],
+        ]);
+      }
+    }
+  );
+
+  it('rejects when webp cannot be installed', async () => {
+    jest.mocked(spawn).mockReset();
+    jest.mocked(spawn).mockRejectedValue(new Error('brew failed'));
+    await expect(ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger })).rejects.toThrow(
+      'brew failed'
+    );
   });
 });

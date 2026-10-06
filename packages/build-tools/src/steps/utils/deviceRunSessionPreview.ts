@@ -1,4 +1,5 @@
 import { type bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { graphql } from 'gql.tada';
@@ -12,6 +13,8 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 
 const PREVIEW_INTERVAL_MS = 60_000;
+const PREVIEW_MAX_DIMENSION = 320;
+const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 const CREATE_PREVIEW_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateDeviceRunSessionPreviewUploadSession($deviceRunSessionId: ID!) {
@@ -136,6 +139,27 @@ export function startDeviceRunSessionPreview({
   };
 }
 
+/**
+ * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews with `cwebp` from
+ * Homebrew's webp package instead. Throws when it cannot be installed.
+ */
+export async function ensureMacosPreviewEncoderInstalledAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if ((await asyncResult(spawn('cwebp', ['-version'], { env, stdio: 'pipe' }))).ok) {
+    return;
+  }
+  logger.info('Installing webp with Homebrew for the session preview.');
+  await spawn('brew', ['install', 'webp'], {
+    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+    logger,
+  });
+}
+
 export async function captureDeviceRunSessionPreviewAsync({
   runtimePlatform,
   device,
@@ -149,53 +173,92 @@ export async function captureDeviceRunSessionPreviewAsync({
 }): Promise<Buffer> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
-    const screenshot = path.join(directory, 'screen.png');
-    const preview = path.join(directory, 'preview.webp');
     const options = { env, signal, timeout: 30_000, stdio: 'pipe' as const };
+    const preview = path.join(directory, 'preview.webp');
     if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-      await spawn('xcrun', ['simctl', 'io', device, 'screenshot', screenshot], options);
+      await captureIosPreviewAsync({ device, directory, preview, options });
     } else {
-      let serial = device;
-      // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
-      if (serial === 'no-device-id') {
-        const result = await spawn('adb', ['devices'], options);
-        const devices = result.stdout
-          .split('\n')
-          .map(line => line.trim().split(/\s+/))
-          .filter(([, status]) => status === 'device');
-        if (devices.length !== 1) {
-          throw new Error('Expected exactly one connected Android device for the session preview.');
-        }
-        serial = devices[0][0];
-      }
-      const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
-      // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
-      await Promise.all([
-        capture,
-        pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal }),
-      ]);
+      await captureAndroidPreviewAsync({ device, directory, preview, options });
     }
-    await spawn(
-      'ffmpeg',
-      [
-        '-nostdin',
-        '-y',
-        '-i',
-        screenshot,
-        '-vf',
-        'scale=320:320:force_original_aspect_ratio=decrease',
-        '-frames:v',
-        '1',
-        '-c:v',
-        'libwebp',
-        '-quality',
-        '70',
-        preview,
-      ],
-      options
-    );
     return await readFile(preview);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+type CaptureOptions = {
+  env: BuildStepEnv;
+  signal: AbortSignal;
+  timeout: number;
+  stdio: 'pipe';
+};
+
+async function captureIosPreviewAsync({
+  device,
+  directory,
+  preview,
+  options,
+}: {
+  device: string;
+  directory: string;
+  preview: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  const screenshot = path.join(directory, 'screen.png');
+  const resized = path.join(directory, 'resized.png');
+  await spawn('xcrun', ['simctl', 'io', device, 'screenshot', screenshot], options);
+  await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
+  await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
+}
+
+async function captureAndroidPreviewAsync({
+  device,
+  directory,
+  preview,
+  options,
+}: {
+  device: string;
+  directory: string;
+  preview: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  const screenshot = path.join(directory, 'screen.png');
+  let serial = device;
+  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
+  if (serial === 'no-device-id') {
+    const result = await spawn('adb', ['devices'], options);
+    const devices = result.stdout
+      .split('\n')
+      .map(line => line.trim().split(/\s+/))
+      .filter(([, status]) => status === 'device');
+    if (devices.length !== 1) {
+      throw new Error('Expected exactly one connected Android device for the session preview.');
+    }
+    serial = devices[0][0];
+  }
+  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
+  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
+  await Promise.all([
+    capture,
+    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
+  ]);
+  await spawn(
+    'ffmpeg',
+    [
+      '-nostdin',
+      '-y',
+      '-i',
+      screenshot,
+      '-vf',
+      `scale=${PREVIEW_MAX_DIMENSION}:${PREVIEW_MAX_DIMENSION}:force_original_aspect_ratio=decrease`,
+      '-frames:v',
+      '1',
+      '-c:v',
+      'libwebp',
+      '-quality',
+      String(PREVIEW_QUALITY),
+      preview,
+    ],
+    options
+  );
 }

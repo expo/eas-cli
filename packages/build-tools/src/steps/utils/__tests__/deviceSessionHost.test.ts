@@ -12,7 +12,10 @@ import {
   findUnlistedDeviceScreenRecordingsAsync,
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
-import { startDeviceRunSessionPreview } from '../deviceRunSessionPreview';
+import {
+  ensureMacosPreviewEncoderInstalledAsync,
+  startDeviceRunSessionPreview,
+} from '../deviceRunSessionPreview';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { ensureFfmpegInstalledOnceAsync, spawnDetached } from '../remoteDeviceRunSession';
 
@@ -33,6 +36,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionPreview', () => ({
   ...jest.requireActual('../deviceRunSessionPreview'),
+  ensureMacosPreviewEncoderInstalledAsync: jest.fn(),
   startDeviceRunSessionPreview: jest.fn(),
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
@@ -76,6 +80,7 @@ beforeEach(() => {
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
+  jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockResolvedValue(undefined);
   stopServer.mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
@@ -535,9 +540,9 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
-it('does not delay macOS readiness on FFmpeg setup or start the preview after finish', async () => {
+it('does not delay macOS readiness on encoder setup or start the preview after finish', async () => {
   const install = deferred<void>();
-  jest.mocked(ensureFfmpegInstalledOnceAsync).mockReturnValueOnce(install.promise);
+  jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockReturnValueOnce(install.promise);
   const host = await startDeviceSessionHostAsync(ctx, {
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
@@ -551,8 +556,10 @@ it('does not delay macOS readiness on FFmpeg setup or start the preview after fi
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
-it('keeps the session running when FFmpeg setup for the preview fails', async () => {
-  jest.mocked(ensureFfmpegInstalledOnceAsync).mockRejectedValueOnce(new Error('brew failed'));
+it('keeps the session running when encoder setup for the preview fails', async () => {
+  jest
+    .mocked(ensureMacosPreviewEncoderInstalledAsync)
+    .mockRejectedValueOnce(new Error('brew failed'));
   const host = await startDeviceSessionHostAsync(ctx, {
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
