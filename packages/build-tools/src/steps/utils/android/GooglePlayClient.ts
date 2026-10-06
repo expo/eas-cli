@@ -244,11 +244,6 @@ export class GooglePlayClient {
     headers: RequestInit['headers'] = { 'Content-Type': 'application/json' }
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
-    if (url.origin !== this.baseUrl || url.username || url.password) {
-      throw new SystemError(
-        'Google Play request URL must use the publisher host without URL credentials.'
-      );
-    }
     const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();

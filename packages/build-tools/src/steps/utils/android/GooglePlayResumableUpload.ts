@@ -1,7 +1,7 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { SystemError } from '@expo/eas-build-job';
 import fetch, { FetchError, Response } from 'node-fetch';
 import promiseRetry from 'promise-retry';
-import fs, { FileHandle } from 'node:fs/promises';
+import { FileHandle } from 'node:fs/promises';
 import { z } from 'zod';
 
 import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
@@ -16,52 +16,22 @@ const RETRY_OPTIONS = {
   randomize: true,
 };
 
-type UploadOptions = {
-  artifactPath: string;
-  client: GooglePlayClient;
-  packageName: string;
-  editId: string;
-  artifactType: AndroidArtifactType;
-  signal?: AbortSignal;
-  onProgress?: (uploadedBytes: number, totalBytes: number) => void;
-};
-
 export namespace GooglePlayResumableUpload {
-  export async function uploadAsync(options: UploadOptions): Promise<number> {
-    options.signal?.throwIfAborted();
-    const file = await fs.open(options.artifactPath, 'r');
-    try {
-      const { size } = await file.stat();
-      if (!Number.isSafeInteger(size) || size <= 0) {
-        throw new UserError(
-          'EAS_GOOGLE_PLAY_INVALID_BINARY',
-          'Cannot upload an empty or invalid Android binary.'
-        );
-      }
-      return await promiseRetry(
-        async retry => {
-          const session = await createUploadSessionAsync(options, size);
-          try {
-            return await uploadSessionAsync(file, size, session, options);
-          } catch (error) {
-            options.signal?.throwIfAborted();
-            if (error instanceof GooglePlayApiError && [404, 410].includes(error.status)) {
-              retry(error);
-            }
-            throw error;
-          }
-        },
-        { ...RETRY_OPTIONS, retries: 2 }
-      );
-    } finally {
-      await file.close();
-    }
-  }
-
-  async function createUploadSessionAsync(
-    { client, packageName, editId, artifactType, signal }: UploadOptions,
-    size: number
-  ): Promise<URL> {
+  export async function createUploadSessionAsync({
+    client,
+    packageName,
+    editId,
+    artifactType,
+    signal,
+    size,
+  }: {
+    client: GooglePlayClient;
+    packageName: string;
+    editId: string;
+    artifactType: AndroidArtifactType;
+    signal?: AbortSignal;
+    size: number;
+  }): Promise<URL> {
     const resource = artifactType === 'apk' ? 'apks' : 'bundles';
     const response = await promiseRetry(async retry => {
       signal?.throwIfAborted();
@@ -74,7 +44,7 @@ export namespace GooglePlayResumableUpload {
           {
             'Content-Length': '0',
             'X-Upload-Content-Length': String(size),
-            'X-Upload-Content-Type': contentType(artifactType),
+            'X-Upload-Content-Type': getContentTypeFromArtifactType(artifactType),
           }
         );
       } catch (error) {
@@ -93,24 +63,36 @@ export namespace GooglePlayResumableUpload {
     try {
       session = new URL(location);
     } catch {
-      throw new SystemError('Google returned an invalid upload URL.');
+      // Node's URL error retains the input, which can contain the upload secret.
+      throw new SystemError('Google returned an invalid upload URL (ERR_INVALID_URL).');
     }
     if (
       session.origin !== 'https://androidpublisher.googleapis.com' ||
       session.username ||
       session.password
     ) {
-      throw new SystemError('Google returned an unsafe upload URL.');
+      throw new SystemError(
+        `Google returned an unsafe upload URL: expected origin https://androidpublisher.googleapis.com, got ${session.origin}. URL credentials are not permitted.`
+      );
     }
     return session;
   }
 
-  async function uploadSessionAsync(
-    file: FileHandle,
-    size: number,
-    session: URL,
-    { artifactType, signal, onProgress }: UploadOptions
-  ): Promise<number> {
+  export async function uploadSessionAsync({
+    file,
+    size,
+    session,
+    artifactType,
+    signal,
+    onProgress,
+  }: {
+    file: FileHandle;
+    size: number;
+    session: URL;
+    artifactType: AndroidArtifactType;
+    signal?: AbortSignal;
+    onProgress?: (uploadedBytes: number, totalBytes: number) => void;
+  }): Promise<{ versionCode: number }> {
     let offset = 0;
     onProgress?.(0, size);
 
@@ -118,7 +100,7 @@ export namespace GooglePlayResumableUpload {
       let checkServerOffset = false;
       const result = await promiseRetry(async retry => {
         // A retry checks the server before it sends any bytes again.
-        while (true) {
+        while (offset < size) {
           signal?.throwIfAborted();
           const end = Math.min(offset + CHUNK_SIZE, size);
           let body: Buffer | undefined;
@@ -127,7 +109,9 @@ export namespace GooglePlayResumableUpload {
             body = Buffer.alloc(end - offset);
             const { bytesRead } = await file.read(body, 0, body.length, offset);
             if (bytesRead !== body.length) {
-              throw new SystemError('The Android binary changed during upload.');
+              throw new SystemError(
+                `The Android binary changed during upload: expected ${body.length} bytes at offset ${offset}, got ${bytesRead}.`
+              );
             }
           }
 
@@ -141,7 +125,7 @@ export namespace GooglePlayResumableUpload {
                 'Content-Range': checkServerOffset
                   ? `bytes */${size}`
                   : `bytes ${offset}-${end - 1}/${size}`,
-                'Content-Type': contentType(artifactType),
+                'Content-Type': getContentTypeFromArtifactType(artifactType),
               },
               body,
               signal,
@@ -204,16 +188,21 @@ export namespace GooglePlayResumableUpload {
           }
           if (!checkServerOffset) {
             checkServerOffset = true;
-            retry(new SystemError('Google upload made no progress.'));
+            retry(
+              new SystemError(
+                `Google upload made no progress: confirmed ${offset} of ${size} bytes after sending bytes ${offset}-${end - 1}.`
+              )
+            );
           }
           // The status check confirmed no new bytes. Send the chunk again.
           checkServerOffset = false;
         }
+        throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
       }, RETRY_OPTIONS);
 
       if (result.versionCode !== undefined) {
         onProgress?.(size, size);
-        return result.versionCode;
+        return result;
       }
       offset = result.offset;
       onProgress?.(offset, size);
@@ -222,7 +211,7 @@ export namespace GooglePlayResumableUpload {
   }
 }
 
-function contentType(artifactType: AndroidArtifactType): string {
+function getContentTypeFromArtifactType(artifactType: AndroidArtifactType): string {
   return artifactType === 'apk'
     ? 'application/vnd.android.package-archive'
     : 'application/octet-stream';

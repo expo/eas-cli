@@ -51,7 +51,7 @@ function mockStart(location = `https://androidpublisher.googleapis.com${session}
     .reply(200, '', { Location: location });
 }
 function upload(signal?: AbortSignal, onProgress = jest.fn()) {
-  return GooglePlayUtils.uploadAsync({
+  return GooglePlayUtils.uploadApplicationAsync({
     client,
     packageName,
     editId: 'edit',
@@ -59,7 +59,7 @@ function upload(signal?: AbortSignal, onProgress = jest.fn()) {
     artifactType: 'apk',
     signal,
     onProgress,
-  });
+  }).then(result => result.versionCode);
 }
 function uploadApi(): nock.Scope {
   return nock('https://androidpublisher.googleapis.com', { badheaders: ['authorization'] });
