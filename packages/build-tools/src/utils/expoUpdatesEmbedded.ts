@@ -146,7 +146,7 @@ export async function uploadEmbeddedBundleAsync({
         cwd: projectDir,
         env,
         logger,
-        mode: PipeMode.STDERR_ONLY_AS_STDOUT,
+        mode: PipeMode.COMBINED_AS_STDOUT,
       },
     });
     return { status: 'uploaded' };
