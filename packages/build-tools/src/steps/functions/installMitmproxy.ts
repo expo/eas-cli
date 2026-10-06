@@ -33,7 +33,7 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
         logger.info('Installing mitmproxy with Homebrew.');
         await installMitmproxyWithHomebrewAsync({ env, logger });
         if (!(await removeMitmproxyQuarantineAsync(env))) {
-          throw new Error('mitmdump is still quarantined, and its first launch can hang.');
+          throw new Error('Could not launch mitmproxy because it is still quarantined.');
         }
         if (!(await isMitmproxyAvailableAsync(env))) {
           throw new Error('`brew install --cask mitmproxy` succeeded but mitmdump is not on PATH.');
