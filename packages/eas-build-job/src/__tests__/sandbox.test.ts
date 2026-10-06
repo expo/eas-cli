@@ -24,6 +24,32 @@ describe('sandbox daemon protocol', () => {
     ).toEqual({ sessionId: 1, chars: '\u0003', yieldTimeMs: 0 });
   });
 
+  it.each(['maxTextBytes', 'maxImageBytes'])(
+    'requires the caller to set %s when reading a file',
+    limit => {
+      const params: Record<string, unknown> = {
+        path: 'screenshot.png',
+        maxTextBytes: 40_000,
+        maxImageBytes: 3_000_000,
+      };
+      delete params[limit];
+
+      expect(() => SandboxDaemonCommands.readFile.params.parse(params)).toThrow();
+    }
+  );
+
+  it('rejects an image result with both data and an error', () => {
+    expect(() =>
+      SandboxDaemonCommands.readFile.result.parse({
+        kind: 'image',
+        mimeType: 'image/png',
+        data: 'iVBORw0KGgo=',
+        size: 8,
+        error: 'tooLarge',
+      })
+    ).toThrow();
+  });
+
   it.each([
     { output: '', wallTimeSeconds: 0, exitCode: 0 },
     { output: '', wallTimeSeconds: 0, terminationSignal: 'SIGTERM' },

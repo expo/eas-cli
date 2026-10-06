@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const SandboxImageMimeTypeZ = z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
 export const SandboxDaemonCommands = {
   execCommand: {
     params: z.object({
@@ -47,6 +49,36 @@ export const SandboxDaemonCommands = {
         output: z.string(),
         wallTimeSeconds: z.number().nonnegative(),
         sessionId: z.number().int().positive(),
+      }),
+    ]),
+  },
+  readFile: {
+    params: z.object({
+      path: z.string().min(1),
+      maxTextBytes: z.number().int().positive(),
+      maxImageBytes: z.number().int().positive(),
+    }),
+    result: z.union([
+      z.strictObject({
+        kind: z.literal('image'),
+        mimeType: SandboxImageMimeTypeZ,
+        data: z.base64(),
+      }),
+      z.strictObject({
+        kind: z.literal('image'),
+        mimeType: SandboxImageMimeTypeZ,
+        error: z.literal('tooLarge'),
+        size: z.number().int().nonnegative(),
+      }),
+      z.strictObject({
+        kind: z.literal('text'),
+        text: z.string(),
+        truncated: z.boolean(),
+        size: z.number().int().nonnegative(),
+      }),
+      z.strictObject({
+        kind: z.literal('binary'),
+        size: z.number().int().nonnegative(),
       }),
     ]),
   },
