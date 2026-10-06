@@ -52,6 +52,17 @@ const GetApi = {
 };
 
 const PostApi = {
+  '/upload/androidpublisher/v3/applications/:packageName/edits/:editId/:resource': {
+    path: z.object({
+      packageName: z.string().min(1),
+      editId: z.string().min(1),
+      resource: z.enum(['apks', 'bundles']),
+    }),
+    request: z.undefined(),
+    query: z.object({ uploadType: z.literal('resumable') }),
+    response: z.object({ location: z.string().min(1) }),
+    responseHeaders: true,
+  },
   '/androidpublisher/v3/applications/:packageName/edits': {
     path: z.object({ packageName: z.string().min(1) }),
     request: z.object({}),
@@ -143,7 +154,11 @@ export class GooglePlayClient {
     path: TPath,
     body: z.input<(typeof PostApi)[TPath]['request']>,
     params: z.input<(typeof PostApi)[TPath]['path']>,
-    options: { query?: z.input<(typeof PostApi)[TPath]['query']>; signal?: AbortSignal } = {}
+    options: {
+      query?: z.input<(typeof PostApi)[TPath]['query']>;
+      headers?: RequestInit['headers'];
+      signal?: AbortSignal;
+    } = {}
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
     return await this.sendJsonRequestAsync(
       'POST',
@@ -152,7 +167,8 @@ export class GooglePlayClient {
       body,
       params,
       options.query ?? {},
-      options.signal
+      options.signal,
+      options.headers
     );
   }
 
@@ -177,50 +193,6 @@ export class GooglePlayClient {
     await this.requestAsync('DELETE', url, undefined, signal);
   }
 
-  async startUploadAsync({
-    packageName,
-    editId,
-    artifactType,
-    size,
-    signal,
-  }: {
-    packageName: string;
-    editId: string;
-    artifactType: 'apk' | 'aab';
-    size: number;
-    signal?: AbortSignal;
-  }): Promise<URL> {
-    const resource = artifactType === 'apk' ? 'apks' : 'bundles';
-    const response = await this.requestAsync(
-      'POST',
-      `/upload/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/edits/${encodeURIComponent(editId)}/${resource}?uploadType=resumable`,
-      undefined,
-      signal,
-      {
-        'Content-Length': '0',
-        'X-Upload-Content-Length': String(size),
-        'X-Upload-Content-Type':
-          artifactType === 'apk'
-            ? 'application/vnd.android.package-archive'
-            : 'application/octet-stream',
-      }
-    );
-    const location = response.headers.get('location');
-    if (!location) {
-      throw new Error('Google did not return an upload session.');
-    }
-    let url: URL;
-    try {
-      url = new URL(location);
-    } catch {
-      throw new Error('Google returned an invalid upload URL.');
-    }
-    if (url.origin !== this.baseUrl || url.username || url.password) {
-      throw new Error('Google returned an unsafe upload URL.');
-    }
-    return url;
-  }
-
   private async sendJsonRequestAsync(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
@@ -229,11 +201,13 @@ export class GooglePlayClient {
       request: z.ZodType;
       query: z.ZodType;
       response: z.ZodType;
+      responseHeaders?: boolean;
     },
     body: unknown,
     params: unknown,
     query: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    headers?: RequestInit['headers']
   ): Promise<any> {
     const parsedBody = schema.request.parse(body);
 
@@ -254,12 +228,15 @@ export class GooglePlayClient {
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal
+      signal,
+      headers
     );
 
     let data: unknown;
     try {
-      data = await response.json();
+      data = schema.responseHeaders
+        ? Object.fromEntries(response.headers.entries())
+        : await response.json();
     } catch {
       signal?.throwIfAborted();
       throw new SystemError(
