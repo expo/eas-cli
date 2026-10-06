@@ -52,17 +52,6 @@ const GetApi = {
 };
 
 const PostApi = {
-  '/upload/androidpublisher/v3/applications/:packageName/edits/:editId/:resource': {
-    path: z.object({
-      packageName: z.string().min(1),
-      editId: z.string().min(1),
-      resource: z.enum(['apks', 'bundles']),
-    }),
-    request: z.undefined(),
-    query: z.object({ uploadType: z.literal('resumable') }),
-    response: z.object({ location: z.string().min(1) }),
-    readResponse: async (response: Response) => ({ location: response.headers.get('location') }),
-  },
   '/androidpublisher/v3/applications/:packageName/edits': {
     path: z.object({ packageName: z.string().min(1) }),
     request: z.object({}),
@@ -156,7 +145,6 @@ export class GooglePlayClient {
     params: z.input<(typeof PostApi)[TPath]['path']>,
     options: {
       query?: z.input<(typeof PostApi)[TPath]['query']>;
-      headers?: RequestInit['headers'];
       signal?: AbortSignal;
     } = {}
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
@@ -167,8 +155,7 @@ export class GooglePlayClient {
       body,
       params,
       options.query ?? {},
-      options.signal,
-      options.headers
+      options.signal
     );
   }
 
@@ -201,13 +188,11 @@ export class GooglePlayClient {
       request: z.ZodType;
       query: z.ZodType;
       response: z.ZodType;
-      readResponse?: (response: Response) => Promise<unknown>;
     },
     body: unknown,
     params: unknown,
     query: unknown,
-    signal?: AbortSignal,
-    headers?: RequestInit['headers']
+    signal?: AbortSignal
   ): Promise<any> {
     const parsedBody = schema.request.parse(body);
 
@@ -228,13 +213,12 @@ export class GooglePlayClient {
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal,
-      headers
+      signal
     );
 
     let data: unknown;
     try {
-      data = await (schema.readResponse ? schema.readResponse(response) : response.json());
+      data = await response.json();
     } catch {
       signal?.throwIfAborted();
       throw new SystemError(
@@ -252,7 +236,7 @@ export class GooglePlayClient {
     return parsed.data;
   }
 
-  private async requestAsync(
+  async requestAsync(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     body?: string,
@@ -260,6 +244,11 @@ export class GooglePlayClient {
     headers: RequestInit['headers'] = { 'Content-Type': 'application/json' }
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
+    if (url.origin !== this.baseUrl || url.username || url.password) {
+      throw new SystemError(
+        'Google Play request URL must use the publisher host without URL credentials.'
+      );
+    }
     const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();

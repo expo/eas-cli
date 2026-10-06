@@ -38,67 +38,71 @@ export namespace GooglePlayResumableUpload {
           'Cannot upload an empty or invalid Android binary.'
         );
       }
-      for (let restart = 0; ; restart++) {
-        const response = await promiseRetry(async retry => {
-          options.signal?.throwIfAborted();
+      return await promiseRetry(
+        async retry => {
+          const session = await createUploadSessionAsync(options, size);
           try {
-            return await options.client.postAsync(
-              '/upload/androidpublisher/v3/applications/:packageName/edits/:editId/:resource',
-              undefined,
-              {
-                packageName: options.packageName,
-                editId: options.editId,
-                resource: options.artifactType === 'apk' ? 'apks' : 'bundles',
-              },
-              {
-                query: { uploadType: 'resumable' },
-                headers: {
-                  'Content-Length': '0',
-                  'X-Upload-Content-Length': String(size),
-                  'X-Upload-Content-Type': contentType(options.artifactType),
-                },
-                signal: options.signal,
-              }
-            );
+            return await uploadSessionAsync(file, size, session, options);
           } catch (error) {
             options.signal?.throwIfAborted();
-            if (
-              error instanceof GooglePlayApiError &&
-              (error.status === 429 || error.status >= 500)
-            ) {
+            if (error instanceof GooglePlayApiError && [404, 410].includes(error.status)) {
               retry(error);
             }
             throw error;
           }
-        }, RETRY_OPTIONS);
-        let session: URL;
-        try {
-          session = new URL(response.location);
-        } catch {
-          throw new SystemError('Google returned an invalid upload URL.');
-        }
-        if (
-          session.origin !== 'https://androidpublisher.googleapis.com' ||
-          session.username ||
-          session.password
-        ) {
-          throw new SystemError('Google returned an unsafe upload URL.');
-        }
-        try {
-          return await uploadSessionAsync(file, size, session, options);
-        } catch (error) {
-          if (
-            !(error instanceof GooglePlayApiError) ||
-            ![404, 410].includes(error.status) ||
-            restart >= 2
-          ) {
-            throw error;
-          }
-        }
-      }
+        },
+        { ...RETRY_OPTIONS, retries: 2 }
+      );
     } finally {
       await file.close();
     }
+  }
+
+  async function createUploadSessionAsync(
+    { client, packageName, editId, artifactType, signal }: UploadOptions,
+    size: number
+  ): Promise<URL> {
+    const resource = artifactType === 'apk' ? 'apks' : 'bundles';
+    const response = await promiseRetry(async retry => {
+      signal?.throwIfAborted();
+      try {
+        return await client.requestAsync(
+          'POST',
+          `/upload/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/edits/${encodeURIComponent(editId)}/${resource}?uploadType=resumable`,
+          undefined,
+          signal,
+          {
+            'Content-Length': '0',
+            'X-Upload-Content-Length': String(size),
+            'X-Upload-Content-Type': contentType(artifactType),
+          }
+        );
+      } catch (error) {
+        signal?.throwIfAborted();
+        if (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500)) {
+          retry(error);
+        }
+        throw error;
+      }
+    }, RETRY_OPTIONS);
+    const location = response.headers.get('location');
+    if (!location) {
+      throw new SystemError('Google did not return an upload session.');
+    }
+    let session: URL;
+    try {
+      session = new URL(location);
+    } catch {
+      throw new SystemError('Google returned an invalid upload URL.');
+    }
+    if (
+      session.origin !== 'https://androidpublisher.googleapis.com' ||
+      session.username ||
+      session.password
+    ) {
+      throw new SystemError('Google returned an unsafe upload URL.');
+    }
+    return session;
   }
 
   async function uploadSessionAsync(
