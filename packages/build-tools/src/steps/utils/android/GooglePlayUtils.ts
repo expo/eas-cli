@@ -187,7 +187,7 @@ export namespace GooglePlayUtils {
         error.apiMessage.includes('The query parameter changesNotSentForReview must not be set')
       ) {
         logger.warn(
-          'Google requires changesNotSentForReview to be omitted. Retrying commit once with that setting.'
+          'Google does not allow changesNotSentForReview for this app right now. Retrying commit once without it. The changes will be sent for review.'
         );
         await commitOnceAsync({});
       } else if (
