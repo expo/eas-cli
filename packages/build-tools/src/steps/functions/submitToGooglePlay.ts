@@ -50,6 +50,8 @@ const InputsZ = z
     }
   });
 
+// Does not inspect the binary. The caller must run eas/read_android_app_info and
+// compare its package_name with the intended application ID before calling this.
 export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',

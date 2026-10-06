@@ -174,14 +174,16 @@ export namespace GooglePlayUtils {
       }
     };
     try {
-      await commitOnceAsync({ changesNotSentForReview });
+      // Omit the optional parameter for normal review submission. Some app states
+      // reject its presence, even when false. True saves changes for review in Console.
+      await commitOnceAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
     } catch (error) {
       if (!(error instanceof GooglePlayApiError) || error.status !== 400) {
         throw error;
       }
-      // Match Fastlane: Google can reject the review parameter even when it is false.
-      // This explicit rejection permits one retry with the parameter omitted.
+      // Like Fastlane, retry only an explicit rejection of the review setting.
       if (
+        changesNotSentForReview &&
         error.apiMessage.includes('The query parameter changesNotSentForReview must not be set')
       ) {
         logger.warn(
@@ -193,7 +195,7 @@ export namespace GooglePlayUtils {
         error.apiMessage.includes('Please set the query parameter changesNotSentForReview to true')
       ) {
         logger.warn(
-          'Google requires changesNotSentForReview=true. Retrying commit once with that setting.'
+          'Google requires changesNotSentForReview=true. Retrying commit once. Send the saved changes for review from Play Console.'
         );
         await commitOnceAsync({ changesNotSentForReview: true });
       } else {
@@ -263,6 +265,8 @@ export namespace GooglePlayUtils {
       detail =
         'Google Play rejected the release or review settings. Check the track, release status, rollout, and review settings in Play Console.';
     }
-    return new UserError(code, detail, { cause: error });
+    return new UserError(code, message ? `${detail} Google Play said: ${message}` : detail, {
+      cause: error,
+    });
   }
 }
