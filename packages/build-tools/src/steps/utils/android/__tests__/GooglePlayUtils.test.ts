@@ -51,8 +51,7 @@ function mockStart(location = `https://androidpublisher.googleapis.com${session}
     .reply(200, '', { Location: location });
 }
 function upload(signal?: AbortSignal, onProgress = jest.fn()) {
-  return GooglePlayUtils.uploadApplicationAsync({
-    client,
+  return GooglePlayUtils.uploadApplicationAsync(client, {
     packageName,
     editId: 'edit',
     artifactPath,

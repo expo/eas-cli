@@ -7,15 +7,17 @@ import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
 export namespace GooglePlayUtils {
-  export async function uploadApplicationAsync(options: {
-    client: GooglePlayClient;
-    packageName: string;
-    editId: string;
-    artifactPath: string;
-    artifactType: AndroidArtifactType;
-    signal?: AbortSignal;
-    onProgress?: (uploadedBytes: number, totalBytes: number) => void;
-  }): Promise<{ versionCode: number }> {
+  export async function uploadApplicationAsync(
+    client: GooglePlayClient,
+    options: {
+      packageName: string;
+      editId: string;
+      artifactPath: string;
+      artifactType: AndroidArtifactType;
+      signal?: AbortSignal;
+      onProgress?: (uploadedBytes: number, totalBytes: number) => void;
+    }
+  ): Promise<{ versionCode: number }> {
     options.signal?.throwIfAborted();
     const file = await fs.open(options.artifactPath, 'r');
     try {
@@ -30,6 +32,7 @@ export namespace GooglePlayUtils {
         async retry => {
           const session = await GooglePlayResumableUpload.createUploadSessionAsync({
             ...options,
+            client,
             size,
           });
           try {

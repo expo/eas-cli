@@ -7,6 +7,10 @@ import { z } from 'zod';
 import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
 import { AndroidArtifactType } from './appArtifact';
 
+const UploadResponseZ = z.object({
+  versionCode: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
+
 const CHUNK_SIZE = 8 * 1024 * 1024;
 const RETRY_OPTIONS = {
   retries: 5,
@@ -92,11 +96,13 @@ export namespace GooglePlayResumableUpload {
     artifactType: AndroidArtifactType;
     signal?: AbortSignal;
     onProgress?: (uploadedBytes: number, totalBytes: number) => void;
-  }): Promise<{ versionCode: number }> {
+  }): Promise<z.output<typeof UploadResponseZ>> {
+    const contentType = getContentTypeFromArtifactType(artifactType);
     let offset = 0;
     onProgress?.(0, size);
 
-    while (offset < size) {
+    let completed: z.output<typeof UploadResponseZ> | undefined;
+    do {
       let checkServerOffset = false;
       const result = await promiseRetry(async retry => {
         // A retry checks the server before it sends any bytes again.
@@ -125,7 +131,7 @@ export namespace GooglePlayResumableUpload {
                 'Content-Range': checkServerOffset
                   ? `bytes */${size}`
                   : `bytes ${offset}-${end - 1}/${size}`,
-                'Content-Type': getContentTypeFromArtifactType(artifactType),
+                'Content-Type': contentType,
               },
               body,
               signal,
@@ -160,13 +166,11 @@ export namespace GooglePlayResumableUpload {
               checkServerOffset = true;
               return retry(new SystemError('Could not read the Google Play upload response.'));
             }
-            const parsed = z
-              .object({ versionCode: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) })
-              .safeParse(data);
+            const parsed = UploadResponseZ.safeParse(data);
             if (!parsed.success) {
               throw new SystemError('Google completed the upload without a valid version code.');
             }
-            return { versionCode: parsed.data.versionCode };
+            return { complete: true as const, data: parsed.data };
           }
           if (response.status !== 308) {
             throw new SystemError(`Unexpected Google upload status: ${response.status}.`);
@@ -184,7 +188,7 @@ export namespace GooglePlayResumableUpload {
             throw new SystemError('Google returned an invalid upload range.');
           }
           if (next > offset) {
-            return { offset: next };
+            return { complete: false as const, offset: next };
           }
           if (!checkServerOffset) {
             checkServerOffset = true;
@@ -200,14 +204,15 @@ export namespace GooglePlayResumableUpload {
         throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
       }, RETRY_OPTIONS);
 
-      if (result.versionCode !== undefined) {
+      if (result.complete) {
+        completed = result.data;
         onProgress?.(size, size);
-        return result;
+      } else {
+        offset = result.offset;
+        onProgress?.(offset, size);
       }
-      offset = result.offset;
-      onProgress?.(offset, size);
-    }
-    throw new SystemError('Google upload could not be completed.');
+    } while (!completed);
+    return completed;
   }
 }
 
