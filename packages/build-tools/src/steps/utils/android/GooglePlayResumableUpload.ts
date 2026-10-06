@@ -117,11 +117,19 @@ export namespace GooglePlayResumableUpload {
     onProgress?.(0, size);
 
     while (offset < size) {
+      const result = await uploadNextChunkAsync();
+      if (result) {
+        return result;
+      }
+    }
+    throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
+
+    async function uploadNextChunkAsync(): Promise<z.output<typeof UploadResponseZ> | undefined> {
       let checkServerOffset = false;
       // Confirmed progress starts a new retry budget. Retries first check the server offset.
-      const result = await promiseRetry(
+      return await promiseRetry(
         async retry => {
-          while (offset < size) {
+          while (true) {
             signal?.throwIfAborted();
             const end = Math.min(offset + CHUNK_SIZE, size);
             let body: Buffer | undefined;
@@ -234,7 +242,6 @@ export namespace GooglePlayResumableUpload {
             // The status check confirmed no new bytes. Send the chunk again.
             checkServerOffset = false;
           }
-          throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
         },
         {
           retries: 5,
@@ -244,11 +251,7 @@ export namespace GooglePlayResumableUpload {
           randomize: true,
         }
       );
-      if (result) {
-        return result;
-      }
     }
-    throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
   }
 }
 
