@@ -14,6 +14,13 @@ export class GooglePlayApiError extends Error {
   }
 }
 
+const ReleaseStatusZ = z.enum(['draft', 'inProgress', 'halted', 'completed']);
+
+const ReleaseNoteZ = z.object({
+  language: z.string(),
+  text: z.string(),
+});
+
 const GetApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
@@ -36,15 +43,16 @@ const GetApi = {
           z.object({
             name: z.string().optional(),
             versionCodes: z.array(z.string()),
-            status: z.enum(['draft', 'inProgress', 'halted', 'completed']),
+            status: ReleaseStatusZ,
             userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(z.object({ language: z.string(), text: z.string() })).optional(),
+            releaseNotes: z.array(ReleaseNoteZ).optional(),
           })
         )
         .optional(),
     }),
   },
 };
+
 const PostApi = {
   '/androidpublisher/v3/applications/:packageName/edits': {
     path: z.object({ packageName: z.string().min(1) }),
@@ -65,6 +73,7 @@ const PostApi = {
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
 };
+
 const PutApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track': {
     path: z.object({
@@ -79,9 +88,9 @@ const PutApi = {
           z.object({
             name: z.string().optional(),
             versionCodes: z.array(z.string()),
-            status: z.enum(['draft', 'inProgress', 'halted', 'completed']),
+            status: ReleaseStatusZ,
             userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(z.object({ language: z.string(), text: z.string() })).optional(),
+            releaseNotes: z.array(ReleaseNoteZ).optional(),
           })
         )
         .optional(),
@@ -94,15 +103,16 @@ const PutApi = {
           z.object({
             name: z.string().optional(),
             versionCodes: z.array(z.string()),
-            status: z.enum(['draft', 'inProgress', 'halted', 'completed']),
+            status: ReleaseStatusZ,
             userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(z.object({ language: z.string(), text: z.string() })).optional(),
+            releaseNotes: z.array(ReleaseNoteZ).optional(),
           })
         )
         .optional(),
     }),
   },
 };
+
 const DeleteApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
@@ -117,6 +127,7 @@ export class GooglePlayClient {
 
   private async getTokenAsync(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
+
     while (this.cachedToken) {
       const pending = this.cachedToken;
       const cached = await pending;
@@ -128,8 +139,10 @@ export class GooglePlayClient {
         break;
       }
     }
+
     const pending = GooglePlayAuthUtils.createTokenAsync(this.serviceAccount, signal);
     this.cachedToken = pending;
+
     try {
       return (await pending).value;
     } catch (error) {
@@ -201,9 +214,11 @@ export class GooglePlayClient {
     signal?: AbortSignal
   ): Promise<any> {
     const parsedBody = schema.request.parse(body);
+
     for (const [key, value] of Object.entries(schema.path.parse(params))) {
       path = path.replace(`:${key}`, encodeURIComponent(value));
     }
+
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(
       schema.query.parse(query) as Record<string, unknown>
@@ -212,12 +227,14 @@ export class GooglePlayClient {
         search.set(key, String(value));
       }
     }
+
     const response = await this.requestAsync(
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
       signal
     );
+
     let data: unknown;
     try {
       data = await response.json();
@@ -227,12 +244,14 @@ export class GooglePlayClient {
         `Could not read the Google Play JSON response (HTTP ${response.status}).`
       );
     }
+
     const parsed = schema.response.safeParse(data);
     if (!parsed.success) {
       throw new SystemError(
         `Malformed response from Google Play (HTTP ${response.status}): ${z.prettifyError(parsed.error)}`
       );
     }
+
     return parsed.data;
   }
 
@@ -258,6 +277,7 @@ export class GooglePlayClient {
       signal?.throwIfAborted();
       throw new SystemError('Google Play request failed before a response was received.');
     }
+
     if (!response.ok) {
       let data: unknown;
       try {
@@ -281,6 +301,7 @@ export class GooglePlayClient {
           : []
       );
     }
+
     return response;
   }
 }
