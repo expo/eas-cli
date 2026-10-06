@@ -117,141 +117,154 @@ export namespace GooglePlayResumableUpload {
     onProgress?.(0, size);
 
     while (offset < size) {
-      const result = await uploadNextChunkAsync();
-      if (result) {
+      const result = await uploadChunkAsync({ file, size, session, contentType, offset, signal });
+      if (typeof result !== 'number') {
+        onProgress?.(size, size);
         return result;
       }
+      offset = result;
+      onProgress?.(offset, size);
     }
     throw new SystemError(`Google upload stopped at ${offset} of ${size} bytes.`);
+  }
 
-    async function uploadNextChunkAsync(): Promise<z.output<typeof UploadResponseZ> | undefined> {
-      let checkServerOffset = false;
-      // Confirmed progress starts a new retry budget. Retries first check the server offset.
-      return await promiseRetry(
-        async retry => {
-          while (true) {
-            signal?.throwIfAborted();
-            const end = Math.min(offset + CHUNK_SIZE, size);
-            let body: Buffer | undefined;
-            if (!checkServerOffset) {
-              // Only this chunk is held in memory, never the whole file.
-              body = Buffer.alloc(end - offset);
-              const { bytesRead } = await file.read(body, 0, body.length, offset);
-              if (bytesRead !== body.length) {
-                throw new SystemError(
-                  `The Android binary changed during upload: expected ${body.length} bytes at offset ${offset}, got ${bytesRead}.`
-                );
-              }
-            }
-
-            const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-            const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
-            let response: Response;
-            try {
-              response = await fetch(session.toString(), {
-                method: 'PUT',
-                redirect: 'manual',
-                headers: {
-                  'Content-Length': String(body?.length ?? 0),
-                  'Content-Range': checkServerOffset
-                    ? `bytes */${size}`
-                    : `bytes ${offset}-${end - 1}/${size}`,
-                  'Content-Type': contentType,
-                },
-                body,
-                signal: requestSignal,
-              });
-            } catch (error) {
-              signal?.throwIfAborted();
-              const failure = new SystemError(
-                'Google Play upload failed before a response was received.'
-              );
-              if (timeout.aborted || isNetworkRetryable(error)) {
-                checkServerOffset = true;
-                retry(failure);
-              }
-              throw failure;
-            }
-
-            if (!response.ok && response.status !== 308) {
-              const error = await GooglePlayApiError.fromResponseAsync(response, signal);
-              if (timeout.aborted) {
-                checkServerOffset = true;
-                return retry(new SystemError('Google Play upload response timed out.'));
-              }
-              if (response.status === 429 || response.status >= 500) {
-                checkServerOffset = true;
-                retry(error);
-              }
-              throw error;
-            }
-
-            if (response.status === 200 || response.status === 201) {
-              let data: unknown;
-              try {
-                data = await response.json();
-              } catch {
-                signal?.throwIfAborted();
-                checkServerOffset = true;
-                return retry(new SystemError('Could not read the Google Play upload response.'));
-              }
-              const parsed = UploadResponseZ.safeParse(data);
-              if (!parsed.success) {
-                throw new SystemError('Google completed the upload without a valid version code.');
-              }
-              onProgress?.(size, size);
-              return parsed.data;
-            }
-            if (response.status !== 308) {
-              throw new SystemError(`Unexpected Google upload status: ${response.status}.`);
-            }
-
-            const range = response.headers.get('range');
-            const match = range ? /^bytes=0-(\d+)$/.exec(range) : undefined;
-            const next = range ? (match ? Number(match[1]) + 1 : NaN) : 0;
-            if (
-              !Number.isSafeInteger(next) ||
-              next < offset ||
-              next > size ||
-              (!checkServerOffset && next > end)
-            ) {
-              throw new SystemError('Google returned an invalid upload range.');
-            }
-            if (next === size) {
-              checkServerOffset = true;
-              // All bytes are stored, but only 200/201 confirms completion.
-              // Keep the current retry budget and send only status checks.
-              return retry(
-                new SystemError(`Google stored all ${size} bytes but has not completed the upload.`)
+  async function uploadChunkAsync({
+    file,
+    size,
+    session,
+    contentType,
+    offset,
+    signal,
+  }: {
+    file: FileHandle;
+    size: number;
+    session: URL;
+    contentType: string;
+    offset: number;
+    signal?: AbortSignal;
+  }): Promise<z.output<typeof UploadResponseZ> | number> {
+    let checkServerOffset = false;
+    // Confirmed progress starts a new retry budget. Retries first check the server offset.
+    return await promiseRetry(
+      async retry => {
+        while (true) {
+          signal?.throwIfAborted();
+          const end = Math.min(offset + CHUNK_SIZE, size);
+          let body: Buffer | undefined;
+          if (!checkServerOffset) {
+            // Only this chunk is held in memory, never the whole file.
+            body = Buffer.alloc(end - offset);
+            const { bytesRead } = await file.read(body, 0, body.length, offset);
+            if (bytesRead !== body.length) {
+              throw new SystemError(
+                `The Android binary changed during upload: expected ${body.length} bytes at offset ${offset}, got ${bytesRead}.`
               );
             }
-            if (next > offset) {
-              offset = next;
-              onProgress?.(offset, size);
-              checkServerOffset = false;
-              return undefined;
-            }
-            if (!checkServerOffset) {
-              checkServerOffset = true;
-              retry(
-                new SystemError(
-                  `Google upload made no progress: confirmed ${offset} of ${size} bytes after sending bytes ${offset}-${end - 1}.`
-                )
-              );
-            }
-            // The status check confirmed no new bytes. Send the chunk again.
-            checkServerOffset = false;
           }
-        },
-        {
-          retries: 5,
-          factor: 2,
-          minTimeout: 1000,
-          maxTimeout: 32_000,
-          randomize: true,
+
+          const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+          const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+          let response: Response;
+          try {
+            response = await fetch(session.toString(), {
+              method: 'PUT',
+              redirect: 'manual',
+              headers: {
+                'Content-Length': String(body?.length ?? 0),
+                'Content-Range': checkServerOffset
+                  ? `bytes */${size}`
+                  : `bytes ${offset}-${end - 1}/${size}`,
+                'Content-Type': contentType,
+              },
+              body,
+              signal: requestSignal,
+            });
+          } catch (error) {
+            signal?.throwIfAborted();
+            const failure = new SystemError(
+              'Google Play upload failed before a response was received.'
+            );
+            if (timeout.aborted || isNetworkRetryable(error)) {
+              checkServerOffset = true;
+              retry(failure);
+            }
+            throw failure;
+          }
+
+          if (!response.ok && response.status !== 308) {
+            const error = await GooglePlayApiError.fromResponseAsync(response, signal);
+            if (timeout.aborted) {
+              checkServerOffset = true;
+              return retry(new SystemError('Google Play upload response timed out.'));
+            }
+            if (response.status === 429 || response.status >= 500) {
+              checkServerOffset = true;
+              retry(error);
+            }
+            throw error;
+          }
+
+          if (response.status === 200 || response.status === 201) {
+            let data: unknown;
+            try {
+              data = await response.json();
+            } catch {
+              signal?.throwIfAborted();
+              checkServerOffset = true;
+              return retry(new SystemError('Could not read the Google Play upload response.'));
+            }
+            const parsed = UploadResponseZ.safeParse(data);
+            if (!parsed.success) {
+              throw new SystemError('Google completed the upload without a valid version code.');
+            }
+            return parsed.data;
+          }
+          if (response.status !== 308) {
+            throw new SystemError(`Unexpected Google upload status: ${response.status}.`);
+          }
+
+          const range = response.headers.get('range');
+          const match = range ? /^bytes=0-(\d+)$/.exec(range) : undefined;
+          const next = range ? (match ? Number(match[1]) + 1 : NaN) : 0;
+          if (
+            !Number.isSafeInteger(next) ||
+            next < offset ||
+            next > size ||
+            (!checkServerOffset && next > end)
+          ) {
+            throw new SystemError('Google returned an invalid upload range.');
+          }
+          if (next === size) {
+            checkServerOffset = true;
+            // All bytes are stored, but only 200/201 confirms completion.
+            // Keep the current retry budget and send only status checks.
+            return retry(
+              new SystemError(`Google stored all ${size} bytes but has not completed the upload.`)
+            );
+          }
+          if (next > offset) {
+            return next;
+          }
+          if (!checkServerOffset) {
+            checkServerOffset = true;
+            retry(
+              new SystemError(
+                `Google upload made no progress: confirmed ${offset} of ${size} bytes after sending bytes ${offset}-${end - 1}.`
+              )
+            );
+          }
+          // The status check confirmed no new bytes. Send the chunk again.
+          checkServerOffset = false;
         }
-      );
-    }
+      },
+      {
+        retries: 5,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 32_000,
+        randomize: true,
+      }
+    );
   }
 }
 
