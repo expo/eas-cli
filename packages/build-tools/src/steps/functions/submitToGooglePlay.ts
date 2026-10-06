@@ -204,7 +204,7 @@ async function submitToGooglePlayAsync({
     );
     editId = edit.id;
     let lastPercent = -1;
-    const versionCode = await GooglePlayUtils.uploadAsync({
+    const { versionCode } = await GooglePlayUtils.uploadApplicationAsync({
       client,
       packageName,
       editId,
