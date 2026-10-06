@@ -1,24 +1,22 @@
 import { SystemError } from '@expo/eas-build-job';
-import { Response } from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 import fs, { FileHandle } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
+import { GooglePlayApiError } from './GooglePlayClient';
 
 const CHUNK_SIZE = 8 * 1024 * 1024;
 const MAX_RETRIES = 5;
 
 type UploadOptions = {
   artifactPath: string;
-  uploadPath: string;
+  startSessionAsync: (size: number) => Promise<URL>;
   contentType: string;
   signal?: AbortSignal;
   onProgress?: (uploadedBytes: number, totalBytes: number) => void;
 };
 
 export class GooglePlayResumableUpload {
-  constructor(private readonly client: GooglePlayClient) {}
-
   async uploadAsync(options: UploadOptions): Promise<unknown> {
     options.signal?.throwIfAborted();
     const file = await fs.open(options.artifactPath, 'r');
@@ -28,7 +26,7 @@ export class GooglePlayResumableUpload {
         throw new Error('Cannot upload an empty or invalid Android binary.');
       }
       for (let restart = 0; ; restart++) {
-        const session = await this.startSessionAsync(options, size);
+        const session = await retryAsync(() => options.startSessionAsync(size), options.signal);
         try {
           return await this.uploadSessionAsync(file, size, session, options);
         } catch (error) {
@@ -43,34 +41,6 @@ export class GooglePlayResumableUpload {
       }
     } finally {
       await file.close();
-    }
-  }
-
-  private async startSessionAsync(
-    { uploadPath, contentType, signal }: UploadOptions,
-    size: number
-  ): Promise<URL> {
-    const response = await retryAsync(
-      () =>
-        this.client.requestRawAsync(uploadPath, {
-          method: 'POST',
-          headers: {
-            'Content-Length': '0',
-            'X-Upload-Content-Length': String(size),
-            'X-Upload-Content-Type': contentType,
-          },
-          signal,
-        }),
-      signal
-    );
-    const location = response.headers.get('location');
-    if (!location) {
-      throw new Error('Google did not return an upload session.');
-    }
-    try {
-      return new URL(location);
-    } catch {
-      throw new Error('Google returned an invalid upload URL.');
     }
   }
 
@@ -100,23 +70,25 @@ export class GooglePlayResumableUpload {
 
       let uploaded: Response;
       try {
-        uploaded = await this.client.requestRawAsync(
-          session.toString(),
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Length': String(body?.length ?? 0),
-              'Content-Range': queryStatus
-                ? `bytes */${size}`
-                : `bytes ${offset}-${end - 1}/${size}`,
-              'Content-Type': contentType,
-            },
-            body,
-            signal,
+        uploaded = await fetch(session.toString(), {
+          method: 'PUT',
+          redirect: 'manual',
+          headers: {
+            'Content-Length': String(body?.length ?? 0),
+            'Content-Range': queryStatus ? `bytes */${size}` : `bytes ${offset}-${end - 1}/${size}`,
+            'Content-Type': contentType,
           },
-          true
-        );
+          body,
+          signal,
+        });
+        if (!uploaded.ok && uploaded.status !== 308) {
+          throw new GooglePlayApiError(uploaded.status, '', []);
+        }
       } catch (error) {
+        signal?.throwIfAborted();
+        if (!(error instanceof GooglePlayApiError)) {
+          error = new SystemError('Google Play upload failed before a response was received.');
+        }
         if (!isRetryable(error) || failures >= MAX_RETRIES) {
           throw error;
         }

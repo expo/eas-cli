@@ -57,8 +57,12 @@ function upload(signal?: AbortSignal, onProgress = jest.fn()) {
     onProgress,
   });
 }
+function uploadApi(): nock.Scope {
+  return nock('https://androidpublisher.googleapis.com', { badheaders: ['authorization'] });
+}
+
 function status(total = 12): nock.Interceptor {
-  return api()
+  return uploadApi()
     .put(session)
     .matchHeader('content-length', '0')
     .matchHeader('content-range', `bytes */${total}`);
@@ -68,12 +72,12 @@ it('uploads aligned chunks and reports server-confirmed progress', async () => {
   await fs.writeFile(artifactPath, Buffer.alloc(chunkSize + 12));
   mockToken();
   mockStart();
-  api()
+  uploadApi()
     .put(session)
     .matchHeader('content-length', String(chunkSize))
     .matchHeader('content-range', `bytes 0-${chunkSize - 1}/${chunkSize + 12}`)
     .reply(308, '', { Range: `bytes=0-${chunkSize - 1}` });
-  api()
+  uploadApi()
     .put(session)
     .matchHeader('content-length', '12')
     .matchHeader('content-range', `bytes ${chunkSize}-${chunkSize + 11}/${chunkSize + 12}`)
@@ -92,14 +96,14 @@ it.each(['network', 429, 503])(
   async failure => {
     mockToken();
     mockStart();
-    const interrupted = api().put(session).matchHeader('content-range', 'bytes 0-11/12');
+    const interrupted = uploadApi().put(session).matchHeader('content-range', 'bytes 0-11/12');
     if (failure === 'network') {
       interrupted.replyWithError('connection reset');
     } else {
       interrupted.reply(failure as number, { error: { message: 'retry' } });
     }
     status().reply(308, '', { Range: 'bytes=0-5' });
-    api()
+    uploadApi()
       .put(session)
       .matchHeader('content-range', 'bytes 6-11/12')
       .reply(200, { versionCode: 42 });
@@ -116,7 +120,10 @@ it.each(['network', 429, 503])(
 it('recovers a completed upload when the final upload response is lost', async () => {
   mockToken();
   mockStart();
-  api().put(session).matchHeader('content-length', '12').replyWithError('lost final response');
+  uploadApi()
+    .put(session)
+    .matchHeader('content-length', '12')
+    .replyWithError('lost final response');
   status().reply(200, { versionCode: 42 });
   await expect(upload()).resolves.toBe(42);
 });
@@ -124,7 +131,7 @@ it('recovers a completed upload when the final upload response is lost', async (
 it('recovers completion after a damaged response body without leaking the session URL', async () => {
   mockToken();
   mockStart();
-  api().put(session).matchHeader('content-length', '12').reply(200, '{invalid JSON');
+  uploadApi().put(session).matchHeader('content-length', '12').reply(200, '{invalid JSON');
   status().reply(200, { versionCode: 42 });
   await expect(upload()).resolves.toBe(42);
 });
@@ -141,19 +148,19 @@ it('sanitizes a malformed session URL', async () => {
 it('retries status recovery after a transient Google error', async () => {
   mockToken();
   mockStart();
-  api().put(session).matchHeader('content-length', '12').reply(503);
+  uploadApi().put(session).matchHeader('content-length', '12').reply(503);
   status().reply(429);
   status().reply(308);
-  api().put(session).matchHeader('content-length', '12').reply(200, { versionCode: 42 });
+  uploadApi().put(session).matchHeader('content-length', '12').reply(200, { versionCode: 42 });
   await expect(upload()).resolves.toBe(42);
 });
 
 it.each([404, 410])('restarts an expired %s upload session within the same edit', async expired => {
   mockToken();
   mockStart();
-  api().put(session).reply(expired);
+  uploadApi().put(session).reply(expired);
   mockStart();
-  api().put(session).reply(200, { versionCode: 42 });
+  uploadApi().put(session).reply(200, { versionCode: 42 });
   const progress = jest.fn();
   await expect(upload(undefined, progress)).resolves.toBe(42);
   expect(progress.mock.calls).toEqual([
@@ -166,7 +173,7 @@ it.each([404, 410])('restarts an expired %s upload session within the same edit'
 it('stops after the upload retry limit', async () => {
   mockToken();
   mockStart();
-  api().put(session).matchHeader('content-length', '12').reply(503);
+  uploadApi().put(session).matchHeader('content-length', '12').reply(503);
   status().times(5).reply(503);
   await expect(upload()).rejects.toThrow('HTTP 503');
 });
@@ -175,7 +182,7 @@ it('stops after the upload session restart limit', async () => {
   mockToken();
   for (let i = 0; i < 3; i++) {
     mockStart();
-    api().put(session).reply(410);
+    uploadApi().put(session).reply(410);
   }
   await expect(upload()).rejects.toThrow('HTTP 410');
 });
@@ -190,7 +197,7 @@ it('cancels between chunks without sending the next chunk', async () => {
   await fs.writeFile(artifactPath, Buffer.alloc(chunkSize + 12));
   mockToken();
   mockStart();
-  api()
+  uploadApi()
     .put(session)
     .reply(308, '', { Range: `bytes=0-${chunkSize - 1}` });
   const controller = new AbortController();
@@ -220,7 +227,7 @@ it.each([
 it('does not follow an upload redirect', async () => {
   mockToken();
   mockStart();
-  api().put(session).reply(302, '', { Location: 'https://attacker.example/upload' });
+  uploadApi().put(session).reply(302, '', { Location: 'https://attacker.example/upload' });
   await expect(upload()).rejects.toThrow('HTTP 302');
 });
 
@@ -229,7 +236,7 @@ it.each(['bytes=0-100', 'invalid', 'bytes=5-8'])(
   async range => {
     mockToken();
     mockStart();
-    api().put(session).reply(308, '', { Range: range });
+    uploadApi().put(session).reply(308, '', { Range: range });
     await expect(upload()).rejects.toThrow('invalid upload range');
   }
 );

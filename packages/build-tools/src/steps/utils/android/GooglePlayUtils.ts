@@ -22,9 +22,9 @@ export namespace GooglePlayUtils {
     signal?: AbortSignal;
     onProgress: (uploadedBytes: number, totalBytes: number) => void;
   }): Promise<number> {
-    const resource = artifactType === 'apk' ? 'apks' : 'bundles';
-    const result = await new GooglePlayResumableUpload(client).uploadAsync({
-      uploadPath: `/upload/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/edits/${encodeURIComponent(editId)}/${resource}?uploadType=resumable`,
+    const result = await new GooglePlayResumableUpload().uploadAsync({
+      startSessionAsync: size =>
+        client.startUploadAsync({ packageName, editId, artifactType, size, signal }),
       artifactPath,
       contentType:
         artifactType === 'apk'

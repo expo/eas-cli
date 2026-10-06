@@ -177,6 +177,50 @@ export class GooglePlayClient {
     await this.requestAsync('DELETE', url, undefined, signal);
   }
 
+  async startUploadAsync({
+    packageName,
+    editId,
+    artifactType,
+    size,
+    signal,
+  }: {
+    packageName: string;
+    editId: string;
+    artifactType: 'apk' | 'aab';
+    size: number;
+    signal?: AbortSignal;
+  }): Promise<URL> {
+    const resource = artifactType === 'apk' ? 'apks' : 'bundles';
+    const response = await this.requestAsync(
+      'POST',
+      `/upload/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/edits/${encodeURIComponent(editId)}/${resource}?uploadType=resumable`,
+      undefined,
+      signal,
+      {
+        'Content-Length': '0',
+        'X-Upload-Content-Length': String(size),
+        'X-Upload-Content-Type':
+          artifactType === 'apk'
+            ? 'application/vnd.android.package-archive'
+            : 'application/octet-stream',
+      }
+    );
+    const location = response.headers.get('location');
+    if (!location) {
+      throw new Error('Google did not return an upload session.');
+    }
+    let url: URL;
+    try {
+      url = new URL(location);
+    } catch {
+      throw new Error('Google returned an invalid upload URL.');
+    }
+    if (url.origin !== this.baseUrl || url.username || url.password) {
+      throw new Error('Google returned an unsafe upload URL.');
+    }
+    return url;
+  }
+
   private async sendJsonRequestAsync(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
@@ -237,29 +281,19 @@ export class GooglePlayClient {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     body?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    headers: RequestInit['headers'] = { 'Content-Type': 'application/json' }
   ): Promise<Response> {
-    return await this.requestRawAsync(path, {
-      method,
-      body,
-      signal,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  async requestRawAsync(path: string, init: RequestInit, allowResume = false): Promise<Response> {
     const url = new URL(path, this.baseUrl);
-    if (url.origin !== this.baseUrl || url.username || url.password) {
-      throw new Error('Google returned an unsafe upload URL.');
-    }
-    const signal = init.signal ?? undefined;
     const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();
     try {
       response = await fetch(url.toString(), {
-        ...init,
-        headers: { ...init.headers, Authorization: `Bearer ${token}` },
+        method,
+        body,
+        signal,
+        headers: { ...headers, Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
     } catch {
@@ -267,7 +301,7 @@ export class GooglePlayClient {
       throw new SystemError('Google Play request failed before a response was received.');
     }
 
-    if (!response.ok && !(allowResume && response.status === 308)) {
+    if (!response.ok) {
       let data: unknown;
       try {
         data = await response.json();
