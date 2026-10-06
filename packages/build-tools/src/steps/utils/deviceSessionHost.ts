@@ -487,7 +487,7 @@ export async function startDeviceSessionHostAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               runtimePlatform,
-              device: readyDevice,
+              device,
               env,
               signal,
             }),
