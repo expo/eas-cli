@@ -14,6 +14,7 @@ import {
   UpdateBranchFragment,
   UpdateFragment,
   UpdatePublishMutation,
+  UpdateWithFileUrlsFragment,
   User,
 } from '../graphql/generated';
 import { AssetQuery } from '../graphql/queries/AssetQuery';
@@ -36,16 +37,11 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
 
 export type UpdateJsonInfo = { branch: string; runtimeVersion: string } & Pick<
   UpdateFragment,
-  | 'id'
-  | 'createdAt'
-  | 'group'
-  | 'message'
-  | 'platform'
-  | 'manifestPermalink'
-  | 'gitCommitHash'
-  | 'assetMapUrl'
-  | 'sourceMapUrl'
+  'id' | 'createdAt' | 'group' | 'message' | 'platform' | 'manifestPermalink' | 'gitCommitHash'
 >;
+
+export type UpdateWithFileUrlsJsonInfo = UpdateJsonInfo &
+  Pick<UpdateWithFileUrlsFragment, 'assetMapUrl' | 'sourceMapUrl'>;
 
 export type UpdateGroupDescription = FormatUpdateParameter & {
   branch: string;
@@ -229,10 +225,22 @@ export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJ
     manifestPermalink: update.manifestPermalink,
     isRollBackToEmbedded: update.isRollBackToEmbedded,
     gitCommitHash: update.gitCommitHash,
+  }));
+}
+
+/**
+ * Same as getUpdateJsonInfosForUpdates, with the stored file URLs. Only `eas update:view` queries
+ * those, because the server signs each one per request.
+ */
+export function getUpdateWithFileUrlsJsonInfosForUpdates(
+  updates: UpdateWithFileUrlsFragment[]
+): UpdateWithFileUrlsJsonInfo[] {
+  return getUpdateJsonInfosForUpdates(updates).map((info, index) => ({
+    ...info,
     // Null unless the update was published with an asset map. The URL is signed and expires.
-    assetMapUrl: update.assetMapUrl ?? null,
-    // Null unless the update was published with `--upload-source-maps`. The URL is signed and expires.
-    sourceMapUrl: update.sourceMapUrl ?? null,
+    assetMapUrl: updates[index].assetMapUrl ?? null,
+    // Null unless published with `--upload-source-maps`. The URL is signed and expires.
+    sourceMapUrl: updates[index].sourceMapUrl ?? null,
   }));
 }
 

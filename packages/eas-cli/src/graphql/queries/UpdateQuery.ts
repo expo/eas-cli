@@ -7,6 +7,7 @@ import {
   UpdateByIdQuery,
   UpdateByIdQueryVariables,
   UpdateFragment,
+  UpdateWithFileUrlsFragment,
   ViewUpdateGroupsOnAppQuery,
   ViewUpdateGroupsOnAppQueryVariables,
   ViewUpdateGroupsOnBranchQuery,
@@ -15,8 +16,10 @@ import {
   ViewUpdateGroupsPaginatedOnBranchQueryVariables,
   ViewUpdatesByGroupQuery,
   ViewUpdatesByGroupQueryVariables,
+  ViewUpdatesByGroupWithFileUrlsQuery,
+  ViewUpdatesByGroupWithFileUrlsQueryVariables,
 } from '../generated';
-import { UpdateFragmentNode } from '../types/Update';
+import { UpdateFragmentNode, UpdateWithFileUrlsFragmentNode } from '../types/Update';
 
 export const UpdateQuery = {
   async viewUpdateGroupAsync(
@@ -34,6 +37,40 @@ export const UpdateQuery = {
               }
             }
             ${print(UpdateFragmentNode)}
+          `,
+          {
+            groupId,
+          },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+
+    if (updatesByGroup.length === 0) {
+      throw new Error(`Could not find any updates with group ID: "${groupId}"`);
+    }
+
+    return updatesByGroup;
+  },
+  /**
+   * Same as viewUpdateGroupAsync, but also fetches the signed asset map and source map URLs.
+   * Those are signed per request on the server, so only use this when the URLs are shown.
+   */
+  async viewUpdateGroupWithFileUrlsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { groupId }: ViewUpdatesByGroupWithFileUrlsQueryVariables
+  ): Promise<UpdateWithFileUrlsFragment[]> {
+    const { updatesByGroup } = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdatesByGroupWithFileUrlsQuery, ViewUpdatesByGroupWithFileUrlsQueryVariables>(
+          gql`
+            query ViewUpdatesByGroupWithFileUrls($groupId: ID!) {
+              updatesByGroup(group: $groupId) {
+                id
+                ...UpdateWithFileUrlsFragment
+              }
+            }
+            ${print(UpdateWithFileUrlsFragmentNode)}
           `,
           {
             groupId,

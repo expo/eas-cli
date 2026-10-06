@@ -47807,6 +47807,18 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "agentRunId",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appId",
             "description": null,
             "type": {
@@ -51680,7 +51692,7 @@
           },
           {
             "name": "createEventLogUploadSession",
-            "description": "Create a standard artifact and a two-hour upload URL for repeatedly\noverwriting its structured event log while the backing job run is running.",
+            "description": "Create or reuse a standard artifact and a two-hour upload URL for repeatedly\noverwriting its structured event log while the backing job run is running.",
             "args": [
               {
                 "name": "deviceRunSessionId",
@@ -51705,6 +51717,39 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "CreateDeviceRunSessionEventLogUploadSessionResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createPreviewUploadSession",
+            "description": "Create or renew a two-hour upload URL for overwriting the session preview.\nReuses one WebP artifact while the backing job run is active.",
+            "args": [
+              {
+                "name": "deviceRunSessionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "CreateDeviceRunSessionArtifactUploadSessionResult",
                 "ofType": null
               }
             },
@@ -82543,14 +82588,14 @@
           {
             "name": "GCS_BUILD_APPLICATION_ARCHIVE",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Submit with the build ID instead."
           },
           {
             "name": "GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Submit with the build ID instead."
           },
           {
             "name": "GCS_SUBMIT_ARCHIVE",

@@ -1,7 +1,13 @@
-import { UpdateFragment } from '../../graphql/generated';
-import { getPlatformsForGroup, getUpdateJsonInfosForUpdates, truncateString } from '../utils';
+import { UpdateWithFileUrlsFragment } from '../../graphql/generated';
+import {
+  getPlatformsForGroup,
+  getUpdateWithFileUrlsJsonInfosForUpdates,
+  truncateString,
+} from '../utils';
 
-function makeUpdate(overrides: Partial<UpdateFragment> = {}): UpdateFragment {
+function makeUpdate(
+  overrides: Partial<UpdateWithFileUrlsFragment> = {}
+): UpdateWithFileUrlsFragment {
   return {
     id: 'update-1',
     group: 'group-1',
@@ -16,7 +22,7 @@ function makeUpdate(overrides: Partial<UpdateFragment> = {}): UpdateFragment {
     branch: { id: 'branch-1', name: 'main' },
     runtime: { id: 'runtime-1', version: '1.0.0' },
     ...overrides,
-  } as UpdateFragment;
+  } as UpdateWithFileUrlsFragment;
 }
 
 describe('update utility functions', () => {
@@ -35,9 +41,9 @@ describe('update utility functions', () => {
     });
   });
 
-  describe(getUpdateJsonInfosForUpdates, () => {
+  describe(getUpdateWithFileUrlsJsonInfosForUpdates, () => {
     it('includes the signed asset map and source map URLs', () => {
-      const [info] = getUpdateJsonInfosForUpdates([
+      const [info] = getUpdateWithFileUrlsJsonInfosForUpdates([
         makeUpdate({
           assetMapUrl: 'https://storage.example/assetmap.json?signature',
           sourceMapUrl: 'https://storage.example/updates/ios.map?signature',
@@ -51,7 +57,7 @@ describe('update utility functions', () => {
     it.each([[null], [undefined]])(
       'reports both URLs as null when the server returns %p',
       value => {
-        const [info] = getUpdateJsonInfosForUpdates([
+        const [info] = getUpdateWithFileUrlsJsonInfosForUpdates([
           makeUpdate({ assetMapUrl: value, sourceMapUrl: value }),
         ]);
 
@@ -61,7 +67,7 @@ describe('update utility functions', () => {
     );
 
     it('reports sourceMapUrl as null for an update published without source maps', () => {
-      const [info] = getUpdateJsonInfosForUpdates([
+      const [info] = getUpdateWithFileUrlsJsonInfosForUpdates([
         makeUpdate({ assetMapUrl: 'https://storage.example/assetmap.json?signature' }),
       ]);
 
