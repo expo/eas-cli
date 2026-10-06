@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session.
+
 ### 🐛 Bug fixes
 
 - [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
