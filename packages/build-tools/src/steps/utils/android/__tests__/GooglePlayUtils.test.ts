@@ -1,15 +1,10 @@
 import nock from 'nock';
+import { truncateSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  api,
-  editPath,
-  mockToken,
-  packageName,
-  serviceAccount,
-} from './fixtures/googlePlayTestUtils';
+import { api, editPath, mockToken, packageName, serviceAccount } from './googlePlayTestUtils';
 import { GooglePlayClient } from '../GooglePlayClient';
 import { GooglePlayUtils } from '../GooglePlayUtils';
 
@@ -131,7 +126,7 @@ it('recovers a completed upload when the final upload response is lost', async (
   await expect(upload()).resolves.toBe(42);
 });
 
-it('recovers completion after a damaged response body without leaking the session URL', async () => {
+it('recovers completion after a damaged response body', async () => {
   mockToken();
   mockStart();
   uploadApi().put(session).matchHeader('content-length', '12').reply(200, '{invalid JSON');
@@ -146,6 +141,7 @@ it('sanitizes a malformed session URL', async () => {
   expect(error).toBeInstanceOf(Error);
   expect(String(error)).toContain('invalid upload URL');
   expect(JSON.stringify(error)).not.toContain('SECRET');
+  expect(String(error)).not.toContain('SECRET');
 });
 
 it('retries status recovery after a transient Google error', async () => {
@@ -193,7 +189,7 @@ it('stops after the upload session restart limit', async () => {
 it('cancels before upload and does not request credentials', async () => {
   const controller = new AbortController();
   controller.abort();
-  await expect(upload(controller.signal)).rejects.toThrow();
+  await expect(upload(controller.signal)).rejects.toBe(controller.signal.reason);
 });
 
 it('cancels between chunks without sending the next chunk', async () => {
@@ -204,16 +200,17 @@ it('cancels between chunks without sending the next chunk', async () => {
     .put(session)
     .reply(308, '', { Range: `bytes=0-${chunkSize - 1}` });
   const controller = new AbortController();
+  const reason = new Error('Upload cancelled');
   await expect(
     upload(
       controller.signal,
       jest.fn((bytes: number) => {
         if (bytes > 0) {
-          controller.abort();
+          controller.abort(reason);
         }
       })
     )
-  ).rejects.toThrow();
+  ).rejects.toBe(reason);
 });
 
 it.each([
@@ -221,7 +218,7 @@ it.each([
   'http://androidpublisher.googleapis.com/upload',
   'https://androidpublisher.googleapis.com.attacker.example/upload',
   'https://user:password@androidpublisher.googleapis.com/upload',
-])('rejects an unsafe session URL without leaking it: %s', async location => {
+])('rejects an unsafe session URL: %s', async location => {
   mockToken();
   mockStart(location);
   await expect(upload()).rejects.toThrow('unsafe upload URL');
@@ -250,4 +247,90 @@ it('stops when uploads and status checks repeatedly confirm no progress', async 
   uploadApi().put(session).matchHeader('content-length', '12').times(6).reply(308);
   status().times(5).reply(308);
   await expect(upload()).rejects.toThrow('confirmed 0 of 12 bytes');
+});
+
+it('preserves Google upload error details', async () => {
+  mockToken();
+  mockStart();
+  uploadApi()
+    .put(session)
+    .reply(403, {
+      error: {
+        message: 'Version code has already been used.',
+        errors: [{ reason: 'apkNotificationMessageKeyUpgradeVersionConflict' }],
+      },
+    });
+  await expect(upload()).rejects.toMatchObject({
+    status: 403,
+    apiMessage: 'Version code has already been used.',
+    reasons: ['apkNotificationMessageKeyUpgradeVersionConflict'],
+  });
+});
+
+it('resets the retry budget after confirmed progress', async () => {
+  mockToken();
+  mockStart();
+  for (let offset = 0; offset < 6; offset++) {
+    uploadApi().put(session).matchHeader('content-range', `bytes ${offset}-11/12`).reply(503);
+    status().reply(308, '', { Range: `bytes=0-${offset}` });
+  }
+  uploadApi()
+    .put(session)
+    .matchHeader('content-range', 'bytes 6-11/12')
+    .reply(200, { versionCode: 42 });
+  await expect(upload()).resolves.toBe(42);
+});
+
+it('retries a network failure during session creation', async () => {
+  mockToken();
+  api()
+    .post(`/upload${editPath}/apks`)
+    .query({ uploadType: 'resumable' })
+    .replyWithError('connection reset');
+  mockStart();
+  uploadApi().put(session).reply(200, { versionCode: 42 });
+  await expect(upload()).resolves.toBe(42);
+});
+
+it.each(['session', 'chunk', 'body', 'status'])('recovers a stalled %s request', async stalled => {
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  const guard = timeout(1500);
+  jest.spyOn(AbortSignal, 'timeout').mockImplementation(() => timeout(100));
+  mockToken();
+  if (stalled === 'session') {
+    api()
+      .post(`/upload${editPath}/apks`)
+      .query({ uploadType: 'resumable' })
+      .delayConnection(300)
+      .reply(200, '', { Location: `https://androidpublisher.googleapis.com${session}` });
+    mockStart();
+    uploadApi().put(session).reply(200, { versionCode: 42 });
+  } else if (stalled === 'status') {
+    mockStart();
+    uploadApi().put(session).matchHeader('content-length', '12').reply(503);
+    status().delayConnection(300).reply(308);
+    status().reply(200, { versionCode: 42 });
+  } else {
+    mockStart();
+    const request = uploadApi().put(session).matchHeader('content-length', '12');
+    if (stalled === 'chunk') {
+      request.delayConnection(300);
+    } else {
+      request.delayBody(300);
+    }
+    request.reply(200, { versionCode: 42 });
+    status().reply(200, { versionCode: 42 });
+  }
+  await expect(upload(guard)).resolves.toBe(42);
+});
+
+it('stops when the binary becomes shorter during upload', async () => {
+  mockToken();
+  mockStart();
+  await expect(
+    upload(
+      undefined,
+      jest.fn(() => truncateSync(artifactPath, 0))
+    )
+  ).rejects.toThrow('expected 12 bytes at offset 0, got 0');
 });

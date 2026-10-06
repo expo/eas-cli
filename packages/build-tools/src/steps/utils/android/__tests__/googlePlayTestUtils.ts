@@ -8,11 +8,14 @@ export const serviceAccount = {
   private_key_id: 'test-key',
   private_key: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey,
 };
-export const api = (): nock.Scope => nock('https://androidpublisher.googleapis.com', {
-  reqheaders: { authorization: 'Bearer test-access-token' },
-});
+export const api = (): nock.Scope =>
+  nock('https://androidpublisher.googleapis.com', {
+    reqheaders: { authorization: 'Bearer test-access-token' },
+  });
 export function mockToken(times = 1): nock.Scope {
   return nock('https://oauth2.googleapis.com').post('/token').times(times).reply(200, {
-    access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer',
+    access_token: 'test-access-token',
+    expires_in: 3600,
+    token_type: 'Bearer',
   });
 }

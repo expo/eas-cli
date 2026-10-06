@@ -1,5 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { RequestInit, Response } from 'node-fetch';
+import fetch, { FetchError, RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -11,6 +11,33 @@ export class GooglePlayApiError extends Error {
     readonly reasons: string[]
   ) {
     super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
+  }
+
+  static async fromResponseAsync(
+    response: Response,
+    signal?: AbortSignal
+  ): Promise<GooglePlayApiError> {
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      signal?.throwIfAborted();
+    }
+    const parsed = z
+      .object({
+        error: z.object({
+          message: z.string().optional(),
+          errors: z.array(z.object({ reason: z.string().optional() })).optional(),
+        }),
+      })
+      .safeParse(data);
+    return new GooglePlayApiError(
+      response.status,
+      parsed.success ? (parsed.data.error.message ?? '') : '',
+      parsed.success
+        ? (parsed.data.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [])
+        : []
+    );
   }
 }
 
@@ -256,33 +283,15 @@ export class GooglePlayClient {
         headers: { ...headers, Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
-    } catch {
+    } catch (error) {
       signal?.throwIfAborted();
-      throw new SystemError('Google Play request failed before a response was received.');
+      throw new SystemError('Google Play request failed before a response was received.', {
+        metadata: { retryableNetworkError: error instanceof FetchError && error.type === 'system' },
+      });
     }
 
     if (!response.ok) {
-      let data: unknown;
-      try {
-        data = await response.json();
-      } catch {
-        signal?.throwIfAborted();
-      }
-      const parsed = z
-        .object({
-          error: z.object({
-            message: z.string().optional(),
-            errors: z.array(z.object({ reason: z.string().optional() })).optional(),
-          }),
-        })
-        .safeParse(data);
-      throw new GooglePlayApiError(
-        response.status,
-        parsed.success ? (parsed.data.error.message ?? '') : '',
-        parsed.success
-          ? (parsed.data.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [])
-          : []
-      );
+      throw await GooglePlayApiError.fromResponseAsync(response, signal);
     }
 
     return response;
