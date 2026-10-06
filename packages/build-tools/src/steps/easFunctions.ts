@@ -43,6 +43,7 @@ import { runGradleFunction } from './functions/runGradle';
 import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag';
+import { createRunAgentBuildFunction } from './functions/runAgent';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
@@ -119,6 +120,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
+    createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
     createInstallMitmproxyBuildFunction(),
