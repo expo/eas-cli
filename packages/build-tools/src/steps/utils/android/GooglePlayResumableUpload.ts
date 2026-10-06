@@ -205,12 +205,12 @@ export namespace GooglePlayResumableUpload {
               !Number.isSafeInteger(next) ||
               next < offset ||
               next > size ||
-              (!checkServerOffset && next === size) ||
               (!checkServerOffset && next > end)
             ) {
               throw new SystemError('Google returned an invalid upload range.');
             }
-            if (checkServerOffset && next === size) {
+            if (next === size) {
+              checkServerOffset = true;
               // All bytes are stored, but only 200/201 confirms completion.
               // Keep the current retry budget and send only status checks.
               return retry(

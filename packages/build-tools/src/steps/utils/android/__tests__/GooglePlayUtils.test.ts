@@ -335,15 +335,22 @@ it('stops when the binary becomes shorter during upload', async () => {
   ).rejects.toThrow('expected 12 bytes at offset 0, got 0');
 });
 
-it.each([true, false])(
-  'bounds completion checks after all bytes are stored (completes: %s)',
-  async completes => {
+it.each([
+  { completes: true, finalResponse: 'lost' },
+  { completes: false, finalResponse: 'lost' },
+  { completes: true, finalResponse: 'stored' },
+  { completes: false, finalResponse: 'stored' },
+])(
+  'bounds completion checks (completes: $completes, final response: $finalResponse)',
+  async ({ completes, finalResponse }) => {
     mockToken();
     mockStart();
-    uploadApi()
-      .put(session)
-      .matchHeader('content-length', '12')
-      .replyWithError('lost final response');
+    const finalChunk = uploadApi().put(session).matchHeader('content-length', '12');
+    if (finalResponse === 'lost') {
+      finalChunk.replyWithError('lost final response');
+    } else {
+      finalChunk.reply(308, '', { Range: 'bytes=0-11' });
+    }
     status()
       .times(completes ? 1 : 5)
       .reply(308, '', { Range: 'bytes=0-11' });
