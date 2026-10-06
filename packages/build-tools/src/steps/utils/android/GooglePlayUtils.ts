@@ -1,3 +1,5 @@
+import { SystemError } from '@expo/eas-build-job';
+import { setTimeout as delay } from 'node:timers/promises';
 import { Response } from 'node-fetch';
 import fs from 'node:fs/promises';
 
@@ -42,7 +44,7 @@ export namespace GooglePlayUtils {
       const uploadUrl = `/upload${editPath(packageName, editId)}/${artifactType === 'apk' ? 'apks' : 'bundles'}?uploadType=resumable`;
       // An expired session can be restarted. An ambiguous commit cannot.
       for (let restart = 0; restart <= 2; restart++) {
-        const response = await client.retryAsync(
+        const response = await retryAsync(
           () =>
             client.requestRawAsync(uploadUrl, {
               method: 'POST',
@@ -85,7 +87,7 @@ export namespace GooglePlayUtils {
             let uploaded: Response;
             try {
               uploaded = await client.requestRawAsync(
-                session,
+                session.toString(),
                 {
                   method: 'PUT',
                   headers: {
@@ -101,22 +103,22 @@ export namespace GooglePlayUtils {
                 true
               );
             } catch (error) {
-              if (!client.isRetryable(error) || failures >= MAX_RETRIES) {
+              if (!isRetryable(error) || failures >= MAX_RETRIES) {
                 throw error;
               }
-              await client.waitAsync(failures++, signal);
+              await waitAsync(failures++, signal);
               queryStatus = true;
               continue;
             }
             if (uploaded.status === 200 || uploaded.status === 201) {
               let result: { versionCode?: number };
               try {
-                result = await client.readJsonAsync(uploaded);
+                result = await uploaded.json();
               } catch (error) {
                 if (failures >= MAX_RETRIES) {
-                  throw error;
+                  throw new SystemError('Could not read the Google Play upload response.');
                 }
-                await client.waitAsync(failures++, signal);
+                await waitAsync(failures++, signal);
                 queryStatus = true;
                 continue;
               }
@@ -144,7 +146,7 @@ export namespace GooglePlayUtils {
               if (failures >= MAX_RETRIES) {
                 throw new Error('Google upload made no progress.');
               }
-              await client.waitAsync(failures++, signal);
+              await waitAsync(failures++, signal);
             } else if (next > offset) {
               failures = 0;
             }
@@ -165,6 +167,33 @@ export namespace GooglePlayUtils {
       throw new Error('Google upload could not be completed.');
     } finally {
       await file.close();
+    }
+  }
+}
+
+function isRetryable(error: unknown): boolean {
+  return (
+    error instanceof SystemError ||
+    (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500))
+  );
+}
+
+async function waitAsync(attempt: number, signal?: AbortSignal): Promise<void> {
+  await delay(Math.min(2 ** attempt * 1000, 32_000) + Math.floor(Math.random() * 1000), undefined, {
+    signal,
+  });
+}
+
+async function retryAsync<T>(request: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    signal?.throwIfAborted();
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryable(error) || attempt >= MAX_RETRIES) {
+        throw error;
+      }
+      await waitAsync(attempt, signal);
     }
   }
 }

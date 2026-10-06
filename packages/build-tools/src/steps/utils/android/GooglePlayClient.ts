@@ -1,5 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { Response } from 'node-fetch';
+import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -239,16 +239,27 @@ export class GooglePlayClient {
     body?: string,
     signal?: AbortSignal
   ): Promise<Response> {
+    return await this.requestRawAsync(path, {
+      method,
+      body,
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  async requestRawAsync(path: string, init: RequestInit, allowResume = false): Promise<Response> {
     const url = new URL(path, this.baseUrl);
+    if (url.origin !== this.baseUrl || url.username || url.password) {
+      throw new Error('Google returned an unsafe upload URL.');
+    }
+    const signal = init.signal ?? undefined;
     const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();
     try {
       response = await fetch(url.toString(), {
-        method,
-        body,
-        signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        ...init,
+        headers: { ...init.headers, Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
     } catch {
@@ -256,7 +267,7 @@ export class GooglePlayClient {
       throw new SystemError('Google Play request failed before a response was received.');
     }
 
-    if (!response.ok) {
+    if (!response.ok && !(allowResume && response.status === 308)) {
       let data: unknown;
       try {
         data = await response.json();
