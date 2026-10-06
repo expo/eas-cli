@@ -15,33 +15,54 @@ afterEach(() => {
   nock.enableNetConnect();
   expect(pending).toEqual([]);
 });
-function commit(signal?: AbortSignal) {
+function commit({
+  signal,
+  changesNotSentForReview = false,
+}: {
+  signal?: AbortSignal;
+  changesNotSentForReview?: boolean;
+} = {}) {
   return GooglePlayUtils.commitEditAsync(new GooglePlayClient(serviceAccount), {
     packageName,
     editId: 'edit',
-    changesNotSentForReview: false,
+    changesNotSentForReview,
     logger: createMockLogger(),
     signal,
   });
 }
 it.each([
-  ['The query parameter changesNotSentForReview must not be set', {}],
+  [false, {}],
+  [true, { changesNotSentForReview: 'true' }],
+] as const)(
+  'commits with changesNotSentForReview=%s without a failed first request',
+  async (changesNotSentForReview, query) => {
+    mockToken();
+    api().post(`${editPath}:commit`).query(query).reply(200, { id: 'edit' });
+    await expect(commit({ changesNotSentForReview })).resolves.toBeUndefined();
+  }
+);
+it.each([
   [
+    true,
+    { changesNotSentForReview: 'true' },
+    'The query parameter changesNotSentForReview must not be set',
+    {},
+  ],
+  [
+    false,
+    {},
     'Please set the query parameter changesNotSentForReview to true',
     { changesNotSentForReview: 'true' },
   ],
-])('retries only the review setting rejected by Google: %s', async (message, query) => {
-  mockToken();
-  api()
-    .post(`${editPath}:commit`)
-    .query({ changesNotSentForReview: 'false' })
-    .reply(400, { error: { message } });
-  api()
-    .post(`${editPath}:commit`)
-    .query(query as Record<string, string>)
-    .reply(200, { id: 'edit' });
-  await expect(commit()).resolves.toBeUndefined();
-});
+] as const)(
+  'retries the rejected review setting (requested=%s)',
+  async (changesNotSentForReview, initialQuery, message, retryQuery) => {
+    mockToken();
+    api().post(`${editPath}:commit`).query(initialQuery).reply(400, { error: { message } });
+    api().post(`${editPath}:commit`).query(retryQuery).reply(200, { id: 'edit' });
+    await expect(commit({ changesNotSentForReview })).resolves.toBeUndefined();
+  }
+);
 it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
   mockToken();
   api().post(`${editPath}:commit`).query(true).reply(status);
@@ -51,7 +72,7 @@ it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();
   const reason = new Error('cancelled before commit');
   controller.abort(reason);
-  await expect(commit(controller.signal)).rejects.toBe(reason);
+  await expect(commit({ signal: controller.signal })).rejects.toBe(reason);
 });
 it('preserves OAuth rejection before commit is sent', async () => {
   nock('https://oauth2.googleapis.com').post('/token').reply(400, { error: 'invalid_grant' });
@@ -70,7 +91,11 @@ it.each([
   const original = new GooglePlayApiError(status, message, []);
   const mapped = GooglePlayUtils.mapGooglePlayError(original);
   expect(mapped).toBeInstanceOf(UserError);
-  expect(mapped).toMatchObject({ errorCode: code, cause: original });
+  expect(mapped).toMatchObject({
+    errorCode: code,
+    message: expect.stringContaining(`Google Play said: ${message}`),
+    cause: original,
+  });
 });
 it('maps a rejected OAuth key but preserves transient OAuth errors', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');

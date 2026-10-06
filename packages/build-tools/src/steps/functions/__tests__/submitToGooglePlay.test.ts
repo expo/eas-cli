@@ -61,6 +61,7 @@ function submission(extra: Record<string, unknown> = {}, signal?: AbortSignal) {
   const setters = step.outputs.map(output => jest.spyOn(output, 'set'));
   return {
     setters,
+    step,
     run: async () =>
       await fn.fn!(step.ctx, {
         inputs: Object.fromEntries(
@@ -81,46 +82,63 @@ function upload() {
     .reply(200, '', { Location: `https://androidpublisher.googleapis.com${session}` });
   nock('https://androidpublisher.googleapis.com').put(session).reply(200, { versionCode: 145 });
 }
-const statuses = ['completed', 'draft', 'halted', 'inProgress'];
-const rollouts = [undefined, 0, 0.25, 1];
-it.each(statuses.flatMap(status => rollouts.map(rollout => [status, rollout] as const)))(
-  'validates and submits %s with rollout %s',
-  async (status, rollout) => {
-    const task = submission({
-      release_status: status,
-      ...(rollout !== undefined ? { rollout } : {}),
-    });
-    const invalid =
-      rollout === 0 ||
-      ((status === 'draft' || status === 'halted') && rollout !== undefined) ||
-      (status === 'inProgress' && rollout === undefined);
-    if (invalid) {
-      await expect(task.run()).rejects.toThrow(/rollout/);
-      expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
-      return;
-    }
-    upload();
-    const expected =
-      rollout === 0.25
-        ? { status: 'inProgress', userFraction: 0.25 }
-        : { status: status === 'inProgress' ? 'completed' : status };
-    api()
-      .put(`${editPath}/tracks/internal`, {
-        track: 'internal',
-        releases: [{ ...expected, versionCodes: ['145'] }],
-      })
-      .reply(200, { track: 'internal' });
-    api()
-      .post(`${editPath}:commit`)
-      .query({ changesNotSentForReview: 'false' })
-      .reply(() => {
-        expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
-        return [200, { id: 'edit' }];
-      });
-    await task.run();
-    expect(task.setters.map(set => set.mock.calls)).toEqual([[['145']]]);
+it.each([
+  ['completed', undefined, { status: 'completed' }],
+  ['completed', 0, 'invalid'],
+  ['completed', 0.25, { status: 'inProgress', userFraction: 0.25 }],
+  ['completed', 1, { status: 'completed' }],
+  ['draft', undefined, { status: 'draft' }],
+  ['draft', 0, 'invalid'],
+  ['draft', 0.25, 'invalid'],
+  ['draft', 1, 'invalid'],
+  ['halted', undefined, { status: 'halted' }],
+  ['halted', 0, 'invalid'],
+  ['halted', 0.25, 'invalid'],
+  ['halted', 1, 'invalid'],
+  ['inProgress', undefined, 'invalid'],
+  ['inProgress', 0, 'invalid'],
+  ['inProgress', 0.25, { status: 'inProgress', userFraction: 0.25 }],
+  ['inProgress', 1, { status: 'completed' }],
+] as const)('validates and submits %s with rollout %s', async (status, rollout, expected) => {
+  const task = submission({
+    release_status: status,
+    ...(rollout !== undefined ? { rollout } : {}),
+  });
+  if (expected === 'invalid') {
+    await expect(task.run()).rejects.toThrow(/rollout/);
+    expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
+    return;
   }
-);
+  upload();
+  api()
+    .put(`${editPath}/tracks/internal`, {
+      track: 'internal',
+      releases: [{ ...expected, versionCodes: ['145'] }],
+    })
+    .reply(200, { track: 'internal' });
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(() => {
+      expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
+      return [200, { id: 'edit' }];
+    });
+  await task.run();
+  expect(task.setters.map(set => set.mock.calls)).toEqual([[['145']]]);
+});
+it('runs the step with a string rollout and validates its required output', async () => {
+  upload();
+  api()
+    .put(`${editPath}/tracks/internal`, {
+      track: 'internal',
+      releases: [{ status: 'inProgress', userFraction: 0.25, versionCodes: ['145'] }],
+    })
+    .reply(200, { track: 'internal' });
+  api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
+  const { step } = submission({ rollout: '0.25' });
+  await step.executeAsync();
+  expect(step.outputs[0].value).toBe('145');
+});
 it.each(['upload', 'track', 'abort'] as const)(
   'deletes the edit after %s failure and leaves outputs unset',
   async failure => {
