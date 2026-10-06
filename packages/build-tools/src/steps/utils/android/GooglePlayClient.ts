@@ -1,5 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { RequestInit, Response } from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -187,7 +187,7 @@ export class GooglePlayClient {
   }
 
   private async sendJsonRequestAsync(
-    method: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     schema: {
       path: z.ZodType<Record<string, string>>;
@@ -216,8 +216,7 @@ export class GooglePlayClient {
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal,
-      { headers: { 'Content-Type': 'application/json' } }
+      signal
     );
     let data: unknown;
     try {
@@ -237,19 +236,13 @@ export class GooglePlayClient {
     return parsed.data;
   }
 
-  async requestAsync(
-    method: string,
-    apiPath: string | URL,
-    body?: RequestInit['body'],
-    signal?: AbortSignal,
-    options: { headers?: RequestInit['headers']; allowResume?: boolean } = {}
+  private async requestAsync(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    body?: string,
+    signal?: AbortSignal
   ): Promise<Response> {
-    const url = new URL(apiPath, this.baseUrl);
-    if (url.origin !== this.baseUrl || url.username || url.password) {
-      throw new SystemError(
-        'Google Play request URL must use the publisher host without URL credentials.'
-      );
-    }
+    const url = new URL(path, this.baseUrl);
     const token = await this.getTokenAsync(signal);
     let response: Response;
     signal?.throwIfAborted();
@@ -258,14 +251,14 @@ export class GooglePlayClient {
         method,
         body,
         signal,
-        headers: { ...options.headers, Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
     } catch {
       signal?.throwIfAborted();
       throw new SystemError('Google Play request failed before a response was received.');
     }
-    if (!response.ok && !(options.allowResume && response.status === 308)) {
+    if (!response.ok) {
       let data: unknown;
       try {
         data = await response.json();
