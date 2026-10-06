@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Upload the embedded bundle from custom builds that use `eas/build`. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add the `eas/upload_embedded_bundle` step for custom build configs. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))

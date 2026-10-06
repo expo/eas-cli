@@ -237,7 +237,7 @@ async function buildInnerAsync(
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     await uploadApplicationArchive(ctx, {
-      patternOrPath: resolveArtifactPath(ctx),
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
@@ -245,7 +245,18 @@ async function buildInnerAsync(
 
   if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      await uploadEmbeddedBundleAsync(ctx);
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
     });
   }
 

@@ -10,6 +10,7 @@ import path from 'path';
 
 import { shouldUseEagerBundle } from '../../common/eagerBundle';
 import { CustomBuildContext } from '../../customBuildContext';
+import { shouldUploadEmbeddedBundle } from '../../utils/expoUpdatesEmbedded';
 import { calculateEASUpdateRuntimeVersionFunction } from '../functions/calculateEASUpdateRuntimeVersion';
 import { createCheckoutBuildFunction } from '../functions/checkout';
 import { configureAndroidVersionFunction } from '../functions/configureAndroidVersion';
@@ -32,6 +33,7 @@ import {
 import { runFastlaneFunction } from '../functions/runFastlane';
 import { runGradleFunction } from '../functions/runGradle';
 import { createSaveBuildCacheFunction } from '../functions/saveBuildCache';
+import { createUploadEmbeddedBundleBuildFunction } from '../functions/uploadEmbeddedBundle';
 import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
 
 interface HelperFunctionsInput {
@@ -303,6 +305,19 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -390,6 +405,19 @@ function createStepsForAndroidBuildWithoutCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -483,6 +511,19 @@ function createStepsForAndroidBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
