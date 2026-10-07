@@ -1,4 +1,11 @@
-import { formatRateWithDelta, formatTrend, ratePercent, toMetricSummary } from '../metrics';
+import {
+  formatNullableMetricWithTrend,
+  formatRateWithDelta,
+  formatTrend,
+  ratePercent,
+  toMetricSummary,
+  toNullableMetricSummary,
+} from '../metrics';
 
 function stripAnsi(text: string): string {
   return text.replace(/\x1b\[[0-9;]*m/g, '');
@@ -52,5 +59,41 @@ describe(formatRateWithDelta, () => {
     expect(
       stripAnsi(formatRateWithDelta({ current: 80, previous: 75.5 }, { current: 10, previous: 8 }))
     ).toBe('80.0% (+4.5 pts)');
+  });
+});
+
+describe(toNullableMetricSummary, () => {
+  it('keeps missing values as null', () => {
+    expect(toNullableMetricSummary({ currentValue: 3, previousValue: null })).toEqual({
+      current: 3,
+      previous: null,
+    });
+    expect(toNullableMetricSummary({})).toEqual({ current: null, previous: null });
+  });
+});
+
+describe(formatNullableMetricWithTrend, () => {
+  const seconds = (value: number): string => `${value}s`;
+
+  it('is n/a when the current period has no value', () => {
+    expect(stripAnsi(formatNullableMetricWithTrend({ current: null, previous: 10 }, seconds))).toBe(
+      'n/a'
+    );
+  });
+
+  it('shows the value without a trend when the previous period has no value', () => {
+    expect(stripAnsi(formatNullableMetricWithTrend({ current: 10, previous: null }, seconds))).toBe(
+      '10s (n/a)'
+    );
+  });
+
+  it('formats the value and its trend', () => {
+    expect(
+      stripAnsi(
+        formatNullableMetricWithTrend({ current: 90, previous: 100 }, seconds, {
+          lowerIsBetter: true,
+        })
+      )
+    ).toBe('90s (-10.0%)');
   });
 });

@@ -24,19 +24,15 @@ import { AppliedMaestroInsightsFilters } from './maestroFilters';
 import { MaestroSortDirection, MaestroSortOption } from './maestroSort';
 import {
   InsightsMetricSummary,
+  NullableMetricSummary,
   formatCountWithTrend,
+  formatNullableMetricWithTrend,
   formatPercent,
   formatRateWithDelta,
-  formatTrend,
   ratePercent,
   toMetricSummary,
+  toNullableMetricSummary,
 } from '../../insights/metrics';
-
-/** Durations are unknown until at least one run in the window reported one. */
-export interface NullableMetricSummary {
-  current: number | null;
-  previous: number | null;
-}
 
 /** The Maestro tab's overview tiles. */
 export interface MaestroInsightsTotals {
@@ -216,10 +212,7 @@ function toOverviewTotals(totals: OverviewTotalsObject): MaestroInsightsTotals {
       previous: ratePercent(passedClean.previous + flaky.previous, totalRuns.previous),
     },
     distinctFlakyFlows: toMetricSummary(totals.distinctFlakyTestCount),
-    avgDurationMs: {
-      current: totals.avgDurationMs.currentValue ?? null,
-      previous: totals.avgDurationMs.previousValue ?? null,
-    },
+    avgDurationMs: toNullableMetricSummary(totals.avgDurationMs),
   };
 }
 
@@ -363,7 +356,12 @@ function buildOverviewTotalsFields(totals: MaestroInsightsTotals): FormatFieldsI
       label: 'Flaky flows',
       value: formatCountWithTrend(totals.distinctFlakyFlows, { lowerIsBetter: true }),
     },
-    { label: 'Avg duration', value: formatDurationWithTrend(totals.avgDurationMs) },
+    {
+      label: 'Avg duration',
+      value: formatNullableMetricWithTrend(totals.avgDurationMs, formatDurationMs, {
+        lowerIsBetter: true,
+      }),
+    },
   ];
 }
 
@@ -468,18 +466,4 @@ export function formatDurationMs(ms: number | null): string {
     return `${Math.round(ms)}ms`;
   }
   return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatDurationWithTrend(metric: NullableMetricSummary): string {
-  if (metric.current === null) {
-    return chalk.dim('n/a');
-  }
-  const trend =
-    metric.previous === null
-      ? chalk.dim('n/a')
-      : formatTrend(
-          { current: metric.current, previous: metric.previous },
-          { lowerIsBetter: true }
-        );
-  return `${formatDurationMs(metric.current)} (${trend})`;
 }
