@@ -67,11 +67,12 @@ export default class SimulatorCrashes extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(SimulatorCrashes);
-    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-    if (jsonFlag) {
+    // Before parsing, so only the JSON result reaches stdout.
+    if (this.argv.includes('--json')) {
       enableJsonOutput();
     }
+    const { flags } = await this.parse(SimulatorCrashes);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       projectDir,
@@ -99,7 +100,12 @@ export default class SimulatorCrashes extends EasCommand {
       if (detail.report !== null) {
         Log.log(sanitizeSimulatorText(detail.report));
       } else {
-        Log.warn(sanitizeSimulatorText(detail.reportError ?? 'The crash report is unavailable.'));
+        Log.warn(
+          sanitizeSimulatorText(
+            detail.reportError ??
+              'The crash report is unavailable. The session recorded the crash but did not return its report. The log lines recorded with the crash follow.'
+          )
+        );
         for (const line of detail.occurrence.logTail) {
           Log.log(sanitizeSimulatorText(line));
         }
