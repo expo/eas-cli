@@ -7482,6 +7482,7 @@ export enum EasService {
   Jobs = 'JOBS',
   Mcp = 'MCP',
   Observe = 'OBSERVE',
+  Simulator = 'SIMULATOR',
   Updates = 'UPDATES'
 }
 
@@ -7494,6 +7495,7 @@ export enum EasServiceMetric {
   McpRequests = 'MCP_REQUESTS',
   ObserveEvents = 'OBSERVE_EVENTS',
   RunTime = 'RUN_TIME',
+  SimulatorUsage = 'SIMULATOR_USAGE',
   UniqueUpdaters = 'UNIQUE_UPDATERS',
   UniqueUsers = 'UNIQUE_USERS'
 }
@@ -7509,6 +7511,7 @@ export enum EasTotalPlanEnablementUnit {
   Byte = 'BYTE',
   Concurrency = 'CONCURRENCY',
   Event = 'EVENT',
+  Minute = 'MINUTE',
   Request = 'REQUEST',
   Updater = 'UPDATER',
   User = 'USER'
@@ -8531,12 +8534,20 @@ export type EstimatedOverageAndCost = {
 export type EstimatedUsage = {
   __typename?: 'EstimatedUsage';
   id: Scalars['ID']['output'];
+  jobTypeBreakdown?: Maybe<EstimatedUsageJobTypeBreakdown>;
   limit: Scalars['Float']['output'];
   metricType: UsageMetricType;
   platformBreakdown?: Maybe<EstimatedUsagePlatformBreakdown>;
   service: EasService;
   serviceMetric: EasServiceMetric;
   value: Scalars['Float']['output'];
+};
+
+export type EstimatedUsageJobTypeBreakdown = {
+  __typename?: 'EstimatedUsageJobTypeBreakdown';
+  other: Scalars['Float']['output'];
+  simulator: Scalars['Float']['output'];
+  workflows: Scalars['Float']['output'];
 };
 
 export type EstimatedUsagePlatformBreakdown = {
@@ -11029,6 +11040,7 @@ export type RootQuery = {
   updates: UpdateQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
+  usageBudget: UsageBudgetQuery;
   /** Top-level query object for querying UserActorPublicData publicly. */
   userActorPublicData: UserActorPublicDataQuery;
   /** Top-level query object for querying User Audit Logs. */
@@ -11812,6 +11824,7 @@ export type SubmissionMutation = {
   createAndroidSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
+  generateSubmissionArchiveDownloadUrl: Scalars['String']['output'];
   /** Retry an EAS Submit submission */
   retrySubmission: CreateSubmissionResult;
 };
@@ -11829,6 +11842,11 @@ export type SubmissionMutation_CreateAndroidSubmissionArgs = {
 
 export type SubmissionMutation_CreateIosSubmissionArgs = {
   input: CreateIosSubmissionInput;
+};
+
+
+export type SubmissionMutation_GenerateSubmissionArchiveDownloadUrlArgs = {
+  submissionId: Scalars['ID']['input'];
 };
 
 
@@ -12910,6 +12928,7 @@ export type UsageBudget = {
   __typename?: 'UsageBudget';
   id: Scalars['ID']['output'];
   limits: UsageBudgetLimits;
+  remaining: UsageBudgetRemaining;
 };
 
 export type UsageBudgetLimits = {
@@ -12931,6 +12950,24 @@ export type UsageBudgetMutation = {
 
 export type UsageBudgetMutation_CreateUsageBudgetArgs = {
   limits: UsageBudgetLimitsInput;
+};
+
+export type UsageBudgetQuery = {
+  __typename?: 'UsageBudgetQuery';
+  byId: UsageBudget;
+};
+
+
+export type UsageBudgetQuery_ByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type UsageBudgetRemaining = {
+  __typename?: 'UsageBudgetRemaining';
+  /** Available builds, or null when there is no build limit. */
+  builds?: Maybe<Scalars['Int']['output']>;
+  /** Available minutes after completed usage and active reservations, or null when unlimited. */
+  simulatorMinutes?: Maybe<Scalars['Float']['output']>;
 };
 
 export type UsageMetricTotal = {
@@ -14808,6 +14845,7 @@ export enum WorkflowJobStatus {
 }
 
 export enum WorkflowJobType {
+  Agent = 'AGENT',
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   BranchDelete = 'BRANCH_DELETE',
   Build = 'BUILD',
@@ -14963,7 +15001,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14972,6 +15010,15 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonWorkflowCall = {
+  __typename?: 'WorkflowRunCancelReasonWorkflowCall';
+  /**
+   * The run that called this run through workflow_call and whose cancellation
+   * canceled this run. Null if that run no longer exists.
+   */
+  parentWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunEdge = {
