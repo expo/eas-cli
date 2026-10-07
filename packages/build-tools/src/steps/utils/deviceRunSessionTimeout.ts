@@ -1,43 +1,22 @@
+import { OperationTimeoutError, withTimeoutAsync } from '../../utils/timeout';
+
 export class DeviceRunSessionTimeoutError extends Error {
-  constructor(name: string, timeoutMs: number) {
-    super(`${name} timed out after ${timeoutMs}ms.`);
+  constructor(message: string) {
+    super(message);
     this.name = 'DeviceRunSessionTimeoutError';
   }
 }
 
-/**
- * Bounds waiting and signals cancellation. Operations must check the signal before later effects.
- * Calling resetDeadline restarts the timer, so the bound applies to stalls instead of total time.
- */
 export async function withDeviceRunSessionTimeoutAsync<T>(
-  { name, timeoutMs, signal: parent }: { name: string; timeoutMs: number; signal?: AbortSignal },
+  options: { name: string; timeoutMs: number; signal?: AbortSignal },
   operation: (signal: AbortSignal, resetDeadline: () => void) => Promise<T>
 ): Promise<T> {
-  const controller = new AbortController();
-  const signal = parent ? AbortSignal.any([parent, controller.signal]) : controller.signal;
-  signal.throwIfAborted();
-  let rejectAbort: (reason: unknown) => void = () => {};
-  const aborted = new Promise<never>((_resolve, reject) => {
-    rejectAbort = reject;
-  });
-  const onAbort = () => rejectAbort(signal.reason);
-  signal.addEventListener('abort', onAbort, { once: true });
-  const expire = () => controller.abort(new DeviceRunSessionTimeoutError(name, timeoutMs));
-  let timer = setTimeout(expire, timeoutMs);
-  let settled = false;
-  const resetDeadline = () => {
-    clearTimeout(timer);
-    if (!settled && !signal.aborted) {
-      timer = setTimeout(expire, timeoutMs);
-    }
-  };
   try {
-    const result = await Promise.race([operation(signal, resetDeadline), aborted]);
-    signal.throwIfAborted();
-    return result;
-  } finally {
-    settled = true;
-    clearTimeout(timer);
-    signal.removeEventListener('abort', onAbort);
+    return await withTimeoutAsync(options, operation);
+  } catch (error) {
+    if (error instanceof OperationTimeoutError) {
+      throw new DeviceRunSessionTimeoutError(error.message);
+    }
+    throw error;
   }
 }

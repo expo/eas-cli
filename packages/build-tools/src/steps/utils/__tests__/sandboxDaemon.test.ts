@@ -1,5 +1,6 @@
 import { SandboxDaemonResponseZ, SystemError } from '@expo/eas-build-job';
 import Log from '@expo/logger';
+import { type Client } from '@urql/core';
 import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -15,6 +16,7 @@ jest.unmock('node:fs/promises');
 
 describe(startSandboxDaemonAsync.name, () => {
   const logger = Log.child({ buildStepId: 'sandbox-test' });
+  const graphqlClient = {} as Client;
   it.each(['ftp://localhost', 'not a URL'])('reports invalid server URL %s', async serverUrl => {
     const errorLog = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const daemon = await startSandboxDaemonAsync({
@@ -24,6 +26,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -49,6 +53,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     try {
       const socket = await connection;
@@ -83,6 +89,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -113,6 +121,8 @@ describe(startSandboxDaemonAsync.name, () => {
       signal: controller.signal,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const connectionError = daemon.ready.catch(error => error);
 
@@ -141,6 +151,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
 
     await expect(daemon.ready).rejects.toThrow('Sandbox MCP server connection failed');
@@ -174,6 +186,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const socket = await connection;
     const daemon = await daemonPromise;
@@ -205,6 +219,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const socket = await connection;
     await daemon.ready;
@@ -248,6 +264,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const socket = await connection;
     await daemon.ready;
@@ -376,6 +394,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const socket = await connection;
     const daemon = await daemonPromise;
