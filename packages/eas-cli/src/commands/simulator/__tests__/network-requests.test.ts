@@ -278,6 +278,12 @@ describe(SimulatorNetworkRequests, () => {
     expect(mockStreamRequestsAsync).not.toHaveBeenCalled();
   });
 
+  it('enables JSON output before rejecting invalid flags', async () => {
+    await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow();
+
+    expect(enableJsonOutput).toHaveBeenCalled();
+  });
+
   it('prints a full request detail for human output', async () => {
     mockReadRequestsAsync.mockResolvedValue(request);
 
