@@ -98,7 +98,7 @@ describe('createInstallMitmproxyBuildFunction', () => {
     expect(mockedSpawn).toHaveBeenCalledWith(
       'mitmdump',
       ['--version'],
-      expect.objectContaining({ timeout: 60_000, killSignal: 'SIGKILL' })
+      expect.objectContaining({ stdio: 'ignore', timeout: 60_000, killSignal: 'SIGKILL' })
     );
   });
 

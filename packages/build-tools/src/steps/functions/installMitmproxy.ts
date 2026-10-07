@@ -54,10 +54,16 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
 }
 
 async function isMitmproxyAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  // Kills a first launch that Gatekeeper still holds, if the quarantine check missed it.
+  // Kills a first launch that Gatekeeper still holds, if the quarantine check missed it. Without
+  // pipes, a child process that outlives mitmdump cannot hold the call open past the timeout.
   return (
     await asyncResult(
-      spawn('mitmdump', ['--version'], { env, timeout: 60_000, killSignal: 'SIGKILL' })
+      spawn('mitmdump', ['--version'], {
+        env,
+        stdio: 'ignore',
+        timeout: 60_000,
+        killSignal: 'SIGKILL',
+      })
     )
   ).ok;
 }
