@@ -19,6 +19,11 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import {
+  createNetworkCaptureInputProviders,
+  parseNetworkCaptureInputs,
+} from '../utils/networkCaptureFields';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -30,12 +35,15 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import {
+  createServeSimLaunchInputProviders,
+  describeServeSimLaunch,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
-  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -59,6 +67,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
     name: 'Start Appium remote session',
     __metricsId: 'eas/start_appium_remote_session',
     inputProviders: [
+      ...createServeSimLaunchInputProviders(),
+      ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -77,6 +87,21 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const packageVersion = inputs.package_version.value as string | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
+      const launch = parseServeSimLaunchInputs(
+        {
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
+        },
+        { runtimePlatform }
+      );
+      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+        {
+          networkCapture: inputs.network_capture?.value,
+          networkCaptureFields: inputs.network_capture_fields?.value,
+        },
+        { runtimePlatform }
+      );
       const versionSpec = resolveAppium3VersionSpec(packageVersion);
 
       logger.info(
@@ -126,7 +151,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
+      let sessionFailed = false;
       try {
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
@@ -138,13 +164,22 @@ export function createStartAppiumRemoteSessionBuildFunction(
 
         // expo-device-hub has no serial-selection flag. Device run session workflows must expose
         // a single booted Android emulator so the Hub and Appium resolve the same device.
-        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+        const launchDescription = describeServeSimLaunch(launch);
+        if (launchDescription) {
+          logger.info(launchDescription);
+        }
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
           runtimePlatform,
-          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+          launchAppIdentifier: launch.launchAppIdentifier,
+          launchArgs: launch.launchArgs,
+          openUrl: launch.openUrl,
+          networkCapture,
+          networkCaptureFields,
         });
+        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -178,16 +213,29 @@ export function createStartAppiumRemoteSessionBuildFunction(
                 }
               : undefined,
         });
+      } catch (error) {
+        sessionFailed = true;
+        throw error;
       } finally {
-        if (webPreview) {
-          await webPreview.stopAsync();
-        }
-        if (appiumTunnel) {
-          await appiumTunnel.stopAsync();
-        }
-        await eventCollection.stopAsync();
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
+        await finishRemoteSessionAsync({
+          logger,
+          sessionFailed,
+          teardown: [
+            ['Appium tunnel', appiumTunnel?.stopAsync()],
+            [
+              'Appium server',
+              (async () => {
+                try {
+                  await eventCollection.stopAsync();
+                } finally {
+                  await appiumProcess.stopAsync();
+                  await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                }
+              })(),
+            ],
+            ['session host', sessionHost?.finishAsync()],
+          ],
+        });
       }
     }),
   });

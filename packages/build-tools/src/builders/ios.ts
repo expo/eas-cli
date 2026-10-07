@@ -29,7 +29,10 @@ import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
-import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
@@ -234,15 +237,26 @@ async function buildInnerAsync(
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     await uploadApplicationArchive(ctx, {
-      patternOrPath: resolveArtifactPath(ctx),
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
   });
 
-  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
+  if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      await uploadEmbeddedBundleAsync(ctx);
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
     });
   }
 

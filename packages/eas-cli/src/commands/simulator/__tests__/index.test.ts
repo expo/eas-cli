@@ -1,12 +1,17 @@
 import { Config } from '@oclif/core';
+import { CombinedError } from '@urql/core';
 import * as fs from 'fs-extra';
+import { GraphQLError } from 'graphql';
 
+import { SimulatorEvent, isAnalyticsOptedOutAsync } from '../../../analytics/AnalyticsManager';
+import { getAgentTelemetryContext } from '../../../analytics/agent';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -27,9 +32,16 @@ import {
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
+import * as promiseUtils from '../../../utils/promise';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
+jest.mock('../../../analytics/AnalyticsManager', () => ({
+  ...jest.requireActual('../../../analytics/AnalyticsManager'),
+  isAnalyticsOptedOutAsync: jest.fn(),
+}));
+jest.mock('../../../analytics/agent');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
@@ -52,6 +64,11 @@ jest.mock('../../../simulator/env', () => ({
   resetSimulatorEnvAsync: jest.fn(),
 }));
 jest.mock('../../../simulator/expoGo');
+jest.mock('../../../utils/json');
+jest.mock('../../../utils/promise', () => ({
+  ...jest.requireActual('../../../utils/promise'),
+  sleepAsync: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../../prompts');
 jest.mock('../../../simulator/egress', () => ({
   ...jest.requireActual('../../../simulator/egress'),
@@ -88,10 +105,16 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockLogEvent = jest.fn();
+const mockFlushAsync = jest.fn(async () => {});
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
+const mockGetAgentTelemetryContext = jest.mocked(getAgentTelemetryContext);
+const mockIsAnalyticsOptedOutAsync = jest.mocked(isAnalyticsOptedOutAsync);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -163,6 +186,7 @@ describe(Simulator, () => {
   const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
 
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
@@ -176,6 +200,8 @@ describe(Simulator, () => {
     mockResetSimulatorEnvAsync.mockResolvedValue();
     mockResolveExpoGoSdkVersionAsync.mockResolvedValue('55.0.0');
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
+    mockGetAgentTelemetryContext.mockReturnValue(null);
+    mockIsAnalyticsOptedOutAsync.mockResolvedValue(false);
   });
 
   afterAll(() => {
@@ -197,6 +223,7 @@ describe(Simulator, () => {
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       loggedIn: { actor: { isExpoAdmin }, graphqlClient },
+      analytics: { logEvent: mockLogEvent, flushAsync: mockFlushAsync, setActor: jest.fn() },
       projectDir,
       projectId: 'project-123',
     });
@@ -229,6 +256,203 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalled();
   });
 
+  it('logs "request sent" with the funnel properties before creating the session', async () => {
+    mockLogEvent.mockClear();
+    mockCreateDeviceRunSessionAsync.mockImplementationOnce(async () => {
+      expect(mockLogEvent).toHaveBeenCalledWith(SimulatorEvent.REQUEST_SENT, {
+        project_id: 'project-123',
+        origin: 'eas-cli',
+        type: 'agent-device',
+        platform: 'ios',
+        has_build_id: false,
+        has_archive_url: false,
+        expo_go: false,
+        non_interactive: true,
+      });
+      return makeCreatedDeviceRunSession();
+    });
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['network_error', Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' })],
+    ['timeout', Object.assign(new Error('connect timeout'), { code: 'ETIMEDOUT' })],
+  ])(
+    'logs "request failed" with reason %s when the create request gets no answer, and rethrows',
+    async (reason, networkError) => {
+      mockLogEvent.mockClear();
+      const error = new CombinedError({ networkError });
+      mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(error);
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      await expect(command.runAsync()).rejects.toBe(error);
+
+      expect(mockLogEvent).toHaveBeenCalledTimes(2);
+      expect(mockLogEvent).toHaveBeenLastCalledWith(
+        SimulatorEvent.REQUEST_FAILED,
+        expect.objectContaining({ project_id: 'project-123', reason })
+      );
+    }
+  );
+
+  it.each([
+    [
+      'a GraphQL refusal',
+      new CombinedError({
+        graphQLErrors: [new GraphQLError('Simulator sessions are not enabled')],
+      }),
+    ],
+    [
+      'an HTTP error answer',
+      new CombinedError({
+        networkError: new Error('Gateway Timeout'),
+        response: { status: 504, statusText: 'Gateway Timeout' },
+      }),
+    ],
+  ])('logs only "request sent" when the server answers with %s', async (_, error) => {
+    mockLogEvent.mockClear();
+    mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(error);
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toBe(error);
+
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
+    expect(mockLogEvent).toHaveBeenCalledWith(SimulatorEvent.REQUEST_SENT, expect.anything());
+  });
+
+  function mockCreateThatNeverAnswers(): Promise<void> {
+    return new Promise<void>(notifyCreateStarted => {
+      mockCreateDeviceRunSessionAsync.mockImplementationOnce(
+        () =>
+          new Promise(() => {
+            notifyCreateStarted();
+          })
+      );
+    });
+  }
+
+  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created', async () => {
+    mockLogEvent.mockClear();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      let finishFlush!: () => void;
+      const flushStarted = new Promise<void>(notifyFlushStarted => {
+        mockFlushAsync.mockImplementationOnce(
+          () =>
+            new Promise<void>(resolve => {
+              finishFlush = resolve;
+              notifyFlushStarted();
+            })
+        );
+      });
+      const createStarted = mockCreateThatNeverAnswers();
+      const existingSigintListeners = new Set(process.listeners('SIGINT'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      await createStarted;
+      process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
+        'SIGINT'
+      );
+      await flushStarted;
+      const exitCallsDuringFlush = [...processExitSpy.mock.calls];
+      finishFlush();
+      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+
+      expect(exitCallsDuringFlush).toEqual([]);
+      expect(mockLogEvent).toHaveBeenLastCalledWith(
+        SimulatorEvent.REQUEST_CANCELLED,
+        expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+      expect(mockOra.mock.results[0]?.value.fail).toHaveBeenCalledWith(
+        'Simulator session request canceled'
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    } finally {
+      processExitSpy.mockRestore();
+    }
+  });
+
+  it('removes its Ctrl+C listener on the first Ctrl+C during the request, so a second Ctrl+C is not swallowed during the flush', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const createStarted = mockCreateThatNeverAnswers();
+      const existingSigintListeners = [...process.listeners('SIGINT')];
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      await createStarted;
+      process.emit('SIGINT');
+      const listenersAfterFirstCtrlC = process.listeners('SIGINT');
+      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+
+      expect(listenersAfterFirstCtrlC).toEqual(existingSigintListeners);
+    } finally {
+      processExitSpy.mockRestore();
+    }
+  });
+
+  it('exits with 130 after 1 second when the analytics flush hangs after Ctrl+C', async () => {
+    jest.useFakeTimers();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { sleepAsync } = jest.requireActual<typeof promiseUtils>('../../../utils/promise');
+      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(sleepAsync);
+      mockFlushAsync.mockImplementationOnce(() => new Promise<void>(() => {}));
+      const createStarted = mockCreateThatNeverAnswers();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await createStarted;
+      process.emit('SIGINT');
+      await jest.advanceTimersByTimeAsync(999);
+      const exitCallsBeforeOneSecond = [...processExitSpy.mock.calls];
+      await jest.advanceTimersByTimeAsync(1);
+      await exited;
+
+      expect(exitCallsBeforeOneSecond).toEqual([]);
+      expect(mockFlushAsync).toHaveBeenCalled();
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('removes its Ctrl+C listener once the create request answers or fails', async () => {
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    let listenersWhilePolling: Function[] | undefined;
+    mockByIdAsync.mockImplementationOnce(async () => {
+      listenersWhilePolling = [...process.listeners('SIGINT')];
+      return makeDeviceRunSession();
+    });
+    await createCommand(['--platform', 'ios', '--non-interactive']).command.runAsync();
+    // Only the session's own Ctrl+C handler, registered after the request answered, is left.
+    expect(listenersWhilePolling).toHaveLength(existingSigintListeners.length + 1);
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+
+    mockCreateDeviceRunSessionAsync.mockRejectedValueOnce(new Error('boom'));
+    await expect(
+      createCommand(['--platform', 'ios', '--non-interactive']).command.runAsync()
+    ).rejects.toThrow('boom');
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+  });
+
   it('prints environment variables without saving when outputting env', async () => {
     const { command, getContextAsync } = createCommand([
       '--platform',
@@ -248,6 +472,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
@@ -410,6 +635,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -430,6 +656,7 @@ describe(Simulator, () => {
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
   });
 
@@ -450,7 +677,104 @@ describe(Simulator, () => {
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
       maxIdleTimeMinutes: 30,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
     });
+  });
+
+  it('passes --network-capture to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: 'project-123',
+      name: undefined,
+      networkCapture: true,
+      packageVersion: undefined,
+      platform: AppPlatform.Ios,
+      type: DeviceRunSessionType.AgentDevice,
+      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+    });
+  });
+
+  it('passes the requested capture fields, splitting a comma-separated value', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+      '--network-capture-field',
+      'header,query',
+      '--network-capture-field',
+      'request-body',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        networkCapture: true,
+        networkCaptureFields: ['header', 'query', 'request-body'],
+      })
+    );
+  });
+
+  it('does not send a capture field list when none was asked for', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ networkCaptureFields: expect.anything() })
+    );
+  });
+
+  it('rejects a capture field the recorder does not know', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+      '--network-capture-field',
+      'cookies',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(/Unknown network capture field 'cookies'/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects capture fields without --network-capture', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture-field',
+      'header',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --network-capture on android', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(/only supported on iOS/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
   it(`throws when ${EAS_SIMULATOR_SESSION_ID} is already present with --no-force`, async () => {
@@ -473,6 +797,20 @@ describe(Simulator, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('keeps the live spinner text short and prints the stop command once', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(
+      'To stop the session from another shell, run: eas simulator:stop --id session-123'
+    );
+    expect(mockOra).toHaveBeenLastCalledWith('Simulator session active — press Ctrl+C to stop');
   });
 
   it('forwards --name to the create mutation', async () => {
@@ -515,6 +853,43 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({ name: undefined })
     );
+  });
+
+  it('sends the detected coding agent with the create request', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'claude', sessionId: 'agent-session-1' });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+        agentId: 'claude',
+        agentSessionId: 'agent-session-1',
+      })
+    );
+  });
+
+  it('leaves out the agent session when the detected agent has none', async () => {
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'codex', sessionId: undefined });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    const input = mockCreateDeviceRunSessionAsync.mock.calls[0]?.[1];
+    expect(input).toMatchObject({ agentId: 'codex' });
+    expect(input).not.toHaveProperty('agentSessionId');
+  });
+
+  it('leaves out the coding agent when the user opted out of analytics', async () => {
+    mockIsAnalyticsOptedOutAsync.mockResolvedValue(true);
+    mockGetAgentTelemetryContext.mockReturnValue({ id: 'claude', sessionId: 'agent-session-1' });
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    const input = mockCreateDeviceRunSessionAsync.mock.calls[0]?.[1];
+    expect(input).toMatchObject({ requestOrigin: DeviceRunSessionRequestOrigin.EasCli });
+    expect(input).not.toHaveProperty('agentId');
+    expect(input).not.toHaveProperty('agentSessionId');
   });
 
   it('forwards --device in the iOS create options', async () => {
@@ -614,6 +989,40 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ buildId: '8d8b713c-1834-4bd3-91e6-46f895422cbc' })
+    );
+  });
+
+  it('forwards --build-fingerprint to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '  4b1f2c9e7a3d  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d' })
+    );
+  });
+
+  it('accepts launch options with --build-fingerprint', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      '--open-url',
+      'exp://example.test',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildFingerprint: '4b1f2c9e7a3d', openUrl: 'exp://example.test' })
     );
   });
 
@@ -813,6 +1222,25 @@ describe(Simulator, () => {
   it.each([
     ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
     ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
+  ])('rejects passing --build-fingerprint with %s', async (sourceFlag, sourceValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-fingerprint',
+      '4b1f2c9e7a3d',
+      sourceFlag,
+      sourceValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--build-fingerprint', '4b1f2c9e7a3d'],
+    ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
   ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
     const { command } = createCommand([
       '--platform',
@@ -826,6 +1254,100 @@ describe(Simulator, () => {
     await expect(command.runAsync()).rejects.toThrow();
     expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  describe('waiting for concurrency', () => {
+    let elapsedMs: number;
+
+    beforeEach(() => {
+      elapsedMs = 0;
+      jest.spyOn(Date, 'now').mockImplementation(() => elapsedMs);
+      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(async () => {
+        elapsedMs += 5 * 60 * 1_000;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([JobRunStatus.New, JobRunStatus.InQueue])(
+      'allows more than 15 minutes in %s and then a full startup window',
+      async status => {
+        mockByIdAsync.mockImplementation(async () => {
+          if (elapsedMs < 20 * 60 * 1_000) {
+            return makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            });
+          }
+          expect(mockOra.mock.results[1].value.text).toContain(
+            elapsedMs === 20 * 60 * 1_000
+              ? '⏳ Simulator session queued or waiting for available concurrency'
+              : 'session to start'
+          );
+          return makeDeviceRunSession({
+            ...(elapsedMs < 30 * 60 * 1_000 ? { remoteConfig: null } : {}),
+          });
+        });
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await command.runAsync();
+
+        expect(elapsedMs).toBe(30 * 60 * 1_000);
+        expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      }
+    );
+
+    it('times out and stops a session that does not start within 15 minutes after queuing', async () => {
+      mockByIdAsync.mockImplementation(async () =>
+        makeDeviceRunSession({
+          remoteConfig: null,
+          turtleJobRun: {
+            id: 'job-123',
+            status: elapsedMs < 20 * 60 * 1_000 ? JobRunStatus.InQueue : JobRunStatus.InProgress,
+          },
+        })
+      );
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        'session to start (excluding time in the queue)'
+      );
+
+      expect(elapsedMs).toBe(35 * 60 * 1_000);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+    });
+
+    it.each([JobRunStatus.Canceled, JobRunStatus.Errored, JobRunStatus.Finished])(
+      'reports %s while queued without waiting for a timeout',
+      async status => {
+        mockByIdAsync
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status: JobRunStatus.InQueue },
+            })
+          )
+          .mockResolvedValueOnce(
+            makeDeviceRunSession({
+              remoteConfig: null,
+              turtleJobRun: { id: 'job-123', status },
+            })
+          );
+        const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+        await expect(command.runAsync()).rejects.toThrow(status.toLowerCase());
+
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+      }
+    );
   });
 
   it('stops the simulator session when interrupted before the session is ready', async () => {
@@ -951,6 +1473,10 @@ describe(Simulator, () => {
       );
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:egress'));
       expect(runLocalEgressAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_PLATFORM='ios'")
+      );
     }
   );
 
@@ -990,8 +1516,14 @@ describe(Simulator, () => {
   });
 
   it.each(localEgressSessions)(
-    'rejects local egress for Android %s before creating a session',
-    async typeFlag => {
+    'creates Android %s sessions with local egress and marks them as Android',
+    async (typeFlag, type, remoteConfig) => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type,
+          remoteConfig: { ...remoteConfig, ...localEgressFields },
+        })
+      );
       const { command } = createCommand([
         '--platform',
         'android',
@@ -1001,10 +1533,21 @@ describe(Simulator, () => {
         'local',
         '--non-interactive',
       ]);
-      await expect(command.runAsync()).rejects.toThrow(
-        '--egress local is only supported with --platform ios.'
+      await command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          platform: AppPlatform.Android,
+          egress: DeviceRunSessionEgress.Local,
+        })
       );
-      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        simulatorDotenvPath,
+        expect.stringContaining("EAS_SIMULATOR_EGRESS_PLATFORM='android'")
+      );
+      expect(Log.log).toHaveBeenCalledWith(
+        expect.stringContaining('such as UDP, is refused on the device host')
+      );
     }
   );
 
@@ -1140,5 +1683,281 @@ describe(Simulator, () => {
 
     expect(mockPromptAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('fails the create spinner and rethrows when session creation fails', async () => {
+    mockCreateDeviceRunSessionAsync.mockRejectedValue(new Error('create boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('create boom');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+  });
+
+  it('throws when the session errors before it becomes ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/errored before the .* session was ready/);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+  });
+
+  it('throws when the turtle job run finishes before the session is ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        remoteConfig: null,
+        turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored },
+      })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Turtle job run for simulator session .* errored before/
+    );
+  });
+
+  it('keeps polling until the remote config appears', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession({ remoteConfig: null }))
+      .mockResolvedValueOnce(makeDeviceRunSession());
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockByIdAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops the session and rethrows when polling for readiness fails', async () => {
+    mockByIdAsync.mockRejectedValue(new Error('poll boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('poll boom');
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+  });
+
+  it('times out when the session never becomes ready', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ remoteConfig: null }));
+    const realNow = Date.now();
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(realNow)
+      .mockReturnValue(realNow + 60 * 60 * 1000);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/Timed out after \d+s waiting for/);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+  });
+
+  it('prints JSON only and skips the human-readable output with --json', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--json']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
+    );
+  });
+
+  it('warns but continues when the dotenv file cannot be written', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}`
+      )
+    );
+  });
+
+  it('retries after a transient poll failure while the session is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to poll simulator session')
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('throws when the session errors while it is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow('Simulator session session-123 errored.');
+  });
+
+  it('keeps waiting while the session is still in progress', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(
+        makeDeviceRunSession({ turtleJobRun: { id: 'job-123', status: JobRunStatus.Finished } })
+      );
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockByIdAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('rethrows when clearing the dotenv file fails after the session ends', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+    mockResetSimulatorEnvAsync.mockRejectedValue(new Error('unlink failed'));
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow('unlink failed');
+    expect(Log.error).toHaveBeenCalledWith(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}`);
+  });
+
+  it('warns and reports failure when the session cannot be stopped', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Failed to stop simulator session session-123: stop boom'
+    );
+  });
+
+  it('stops the session when interrupted while it is running', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session and reports when the stop cannot be confirmed after an interrupt before ready', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockImplementation(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('process.exit(130)');
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+  });
+
+  it('stops the session when interrupted after it is ready', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    jest
+      .mocked(fs.writeFile)
+      .mockImplementationOnce((async () => undefined) as never)
+      .mockImplementationOnce((async () => {
+        process.emit('SIGINT');
+      }) as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('process.exit(130)');
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('force exits when a second interrupt arrives', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGINT');
+      process.emit('SIGINT');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await command.runAsync();
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Aborted before the simulator session could be stopped. Run `eas simulator:stop --id session-123` to terminate it and avoid unexpected charges.'
+    );
+    expect(exitSpy).toHaveBeenCalledWith(130);
+  });
+
+  it('stringifies a non-Error dotenv write failure', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue('disk full' as never);
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('disk full'));
+  });
+
+  it('stringifies a non-Error poll failure while the session is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockRejectedValueOnce('network down')
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.debug).toHaveBeenCalledWith(expect.stringContaining('network down'));
+  });
+
+  it('stringifies a non-Error stop failure', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockImplementation(async () => {
+      process.emit('SIGINT');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue('gateway timeout');
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow('process.exit(130)');
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Failed to stop simulator session session-123: gateway timeout'
+    );
   });
 });

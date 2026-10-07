@@ -11,6 +11,7 @@ import {
   runGradleCommand,
 } from '../android/gradle';
 import { formatGradleProfileReport, parseGradleProfile } from '../android/gradleProfile';
+import { resolveArtifactPath } from '../android/resolve';
 import { Sentry } from '../sentry';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
@@ -32,7 +33,10 @@ import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
-import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 
@@ -217,15 +221,26 @@ async function buildInnerAsync(
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     await uploadApplicationArchive(ctx, {
-      patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
   });
 
-  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
+  if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      await uploadEmbeddedBundleAsync(ctx);
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
     });
   }
 
