@@ -44,6 +44,11 @@ export type AccessToken = {
   note?: Maybe<Scalars['String']['output']>;
   owner: Actor;
   revokedAt?: Maybe<Scalars['DateTime']['output']>;
+  /**
+   * Scopes this token is restricted to. Null for a full token that authenticates as the owner
+   * with all of their permissions.
+   */
+  scopes?: Maybe<Array<AccessTokenScope>>;
   updatedAt: Scalars['DateTime']['output'];
   visibleTokenPrefix: Scalars['String']['output'];
 };
@@ -73,6 +78,35 @@ export type AccessTokenMutation_SetAccessTokenRevokedArgs = {
   id: Scalars['ID']['input'];
   revoked?: InputMaybe<Scalars['Boolean']['input']>;
 };
+
+/** One scope narrowing an AccessToken below its owner's full access */
+export type AccessTokenScope = {
+  __typename?: 'AccessTokenScope';
+  /** The account this scope applies to. Only present for ACCOUNT scopes. */
+  accountID?: Maybe<Scalars['ID']['output']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export type AccessTokenScopeInput = {
+  /**
+   * The account this scope applies to. Required for ACCOUNT scopes and must be omitted for
+   * ALL_ACCOUNTS scopes.
+   */
+  accountID?: InputMaybe<Scalars['ID']['input']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export enum AccessTokenScopeType {
+  /** One account, named by accountID, narrowed to the scope's permissions. */
+  Account = 'ACCOUNT',
+  /**
+   * Every account the token's owner has permissions on at request time, narrowed to the
+   * scope's permissions.
+   */
+  AllAccounts = 'ALL_ACCOUNTS'
+}
 
 /** A GitHub App installation visible to a viewer, not necessarily linked yet. */
 export type AccessibleGitHubAppInstallation = {
@@ -149,6 +183,8 @@ export type Account = {
   /** Convex team connections for this account */
   convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
+  /** Simulator sessions for all apps associated with this account, sorted newest first. */
+  deviceRunSessionsPaginated: AccountDeviceRunSessionsConnection;
   displayName?: Maybe<Scalars['String']['output']>;
   /** Echo projects for this account (paginated, most recent first) */
   echoProjects: EchoProjectConnection;
@@ -423,6 +459,19 @@ export type Account_ConcurrencyConsumersArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
+export type Account_DeviceRunSessionsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AccountDeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
 export type Account_EchoProjectsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -622,6 +671,22 @@ export type AccountDataInput = {
   userSpecifiedAccountUsage?: InputMaybe<UserSpecifiedAccountUsage>;
 };
 
+export type AccountDeviceRunSessionFilterInput = {
+  statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
+};
+
+export type AccountDeviceRunSessionsConnection = {
+  __typename?: 'AccountDeviceRunSessionsConnection';
+  edges: Array<AccountDeviceRunSessionsEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AccountDeviceRunSessionsEdge = {
+  __typename?: 'AccountDeviceRunSessionsEdge';
+  cursor: Scalars['String']['output'];
+  node: DeviceRunSession;
+};
+
 export type AccountGoogleServiceAccountKeysConnection = {
   __typename?: 'AccountGoogleServiceAccountKeysConnection';
   edges: Array<AccountGoogleServiceAccountKeysEdge>;
@@ -696,8 +761,6 @@ export type AccountMutation = {
   cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
-  /** Buys or revokes account's additional agent credits, charging the account the appropriate amount if needed. */
-  changeAdditionalAgentCreditsCount: Account;
   /** Buys or revokes account's additional concurrencies, charging the account the appropriate amount if needed. */
   changeAdditionalConcurrenciesCount: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
@@ -737,12 +800,6 @@ export type AccountMutation_CancelAllSubscriptionsImmediatelyArgs = {
 
 export type AccountMutation_CancelScheduledSubscriptionChangeArgs = {
   accountID: Scalars['ID']['input'];
-};
-
-
-export type AccountMutation_ChangeAdditionalAgentCreditsCountArgs = {
-  accountID: Scalars['ID']['input'];
-  newAdditionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -6295,6 +6352,12 @@ export type CrashesFilters = {
 export type CreateAccessTokenInput = {
   actorID: Scalars['ID']['input'];
   note?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * When given, requests authenticated with the new token are restricted to these scopes instead
+   * of the actor's full access. Either a single ALL_ACCOUNTS scope or one ACCOUNT scope per
+   * account.
+   */
+  scopes?: InputMaybe<Array<AccessTokenScopeInput>>;
 };
 
 export type CreateAccessTokenResponse = {
@@ -6667,6 +6730,7 @@ export type CreatePostHogDeepLinkInput = {
 };
 
 export type CreateSandboxInput = {
+  agentRunId?: InputMaybe<Scalars['ID']['input']>;
   appId: Scalars['ID']['input'];
   image?: InputMaybe<Scalars['String']['input']>;
   operatingSystem: SandboxOperatingSystem;
@@ -7232,10 +7296,15 @@ export type DeviceRunSessionMutation = {
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
   /**
-   * Create a standard artifact and a two-hour upload URL for repeatedly
+   * Create or reuse a standard artifact and a two-hour upload URL for repeatedly
    * overwriting its structured event log while the backing job run is running.
    */
   createEventLogUploadSession: CreateDeviceRunSessionEventLogUploadSessionResult;
+  /**
+   * Create or renew a two-hour upload URL for overwriting the session preview.
+   * Reuses one WebP artifact while the backing job run is active.
+   */
+  createPreviewUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /**
    * Permanently delete a finished session and its artifacts. The backing job,
    * if present, must also have finished. Returns the deleted session ID.
@@ -7269,6 +7338,11 @@ export type DeviceRunSessionMutation_CreateDeviceRunSessionArgs = {
 
 
 export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+
+export type DeviceRunSessionMutation_CreatePreviewUploadSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
@@ -7404,7 +7478,6 @@ export enum EasBuildWaiverType {
 }
 
 export enum EasService {
-  Agent = 'AGENT',
   Builds = 'BUILDS',
   Jobs = 'JOBS',
   Mcp = 'MCP',
@@ -7416,7 +7489,6 @@ export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
-  CreditUsage = 'CREDIT_USAGE',
   LocalBuilds = 'LOCAL_BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
   McpRequests = 'MCP_REQUESTS',
@@ -9385,8 +9457,6 @@ export type InvoicePeriod = {
 
 export type InvoiceQuery = {
   __typename?: 'InvoiceQuery';
-  /** Previews the invoice for the specified number of additional agent credit units. */
-  previewInvoiceForAdditionalAgentCreditsCountUpdate?: Maybe<Invoice>;
   /**
    * Previews the invoice for the specified number of additional concurrencies.
    * This is the total number of concurrencies the customer wishes to purchase
@@ -9397,12 +9467,6 @@ export type InvoiceQuery = {
   previewInvoiceForAdditionalConcurrenciesCountUpdate?: Maybe<Invoice>;
   /** Preview an upgrade subscription invoice, with proration */
   previewInvoiceForSubscriptionUpdate: Invoice;
-};
-
-
-export type InvoiceQuery_PreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
-  accountID: Scalars['ID']['input'];
-  additionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -11721,7 +11785,9 @@ export type SubmissionArchiveSourceInput = {
 };
 
 export enum SubmissionArchiveSourceType {
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchive = 'GCS_BUILD_APPLICATION_ARCHIVE',
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchiveOrchestrator = 'GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR',
   GcsSubmitArchive = 'GCS_SUBMIT_ARCHIVE',
   Url = 'URL'
@@ -11804,7 +11870,6 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']['output']>;
   futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID']['output'];
-  includedAgentCreditsInCents: Scalars['Int']['output'];
   isDowngrading?: Maybe<Scalars['Boolean']['output']>;
   meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']['output']>;
@@ -12185,6 +12250,7 @@ export type Update = ActivityTimelineProjectActivity & {
   runtime: Runtime;
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
+  sourceMapUrl?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   workflowJob?: Maybe<WorkflowJob>;
 };
@@ -12849,10 +12915,12 @@ export type UsageBudget = {
 export type UsageBudgetLimits = {
   __typename?: 'UsageBudgetLimits';
   builds?: Maybe<Scalars['Int']['output']>;
+  simulatorMinutes?: Maybe<Scalars['Int']['output']>;
 };
 
 export type UsageBudgetLimitsInput = {
   builds?: InputMaybe<Scalars['Int']['input']>;
+  simulatorMinutes?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UsageBudgetMutation = {
@@ -12880,7 +12948,6 @@ export type UsageMetricTotal = {
 export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
   Build = 'BUILD',
-  Credit = 'CREDIT',
   Event = 'EVENT',
   Minute = 'MINUTE',
   Request = 'REQUEST',
@@ -14741,6 +14808,7 @@ export enum WorkflowJobStatus {
 }
 
 export enum WorkflowJobType {
+  Agent = 'AGENT',
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   BranchDelete = 'BRANCH_DELETE',
   Build = 'BUILD',
