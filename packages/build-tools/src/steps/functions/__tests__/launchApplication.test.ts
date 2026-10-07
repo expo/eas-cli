@@ -179,17 +179,7 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).toHaveBeenNthCalledWith(
       2,
       'adb',
-      [
-        'shell',
-        'am',
-        'start',
-        '-a',
-        'android.intent.action.VIEW',
-        '-d',
-        'exp://example.test',
-        '-p',
-        'host.exp.exponent',
-      ],
+      ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'exp://example.test'],
       { env: {}, logger }
     );
     expect(logger.info).toHaveBeenNthCalledWith(
@@ -242,17 +232,7 @@ describe(launchApplicationAsync, () => {
     );
     expect(mockedSpawn).toHaveBeenCalledWith(
       'adb',
-      [
-        'shell',
-        'am',
-        'start',
-        '-a',
-        'android.intent.action.VIEW',
-        '-d',
-        'exp://example.test',
-        '-p',
-        'com.example.app',
-      ],
+      ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'exp://example.test'],
       expect.any(Object)
     );
   });
