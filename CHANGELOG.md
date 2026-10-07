@@ -14,7 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
-- [build-tools] Don't crash the build with `kill ESRCH` when a process exits while the `expo doctor`, install dependencies, or install pods timeout is killing it. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@ahmdshrif](https://github.com/ahmdshrif))
+- [build-tools] Don't crash the build with `kill ESRCH` when a process exits while the `expo doctor`, install dependencies, or install pods timeout is killing it. ([#4561](https://github.com/expo/eas-cli/pull/4561) by [@ahmdshrif](https://github.com/ahmdshrif))
 
 ### 🧹 Chores
 
