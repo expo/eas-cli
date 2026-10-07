@@ -15200,11 +15200,28 @@ export type WorkflowsInsightsMutation_ExportWorkflowRunsArgs = {
   input: WorkflowsInsightsExportInput;
 };
 
+/**
+ * Same shape as WorkflowsInsightsMetric but nullable on both sides. Null means the window had
+ * no qualifying run, which is different from 0.
+ */
+export type WorkflowsInsightsNullableMetric = {
+  __typename?: 'WorkflowsInsightsNullableMetric';
+  currentValue?: Maybe<Scalars['Float']['output']>;
+  previousValue?: Maybe<Scalars['Float']['output']>;
+};
+
 export type WorkflowsInsightsOverviewMetrics = {
   __typename?: 'WorkflowsInsightsOverviewMetrics';
   activeWorkflows: WorkflowsInsightsMetric;
+  /**
+   * Mean milliseconds from run creation to finalization, the same duration the run page shows,
+   * so queue and approval wait count. Canceled runs are excluded.
+   */
+  avgDurationMs: WorkflowsInsightsNullableMetric;
   canceledRuns: WorkflowsInsightsMetric;
   failedRuns: WorkflowsInsightsMetric;
+  /** Approximate 75th percentile of the same duration, excluding canceled runs. */
+  p75DurationMs: WorkflowsInsightsNullableMetric;
   successfulRuns: WorkflowsInsightsMetric;
   totalRuns: WorkflowsInsightsMetric;
 };
@@ -15248,10 +15265,12 @@ export type WorkflowsInsightsWorkflowMetrics = {
 
 export type WorkflowsInsightsWorkflowNode = {
   __typename?: 'WorkflowsInsightsWorkflowNode';
+  avgDurationMs?: Maybe<Scalars['Float']['output']>;
   canceledRuns: Scalars['Int']['output'];
   failedRuns: Scalars['Int']['output'];
   lastRunAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
+  p75DurationMs?: Maybe<Scalars['Float']['output']>;
   successfulRuns: Scalars['Int']['output'];
   totalRuns: Scalars['Int']['output'];
   workflowId: Scalars['ID']['output'];
@@ -17397,7 +17416,7 @@ export type WorkflowsInsightsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null }, p75DurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, avgDurationMs?: number | null, p75DurationMs?: number | null, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?:
     | { __typename?: 'SSOUser', id: string, username: string }
