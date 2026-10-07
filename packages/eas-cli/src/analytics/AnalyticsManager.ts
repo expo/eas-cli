@@ -21,10 +21,15 @@ export type AnalyticsEvent =
   | SubmissionEvent
   | MetadataEvent
   | BillingEvent
-  | SimulatorEvent;
+  | SimulatorEvent
+  | ExperimentationEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
+}
+
+export enum ExperimentationEvent {
+  EXPERIMENT_VIEWED = 'Experiment Viewed',
 }
 
 export enum BillingEvent {
@@ -105,6 +110,8 @@ export interface Analytics {
 export interface AnalyticsWithOrchestration extends Analytics {
   setActor(actor: Actor): void;
   flushAsync(): Promise<void>;
+  /** The persisted RudderStack anonymous ID, or null when analytics is disabled. */
+  getDeviceId(): string | null;
 }
 
 const USER_SETTINGS_KEY_AMPLITUDE_ENABLED = 'amplitudeEnabled';
@@ -183,6 +190,9 @@ class NoOpAnalytics implements AnalyticsWithOrchestration {
   logEvent(): void {}
   setActor(): void {}
   async flushAsync(): Promise<void> {}
+  getDeviceId(): null {
+    return null;
+  }
 }
 
 const RudderstackAnalyticsConfig =
@@ -232,6 +242,10 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
       },
     });
     this.identifiedActor = actor;
+  }
+
+  public getDeviceId(): string {
+    return this.persistentDeviceId;
   }
 
   public logEvent(name: AnalyticsEvent, properties: AnalyticsEventProperties): void {

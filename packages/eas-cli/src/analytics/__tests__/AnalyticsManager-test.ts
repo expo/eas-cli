@@ -140,3 +140,55 @@ describe(isAnalyticsOptedOutAsync, () => {
     await expect(isAnalyticsOptedOutAsync()).resolves.toBe(true);
   });
 });
+
+describe('getDeviceId', () => {
+  // Backs UserSettings with an in-memory store so a value written by createAnalyticsAsync is read back.
+  function useInMemoryUserSettings(initial: Record<string, unknown>): void {
+    const stored: Record<string, unknown> = { ...initial };
+    (userSettingsMock.setAsync as jest.Mock).mockImplementation(
+      async (key: string, value: unknown) => {
+        stored[key] = value;
+        return {};
+      }
+    );
+    (userSettingsMock.getAsync as jest.Mock).mockImplementation(
+      async (key: string, defaultValue: unknown) => (key in stored ? stored[key] : defaultValue)
+    );
+  }
+
+  it('returns the persisted analytics device ID', async () => {
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBe('persistent-device-id');
+  });
+
+  it('creates and persists a device ID when none is stored', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsDeviceId' ? null : defaultValue
+    );
+    const analytics = await createAnalyticsAsync();
+    const deviceId = analytics.getDeviceId();
+    expect(deviceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(userSettingsMock.setAsync).toHaveBeenCalledWith('analyticsDeviceId', deviceId);
+  });
+
+  it('is null when DISABLE_EAS_ANALYTICS is set', async () => {
+    useInMemoryUserSettings({ analyticsDeviceId: 'persistent-device-id' });
+    process.env.DISABLE_EAS_ANALYTICS = '1';
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
+
+  it('is null when running behind https_proxy', async () => {
+    process.env.https_proxy = 'http://proxy.local:8080';
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
+
+  it('is null when analytics were turned off with eas analytics off', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsEnabled' ? false : defaultValue
+    );
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
+});

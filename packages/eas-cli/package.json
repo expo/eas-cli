@@ -51,6 +51,7 @@
     "@expo/eas-build-job": "24.9.0",
     "@expo/eas-json": "24.9.0",
     "@expo/env": "^1.0.0",
+    "@expo/experimentation": "0.0.5",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "24.8.0",
     "@expo/multipart-body-parser": "2.0.0",

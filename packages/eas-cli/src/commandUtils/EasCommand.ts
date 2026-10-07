@@ -7,6 +7,7 @@ import nullthrows from 'nullthrows';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import DynamicLoggedInContextField from './context/DynamicLoggedInContextField';
+import ExperimentationContextField from './context/ExperimentationContextField';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -147,6 +148,12 @@ export default abstract class EasCommand extends Command {
      */
     ProjectId: {
       projectId: new ProjectIdContextField(),
+    },
+    /**
+     * Experimentation client for experiments scoped to the user, account, or device.
+     */
+    Experimentation: {
+      experimentation: new ExperimentationContextField(),
     },
   };
 

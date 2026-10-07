@@ -2642,6 +2642,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/experimentation@npm:0.0.5":
+  version: 0.0.5
+  resolution: "@expo/experimentation@npm:0.0.5"
+  dependencies:
+    nullthrows: "npm:^1.1.1"
+  checksum: 10c0/bc054e1bcc0583f2a09e8b56d2f95bb62cf2f4eaf78edac4eb709c73cfd1fdb93626b948f4184f6dc8096a44b6c12c97109a84622bb56620484b4e61856007fd
+  languageName: node
+  linkType: hard
+
 "@expo/image-utils@npm:^0.7.6":
   version: 0.7.6
   resolution: "@expo/image-utils@npm:0.7.6"
@@ -10478,6 +10487,7 @@ __metadata:
     "@expo/eas-build-job": "npm:24.9.0"
     "@expo/eas-json": "npm:24.9.0"
     "@expo/env": "npm:^1.0.0"
+    "@expo/experimentation": "npm:0.0.5"
     "@expo/json-file": "npm:8.3.3"
     "@expo/logger": "npm:24.8.0"
     "@expo/multipart-body-parser": "npm:2.0.0"
