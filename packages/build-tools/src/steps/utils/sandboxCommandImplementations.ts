@@ -96,6 +96,9 @@ export function createSandboxCommandImplementations({
           await file.close();
         }
       },
+      async uploadArtifact() {
+        throw new Error('Uploading sandbox artifacts is not supported yet.');
+      },
     },
     stoppedPromise: sessions.stoppedPromise,
   };
