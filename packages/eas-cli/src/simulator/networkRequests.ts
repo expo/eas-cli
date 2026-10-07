@@ -11,7 +11,8 @@ import {
   streamSimulatorPreviewAsync,
 } from './preview';
 
-const OUTPUT_EXISTS_MESSAGE = 'The output file already exists. Choose another --output path.';
+const OUTPUT_EXISTS_MESSAGE =
+  'The output file already exists. The command does not overwrite files. Choose another --output path.';
 
 export type NetworkRequest = {
   _captureId?: string;
@@ -116,12 +117,16 @@ export async function readNetworkRequestsAsync(
     }
   } catch (error) {
     if (signal.aborted) {
-      throw new Error('The network capture request timed out.');
+      throw new Error(
+        'The network capture request timed out. The capture did not download within 10 minutes. Run `eas simulator:get` to check that the session is still running, then try again.'
+      );
     }
     if (!response) {
       throw error;
     }
-    throw new Error('Could not read the network capture.');
+    throw new Error(
+      'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again. If this keeps happening, update EAS CLI.'
+    );
   } finally {
     controller.abort();
     response?.body.destroy();
@@ -130,7 +135,9 @@ export async function readNetworkRequestsAsync(
     return requests;
   }
   if (!selected) {
-    throw new Error('That request was not found in the current network capture.');
+    throw new Error(
+      'The request was not found in the network capture. The ID does not match a completed request in the current capture. Run `eas simulator:network-requests` to see current request IDs.'
+    );
   }
   return selected;
 }
@@ -148,14 +155,14 @@ export async function streamNetworkRequestsAsync(
           if (event.meta.attachment === 'not-enabled') {
             streamError = new Error(
               event.initial
-                ? 'Network capture is not enabled for this session. Start the session with --network-capture.'
-                : 'Network capture was turned off.'
+                ? 'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.'
+                : 'Network capture was turned off, so the session no longer records requests. Start a new session with `eas simulator:start --network-capture` to capture again.'
             );
             throw streamError;
           }
           if (event.meta.attachment === 'failed') {
             streamError = new Error(
-              'The network capture failed. Check the session preview for details.'
+              'The network capture failed. The session reported a capture error. Open the session preview to see the error, or start a new session with `eas simulator:start --network-capture`.'
             );
             throw streamError;
           }
@@ -187,7 +194,9 @@ export async function streamNetworkRequestsAsync(
           });
         }
       } catch {
-        streamError ??= new Error('Could not read the network capture stream.');
+        streamError ??= new Error(
+          'Could not read the network capture stream. An event from the session was not in the expected format. Run the command again. If this keeps happening, update EAS CLI.'
+        );
         throw streamError;
       }
     });
@@ -207,7 +216,9 @@ export async function downloadNetworkCaptureAsync(
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return false;
       }
-      throw new Error('Could not access the output path. Check the --output directory.');
+      throw new Error(
+        'Could not access the --output path. EAS CLI could not check whether the file exists. Check that the directory exists and that you can read it.'
+      );
     }
   );
   if (outputExists) {
@@ -218,7 +229,7 @@ export async function downloadNetworkCaptureAsync(
     directory = await mkdtemp(path.join(path.dirname(outputPath), '.eas-network-capture-'));
   } catch {
     throw new Error(
-      'Could not create the output file. Check the --output directory exists and is writable.'
+      'Could not create the output file. The --output directory does not exist or is not writable. Choose a directory you can write to.'
     );
   }
   const temporaryPath = path.join(directory, 'capture.har');
@@ -244,8 +255,8 @@ export async function downloadNetworkCaptureAsync(
     if (controller.signal.aborted) {
       throw new Error(
         controller.signal.reason === 'interrupted'
-          ? 'The network capture download was interrupted.'
-          : 'The network capture download timed out.'
+          ? 'The network capture download was interrupted. It was stopped before it finished. Run the command again to save the capture.'
+          : 'The network capture download timed out. It did not finish within 10 minutes. Check your internet connection, then run the command again.'
       );
     }
     if (!response) {
@@ -254,7 +265,9 @@ export async function downloadNetworkCaptureAsync(
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new Error(OUTPUT_EXISTS_MESSAGE);
     }
-    throw new Error('Could not save the network capture. Check the session and output directory.');
+    throw new Error(
+      'Could not save the network capture. The download or the file write failed. Run `eas simulator:get` to check that the session is still running, check that the --output directory is writable, then try again.'
+    );
   } finally {
     clearTimeout(timeout);
     process.removeListener('SIGINT', interrupt);
