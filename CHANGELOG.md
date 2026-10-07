@@ -8,12 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Fix `eas workflow:ssh` handling of missing builds IDs. ([#4529](https://github.com/expo/eas-cli/pull/4529) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [build-tools] Upload the embedded bundle from custom builds that use `eas/build`. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add the `eas/upload_embedded_bundle` step for custom build configs. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
 - [build-tools] Improve the embedded bundle upload output in build logs. ([#4557](https://github.com/expo/eas-cli/pull/4557) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Allow the unnotarized mitmproxy cask to run in iOS network capture sessions. ([#4556](https://github.com/expo/eas-cli/pull/4556) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
