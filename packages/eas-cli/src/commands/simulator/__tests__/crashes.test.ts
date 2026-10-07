@@ -170,6 +170,29 @@ describe(SimulatorCrashes, () => {
     expect(mockLog).toHaveBeenLastCalledWith('last app log');
   });
 
+  it('explains a missing report when the session gives no reason', async () => {
+    mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce({
+      record: crash,
+      occurrence: { logTail: ['last app log'] },
+      report: null,
+      reportError: null,
+    });
+
+    await createCommand(['--report-id', 'crash-id']).runAsync();
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      'The crash report is unavailable. The session recorded the crash but did not return its report. The log lines recorded with the crash follow.'
+    );
+    expect(mockLog).toHaveBeenLastCalledWith('last app log');
+  });
+
+  it('enables JSON output before rejecting invalid flags', async () => {
+    await expect(createCommand(['--json', '--unknown']).runAsync()).rejects.toThrow();
+
+    expect(enableJsonOutput).toHaveBeenCalled();
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+  });
+
   it('stops before contacting the preview when there is no session', async () => {
     mockResolvePreviewAsync.mockRejectedValue(new Error('No simulator session ID provided.'));
 
