@@ -35,6 +35,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install dependencies
         run: yarn install --immutable
+      - name: Build build-tools dependencies
+        # tsc emits the dist files that the test imports from workspace packages such as @expo/logger.
+        run: yarn run -T lerna run typecheck --scope @expo/build-tools --include-dependencies
       - name: Run recording recovery test
         working-directory: packages/build-tools
         run: yarn jest-ffmpeg
