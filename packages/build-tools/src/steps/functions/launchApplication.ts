@@ -116,8 +116,6 @@ export async function launchApplicationAsync({
   );
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
-    // Match Expo CLI `openUrlAsync`: send the URL as a VIEW intent.
-    // Android resolves the activity, since the launcher is not always the handler.
     await spawn(
       'adb',
       ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
