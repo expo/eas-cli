@@ -67,6 +67,14 @@ export const WorkflowsInsightsQuery = {
                         currentValue
                         previousValue
                       }
+                      avgDurationMs {
+                        currentValue
+                        previousValue
+                      }
+                      p75DurationMs {
+                        currentValue
+                        previousValue
+                      }
                     }
                     runsOverTime(timespan: $timespan, filters: $filters, granularity: $granularity) {
                       lineChart {
@@ -86,6 +94,8 @@ export const WorkflowsInsightsQuery = {
                           successfulRuns
                           failedRuns
                           canceledRuns
+                          avgDurationMs
+                          p75DurationMs
                           lastRunAt
                         }
                       }

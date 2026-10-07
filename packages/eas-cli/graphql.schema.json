@@ -106795,6 +106795,41 @@
       },
       {
         "kind": "OBJECT",
+        "name": "WorkflowsInsightsNullableMetric",
+        "description": null,
+        "fields": [
+          {
+            "name": "currentValue",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousValue",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "WorkflowsInsightsOverviewMetrics",
         "description": null,
         "fields": [
@@ -106808,6 +106843,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "WorkflowsInsightsMetric",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "avgDurationMs",
+            "description": "Mean milliseconds from run creation to finalization, the same duration the run page shows,\nso queue and approval wait count. Canceled runs are excluded; null when no run qualifies.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowsInsightsNullableMetric",
                 "ofType": null
               }
             },
@@ -106840,6 +106891,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "WorkflowsInsightsMetric",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "p75DurationMs",
+            "description": "Approximate 75th percentile of the same duration, excluding canceled runs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowsInsightsNullableMetric",
                 "ofType": null
               }
             },
@@ -107170,6 +107237,18 @@
         "description": null,
         "fields": [
           {
+            "name": "avgDurationMs",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "canceledRuns",
             "description": null,
             "args": [],
@@ -107229,6 +107308,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "p75DurationMs",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

@@ -14,13 +14,17 @@ import { formatAppliedFilters } from '../../insights/formatFilters';
 import { AppliedWorkflowsInsightsFilters } from './filters';
 import formatFields from '../../utils/formatFields';
 import renderTextTable from '../../utils/renderTextTable';
+import { formatMilliseconds } from '../../utils/timer';
 import {
   InsightsMetricSummary,
+  NullableMetricSummary,
   formatCountWithTrend,
+  formatNullableMetricWithTrend,
   formatPercent,
   formatRateWithDelta,
   ratePercent,
   toMetricSummary,
+  toNullableMetricSummary,
 } from '../../insights/metrics';
 
 export interface WorkflowsInsightsBucket {
@@ -40,6 +44,8 @@ export interface WorkflowsInsightsWorkflowSummary {
   failedRuns: number;
   canceledRuns: number;
   successRatePercent: number;
+  avgDurationMs: number | null;
+  p75DurationMs: number | null;
   lastRunAt: string;
 }
 
@@ -52,6 +58,8 @@ export interface WorkflowsInsightsSummary extends InsightsTimespanFields {
     successRatePercent: InsightsMetricSummary;
     activeWorkflows: InsightsMetricSummary;
     failedRuns: InsightsMetricSummary;
+    avgDurationMs: NullableMetricSummary;
+    p75DurationMs: NullableMetricSummary;
   };
   runsOverTime: WorkflowsInsightsBucket[];
   workflows: WorkflowsInsightsWorkflowSummary[];
@@ -102,6 +110,8 @@ export function toWorkflowsInsightsSummary(
       },
       activeWorkflows: toMetricSummary(overviewMetrics.activeWorkflows),
       failedRuns: toMetricSummary(overviewMetrics.failedRuns),
+      avgDurationMs: toNullableMetricSummary(overviewMetrics.avgDurationMs),
+      p75DurationMs: toNullableMetricSummary(overviewMetrics.p75DurationMs),
     },
     runsOverTime: toBuckets(runsOverTime.lineChart),
     workflows: workflows.edges.map(({ node }) => ({
@@ -113,6 +123,8 @@ export function toWorkflowsInsightsSummary(
       failedRuns: node.failedRuns,
       canceledRuns: node.canceledRuns,
       successRatePercent: ratePercent(node.successfulRuns, node.totalRuns),
+      avgDurationMs: node.avgDurationMs ?? null,
+      p75DurationMs: node.p75DurationMs ?? null,
       lastRunAt: node.lastRunAt,
     })),
     hasMoreWorkflows: workflows.pageInfo.hasNextPage,
@@ -186,6 +198,18 @@ export function buildWorkflowsInsightsTable(summary: WorkflowsInsightsSummary): 
         label: 'Failed runs',
         value: formatCountWithTrend(overview.failedRuns, { lowerIsBetter: true }),
       },
+      {
+        label: 'Avg duration',
+        value: formatNullableMetricWithTrend(overview.avgDurationMs, formatRunDuration, {
+          lowerIsBetter: true,
+        }),
+      },
+      {
+        label: 'P75 duration',
+        value: formatNullableMetricWithTrend(overview.p75DurationMs, formatRunDuration, {
+          lowerIsBetter: true,
+        }),
+      },
     ])
   );
 
@@ -232,7 +256,17 @@ function formatFilters(filters: AppliedWorkflowsInsightsFilters): string {
 
 function renderWorkflowsTable(workflows: WorkflowsInsightsWorkflowSummary[]): string {
   return renderTextTable(
-    ['Workflow', 'Runs', 'Successful', 'Failed', 'Canceled', 'Success rate', 'Last run'],
+    [
+      'Workflow',
+      'Runs',
+      'Successful',
+      'Failed',
+      'Canceled',
+      'Success rate',
+      'Avg duration',
+      'P75 duration',
+      'Last run',
+    ],
     workflows.map(workflow => [
       workflow.fileName,
       workflow.totalRuns.toLocaleString(),
@@ -240,7 +274,16 @@ function renderWorkflowsTable(workflows: WorkflowsInsightsWorkflowSummary[]): st
       workflow.failedRuns.toLocaleString(),
       workflow.canceledRuns.toLocaleString(),
       formatPercent(workflow.successRatePercent),
+      formatRunDuration(workflow.avgDurationMs),
+      formatRunDuration(workflow.p75DurationMs),
       toDateTime(workflow.lastRunAt),
     ])
   );
+}
+
+function formatRunDuration(ms: number | null): string {
+  if (ms === null) {
+    return 'n/a';
+  }
+  return ms < 1000 ? '<1s' : formatMilliseconds(ms);
 }

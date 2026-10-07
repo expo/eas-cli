@@ -31,7 +31,7 @@ const MAX_WORKFLOWS_LIMIT = 100;
 
 export default class WorkflowInsights extends EasCommand {
   static override description =
-    'display run counts, success rate, and per-workflow trends for a time range';
+    'display run counts, success rate, run durations, and per-workflow trends for a time range';
 
   static override flags = {
     ...WorkflowsInsightsSharedFilterFlags,

@@ -14,6 +14,10 @@ function metric(currentValue: number, previousValue: number): any {
   return { __typename: 'WorkflowsInsightsMetric', currentValue, previousValue };
 }
 
+function nullableMetric(currentValue: number | null, previousValue: number | null): any {
+  return { __typename: 'WorkflowsInsightsNullableMetric', currentValue, previousValue };
+}
+
 function makeApp(
   overrides: {
     labels?: string[];
@@ -38,6 +42,8 @@ function makeApp(
         successfulRuns: metric(75, 64),
         failedRuns: metric(20, 10),
         activeWorkflows: metric(3, 3),
+        avgDurationMs: nullableMetric(600000, 660000),
+        p75DurationMs: nullableMetric(900000, null),
       },
       runsOverTime: {
         __typename: 'WorkflowsInsightsRunsOverTimeData',
@@ -76,6 +82,8 @@ function makeApp(
               successfulRuns: 45,
               failedRuns: 12,
               canceledRuns: 3,
+              avgDurationMs: 600000,
+              p75DurationMs: 900000,
               lastRunAt: '2026-09-02T10:30:00.000Z',
             },
             {
@@ -85,6 +93,8 @@ function makeApp(
               successfulRuns: 0,
               failedRuns: 0,
               canceledRuns: 0,
+              avgDurationMs: null,
+              p75DurationMs: null,
               lastRunAt: '2026-08-20T08:00:00.000Z',
             },
           ]
@@ -129,6 +139,19 @@ describe(toWorkflowsInsightsSummary, () => {
       'successRatePercent',
       'activeWorkflows',
       'failedRuns',
+      'avgDurationMs',
+      'p75DurationMs',
+    ]);
+  });
+
+  it('copies durations as nullable current/previous pairs', () => {
+    const summary = makeSummary();
+
+    expect(summary.overview.avgDurationMs).toEqual({ current: 600000, previous: 660000 });
+    expect(summary.overview.p75DurationMs).toEqual({ current: 900000, previous: null });
+    expect(summary.workflows.map(w => [w.avgDurationMs, w.p75DurationMs])).toEqual([
+      [600000, 900000],
+      [null, null],
     ]);
   });
 
@@ -205,6 +228,8 @@ describe(buildWorkflowsInsightsJson, () => {
       failedRuns: 12,
       canceledRuns: 3,
       successRatePercent: 75,
+      avgDurationMs: 600000,
+      p75DurationMs: 900000,
       lastRunAt: '2026-09-02T10:30:00.000Z',
     });
     expect(json.hasMoreWorkflows).toBe(false);
@@ -235,6 +260,12 @@ describe(buildWorkflowsInsightsTable, () => {
     expect(table).toContain('Success rate');
     expect(table).toContain('75.0%');
     expect(table).toContain('-5.0 pts');
+    expect(table).toContain('Avg duration');
+    expect(table).toContain('10m (');
+    expect(table).toContain('-9.1%');
+    expect(table).toContain('P75 duration');
+    expect(table).toContain('15m (');
+    expect(table.replace(/\x1b\[[0-9;]*m/g, '')).toMatch(/tests\.yml.*n\/a.*n\/a/);
     expect(table).toContain('Runs over time (daily, UTC):');
     expect(table).toContain('2026-09-01');
     expect(table).toContain('build.yml');

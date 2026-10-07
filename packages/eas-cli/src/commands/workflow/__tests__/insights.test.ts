@@ -39,6 +39,16 @@ const appResponse: any = {
       successfulRuns: metric(75, 64),
       failedRuns: metric(20, 10),
       activeWorkflows: metric(3, 3),
+      avgDurationMs: {
+        __typename: 'WorkflowsInsightsNullableMetric',
+        currentValue: 600000,
+        previousValue: 660000,
+      },
+      p75DurationMs: {
+        __typename: 'WorkflowsInsightsNullableMetric',
+        currentValue: 900000,
+        previousValue: null,
+      },
     },
     runsOverTime: {
       __typename: 'WorkflowsInsightsRunsOverTimeData',
@@ -72,6 +82,8 @@ const appResponse: any = {
             successfulRuns: 75,
             failedRuns: 20,
             canceledRuns: 5,
+            avgDurationMs: 600000,
+            p75DurationMs: 900000,
             lastRunAt: '2026-09-01T10:00:00.000Z',
           },
         },
@@ -273,6 +285,8 @@ describe(WorkflowInsights, () => {
     });
     expect(json.overview.totalRuns).toEqual({ current: 100, previous: 80 });
     expect(json.overview.successRatePercent).toEqual({ current: 75, previous: 80 });
+    expect(json.overview.avgDurationMs).toEqual({ current: 600000, previous: 660000 });
+    expect(json.overview.p75DurationMs).toEqual({ current: 900000, previous: null });
     expect(json.runsOverTime.granularity).toBe('DAY');
     expect(json.workflows[0].name).toBe('Build');
     expect(json.workflows[0].fileName).toBe('build.yml');
