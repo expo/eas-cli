@@ -90,6 +90,18 @@ describe('createInstallMitmproxyBuildFunction', () => {
     expect(spawnedCommands()).toEqual(['which', 'xattr -dr', 'xattr -p', 'mitmdump']);
   });
 
+  it('kills a mitmdump --version that does not return', async () => {
+    mockCommands({ installed: true, runs: [true] });
+
+    await createStep({ EAS_BUILD_RUNNER: 'eas-build' }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'mitmdump',
+      ['--version'],
+      expect.objectContaining({ timeout: 60_000, killSignal: 'SIGKILL' })
+    );
+  });
+
   it('does not run a mitmdump that stays quarantined', async () => {
     mockCommands({ installed: true, stuck: true });
 

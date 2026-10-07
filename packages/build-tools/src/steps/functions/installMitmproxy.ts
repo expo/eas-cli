@@ -36,7 +36,7 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
           throw new Error('Could not launch mitmproxy because it is still quarantined.');
         }
         if (!(await isMitmproxyAvailableAsync(env))) {
-          throw new Error('`brew install --cask mitmproxy` succeeded but mitmdump is not on PATH.');
+          throw new Error('`brew install --cask mitmproxy` succeeded but mitmdump did not run.');
         }
         logger.info('Installed mitmproxy.');
       } catch (err) {
@@ -54,7 +54,12 @@ export function createInstallMitmproxyBuildFunction(): BuildFunction {
 }
 
 async function isMitmproxyAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  return (await asyncResult(spawn('mitmdump', ['--version'], { env }))).ok;
+  // Kills a first launch that Gatekeeper still holds, if the quarantine check missed it.
+  return (
+    await asyncResult(
+      spawn('mitmdump', ['--version'], { env, timeout: 60_000, killSignal: 'SIGKILL' })
+    )
+  ).ok;
 }
 
 async function installMitmproxyWithHomebrewAsync({
