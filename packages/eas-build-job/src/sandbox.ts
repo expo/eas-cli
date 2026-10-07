@@ -82,6 +82,13 @@ export const SandboxDaemonCommands = {
       }),
     ]),
   },
+  uploadArtifact: {
+    params: z.object({
+      path: z.string().min(1),
+      name: z.string().min(1).max(1024),
+    }),
+    result: z.strictObject({ id: z.uuid() }),
+  },
 } as const satisfies Record<string, { params: z.ZodType; result: z.ZodType }>;
 
 export type SandboxDaemonMethod = keyof typeof SandboxDaemonCommands;
