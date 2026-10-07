@@ -118,17 +118,7 @@ export async function launchApplicationAsync({
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
     await spawn(
       'adb',
-      [
-        'shell',
-        'am',
-        'start',
-        '-a',
-        'android.intent.action.VIEW',
-        '-d',
-        openUrl,
-        '-n',
-        `${applicationIdentifier}/${activityName}`,
-      ],
+      ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
       { env, logger }
     );
   }
