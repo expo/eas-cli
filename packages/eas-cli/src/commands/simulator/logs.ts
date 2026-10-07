@@ -73,11 +73,12 @@ export default class SimulatorLogs extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(SimulatorLogs);
-    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-    if (jsonFlag) {
+    // Before parsing, so only the JSON result reaches stdout.
+    if (this.argv.includes('--json')) {
       enableJsonOutput();
     }
+    const { flags } = await this.parse(SimulatorLogs);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       projectDir,

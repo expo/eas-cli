@@ -96,7 +96,7 @@ it('rejects a missing session before querying', async () => {
 });
 
 it.each([
-  [DeviceRunSessionStatus.Stopped, { previewApiUrl: 'https://preview.test' }, 'must be running'],
+  [DeviceRunSessionStatus.Stopped, { previewApiUrl: 'https://preview.test' }, 'is not running'],
   [
     DeviceRunSessionStatus.InProgress,
     { webPreviewUrl: 'https://expo.dev/preview' },
@@ -161,7 +161,7 @@ it('reports an offline preview tunnel before interpreting the route failure', as
     )
   );
   await expect(fetchSimulatorPreviewJsonAsync(preview, '/logs')).rejects.toThrow(
-    'The simulator preview is offline. The session may have ended or timed out. Start a new session with `eas simulator:start`.'
+    'The simulator preview is offline. The session may have stopped or reached its time limit. Start a new session with `eas simulator:start`.'
   );
   expect(body.destroyed).toBe(true);
 });
@@ -179,9 +179,9 @@ it.each([401, 403, 404, 500])(
       );
     await expect(fetchSimulatorPreviewJsonAsync(preview, '/logs')).rejects.toThrow(
       status === 401 || status === 403
-        ? 'access was refused'
+        ? 'refused access'
         : status === 404
-          ? 'not found or is not supported'
+          ? 'does not support this request'
           : 'HTTP 500'
     );
   }
@@ -223,7 +223,7 @@ it('preserves setup errors when a follow request is refused', async () => {
       new RequestError('secret-token', new Response(Readable.from(['']), { status: 403 }))
     );
   await expect(streamSimulatorPreviewAsync(preview, '/logs', jest.fn())).rejects.toThrow(
-    'access was refused'
+    'refused access'
   );
 });
 
@@ -261,8 +261,8 @@ it('handles SIGINT while waiting for response headers', async () => {
 });
 
 it.each([
-  { json: false, status: 200, message: 'does not support streaming preview data' },
-  { json: true, status: 401, message: 'access was refused' },
+  { json: false, status: 200, message: 'does not support streaming' },
+  { json: true, status: 401, message: 'refused access' },
 ])(
   'closes the upstream connection after rejecting response %#',
   async ({ json, status, message }) => {

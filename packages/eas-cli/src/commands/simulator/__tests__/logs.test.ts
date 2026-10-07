@@ -204,6 +204,7 @@ describe(SimulatorLogs, () => {
   it('rejects JSON follow output before resolving a session', async () => {
     await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow();
 
+    expect(enableJsonOutput).toHaveBeenCalled();
     expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
   });
 

@@ -7,6 +7,11 @@ import { DeviceRunSessionStatus } from '../graphql/generated';
 import { DeviceRunSessionQuery } from '../graphql/queries/DeviceRunSessionQuery';
 import { EAS_SIMULATOR_SESSION_ID, SIMULATOR_DOTENV_FILE_NAME, loadSimulatorEnvAsync } from './env';
 
+const INVALID_PREVIEW_API_URL_MESSAGE =
+  'The simulator session has an invalid preview API URL. The session reported a URL that is not a valid HTTP(S) URL. Start a new session with `eas simulator:start`. If this keeps happening, contact us at https://expo.dev/contact.';
+const PREVIEW_DATA_NOT_FOUND_MESSAGE =
+  "The requested preview data was not found. The session's preview server does not support this request. Start a new session with `eas simulator:start`, then try again.";
+
 export type SimulatorPreview = {
   deviceRunSessionId: string;
   baseUrl: URL;
@@ -24,25 +29,29 @@ export async function resolveSimulatorPreviewAsync(
   const deviceRunSessionId = id ?? process.env[EAS_SIMULATOR_SESSION_ID];
   if (!deviceRunSessionId) {
     throw new Error(
-      `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      `No simulator session ID was found. The command reads it from --id or from ${SIMULATOR_DOTENV_FILE_NAME}, and neither was set. Pass --id, or run \`eas simulator:start\` to start a session.`
     );
   }
   const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
   if (session.status !== DeviceRunSessionStatus.InProgress) {
-    throw new Error('The simulator session must be running to read its live preview data.');
+    throw new Error(
+      'The simulator session is not running. Live preview data is only available while a session runs. Start a new session with `eas simulator:start`.'
+    );
   }
   const config = session.remoteConfig;
   if (!config?.previewApiUrl) {
-    throw new Error('This simulator session does not expose a preview API.');
+    throw new Error(
+      'This simulator session does not expose a preview API. The command reads live data through the preview API, and the session did not report one. Start a new iOS session with `eas simulator:start --platform ios`.'
+    );
   }
   let baseUrl: URL;
   try {
     baseUrl = new URL(config.previewApiUrl);
   } catch {
-    throw new Error('The simulator session has an invalid preview API URL.');
+    throw new Error(INVALID_PREVIEW_API_URL_MESSAGE);
   }
   if (!['https:', 'http:'].includes(baseUrl.protocol)) {
-    throw new Error('The simulator session has an invalid preview API URL.');
+    throw new Error(INVALID_PREVIEW_API_URL_MESSAGE);
   }
   const token =
     (config.__typename === 'ServeSimRunSessionRemoteConfig' ||
@@ -50,7 +59,9 @@ export async function resolveSimulatorPreviewAsync(
       ? config.previewToken
       : config.webPreviewToken) ?? baseUrl.searchParams.get('token');
   if (!token) {
-    throw new Error('The simulator session does not include a preview API token.');
+    throw new Error(
+      'The simulator session does not include a preview API token. The preview API requires a token, and the session did not report one. Start a new session with `eas simulator:start`. If this keeps happening, contact us at https://expo.dev/contact.'
+    );
   }
   baseUrl.searchParams.delete('token');
   baseUrl.hash = '';
@@ -85,22 +96,24 @@ export async function fetchSimulatorPreviewAsync(
       (error.response.body as Readable).destroy();
       if (error.response.headers.get('ngrok-error-code') === 'ERR_NGROK_3200') {
         throw new Error(
-          'The simulator preview is offline. The session may have ended or timed out. Start a new session with `eas simulator:start`.'
+          'The simulator preview is offline. The session may have stopped or reached its time limit. Start a new session with `eas simulator:start`.'
         );
       }
       const { status } = error.response;
       if (status === 401 || status === 403) {
-        throw new Error('Preview API access was refused. Check the session is still running.');
-      }
-      if (status === 404) {
         throw new Error(
-          'The requested preview data was not found or is not supported by this session.'
+          "The preview API refused access. It did not accept the session's preview token. Run `eas simulator:get` to check that the session is still running, then try again."
         );
       }
-      throw new Error(`The preview API request failed (HTTP ${status}).`);
+      if (status === 404) {
+        throw new Error(PREVIEW_DATA_NOT_FOUND_MESSAGE);
+      }
+      throw new Error(
+        `The preview API request failed (HTTP ${status}). The session's preview server returned an error. Run \`eas simulator:get\` to check that the session is still running, then try again.`
+      );
     }
     throw new Error(
-      'Could not connect to the simulator preview API. Check the session is still running.'
+      "Could not connect to the simulator preview API. The request did not reach the session's preview server. Check your internet connection. Run `eas simulator:get` to check that the session is still running."
     );
   }
 }
@@ -122,7 +135,9 @@ export async function fetchSimulatorPreviewJsonAsync<T>(
     if (!response) {
       throw error;
     }
-    throw new Error('Could not read the simulator preview API response.');
+    throw new Error(
+      'Could not read the simulator preview API response. The response was incomplete or not valid JSON. Try again. If this keeps happening, update EAS CLI.'
+    );
   } finally {
     controller.abort();
     response?.body.destroy();
@@ -164,7 +179,9 @@ export async function streamSimulatorPreviewAsync(
       headers: { Accept: 'text/event-stream' },
     });
     if (!response.headers.get('content-type')?.includes('text/event-stream')) {
-      throw new Error('This simulator session does not support streaming preview data.');
+      throw new Error(
+        'This simulator session does not support streaming. Its preview server did not return an event stream. Run the command without --follow.'
+      );
     }
     reading = true;
     let data: string[] = [];
@@ -183,7 +200,9 @@ export async function streamSimulatorPreviewAsync(
       if (!reading) {
         throw error;
       }
-      throw new Error('The simulator preview stream ended unexpectedly.');
+      throw new Error(
+        "The simulator preview stream ended unexpectedly. The connection to the session's preview server closed. Run `eas simulator:get` to check that the session is still running, then run the command again."
+      );
     }
   } finally {
     controller.abort();
