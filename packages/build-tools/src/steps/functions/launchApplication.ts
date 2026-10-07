@@ -116,6 +116,8 @@ export async function launchApplicationAsync({
   );
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
+    // The launchable activity is not always the one that handles the URL.
+    // Pin the intent to this app with `-p` and let Android resolve the activity.
     await spawn(
       'adb',
       [
@@ -126,8 +128,8 @@ export async function launchApplicationAsync({
         'android.intent.action.VIEW',
         '-d',
         openUrl,
-        '-n',
-        `${applicationIdentifier}/${activityName}`,
+        '-p',
+        applicationIdentifier,
       ],
       { env, logger }
     );

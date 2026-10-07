@@ -187,8 +187,8 @@ describe(launchApplicationAsync, () => {
         'android.intent.action.VIEW',
         '-d',
         'exp://example.test',
-        '-n',
-        'host.exp.exponent/host.exp.exponent.MainActivity',
+        '-p',
+        'host.exp.exponent',
       ],
       { env: {}, logger }
     );
@@ -250,8 +250,8 @@ describe(launchApplicationAsync, () => {
         'android.intent.action.VIEW',
         '-d',
         'exp://example.test',
-        '-n',
-        'com.example.app/com.example.app.MainActivity',
+        '-p',
+        'com.example.app',
       ],
       expect.any(Object)
     );
