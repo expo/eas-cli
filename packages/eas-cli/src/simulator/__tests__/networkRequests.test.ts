@@ -211,9 +211,12 @@ it('keeps following when capture restarts and request IDs are reused', async () 
 it.each([
   [
     'not-enabled',
-    'Network capture is not enabled for this session. Start the session with --network-capture.',
+    'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.',
   ],
-  ['failed', 'The network capture failed. Check the session preview for details.'],
+  [
+    'failed',
+    'The network capture failed. The session reported a capture error. Open the session preview to see the error, or start a new session with `eas simulator:start --network-capture`.',
+  ],
 ])(
   'reports the %s capture state without exposing attachment errors',
   async (attachment, message) => {
@@ -237,7 +240,9 @@ it('stops on capture failure after emitting earlier completed requests', async (
   const onRequest = jest.fn();
 
   await expect(streamNetworkRequestsAsync(preview, onRequest)).rejects.toEqual(
-    new Error('The network capture failed. Check the session preview for details.')
+    new Error(
+      'The network capture failed. The session reported a capture error. Open the session preview to see the error, or start a new session with `eas simulator:start --network-capture`.'
+    )
   );
   expect(onRequest).toHaveBeenCalledTimes(1);
 });
@@ -251,7 +256,7 @@ it('explains when capture is turned off after following has started', async () =
   const onRequest = jest.fn();
 
   await expect(streamNetworkRequestsAsync(preview, onRequest)).rejects.toThrow(
-    'Network capture was turned off.'
+    'Network capture was turned off,'
   );
   expect(onRequest).toHaveBeenCalledTimes(1);
 });
@@ -407,7 +412,7 @@ it('does not overwrite a file created during the download', async () => {
 it('explains a missing output directory before requesting the capture', async () => {
   await expect(
     downloadNetworkCaptureAsync(preview, path.join(directory, 'missing', 'capture.har'))
-  ).rejects.toThrow('Check the --output directory exists and is writable.');
+  ).rejects.toThrow('The --output directory does not exist or is not writable.');
 
   expect(fetchSimulatorPreviewAsync).not.toHaveBeenCalled();
   expect(await readdir(directory)).toEqual([]);
