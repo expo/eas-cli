@@ -8,10 +8,16 @@ import { httpsProxyAgent } from '../../../fetch';
 // Extend the urql Client to allow for future customizations or type additions ahead of upstream type support.
 export interface ExpoGraphqlClient extends Client {}
 
-export function createGraphqlClient(authInfo: {
-  accessToken: string | null;
-  sessionSecret: string | null;
-}): ExpoGraphqlClient {
+export function createGraphqlClient(
+  authInfo: {
+    accessToken: string | null;
+    sessionSecret: string | null;
+  },
+  options: {
+    /** Request timeout. Kept at the client level: a per-operation `fetchOptions` in urql would replace the auth headers. */
+    requestTimeoutMs?: number;
+  } = {}
+): ExpoGraphqlClient {
   return createUrqlClient({
     url: getExpoApiBaseUrl() + '/graphql',
     exchanges: [
@@ -39,6 +45,9 @@ export function createGraphqlClient(authInfo: {
       }
       return {
         ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
+        ...(options.requestTimeoutMs
+          ? { signal: AbortSignal.timeout(options.requestTimeoutMs) }
+          : {}),
         headers,
       };
     },

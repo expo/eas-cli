@@ -21,4 +21,8 @@ export default {
    * Comma separated list of feature gate keys of feature gates to evaluate override to false.
    */
   featureGateDisable: process.env.EAS_FG_DISABLE,
+  /**
+   * Comma separated list of experiment overrides in the form `namespace:param=value`.
+   */
+  experimentOverride: process.env.EAS_EXPERIMENT_OVERRIDE,
 };

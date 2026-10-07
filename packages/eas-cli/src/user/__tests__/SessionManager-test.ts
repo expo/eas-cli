@@ -41,6 +41,7 @@ const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
   setActor: jest.fn((): void => {}),
   flushAsync: jest.fn(async (): Promise<void> => {}),
+  getDeviceId: jest.fn((): string | null => null),
 };
 
 beforeEach(() => {
