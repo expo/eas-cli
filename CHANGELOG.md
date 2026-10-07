@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Open Android URLs in the installed app instead of pinning them to the launch activity. ([#4559](https://github.com/expo/eas-cli/pull/4559) by [@kudo](https://github.com/kudo))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
