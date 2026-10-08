@@ -17132,6 +17132,21 @@ export type ViewUpdateGroupsOnBranchQuery = { __typename?: 'RootQuery', app: { _
             | { __typename: 'User', username: string, id: string }
            | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } | null } } };
 
+export type ViewUpdateGroupsOnBranchByIdQueryVariables = Exact<{
+  branchId: Scalars['ID']['input'];
+  limit: Scalars['Int']['input'];
+  offset: Scalars['Int']['input'];
+  filter?: InputMaybe<UpdatesFilter>;
+}>;
+
+
+export type ViewUpdateGroupsOnBranchByIdQuery = { __typename?: 'RootQuery', branches: { __typename?: 'BranchQuery', byId: { __typename?: 'UpdateBranch', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+          | { __typename: 'PartnerActor', username: string, id: string }
+          | { __typename: 'Robot', firstName?: string | null, id: string }
+          | { __typename: 'SSOUser', username: string, id: string }
+          | { __typename: 'User', username: string, id: string }
+         | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } } };
+
 export type ViewUpdateGroupsPaginatedOnBranchQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   branchName: Scalars['String']['input'];

@@ -186,8 +186,6 @@ export async function republishAsync({
 
     const updateGroupsToPublish = activeRollout
       ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
-          appId: app.projectId,
-          branchName: targetBranchName,
           forceEndActiveRollout: activeRollout.forceEndActiveRollout,
           rolloutPercentage,
         })

@@ -74,6 +74,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
   afterEach(() => {
     vol.reset();
     jest.clearAllMocks();
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).mockReset();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -136,11 +137,43 @@ describe(UpdateRollBackToEmbedded.name, () => {
       json: false,
     });
 
-    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).not.toHaveBeenCalled();
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(expect.any(Object), [
       expect.not.objectContaining({
         previousRolloutUpdateToClobberIdGroup: expect.anything(),
       }),
+    ]);
+  });
+
+  it('checks rollouts on the branch when the caller opts in', async () => {
+    mockTestProject();
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).mockResolvedValue([]);
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([
+        { ...updateStub, platform: 'ios', runtime: { id: 'r1', version: runtimeVersion } },
+      ]);
+
+    await publishRollBackToEmbeddedUpdateAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      projectId: '1234',
+      exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig,
+      updateMessage: 'rollout check',
+      branch: { id: 'branch123', name: 'main' },
+      codeSigningInfo: undefined,
+      platforms: ['ios'],
+      runtimeVersion,
+      json: false,
+      activeRollout: { forceEndActiveRollout: false },
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ branchId: 'branch123' })
+    );
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(expect.any(Object), [
+      expect.objectContaining({ branchId: 'branch123' }),
     ]);
   });
 

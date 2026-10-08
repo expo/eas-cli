@@ -18,20 +18,17 @@ function getPlatformsForUpdateGroup(updateGroup: PublishUpdateGroupInput): Updat
 async function findActiveRolloutUpdateAsync(
   graphqlClient: ExpoGraphqlClient,
   {
-    appId,
-    branchName,
+    branchId,
     runtimeVersion,
     platform,
   }: {
-    appId: string;
-    branchName: string;
+    branchId: string;
     runtimeVersion: string;
     platform: UpdatePublishPlatform;
   }
 ): Promise<UpdateFragment | null> {
-  const latestUpdateGroups = await UpdateQuery.viewUpdateGroupsOnBranchAsync(graphqlClient, {
-    appId,
-    branchName,
+  const latestUpdateGroups = await UpdateQuery.viewUpdateGroupsOnBranchByIdAsync(graphqlClient, {
+    branchId,
     limit: 1,
     offset: 0,
     filter: {
@@ -47,13 +44,9 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   graphqlClient: ExpoGraphqlClient,
   updateGroups: PublishUpdateGroupInput[],
   {
-    appId,
-    branchName,
     forceEndActiveRollout,
     rolloutPercentage,
   }: {
-    appId: string;
-    branchName: string;
     forceEndActiveRollout: boolean;
     rolloutPercentage?: number;
   }
@@ -63,8 +56,7 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       const maybeActiveRollouts = await Promise.all(
         getPlatformsForUpdateGroup(updateGroup).map(async platform => {
           const update = await findActiveRolloutUpdateAsync(graphqlClient, {
-            appId,
-            branchName,
+            branchId: updateGroup.branchId,
             runtimeVersion: updateGroup.runtimeVersion,
             platform,
           });

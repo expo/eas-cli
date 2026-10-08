@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix the rollout check failing with "Could not find branch" on a new branch. ([#4575](https://github.com/expo/eas-cli/pull/4575) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [24.12.0](https://github.com/expo/eas-cli/releases/tag/v24.12.0) - 2026-10-07

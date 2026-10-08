@@ -25,6 +25,7 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { selectAsync } from '../../../prompts';
@@ -82,6 +83,7 @@ describe(UpdatePublish.name, () => {
     vol.reset();
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
     jest.mocked(selectAsync).mockClear();
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).mockClear();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -118,6 +120,10 @@ describe(UpdatePublish.name, () => {
 
     await new UpdatePublish(flags, commandOptions).run();
 
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ branchId: 'branch123' })
+    );
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 

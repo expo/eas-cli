@@ -70,8 +70,6 @@ export async function publishRollBackToEmbeddedUpdateAsync({
       codeSigningInfo,
       runtimeToPlatformsAndFingerprintInfoMapping,
       platforms,
-      projectId,
-      branchName: branch.name,
       activeRollout,
     });
     publishSpinner.succeed('Published!');
@@ -133,8 +131,6 @@ async function publishRollbacksAsync({
   codeSigningInfo,
   runtimeToPlatformsAndFingerprintInfoMapping,
   platforms,
-  projectId,
-  branchName,
   activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
@@ -145,8 +141,6 @@ async function publishRollbacksAsync({
     platforms: UpdatePublishPlatform[];
   })[];
   platforms: UpdatePublishPlatform[];
-  projectId: string;
-  branchName: string;
   activeRollout?: { forceEndActiveRollout: boolean };
 }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
   const rollbackInfoGroups = Object.fromEntries(platforms.map(platform => [platform, true]));
@@ -170,8 +164,6 @@ async function publishRollbacksAsync({
 
   const updateGroupsToPublish = activeRollout
     ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
-        appId: projectId,
-        branchName,
         forceEndActiveRollout: activeRollout.forceEndActiveRollout,
       })
     : updateGroups;

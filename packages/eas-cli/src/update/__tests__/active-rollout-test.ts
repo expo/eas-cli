@@ -45,43 +45,50 @@ const updateGroupStub: PublishUpdateGroupInput = {
   rollBackToEmbeddedInfoGroup: { ios: true },
 };
 
-const resolveOptions = { appId: 'app-1234', branchName: 'main' };
-
 beforeEach(() => {
-  jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockReset();
+  jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).mockReset();
   jest.mocked(Log.warn).mockReset();
 });
 
 describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
   it('leaves update groups untouched when no rollout is in progress', async () => {
     jest
-      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
       .mockResolvedValue([[{ ...rolloutUpdateStub, rolloutPercentage: null }]]);
 
     const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [updateGroupStub],
-      { ...resolveOptions, forceEndActiveRollout: false }
+      { forceEndActiveRollout: false }
     );
 
     expect(result).toEqual([updateGroupStub]);
   });
 
   it('names the rollout to supersede when the flag is passed', async () => {
-    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
+      .mockResolvedValue([[rolloutUpdateStub]]);
 
     const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [updateGroupStub],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      branchId: 'branch-1234',
+      limit: 1,
+      offset: 0,
+      filter: { runtimeVersions: ['1.0.0'], platform: AppPlatform.Ios },
+    });
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
     expect(result[0].previousRolloutUpdateToClobberIdGroup).toEqual({ ios: 'update-rollout' });
   });
 
   it('names the rollout for each platform that has one', async () => {
     jest
-      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
       .mockImplementation(async (_client, { filter }) =>
         filter?.platform === AppPlatform.Ios
           ? [[rolloutUpdateStub]]
@@ -91,7 +98,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [{ ...updateGroupStub, rollBackToEmbeddedInfoGroup: { ios: true, android: true } }],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
     expect(result[0].previousRolloutUpdateToClobberIdGroup).toEqual({
@@ -102,7 +109,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
 
   it('names the rollout only for the update group that has one', async () => {
     jest
-      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
       .mockImplementation(async (_client, { filter }) =>
         filter?.runtimeVersions?.includes('1.0.0')
           ? [[rolloutUpdateStub]]
@@ -115,7 +122,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
         { ...updateGroupStub, runtimeVersion: '2.0.0' },
         { ...updateGroupStub, updateInfoGroup: { ios: manifestStub } },
       ],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
     expect(result[0].previousRolloutUpdateToClobberIdGroup).toBeUndefined();
@@ -123,11 +130,12 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
   });
 
   it('rejects rolling out a new update over a rollout in progress', async () => {
-    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
+      .mockResolvedValue([[rolloutUpdateStub]]);
 
     await expect(
       resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
-        ...resolveOptions,
         forceEndActiveRollout: true,
         rolloutPercentage: 10,
       })
@@ -136,7 +144,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
 
   it('lists each platform on its own line, ordered and aligned', async () => {
     jest
-      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
       .mockImplementation(async (_client, { filter }) =>
         filter?.platform === AppPlatform.Ios
           ? [[rolloutUpdateStub]]
@@ -155,7 +163,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [{ ...updateGroupStub, rollBackToEmbeddedInfoGroup: { ios: true, android: true } }],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
     const warnings = jest.mocked(Log.warn).mock.calls.flat();
@@ -169,15 +177,17 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
   });
 
   it('ignores platforms that cannot carry an update', async () => {
-    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
+      .mockResolvedValue([[rolloutUpdateStub]]);
 
     const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [{ ...updateGroupStub, rollBackToEmbeddedInfoGroup: { ios: true, web: true } }],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
-    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).toHaveBeenCalledTimes(1);
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).toHaveBeenCalledTimes(1);
     expect(result[0].previousRolloutUpdateToClobberIdGroup).toEqual({ ios: 'update-rollout' });
   });
 
@@ -187,20 +197,19 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       [emptyGroup],
-      { ...resolveOptions, forceEndActiveRollout: true }
+      { forceEndActiveRollout: true }
     );
 
-    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).not.toHaveBeenCalled();
     expect(result).toEqual([emptyGroup]);
   });
 
   it('leaves the message and control cells empty when the rollout has neither', async () => {
     jest
-      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
       .mockResolvedValue([[{ ...rolloutUpdateStub, message: null, rolloutControlUpdate: null }]]);
 
     await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
-      ...resolveOptions,
       forceEndActiveRollout: true,
     });
 
@@ -212,11 +221,12 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
   });
 
   it('requires the flag to supersede a rollout in progress', async () => {
-    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync)
+      .mockResolvedValue([[rolloutUpdateStub]]);
 
     await expect(
       resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
-        ...resolveOptions,
         forceEndActiveRollout: false,
       })
     ).rejects.toThrow('Re-run with --force-end-active-rollout to end the rollout and publish.');

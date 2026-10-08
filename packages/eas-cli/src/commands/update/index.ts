@@ -627,8 +627,6 @@ export default class UpdatePublish extends EasCommand {
       graphqlClient,
       updateGroups,
       {
-        appId: projectId,
-        branchName: branch.name,
         forceEndActiveRollout,
         rolloutPercentage,
       }

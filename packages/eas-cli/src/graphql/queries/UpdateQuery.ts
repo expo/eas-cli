@@ -10,6 +10,8 @@ import {
   UpdateWithFileUrlsFragment,
   ViewUpdateGroupsOnAppQuery,
   ViewUpdateGroupsOnAppQueryVariables,
+  ViewUpdateGroupsOnBranchByIdQuery,
+  ViewUpdateGroupsOnBranchByIdQueryVariables,
   ViewUpdateGroupsOnBranchQuery,
   ViewUpdateGroupsOnBranchQueryVariables,
   ViewUpdateGroupsPaginatedOnBranchQuery,
@@ -134,6 +136,44 @@ export const UpdateQuery = {
     }
 
     return branch.updateGroups;
+  },
+  async viewUpdateGroupsOnBranchByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { limit, offset, branchId, filter }: ViewUpdateGroupsOnBranchByIdQueryVariables
+  ): Promise<UpdateFragment[][]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdateGroupsOnBranchByIdQuery, ViewUpdateGroupsOnBranchByIdQueryVariables>(
+          gql`
+            query ViewUpdateGroupsOnBranchById(
+              $branchId: ID!
+              $limit: Int!
+              $offset: Int!
+              $filter: UpdatesFilter
+            ) {
+              branches {
+                byId(branchId: $branchId) {
+                  id
+                  updateGroups(limit: $limit, offset: $offset, filter: $filter) {
+                    id
+                    ...UpdateFragment
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          {
+            branchId,
+            limit,
+            offset,
+            filter,
+          },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+    return response.branches.byId.updateGroups;
   },
   async viewUpdateGroupsPaginatedOnBranchAsync(
     graphqlClient: ExpoGraphqlClient,

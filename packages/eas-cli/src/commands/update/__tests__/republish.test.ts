@@ -154,7 +154,40 @@ describe(UpdateRepublish.name, () => {
       json: false,
     });
 
-    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).not.toHaveBeenCalled();
+  });
+
+  it('checks rollouts on the target branch when the caller opts in', async () => {
+    mockTestProject();
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).mockResolvedValue([]);
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([{ ...updateStub, id: 'update-new', platform: 'ios' }]);
+
+    await republishAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      app: { exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig, projectId: '1234' },
+      updatesToPublish: [
+        {
+          ...updateStub,
+          groupId: updateStub.group,
+          branchId: updateStub.branch.id,
+          branchName: updateStub.branch.name,
+        },
+      ],
+      targetBranch: { branchId: 'branch-target', branchName: 'target' },
+      updateMessage: 'rollout check',
+      json: false,
+      activeRollout: { forceEndActiveRollout: false },
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchByIdAsync).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ branchId: 'branch-target' })
+    );
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(expect.any(Object), [
+      expect.objectContaining({ branchId: 'branch-target' }),
+    ]);
   });
 
   it('reports a failed republish and rethrows', async () => {
