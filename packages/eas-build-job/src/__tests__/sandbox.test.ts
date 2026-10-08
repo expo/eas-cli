@@ -1,4 +1,9 @@
-import { SandboxDaemonCommands, SandboxDaemonRequestZ, SandboxDaemonResponseZ } from '../sandbox';
+import {
+  SandboxDaemonCommands,
+  SandboxDaemonErrorCode,
+  SandboxDaemonRequestZ,
+  SandboxDaemonResponseZ,
+} from '../sandbox';
 
 describe('sandbox daemon protocol', () => {
   it('validates command parameters', () => {
@@ -62,5 +67,15 @@ describe('sandbox daemon protocol', () => {
       id: 'request-id',
       error: { code: -32603, message: 'Command failed' },
     });
+  });
+
+  it('accepts an error code that this version does not define', () => {
+    const response = {
+      jsonrpc: '2.0',
+      id: 'request-id',
+      error: { code: 99, message: 'Added by a newer daemon' },
+    };
+    expect(Object.values(SandboxDaemonErrorCode)).not.toContain(99);
+    expect(SandboxDaemonResponseZ.parse(response)).toEqual(response);
   });
 });

@@ -84,3 +84,25 @@ export const SandboxDaemonResponseZ = z.union([
 ]);
 
 export type SandboxDaemonResponse = z.output<typeof SandboxDaemonResponseZ>;
+
+export enum SandboxDaemonErrorCode {
+  PARSE_ERROR = -32700,
+  INVALID_REQUEST = -32600,
+  METHOD_NOT_FOUND = -32601,
+  INVALID_PARAMS = -32602,
+  INTERNAL_ERROR = -32603,
+  BAD_REQUEST = 1,
+}
+
+export type SandboxDaemonErrorCodeName = keyof typeof SandboxDaemonErrorCode;
+
+export class SandboxDaemonError extends Error {
+  constructor(
+    public readonly code: (typeof SandboxDaemonErrorCode)[SandboxDaemonErrorCodeName],
+    message: string,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = 'SandboxDaemonError';
+  }
+}
