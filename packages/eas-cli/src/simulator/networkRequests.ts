@@ -1,9 +1,7 @@
-import fs from 'fs-extra';
-import path from 'node:path';
 import readline from 'node:readline';
-import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
 
+import { downloadSimulatorFileAsync } from './download';
 import {
   type SimulatorPreview,
   fetchSimulatorPreviewAsync,
@@ -14,8 +12,6 @@ import { type Response } from '../fetch';
 const NETWORK_CAPTURE_TIMEOUT_MS = 10 * 60_000;
 const NETWORK_CAPTURE_NOT_ENABLED_MESSAGE =
   'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.';
-const OUTPUT_EXISTS_MESSAGE =
-  'The output file already exists. The command does not overwrite files. Choose another --output path.';
 const INVALID_NETWORK_CAPTURE_MESSAGE =
   'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again.';
 
@@ -84,8 +80,13 @@ export async function readNetworkRequestsAsync(
   preview: SimulatorPreview,
   { limit, requestId }: { limit: number; requestId?: string }
 ): Promise<NetworkRequestSummary[] | NetworkRequest> {
-  const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
+  const controller = new AbortController();
+  const signal = AbortSignal.any([
+    controller.signal,
+    AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS),
+  ]);
   let response: Response | undefined;
+  let lines: readline.Interface | undefined;
   const requests: NetworkRequestSummary[] = [];
   let selected: NetworkRequest | undefined;
   try {
@@ -93,10 +94,8 @@ export async function readNetworkRequestsAsync(
       signal,
       notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
     });
-    for await (const line of readline.createInterface({
-      input: response.body,
-      crlfDelay: Infinity,
-    })) {
+    lines = readline.createInterface({ input: response.body, crlfDelay: Infinity });
+    for await (const line of lines) {
       if (!line.trim()) {
         continue;
       }
@@ -133,6 +132,10 @@ export async function readNetworkRequestsAsync(
       throw error;
     }
     throw new Error(INVALID_NETWORK_CAPTURE_MESSAGE);
+  } finally {
+    lines?.close();
+    response?.body.once('error', () => {});
+    controller.abort();
   }
   if (!requestId) {
     return requests.sort(compareRequestStarts).slice(-limit);
@@ -197,43 +200,12 @@ export async function downloadNetworkCaptureAsync(
   preview: SimulatorPreview,
   output: string
 ): Promise<string> {
-  const outputPath = path.resolve(output);
-  if (await fs.pathExists(outputPath)) {
-    throw new Error(OUTPUT_EXISTS_MESSAGE);
-  }
-  const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
-  let response: Response | undefined;
-  // Only remove a file this command opened. Another process may create the path after the check.
-  let created = false;
-  try {
-    response = await fetchSimulatorPreviewAsync(preview, '/network-capture.har', {
-      signal,
-      notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
-    });
-    // The HAR contains decrypted request data, such as credentials, so only the user can read it.
-    const file = fs.createWriteStream(outputPath, { flags: 'wx', mode: 0o600 });
-    file.once('open', () => {
-      created = true;
-    });
-    await pipeline(response.body, file);
-  } catch (error) {
-    if (created) {
-      await fs.remove(outputPath);
-    }
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new Error(OUTPUT_EXISTS_MESSAGE);
-    }
-    if (signal.aborted) {
-      throw new Error(
-        'The network capture download timed out. It did not finish within 10 minutes. Check your internet connection, then run the command again.'
-      );
-    }
-    if (!response) {
-      throw error;
-    }
-    throw new Error(
-      'Could not save the network capture. The download or the file write failed. Check that the --output directory exists and is writable. Run `eas simulator:get` to check that the session is still running, then try again.'
-    );
-  }
-  return outputPath;
+  return await downloadSimulatorFileAsync(
+    output,
+    async signal =>
+      await fetchSimulatorPreviewAsync(preview, '/network-capture.har', {
+        signal,
+        notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
+      })
+  );
 }
