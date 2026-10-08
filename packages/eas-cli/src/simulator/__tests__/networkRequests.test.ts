@@ -1,4 +1,6 @@
 import { mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { type AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -107,6 +109,56 @@ afterEach(async () => {
 });
 
 describe(readNetworkRequestsAsync, () => {
+  it('closes a real HTTP response immediately after a malformed capture frame', async () => {
+    let markClosed: () => void = () => {};
+    const closed = new Promise<void>(resolve => {
+      markClosed = resolve;
+    });
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'application/x-ndjson' });
+      response.write('malformed-frame\n');
+      const timer = setInterval(() => response.write(' \n'), 10);
+      response.on('close', () => {
+        clearInterval(timer);
+        markClosed();
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    jest
+      .mocked(fetchSimulatorPreviewAsync)
+      .mockImplementationOnce(
+        jest.requireActual<typeof import('../preview')>('../preview').fetchSimulatorPreviewAsync
+      );
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      await expect(
+        readNetworkRequestsAsync(
+          {
+            ...preview,
+            baseUrl: new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}`),
+          },
+          { limit: 100 }
+        )
+      ).rejects.toThrow('Could not read the network capture');
+      await Promise.race([
+        closed,
+        new Promise<void>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error('The capture connection stayed open.'));
+          }, 1000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeout);
+      server.closeAllConnections();
+      await new Promise<void>(resolve =>
+        server.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+
   it('keeps recent summaries without retaining captured bodies, including a final line without a newline', async () => {
     reply([entry('r1'), entry('r2'), entry('r3')].map(value => JSON.stringify(value)).join('\n'));
     const requests = await readNetworkRequestsAsync(preview, { limit: 2 });
@@ -426,7 +478,7 @@ describe(downloadNetworkCaptureAsync, () => {
     reply('capture');
     await expect(
       downloadNetworkCaptureAsync(preview, path.join(directory, 'missing', 'capture.har'))
-    ).rejects.toThrow('Check that the --output directory exists and is writable.');
+    ).rejects.toThrow('Check that the --output directory exists and is writable,');
     expect(await readdir(directory)).toEqual([]);
   });
 
@@ -450,7 +502,7 @@ describe(downloadNetworkCaptureAsync, () => {
       )
     );
     const error = downloadNetworkCaptureAsync(preview, path.join(directory, 'capture.har'));
-    await expect(error).rejects.toThrow('Could not save the network capture.');
+    await expect(error).rejects.toThrow('Could not save the download.');
     await expect(error).rejects.not.toThrow('secret');
     expect(await readdir(directory)).toEqual([]);
   });
@@ -458,7 +510,7 @@ describe(downloadNetworkCaptureAsync, () => {
   it('reports a download deadline', async () => {
     const controller = rejectOnTimeout();
     const pending = downloadNetworkCaptureAsync(preview, path.join(directory, 'capture.har'));
-    const rejected = expect(pending).rejects.toThrow('The network capture download timed out.');
+    const rejected = expect(pending).rejects.toThrow('The download timed out.');
     controller.abort();
     await rejected;
     expect(AbortSignal.timeout).toHaveBeenCalledWith(10 * 60_000);

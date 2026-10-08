@@ -6,7 +6,9 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
+import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
 import { ora } from '../../ora';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -39,6 +41,10 @@ export default class SimulatorNetworkRequests extends EasCommand {
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
+    artifact: Flags.integer({
+      min: 1,
+      description: 'Artifact index to download from a stopped session (1-based).',
+    }),
     'request-id': Flags.string({
       description:
         'Show a captured request, including the headers and bodies selected for capture.',
@@ -46,7 +52,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
     }),
     output: Flags.string({
       char: 'o',
-      description: 'Save the complete HAR to a new file before the session stops.',
+      description: 'Save the live HAR or a stopped session capture artifact to this path.',
       exclusive: ['request-id'],
     }),
     follow: Flags.boolean({
@@ -55,12 +61,12 @@ export default class SimulatorNetworkRequests extends EasCommand {
       exclusive: ['request-id', 'output', 'limit'],
     }),
     limit: Flags.integer({
-      description: 'Maximum number of recent requests to list without --follow.',
+      description: 'Maximum number of recent live requests to list without --follow.',
       default: 100,
       min: 1,
     }),
     timestamp: Flags.boolean({
-      description: 'Show request start timestamps in human-readable lists.',
+      description: 'Show request start timestamps in live human-readable lists.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -92,7 +98,27 @@ export default class SimulatorNetworkRequests extends EasCommand {
         `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
       );
     }
-    const preview = await resolveSimulatorPreviewAsync(graphqlClient, deviceRunSessionId);
+    const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
+    if (hasSimulatorArtifacts(session)) {
+      if (flags.follow || flags['request-id']) {
+        throw new Error(
+          'The session has stopped. --follow and --request-id are only available while it runs. Use --output <path> to download its capture artifact.'
+        );
+      }
+      await downloadSimulatorArtifactAsync(session, 'network-capture', {
+        artifact: flags.artifact,
+        output: flags.output,
+        nonInteractive,
+        json: jsonFlag,
+      });
+      return;
+    }
+    const preview = await resolveSimulatorPreviewAsync(session);
+    if (flags.artifact !== undefined) {
+      throw new Error(
+        '--artifact is only available for stopped sessions. Use --output <path> to save the live HAR.'
+      );
+    }
 
     if (flags.follow) {
       const abortController = new AbortController();
