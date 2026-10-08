@@ -151,6 +151,7 @@ export default abstract class EasCommand extends Command {
     },
     /**
      * Experimentation client for experiments scoped to the user, account, or device.
+     * User and account experiments need a logged-in actor at build time, so declare a login field first.
      */
     Experimentation: {
       experimentation: new ExperimentationContextField(),
