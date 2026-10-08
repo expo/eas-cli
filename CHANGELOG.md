@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [24.12.1](https://github.com/expo/eas-cli/releases/tag/v24.12.1) - 2026-10-08

@@ -1,5 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -37,6 +38,7 @@ import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
+  ensureFfmpegInstalledOnceAsync,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -108,12 +110,17 @@ export function createStartAppiumRemoteSessionBuildFunction(
         `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
       const device = await resolveAppiumDeviceAsync({ runtimePlatform, env, logger });
-      const { appiumHome, appiumBinPath, appiumEnv } = await installAppiumAsync({
-        versionSpec,
-        driverName: device.driverName,
-        env,
-        logger,
-      });
+      // Appium's startRecordingScreen runs ffmpeg on this host: XCUITest encodes the
+      // simulator stream with it, and UiAutomator2 merges long recordings with it. The
+      // macOS session image does not ship ffmpeg, so install it concurrently with Appium.
+      // Both installs settle before the step continues or fails, so no install outlives it.
+      const [appiumInstall] = await Promise.all([
+        asyncResult(
+          installAppiumAsync({ versionSpec, driverName: device.driverName, env, logger })
+        ),
+        ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger }),
+      ]);
+      const { appiumHome, appiumBinPath, appiumEnv } = appiumInstall.enforceValue();
 
       const appiumProcess = spawnDetached({
         command: appiumBinPath,
