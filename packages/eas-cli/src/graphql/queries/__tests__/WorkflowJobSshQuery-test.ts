@@ -3,6 +3,19 @@ import { GraphqlError } from '../../client';
 import { BuildStatus, JobRunStatus, WorkflowJobStatus } from '../../generated';
 import { WorkflowJobSshQuery } from '../WorkflowJobSshQuery';
 
+const workflowJobNotFoundError = {
+  message: 'Entity Not Found: Entity not found: WorkflowJobEntity (id = missing)',
+  extensions: { errorCode: 'NOT_FOUND_ERROR', errorType: 'USER' },
+};
+const buildNotFoundError = {
+  message: "Build with id 'missing' does not exist.",
+  extensions: { errorCode: 'BUILD_NOT_FOUND', errorType: 'USER' },
+};
+const jobRunNotFoundError = {
+  message: 'Entity Not Found: Entity not found: TurtleJobRunEntity (id = missing)',
+  extensions: { errorCode: 'NOT_FOUND_ERROR', errorType: 'USER' },
+};
+
 describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
   function makeClient(byId: unknown): {
     graphqlClient: ExpoGraphqlClient;
@@ -64,9 +77,7 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
       toPromise: async () => ({
         data: undefined,
         error: new GraphqlError({
-          graphQLErrors: [
-            { message: 'Entity not found', extensions: { errorCode: 'ENTITY_NOT_FOUND' } },
-          ],
+          graphQLErrors: [workflowJobNotFoundError],
           networkError: undefined,
           response: undefined,
         }),
@@ -82,6 +93,7 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
     for (const graphQLErrors of [
       [{ message: 'Workflow job not found', extensions: {} }],
       [{ message: 'missing', extensions: { code: 'ENTITY_NOT_FOUND' } }],
+      [{ message: 'missing', extensions: { errorCode: 'NOT_FOUND_ERROR' } }],
     ]) {
       const query = jest.fn().mockReturnValue({
         toPromise: async () => ({
@@ -231,9 +243,7 @@ describe(WorkflowJobSshQuery.connectInfoForBuildAsync.name, () => {
       toPromise: async () => ({
         data: undefined,
         error: new GraphqlError({
-          graphQLErrors: [
-            { message: 'Entity not found', extensions: { errorCode: 'ENTITY_NOT_FOUND' } },
-          ],
+          graphQLErrors: [buildNotFoundError],
           networkError: undefined,
           response: undefined,
         }),
@@ -260,11 +270,13 @@ describe(WorkflowJobSshQuery.connectInfoForBuildAsync.name, () => {
 });
 
 describe(WorkflowJobSshQuery.connectInfoForResourceIdAsync.name, () => {
-  const notFound = new GraphqlError({
-    graphQLErrors: [{ message: 'Entity not found', extensions: { errorCode: 'ENTITY_NOT_FOUND' } }],
-    networkError: undefined,
-    response: undefined,
-  });
+  function notFound(graphQLError: typeof workflowJobNotFoundError): GraphqlError {
+    return new GraphqlError({
+      graphQLErrors: [graphQLError],
+      networkError: undefined,
+      response: undefined,
+    });
+  }
   const session = {
     id: 'ts-1',
     connectionConfig: { host: 'relay.expo.dev', secret: 'TOKENx', reconnecting: false },
@@ -279,16 +291,16 @@ describe(WorkflowJobSshQuery.connectInfoForResourceIdAsync.name, () => {
         if ('workflowJobId' in variables) {
           return found.workflowJob
             ? { data: { workflowJobs: { byId: found.workflowJob } } }
-            : { data: undefined, error: notFound };
+            : { data: undefined, error: notFound(workflowJobNotFoundError) };
         }
         if ('buildId' in variables) {
           return found.build
             ? { data: { builds: { byId: found.build } } }
-            : { data: undefined, error: notFound };
+            : { data: undefined, error: notFound(buildNotFoundError) };
         }
         return found.jobRun
           ? { data: { jobRun: { byId: found.jobRun } } }
-          : { data: undefined, error: notFound };
+          : { data: undefined, error: notFound(jobRunNotFoundError) };
       },
     }));
     return { graphqlClient: { query } as unknown as ExpoGraphqlClient, query };
