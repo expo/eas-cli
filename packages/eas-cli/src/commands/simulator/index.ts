@@ -876,7 +876,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
         sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
       ]);
       flushTimeout.abort();
-      await stopSessionCreatedAfterCancelAsync(createPromise!, stopCreatedAsync);
+      await stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync);
       process.exit(130);
     }
     const reason = simulatorRequestFailureReason(error);
@@ -890,9 +890,13 @@ async function withSimulatorRequestAnalyticsAsync<T>(
 }
 
 async function stopSessionCreatedAfterCancelAsync<T>(
-  createPromise: Promise<T>,
+  createPromise: Promise<T> | undefined,
   stopCreatedAsync: (created: T) => Promise<void>
 ): Promise<void> {
+  if (!createPromise) {
+    // Ctrl+C came before the request was sent, so no session can have been created.
+    return;
+  }
   Log.log(
     `Waiting up to ${CANCEL_CREATE_WAIT_MS / 1_000} seconds for the request to finish, so a session it created can be stopped. Press Ctrl+C again to exit now.`
   );
