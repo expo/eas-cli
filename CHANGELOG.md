@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
 - [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Download the upterm binary through the build cache proxy. ([#4442](https://github.com/expo/eas-cli/pull/4442) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
