@@ -2,6 +2,9 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { DeviceRunSessionStatus } from '../../../graphql/generated';
+import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import { downloadSimulatorArtifactAsync } from '../../../simulator/artifacts';
 import Log from '../../../log';
 import { loadSimulatorEnvAsync } from '../../../simulator/env';
 import {
@@ -13,6 +16,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorLogs from '../logs';
 
 jest.mock('../../../log');
+jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
+jest.mock('../../../simulator/artifacts', () => ({
+  ...jest.requireActual('../../../simulator/artifacts'),
+  downloadSimulatorArtifactAsync: jest.fn(),
+}));
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
   loadSimulatorEnvAsync: jest.fn(),
@@ -64,6 +72,11 @@ describe(SimulatorLogs, () => {
     process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';
     chalk.level = 0;
     mockLoadSimulatorEnvAsync.mockResolvedValue();
+    jest
+      .mocked(DeviceRunSessionQuery.byIdAsync)
+      .mockResolvedValue({ id: 'session-id', status: DeviceRunSessionStatus.InProgress } as Awaited<
+        ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+      >);
     mockResolvePreviewAsync.mockResolvedValue(preview);
     mockFetchJsonAsync.mockResolvedValue(createSnapshot());
   });
@@ -116,7 +129,10 @@ describe(SimulatorLogs, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+    expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'session-id' })
+    );
     expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/logs', {
       query: { scope: 'user-apps', limit: '100', snapshot: '1' },
     });
@@ -137,7 +153,7 @@ describe(SimulatorLogs, () => {
     await createCommand(['--json']).runAsync();
 
     expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
+    expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
   });
 
   it('formats app messages and forwards scope and buffer limit', async () => {
@@ -314,6 +330,45 @@ describe(SimulatorLogs, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockLoadSimulatorEnvAsync).not.toHaveBeenCalled();
     expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([DeviceRunSessionStatus.Stopped, DeviceRunSessionStatus.Errored])(
+    'downloads logs for a %s session without accessing preview',
+    async status => {
+      const session = { id: 'session-id', status } as Awaited<
+        ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+      >;
+      jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(session);
+      await createCommand(['--artifact', '2', '--output', 'logs.ndjson', '--json']).runAsync();
+      expect(downloadSimulatorArtifactAsync).toHaveBeenCalledWith(session, 'simulator-log', {
+        artifact: 2,
+        output: 'logs.ndjson',
+        nonInteractive: true,
+        json: true,
+      });
+      expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+      expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('rejects following a stopped session with a download action', async () => {
+    jest
+      .mocked(DeviceRunSessionQuery.byIdAsync)
+      .mockResolvedValue({ id: 'session-id', status: DeviceRunSessionStatus.Stopped } as Awaited<
+        ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+      >);
+    await expect(createCommand(['--follow']).runAsync()).rejects.toThrow('Use --output <path>');
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--artifact', '1'],
+    ['--output', 'logs.ndjson'],
+  ])('rejects artifact flags on a running session %s', async (...args) => {
+    await expect(createCommand(args).runAsync()).rejects.toThrow(
+      'only available for stopped sessions'
+    );
+    expect(mockFetchJsonAsync).not.toHaveBeenCalled();
   });
 
   it.each(['0', '-1'])('rejects a nonpositive buffer limit %s', async limit => {

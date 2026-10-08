@@ -2,10 +2,8 @@ import { createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { PassThrough, Readable } from 'node:stream';
 
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch, { Headers, RequestError, Response } from '../../fetch';
 import { DeviceRunSessionByIdQuery, DeviceRunSessionStatus } from '../../graphql/generated';
-import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import {
   fetchSimulatorPreviewAsync,
   fetchSimulatorPreviewJsonAsync,
@@ -13,14 +11,12 @@ import {
   streamSimulatorPreviewAsync,
 } from '../preview';
 
-jest.mock('../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../fetch', () => ({
   __esModule: true,
   ...jest.requireActual('../../fetch'),
   default: jest.fn(),
 }));
 
-const graphqlClient = {} as ExpoGraphqlClient;
 const preview = {
   deviceRunSessionId: 'session-id',
   baseUrl: new URL('https://preview.test'),
@@ -60,17 +56,14 @@ describe(resolveSimulatorPreviewAsync, () => {
   ])(
     'resolves preview authentication for %s without using controller credentials',
     async (__typename, tokenKey) => {
-      jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(
-        session({
-          __typename,
-          previewApiUrl: 'https://preview.test/prefix/?device=SIM-A&token=old-token#fragment',
-          [tokenKey]: 'preview-token',
-          toolsAuthToken: 'wrong-controller-token',
-          agentDeviceRemoteSessionToken: 'wrong-controller-token',
-        })
-      );
-      const resolved = await resolveSimulatorPreviewAsync(graphqlClient, 'session-id');
-      expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+      const currentSession = session({
+        __typename,
+        previewApiUrl: 'https://preview.test/prefix/?device=SIM-A&token=old-token#fragment',
+        [tokenKey]: 'preview-token',
+        toolsAuthToken: 'wrong-controller-token',
+        agentDeviceRemoteSessionToken: 'wrong-controller-token',
+      });
+      const resolved = await resolveSimulatorPreviewAsync(currentSession);
       expect(resolved.token).toBe('preview-token');
       expect(resolved.baseUrl.toString()).toBe('https://preview.test/prefix/?device=SIM-A');
     }
@@ -103,8 +96,7 @@ describe(resolveSimulatorPreviewAsync, () => {
       'does not include a preview API token',
     ],
   ])('rejects unavailable or invalid preview configuration %#', async (status, config, message) => {
-    jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(session(config, status));
-    await expect(resolveSimulatorPreviewAsync(graphqlClient, 'id')).rejects.toThrow(message);
+    await expect(resolveSimulatorPreviewAsync(session(config, status))).rejects.toThrow(message);
   });
 });
 
@@ -113,8 +105,57 @@ describe(fetchSimulatorPreviewAsync, () => {
     jest.mocked(fetch).mockResolvedValue(new Response('{}'));
     await fetchSimulatorPreviewAsync(preview, '/logs', { query: { snapshot: '1' } });
     expect(fetch).toHaveBeenCalledWith('https://preview.test/logs?snapshot=1', expect.anything());
+    expect(jest.mocked(fetch).mock.calls[0][1]?.redirect).toBe('error');
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
     expect(headers.get('authorization')).toBe('Bearer secret-token');
+  });
+
+  it('rejects redirects before sending preview credentials to another server', async () => {
+    const destination = jest.fn();
+    const target = createServer((request, response) => {
+      destination(request.headers.authorization);
+      response.end('{}');
+    });
+    await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve));
+    const source = createServer((_request, response) => {
+      response.writeHead(302, {
+        location: `http://127.0.0.1:${(target.address() as AddressInfo).port}/logs`,
+      });
+      response.end();
+    });
+    await new Promise<void>(resolve => source.listen(0, '127.0.0.1', resolve));
+    jest
+      .mocked(fetch)
+      .mockImplementationOnce(
+        jest.requireActual<typeof import('../../fetch')>('../../fetch').default
+      );
+    try {
+      await expect(
+        fetchSimulatorPreviewAsync(
+          {
+            ...preview,
+            baseUrl: new URL(`http://127.0.0.1:${(source.address() as AddressInfo).port}`),
+          },
+          '/logs'
+        )
+      ).rejects.toThrow('Could not connect');
+      expect(destination).not.toHaveBeenCalled();
+    } finally {
+      source.closeAllConnections();
+      target.closeAllConnections();
+      await Promise.all([
+        new Promise<void>(resolve =>
+          source.close(() => {
+            resolve();
+          })
+        ),
+        new Promise<void>(resolve =>
+          target.close(() => {
+            resolve();
+          })
+        ),
+      ]);
+    }
   });
 
   it('reports an offline preview tunnel before interpreting the route failure', async () => {
@@ -177,6 +218,7 @@ describe(fetchSimulatorPreviewJsonAsync, () => {
       fetchSimulatorPreviewJsonAsync(preview, '/logs', { query: { snapshot: '1' } })
     ).resolves.toEqual({ lines: [] });
     expect(fetch).toHaveBeenCalledWith('https://preview.test/logs?snapshot=1', expect.anything());
+    expect(jest.mocked(fetch).mock.calls[0][1]?.redirect).toBe('error');
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
     expect(headers.get('accept')).toBe('application/json');
   });
@@ -219,6 +261,7 @@ describe(streamSimulatorPreviewAsync, () => {
     );
     expect(onData.mock.calls).toEqual([['first\nsecond'], ['last']]);
     expect(getRequestSignal()?.aborted).toBe(true);
+    expect(jest.mocked(fetch).mock.calls[0][1]?.redirect).toBe('error');
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
     expect(headers.get('accept')).toBe('text/event-stream');
   });

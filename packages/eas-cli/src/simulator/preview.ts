@@ -1,10 +1,9 @@
 import readline from 'node:readline';
 
 import { getPreviewToken } from './utils';
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { type SimulatorSession } from './artifacts';
 import fetch, { RequestError, type Response } from '../fetch';
 import { DeviceRunSessionStatus } from '../graphql/generated';
-import { DeviceRunSessionQuery } from '../graphql/queries/DeviceRunSessionQuery';
 
 const PREVIEW_API_TIMEOUT_MS = 30_000;
 // The preview server sends a heartbeat every 15 seconds, so a longer silence means the stream is gone.
@@ -30,10 +29,8 @@ type SimulatorPreviewRequestOptions = {
 };
 
 export async function resolveSimulatorPreviewAsync(
-  graphqlClient: ExpoGraphqlClient,
-  deviceRunSessionId: string
+  session: SimulatorSession
 ): Promise<SimulatorPreview> {
-  const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
   if (session.status !== DeviceRunSessionStatus.InProgress) {
     throw new Error(
       'The simulator session is not running. Live preview data is only available while a session runs. Start a new session with `eas simulator:start`.'
@@ -63,7 +60,7 @@ export async function resolveSimulatorPreviewAsync(
   // Requests send the token in a header, so keep it out of URLs that can appear in errors.
   baseUrl.searchParams.delete('token');
   baseUrl.hash = '';
-  return { deviceRunSessionId, baseUrl, token };
+  return { deviceRunSessionId: session.id, baseUrl, token };
 }
 
 export async function fetchSimulatorPreviewAsync(
@@ -83,6 +80,7 @@ export async function fetchSimulatorPreviewAsync(
   try {
     return await fetch(url.toString(), {
       timeout: PREVIEW_API_TIMEOUT_MS,
+      redirect: 'error',
       signal,
       headers: {
         Authorization: `Bearer ${preview.token}`,
