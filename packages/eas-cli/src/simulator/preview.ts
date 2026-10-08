@@ -211,6 +211,7 @@ export async function streamSimulatorPreviewAsync(
   }
 }
 
+// Session text is untrusted, so strip terminal escape and control characters before printing it.
 export function sanitizeSimulatorText(value: string): string {
   return stripVTControlCharacters(value).replace(/\p{Cc}/gu, character =>
     character === '\n' || character === '\t' ? character : ''
