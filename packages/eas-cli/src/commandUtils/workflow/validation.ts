@@ -2,6 +2,7 @@ import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/e
 import { CombinedError } from '@urql/core';
 import { promises as fs } from 'fs';
 import path from 'path';
+import addFormats from 'ajv-formats';
 import * as YAML from 'yaml';
 
 import { validateWorkflowLocalCompositeFunctionsAsync } from './compositeFunctions';
@@ -15,9 +16,10 @@ import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 import { parsedYamlFromWorkflowContents } from './parse';
 
 const jobTypesWithBuildProfile = new Set(['build', 'repack']);
+const validateUri = addFormats.get('uri') as (value: string) => boolean;
 
-const buildProfileIsInterpolated = (profileName: string): boolean => {
-  return profileName.includes('${{') && profileName.includes('}}');
+const stringIsInterpolated = (value: string): boolean => {
+  return value.includes('${{') && value.includes('}}');
 };
 
 export async function validateWorkflowFileAsync(
@@ -103,7 +105,11 @@ async function validateWorkflowOnServerAsync(
 
 async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: string): Promise<void> {
   const jobs = jobsFromWorkflow(parsedYaml);
-  const buildJobs = jobs.filter(job => jobTypesWithBuildProfile.has(job.value.type));
+  // `profile` is optional (e.g. on `repack`), so only jobs that set one can be checked against eas.json.
+  const buildJobs = jobs.filter(
+    job =>
+      jobTypesWithBuildProfile.has(job.value.type) && typeof job.value.params?.profile === 'string'
+  );
   if (buildJobs.length === 0) {
     return;
   }
@@ -113,7 +119,7 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
     job =>
       !buildProfileNames.has(job.value.params.profile) &&
       // If a profile name is interpolated, we can't check if it's valid until the workflow actually runs
-      !buildProfileIsInterpolated(job.value.params.profile)
+      !stringIsInterpolated(job.value.params.profile)
   );
 
   if (invalidBuildJobs.length > 0) {
@@ -129,6 +135,11 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
 function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): void {
   const jobs = jobsFromWorkflow(parsedYaml);
   const jobTypes = jobTypesFromWorkflowSchema(workflowJsonSchema);
+  if (jobTypes.length === 0) {
+    // The schema no longer lists job types where we expect them; leave job validation to the schema.
+    Log.debug('No job types found in the workflow schema, skipping job type validation.');
+    return;
+  }
   const invalidJobs = jobs.filter(job => job.value.type && !jobTypes.includes(job.value.type));
   if (invalidJobs.length > 0) {
     throw new Error(
@@ -139,10 +150,12 @@ function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): voi
   }
 }
 
-function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): void {
+export function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): void {
   delete workflowJsonSchema['$schema'];
 
   const ajv = createValidator();
+  // Interpolated values cannot be format-checked until the workflow runs.
+  ajv.addFormat('uri', value => stringIsInterpolated(value) || validateUri(value));
   const validate = ajv.compile(workflowJsonSchema);
   const result = validate(parsedYaml);
 
@@ -202,7 +215,8 @@ function jobsFromWorkflow(parsedYaml: any): any[] {
 }
 
 function jobTypesFromWorkflowSchema(workflowJsonSchema: any): string[] {
-  return workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf.map(
-    (props: any) => props.properties.type.const
-  );
+  // Not every job variant has a `type` (e.g. a job that calls a reusable workflow with `uses`).
+  return (workflowJsonSchema?.properties?.jobs?.additionalProperties?.anyOf ?? [])
+    .map((props: any) => props?.properties?.type?.const)
+    .filter((jobType: unknown): jobType is string => typeof jobType === 'string');
 }

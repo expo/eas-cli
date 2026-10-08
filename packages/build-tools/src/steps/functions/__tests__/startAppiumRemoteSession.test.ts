@@ -2,11 +2,14 @@ import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
+import { type CustomBuildContext } from '../../../customBuildContext';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 
 import {
+  createStartAppiumRemoteSessionBuildFunction,
   installAppiumAsync,
   resolveAppium3VersionSpec,
   resolveAppiumDeviceAsync,
@@ -19,6 +22,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: { getAvailableDevicesAsync: jest.fn() },
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
+  ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
@@ -149,5 +153,17 @@ describe(installAppiumAsync, () => {
     } finally {
       await fs.promises.rm(result.appiumHome, { recursive: true, force: true });
     }
+  });
+});
+
+describe('createStartAppiumRemoteSessionBuildFunction', () => {
+  it('declares the launch inputs so serve-sim can launch the app', () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const buildFunction = createStartAppiumRemoteSessionBuildFunction(ctx);
+    const globalCtx = createGlobalContextMock();
+
+    expect(
+      buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
+    ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
   });
 });

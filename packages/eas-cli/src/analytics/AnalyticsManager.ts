@@ -20,7 +20,8 @@ export type AnalyticsEvent =
   | BuildEvent
   | SubmissionEvent
   | MetadataEvent
-  | BillingEvent;
+  | BillingEvent
+  | SimulatorEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
@@ -77,6 +78,12 @@ export enum BuildEvent {
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
 }
 
+export enum SimulatorEvent {
+  REQUEST_SENT = 'sim session request sent',
+  REQUEST_CANCELLED = 'sim session request cancelled',
+  REQUEST_FAILED = 'sim session request failed',
+}
+
 export enum MetadataEvent {
   APPLE_METADATA_DOWNLOAD = 'metadata cli download apple response',
   APPLE_METADATA_UPLOAD = 'metadata cli upload apple response',
@@ -119,6 +126,16 @@ export async function setAnalyticsEnabledAsync(enabled: boolean): Promise<void> 
 export async function getAnalyticsEnabledAsync(): Promise<boolean> {
   const analyticsEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, null);
   return !!analyticsEnabled;
+}
+
+/**
+ * Returns true when the user opted out of analytics with DISABLE_EAS_ANALYTICS or `eas analytics off`.
+ */
+export async function isAnalyticsOptedOutAsync(): Promise<boolean> {
+  if (process.env.DISABLE_EAS_ANALYTICS) {
+    return true;
+  }
+  return (await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true)) === false;
 }
 
 /**

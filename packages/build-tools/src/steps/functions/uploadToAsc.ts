@@ -7,7 +7,6 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import fs from 'fs-extra';
-import * as jose from 'jose';
 import fetch from 'node-fetch';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -87,29 +86,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
       }
 
-      const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
-      const ascApiKey = z
-        .object({
-          issuer_id: z.string().nullish(),
-          key_id: z.string(),
-          key: z.string(),
-        })
-        .parse(ascApiKeyJson);
-
-      const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
-      const jwt = new jose.SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
-        .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m');
-      if (ascApiKey.issuer_id) {
-        jwt.setIssuer(ascApiKey.issuer_id);
-      } else {
-        // Nullish issuer_id means an individual API key
-        jwt.setSubject('user');
-      }
-      const token = await jwt.sign(privateKey);
-
-      const client = new AscApiClient({ token, logger: stepsCtx.logger });
+      const key = await AscApiUtils.loadApiKeyAsync({ keyPath: ascApiKeyPath });
+      const client = new AscApiClient({ key, logger: stepsCtx.logger });
 
       stepsCtx.logger.info(
         `Reading App information for Apple app identifier: ${appleAppIdentifier}...`
@@ -177,21 +155,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       });
 
       stepsCtx.logger.info('Committing upload...');
-      await client.patchAsync(
-        `/v1/buildUploadFiles/:id`,
-        {
-          data: {
-            type: 'buildUploadFiles',
-            id: buildFileResponse.data.id,
-            attributes: {
-              uploaded: true,
-            },
-          },
-        },
-        {
-          id: buildFileResponse.data.id,
-        }
-      );
+      await AscApiUtils.commitBuildUploadFileAsync({
+        client,
+        fileId: buildFileResponse.data.id,
+        logger: stepsCtx.logger,
+      });
 
       stepsCtx.logger.info('Checking upload file status...');
       const waitingForFileStartedAt = Date.now();

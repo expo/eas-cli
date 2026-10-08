@@ -29,7 +29,6 @@ const POLL_INTERVAL_MS = 5_000;
 const POST_STOP_REFRESH_COUNT = 2;
 
 export default class SimulatorEvents extends EasCommand {
-  static override hidden = true;
   static override aliases = ['sim:events'];
   static override description =
     '[EXPERIMENTAL] show activity events from a remote simulator session';
@@ -128,9 +127,11 @@ export default class SimulatorEvents extends EasCommand {
           return;
         }
 
+        // Any status that isn't final counts as running, so statuses added later (such as queued
+        // and starting) keep follow mode going.
         const isRunning =
-          session.status === DeviceRunSessionStatus.New ||
-          session.status === DeviceRunSessionStatus.InProgress;
+          session.status !== DeviceRunSessionStatus.Stopped &&
+          session.status !== DeviceRunSessionStatus.Errored;
         if (isRunning) {
           observedRunningSession = true;
           remainingPostStopRefreshes = 0;

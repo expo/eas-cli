@@ -44,6 +44,11 @@ export type AccessToken = {
   note?: Maybe<Scalars['String']['output']>;
   owner: Actor;
   revokedAt?: Maybe<Scalars['DateTime']['output']>;
+  /**
+   * Scopes this token is restricted to. Null for a full token that authenticates as the owner
+   * with all of their permissions.
+   */
+  scopes?: Maybe<Array<AccessTokenScope>>;
   updatedAt: Scalars['DateTime']['output'];
   visibleTokenPrefix: Scalars['String']['output'];
 };
@@ -73,6 +78,35 @@ export type AccessTokenMutation_SetAccessTokenRevokedArgs = {
   id: Scalars['ID']['input'];
   revoked?: InputMaybe<Scalars['Boolean']['input']>;
 };
+
+/** One scope narrowing an AccessToken below its owner's full access */
+export type AccessTokenScope = {
+  __typename?: 'AccessTokenScope';
+  /** The account this scope applies to. Only present for ACCOUNT scopes. */
+  accountID?: Maybe<Scalars['ID']['output']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export type AccessTokenScopeInput = {
+  /**
+   * The account this scope applies to. Required for ACCOUNT scopes and must be omitted for
+   * ALL_ACCOUNTS scopes.
+   */
+  accountID?: InputMaybe<Scalars['ID']['input']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export enum AccessTokenScopeType {
+  /** One account, named by accountID, narrowed to the scope's permissions. */
+  Account = 'ACCOUNT',
+  /**
+   * Every account the token's owner has permissions on at request time, narrowed to the
+   * scope's permissions.
+   */
+  AllAccounts = 'ALL_ACCOUNTS'
+}
 
 /** A GitHub App installation visible to a viewer, not necessarily linked yet. */
 export type AccessibleGitHubAppInstallation = {
@@ -149,6 +183,8 @@ export type Account = {
   /** Convex team connections for this account */
   convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
+  /** Simulator sessions for all apps associated with this account, sorted newest first. */
+  deviceRunSessionsPaginated: AccountDeviceRunSessionsConnection;
   displayName?: Maybe<Scalars['String']['output']>;
   /** Echo projects for this account (paginated, most recent first) */
   echoProjects: EchoProjectConnection;
@@ -423,6 +459,19 @@ export type Account_ConcurrencyConsumersArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
+export type Account_DeviceRunSessionsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AccountDeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
 export type Account_EchoProjectsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -622,6 +671,22 @@ export type AccountDataInput = {
   userSpecifiedAccountUsage?: InputMaybe<UserSpecifiedAccountUsage>;
 };
 
+export type AccountDeviceRunSessionFilterInput = {
+  statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
+};
+
+export type AccountDeviceRunSessionsConnection = {
+  __typename?: 'AccountDeviceRunSessionsConnection';
+  edges: Array<AccountDeviceRunSessionsEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AccountDeviceRunSessionsEdge = {
+  __typename?: 'AccountDeviceRunSessionsEdge';
+  cursor: Scalars['String']['output'];
+  node: DeviceRunSession;
+};
+
 export type AccountGoogleServiceAccountKeysConnection = {
   __typename?: 'AccountGoogleServiceAccountKeysConnection';
   edges: Array<AccountGoogleServiceAccountKeysEdge>;
@@ -679,13 +744,13 @@ export type AccountMembersEdge = {
 };
 
 export type AccountMembersFilterInput = {
+  /** Filter by members containing all of the specified permissions. */
+  exactPermissions?: InputMaybe<Array<Permission>>;
   /**
    * Filter members by 2FA status. Only regular users are returned when set, since SSO users
    * and robots don't have 2FA. Requires admin permission on the account.
    */
   isSecondFactorAuthenticationEnabled?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Filter members by role. Only OWNER, ADMIN, DEVELOPER, and VIEW_ONLY are supported. */
-  role?: InputMaybe<Role>;
   /** Case-insensitive substring match on username, email, and name */
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
@@ -696,8 +761,6 @@ export type AccountMutation = {
   cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
-  /** Buys or revokes account's additional agent credits, charging the account the appropriate amount if needed. */
-  changeAdditionalAgentCreditsCount: Account;
   /** Buys or revokes account's additional concurrencies, charging the account the appropriate amount if needed. */
   changeAdditionalConcurrenciesCount: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
@@ -737,12 +800,6 @@ export type AccountMutation_CancelAllSubscriptionsImmediatelyArgs = {
 
 export type AccountMutation_CancelScheduledSubscriptionChangeArgs = {
   accountID: Scalars['ID']['input'];
-};
-
-
-export type AccountMutation_ChangeAdditionalAgentCreditsCountArgs = {
-  accountID: Scalars['ID']['input'];
-  newAdditionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -1101,9 +1158,9 @@ export type AgentDeviceRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when a web preview is
@@ -1342,6 +1399,19 @@ export type AndroidBuilderEnvironmentInput = {
   node?: InputMaybe<Scalars['String']['input']>;
   pnpm?: InputMaybe<Scalars['String']['input']>;
   yarn?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type AndroidDeviceRunSessionDevice = {
+  __typename?: 'AndroidDeviceRunSessionDevice';
+  /** Human-readable device name to show to users (e.g. "Pixel 9"). */
+  displayName: Scalars['String']['output'];
+  /** AVD hardware profile id accepted by android.deviceIdentifier (e.g. "pixel_9"). */
+  identifier: Scalars['String']['output'];
+};
+
+export type AndroidDeviceRunSessionProfiles = {
+  __typename?: 'AndroidDeviceRunSessionProfiles';
+  devices: Array<AndroidDeviceRunSessionDevice>;
 };
 
 export type AndroidFcm = {
@@ -2949,6 +3019,8 @@ export type AppObserveErrorOccurrencesFilter = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   easClientId?: InputMaybe<Scalars['String']['input']>;
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -3131,6 +3203,8 @@ export type AppObserveErrorsBreakdownInput = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   dimension: AppObserveErrorBreakdownDimension;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
@@ -3150,6 +3224,8 @@ export type AppObserveErrorsGroupsInput = {
   appVersion?: InputMaybe<Scalars['String']['input']>;
   /** Bucket size for each group's timeSeries. Defaults to daily. */
   bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   /** Restrict to one error group. */
@@ -3170,6 +3246,8 @@ export type AppObserveErrorsStatsInput = {
   appEasBuildId?: InputMaybe<Scalars['String']['input']>;
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3186,6 +3264,8 @@ export type AppObserveErrorsTimeSeriesInput = {
   appUpdateId?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
   bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  countryCode?: InputMaybe<Scalars['String']['input']>;
+  deviceModel?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   /** Restrict to one error group. */
@@ -3912,10 +3992,22 @@ export type AppObserveUpdate = {
   appUpdateId: Scalars['String']['output'];
   appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
+  /** Branch the update was published to. */
+  branchName?: Maybe<Scalars['String']['output']>;
   downloadCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /** Git commit the update was published from, when it was recorded. */
+  gitCommitHash?: Maybe<Scalars['String']['output']>;
   medianDownloadTime: Scalars['Float']['output'];
   p90DownloadTime: Scalars['Float']['output'];
+  /** Platform the update was published for: ios, android, or web. */
+  platform?: Maybe<Scalars['String']['output']>;
+  /** When the update was published, from the EAS Update record. */
+  publishedAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Runtime version the update is compatible with. */
+  runtimeVersion?: Maybe<Scalars['String']['output']>;
+  /** ID of the update group this update belongs to. */
+  updateGroupId?: Maybe<Scalars['String']['output']>;
 };
 
 export type AppObserveUpdateEdge = {
@@ -4670,6 +4762,11 @@ export type AppWorkflowRunsConnection = {
 export type AppWorkflowsInsights = {
   __typename?: 'AppWorkflowsInsights';
   overviewMetrics: WorkflowsInsightsOverviewMetrics;
+  /**
+   * Buckets start at the requested timespan start and advance by the granularity interval, so
+   * their boundaries follow the requested range. The last bucket is shorter when the timespan is
+   * not a whole number of intervals.
+   */
   runsOverTime: WorkflowsInsightsRunsOverTimeData;
   workflows: WorkflowsInsightsWorkflowConnection;
 };
@@ -4721,9 +4818,9 @@ export type AppiumRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   /**
    * URL of the web preview surface for the session. Null when a web preview is
@@ -5689,12 +5786,14 @@ export type BuildFilterInput = {
   channel?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distributions?: InputMaybe<Array<DistributionType>>;
+  expired?: InputMaybe<Scalars['Boolean']['input']>;
   fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   releaseChannel?: InputMaybe<Scalars['String']['input']>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
   simulator?: InputMaybe<Scalars['Boolean']['input']>;
+  statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 export enum BuildIosEnterpriseProvisioning {
@@ -6253,6 +6352,12 @@ export type CrashesFilters = {
 export type CreateAccessTokenInput = {
   actorID: Scalars['ID']['input'];
   note?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * When given, requests authenticated with the new token are restricted to these scopes instead
+   * of the actor's full access. Either a single ALL_ACCOUNTS scope or one ACCOUNT scope per
+   * account.
+   */
+  scopes?: InputMaybe<Array<AccessTokenScopeInput>>;
 };
 
 export type CreateAccessTokenResponse = {
@@ -6273,7 +6378,7 @@ export type CreateAndroidDeviceRunSessionInput = {
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
   /**
    * Android SDK system image package to use for the emulator (e.g.
-   * "system-images;android-35-ext15;google_apis_playstore;x86_64").
+   * "system-images;android-35;google_apis;x86_64").
    */
   systemImagePackage?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6339,6 +6444,18 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 };
 
 export type CreateDeviceRunSessionInput = {
+  /**
+   * The coding agent sending this request, recorded for analytics only and never used for
+   * authorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters
+   * is treated as omitted.
+   */
+  agentId?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * The coding agent's own session identifier, recorded for analytics only and never used for
+   * authorization. Surrounding whitespace is trimmed, and a blank value or one over 200 characters
+   * is treated as omitted.
+   */
+  agentSessionId?: InputMaybe<Scalars['String']['input']>;
   /** Android emulator options. Only supported when platform is ANDROID. */
   android?: InputMaybe<CreateAndroidDeviceRunSessionInput>;
   appId: Scalars['ID']['input'];
@@ -6360,8 +6477,7 @@ export type CreateDeviceRunSessionInput = {
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
    * Where the virtual device's proxied network traffic exits to the internet. If
-   * omitted, all traffic exits from EAS infrastructure. LOCAL is only supported for
-   * sessions on IOS.
+   * omitted, all traffic exits from EAS infrastructure.
    */
   egress?: InputMaybe<DeviceRunSessionEgress>;
   /**
@@ -6393,10 +6509,23 @@ export type CreateDeviceRunSessionInput = {
    */
   maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
   /**
-   * Human-readable label for the session, at most 255 characters. If omitted, the
-   * session is unnamed and clients fall back to identifying it by id.
+   * Human-readable label for the session, at most 255 characters after leading and
+   * trailing whitespace is trimmed. If omitted, the session is unnamed and clients
+   * fall back to identifying it by id.
    */
   name?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Record HTTP(S) traffic from apps on the device for the whole session. iOS only.
+   * HTTPS is decrypted, so recordings contain credentials and cookies in cleartext.
+   * If omitted, no traffic is recorded.
+   */
+  networkCapture?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * What network capture may keep beyond method, URL, status, timing and size: header, query,
+   * request-body, response-body. Each can carry credentials, so nothing here is recorded unless
+   * it is asked for. Requires networkCapture.
+   */
+  networkCaptureFields?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Expo or development-client URL to open after launching the installed application. Requires
    * buildId, applicationArchiveUrl, or expoGo.
@@ -6408,6 +6537,11 @@ export type CreateDeviceRunSessionInput = {
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
+  /**
+   * The client sending this request, recorded for analytics only. Omit it when the
+   * client is not one of the listed values; the session is then reported as unknown.
+   */
+  requestOrigin?: InputMaybe<DeviceRunSessionRequestOrigin>;
   resourceClass?: InputMaybe<DeviceRunSessionResourceClass>;
   /**
    * Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is
@@ -6593,6 +6727,15 @@ export type CreatePostHogDeepLinkInput = {
   posthogOrganizationConnectionId: Scalars['ID']['input'];
   /** Which EAS surface opened the link; omitted lets PostHog apply its own default. */
   purpose?: InputMaybe<PostHogDeepLinkPurpose>;
+};
+
+export type CreateSandboxInput = {
+  agentRunId?: InputMaybe<Scalars['ID']['input']>;
+  appId: Scalars['ID']['input'];
+  image?: InputMaybe<Scalars['String']['input']>;
+  operatingSystem: SandboxOperatingSystem;
+  projectArchive?: InputMaybe<SandboxProjectArchiveInput>;
+  resourceClass: SandboxResourceClass;
 };
 
 export type CreateSentryProjectInput = {
@@ -6799,6 +6942,11 @@ export type DeleteCustomDomainResult = {
   __typename?: 'DeleteCustomDomainResult';
   appId: Scalars['ID']['output'];
   hostname: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+};
+
+export type DeleteDeviceRunSessionResult = {
+  __typename?: 'DeleteDeviceRunSessionResult';
   id: Scalars['ID']['output'];
 };
 
@@ -7059,8 +7207,8 @@ export type DeviceRunSession = {
    */
   maxIdleTimeMinutes?: Maybe<Scalars['Int']['output']>;
   /**
-   * Human-readable label chosen by whoever started the session. Null when the
-   * session was started without one.
+   * Human-readable label set when the session is created or changed later with
+   * updateDeviceRunSession. Null when the session has no name.
    */
   name?: Maybe<Scalars['String']['output']>;
   /**
@@ -7132,7 +7280,7 @@ export type DeviceRunSessionEventLogUploadSession = {
 };
 
 export type DeviceRunSessionFilterInput = {
-  /** Case-insensitive prefix match on the session name. */
+  /** Case-insensitive match anywhere in the session name. */
   name?: InputMaybe<Scalars['String']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
@@ -7148,10 +7296,20 @@ export type DeviceRunSessionMutation = {
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
   /**
-   * Create a standard artifact and a two-hour upload URL for repeatedly
+   * Create or reuse a standard artifact and a two-hour upload URL for repeatedly
    * overwriting its structured event log while the backing job run is running.
    */
   createEventLogUploadSession: CreateDeviceRunSessionEventLogUploadSessionResult;
+  /**
+   * Create or renew a two-hour upload URL for overwriting the session preview.
+   * Reuses one WebP artifact while the backing job run is active.
+   */
+  createPreviewUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
+  /**
+   * Permanently delete a finished session and its artifacts. The backing job,
+   * if present, must also have finished. Returns the deleted session ID.
+   */
+  deleteDeviceRunSession: DeleteDeviceRunSessionResult;
   /**
    * Ensure a device run session is stopped. Idempotent: if the session has already
    * finished, the existing session is returned unchanged (an ERRORED session stays
@@ -7160,6 +7318,11 @@ export type DeviceRunSessionMutation = {
   ensureDeviceRunSessionStopped: DeviceRunSession;
   /** Mark a device run session as started and persist remote connection details */
   startDeviceRunSession: DeviceRunSession;
+  /**
+   * Update a device run session name and tags, including on sessions
+   * that have already finished.
+   */
+  updateDeviceRunSession: DeviceRunSession;
 };
 
 
@@ -7179,6 +7342,16 @@ export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
 };
 
 
+export type DeviceRunSessionMutation_CreatePreviewUploadSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+
+export type DeviceRunSessionMutation_DeleteDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+
 export type DeviceRunSessionMutation_EnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
@@ -7189,9 +7362,23 @@ export type DeviceRunSessionMutation_StartDeviceRunSessionArgs = {
   remoteConfig: Scalars['JSONObject']['input'];
 };
 
+
+export type DeviceRunSessionMutation_UpdateDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+  input: UpdateDeviceRunSessionInput;
+};
+
+/** Virtual device profiles available for new device run sessions. */
+export type DeviceRunSessionProfiles = {
+  __typename?: 'DeviceRunSessionProfiles';
+  android: AndroidDeviceRunSessionProfiles;
+  ios: IosDeviceRunSessionProfiles;
+};
+
 export type DeviceRunSessionQuery = {
   __typename?: 'DeviceRunSessionQuery';
   byId: DeviceRunSession;
+  profiles: DeviceRunSessionProfiles;
 };
 
 
@@ -7200,6 +7387,16 @@ export type DeviceRunSessionQuery_ByIdArgs = {
 };
 
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig | WebPreviewOnlyRunSessionRemoteConfig;
+
+/**
+ * The client that sent a session creation request, as reported by that client. Recorded
+ * for analytics only and never used for authorization.
+ */
+export enum DeviceRunSessionRequestOrigin {
+  EasCli = 'EAS_CLI',
+  Mcp = 'MCP',
+  Website = 'WEBSITE'
+}
 
 export enum DeviceRunSessionResourceClass {
   Large = 'LARGE',
@@ -7210,6 +7407,10 @@ export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
   InProgress = 'IN_PROGRESS',
   New = 'NEW',
+  /** The session's job run waits in the queue for a worker. */
+  Queued = 'QUEUED',
+  /** A worker runs the session's job and prepares the virtual device. */
+  Starting = 'STARTING',
   Stopped = 'STOPPED'
 }
 
@@ -7277,7 +7478,6 @@ export enum EasBuildWaiverType {
 }
 
 export enum EasService {
-  Agent = 'AGENT',
   Builds = 'BUILDS',
   Jobs = 'JOBS',
   Mcp = 'MCP',
@@ -7289,7 +7489,6 @@ export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
-  CreditUsage = 'CREDIT_USAGE',
   LocalBuilds = 'LOCAL_BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
   McpRequests = 'MCP_REQUESTS',
@@ -9112,7 +9311,10 @@ export type GitHubUserMutation = {
   __typename?: 'GitHubUserMutation';
   /** Delete a GitHub User by ID */
   deleteGitHubUser: DeleteGitHubUserResult;
-  /** Generate a GitHub User Access Token */
+  /**
+   * Generate a GitHub User Access Token
+   * @deprecated This mutation is scheduled for removal.
+   */
   generateGitHubUserAccessToken?: Maybe<Scalars['String']['output']>;
 };
 
@@ -9255,8 +9457,6 @@ export type InvoicePeriod = {
 
 export type InvoiceQuery = {
   __typename?: 'InvoiceQuery';
-  /** Previews the invoice for the specified number of additional agent credit units. */
-  previewInvoiceForAdditionalAgentCreditsCountUpdate?: Maybe<Invoice>;
   /**
    * Previews the invoice for the specified number of additional concurrencies.
    * This is the total number of concurrencies the customer wishes to purchase
@@ -9267,12 +9467,6 @@ export type InvoiceQuery = {
   previewInvoiceForAdditionalConcurrenciesCountUpdate?: Maybe<Invoice>;
   /** Preview an upgrade subscription invoice, with proration */
   previewInvoiceForSubscriptionUpdate: Invoice;
-};
-
-
-export type InvoiceQuery_PreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
-  accountID: Scalars['ID']['input'];
-  additionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -9439,6 +9633,19 @@ export type IosBuilderEnvironmentInput = {
   node?: InputMaybe<Scalars['String']['input']>;
   pnpm?: InputMaybe<Scalars['String']['input']>;
   yarn?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type IosDeviceRunSessionDevice = {
+  __typename?: 'IosDeviceRunSessionDevice';
+  /** Human-readable device name to show to users (e.g. "iPhone 17 Pro"). */
+  displayName: Scalars['String']['output'];
+  /** Simulator device name accepted by ios.deviceIdentifier (e.g. "iPhone 17 Pro"). */
+  identifier: Scalars['String']['output'];
+};
+
+export type IosDeviceRunSessionProfiles = {
+  __typename?: 'IosDeviceRunSessionProfiles';
+  devices: Array<IosDeviceRunSessionDevice>;
 };
 
 export enum IosDistributionType {
@@ -10127,6 +10334,7 @@ export enum Permission {
   Admin = 'ADMIN',
   Own = 'OWN',
   Publish = 'PUBLISH',
+  PublishProtected = 'PUBLISH_PROTECTED',
   View = 'VIEW'
 }
 
@@ -10280,7 +10488,6 @@ export type ProjectArchiveSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   gitRef?: InputMaybe<Scalars['String']['input']>;
   metadataLocation?: InputMaybe<Scalars['String']['input']>;
-  repositoryUrl?: InputMaybe<Scalars['String']['input']>;
   type: ProjectArchiveSourceType;
   url?: InputMaybe<Scalars['String']['input']>;
 };
@@ -10335,9 +10542,11 @@ export type PublishUpdateGroupInput = {
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
   manifestHostOverride?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
+  previousRolloutUpdateToClobberIdGroup?: InputMaybe<UpdateIdGroup>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
   runtimeVersion: Scalars['String']['input'];
+  sourceMapGroup?: InputMaybe<SourceMapGroup>;
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
@@ -10531,9 +10740,12 @@ export enum Role {
   Admin = 'ADMIN',
   Custom = 'CUSTOM',
   Developer = 'DEVELOPER',
+  /** @deprecated No longer supported */
   HasAdmin = 'HAS_ADMIN',
+  /** @deprecated No longer supported */
   NotAdmin = 'NOT_ADMIN',
   Owner = 'OWNER',
+  ReleaseManager = 'RELEASE_MANAGER',
   ViewOnly = 'VIEW_ONLY'
 }
 
@@ -10595,7 +10807,7 @@ export type RootMutation = {
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
-  /** Mutations that create, start, and stop device run sessions */
+  /** Mutations that create, start, stop, and update device run sessions */
   deviceRunSession: DeviceRunSessionMutation;
   /** Mutations for Discord users */
   discordUser: DiscordUserMutation;
@@ -10660,6 +10872,7 @@ export type RootMutation = {
   realtimeLogs: RealtimeLogsMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  sandbox: SandboxMutation;
   /** Mutations for Sentry installations */
   sentryInstallation: SentryInstallationMutation;
   /** Mutations for Sentry projects */
@@ -10675,6 +10888,7 @@ export type RootMutation = {
   updateBranch: UpdateBranchMutation;
   updateChannel: UpdateChannelMutation;
   uploadSession: UploadSession;
+  usageBudget: UsageBudgetMutation;
   /** Mutations that create, update, and delete pinned apps */
   userAppPins: UserAppPinMutation;
   userAuditLog: UserAuditLogMutation;
@@ -11063,15 +11277,86 @@ export type Sandbox = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type SandboxConnection = {
+  __typename?: 'SandboxConnection';
+  edges: Array<SandboxEdge>;
+  pageInfo: PageInfo;
+};
+
+export type SandboxEdge = {
+  __typename?: 'SandboxEdge';
+  cursor: Scalars['String']['output'];
+  node: Sandbox;
+};
+
+export type SandboxFilterInput = {
+  statuses?: InputMaybe<Array<SandboxStatus>>;
+};
+
+export type SandboxMutation = {
+  __typename?: 'SandboxMutation';
+  createSandbox: Sandbox;
+  markSandboxReady: Sandbox;
+  stopSandbox: Sandbox;
+  touchSandbox: Sandbox;
+};
+
+
+export type SandboxMutation_CreateSandboxArgs = {
+  input: CreateSandboxInput;
+};
+
+
+export type SandboxMutation_MarkSandboxReadyArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+
+export type SandboxMutation_StopSandboxArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+
+export type SandboxMutation_TouchSandboxArgs = {
+  sandboxId: Scalars['ID']['input'];
+};
+
+export enum SandboxOperatingSystem {
+  Linux = 'LINUX',
+  Macos = 'MACOS'
+}
+
+export type SandboxProjectArchiveInput = {
+  gitRef?: InputMaybe<Scalars['String']['input']>;
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type SandboxQuery = {
   __typename?: 'SandboxQuery';
+  /** Project sandboxes, newest first. An omitted or empty status filter includes all statuses. */
+  byAppIdPaginated: SandboxConnection;
   byId: Sandbox;
+};
+
+
+export type SandboxQuery_ByAppIdPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  appId: Scalars['ID']['input'];
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<SandboxFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
 export type SandboxQuery_ByIdArgs = {
   sandboxId: Scalars['ID']['input'];
 };
+
+export enum SandboxResourceClass {
+  Large = 'LARGE',
+  Medium = 'MEDIUM'
+}
 
 export enum SandboxStatus {
   Errored = 'ERRORED',
@@ -11219,9 +11504,9 @@ export type ServeSimRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the preview. Null when the preview runs ungated. */
   previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
   /** @deprecated Use previewUrl instead. */
@@ -11299,6 +11584,20 @@ export type SnackQuery = {
 export type SnackQuery_ByHashIdArgs = {
   hashId: Scalars['ID']['input'];
 };
+
+export type SourceMapGroup = {
+  android?: InputMaybe<SourceMapSourceInput>;
+  ios?: InputMaybe<SourceMapSourceInput>;
+};
+
+export type SourceMapSourceInput = {
+  bucketKey: Scalars['String']['input'];
+  type: SourceMapSourceType;
+};
+
+export enum SourceMapSourceType {
+  Gcs = 'GCS'
+}
 
 export enum StandardOffer {
   /** $29 USD per month, 30 day trial */
@@ -11486,7 +11785,9 @@ export type SubmissionArchiveSourceInput = {
 };
 
 export enum SubmissionArchiveSourceType {
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchive = 'GCS_BUILD_APPLICATION_ARCHIVE',
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchiveOrchestrator = 'GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR',
   GcsSubmitArchive = 'GCS_SUBMIT_ARCHIVE',
   Url = 'URL'
@@ -11569,7 +11870,6 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']['output']>;
   futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID']['output'];
-  includedAgentCreditsInCents: Scalars['Int']['output'];
   isDowngrading?: Maybe<Scalars['Boolean']['output']>;
   meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']['output']>;
@@ -11851,7 +12151,6 @@ export type TurtleSshConnectionConfig = {
 };
 
 export type TurtleSshConnectionConfigInput = {
-  host: Scalars['String']['input'];
   reconnecting?: InputMaybe<Scalars['Boolean']['input']>;
   secret: Scalars['String']['input'];
   type: TurtleSshTransportType;
@@ -11951,6 +12250,7 @@ export type Update = ActivityTimelineProjectActivity & {
   runtime: Runtime;
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
+  sourceMapUrl?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   workflowJob?: Maybe<WorkflowJob>;
 };
@@ -12080,7 +12380,7 @@ export type UpdateChannel = {
   embeddedUpdateCount: Scalars['Int']['output'];
   id: Scalars['ID']['output'];
   isPaused: Scalars['Boolean']['output'];
-  /** Only account admins may release to a protected channel. */
+  /** Only allowed publishers (Release Managers, Admins, Owners) may release to a protected channel. */
   isProtected: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   latestRuntimes: ChannelRuntimesConnection;
@@ -12135,7 +12435,7 @@ export type UpdateChannelMutation = {
   editUpdateChannel: UpdateChannel;
   /** Pause updates for an EAS channel. */
   pauseUpdateChannel: UpdateChannel;
-  /** Protect an EAS channel, so only account admins may release to it. */
+  /** Protect an EAS channel, so only allowed publishers (Release Managers, Admins, Owners) may release to it. */
   protectUpdateChannel: UpdateChannel;
   /** Resume updates for an EAS channel. */
   resumeUpdateChannel: UpdateChannel;
@@ -12231,6 +12531,20 @@ export type UpdateDeploymentsConnection = {
   __typename?: 'UpdateDeploymentsConnection';
   edges: Array<UpdateDeploymentEdge>;
   pageInfo: PageInfo;
+};
+
+export type UpdateDeviceRunSessionInput = {
+  /**
+   * New human-readable label for the session, at most 255 characters after leading
+   * and trailing whitespace is trimmed. Pass null to clear the name so clients fall
+   * back to identifying the session by id.
+   */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Replace the session tags. Tags are trimmed, lowercased and deduplicated.
+   * Pass an empty list or null to clear them. Omit to leave tags unchanged.
+   */
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdateDiffReceipt = {
@@ -12386,6 +12700,12 @@ export type UpdateGroupsConnection = {
   __typename?: 'UpdateGroupsConnection';
   edges: Array<UpdateGroupEdge>;
   pageInfo: PageInfo;
+};
+
+export type UpdateIdGroup = {
+  android?: InputMaybe<Scalars['ID']['input']>;
+  ios?: InputMaybe<Scalars['ID']['input']>;
+  web?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type UpdateInfoGroup = {
@@ -12582,8 +12902,36 @@ export enum UploadSessionType {
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
   EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE',
   EasUpdateAssetsMetadata = 'EAS_UPDATE_ASSETS_METADATA',
-  EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT'
+  EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT',
+  EasUpdateSourceMaps = 'EAS_UPDATE_SOURCE_MAPS'
 }
+
+export type UsageBudget = {
+  __typename?: 'UsageBudget';
+  id: Scalars['ID']['output'];
+  limits: UsageBudgetLimits;
+};
+
+export type UsageBudgetLimits = {
+  __typename?: 'UsageBudgetLimits';
+  builds?: Maybe<Scalars['Int']['output']>;
+  simulatorMinutes?: Maybe<Scalars['Int']['output']>;
+};
+
+export type UsageBudgetLimitsInput = {
+  builds?: InputMaybe<Scalars['Int']['input']>;
+  simulatorMinutes?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type UsageBudgetMutation = {
+  __typename?: 'UsageBudgetMutation';
+  createUsageBudget: UsageBudget;
+};
+
+
+export type UsageBudgetMutation_CreateUsageBudgetArgs = {
+  limits: UsageBudgetLimitsInput;
+};
 
 export type UsageMetricTotal = {
   __typename?: 'UsageMetricTotal';
@@ -12600,7 +12948,6 @@ export type UsageMetricTotal = {
 export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
   Build = 'BUILD',
-  Credit = 'CREDIT',
   Event = 'EVENT',
   Minute = 'MINUTE',
   Request = 'REQUEST',
@@ -13031,7 +13378,10 @@ export type UserInvitation = {
   isForOrganization: Scalars['Boolean']['output'];
   /** Account permissions to be granted upon acceptance of this invitation */
   permissions: Array<Permission>;
-  /** Role to be granted upon acceptance of this invitation */
+  /**
+   * Role to be granted upon acceptance of this invitation
+   * @deprecated Derive role from permissions instead
+   */
   role: Role;
 };
 
@@ -13154,6 +13504,7 @@ export type UserPermission = {
   /** Composite identifier for this account membership (accountId:actorId) */
   id: Scalars['ID']['output'];
   permissions: Array<Permission>;
+  /** @deprecated Derive role from permissions instead */
   role: Role;
   userActor?: Maybe<UserActor>;
 };
@@ -13344,9 +13695,9 @@ export type WebPreviewOnlyRunSessionRemoteConfig = {
    * session does not use local egress.
    */
   egressUrl?: Maybe<Scalars['String']['output']>;
-  /** Session token gating the web preview. Null when the preview runs ungated. */
   /** URL of the preview server, for reaching its API rather than its page. */
   previewApiUrl?: Maybe<Scalars['String']['output']>;
+  /** Session token gating the web preview. Null when the preview runs ungated. */
   webPreviewToken?: Maybe<Scalars['String']['output']>;
   webPreviewUrl: Scalars['String']['output'];
 };
@@ -14073,8 +14424,9 @@ export type WorkflowDeviceTestCaseInsights_TimeSeriesArgs = {
 
 /**
  * Mutually exclusive bucket counts (passedClean + flaky + failed = totalRuns for the bucket).
- * Buckets are aligned to the UTC start of the requested granularity interval
- * (minute / hour / day).
+ * Buckets start at the requested timespan start and advance by the granularity interval, so
+ * their boundaries follow the requested range. The last bucket is shorter when the timespan is
+ * not a whole number of intervals.
  */
 export type WorkflowDeviceTestCaseInsightsBucket = {
   __typename?: 'WorkflowDeviceTestCaseInsightsBucket';
@@ -14473,7 +14825,8 @@ export enum WorkflowJobType {
   Submission = 'SUBMISSION',
   Testflight = 'TESTFLIGHT',
   Update = 'UPDATE',
-  UpdateRollout = 'UPDATE_ROLLOUT'
+  UpdateRollout = 'UPDATE_ROLLOUT',
+  WorkflowCall = 'WORKFLOW_CALL'
 }
 
 export type WorkflowProjectSourceInput = {
@@ -14575,6 +14928,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   __typename?: 'WorkflowRun';
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
+  app: App;
   /**
    * Why the server canceled this run. Null for manually canceled runs and for
    * runs canceled before the reason was recorded.
@@ -14750,7 +15104,12 @@ export enum WorkflowRunTriggerEventType {
   GithubRefDelete = 'GITHUB_REF_DELETE',
   Manual = 'MANUAL',
   RepackExpoGo = 'REPACK_EXPO_GO',
-  Schedule = 'SCHEDULE'
+  Schedule = 'SCHEDULE',
+  SentryIssueArchived = 'SENTRY_ISSUE_ARCHIVED',
+  SentryIssueAssigned = 'SENTRY_ISSUE_ASSIGNED',
+  SentryIssueCreated = 'SENTRY_ISSUE_CREATED',
+  SentryIssueResolved = 'SENTRY_ISSUE_RESOLVED',
+  SentryIssueUnresolved = 'SENTRY_ISSUE_UNRESOLVED'
 }
 
 export type WorkflowRunsConnection = {
@@ -16716,6 +17075,15 @@ export type SupabaseProjectByAppIdQueryVariables = Exact<{
 
 export type SupabaseProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } | null } } };
 
+export type SupabaseAdvisorLintsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  security: Scalars['Boolean']['input'];
+  performance: Scalars['Boolean']['input'];
+}>;
+
+
+export type SupabaseAdvisorLintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any, security?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null, performance?: Array<{ __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string }> | null } | null } } };
+
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
   timespan: InsightsTimespan;
@@ -16730,6 +17098,18 @@ export type ViewUpdatesByGroupQueryVariables = Exact<{
 
 
 export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+      | { __typename: 'PartnerActor', username: string, id: string }
+      | { __typename: 'Robot', firstName?: string | null, id: string }
+      | { __typename: 'SSOUser', username: string, id: string }
+      | { __typename: 'User', username: string, id: string }
+     | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
+
+export type ViewUpdatesByGroupWithFileUrlsQueryVariables = Exact<{
+  groupId: Scalars['ID']['input'];
+}>;
+
+
+export type ViewUpdatesByGroupWithFileUrlsQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, assetMapUrl?: string | null, sourceMapUrl?: string | null, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
       | { __typename: 'PartnerActor', username: string, id: string }
       | { __typename: 'Robot', firstName?: string | null, id: string }
       | { __typename: 'SSOUser', username: string, id: string }
@@ -16895,6 +17275,13 @@ export type WorkflowJobSshPollQueryVariables = Exact<{
 
 
 export type WorkflowJobSshPollQuery = { __typename?: 'RootQuery', workflowJobs: { __typename?: 'WorkflowJobQuery', byId: { __typename?: 'WorkflowJob', id: string, status: WorkflowJobStatus, workflowRun: { __typename?: 'WorkflowRun', id: string, sshSettings?: { __typename?: 'WorkflowRunSshSettings', idleTimeoutSeconds: number } | null }, turtleJobRun?: { __typename?: 'JobRun', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null, turtleBuild?: { __typename?: 'Build', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null } } };
+
+export type BuildSshPollQueryVariables = Exact<{
+  buildId: Scalars['ID']['input'];
+}>;
+
+
+export type BuildSshPollQuery = { __typename?: 'RootQuery', builds: { __typename?: 'BuildQuery', byId: { __typename?: 'Build', id: string, status: BuildStatus, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } } };
 
 export type JobRunSshPollQueryVariables = Exact<{
   jobRunId: Scalars['ID']['input'];
@@ -17101,7 +17488,16 @@ export type SupabaseConnectionFragment = { __typename?: 'SupabaseConnection', id
 
 export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any };
 
+export type SupabaseAdvisorLintFragment = { __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string };
+
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+    | { __typename: 'PartnerActor', username: string, id: string }
+    | { __typename: 'Robot', firstName?: string | null, id: string }
+    | { __typename: 'SSOUser', username: string, id: string }
+    | { __typename: 'User', username: string, id: string }
+   | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null };
+
+export type UpdateWithFileUrlsFragment = { __typename?: 'Update', id: string, assetMapUrl?: string | null, sourceMapUrl?: string | null, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }
     | { __typename: 'Robot', firstName?: string | null, id: string }
     | { __typename: 'SSOUser', username: string, id: string }

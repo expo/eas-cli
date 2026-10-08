@@ -5,6 +5,7 @@
     "importHelpers": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -12,7 +13,8 @@
     "noUnusedParameters": true,
     "outDir": "build",
     "rootDir": "src",
+    "types": ["node", "jest"],
     "typeRoots": ["../../ts-declarations", "../../node_modules/@types", "./node_modules/@types"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../../ts-declarations/**/*.d.ts"]
 }

@@ -1,0 +1,43 @@
+name: Test recording recovery
+
+on:
+  push:
+    branches: [main]
+    paths: &recording-paths
+      - packages/build-tools/src/steps/utils/deviceRunSessionScreenRecordings.ts
+      - packages/build-tools/src/steps/utils/deviceRunSessionArtifacts.ts
+      - packages/build-tools/src/steps/utils/__tests__/*.test.ffmpeg.ts
+      - packages/build-tools/jest/ffmpeg-config.ts
+      - .github/workflows/test-recording-recovery.yml
+  pull_request:
+    types: [opened, synchronize]
+    paths: *recording-paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-recording-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test recording recovery with ffmpeg
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          persist-credentials: false
+      - name: Setup tools
+        uses: ./.github/actions/setup-mise
+      - name: Install ffmpeg
+        # The recording recovery test cuts and decodes real MP4 files with ffmpeg and ffprobe.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Build build-tools dependencies
+        # tsc emits the dist files that the test imports from workspace packages such as @expo/logger.
+        run: yarn run -T lerna run typecheck --scope @expo/build-tools --include-dependencies
+      - name: Run recording recovery test
+        working-directory: packages/build-tools
+        run: yarn jest-ffmpeg

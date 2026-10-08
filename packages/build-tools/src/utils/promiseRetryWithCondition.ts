@@ -1,20 +1,30 @@
 import promiseRetry from 'promise-retry';
-import { OperationOptions } from 'retry';
 
 export function promiseRetryWithCondition<TFn extends (...args: any[]) => Promise<any>>(
   fn: TFn,
   retryConditionFn: (error: any) => boolean,
-  options: OperationOptions = { retries: 3, factor: 2 }
+  options: { retries: number; factor?: number; minTimeout?: number; maxTimeout?: number } = {
+    retries: 3,
+    factor: 2,
+  },
+  onRetry?: (params: { attemptNumber: number; maxAttemptsCount: number; error: unknown }) => void
 ): (...funcArgs: Parameters<TFn>) => Promise<ReturnType<TFn>> {
-  return (...funcArgs) =>
-    promiseRetry<ReturnType<TFn>>(async retry => {
+  return (...funcArgs) => {
+    let lastError: unknown;
+    const maxAttemptsCount = options.retries + 1;
+    return promiseRetry<ReturnType<TFn>>(async (retry, attemptNumber) => {
+      if (attemptNumber > 1) {
+        onRetry?.({ attemptNumber, maxAttemptsCount, error: lastError });
+      }
       try {
         return await fn(...funcArgs);
       } catch (e) {
         if (retryConditionFn(e)) {
+          lastError = e;
           retry(e);
         }
         throw e;
       }
     }, options);
+  };
 }

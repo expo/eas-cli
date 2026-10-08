@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { UpdateFragment } from '../../graphql/generated';
+import { UpdateFragment, UpdateWithFileUrlsFragment } from '../../graphql/generated';
 import { UpdateInsightsQuery } from '../../graphql/queries/UpdateInsightsQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import { resolveInsightsTimeRange } from '../../insights/timeRange';
@@ -18,7 +18,7 @@ import {
 import {
   formatUpdateGroup,
   getUpdateGroupDescriptions,
-  getUpdateJsonInfosForUpdates,
+  getUpdateWithFileUrlsJsonInfosForUpdates,
 } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -98,11 +98,11 @@ export default class UpdateView extends EasCommand {
     if (jsonFlag) {
       if (insightsSummary) {
         printJsonOnlyOutput({
-          updates: getUpdateJsonInfosForUpdates(updatesByGroup),
+          updates: getUpdateWithFileUrlsJsonInfosForUpdates(updatesByGroup),
           insights: buildUpdateInsightsJson(insightsSummary),
         });
       } else {
-        printJsonOnlyOutput(getUpdateJsonInfosForUpdates(updatesByGroup));
+        printJsonOnlyOutput(getUpdateWithFileUrlsJsonInfosForUpdates(updatesByGroup));
       }
     } else {
       const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
@@ -127,9 +127,11 @@ export default class UpdateView extends EasCommand {
   private static async resolveUpdateGroupAsync(
     graphqlClient: ExpoGraphqlClient,
     id: string
-  ): Promise<{ groupId: string; updatesByGroup: UpdateFragment[] }> {
+  ): Promise<{ groupId: string; updatesByGroup: UpdateWithFileUrlsFragment[] }> {
     try {
-      const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId: id });
+      const updatesByGroup = await UpdateQuery.viewUpdateGroupWithFileUrlsAsync(graphqlClient, {
+        groupId: id,
+      });
       return { groupId: id, updatesByGroup };
     } catch (groupError) {
       let update: UpdateFragment | undefined;
@@ -141,7 +143,7 @@ export default class UpdateView extends EasCommand {
         throw groupError;
       }
 
-      const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+      const updatesByGroup = await UpdateQuery.viewUpdateGroupWithFileUrlsAsync(graphqlClient, {
         groupId: update.group,
       });
       return { groupId: update.group, updatesByGroup };

@@ -70,12 +70,14 @@ export function mergeEnvContent(rawContent: string, newVars: Record<string, stri
   let match: RegExpExecArray | null;
   while ((match = regex.exec(rawContent)) !== null) {
     const key = match[1];
-    if (!Object.hasOwn(newVars, key) || !match.indices) {
+    const indices = match.indices;
+    const keyRange = indices?.[1];
+    if (!Object.hasOwn(newVars, key) || !indices || !keyRange) {
       continue;
     }
     // match[0] runs past the value onto a following comment line, so spans come from the groups.
-    const [keyStart, keyEnd] = match.indices[1];
-    const valueRange = match.indices[2];
+    const [keyStart, keyEnd] = keyRange;
+    const valueRange = indices[2];
     const definitionEnd = valueRange
       ? valueRange[1] - (/\s+$/.exec(match[2])?.[0].length ?? 0)
       : keyEnd + (/^[ \t]*(?:=[ \t]*|:[ \t]+)/.exec(rawContent.slice(keyEnd))?.[0].length ?? 0);
