@@ -3,6 +3,9 @@ import chalk from 'chalk';
 import { stripVTControlCharacters } from 'node:util';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { DeviceRunSessionStatus } from '../../../graphql/generated';
+import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import { downloadSimulatorArtifactAsync } from '../../../simulator/artifacts';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { loadSimulatorEnvAsync } from '../../../simulator/env';
@@ -16,6 +19,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorNetworkRequests from '../network-requests';
 
 jest.mock('../../../log');
+jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
+jest.mock('../../../simulator/artifacts', () => ({
+  ...jest.requireActual('../../../simulator/artifacts'),
+  downloadSimulatorArtifactAsync: jest.fn(),
+}));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -96,6 +104,11 @@ describe(SimulatorNetworkRequests, () => {
     process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';
     chalk.level = 0;
     mockLoadSimulatorEnvAsync.mockResolvedValue();
+    jest
+      .mocked(DeviceRunSessionQuery.byIdAsync)
+      .mockResolvedValue({ id: 'session-id', status: DeviceRunSessionStatus.InProgress } as Awaited<
+        ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+      >);
     mockResolvePreviewAsync.mockResolvedValue(preview);
     mockReadRequestsAsync.mockResolvedValue([]);
     mockDownloadCaptureAsync.mockResolvedValue('/test/capture.har');
@@ -106,13 +119,55 @@ describe(SimulatorNetworkRequests, () => {
     chalk.level = originalColorLevel;
   });
 
+  it.each([DeviceRunSessionStatus.Stopped, DeviceRunSessionStatus.Errored])(
+    'downloads the capture for a %s session without preview',
+    async status => {
+      const session = { id: 'session-id', status } as Awaited<
+        ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+      >;
+      jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(session);
+      await createCommand(['--artifact', '2', '--output', 'capture.har', '--json']).runAsync();
+      expect(downloadSimulatorArtifactAsync).toHaveBeenCalledWith(session, 'network-capture', {
+        artifact: 2,
+        output: 'capture.har',
+        nonInteractive: true,
+        json: true,
+      });
+      expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+      expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([['--follow'], ['--request-id', 'r1']])(
+    'rejects live inspection of a stopped session %s',
+    async (...args) => {
+      jest
+        .mocked(DeviceRunSessionQuery.byIdAsync)
+        .mockResolvedValue({ id: 'session-id', status: DeviceRunSessionStatus.Stopped } as Awaited<
+          ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
+        >);
+      await expect(createCommand(args).runAsync()).rejects.toThrow('Use --output <path>');
+      expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects artifact selection on a running session', async () => {
+    await expect(createCommand(['--artifact', '1']).runAsync()).rejects.toThrow(
+      'only available for stopped sessions'
+    );
+    expect(mockReadRequestsAsync).not.toHaveBeenCalled();
+  });
+
   it('prints a JSON list for an explicit session with the default limit', async () => {
     mockReadRequestsAsync.mockResolvedValue([requestSummary]);
 
     await createCommand(['--id', 'session-id', '--json']).runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+    expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'session-id' })
+    );
     expect(mockReadRequestsAsync).toHaveBeenCalledWith(preview, {
       limit: 100,
       requestId: undefined,
@@ -173,7 +228,7 @@ describe(SimulatorNetworkRequests, () => {
     await createCommand(['--limit', '3']).runAsync();
 
     expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
+    expect(DeviceRunSessionQuery.byIdAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
     expect(mockReadRequestsAsync).toHaveBeenCalledWith(preview, { limit: 3, requestId: undefined });
     expect(mockLog).toHaveBeenCalledWith(
       'request-id  POST    https://example.test/posts  201  50ms'
