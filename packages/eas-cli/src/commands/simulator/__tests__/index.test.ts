@@ -339,8 +339,44 @@ describe(Simulator, () => {
     });
   }
 
-  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created', async () => {
+  function mockCreateThatAnswersLater(): {
+    createStarted: Promise<void>;
+    resolveCreate: (session: CreatedDeviceRunSession) => void;
+    rejectCreate: (error: Error) => void;
+  } {
+    let resolveCreate!: (session: CreatedDeviceRunSession) => void;
+    let rejectCreate!: (error: Error) => void;
+    const createStarted = new Promise<void>(notifyCreateStarted => {
+      mockCreateDeviceRunSessionAsync.mockImplementationOnce(
+        () =>
+          new Promise<CreatedDeviceRunSession>((resolve, reject) => {
+            resolveCreate = resolve;
+            rejectCreate = reject;
+            notifyCreateStarted();
+          })
+      );
+    });
+    return {
+      createStarted,
+      resolveCreate: session => {
+        resolveCreate(session);
+      },
+      rejectCreate: error => {
+        rejectCreate(error);
+      },
+    };
+  }
+
+  /** Fake timers with the real sleepAsync, so the Ctrl+C waits run on the fake clock. */
+  function useFakeTimersWithRealSleep(): void {
+    jest.useFakeTimers();
+    const { sleepAsync } = jest.requireActual<typeof promiseUtils>('../../../utils/promise');
+    jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(sleepAsync);
+  }
+
+  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created, and stops a session that comes back during the flush only after the flush', async () => {
     mockLogEvent.mockClear();
+    useFakeTimersWithRealSleep();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
@@ -355,21 +391,30 @@ describe(Simulator, () => {
             })
         );
       });
-      const createStarted = mockCreateThatNeverAnswers();
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
       const existingSigintListeners = new Set(process.listeners('SIGINT'));
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
       const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
       await createStarted;
       process.listeners('SIGINT').find(listener => !existingSigintListeners.has(listener))?.(
         'SIGINT'
       );
       await flushStarted;
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(500);
+      const stopCallsDuringFlush = [...mockEnsureDeviceRunSessionStoppedAsync.mock.calls];
       const exitCallsDuringFlush = [...processExitSpy.mock.calls];
       finishFlush();
-      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await exited;
 
+      expect(stopCallsDuringFlush).toEqual([]);
       expect(exitCallsDuringFlush).toEqual([]);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
         expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
@@ -377,14 +422,132 @@ describe(Simulator, () => {
       expect(mockOra.mock.results[0]?.value.fail).toHaveBeenCalledWith(
         'Simulator session request canceled'
       );
-      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
       expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
     } finally {
       processExitSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 
-  it('removes its Ctrl+C listener on the first Ctrl+C during the request, so a second Ctrl+C is not swallowed during the flush', async () => {
+  it('stops a session that the create request returns within 5 seconds of Ctrl+C, prints its ID, and exits with 130 after the stop', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      let finishStop!: () => void;
+      mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finishStop = () => {
+              resolve({ id: 'session-123', status: DeviceRunSessionStatus.Stopped });
+            };
+          })
+      );
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
+      const existingSigintListeners = [...process.listeners('SIGINT')];
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await createStarted;
+      process.emit('SIGINT');
+      await jest.advanceTimersByTimeAsync(4_999);
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      const exitCallsDuringStop = [...processExitSpy.mock.calls];
+      finishStop();
+      await exited;
+
+      expect(exitCallsDuringStop).toEqual([]);
+      expect(mockOra.mock.results[1]?.value.succeed).toHaveBeenCalledWith(
+        'Simulator session session-123 stopped'
+      );
+      expect(Log.warn).not.toHaveBeenCalled();
+      expect(mockByIdAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+    } finally {
+      // Drop the pending stop if this test failed before using it, so later tests do not hang.
+      mockEnsureDeviceRunSessionStoppedAsync.mockReset();
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('warns to check eas simulator:list and exits with 130 when no session comes back within 5 seconds of Ctrl+C', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const createStarted = mockCreateThatNeverAnswers();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await createStarted;
+      process.emit('SIGINT');
+      await jest.advanceTimersByTimeAsync(4_999);
+      const warningsBeforeFiveSeconds = [...jest.mocked(Log.warn).mock.calls];
+      const exitCallsBeforeFiveSeconds = [...processExitSpy.mock.calls];
+      await jest.advanceTimersByTimeAsync(1);
+      await exited;
+
+      expect(warningsBeforeFiveSeconds).toEqual([]);
+      expect(exitCallsBeforeFiveSeconds).toEqual([]);
+      expect(Log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Run `eas simulator:list` to check for a running session')
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('warns the same way, and logs no "request failed", when the create request fails after Ctrl+C', async () => {
+    mockLogEvent.mockClear();
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { createStarted, rejectCreate } = mockCreateThatAnswersLater();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await createStarted;
+      process.emit('SIGINT');
+      rejectCreate(
+        new CombinedError({
+          networkError: Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }),
+        })
+      );
+      await jest.advanceTimersByTimeAsync(0);
+      // The failed request ends the wait at once, without waiting the full 5 seconds.
+      expect(processExitSpy).toHaveBeenCalledWith(130);
+      await exited;
+
+      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(mockLogEvent).toHaveBeenLastCalledWith(
+        SimulatorEvent.REQUEST_CANCELLED,
+        expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('exits with 130 at once on a second Ctrl+C while it waits for the create request', async () => {
+    useFakeTimersWithRealSleep();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
@@ -394,25 +557,35 @@ describe(Simulator, () => {
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
       const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
       await createStarted;
       process.emit('SIGINT');
-      const listenersAfterFirstCtrlC = process.listeners('SIGINT');
-      await expect(commandPromise).rejects.toThrow('process.exit(130)');
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect(Log.log).toHaveBeenCalledWith(
+        expect.stringContaining('Press Ctrl+C again to exit now')
+      );
+      expect(processExitSpy).not.toHaveBeenCalled();
 
-      expect(listenersAfterFirstCtrlC).toEqual(existingSigintListeners);
+      expect(() => process.emit('SIGINT')).toThrow('process.exit(130)');
+      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+
+      // process.exit is mocked, so let the first Ctrl+C finish to clean up its listener.
+      await jest.advanceTimersByTimeAsync(3_000);
+      await exited;
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
     } finally {
       processExitSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 
-  it('exits with 130 after 1 second when the analytics flush hangs after Ctrl+C', async () => {
-    jest.useFakeTimers();
+  it('stops waiting for a hung analytics flush 1 second after Ctrl+C', async () => {
+    useFakeTimersWithRealSleep();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
     try {
-      const { sleepAsync } = jest.requireActual<typeof promiseUtils>('../../../utils/promise');
-      jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(sleepAsync);
       mockFlushAsync.mockImplementationOnce(() => new Promise<void>(() => {}));
       const createStarted = mockCreateThatNeverAnswers();
 
@@ -422,12 +595,17 @@ describe(Simulator, () => {
       await createStarted;
       process.emit('SIGINT');
       await jest.advanceTimersByTimeAsync(999);
-      const exitCallsBeforeOneSecond = [...processExitSpy.mock.calls];
+      const waitMessagesBeforeOneSecond = jest
+        .mocked(Log.log)
+        .mock.calls.filter(([message]) => String(message).includes('Waiting up to 5 seconds'));
       await jest.advanceTimersByTimeAsync(1);
-      await exited;
 
-      expect(exitCallsBeforeOneSecond).toEqual([]);
+      expect(waitMessagesBeforeOneSecond).toEqual([]);
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Waiting up to 5 seconds'));
       expect(mockFlushAsync).toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      await exited;
     } finally {
       processExitSpy.mockRestore();
       jest.useRealTimers();
