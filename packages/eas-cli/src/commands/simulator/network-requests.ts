@@ -7,14 +7,20 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import Log from '../../log';
-import { SIMULATOR_DOTENV_FILE_NAME } from '../../simulator/env';
+import { ora } from '../../ora';
+import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../simulator/env';
 import {
   type NetworkRequestSummary,
   downloadNetworkCaptureAsync,
   readNetworkRequestsAsync,
   streamNetworkRequestsAsync,
 } from '../../simulator/networkRequests';
-import { resolveSimulatorPreviewAsync, sanitizeSimulatorText } from '../../simulator/preview';
+import { resolveSimulatorPreviewAsync } from '../../simulator/preview';
+import { stripTerminalControlCharacters } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorNetworkRequests extends EasCommand {
@@ -46,7 +52,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
     follow: Flags.boolean({
       char: 'f',
       description: 'Stream completed requests, including those retained by the current capture.',
-      exclusive: ['json', 'request-id', 'output', 'limit'],
+      exclusive: ['request-id', 'output', 'limit'],
     }),
     limit: Flags.integer({
       description: 'Maximum number of recent requests to list without --follow.',
@@ -71,26 +77,62 @@ export default class SimulatorNetworkRequests extends EasCommand {
     }
     const { flags } = await this.parse(SimulatorNetworkRequests);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (jsonFlag && flags.follow) {
+      throw new Error('Use either --json or --follow, not both.');
+    }
+
     const {
       projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorNetworkRequests, { nonInteractive });
-    const preview = await resolveSimulatorPreviewAsync(graphqlClient, projectDir, flags.id);
-    if (flags.follow) {
-      await streamNetworkRequestsAsync(preview, request => {
-        Log.log(formatRequestSummary(request, flags.timestamp));
-      });
-      return;
+    await loadSimulatorEnvAsync(projectDir);
+    const deviceRunSessionId = flags.id ?? process.env[EAS_SIMULATOR_SESSION_ID];
+    if (!deviceRunSessionId) {
+      throw new Error(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
     }
-    if (flags.output) {
-      const filePath = await downloadNetworkCaptureAsync(preview, flags.output);
-      if (jsonFlag) {
-        printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, filePath });
-      } else {
-        Log.log(`Saved network capture to ${sanitizeSimulatorText(filePath)}.`);
+    const preview = await resolveSimulatorPreviewAsync(graphqlClient, deviceRunSessionId);
+
+    if (flags.follow) {
+      const abortController = new AbortController();
+      const interruptHandler = (): void => {
+        if (abortController.signal.aborted) {
+          process.exit(130);
+        }
+        abortController.abort();
+      };
+      process.on('SIGINT', interruptHandler);
+      try {
+        await streamNetworkRequestsAsync(
+          preview,
+          request => {
+            Log.log(formatRequestSummary(request, flags.timestamp));
+          },
+          abortController.signal
+        );
+      } finally {
+        process.removeListener('SIGINT', interruptHandler);
       }
       return;
     }
+
+    if (flags.output) {
+      const downloadSpinner = jsonFlag ? null : ora('Saving network capture').start();
+      let filePath: string;
+      try {
+        filePath = await downloadNetworkCaptureAsync(preview, flags.output);
+        downloadSpinner?.succeed(`Saved network capture to ${filePath}`);
+      } catch (err) {
+        downloadSpinner?.fail('Failed to save network capture');
+        throw err;
+      }
+      if (jsonFlag) {
+        printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, filePath });
+      }
+      return;
+    }
+
     const result = await readNetworkRequestsAsync(preview, {
       limit: flags.limit,
       requestId: flags['request-id'],
@@ -101,7 +143,11 @@ export default class SimulatorNetworkRequests extends EasCommand {
         ...(Array.isArray(result) ? { requests: result } : { request: result }),
       });
     } else if (!Array.isArray(result)) {
-      Log.log(sanitizeSimulatorText(JSON.stringify(result, null, 2)));
+      Log.log(
+        stripTerminalControlCharacters(JSON.stringify(result, null, 2), {
+          keepNewlinesAndTabs: true,
+        })
+      );
     } else if (result.length === 0) {
       Log.log(
         'No completed network requests were captured. Initial-launch requests may have been missed.'
@@ -115,7 +161,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
 }
 
 function formatRequestSummary(request: NetworkRequestSummary, timestamp = false): string {
-  let status = sanitizeSimulatorText(String(request.status));
+  let status = String(request.status);
   if (request.status === 0 || request.status >= 500) {
     status = chalk.red(status);
   } else if (request.status >= 400) {
@@ -126,14 +172,14 @@ function formatRequestSummary(request: NetworkRequestSummary, timestamp = false)
     status = chalk.green(status);
   }
   const fields = [
-    chalk.dim(sanitizeSimulatorText(request.id ?? '-').padEnd(5)),
-    chalk.bold.cyan(sanitizeSimulatorText(request.method).padEnd(6)),
-    sanitizeSimulatorText(request.url),
+    chalk.dim(stripTerminalControlCharacters(request.id ?? '-').padEnd(5)),
+    chalk.bold.cyan(stripTerminalControlCharacters(request.method).padEnd(6)),
+    stripTerminalControlCharacters(request.url),
     status,
-    chalk.dim(sanitizeSimulatorText(`${Math.round(request.duration * 10) / 10}ms`)),
+    chalk.dim(`${Math.round(request.duration * 10) / 10}ms`),
   ];
   if (timestamp) {
-    fields.unshift(chalk.dim(sanitizeSimulatorText(request.startedDateTime)));
+    fields.unshift(chalk.dim(stripTerminalControlCharacters(request.startedDateTime)));
   }
   return fields.join('  ');
 }
