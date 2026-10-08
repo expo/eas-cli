@@ -21,6 +21,14 @@ const ReleaseNoteZ = z.object({
   text: z.string(),
 });
 
+const ReleaseZ = z.object({
+  name: z.string().optional(),
+  versionCodes: z.array(z.string()),
+  status: ReleaseStatusZ,
+  userFraction: z.number().gt(0).lt(1).optional(),
+  releaseNotes: z.array(ReleaseNoteZ).optional(),
+});
+
 const GetApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
@@ -38,17 +46,7 @@ const GetApi = {
     query: z.object({}),
     response: z.object({
       track: z.string().min(1),
-      releases: z
-        .array(
-          z.object({
-            name: z.string().optional(),
-            versionCodes: z.array(z.string()),
-            status: ReleaseStatusZ,
-            userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(ReleaseNoteZ).optional(),
-          })
-        )
-        .optional(),
+      releases: z.array(ReleaseZ).optional(),
     }),
   },
 };
@@ -83,32 +81,12 @@ const PutApi = {
     }),
     request: z.object({
       track: z.string().min(1),
-      releases: z
-        .array(
-          z.object({
-            name: z.string().optional(),
-            versionCodes: z.array(z.string()),
-            status: ReleaseStatusZ,
-            userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(ReleaseNoteZ).optional(),
-          })
-        )
-        .optional(),
+      releases: z.array(ReleaseZ).optional(),
     }),
     query: z.object({}),
     response: z.object({
       track: z.string().min(1),
-      releases: z
-        .array(
-          z.object({
-            name: z.string().optional(),
-            versionCodes: z.array(z.string()),
-            status: ReleaseStatusZ,
-            userFraction: z.number().gt(0).lt(1).optional(),
-            releaseNotes: z.array(ReleaseNoteZ).optional(),
-          })
-        )
-        .optional(),
+      releases: z.array(ReleaseZ).optional(),
     }),
   },
 };
