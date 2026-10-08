@@ -4,6 +4,7 @@ import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from 
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { EventEmitter } from 'node:events';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -37,13 +38,14 @@ import {
 } from '../remoteDeviceRunSession';
 
 import {
+  EXPO_DEVICE_HUB_STATE_DIR,
   createExpoDeviceHubArgs,
   createServeSimArgs,
   simulatorPreviewPageUrl,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
   websiteOrigin,
-  websiteOriginServeSimArgs,
+  websiteOriginArgs,
 } from '../deviceSessionHost';
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
@@ -559,6 +561,7 @@ describe(createExpoDeviceHubArgs, () => {
       '4321',
       '--host',
       '127.0.0.1',
+      '--require-token',
       '--platform',
       'android',
       '--transport',
@@ -580,6 +583,23 @@ describe(createExpoDeviceHubArgs, () => {
     ]);
   });
 
+  // The same website flags as serve-sim, after the TURN args.
+  it('appends the website args after the TURN args when provided', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
+    });
+    expect(args.slice(-6)).toEqual([
+      '--turn-url',
+      'turns:turn.example.test:443',
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' })[0]).toBe(
       'expo-device-hub@0.7.0'
@@ -587,9 +607,9 @@ describe(createExpoDeviceHubArgs, () => {
   });
 });
 
-describe(websiteOriginServeSimArgs, () => {
+describe(websiteOriginArgs, () => {
   it('names only the production website by default', () => {
-    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).toEqual([
+    expect(websiteOriginArgs({} as BuildStepEnv)).toEqual([
       '--cors-origin',
       'https://expo.dev',
       '--frame-ancestor',
@@ -598,7 +618,7 @@ describe(websiteOriginServeSimArgs, () => {
   });
 
   it('names staging, its deploy previews and local website subdomains on staging', () => {
-    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    const args = websiteOriginArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
     expect(args).toEqual([
       '--cors-origin',
       'https://staging.expo.dev',
@@ -621,14 +641,14 @@ describe(websiteOriginServeSimArgs, () => {
 
   it('names only https origins', () => {
     for (const env of [{}, { EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
-      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      const args = websiteOriginArgs(env as BuildStepEnv);
       expect(args.filter(value => value.startsWith('http://'))).toEqual([]);
     }
   });
 
   it('names local website subdomains without the deploy-preview wildcard on local', () => {
     for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
-      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).toEqual([
+      expect(websiteOriginArgs(env as BuildStepEnv)).toEqual([
         '--cors-origin',
         'https://expo.test',
         '--frame-ancestor',
@@ -775,6 +795,7 @@ describe(startDeviceSessionHostAsync, () => {
     DEVICE_RUN_SESSION_ID: 'drs-id',
     NGROK_AUTHTOKEN: 'ngrok-token',
   } as unknown as BuildStepEnv;
+  const hubStateFiles: string[] = [];
 
   beforeEach(() => {
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
@@ -792,7 +813,17 @@ describe(startDeviceSessionHostAsync, () => {
         once: jest.fn(),
       },
     });
-    jest.mocked(spawn).mockReturnValue(spawnPromise as never);
+    // expo-device-hub records its session token in `server-<port>.json` before it is ready.
+    jest.mocked(spawn).mockImplementation(((_command: string, args: string[] = []) => {
+      if (args.includes('--platform')) {
+        const port = args[args.indexOf('--port') + 1];
+        const file = path.join(EXPO_DEVICE_HUB_STATE_DIR, `server-${port}.json`);
+        mkdirSync(EXPO_DEVICE_HUB_STATE_DIR, { recursive: true });
+        writeFileSync(file, JSON.stringify({ pid: 1, port: Number(port), token: 'hub-token' }));
+        hubStateFiles.push(file);
+      }
+      return spawnPromise;
+    }) as never);
 
     jest.mocked(turtleFetch).mockImplementation(async url => {
       if (url.endsWith('/turn-ice-servers')) {
@@ -816,8 +847,9 @@ describe(startDeviceSessionHostAsync, () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
+    await Promise.all(hubStateFiles.splice(0).map(file => fs.rm(file, { force: true })));
   });
 
   it('gives serve-sim its recording grace period on shutdown', async () => {
@@ -888,7 +920,13 @@ describe(startDeviceSessionHostAsync, () => {
     const recordingDirectory = args[args.indexOf('--android-recording-directory') + 1];
     expect(args).toEqual([
       '--yes',
-      ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+      ...createExpoDeviceHubArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        packageVersion,
+        recordingDirectory,
+      }),
     ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
@@ -967,8 +1005,8 @@ describe(startDeviceSessionHostAsync, () => {
     ).rejects.toThrow(/wrote no session token/);
   });
 
-  // expo-device-hub mints no token, so the Android preview must not require one.
-  it('starts for Linux without a token, and does not gate expo-device-hub', async () => {
+  // expo-device-hub records its token in a state file, as serve-sim does.
+  it('carries the expo-device-hub session token for Linux', async () => {
     jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -983,9 +1021,10 @@ describe(startDeviceSessionHostAsync, () => {
     });
     const preview = await host.openPreviewAsync({ baseDomain });
 
-    expect(preview.previewToken).toBeUndefined();
-    const [, args] = jest.mocked(spawn).mock.calls[0];
-    expect(args).not.toContain('--require-token');
+    expect(preview.previewToken).toBe('hub-token');
+    const [, args] = jest.mocked(spawn).mock.calls.find(([command]) => command === 'npx')!;
+    expect(args).toContain('--require-token');
+    await host.finishAsync();
   });
 
   it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
