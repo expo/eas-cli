@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Fix `eas update` failing with "Could not find branch" on the first publish to a branch it just created.
+- [eas-cli] Fix `eas update` failing with "Could not find branch" on the first publish to a branch it just created. ([#4569](https://github.com/expo/eas-cli/pull/4569) by [@arpitag-emergent](https://github.com/arpitag-emergent))
 
 ### 🧹 Chores
 
