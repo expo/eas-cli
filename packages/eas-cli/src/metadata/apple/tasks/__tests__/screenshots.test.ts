@@ -388,5 +388,87 @@ describe(ScreenshotsTask, () => {
       // Reorder is skipped because the current order already matches
       expect(reorderMock).not.toHaveBeenCalled();
     });
+
+    // Regression test for https://github.com/expo/eas-cli/issues/3690.
+    //
+    // The App Store Connect API does NOT return `relationships.appScreenshots`
+    // on `GET /v1/appScreenshotSets/{id}` unless `?include=appScreenshots` is
+    // passed, and `@expo/apple-utils` <= 2.1.21 does not pass it from
+    // `AppScreenshotSet.infoAsync`. Without an explicit `query.includes` here
+    // we would refresh the set with `attributes.appScreenshots === undefined`,
+    // build an empty `screenshotsByFilename` map, end up with an empty
+    // `orderedIds`, and silently skip `reorderScreenshotsAsync` — leaving the
+    // live store with a stale order even though every (filename, fileSize)
+    // pair already matched the local config and no upload was needed.
+    it('passes `includes: ["appScreenshots"]` to `AppScreenshotSet.infoAsync` and reorders when the live order differs (#3690)', async () => {
+      const existing1 = new AppScreenshot(requestContext, 'SS_1', {
+        fileName: '01-home.png',
+        fileSize: 1024,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+      const existing2 = new AppScreenshot(requestContext, 'SS_2', {
+        fileName: '02-detail.png',
+        fileSize: 1024,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+
+      const config = new AppleConfigReader({
+        info: {
+          'en-US': {
+            title: 'My App',
+            screenshots: {
+              // Local config wants 01-home, 02-detail in that order.
+              APP_IPHONE_67: ['./screenshots/01-home.png', './screenshots/02-detail.png'],
+            },
+          },
+        },
+      });
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      // The set already has both screenshots (so nothing is uploaded), but the
+      // live order on App Store Connect is reversed.
+      const screenshotSet = new AppScreenshotSet(requestContext, 'SET_1', {
+        screenshotDisplayType: ScreenshotDisplayType.APP_IPHONE_67,
+        appScreenshots: [existing2, existing1],
+      } as any);
+
+      const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
+      displayTypeMap.set(ScreenshotDisplayType.APP_IPHONE_67, screenshotSet);
+      const screenshotSets = new Map([['en-US', displayTypeMap]]);
+
+      const infoSpy = jest.spyOn(AppScreenshotSet, 'infoAsync').mockResolvedValue(
+        new AppScreenshotSet(requestContext, 'SET_1', {
+          screenshotDisplayType: ScreenshotDisplayType.APP_IPHONE_67,
+          // Refresh returns the stale (reversed) live order.
+          appScreenshots: [existing2, existing1],
+        } as any)
+      );
+      const reorderMock = jest.fn().mockResolvedValue([]);
+      AppScreenshotSet.prototype.reorderScreenshotsAsync = reorderMock;
+
+      await new ScreenshotsTask().uploadAsync({
+        config,
+        context: {
+          screenshotSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      // The infoAsync call MUST request the appScreenshots relationship,
+      // otherwise ASC returns no data and the reorder check is a no-op.
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          id: 'SET_1',
+          query: expect.objectContaining({ includes: ['appScreenshots'] }),
+        })
+      );
+      // Live order was [SS_2, SS_1]; config wants [SS_1, SS_2]. Reorder must run.
+      expect(reorderMock).toHaveBeenCalledWith({ appScreenshots: ['SS_1', 'SS_2'] });
+    });
   });
 });
