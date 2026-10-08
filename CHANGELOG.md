@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-build-job] Add types and validation for documented GitHub workflow context fields. ([#4573](https://github.com/expo/eas-cli/pull/4573) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [24.12.0](https://github.com/expo/eas-cli/releases/tag/v24.12.0) - 2026-10-07
