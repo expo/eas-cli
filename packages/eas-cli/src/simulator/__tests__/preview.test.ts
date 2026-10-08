@@ -23,7 +23,7 @@ jest.mock('../../fetch', () => ({
 const graphqlClient = {} as ExpoGraphqlClient;
 const preview = {
   deviceRunSessionId: 'session-id',
-  baseUrl: new URL('https://preview.test/prefix/?device=SIM-A'),
+  baseUrl: new URL('https://preview.test'),
   token: 'secret-token',
 };
 
@@ -109,13 +109,10 @@ describe(resolveSimulatorPreviewAsync, () => {
 });
 
 describe(fetchSimulatorPreviewAsync, () => {
-  it('preserves the mounted route and device while using header authentication', async () => {
+  it('requests the route on the preview API origin with header authentication', async () => {
     jest.mocked(fetch).mockResolvedValue(new Response('{}'));
     await fetchSimulatorPreviewAsync(preview, '/logs', { query: { snapshot: '1' } });
-    expect(fetch).toHaveBeenCalledWith(
-      'https://preview.test/prefix/logs?device=SIM-A&snapshot=1',
-      expect.anything()
-    );
+    expect(fetch).toHaveBeenCalledWith('https://preview.test/logs?snapshot=1', expect.anything());
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
     expect(headers.get('authorization')).toBe('Bearer secret-token');
   });
@@ -179,10 +176,7 @@ describe(fetchSimulatorPreviewJsonAsync, () => {
     await expect(
       fetchSimulatorPreviewJsonAsync(preview, '/logs', { query: { snapshot: '1' } })
     ).resolves.toEqual({ lines: [] });
-    expect(fetch).toHaveBeenCalledWith(
-      'https://preview.test/prefix/logs?device=SIM-A&snapshot=1',
-      expect.anything()
-    );
+    expect(fetch).toHaveBeenCalledWith('https://preview.test/logs?snapshot=1', expect.anything());
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
     expect(headers.get('accept')).toBe('application/json');
   });

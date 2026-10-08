@@ -10,7 +10,7 @@ const PREVIEW_API_TIMEOUT_MS = 30_000;
 // The preview server sends a heartbeat every 15 seconds, so a longer silence means the stream is gone.
 const PREVIEW_STREAM_IDLE_TIMEOUT_MS = 60_000;
 const INVALID_PREVIEW_API_URL_MESSAGE =
-  'The simulator session has an invalid preview API URL. The session reported a URL that is not a valid HTTP(S) URL. Start a new session with `eas simulator:start`. If this keeps happening, contact us at https://expo.dev/contact.';
+  'The simulator session has an invalid preview API URL. The session reported a URL that is not a valid HTTP(S) URL. Start a new session with `eas simulator:start`.';
 const PREVIEW_DATA_NOT_FOUND_MESSAGE =
   "The requested preview data was not found. The session's preview server does not support this request. Start a new session with `eas simulator:start`, then try again.";
 
@@ -55,7 +55,7 @@ export async function resolveSimulatorPreviewAsync(
   const token = getPreviewToken(config);
   if (!token) {
     throw new Error(
-      'The simulator session does not include a preview API token. The preview API requires a token, and the session did not report one. Start a new session with `eas simulator:start`. If this keeps happening, contact us at https://expo.dev/contact.'
+      'The simulator session does not include a preview API token. The preview API requires a token, and the session did not report one. Start a new session with `eas simulator:start`.'
     );
   }
   // Requests send the token in a header, so keep it out of URLs that can appear in errors.
@@ -74,8 +74,7 @@ export async function fetchSimulatorPreviewAsync(
     accept,
   }: SimulatorPreviewRequestOptions & { accept?: string } = {}
 ): Promise<Response> {
-  const url = new URL(preview.baseUrl);
-  url.pathname = `${url.pathname.replace(/\/+$/, '')}${route}`;
+  const url = new URL(route, preview.baseUrl);
   for (const [key, value] of Object.entries(query ?? {})) {
     url.searchParams.set(key, value);
   }
@@ -130,7 +129,7 @@ export async function fetchSimulatorPreviewJsonAsync<T>(
     return (await response.json()) as T;
   } catch {
     throw new Error(
-      'Could not read the simulator preview API response. The response was incomplete or not valid JSON. Try again. If this keeps happening, update EAS CLI.'
+      'Could not read the simulator preview API response. The response was incomplete or not valid JSON. Try again.'
     );
   }
 }
