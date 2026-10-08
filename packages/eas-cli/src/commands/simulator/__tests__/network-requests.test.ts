@@ -47,6 +47,7 @@ const mockStreamRequestsAsync = jest.mocked(streamNetworkRequestsAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
+const originalColorLevel = chalk.level;
 const graphqlClient = {} as ExpoGraphqlClient;
 const projectDir = '/test/project';
 const preview = {
@@ -90,7 +91,6 @@ function getMockOclifConfig(): Config {
 }
 
 describe(SimulatorNetworkRequests, () => {
-  const originalColorLevel = chalk.level;
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';

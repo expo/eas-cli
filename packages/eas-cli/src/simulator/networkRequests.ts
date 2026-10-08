@@ -14,6 +14,8 @@ import { type Response } from '../fetch';
 const NETWORK_CAPTURE_TIMEOUT_MS = 10 * 60_000;
 const NETWORK_CAPTURE_NOT_ENABLED_MESSAGE =
   'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.';
+const OUTPUT_EXISTS_MESSAGE =
+  'The output file already exists. The command does not overwrite files. Choose another --output path.';
 const INVALID_NETWORK_CAPTURE_MESSAGE =
   'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again. If this keeps happening, update EAS CLI.';
 
@@ -197,9 +199,7 @@ export async function downloadNetworkCaptureAsync(
 ): Promise<string> {
   const outputPath = path.resolve(output);
   if (await fs.pathExists(outputPath)) {
-    throw new Error(
-      'The output file already exists. The command does not overwrite files. Choose another --output path.'
-    );
+    throw new Error(OUTPUT_EXISTS_MESSAGE);
   }
   const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
   let response: Response | undefined;
@@ -209,8 +209,12 @@ export async function downloadNetworkCaptureAsync(
       notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
     });
     // The HAR contains decrypted request data, such as credentials, so only the user can read it.
-    await pipeline(response.body, fs.createWriteStream(outputPath, { mode: 0o600 }));
+    await pipeline(response.body, fs.createWriteStream(outputPath, { flags: 'wx', mode: 0o600 }));
   } catch (error) {
+    // Another process created the file during the download, so leave it in place.
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error(OUTPUT_EXISTS_MESSAGE);
+    }
     if (response && (await fs.pathExists(outputPath))) {
       await fs.remove(outputPath);
     }
