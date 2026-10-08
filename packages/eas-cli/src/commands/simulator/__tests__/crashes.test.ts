@@ -230,6 +230,22 @@ describe(SimulatorCrashes, () => {
     expect(mockLog).toHaveBeenLastCalledWith('last app log');
   });
 
+  it('suggests following logs when a missing report has no recorded log lines', async () => {
+    mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce({
+      record: crash,
+      occurrence: { logTail: [] },
+      report: null,
+      reportError: null,
+    });
+
+    await createCommand(['--report-id', 'crash-id']).runAsync();
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      'The crash report is unavailable. The session recorded the crash but did not return its report. To collect logs, run `eas simulator:logs --follow --scope all` while you reproduce the crash.'
+    );
+    expect(mockLog).toHaveBeenCalledTimes(1);
+  });
+
   it('enables JSON output before rejecting invalid flags', async () => {
     await expect(createCommand(['--json', '--unknown']).runAsync()).rejects.toThrow();
 
