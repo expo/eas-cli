@@ -11,6 +11,8 @@ const PREVIEW_API_TIMEOUT_MS = 30_000;
 const PREVIEW_STREAM_IDLE_TIMEOUT_MS = 60_000;
 const INVALID_PREVIEW_API_URL_MESSAGE =
   'The simulator session has an invalid preview API URL. The session reported a URL that is not a valid HTTP(S) URL. Start a new session with `eas simulator:start`.';
+const PREVIEW_STREAM_ENDED_MESSAGE =
+  "The simulator preview stream ended unexpectedly. The connection to the session's preview server closed. Run `eas simulator:get` to check that the session is still running, then run the command again.";
 const PREVIEW_DATA_NOT_FOUND_MESSAGE =
   "The requested preview data was not found. The session's preview server does not support this request. Start a new session with `eas simulator:start`, then try again.";
 
@@ -135,7 +137,7 @@ export async function fetchSimulatorPreviewJsonAsync<T>(
 }
 
 /**
- * Calls `onData` with each server-sent event's data until the stream ends or `signal` aborts.
+ * Calls `onData` with each server-sent event's data until `signal` aborts. The stream ending is an error.
  * Errors thrown by `onData` stop the stream and are rethrown unchanged.
  */
 export async function streamSimulatorPreviewAsync(
@@ -187,6 +189,8 @@ export async function streamSimulatorPreviewAsync(
         data.push(line.slice(5).replace(/^ /, ''));
       }
     }
+    // The server keeps the stream open while the session runs, so a clean end is unexpected too.
+    throw new Error(PREVIEW_STREAM_ENDED_MESSAGE);
   } catch (error) {
     if (signal.aborted) {
       return;
@@ -194,9 +198,7 @@ export async function streamSimulatorPreviewAsync(
     if (!reading || error === onDataError) {
       throw error;
     }
-    throw new Error(
-      "The simulator preview stream ended unexpectedly. The connection to the session's preview server closed. Run `eas simulator:get` to check that the session is still running, then run the command again."
-    );
+    throw new Error(PREVIEW_STREAM_ENDED_MESSAGE);
   } finally {
     clearTimeout(idleTimer);
     controller.abort();

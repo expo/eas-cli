@@ -205,7 +205,7 @@ describe(streamSimulatorPreviewAsync, () => {
     return jest.mocked(fetch).mock.calls[0][1]?.signal ?? undefined;
   }
 
-  it('parses SSE across chunk boundaries and closes the connection', async () => {
+  it('parses SSE across chunk boundaries and reports the server closing the stream', async () => {
     const body = Readable.from([
       ': heartbeat\r\ndata: fir',
       'st\r\ndata: second\r\n\r\ndata: last\n\n',
@@ -214,7 +214,9 @@ describe(streamSimulatorPreviewAsync, () => {
       .mocked(fetch)
       .mockResolvedValue(new Response(body, { headers: { 'content-type': 'text/event-stream' } }));
     const onData = jest.fn();
-    await streamSimulatorPreviewAsync(preview, '/logs', onData, { signal });
+    await expect(streamSimulatorPreviewAsync(preview, '/logs', onData, { signal })).rejects.toThrow(
+      'The simulator preview stream ended unexpectedly.'
+    );
     expect(onData.mock.calls).toEqual([['first\nsecond'], ['last']]);
     expect(getRequestSignal()?.aborted).toBe(true);
     const headers = new Headers(jest.mocked(fetch).mock.calls[0][1]?.headers);
