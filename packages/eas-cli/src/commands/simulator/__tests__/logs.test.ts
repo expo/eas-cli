@@ -202,6 +202,18 @@ describe(SimulatorLogs, () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
+  it('uses the current time for a snapshot line with an invalid time', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-05T13:00:00.000Z'));
+    mockFetchJsonAsync.mockResolvedValue(
+      createSnapshot([line, { ...line, at: 1e300, raw: 'raw message' }])
+    );
+
+    await createCommand(['--timestamp']).runAsync();
+
+    expect(mockLog).toHaveBeenLastCalledWith('2026-10-05T13:00:00.000Z  raw message');
+    now.mockRestore();
+  });
+
   it('explains that an empty snapshot needs following before actions', async () => {
     await createCommand([]).runAsync();
 
@@ -269,6 +281,7 @@ describe(SimulatorLogs, () => {
     JSON.stringify({ ...line, at: 'not-a-number' }),
     JSON.stringify({ ...line, at: null }),
     JSON.stringify(line).replace(String(line.at), '1e400'),
+    JSON.stringify({ ...line, at: 1e300 }),
   ])('prints an envelope with an invalid time instead of ending the stream %#', async frame => {
     mockStreamAsync.mockImplementation(async (_preview, _path, onData) => {
       onData(frame);

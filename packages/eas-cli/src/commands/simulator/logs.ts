@@ -156,12 +156,17 @@ function formatLogEnvelope(data: string): string {
   try {
     line = JSON.parse(data);
   } catch {}
-  return typeof line?.raw === 'string' && Number.isFinite(line.at)
+  return typeof line?.raw === 'string' && isValidLogTime(line.at)
     ? formatLogLine(line.raw, true, line.at)
     : formatLogLine(data);
 }
 
+function isValidLogTime(at: unknown): at is number {
+  return typeof at === 'number' && !Number.isNaN(new Date(at).getTime());
+}
+
 function formatLogLine(raw: string, timestamp = false, at = Date.now()): string {
+  const time = new Date(isValidLogTime(at) ? at : Date.now()).toISOString();
   try {
     const entry = JSON.parse(raw) as {
       timestamp?: string;
@@ -172,7 +177,7 @@ function formatLogLine(raw: string, timestamp = false, at = Date.now()): string 
     };
     if (typeof entry.eventMessage === 'string') {
       const prefix = timestamp
-        ? `${chalk.dim(stripTerminalControlCharacters(entry.timestamp ?? new Date(at).toISOString()))}  `
+        ? `${chalk.dim(stripTerminalControlCharacters(entry.timestamp ?? time))}  `
         : '';
       const processName = entry.processImagePath?.split('/').at(-1) ?? 'unknown';
       const processId = typeof entry.processID === 'number' ? `:${entry.processID}` : '';
@@ -193,6 +198,6 @@ function formatLogLine(raw: string, timestamp = false, at = Date.now()): string 
       return `${prefix}${processLabel} ${message}`;
     }
   } catch {}
-  const prefix = timestamp ? `${chalk.dim(new Date(at).toISOString())}  ` : '';
+  const prefix = timestamp ? `${chalk.dim(time)}  ` : '';
   return `${prefix}${stripTerminalControlCharacters(raw, { keepNewlinesAndTabs: true })}`;
 }
