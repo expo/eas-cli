@@ -1,4 +1,5 @@
 import fs from 'fs-extra';
+import * as nodeFs from 'node:fs';
 import { createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -67,6 +68,37 @@ it('removes only its partial file after a body failure', async () => {
   body.destroy(new Error('secret storage URL'));
   await expect(downloading).rejects.toThrow('Could not save the download');
   expect(await fs.pathExists(output)).toBe(false);
+});
+
+it('removes the file when the response fails before the writer opens', async () => {
+  const createWriteStream = jest
+    .spyOn(fs, 'createWriteStream')
+    .mockImplementation((file, options) =>
+      nodeFs.createWriteStream(file, {
+        ...(typeof options === 'object' ? options : {}),
+        fs: {
+          ...nodeFs,
+          open: (file, flags, mode, callback) => {
+            setTimeout(() => {
+              nodeFs.open(file, flags, mode, callback);
+            }, 50);
+          },
+        },
+      })
+    );
+  const body = Readable.from(
+    (async function* () {
+      yield 'partial';
+      throw new Error('secret storage URL');
+    })()
+  );
+  const downloading = downloadSimulatorFileAsync(output, async () => new Response(body));
+  try {
+    await expect(downloading).rejects.toThrow('Could not save the download');
+    expect(await fs.readdir(directory)).toEqual([]);
+  } finally {
+    createWriteStream.mockRestore();
+  }
 });
 
 it('preserves existing files on request failure', async () => {
