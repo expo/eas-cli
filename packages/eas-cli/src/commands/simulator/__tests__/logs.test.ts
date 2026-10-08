@@ -1,7 +1,9 @@
 import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../../log';
+import { loadSimulatorEnvAsync } from '../../../simulator/env';
 import {
   fetchSimulatorPreviewJsonAsync,
   resolveSimulatorPreviewAsync,
@@ -11,6 +13,10 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorLogs from '../logs';
 
 jest.mock('../../../log');
+jest.mock('../../../simulator/env', () => ({
+  ...jest.requireActual('../../../simulator/env'),
+  loadSimulatorEnvAsync: jest.fn(),
+}));
 jest.mock('../../../simulator/preview', () => ({
   ...jest.requireActual('../../../simulator/preview'),
   resolveSimulatorPreviewAsync: jest.fn(),
@@ -19,10 +25,12 @@ jest.mock('../../../simulator/preview', () => ({
 }));
 jest.mock('../../../utils/json');
 
+const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResolvePreviewAsync = jest.mocked(resolveSimulatorPreviewAsync);
 const mockFetchJsonAsync = jest.mocked(fetchSimulatorPreviewJsonAsync);
 const mockStreamAsync = jest.mocked(streamSimulatorPreviewAsync);
-const mockPrintJson = jest.mocked(printJsonOnlyOutput);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
 const mockWarn = jest.mocked(Log.warn);
 const originalColorLevel = chalk.level;
@@ -31,6 +39,8 @@ const preview = {
   baseUrl: new URL('https://preview.test'),
   token: 'preview-token',
 };
+const graphqlClient = {} as ExpoGraphqlClient;
+const projectDir = '/test/project';
 const line = {
   seq: 7,
   at: Date.parse('2026-10-05T12:00:00.000Z'),
@@ -42,15 +52,24 @@ const line = {
   }),
 };
 
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({ failures: [], successes: [] });
+  return config;
+}
+
 describe(SimulatorLogs, () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';
     chalk.level = 0;
+    mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResolvePreviewAsync.mockResolvedValue(preview);
     mockFetchJsonAsync.mockResolvedValue(createSnapshot());
   });
 
   afterEach(() => {
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
     chalk.level = originalColorLevel;
   });
 
@@ -96,23 +115,29 @@ describe(SimulatorLogs, () => {
 
     await command.runAsync();
 
-    expect(enableJsonOutput).toHaveBeenCalled();
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', 'session-id');
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
     expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/logs', {
-      scope: 'user-apps',
-      limit: '100',
-      snapshot: '1',
+      query: { scope: 'user-apps', limit: '100', snapshot: '1' },
     });
-    expect(mockPrintJson).toHaveBeenCalledWith({ deviceRunSessionId: 'session-id', ...snapshot });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      ...snapshot,
+    });
     expect(mockLog).not.toHaveBeenCalled();
     expect(mockWarn).not.toHaveBeenCalled();
     expect(mockStreamAsync).not.toHaveBeenCalled();
   });
 
-  it('uses shared session selection when no ID is provided', async () => {
+  it('uses the dotenv session ID when no ID is provided', async () => {
+    mockLoadSimulatorEnvAsync.mockImplementation(async () => {
+      process.env.EAS_SIMULATOR_SESSION_ID = 'dotenv-id';
+    });
+
     await createCommand(['--json']).runAsync();
 
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', undefined);
+    expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
   });
 
   it('formats app messages and forwards scope and buffer limit', async () => {
@@ -121,9 +146,7 @@ describe(SimulatorLogs, () => {
     await createCommand(['--scope', 'all', '--limit', '3']).runAsync();
 
     expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/logs', {
-      scope: 'all',
-      limit: '3',
-      snapshot: '1',
+      query: { scope: 'all', limit: '3', snapshot: '1' },
     });
     expect(mockLog).toHaveBeenCalledWith('[CoinFlip:42] Initialization request completed.');
   });
@@ -171,14 +194,14 @@ describe(SimulatorLogs, () => {
     await createCommand(['--id', 'session-id', '--follow']).runAsync();
 
     expect(mockStreamAsync).toHaveBeenCalledWith(preview, '/logs', expect.any(Function), {
-      scope: 'user-apps',
-      limit: '100',
+      query: { scope: 'user-apps', limit: '100' },
+      signal: expect.any(AbortSignal),
     });
     expect(mockLog).toHaveBeenCalledTimes(2);
     expect(mockLog).toHaveBeenNthCalledWith(1, '[CoinFlip:42] Initialization request completed.');
     expect(mockLog).toHaveBeenLastCalledWith('new message');
     expect(mockFetchJsonAsync).not.toHaveBeenCalled();
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 
   it('uses server envelopes for accurate timestamps while following unparsed logs', async () => {
@@ -190,9 +213,8 @@ describe(SimulatorLogs, () => {
     await createCommand(['--follow', '--timestamp']).runAsync();
 
     expect(mockStreamAsync).toHaveBeenCalledWith(preview, '/logs', expect.any(Function), {
-      scope: 'user-apps',
-      limit: '100',
-      envelope: '1',
+      query: { scope: 'user-apps', limit: '100', envelope: '1' },
+      signal: expect.any(AbortSignal),
     });
     expect(mockLog).toHaveBeenNthCalledWith(
       1,
@@ -201,10 +223,44 @@ describe(SimulatorLogs, () => {
     expect(mockLog).toHaveBeenLastCalledWith('2026-10-05T12:00:01.000Z  new message');
   });
 
-  it('rejects JSON follow output before resolving a session', async () => {
-    await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow();
+  it('prints a frame that is not an envelope instead of ending the stream', async () => {
+    mockStreamAsync.mockImplementation(async (_preview, _path, onData) => {
+      onData('\u001b[31mnot an envelope\u001b[0m');
+      onData(JSON.stringify({ seq: 8 }));
+      onData(JSON.stringify(line));
+    });
 
-    expect(enableJsonOutput).toHaveBeenCalled();
+    await createCommand(['--follow', '--timestamp']).runAsync();
+
+    expect(mockLog).toHaveBeenCalledTimes(3);
+    expect(mockLog).toHaveBeenNthCalledWith(1, 'not an envelope');
+    expect(mockLog).toHaveBeenNthCalledWith(2, '{"seq":8}');
+    expect(mockLog).toHaveBeenLastCalledWith(
+      '2026-10-05T12:00:00.000Z  [CoinFlip:42] Initialization request completed.'
+    );
+  });
+
+  it('stops following on Ctrl+C and removes its interrupt handler', async () => {
+    const listeners = process.listeners('SIGINT');
+    let signal: AbortSignal | undefined;
+    mockStreamAsync.mockImplementation(async (_preview, _path, _onData, options) => {
+      signal = options?.signal;
+      process.emit('SIGINT');
+    });
+
+    await createCommand(['--follow']).runAsync();
+
+    expect(signal?.aborted).toBe(true);
+    expect(process.listeners('SIGINT')).toEqual(listeners);
+  });
+
+  it('rejects JSON follow output before resolving a session', async () => {
+    await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow(
+      'Use either --json or --follow, not both.'
+    );
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockLoadSimulatorEnvAsync).not.toHaveBeenCalled();
     expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
   });
 
@@ -221,10 +277,11 @@ describe(SimulatorLogs, () => {
   });
 
   it('stops before contacting the preview when there is no session', async () => {
-    mockResolvePreviewAsync.mockRejectedValue(new Error('No simulator session ID provided.'));
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
 
     await expect(createCommand([]).runAsync()).rejects.toThrow('No simulator session ID provided.');
 
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
     expect(mockFetchJsonAsync).not.toHaveBeenCalled();
     expect(mockStreamAsync).not.toHaveBeenCalled();
   });
@@ -241,14 +298,11 @@ describe(SimulatorLogs, () => {
 });
 
 function createCommand(args: string[]): SimulatorLogs {
-  const config = new Config({ root: __dirname });
-  config.runHook = async () => ({ failures: [], successes: [] });
-  const command = new SimulatorLogs(args, config);
-  Object.assign(command, {
-    getContextAsync: jest.fn().mockResolvedValue({
-      loggedIn: { graphqlClient: {} },
-      projectDir: '/test/project',
-    }),
+  const command = new SimulatorLogs(args, getMockOclifConfig());
+  // @ts-expect-error getContextAsync is protected
+  jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+    loggedIn: { graphqlClient },
+    projectDir,
   });
   return command;
 }

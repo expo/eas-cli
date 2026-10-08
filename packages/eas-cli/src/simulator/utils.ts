@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from 'util';
+
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -287,6 +289,21 @@ function formatPreviewApiUrl(url: string, token: string | null | undefined): str
   return withToken.toString();
 }
 
+/** Token for the session's preview page and preview API, which accept the same credential. */
+export function getPreviewToken(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): string | null | undefined {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
+      return remoteConfig.previewToken;
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig':
+      return remoteConfig.webPreviewToken;
+  }
+}
+
 /**
  * Remote config for `--json`. Both URLs carry the token and the standalone token field is dropped,
  * so a consumer gets URLs that work rather than bare URLs that 401 next to a secret it has to know
@@ -482,4 +499,14 @@ function formatControllerInstructions(
         formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
       ].join('\n');
   }
+}
+
+// Session text is untrusted, so strip terminal escape and control characters before printing it.
+export function stripTerminalControlCharacters(
+  value: string,
+  { keepNewlinesAndTabs = false }: { keepNewlinesAndTabs?: boolean } = {}
+): string {
+  return stripVTControlCharacters(value).replace(/\p{Cc}/gu, character =>
+    keepNewlinesAndTabs && (character === '\n' || character === '\t') ? character : ''
+  );
 }
