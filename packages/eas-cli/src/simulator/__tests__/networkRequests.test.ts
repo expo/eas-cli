@@ -398,6 +398,20 @@ describe(downloadNetworkCaptureAsync, () => {
     expect(await readdir(directory)).toEqual(['capture.har']);
   });
 
+  it('keeps a file created during a download whose body fails before the file opens', async () => {
+    const output = path.join(directory, 'capture.har');
+    jest.mocked(fetchSimulatorPreviewAsync).mockImplementation(async () => {
+      await writeFile(output, 'created concurrently');
+      const body = new Readable({ read() {} });
+      body.destroy(new Error('secret remote URL'));
+      return new Response(body);
+    });
+
+    await expect(downloadNetworkCaptureAsync(preview, output)).rejects.toThrow();
+
+    expect(await readFile(output, 'utf8')).toBe('created concurrently');
+  });
+
   it('refuses to write through a dangling symlink', async () => {
     const output = path.join(directory, 'capture.har');
     await symlink(path.join(directory, 'missing-target'), output);
