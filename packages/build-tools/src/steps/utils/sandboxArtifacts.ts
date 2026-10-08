@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SandboxDaemonError, SandboxDaemonErrorCode, SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { type Client, CombinedError } from '@urql/core';
 import { graphql } from 'gql.tada';
@@ -46,6 +46,7 @@ const FINALIZE_SANDBOX_ARTIFACT_MUTATION = graphql(`
 `);
 
 const FINALIZE_ATTEMPTS = 3;
+const REJECTED_UPLOAD_SESSION_ERROR_CODES = new Set(['VALIDATION_ERROR', 'UNAUTHORIZED']);
 
 export class SandboxArtifactUploadManager {
   private readonly uploads = new Set<Promise<void>>();
@@ -98,9 +99,27 @@ export async function startSandboxArtifactUploadAsync({
   name: string;
   signal: AbortSignal;
 }): Promise<{ id: string; completed: Promise<void> }> {
-  const stats = await fs.stat(filePath);
+  let stats;
+  try {
+    stats = await fs.stat(filePath);
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') {
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `File does not exist: ${filePath}`
+      );
+    }
+    if (error?.code === 'EACCES') {
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `File is not accessible: ${filePath}`
+      );
+    }
+    throw error;
+  }
   if (!stats.isFile()) {
-    throw new Error(
+    throw new SandboxDaemonError(
+      SandboxDaemonErrorCode.BAD_REQUEST,
       `${filePath} is not a regular file. To upload a directory, create an archive first, for example tar -czf out.tgz ${filePath}, then upload the archive.`
     );
   }
@@ -160,13 +179,22 @@ async function createSandboxArtifactUploadSessionAsync(
   signal.throwIfAborted();
 
   if (result.error) {
-    const messages = result.error.graphQLErrors.map(error => error.message);
-    throw new SystemError(
-      messages.length > 0
-        ? messages.join('\n')
-        : `Failed to create an upload session for sandbox artifact "${name}": ${result.error.message}`,
-      { cause: result.error }
-    );
+    const { graphQLErrors } = result.error;
+    const message =
+      graphQLErrors.length > 0
+        ? graphQLErrors.map(error => error.message).join('\n')
+        : `Failed to create an upload session for sandbox artifact "${name}": ${result.error.message}`;
+    if (
+      graphQLErrors.length > 0 &&
+      graphQLErrors.every(error =>
+        REJECTED_UPLOAD_SESSION_ERROR_CODES.has(error.extensions?.errorCode as string)
+      )
+    ) {
+      throw new SandboxDaemonError(SandboxDaemonErrorCode.BAD_REQUEST, message, {
+        cause: result.error,
+      });
+    }
+    throw new SystemError(message, { cause: result.error });
   }
   return result.data!.sandbox.createArtifactUploadSession;
 }

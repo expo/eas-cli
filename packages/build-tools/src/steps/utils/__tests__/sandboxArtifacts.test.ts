@@ -3,6 +3,7 @@ jest.unmock('fs/promises');
 jest.unmock('node:fs');
 jest.unmock('node:fs/promises');
 
+import { SandboxDaemonErrorCode, SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { type Client, CombinedError } from '@urql/core';
 import fetch, { type RequestInit } from 'node-fetch';
@@ -223,10 +224,37 @@ describe('sandbox artifact uploads', () => {
     );
   });
 
-  it('rejects with the GraphQL error message without its prefix', async () => {
-    const message =
-      'Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
-    mockMutationResults({ error: new CombinedError({ graphQLErrors: [message] }) });
+  it.each(['VALIDATION_ERROR', 'UNAUTHORIZED'])(
+    'rejects a %s upload session error as a bad request with the GraphQL message',
+    async errorCode => {
+      const message =
+        'Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
+      mockMutationResults({
+        error: new CombinedError({ graphQLErrors: [{ message, extensions: { errorCode } }] }),
+      });
+
+      const upload = uploadArtifactAsync({
+        filePath,
+        name: 'Crash log',
+        signal: new AbortController().signal,
+      });
+
+      await expect(upload).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message,
+      });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects an unexpected upload session error as a system error', async () => {
+    mockMutationResults({
+      error: new CombinedError({
+        graphQLErrors: [
+          { message: 'Request failed.', extensions: { errorCode: 'UNEXPECTED_ERROR' } },
+        ],
+      }),
+    });
 
     const upload = uploadArtifactAsync({
       filePath,
@@ -234,8 +262,24 @@ describe('sandbox artifact uploads', () => {
       signal: new AbortController().signal,
     });
 
-    await expect(upload).rejects.toMatchObject({ message });
-    expect(fetch).not.toHaveBeenCalled();
+    await expect(upload).rejects.toBeInstanceOf(SystemError);
+    await expect(upload).rejects.toMatchObject({ message: 'Request failed.' });
+  });
+
+  it('rejects a missing file as a bad request without creating an upload session', async () => {
+    const missingPath = path.join(directory, 'missing.log');
+
+    const upload = uploadArtifactAsync({
+      filePath: missingPath,
+      name: 'Crash log',
+      signal: new AbortController().signal,
+    });
+
+    await expect(upload).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `File does not exist: ${missingPath}`,
+    });
+    expect(mutation).not.toHaveBeenCalled();
   });
 
   it('keeps the signed URL out of logs', async () => {
