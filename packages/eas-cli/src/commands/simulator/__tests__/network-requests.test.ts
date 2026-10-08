@@ -2,7 +2,10 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 import { stripVTControlCharacters } from 'node:util';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../../log';
+import { ora } from '../../../ora';
+import { loadSimulatorEnvAsync } from '../../../simulator/env';
 import {
   downloadNetworkCaptureAsync,
   readNetworkRequestsAsync,
@@ -13,6 +16,21 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorNetworkRequests from '../network-requests';
 
 jest.mock('../../../log');
+jest.mock('../../../ora', () => ({
+  ora: jest.fn(() => {
+    const spinner = {
+      fail: jest.fn(),
+      start: jest.fn(),
+      succeed: jest.fn(),
+    };
+    spinner.start.mockReturnValue(spinner);
+    return spinner;
+  }),
+}));
+jest.mock('../../../simulator/env', () => ({
+  ...jest.requireActual('../../../simulator/env'),
+  loadSimulatorEnvAsync: jest.fn(),
+}));
 jest.mock('../../../simulator/networkRequests');
 jest.mock('../../../simulator/preview', () => ({
   ...jest.requireActual('../../../simulator/preview'),
@@ -20,12 +38,17 @@ jest.mock('../../../simulator/preview', () => ({
 }));
 jest.mock('../../../utils/json');
 
+const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockOra = jest.mocked(ora);
 const mockResolvePreviewAsync = jest.mocked(resolveSimulatorPreviewAsync);
 const mockReadRequestsAsync = jest.mocked(readNetworkRequestsAsync);
 const mockDownloadCaptureAsync = jest.mocked(downloadNetworkCaptureAsync);
 const mockStreamRequestsAsync = jest.mocked(streamNetworkRequestsAsync);
-const mockPrintJson = jest.mocked(printJsonOnlyOutput);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
+const graphqlClient = {} as ExpoGraphqlClient;
+const projectDir = '/test/project';
 const preview = {
   deviceRunSessionId: 'session-id',
   baseUrl: new URL('https://preview.test'),
@@ -60,17 +83,26 @@ const request = {
   },
 };
 
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({ failures: [], successes: [] });
+  return config;
+}
+
 describe(SimulatorNetworkRequests, () => {
   const originalColorLevel = chalk.level;
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';
     chalk.level = 0;
+    mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResolvePreviewAsync.mockResolvedValue(preview);
     mockReadRequestsAsync.mockResolvedValue([]);
     mockDownloadCaptureAsync.mockResolvedValue('/test/capture.har');
   });
 
   afterEach(() => {
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
     chalk.level = originalColorLevel;
   });
 
@@ -79,13 +111,13 @@ describe(SimulatorNetworkRequests, () => {
 
     await createCommand(['--id', 'session-id', '--json']).runAsync();
 
-    expect(enableJsonOutput).toHaveBeenCalled();
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', 'session-id');
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
     expect(mockReadRequestsAsync).toHaveBeenCalledWith(preview, {
       limit: 100,
       requestId: undefined,
     });
-    expect(mockPrintJson).toHaveBeenCalledWith({
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       requests: [requestSummary],
     });
@@ -102,7 +134,10 @@ describe(SimulatorNetworkRequests, () => {
       limit: 100,
       requestId: 'request-id',
     });
-    expect(mockPrintJson).toHaveBeenCalledWith({ deviceRunSessionId: 'session-id', request });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      request,
+    });
     expect(mockLog).not.toHaveBeenCalled();
   });
 
@@ -110,30 +145,35 @@ describe(SimulatorNetworkRequests, () => {
     await createCommand(['--output', './capture.har', '--json']).runAsync();
 
     expect(mockDownloadCaptureAsync).toHaveBeenCalledWith(preview, './capture.har');
-    expect(mockPrintJson).toHaveBeenCalledWith({
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       filePath: '/test/capture.har',
     });
     expect(mockReadRequestsAsync).not.toHaveBeenCalled();
     expect(mockLog).not.toHaveBeenCalled();
+    expect(mockOra).not.toHaveBeenCalled();
   });
 
-  it('prints the saved path safely for human output', async () => {
-    mockDownloadCaptureAsync.mockResolvedValue('/test/\u001b[31mcapture.har\u001b[0m\u0007');
-
+  it('shows a spinner with the saved path for human output', async () => {
     await createCommand(['-o', './capture.har']).runAsync();
 
-    expect(mockLog).toHaveBeenCalledWith('Saved network capture to /test/capture.har.');
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    const spinner = mockOra.mock.results[0].value;
+    expect(mockOra).toHaveBeenCalledWith('Saving network capture');
+    expect(spinner.succeed).toHaveBeenCalledWith('Saved network capture to /test/capture.har');
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
     expect(mockReadRequestsAsync).not.toHaveBeenCalled();
   });
 
-  it('forwards an explicit limit and uses shared session selection', async () => {
+  it('forwards an explicit limit and uses the dotenv session ID', async () => {
     mockReadRequestsAsync.mockResolvedValue([requestSummary]);
+    mockLoadSimulatorEnvAsync.mockImplementation(async () => {
+      process.env.EAS_SIMULATOR_SESSION_ID = 'dotenv-id';
+    });
 
     await createCommand(['--limit', '3']).runAsync();
 
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', undefined);
+    expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
     expect(mockReadRequestsAsync).toHaveBeenCalledWith(preview, { limit: 3, requestId: undefined });
     expect(mockLog).toHaveBeenCalledWith(
       'request-id  POST    https://example.test/posts  201  50ms'
@@ -164,7 +204,7 @@ describe(SimulatorNetworkRequests, () => {
 
     await createCommand(['--json']).runAsync();
 
-    expect(mockPrintJson).toHaveBeenCalledWith({
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       requests: [summary],
     });
@@ -229,11 +269,11 @@ describe(SimulatorNetworkRequests, () => {
 
     await createCommand(['--json']).runAsync();
 
-    expect(mockPrintJson).toHaveBeenCalledWith({
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       requests: [requestSummary],
     });
-    expect(JSON.stringify(mockPrintJson.mock.calls[0][0])).not.toContain('\\u001b');
+    expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0][0])).not.toContain('\\u001b');
     expect(mockLog).not.toHaveBeenCalled();
   });
 
@@ -256,15 +296,33 @@ describe(SimulatorNetworkRequests, () => {
 
       await createCommand([follow, '--timestamp']).runAsync();
 
-      expect(mockStreamRequestsAsync).toHaveBeenCalledWith(preview, expect.any(Function));
+      expect(mockStreamRequestsAsync).toHaveBeenCalledWith(
+        preview,
+        expect.any(Function),
+        expect.any(AbortSignal)
+      );
       expect(mockLog).toHaveBeenCalledWith(
         '2026-10-05T12:00:00.000Z  request-id  POST    https://example.test/posts  201  50ms'
       );
       expect(mockReadRequestsAsync).not.toHaveBeenCalled();
       expect(mockDownloadCaptureAsync).not.toHaveBeenCalled();
-      expect(mockPrintJson).not.toHaveBeenCalled();
+      expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
     }
   );
+
+  it('stops following on Ctrl+C and removes its interrupt handler', async () => {
+    const listeners = process.listeners('SIGINT');
+    let signal: AbortSignal | undefined;
+    mockStreamRequestsAsync.mockImplementation(async (_preview, _onRequest, followSignal) => {
+      signal = followSignal;
+      process.emit('SIGINT');
+    });
+
+    await createCommand(['--follow']).runAsync();
+
+    expect(signal?.aborted).toBe(true);
+    expect(process.listeners('SIGINT')).toEqual(listeners);
+  });
 
   it.each([
     { options: ['--json'] },
@@ -278,10 +336,13 @@ describe(SimulatorNetworkRequests, () => {
     expect(mockStreamRequestsAsync).not.toHaveBeenCalled();
   });
 
-  it('enables JSON output before rejecting invalid flags', async () => {
-    await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow();
+  it('enables JSON output before rejecting JSON follow output', async () => {
+    await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow(
+      'Use either --json or --follow, not both.'
+    );
 
-    expect(enableJsonOutput).toHaveBeenCalled();
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockLoadSimulatorEnvAsync).not.toHaveBeenCalled();
   });
 
   it('prints a full request detail for human output', async () => {
@@ -290,7 +351,7 @@ describe(SimulatorNetworkRequests, () => {
     await createCommand(['--request-id', 'request-id']).runAsync();
 
     expect(mockLog).toHaveBeenCalledWith(JSON.stringify(request, null, 2));
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 
   it('explains the initial-launch limitation when the capture is empty', async () => {
@@ -327,7 +388,7 @@ describe(SimulatorNetworkRequests, () => {
     );
 
     expect(mockLog).not.toHaveBeenCalled();
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 
   it('propagates HAR download failures without claiming a file was saved', async () => {
@@ -337,30 +398,40 @@ describe(SimulatorNetworkRequests, () => {
       'The output file already exists.'
     );
 
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
     expect(mockLog).not.toHaveBeenCalled();
     expect(mockReadRequestsAsync).not.toHaveBeenCalled();
   });
 
+  it('fails the spinner when the HAR download fails', async () => {
+    mockDownloadCaptureAsync.mockRejectedValue(new Error('The output file already exists.'));
+
+    await expect(createCommand(['--output', './capture.har']).runAsync()).rejects.toThrow(
+      'The output file already exists.'
+    );
+
+    const spinner = mockOra.mock.results[0].value;
+    expect(spinner.fail).toHaveBeenCalledWith('Failed to save network capture');
+    expect(spinner.succeed).not.toHaveBeenCalled();
+  });
+
   it('stops before reading traffic when there is no simulator session', async () => {
-    mockResolvePreviewAsync.mockRejectedValue(new Error('No simulator session ID provided.'));
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
 
     await expect(createCommand([]).runAsync()).rejects.toThrow('No simulator session ID provided.');
 
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
     expect(mockReadRequestsAsync).not.toHaveBeenCalled();
     expect(mockDownloadCaptureAsync).not.toHaveBeenCalled();
   });
 });
 
 function createCommand(args: string[]): SimulatorNetworkRequests {
-  const config = new Config({ root: __dirname });
-  config.runHook = async () => ({ failures: [], successes: [] });
-  const command = new SimulatorNetworkRequests(args, config);
-  Object.assign(command, {
-    getContextAsync: jest.fn().mockResolvedValue({
-      loggedIn: { graphqlClient: {} },
-      projectDir: '/test/project',
-    }),
+  const command = new SimulatorNetworkRequests(args, getMockOclifConfig());
+  // @ts-expect-error getContextAsync is protected
+  jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+    loggedIn: { graphqlClient },
+    projectDir,
   });
   return command;
 }
