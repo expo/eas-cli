@@ -203,20 +203,25 @@ export async function downloadNetworkCaptureAsync(
   }
   const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
   let response: Response | undefined;
+  // Only remove a file this command opened. Another process may create the path after the check.
+  let created = false;
   try {
     response = await fetchSimulatorPreviewAsync(preview, '/network-capture.har', {
       signal,
       notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
     });
     // The HAR contains decrypted request data, such as credentials, so only the user can read it.
-    await pipeline(response.body, fs.createWriteStream(outputPath, { flags: 'wx', mode: 0o600 }));
+    const file = fs.createWriteStream(outputPath, { flags: 'wx', mode: 0o600 });
+    file.once('open', () => {
+      created = true;
+    });
+    await pipeline(response.body, file);
   } catch (error) {
-    // Another process created the file during the download, so leave it in place.
+    if (created) {
+      await fs.remove(outputPath);
+    }
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new Error(OUTPUT_EXISTS_MESSAGE);
-    }
-    if (response && (await fs.pathExists(outputPath))) {
-      await fs.remove(outputPath);
     }
     if (signal.aborted) {
       throw new Error(
