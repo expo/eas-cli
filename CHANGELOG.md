@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop a simulator session that the server creates after Ctrl+C lands during `eas simulator` create. ([#4522](https://github.com/expo/eas-cli/pull/4522) by [@sjkim-expo](https://github.com/sjkim-expo))
+
 ### 🧹 Chores
 
 ## [24.12.0](https://github.com/expo/eas-cli/releases/tag/v24.12.0) - 2026-10-07
@@ -27,6 +29,10 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Allow the unnotarized mitmproxy cask to run in iOS network capture sessions. ([#4556](https://github.com/expo/eas-cli/pull/4556) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
 
+### 🧹 Chores
+
+- [eas-cli] Log analytics events when an `eas simulator` session request is sent, cancelled, or fails before the server answers. ([#4483](https://github.com/expo/eas-cli/pull/4483) by [@sjkim-expo](https://github.com/sjkim-expo))
+
 ## [24.11.0](https://github.com/expo/eas-cli/releases/tag/v24.11.0) - 2026-10-05
 
 ### 🎉 New features
@@ -41,11 +47,9 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Select the containing iOS app when its archive also includes a nested App Clip. ([#4541](https://github.com/expo/eas-cli/pull/4541) by [@mozzius](https://github.com/mozzius))
 - [build-tools] Allow expo.test subdomains to open local and staging simulator previews. ([#4480](https://github.com/expo/eas-cli/pull/4480) by [@hirbod](https://github.com/hirbod))
 - [build-tools] Retry App Store Connect connection failures and safely recover interrupted status reads and upload commits. ([#4520](https://github.com/expo/eas-cli/pull/4520) by [@sjchmiela](https://github.com/sjchmiela))
-- [eas-cli] Stop a simulator session that the server creates after Ctrl+C lands during `eas simulator` create. ([#4522](https://github.com/expo/eas-cli/pull/4522) by [@sjkim-expo](https://github.com/sjkim-expo))
 
 ### 🧹 Chores
 
-- [eas-cli] Log analytics events when an `eas simulator` session request is sent, cancelled, or fails before the server answers. ([#4483](https://github.com/expo/eas-cli/pull/4483) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [build-tools] Remove the `eas/start_agent_device_remote_session` step; agent-device sessions use `eas/start_agent_device_session`. ([#4518](https://github.com/expo/eas-cli/pull/4518) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Report `eas-cli` as the request origin, and the coding agent when one is detected, when `eas simulator` creates a session, for analytics. ([#4523](https://github.com/expo/eas-cli/pull/4523) by [@sjkim-expo](https://github.com/sjkim-expo))
 
