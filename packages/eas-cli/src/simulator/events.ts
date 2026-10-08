@@ -1,7 +1,7 @@
 import { type DeviceRunSessionEvent, parseDeviceRunSessionEvents } from '@expo/eas-build-job';
 
-import fetch, { RequestError } from '../fetch';
 import { stripTerminalControlCharacters } from './utils';
+import fetch, { RequestError } from '../fetch';
 import { formatMilliseconds } from '../utils/timer';
 
 export type { DeviceRunSessionEvent };

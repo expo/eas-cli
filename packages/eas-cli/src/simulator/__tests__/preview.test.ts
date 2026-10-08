@@ -305,6 +305,49 @@ describe(streamSimulatorPreviewAsync, () => {
     expect(getRequestSignal()?.aborted).toBe(true);
   });
 
+  it.each(['goes silent', 'drops the socket'])(
+    'reports a stream that %s after an event once the idle timeout passes',
+    async ending => {
+      const server = createServer((_request, response) => {
+        response.writeHead(200, { 'content-type': 'text/event-stream' });
+        response.write(':\n\ndata: marker\n\n', () => {
+          if (ending === 'drops the socket') {
+            response.socket?.destroy();
+          }
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const remote = {
+        ...preview,
+        baseUrl: new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}`),
+      };
+      jest
+        .mocked(fetch)
+        .mockImplementationOnce(
+          jest.requireActual<typeof import('../../fetch')>('../../fetch').default
+        );
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+      try {
+        let received: () => void = () => {};
+        const receivedMarker = new Promise<void>(resolve => {
+          received = resolve;
+        });
+        const following = streamSimulatorPreviewAsync(remote, '/logs', received, { signal });
+        await receivedMarker;
+        jest.advanceTimersByTime(60_000);
+        await expect(following).rejects.toThrow('The simulator preview stream ended unexpectedly.');
+      } finally {
+        jest.useRealTimers();
+        server.closeAllConnections();
+        await new Promise<void>(resolve =>
+          server.close(() => {
+            resolve();
+          })
+        );
+      }
+    }
+  );
+
   it('closes the upstream connection after rejecting a response that is not an event stream', async () => {
     const server = createServer((_request, response) => {
       response.writeHead(200, { 'content-type': 'text/plain' });

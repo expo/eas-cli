@@ -130,15 +130,19 @@ export default class SimulatorLogs extends EasCommand {
     const snapshot = await fetchSimulatorPreviewJsonAsync<SimulatorLogsSnapshot>(preview, '/logs', {
       query: { ...query, snapshot: '1' },
     });
+    if (!jsonFlag && snapshot.streamError) {
+      Log.warn(stripTerminalControlCharacters(snapshot.streamError));
+    }
+
     if (jsonFlag) {
       printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, ...snapshot });
       return;
     }
-    if (snapshot.streamError) {
-      Log.warn(stripTerminalControlCharacters(snapshot.streamError));
-    }
     if (snapshot.lines.length === 0) {
-      Log.log('No buffered logs. Use --follow to collect logs before performing actions.');
+      // The warning above already explains why the buffer can be empty.
+      if (!snapshot.streamError) {
+        Log.log('No buffered logs. Use --follow to collect logs before performing actions.');
+      }
       return;
     }
     for (const line of snapshot.lines) {
@@ -152,7 +156,7 @@ function formatLogEnvelope(data: string): string {
   try {
     line = JSON.parse(data);
   } catch {}
-  return typeof line?.raw === 'string'
+  return typeof line?.raw === 'string' && Number.isFinite(line.at)
     ? formatLogLine(line.raw, true, line.at)
     : formatLogLine(data);
 }

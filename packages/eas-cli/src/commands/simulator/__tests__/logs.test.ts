@@ -177,6 +177,31 @@ describe(SimulatorLogs, () => {
     expect(mockWarn).toHaveBeenCalledWith('log source restarting');
   });
 
+  it('reports an unhealthy log source without claiming the buffer is simply empty', async () => {
+    mockFetchJsonAsync.mockResolvedValue({
+      ...createSnapshot(),
+      streamError: 'log source restarting',
+    });
+
+    await createCommand([]).runAsync();
+
+    expect(mockWarn).toHaveBeenCalledWith('log source restarting');
+    expect(mockLog).not.toHaveBeenCalled();
+  });
+
+  it('keeps the log source error in JSON output instead of warning', async () => {
+    const snapshot = { ...createSnapshot(), streamError: 'log source restarting' };
+    mockFetchJsonAsync.mockResolvedValue(snapshot);
+
+    await createCommand(['--json']).runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      ...snapshot,
+    });
+    expect(mockWarn).not.toHaveBeenCalled();
+  });
+
   it('explains that an empty snapshot needs following before actions', async () => {
     await createCommand([]).runAsync();
 
@@ -238,6 +263,20 @@ describe(SimulatorLogs, () => {
     expect(mockLog).toHaveBeenLastCalledWith(
       '2026-10-05T12:00:00.000Z  [CoinFlip:42] Initialization request completed.'
     );
+  });
+
+  it.each([
+    JSON.stringify({ ...line, at: 'not-a-number' }),
+    JSON.stringify({ ...line, at: null }),
+    JSON.stringify(line).replace(String(line.at), '1e400'),
+  ])('prints an envelope with an invalid time instead of ending the stream %#', async frame => {
+    mockStreamAsync.mockImplementation(async (_preview, _path, onData) => {
+      onData(frame);
+    });
+
+    await createCommand(['--follow', '--timestamp']).runAsync();
+
+    expect(mockLog).toHaveBeenCalledWith(frame);
   });
 
   it('stops following on Ctrl+C and removes its interrupt handler', async () => {

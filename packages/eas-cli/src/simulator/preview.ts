@@ -7,6 +7,8 @@ import { DeviceRunSessionStatus } from '../graphql/generated';
 import { DeviceRunSessionQuery } from '../graphql/queries/DeviceRunSessionQuery';
 
 const PREVIEW_API_TIMEOUT_MS = 30_000;
+// The preview server sends a heartbeat every 15 seconds, so a longer silence means the stream is gone.
+const PREVIEW_STREAM_IDLE_TIMEOUT_MS = 60_000;
 const INVALID_PREVIEW_API_URL_MESSAGE =
   'The simulator session has an invalid preview API URL. The session reported a URL that is not a valid HTTP(S) URL. Start a new session with `eas simulator:start`. If this keeps happening, contact us at https://expo.dev/contact.';
 const PREVIEW_DATA_NOT_FOUND_MESSAGE =
@@ -147,6 +149,13 @@ export async function streamSimulatorPreviewAsync(
   const controller = new AbortController();
   let reading = false;
   let onDataError: unknown;
+  let idleTimer: NodeJS.Timeout | undefined;
+  const resetIdleTimer = (): void => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      controller.abort();
+    }, PREVIEW_STREAM_IDLE_TIMEOUT_MS);
+  };
   try {
     const response = await fetchSimulatorPreviewAsync(preview, route, {
       ...options,
@@ -159,11 +168,13 @@ export async function streamSimulatorPreviewAsync(
       );
     }
     reading = true;
+    resetIdleTimer();
     let data: string[] = [];
     for await (const line of readline.createInterface({
       input: response.body,
       crlfDelay: Infinity,
     })) {
+      resetIdleTimer();
       if (line === '' && data.length > 0) {
         const frame = data.join('\n');
         data = [];
@@ -188,6 +199,7 @@ export async function streamSimulatorPreviewAsync(
       "The simulator preview stream ended unexpectedly. The connection to the session's preview server closed. Run `eas simulator:get` to check that the session is still running, then run the command again."
     );
   } finally {
+    clearTimeout(idleTimer);
     controller.abort();
   }
 }
