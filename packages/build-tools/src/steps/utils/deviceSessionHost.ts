@@ -57,6 +57,8 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+// expo-device-hub's record of each running Hub, like serve-sim's: `server-<port>.json`.
+export const EXPO_DEVICE_HUB_STATE_DIR = path.join(os.tmpdir(), 'expo-device-hub');
 // On SIGTERM the Hub finalizes the recording itself, with this deadline before it force-exits,
 // so a stop request that failed here still gets one more chance to write the MP4.
 const EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS = 60_000;
@@ -81,7 +83,8 @@ export function simulatorPreviewPageUrl(env: BuildStepEnv, subdomainId: string):
 // Local website hosts are shared by local and staging simulator sessions.
 const WEBSITE_DEV_ORIGINS = ['https://expo.test', 'https://*.expo.test'];
 
-export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
+// serve-sim and expo-device-hub take the same website origin flags and values.
+export function websiteOriginArgs(env: BuildStepEnv): string[] {
   const origins = new Set([websiteOrigin(env)]);
   if (!env.EXPO_LOCAL && env.EXPO_STAGING) {
     origins.add('https://*.expo.dev');
@@ -161,11 +164,13 @@ export function createServeSimArgs({
 export function createExpoDeviceHubArgs({
   port,
   turnArgs = [],
+  websiteArgs = [],
   packageVersion,
   recordingDirectory,
 }: {
   port: number;
   turnArgs?: string[];
+  websiteArgs?: string[];
   packageVersion?: string;
   recordingDirectory?: string;
 }): string[] {
@@ -175,6 +180,7 @@ export function createExpoDeviceHubArgs({
     String(port),
     '--host',
     WEB_PREVIEW_HOST,
+    '--require-token',
     '--platform',
     'android',
     '--transport',
@@ -193,6 +199,7 @@ export function createExpoDeviceHubArgs({
     '--hide-boot-device',
     ...(recordingDirectory ? ['--android-recording-directory', recordingDirectory] : []),
     ...turnArgs,
+    ...websiteArgs,
   ];
 }
 
@@ -240,6 +247,20 @@ export async function waitForWebPreviewReadyAsync({
       lastError instanceof Error ? `: ${lastError.message}` : ''
     }. Last output:\n${previewServer.getOutput() || '<empty>'}`
   );
+}
+
+export async function readExpoDeviceHubPreviewTokenAsync(
+  port: number,
+  stateDir: string = EXPO_DEVICE_HUB_STATE_DIR
+): Promise<string | undefined> {
+  try {
+    const state = JSON.parse(
+      await fs.promises.readFile(path.join(stateDir, `server-${port}.json`), 'utf-8')
+    ) as { token?: unknown };
+    return typeof state.token === 'string' ? state.token : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function readServeSimPreviewTokenAsync(
@@ -369,12 +390,13 @@ async function startDeviceSessionHostInternalAsync(
           turnArgs,
           packageVersion,
           recordingDirectory: recording?.directory,
+          websiteArgs: websiteOriginArgs(env),
         })
       : createServeSimArgs({
           port,
           turnArgs,
           packageVersion,
-          websiteArgs: websiteOriginServeSimArgs(env),
+          websiteArgs: websiteOriginArgs(env),
           shareUrl: previewPageUrl,
           launchAppIdentifier,
           launchArgs,
@@ -514,17 +536,20 @@ async function startDeviceSessionHostInternalAsync(
       timeoutMs,
     });
     hostReady = true;
+    // Both servers record their session token in a state file once they are ready.
+    previewToken = isAndroid
+      ? await readExpoDeviceHubPreviewTokenAsync(port)
+      : await readServeSimPreviewTokenAsync(device);
+    if (!previewToken) {
+      throw new SystemError(
+        `${serverName} became ready but wrote no session token for device ${device}. The ` +
+          'preview is on a public tunnel and would be reachable without one, so the session ' +
+          'cannot continue. This usually means the state file was not written as expected; ' +
+          'retry the session, and report it if it repeats.'
+      );
+    }
+    secrets.push(previewToken);
     if (!isAndroid) {
-      previewToken = await readServeSimPreviewTokenAsync(device);
-      if (!previewToken) {
-        throw new SystemError(
-          `serve-sim became ready but wrote no session token for device ${device}. The preview is ` +
-            'on a public tunnel and would be reachable without one, so the session cannot continue. ' +
-            'This usually means the state file was not written as expected; retry the session, and ' +
-            'report it if it repeats.'
-        );
-      }
-      secrets.push(previewToken);
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
