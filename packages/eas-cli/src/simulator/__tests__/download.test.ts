@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import * as nodeFs from 'node:fs';
 import { createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -70,22 +69,7 @@ it('removes only its partial file after a body failure', async () => {
   expect(await fs.pathExists(output)).toBe(false);
 });
 
-it('removes the file when the response fails before the writer opens', async () => {
-  const createWriteStream = jest
-    .spyOn(fs, 'createWriteStream')
-    .mockImplementation((file, options) =>
-      nodeFs.createWriteStream(file, {
-        ...(typeof options === 'object' ? options : {}),
-        fs: {
-          ...nodeFs,
-          open: (file, flags, mode, callback) => {
-            setTimeout(() => {
-              nodeFs.open(file, flags, mode, callback);
-            }, 50);
-          },
-        },
-      })
-    );
+it('removes the file on an immediate response failure', async () => {
   const body = Readable.from(
     (async function* () {
       yield 'partial';
@@ -93,12 +77,8 @@ it('removes the file when the response fails before the writer opens', async () 
     })()
   );
   const downloading = downloadSimulatorFileAsync(output, async () => new Response(body));
-  try {
-    await expect(downloading).rejects.toThrow('Could not save the download');
-    expect(await fs.readdir(directory)).toEqual([]);
-  } finally {
-    createWriteStream.mockRestore();
-  }
+  await expect(downloading).rejects.toThrow('Could not save the download');
+  expect(await fs.readdir(directory)).toEqual([]);
 });
 
 it('preserves existing files on request failure', async () => {

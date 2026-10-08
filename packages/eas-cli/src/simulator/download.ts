@@ -1,4 +1,5 @@
 import fs from 'fs-extra';
+import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
@@ -26,11 +27,13 @@ export async function downloadSimulatorFileAsync(
   process.on('SIGINT', interruptHandler);
   try {
     response = await getResponse(signal);
-    const file = fs.createWriteStream(outputPath, { flags: 'wx', mode: 0o600 });
-    file.once('open', () => {
-      created = true;
-    });
-    await pipeline(response.body, file, { signal });
+    const file = await open(outputPath, 'wx', 0o600);
+    created = true;
+    try {
+      await pipeline(response.body, file.createWriteStream(), { signal });
+    } finally {
+      await file.close();
+    }
     return outputPath;
   } catch (error) {
     if (created) {
