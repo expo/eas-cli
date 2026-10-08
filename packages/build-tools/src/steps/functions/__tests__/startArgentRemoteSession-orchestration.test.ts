@@ -188,7 +188,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     }
   );
 
-  it('enables the event log flag, shares one path, and starts/stops the collector', async () => {
+  it('enables the event log flag, disables the video watermark, shares one path, and starts/stops the collector', async () => {
     const ctx = {} as unknown as CustomBuildContext;
     const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
 
@@ -228,6 +228,20 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
     expect(enableEventLogIndex).toBeGreaterThanOrEqual(0);
     expect(jest.mocked(spawn).mock.invocationCallOrder[enableEventLogIndex]).toBeLessThan(
+      jest.mocked(spawnDetached).mock.invocationCallOrder[0]
+    );
+
+    // (2b) The video watermark flag is disabled, before the tool-server is launched.
+    const disableWatermarkIndex = spawnCalls.findIndex(
+      ([command, args]) =>
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('disable') &&
+        args.includes('video-watermark')
+    );
+    expect(disableWatermarkIndex).toBeGreaterThanOrEqual(0);
+    expect(jest.mocked(spawn).mock.invocationCallOrder[disableWatermarkIndex]).toBeLessThan(
       jest.mocked(spawnDetached).mock.invocationCallOrder[0]
     );
 

@@ -55,6 +55,9 @@ export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 // Tells the tool-server to write its structured event log so we can collect session events.
 const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
+// On by default in Argent (since 0.17.0); we turn it off so recorded videos have no Argent
+// watermark. Older versions that don't know the flag treat `disable` as a no-op.
+const ARGENT_VIDEO_WATERMARK_FLAG = 'video-watermark';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 // Pin the event log path explicitly and hand the same value to the tool-server (via
 // ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
@@ -162,6 +165,14 @@ export function createStartArgentRemoteSessionBuildFunction(
         ARGENT_EVENT_LOG_FLAG,
       ]);
       await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
+
+      logger.info('Disabling the Argent video watermark flag.');
+      const disableVideoWatermark = argentExec([
+        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+        'disable',
+        ARGENT_VIDEO_WATERMARK_FLAG,
+      ]);
+      await spawn(disableVideoWatermark.command, disableVideoWatermark.args, { env, logger });
 
       const startServer = argentExec([
         `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
