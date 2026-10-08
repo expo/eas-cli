@@ -1,7 +1,9 @@
 import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../../log';
+import { loadSimulatorEnvAsync } from '../../../simulator/env';
 import {
   fetchSimulatorPreviewJsonAsync,
   resolveSimulatorPreviewAsync,
@@ -10,6 +12,10 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorCrashes from '../crashes';
 
 jest.mock('../../../log');
+jest.mock('../../../simulator/env', () => ({
+  ...jest.requireActual('../../../simulator/env'),
+  loadSimulatorEnvAsync: jest.fn(),
+}));
 jest.mock('../../../simulator/preview', () => ({
   ...jest.requireActual('../../../simulator/preview'),
   resolveSimulatorPreviewAsync: jest.fn(),
@@ -17,9 +23,11 @@ jest.mock('../../../simulator/preview', () => ({
 }));
 jest.mock('../../../utils/json');
 
+const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResolvePreviewAsync = jest.mocked(resolveSimulatorPreviewAsync);
 const mockFetchJsonAsync = jest.mocked(fetchSimulatorPreviewJsonAsync);
-const mockPrintJson = jest.mocked(printJsonOnlyOutput);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
 const mockWarn = jest.mocked(Log.warn);
 const originalColorLevel = chalk.level;
@@ -28,6 +36,8 @@ const preview = {
   baseUrl: new URL('https://preview.test'),
   token: 'preview-token',
 };
+const graphqlClient = {} as ExpoGraphqlClient;
+const projectDir = '/test/project';
 const crash = {
   id: 'crash-id',
   appName: 'CoinFlip',
@@ -38,15 +48,24 @@ const crash = {
   count: 2,
 };
 
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({ failures: [], successes: [] });
+  return config;
+}
+
 describe(SimulatorCrashes, () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.EAS_SIMULATOR_SESSION_ID = 'session-id';
     chalk.level = 0;
+    mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResolvePreviewAsync.mockResolvedValue(preview);
     mockFetchJsonAsync.mockResolvedValue(createSnapshot());
   });
 
   afterEach(() => {
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
     chalk.level = originalColorLevel;
   });
 
@@ -78,20 +97,27 @@ describe(SimulatorCrashes, () => {
 
     await createCommand(['--id', 'session-id', '--json']).runAsync();
 
-    expect(enableJsonOutput).toHaveBeenCalled();
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', 'session-id');
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
     expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/crashes');
-    expect(mockPrintJson).toHaveBeenCalledWith({ deviceRunSessionId: 'session-id', ...snapshot });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      ...snapshot,
+    });
     expect(mockLog).not.toHaveBeenCalled();
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('uses shared session selection and prints crash IDs for retrieving reports', async () => {
+  it('uses the dotenv session ID and prints crash IDs for retrieving reports', async () => {
     mockFetchJsonAsync.mockResolvedValue(createSnapshot([crash]));
+    mockLoadSimulatorEnvAsync.mockImplementation(async () => {
+      process.env.EAS_SIMULATOR_SESSION_ID = 'dotenv-id';
+    });
 
     await createCommand([]).runAsync();
 
-    expect(mockResolvePreviewAsync).toHaveBeenCalledWith({}, '/test/project', undefined);
+    expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResolvePreviewAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-id');
     expect(mockLog).toHaveBeenCalledWith('CoinFlip  EXC_CRASH  (2 occurrences)  crash-id');
   });
 
@@ -120,6 +146,13 @@ describe(SimulatorCrashes, () => {
     await createCommand([]).runAsync();
 
     expect(mockWarn).toHaveBeenCalledWith('watcher unavailable');
+    expect(mockLog).not.toHaveBeenCalled();
+  });
+
+  it('explains an empty crash list when the watcher is healthy', async () => {
+    await createCommand([]).runAsync();
+
+    expect(mockWarn).not.toHaveBeenCalled();
     expect(mockLog).toHaveBeenCalledWith(
       'No crash reports have been recorded. Reports can take a few seconds to appear.'
     );
@@ -137,8 +170,19 @@ describe(SimulatorCrashes, () => {
     await createCommand(['--report-id', 'crash/with?#id', '--json']).runAsync();
 
     expect(mockFetchJsonAsync).toHaveBeenNthCalledWith(1, preview, '/crashes');
-    expect(mockFetchJsonAsync).toHaveBeenNthCalledWith(2, preview, '/crashes/crash%2Fwith%3F%23id');
-    expect(mockPrintJson).toHaveBeenCalledWith({ deviceRunSessionId: 'session-id', ...detail });
+    expect(mockFetchJsonAsync).toHaveBeenNthCalledWith(
+      2,
+      preview,
+      '/crashes/crash%2Fwith%3F%23id',
+      {
+        notFoundMessage:
+          'The crash report was not found. The ID does not match a report in this session. Run `eas simulator:crashes` to see current report IDs.',
+      }
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      ...detail,
+    });
     expect(mockLog).not.toHaveBeenCalled();
   });
 
@@ -189,15 +233,16 @@ describe(SimulatorCrashes, () => {
   it('enables JSON output before rejecting invalid flags', async () => {
     await expect(createCommand(['--json', '--unknown']).runAsync()).rejects.toThrow();
 
-    expect(enableJsonOutput).toHaveBeenCalled();
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
   });
 
   it('stops before contacting the preview when there is no session', async () => {
-    mockResolvePreviewAsync.mockRejectedValue(new Error('No simulator session ID provided.'));
+    delete process.env.EAS_SIMULATOR_SESSION_ID;
 
     await expect(createCommand([]).runAsync()).rejects.toThrow('No simulator session ID provided.');
 
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
     expect(mockFetchJsonAsync).not.toHaveBeenCalled();
   });
 
@@ -211,19 +256,16 @@ describe(SimulatorCrashes, () => {
     );
 
     expect(mockLog).not.toHaveBeenCalled();
-    expect(mockPrintJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 });
 
 function createCommand(args: string[]): SimulatorCrashes {
-  const config = new Config({ root: __dirname });
-  config.runHook = async () => ({ failures: [], successes: [] });
-  const command = new SimulatorCrashes(args, config);
-  Object.assign(command, {
-    getContextAsync: jest.fn().mockResolvedValue({
-      loggedIn: { graphqlClient: {} },
-      projectDir: '/test/project',
-    }),
+  const command = new SimulatorCrashes(args, getMockOclifConfig());
+  // @ts-expect-error getContextAsync is protected
+  jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+    loggedIn: { graphqlClient },
+    projectDir,
   });
   return command;
 }
