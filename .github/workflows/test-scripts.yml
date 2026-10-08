@@ -9,9 +9,13 @@ on:
     branches: [main]
     paths:
       - 'scripts/**'
+      - '.changeset/*.mjs'
+      - '.changeset/*.d.mts'
   pull_request:
     paths:
       - 'scripts/**'
+      - '.changeset/*.mjs'
+      - '.changeset/*.d.mts'
 
 concurrency:
   group: test-scripts-${{ github.ref }}
@@ -26,3 +30,4 @@ jobs:
         uses: ./.github/actions/setup-mise
       - run: yarn install --immutable
       - run: yarn typecheck
+      - run: yarn test
