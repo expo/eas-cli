@@ -29,7 +29,7 @@ async function detectAndroidArtifactTypeAsync(artifactPath: string): Promise<And
     return bundleConfig ? 'aab' : 'apk';
   } catch (error) {
     throw new UserError(
-      'EAS_ANDROID_ARTIFACT_INVALID',
+      'EAS_READ_ANDROID_APP_INFO_INVALID_ARTIFACT',
       'Cannot read the Android artifact as a ZIP archive.',
       { cause: error }
     );
@@ -57,7 +57,7 @@ async function readApkPackageNameAsync(
       });
     }
     throw new UserError(
-      'EAS_ANDROID_MANIFEST_INVALID',
+      'EAS_READ_ANDROID_APP_INFO_INVALID_MANIFEST',
       'Cannot read the APK manifest with aapt2. Check the app binary.',
       { cause: error }
     );
@@ -84,7 +84,7 @@ async function readAabPackageNameAsync(
       });
     }
     throw new UserError(
-      'EAS_ANDROID_MANIFEST_INVALID',
+      'EAS_READ_ANDROID_APP_INFO_INVALID_MANIFEST',
       'Cannot read the AAB manifest with bundletool. Check the app binary.',
       { cause: error }
     );
