@@ -199,10 +199,15 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
       }
 
       if (backend === 'maestro-runner' && global.runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await installMaestroRunnerWdaCache({
-          logger,
-          env,
-        });
+        // Runner 1.1.28 switched the default iOS driver to the bundled DeviceLab agent.
+        // Use the detected version after installation, including when `latest` was requested.
+        const installedRunnerVersion = semver.coerce(maestroVersionResult.value);
+        if (!installedRunnerVersion || semver.lt(installedRunnerVersion, '1.1.28')) {
+          await installMaestroRunnerWdaCache({
+            logger,
+            env,
+          });
+        }
       }
 
       logger.info(`${backend} ${maestroVersionResult.value} is ready.`);
