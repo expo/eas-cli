@@ -90,6 +90,7 @@ export default class SimulatorCrashes extends EasCommand {
       );
     }
     const preview = await resolveSimulatorPreviewAsync(graphqlClient, deviceRunSessionId);
+    // Read the list even with --report-id, because only the list route starts the crash watcher.
     const snapshot = await fetchSimulatorPreviewJsonAsync<SimulatorCrashesSnapshot>(
       preview,
       '/crashes'
@@ -115,13 +116,16 @@ export default class SimulatorCrashes extends EasCommand {
       if (detail.report !== null) {
         Log.log(stripTerminalControlCharacters(detail.report, { keepNewlinesAndTabs: true }));
       } else {
+        const { logTail } = detail.occurrence;
         Log.warn(
-          stripTerminalControlCharacters(
-            detail.reportError ??
-              'The crash report is unavailable. The session recorded the crash but did not return its report. The log lines recorded with the crash follow.'
-          )
+          detail.reportError
+            ? stripTerminalControlCharacters(detail.reportError)
+            : 'The crash report is unavailable. The session recorded the crash but did not return its report. ' +
+                (logTail.length > 0
+                  ? 'The log lines recorded with the crash follow.'
+                  : 'To collect logs, run `eas simulator:logs --follow --scope all` while you reproduce the crash.')
         );
-        for (const line of detail.occurrence.logTail) {
+        for (const line of logTail) {
           Log.log(stripTerminalControlCharacters(line, { keepNewlinesAndTabs: true }));
         }
       }
