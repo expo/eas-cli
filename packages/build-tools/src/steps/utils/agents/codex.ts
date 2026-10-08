@@ -1,17 +1,26 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { z } from 'zod';
 
 import {
+  type AgentCli,
   type AgentInvocation,
+  type AgentLogMessage,
+  ContentBlocksTextSchema,
   MCP_SERVER_NAME,
   type McpServer,
   createContinuationPrompt,
   createProviderMismatchError,
+  parseJsonLine,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
 
-// The flags and settings below are only known to hold for this version.
-export const CODEX_CLI = { packageSpec: '@openai/codex@0.160.1', bin: 'codex' };
+// The flags, settings and output format below are only known to hold for this version.
+export const CODEX_CLI: AgentCli = {
+  packageSpec: '@openai/codex@0.160.1',
+  bin: 'codex',
+  formatOutputLine: formatCodexOutputLine,
+};
 
 export async function prepareCodexAsync({
   homeDirectory,
@@ -99,4 +108,74 @@ export async function prepareCodexAsync({
     stdin: isResuming ? createContinuationPrompt(prompt) : prompt,
     secrets: [credentials.accessToken, credentials.idToken],
   };
+}
+
+const CodexItemSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('agent_message'), text: z.string() }),
+  z.object({
+    type: z.literal('mcp_tool_call'),
+    server: z.string(),
+    tool: z.string(),
+    arguments: z.record(z.string(), z.unknown()),
+    result: z.object({ content: ContentBlocksTextSchema }).nullable(),
+    error: z.object({ message: z.string() }).nullable(),
+  }),
+  z.object({ type: z.literal('error'), message: z.string() }),
+]);
+const CodexEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('item.started'), item: CodexItemSchema.optional().catch(undefined) }),
+  z.object({
+    type: z.literal('item.completed'),
+    item: CodexItemSchema.optional().catch(undefined),
+  }),
+  z.object({ type: z.literal('error'), message: z.string() }),
+  z.object({ type: z.literal('turn.failed'), error: z.object({ message: z.string() }) }),
+]);
+
+function formatCodexOutputLine(line: string): AgentLogMessage[] {
+  const json = parseJsonLine(line);
+  if (json === undefined) {
+    return [{ level: 'info', message: line }];
+  }
+  const event = CodexEventSchema.safeParse(json);
+  if (!event.success) {
+    return [];
+  }
+  switch (event.data.type) {
+    case 'item.started': {
+      const item = event.data.item;
+      if (item?.type !== 'mcp_tool_call') {
+        return [];
+      }
+      return [
+        {
+          level: 'info',
+          message: `Tool call: ${item.server}.${item.tool} ${JSON.stringify(item.arguments)}`,
+        },
+      ];
+    }
+    case 'item.completed':
+      return formatCompletedItem(event.data.item);
+    case 'error':
+      return [{ level: 'warn', message: `Error: ${event.data.message}` }];
+    case 'turn.failed':
+      return [{ level: 'error', message: `Agent failed: ${event.data.error.message}` }];
+  }
+}
+
+function formatCompletedItem(
+  item: z.output<typeof CodexItemSchema> | undefined
+): AgentLogMessage[] {
+  switch (item?.type) {
+    case 'agent_message':
+      return [{ level: 'info', message: `Agent: ${item.text}` }];
+    case 'mcp_tool_call':
+      return item.error
+        ? [{ level: 'warn', message: `Tool error: ${item.error.message}` }]
+        : [{ level: 'info', message: `Tool result: ${item.result?.content ?? ''}` }];
+    case 'error':
+      return [{ level: 'warn', message: `Error: ${item.message}` }];
+    case undefined:
+      return [];
+  }
 }

@@ -1,0 +1,14 @@
+{"type": "thread.started", "thread_id": "01a10000-0000-7000-8000-000000000001"}
+{"type": "turn.started"}
+{"type": "error", "message": "Reconnecting... 2/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 3/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 4/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 5/5 (workspace routing discovery unauthorized (401))"}
+{"type": "item.completed", "item": {"id": "item_0", "type": "error", "message": "Falling back from WebSockets to HTTPS transport. workspace routing discovery unauthorized (401)"}}
+{"type": "error", "message": "Reconnecting... 1/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 2/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 3/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 4/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "Reconnecting... 5/5 (workspace routing discovery unauthorized (401))"}
+{"type": "error", "message": "workspace routing discovery unauthorized (401)"}
+{"type": "turn.failed", "error": {"message": "workspace routing discovery unauthorized (401)"}}

@@ -8,12 +8,14 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
 import { killProcessGroup } from '../../../utils/processes';
 import { runAgentAsync } from '../agentRun';
 import {
   type AgentRunProviderCredentials,
   leaseAgentRunProviderCredentialsAsync,
 } from '../agentRunLease';
+import { CLAUDE_CODE_CLI } from '../agents/claude';
 
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('node:child_process', () => ({
@@ -21,6 +23,7 @@ jest.mock('node:child_process', () => ({
   spawn: jest.fn(),
 }));
 jest.mock('../agentRunLease');
+jest.mock('../../../sentry');
 jest.mock('../../../utils/processes', () => ({
   ...jest.requireActual('../../../utils/processes'),
   killProcessGroup: jest.fn(),
@@ -219,14 +222,22 @@ describe(runAgentAsync, () => {
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
   });
 
-  it('logs whole lines of agent output with the leased credentials masked', async () => {
+  it('writes the agent output as log lines with the leased credentials masked', async () => {
     leaseMock.mockResolvedValue(anthropicLease);
     const logger = createMockLogger();
     mockSpawn({
       onAgent: agent => {
         // One JSON event split across two chunks, in the middle of the token.
-        agent.child.stdout.write('{"token":"anthropic-acc');
-        agent.child.stdout.write('ess-token"}\n{"next":1}\n');
+        agent.child.stdout.write(
+          '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"token: anthropic-acc'
+        );
+        agent.child.stdout.write('ess-token"}]}}\n');
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"text","text":"Done.\\nThe token was anthropic-access-token.\\n"}]}}\n'
+        );
+        agent.child.stdout.write(
+          '{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["boom"]}\n'
+        );
         agent.child.stderr.write('warning: anthropic-access-token\n');
         agent.exit(0);
       },
@@ -237,8 +248,46 @@ describe(runAgentAsync, () => {
     const child = jest.mocked(logger.child);
     expect(child.mock.calls).toEqual([[{ source: 'stdout' }], [{ source: 'stderr' }]]);
     const [stdoutLogger, stderrLogger] = child.mock.results.map(result => result.value);
-    expect(stdoutLogger.info.mock.calls).toEqual([['{"token":"[redacted]"}'], ['{"next":1}']]);
+    expect(stdoutLogger.info.mock.calls).toEqual([
+      ['Tool result: token: [redacted]'],
+      ['Agent: Done.\nThe token was [redacted].'],
+    ]);
+    expect(stdoutLogger.error.mock.calls).toEqual([['Agent failed: boom']]);
     expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
+  });
+
+  it('reports a line the formatter cannot handle instead of ending the run', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const logger = createMockLogger();
+    const formatOutputLine = jest
+      .spyOn(CLAUDE_CODE_CLI, 'formatOutputLine')
+      .mockImplementationOnce(() => {
+        throw new RangeError('Maximum call stack size exceeded');
+      });
+    mockSpawn({
+      onAgent: agent => {
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"t","input":{}}]}}\n'
+        );
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"text","text":"Still here."}]}}\n'
+        );
+        agent.exit(0);
+      },
+    });
+
+    try {
+      await runAgentAsync(createOptions({ logger }));
+    } finally {
+      formatOutputLine.mockRestore();
+    }
+
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not format a line of the agent output',
+      expect.any(RangeError)
+    );
+    const [stdoutLogger] = jest.mocked(logger.child).mock.results.map(result => result.value);
+    expect(stdoutLogger.info.mock.calls).toEqual([['Agent: Still here.']]);
   });
 
   it('runs Codex with its shell tool off and the credentials in a private home', async () => {
@@ -385,11 +434,17 @@ describe(runAgentAsync, () => {
       accessToken: 'renewed-access-token',
     };
     leaseMock.mockResolvedValueOnce(anthropicLease).mockResolvedValueOnce(renewedLease);
+    const logger = createMockLogger();
     const invocations = mockSpawn({
-      onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
+      onAgent: agent => {
+        if (invocations.length === 2) {
+          agent.child.stderr.write('tokens: anthropic-access-token renewed-access-token\n');
+        }
+        agent.exit(invocations.length === 1 ? 1 : 0);
+      },
     });
 
-    await runAgentAsync(createOptions());
+    await runAgentAsync(createOptions({ logger }));
 
     expect(installMock).toHaveBeenCalledTimes(1);
     expect(invocations).toHaveLength(2);
@@ -400,6 +455,15 @@ describe(runAgentAsync, () => {
     expect(resumed.stdin).toHaveBeenCalledWith(
       expect.stringMatching(/^Your previous run of this task stopped.*\n\nFix the failing test\.$/s)
     );
+    const child = jest.mocked(logger.child);
+    expect(child.mock.calls).toEqual([
+      [{ source: 'stdout' }],
+      [{ source: 'stderr' }],
+      [{ source: 'stdout' }],
+      [{ source: 'stderr' }],
+    ]);
+    const [, , , resumedStderrLogger] = child.mock.results.map(result => result.value);
+    expect(resumedStderrLogger.info.mock.calls).toEqual([['tokens: [redacted] [redacted]']]);
   });
 
   it('resumes Codex with new credentials when the lease changed during the run', async () => {

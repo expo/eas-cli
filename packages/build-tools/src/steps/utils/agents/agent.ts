@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import { z } from 'zod';
 
 import { type AgentRunProviderCredentials } from '../agentRunLease';
 
@@ -15,6 +16,39 @@ export interface AgentInvocation {
   stdin: string;
   secrets: string[];
 }
+
+export interface AgentLogMessage {
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
+
+export interface AgentCli {
+  packageSpec: string;
+  bin: string;
+  formatOutputLine(line: string): AgentLogMessage[];
+}
+
+export function parseJsonLine(line: string): unknown {
+  try {
+    return JSON.parse(line);
+  } catch {
+    return undefined;
+  }
+}
+
+export function tolerantArray<Element extends z.ZodType>(element: Element) {
+  // `.catch(undefined)` turns an element the schema rejects into `undefined`.
+  return z
+    .array(element.optional().catch(undefined))
+    .transform(elements =>
+      elements.filter((parsed): parsed is z.output<Element> => parsed !== undefined)
+    );
+}
+
+/** The text of a list of content blocks, as both the Anthropic API and MCP shape them. */
+export const ContentBlocksTextSchema = tolerantArray(
+  z.object({ type: z.literal('text'), text: z.string() })
+).transform(blocks => blocks.map(block => block.text).join('\n'));
 
 // Repeats the task because Codex's `resume --last` starts a new session when none was saved,
 // and that session would otherwise have no task.
