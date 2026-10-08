@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
@@ -61,6 +62,17 @@ describe(EnvPull, () => {
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
       visibility: EnvironmentVariableVisibility.Secret,
+      type: EnvironmentSecretType.String,
+    },
+    {
+      id: 'var5',
+      name: 'EXPO_PUBLIC_BRAND_COLOR',
+      value: '#99ccff',
+      environments: [DefaultEnvironment.Development],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
       type: EnvironmentSecretType.String,
     },
     {
@@ -182,6 +194,27 @@ describe(EnvPull, () => {
       expect(fileContent).toContain('EXPO_PUBLIC_API_URL=https://api.example.com');
       expect(fileContent).toContain('DATABASE_URL=postgres://localhost:5432/mydb');
       expect(fileContent).toContain('# SECRET_KEY=***** (secret)');
+    });
+
+    it('quotes values dotenv would not read back verbatim', async () => {
+      const command = new EnvPull(['development'], mockConfig);
+
+      // @ts-expect-error
+      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+        loggedIn: { graphqlClient },
+        projectId: testProjectId,
+        projectDir: testProjectDir,
+      });
+
+      await command.runAsync();
+
+      const writeFileCalls = jest.mocked(fs.writeFile).mock.calls;
+      const envFileCall = writeFileCalls.find(call => call[0] === testTargetPath);
+      const fileContent = envFileCall![1] as string;
+
+      // Unquoted, dotenv would read `#99ccff` as the start of a comment and drop the value.
+      expect(fileContent).toContain('EXPO_PUBLIC_BRAND_COLOR="#99ccff"');
+      expect(dotenv.parse(fileContent).EXPO_PUBLIC_BRAND_COLOR).toBe('#99ccff');
     });
 
     it('handles file variables correctly', async () => {
