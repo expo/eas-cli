@@ -7,12 +7,16 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import Log from '../../log';
-import { SIMULATOR_DOTENV_FILE_NAME } from '../../simulator/env';
+import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../simulator/env';
 import {
   fetchSimulatorPreviewJsonAsync,
   resolveSimulatorPreviewAsync,
-  sanitizeSimulatorText,
 } from '../../simulator/preview';
+import { stripTerminalControlCharacters } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 interface SimulatorCrashSummary {
@@ -41,7 +45,7 @@ export default class SimulatorCrashes extends EasCommand {
   static override aliases = ['sim:crashes'];
   static override description =
     '[EXPERIMENTAL] show crash reports from a remote iOS simulator session\n\n' +
-    'For logs during a crash reproduction, start eas simulator:logs --follow --scope all first.';
+    'For logs during a crash reproduction, run `eas simulator:logs --follow --scope all` first.';
 
   static override examples = [
     '<%= config.bin %> simulator:crashes --json',
@@ -78,19 +82,30 @@ export default class SimulatorCrashes extends EasCommand {
       projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorCrashes, { nonInteractive });
-    const preview = await resolveSimulatorPreviewAsync(graphqlClient, projectDir, flags.id);
+    await loadSimulatorEnvAsync(projectDir);
+    const deviceRunSessionId = flags.id ?? process.env[EAS_SIMULATOR_SESSION_ID];
+    if (!deviceRunSessionId) {
+      throw new Error(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
+    }
+    const preview = await resolveSimulatorPreviewAsync(graphqlClient, deviceRunSessionId);
     const snapshot = await fetchSimulatorPreviewJsonAsync<SimulatorCrashesSnapshot>(
       preview,
       '/crashes'
     );
     if (!jsonFlag && snapshot.meta.statusError) {
-      Log.warn(sanitizeSimulatorText(snapshot.meta.statusError));
+      Log.warn(stripTerminalControlCharacters(snapshot.meta.statusError));
     }
 
     if (flags['report-id']) {
       const detail = await fetchSimulatorPreviewJsonAsync<SimulatorCrashDetail>(
         preview,
-        `/crashes/${encodeURIComponent(flags['report-id'])}`
+        `/crashes/${encodeURIComponent(flags['report-id'])}`,
+        {
+          notFoundMessage:
+            'The crash report was not found. The ID does not match a report in this session. Run `eas simulator:crashes` to see current report IDs.',
+        }
       );
       if (jsonFlag) {
         printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, ...detail });
@@ -98,16 +113,16 @@ export default class SimulatorCrashes extends EasCommand {
       }
       Log.log(formatCrashSummary(detail.record, flags.timestamp));
       if (detail.report !== null) {
-        Log.log(sanitizeSimulatorText(detail.report));
+        Log.log(stripTerminalControlCharacters(detail.report, { keepNewlinesAndTabs: true }));
       } else {
         Log.warn(
-          sanitizeSimulatorText(
+          stripTerminalControlCharacters(
             detail.reportError ??
               'The crash report is unavailable. The session recorded the crash but did not return its report. The log lines recorded with the crash follow.'
           )
         );
         for (const line of detail.occurrence.logTail) {
-          Log.log(sanitizeSimulatorText(line));
+          Log.log(stripTerminalControlCharacters(line, { keepNewlinesAndTabs: true }));
         }
       }
       return;
@@ -117,27 +132,29 @@ export default class SimulatorCrashes extends EasCommand {
       printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, ...snapshot });
       return;
     }
+    if (snapshot.crashes.length === 0) {
+      // The warning above already explains why the list can be empty.
+      if (!snapshot.meta.statusError) {
+        Log.log('No crash reports have been recorded. Reports can take a few seconds to appear.');
+      }
+      return;
+    }
     for (const crash of snapshot.crashes) {
       Log.log(formatCrashSummary(crash, flags.timestamp));
-    }
-    if (snapshot.crashes.length === 0) {
-      Log.log('No crash reports have been recorded. Reports can take a few seconds to appear.');
     }
   }
 }
 
 function formatCrashSummary(crash: SimulatorCrashSummary, timestamp = false): string {
   const prefix = timestamp
-    ? `${chalk.dim(sanitizeSimulatorText(crash.capturedAt ?? 'Unknown time'))}  `
+    ? `${chalk.dim(stripTerminalControlCharacters(crash.capturedAt ?? 'Unknown time'))}  `
     : '';
   const appName = chalk.bold(
-    sanitizeSimulatorText(crash.appName ?? crash.procName ?? 'Unknown app')
+    stripTerminalControlCharacters(crash.appName ?? crash.procName ?? 'Unknown app')
   );
   const exception = chalk.red.bold(
-    sanitizeSimulatorText(crash.exceptionType ?? crash.signal ?? 'Unknown exception')
+    stripTerminalControlCharacters(crash.exceptionType ?? crash.signal ?? 'Unknown exception')
   );
-  const count = chalk.dim(
-    sanitizeSimulatorText(`(${crash.count} occurrence${crash.count === 1 ? '' : 's'})`)
-  );
-  return `${prefix}${appName}  ${exception}  ${count}  ${chalk.dim(sanitizeSimulatorText(crash.id))}`;
+  const count = chalk.dim(`(${crash.count} occurrence${crash.count === 1 ? '' : 's'})`);
+  return `${prefix}${appName}  ${exception}  ${count}  ${chalk.dim(stripTerminalControlCharacters(crash.id))}`;
 }
