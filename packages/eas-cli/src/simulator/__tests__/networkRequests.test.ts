@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -98,7 +98,7 @@ function streamEvents(events: unknown[]): void {
 
 beforeEach(async () => {
   jest.clearAllMocks();
-  directory = await mkdtemp(path.join(os.tmpdir(), 'eas-inspection-test-'));
+  directory = await mkdtemp(path.join(os.tmpdir(), 'eas-network-requests-test-'));
 });
 
 afterEach(async () => {
@@ -383,6 +383,29 @@ describe(downloadNetworkCaptureAsync, () => {
     await expect(downloadNetworkCaptureAsync(preview, output)).rejects.toThrow('already exists');
     expect(fetchSimulatorPreviewAsync).not.toHaveBeenCalled();
     expect(await readFile(output, 'utf8')).toBe('keep');
+  });
+
+  it('does not overwrite a file created during the download', async () => {
+    const output = path.join(directory, 'capture.har');
+    jest.mocked(fetchSimulatorPreviewAsync).mockImplementation(async () => {
+      await writeFile(output, 'created concurrently');
+      return new Response(Readable.from(['new capture']));
+    });
+
+    await expect(downloadNetworkCaptureAsync(preview, output)).rejects.toThrow('already exists');
+
+    expect(await readFile(output, 'utf8')).toBe('created concurrently');
+    expect(await readdir(directory)).toEqual(['capture.har']);
+  });
+
+  it('refuses to write through a dangling symlink', async () => {
+    const output = path.join(directory, 'capture.har');
+    await symlink(path.join(directory, 'missing-target'), output);
+    reply('new capture');
+
+    await expect(downloadNetworkCaptureAsync(preview, output)).rejects.toThrow('already exists');
+
+    expect(await readdir(directory)).toEqual(['capture.har']);
   });
 
   it('explains a missing output directory', async () => {
