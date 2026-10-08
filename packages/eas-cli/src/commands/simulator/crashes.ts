@@ -144,10 +144,10 @@ export default class SimulatorCrashes extends EasCommand {
         return;
       }
       Log.log(formatCrashSummary(detail.record, flags.timestamp));
+      const { logTail } = detail.occurrence;
       if (detail.report !== null) {
         Log.log(stripTerminalControlCharacters(detail.report, { keepNewlinesAndTabs: true }));
       } else {
-        const { logTail } = detail.occurrence;
         Log.warn(
           detail.reportError
             ? stripTerminalControlCharacters(detail.reportError)
@@ -156,9 +156,9 @@ export default class SimulatorCrashes extends EasCommand {
                   ? 'The log lines recorded with the crash follow.'
                   : 'To collect logs, run `eas simulator:logs --follow --scope all` while you reproduce the crash.')
         );
-        for (const line of logTail) {
-          Log.log(stripTerminalControlCharacters(line, { keepNewlinesAndTabs: true }));
-        }
+      }
+      for (const line of logTail) {
+        Log.log(stripTerminalControlCharacters(line, { keepNewlinesAndTabs: true }));
       }
       return;
     }
