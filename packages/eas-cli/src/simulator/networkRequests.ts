@@ -17,7 +17,7 @@ const NETWORK_CAPTURE_NOT_ENABLED_MESSAGE =
 const OUTPUT_EXISTS_MESSAGE =
   'The output file already exists. The command does not overwrite files. Choose another --output path.';
 const INVALID_NETWORK_CAPTURE_MESSAGE =
-  'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again. If this keeps happening, update EAS CLI.';
+  'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again.';
 
 const networkRequestSchema = z.looseObject({
   _captureId: z.string().optional(),
@@ -157,7 +157,7 @@ export async function streamNetworkRequestsAsync(
       const result = networkCaptureEventSchema.safeParse(parseJson(data));
       if (!result.success) {
         throw new Error(
-          'Could not read the network capture stream. An event from the session was not in the expected format. Run the command again. If this keeps happening, update EAS CLI.'
+          'Could not read the network capture stream. An event from the session was not in the expected format. Run the command again.'
         );
       }
       const event = result.data;
