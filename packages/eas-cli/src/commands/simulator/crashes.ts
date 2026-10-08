@@ -6,7 +6,9 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
+import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -49,6 +51,7 @@ export default class SimulatorCrashes extends EasCommand {
 
   static override examples = [
     '<%= config.bin %> simulator:crashes --json',
+    '<%= config.bin %> simulator:crashes --id <session-id> --output crashes.zip',
     '<%= config.bin %> simulator:crashes --report-id <report-id>',
   ];
 
@@ -56,11 +59,19 @@ export default class SimulatorCrashes extends EasCommand {
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
+    artifact: Flags.integer({
+      min: 1,
+      description: 'Artifact index to download from a stopped session (1-based).',
+    }),
+    output: Flags.string({
+      char: 'o',
+      description: 'Save a stopped session crash artifact to this path.',
+    }),
     'report-id': Flags.string({
       description: 'Show the newest occurrence of a crash. Use an ID from the crash list.',
     }),
     timestamp: Flags.boolean({
-      description: 'Show timestamps in human-readable crash summaries.',
+      description: 'Show timestamps in live human-readable crash summaries.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -89,7 +100,27 @@ export default class SimulatorCrashes extends EasCommand {
         `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
       );
     }
-    const preview = await resolveSimulatorPreviewAsync(graphqlClient, deviceRunSessionId);
+    const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
+    if (hasSimulatorArtifacts(session)) {
+      if (flags['report-id']) {
+        throw new Error(
+          'The session has stopped. --report-id is only available while it runs. Use --output <path> to download its crash artifact.'
+        );
+      }
+      await downloadSimulatorArtifactAsync(session, 'simulator-crashes', {
+        artifact: flags.artifact,
+        output: flags.output,
+        nonInteractive,
+        json: jsonFlag,
+      });
+      return;
+    }
+    const preview = await resolveSimulatorPreviewAsync(session);
+    if (flags.artifact !== undefined || flags.output !== undefined) {
+      throw new Error(
+        '--artifact and --output are only available for stopped sessions. Use --report-id to inspect a live crash report.'
+      );
+    }
     // Read the list even with --report-id, because only the list route starts the crash watcher.
     const snapshot = await fetchSimulatorPreviewJsonAsync<SimulatorCrashesSnapshot>(
       preview,
