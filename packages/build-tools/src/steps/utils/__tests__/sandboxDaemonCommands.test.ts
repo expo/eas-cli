@@ -424,9 +424,12 @@ describe('sandbox daemon commands', () => {
 
     await expect(
       commandImplementations.uploadArtifact({ path: 'dist', name: 'Build output' })
-    ).rejects.toThrow(
-      `${path.join(workingDirectory, 'dist')} is not a regular file. To upload a directory, create an archive first`
-    );
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: expect.stringContaining(
+        `${path.join(workingDirectory, 'dist')} is not a regular file. To upload a directory, create an archive first`
+      ),
+    });
     expect(mutation).not.toHaveBeenCalled();
   });
 

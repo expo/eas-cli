@@ -350,6 +350,8 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
     });
     const socket = await connection;
     await daemon.ready;
