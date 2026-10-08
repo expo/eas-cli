@@ -1,6 +1,8 @@
 import {
   type SandboxDaemonCommandResult,
   SandboxDaemonCommands,
+  SandboxDaemonError,
+  SandboxDaemonErrorCode,
   type SandboxDaemonMethod,
   SandboxDaemonRequestZ,
   type SandboxDaemonResponse,
@@ -158,23 +160,39 @@ async function handleMessageAsync(
   try {
     rawRequest = JSON.parse(message);
   } catch {
-    return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } };
+    return {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: SandboxDaemonErrorCode.PARSE_ERROR, message: 'Parse error' },
+    };
   }
 
   const request = SandboxDaemonRequestZ.safeParse(rawRequest);
   if (!request.success) {
-    return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } };
+    return {
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: SandboxDaemonErrorCode.INVALID_REQUEST, message: 'Invalid request' },
+    };
   }
 
   const { id, method, params } = request.data;
   if (!Object.hasOwn(SandboxDaemonCommands, method)) {
-    return { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: { code: SandboxDaemonErrorCode.METHOD_NOT_FOUND, message: 'Method not found' },
+    };
   }
   const commandMethod = method as SandboxDaemonMethod;
 
   const parsedParams = SandboxDaemonCommands[commandMethod].params.safeParse(params);
   if (!parsedParams.success) {
-    return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Invalid params' } };
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: { code: SandboxDaemonErrorCode.INVALID_PARAMS, message: 'Invalid params' },
+    };
   }
   try {
     return {
@@ -190,7 +208,11 @@ async function handleMessageAsync(
     return {
       jsonrpc: '2.0',
       id,
-      error: { code: -32603, message: error instanceof Error ? error.message : 'Internal error' },
+      error: {
+        code:
+          error instanceof SandboxDaemonError ? error.code : SandboxDaemonErrorCode.INTERNAL_ERROR,
+        message: error instanceof Error ? error.message : 'Internal error',
+      },
     };
   }
 }
