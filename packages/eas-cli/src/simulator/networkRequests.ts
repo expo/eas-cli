@@ -1,27 +1,54 @@
-import { createWriteStream } from 'node:fs';
-import { link, lstat, mkdtemp, rm } from 'node:fs/promises';
+import fs from 'fs-extra';
 import path from 'node:path';
+import readline from 'node:readline';
 import { pipeline } from 'node:stream/promises';
+import { z } from 'zod';
 
 import {
   type SimulatorPreview,
-  type SimulatorPreviewResponse,
   fetchSimulatorPreviewAsync,
-  readSimulatorPreviewLinesAsync,
   streamSimulatorPreviewAsync,
 } from './preview';
+import { type Response } from '../fetch';
 
-const OUTPUT_EXISTS_MESSAGE =
-  'The output file already exists. The command does not overwrite files. Choose another --output path.';
+const NETWORK_CAPTURE_TIMEOUT_MS = 10 * 60_000;
+const NETWORK_CAPTURE_NOT_ENABLED_MESSAGE =
+  'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.';
+const INVALID_NETWORK_CAPTURE_MESSAGE =
+  'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again. If this keeps happening, update EAS CLI.';
 
-export type NetworkRequest = {
-  _captureId?: string;
-  _captureStartedAt?: number | null;
-  startedDateTime: string;
-  time: number;
-  request: { method: string; url: string; bodySize: number; [key: string]: unknown };
-  response: { status: number; bodySize: number; [key: string]: unknown };
-};
+const networkRequestSchema = z.looseObject({
+  _captureId: z.string().optional(),
+  _captureStartedAt: z.number().nullable().optional(),
+  startedDateTime: z.string().refine(value => Number.isFinite(Date.parse(value))),
+  time: z.number(),
+  request: z.looseObject({ method: z.string(), url: z.string(), bodySize: z.number() }),
+  response: z.looseObject({ status: z.number(), bodySize: z.number() }),
+});
+const networkCaptureEventSchema = z.union([
+  z.object({
+    type: z.literal('meta'),
+    initial: z.boolean().optional(),
+    meta: z.object({ attachment: z.string().optional() }),
+  }),
+  z.object({
+    type: z.literal('finished'),
+    request: z.object({
+      id: z.string(),
+      startedAt: z.number(),
+      method: z.string(),
+      url: z.string(),
+      status: z.number().nullable(),
+      durationMs: z.number().nullable(),
+      requestBytes: z.number(),
+      responseBytes: z.number(),
+    }),
+  }),
+  // Other events, such as `started` and `cleared`, have nothing to print.
+  z.object({ type: z.string().refine(type => type !== 'meta' && type !== 'finished') }),
+]);
+
+export type NetworkRequest = z.infer<typeof networkRequestSchema>;
 
 export type NetworkRequestSummary = {
   id: string | null;
@@ -35,22 +62,13 @@ export type NetworkRequestSummary = {
   responseSize: number;
 };
 
-type NetworkCaptureEvent =
-  | { type: 'meta'; meta: { attachment: string }; initial?: boolean }
-  | { type: 'started' | 'cleared' | 'evicted' }
-  | {
-      type: 'finished';
-      request: {
-        id: string;
-        startedAt: number;
-        method: string;
-        url: string;
-        status: number | null;
-        durationMs: number | null;
-        requestBytes: number;
-        responseBytes: number;
-      };
-    };
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
 
 function compareRequestStarts(a: NetworkRequestSummary, b: NetworkRequestSummary): number {
   return (
@@ -64,30 +82,34 @@ export async function readNetworkRequestsAsync(
   preview: SimulatorPreview,
   { limit, requestId }: { limit: number; requestId?: string }
 ): Promise<NetworkRequestSummary[] | NetworkRequest> {
-  const controller = new AbortController();
-  const signal = AbortSignal.any([AbortSignal.timeout(10 * 60_000), controller.signal]);
-  let response: SimulatorPreviewResponse | undefined;
+  const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
+  let response: Response | undefined;
   const requests: NetworkRequestSummary[] = [];
   let selected: NetworkRequest | undefined;
-  const readEntry = (line: string): void => {
-    if (!line.trim()) {
-      return;
-    }
-    const entry = JSON.parse(line) as NetworkRequest;
-    if (
-      !entry.request ||
-      !entry.response ||
-      typeof entry.startedDateTime !== 'string' ||
-      !Number.isFinite(Date.parse(entry.startedDateTime))
-    ) {
-      throw new Error();
-    }
-    if (requestId) {
-      if (entry._captureId === requestId) {
-        selected = entry;
+  try {
+    response = await fetchSimulatorPreviewAsync(preview, '/network-capture.ndjson', {
+      signal,
+      notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
+    });
+    for await (const line of readline.createInterface({
+      input: response.body,
+      crlfDelay: Infinity,
+    })) {
+      if (!line.trim()) {
+        continue;
       }
-    } else {
-      const summary: NetworkRequestSummary = {
+      const result = networkRequestSchema.safeParse(parseJson(line));
+      if (!result.success) {
+        throw new Error(INVALID_NETWORK_CAPTURE_MESSAGE);
+      }
+      const entry = result.data;
+      if (requestId) {
+        if (entry._captureId === requestId) {
+          selected = entry;
+        }
+        continue;
+      }
+      requests.push({
         id: entry._captureId ?? null,
         startedAt: entry._captureStartedAt ?? null,
         startedDateTime: entry.startedDateTime,
@@ -97,23 +119,7 @@ export async function readNetworkRequestsAsync(
         duration: entry.time,
         requestSize: entry.request.bodySize,
         responseSize: entry.response.bodySize,
-      };
-      let index = requests.length;
-      while (index > 0 && compareRequestStarts(summary, requests[index - 1]) < 0) {
-        index -= 1;
-      }
-      requests.splice(index, 0, summary);
-      if (requests.length > limit) {
-        requests.shift();
-      }
-    }
-  };
-  try {
-    response = await fetchSimulatorPreviewAsync(preview, '/network-capture.ndjson', undefined, {
-      signal,
-    });
-    for await (const line of readSimulatorPreviewLinesAsync(response.body)) {
-      readEntry(line);
+      });
     }
   } catch (error) {
     if (signal.aborted) {
@@ -124,15 +130,10 @@ export async function readNetworkRequestsAsync(
     if (!response) {
       throw error;
     }
-    throw new Error(
-      'Could not read the network capture. The capture data was incomplete or not in the expected format. Try again. If this keeps happening, update EAS CLI.'
-    );
-  } finally {
-    controller.abort();
-    response?.body.destroy();
+    throw new Error(INVALID_NETWORK_CAPTURE_MESSAGE);
   }
   if (!requestId) {
-    return requests;
+    return requests.sort(compareRequestStarts).slice(-limit);
   }
   if (!selected) {
     throw new Error(
@@ -144,65 +145,50 @@ export async function readNetworkRequestsAsync(
 
 export async function streamNetworkRequestsAsync(
   preview: SimulatorPreview,
-  onRequest: (request: NetworkRequestSummary) => void
+  onRequest: (request: NetworkRequestSummary) => void,
+  signal: AbortSignal
 ): Promise<void> {
-  let streamError: Error | undefined;
-  try {
-    await streamSimulatorPreviewAsync(preview, '/network-capture', data => {
-      try {
-        const event = JSON.parse(data) as NetworkCaptureEvent;
-        if (event.type === 'meta') {
-          if (event.meta.attachment === 'not-enabled') {
-            streamError = new Error(
-              event.initial
-                ? 'Network capture is not enabled for this session. Capture must be requested when the session starts. Start a new session with `eas simulator:start --network-capture`.'
-                : 'Network capture was turned off, so the session no longer records requests. Start a new session with `eas simulator:start --network-capture` to capture again.'
-            );
-            throw streamError;
-          }
-          if (event.meta.attachment === 'failed') {
-            streamError = new Error(
-              'The network capture failed. The session reported a capture error. Open the session preview to see the error, or start a new session with `eas simulator:start --network-capture`.'
-            );
-            throw streamError;
-          }
-        } else if (event.type === 'finished') {
-          const request = event.request;
-          if (
-            !request ||
-            typeof request.id !== 'string' ||
-            typeof request.method !== 'string' ||
-            typeof request.url !== 'string' ||
-            !Number.isFinite(request.startedAt) ||
-            !Number.isFinite(request.requestBytes) ||
-            !Number.isFinite(request.responseBytes) ||
-            (request.status !== null && !Number.isFinite(request.status)) ||
-            (request.durationMs !== null && !Number.isFinite(request.durationMs))
-          ) {
-            throw new Error();
-          }
-          onRequest({
-            id: request.id,
-            startedAt: request.startedAt,
-            startedDateTime: new Date(request.startedAt).toISOString(),
-            method: request.method,
-            url: request.url,
-            status: request.status ?? 0,
-            duration: Math.max(0, request.durationMs ?? 0),
-            requestSize: request.requestBytes,
-            responseSize: request.responseBytes,
-          });
-        }
-      } catch {
-        streamError ??= new Error(
+  await streamSimulatorPreviewAsync(
+    preview,
+    '/network-capture',
+    data => {
+      const result = networkCaptureEventSchema.safeParse(parseJson(data));
+      if (!result.success) {
+        throw new Error(
           'Could not read the network capture stream. An event from the session was not in the expected format. Run the command again. If this keeps happening, update EAS CLI.'
         );
-        throw streamError;
       }
-    });
-  } catch (error) {
-    throw streamError ?? error;
-  }
+      const event = result.data;
+      if ('meta' in event) {
+        if (event.meta.attachment === 'not-enabled') {
+          throw new Error(
+            event.initial
+              ? NETWORK_CAPTURE_NOT_ENABLED_MESSAGE
+              : 'Network capture was turned off, so the session no longer records requests. Start a new session with `eas simulator:start --network-capture` to capture again.'
+          );
+        }
+        if (event.meta.attachment === 'failed') {
+          throw new Error(
+            'The network capture failed. The session reported a capture error. Open the session preview to see the error, or start a new session with `eas simulator:start --network-capture`.'
+          );
+        }
+      } else if ('request' in event) {
+        const { request } = event;
+        onRequest({
+          id: request.id,
+          startedAt: request.startedAt,
+          startedDateTime: new Date(request.startedAt).toISOString(),
+          method: request.method,
+          url: request.url,
+          status: request.status ?? 0,
+          duration: Math.max(0, request.durationMs ?? 0),
+          requestSize: request.requestBytes,
+          responseSize: request.responseBytes,
+        });
+      }
+    },
+    { signal, notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE }
+  );
 }
 
 export async function downloadNetworkCaptureAsync(
@@ -210,69 +196,35 @@ export async function downloadNetworkCaptureAsync(
   output: string
 ): Promise<string> {
   const outputPath = path.resolve(output);
-  const outputExists = await lstat(outputPath).then(
-    () => true,
-    error => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return false;
-      }
-      throw new Error(
-        'Could not access the --output path. EAS CLI could not check whether the file exists. Check that the directory exists and that you can read it.'
-      );
-    }
-  );
-  if (outputExists) {
-    throw new Error(OUTPUT_EXISTS_MESSAGE);
-  }
-  let directory: string;
-  try {
-    directory = await mkdtemp(path.join(path.dirname(outputPath), '.eas-network-capture-'));
-  } catch {
+  if (await fs.pathExists(outputPath)) {
     throw new Error(
-      'Could not create the output file. The --output directory does not exist or is not writable. Choose a directory you can write to.'
+      'The output file already exists. The command does not overwrite files. Choose another --output path.'
     );
   }
-  const temporaryPath = path.join(directory, 'capture.har');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort('timed-out');
-  }, 10 * 60_000);
-  const interrupt = (): void => {
-    controller.abort('interrupted');
-  };
-  process.on('SIGINT', interrupt);
-  let response: SimulatorPreviewResponse | undefined;
+  const signal = AbortSignal.timeout(NETWORK_CAPTURE_TIMEOUT_MS);
+  let response: Response | undefined;
   try {
-    response = await fetchSimulatorPreviewAsync(preview, '/network-capture.har', undefined, {
-      signal: controller.signal,
+    response = await fetchSimulatorPreviewAsync(preview, '/network-capture.har', {
+      signal,
+      notFoundMessage: NETWORK_CAPTURE_NOT_ENABLED_MESSAGE,
     });
-    await pipeline(response.body, createWriteStream(temporaryPath, { flags: 'wx', mode: 0o600 }), {
-      signal: controller.signal,
-    });
-    await link(temporaryPath, outputPath);
-    return outputPath;
+    // The HAR contains decrypted request data, such as credentials, so only the user can read it.
+    await pipeline(response.body, fs.createWriteStream(outputPath, { mode: 0o600 }));
   } catch (error) {
-    if (controller.signal.aborted) {
+    if (response && (await fs.pathExists(outputPath))) {
+      await fs.remove(outputPath);
+    }
+    if (signal.aborted) {
       throw new Error(
-        controller.signal.reason === 'interrupted'
-          ? 'The network capture download was interrupted. It was stopped before it finished. Run the command again to save the capture.'
-          : 'The network capture download timed out. It did not finish within 10 minutes. Check your internet connection, then run the command again.'
+        'The network capture download timed out. It did not finish within 10 minutes. Check your internet connection, then run the command again.'
       );
     }
     if (!response) {
       throw error;
     }
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new Error(OUTPUT_EXISTS_MESSAGE);
-    }
     throw new Error(
-      'Could not save the network capture. The download or the file write failed. Run `eas simulator:get` to check that the session is still running, check that the --output directory is writable, then try again.'
+      'Could not save the network capture. The download or the file write failed. Check that the --output directory exists and is writable. Run `eas simulator:get` to check that the session is still running, then try again.'
     );
-  } finally {
-    clearTimeout(timeout);
-    process.removeListener('SIGINT', interrupt);
-    controller.abort();
-    response?.body.destroy();
-    await rm(directory, { recursive: true, force: true });
   }
+  return outputPath;
 }
