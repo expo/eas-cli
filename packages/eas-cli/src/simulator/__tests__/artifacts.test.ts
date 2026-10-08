@@ -1,3 +1,8 @@
+import fs from 'fs-extra';
+import { createServer } from 'node:http';
+import { type AddressInfo } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 import { Readable } from 'node:stream';
 
 import fetch, { Response } from '../../fetch';
@@ -178,4 +183,53 @@ it('redacts signed URLs from storage failures', async () => {
   const downloading = downloadSimulatorArtifactAsync(session(), 'simulator-log', options);
   await expect(downloading).rejects.toThrow('Could not download the session artifact');
   await expect(downloading).rejects.not.toThrow('secret');
+});
+
+it('closes an unfinished HTTP error response without exposing storage credentials', async () => {
+  const actualFetch = jest.requireActual<typeof import('../../fetch')>('../../fetch').default;
+  const actualDownload = jest.requireActual<typeof import('../download')>('../download');
+  jest.mocked(fetch).mockImplementation(actualFetch);
+  jest
+    .mocked(downloadSimulatorFileAsync)
+    .mockImplementation(actualDownload.downloadSimulatorFileAsync);
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sim-artifact-error-'));
+  let markClosed = (): void => {};
+  const closed = new Promise<void>(resolve => {
+    markClosed = resolve;
+  });
+  const server = createServer((_request, response) => {
+    response.once('close', markClosed);
+    response.writeHead(403);
+    response.write('secret storage token');
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const failedArtifact = {
+    ...first,
+    downloadUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/?token=secret`,
+  };
+  let expired = false;
+  const deadline = setTimeout(() => {
+    expired = true;
+    server.closeAllConnections();
+  }, 2_000);
+  try {
+    const downloading = downloadSimulatorArtifactAsync(session([failedArtifact]), 'simulator-log', {
+      ...options,
+      output: path.join(directory, 'logs.ndjson'),
+    });
+    await expect(downloading).rejects.toThrow('Could not download the session artifact');
+    await expect(downloading).rejects.not.toThrow('secret');
+    await closed;
+    expect(expired).toBe(false);
+    expect(await fs.readdir(directory)).toEqual([]);
+  } finally {
+    clearTimeout(deadline);
+    server.closeAllConnections();
+    await new Promise<void>(resolve =>
+      server.close(() => {
+        resolve();
+      })
+    );
+    await fs.remove(directory);
+  }
 });
