@@ -1,11 +1,13 @@
 import { Env, SystemError } from '@expo/eas-build-job';
 import downloadFile from '@expo/downloader';
+import { bunyan } from '@expo/logger';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 
+import { getProxiedDownloadUrl } from './download';
 import { isChildProcessAlive, killProcessGroup } from './processes';
 import { sleepAsync } from './retry';
 import { BuildContext } from '../context';
@@ -112,7 +114,7 @@ export function redactSpawnErrorForLog(err: unknown): unknown {
   };
 }
 
-export async function resolveUptermPathAsync(env: Env): Promise<string> {
+export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<string> {
   try {
     await spawn('upterm', ['version'], { stdio: 'pipe', env });
     return 'upterm';
@@ -121,14 +123,36 @@ export async function resolveUptermPathAsync(env: Env): Promise<string> {
   const objectName = resolveUptermGcsObjectName();
   const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-upterm-'));
   const uptermPath = path.join(downloadDir, objectName);
-  const url = `${UPTERM_GCS_BASE_URL}/${objectName}`;
-  try {
+  const directUrl = `${UPTERM_GCS_BASE_URL}/${objectName}`;
+  const proxiedUrl = getProxiedDownloadUrl({
+    directUrl,
+    proxyBaseUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
+  });
+
+  const downloadAsync = async (url: string): Promise<void> => {
     await downloadFile(url, uptermPath, { retry: 3, timeout: UPTERM_DOWNLOAD_TIMEOUT_MS });
     await fs.chmod(uptermPath, 0o755);
+  };
+
+  if (proxiedUrl) {
+    try {
+      await downloadAsync(proxiedUrl);
+      return uptermPath;
+    } catch (err) {
+      logger.debug(
+        { err },
+        'Failed to download upterm through the cache proxy; falling back to the direct URL.'
+      );
+      await fs.rm(uptermPath, { force: true }).catch(() => {});
+    }
+  }
+
+  try {
+    await downloadAsync(directUrl);
   } catch (err) {
     await fs.rm(downloadDir, { recursive: true, force: true }).catch(() => {});
     throw new SystemError(
-      `The upterm SSH client was not on PATH and could not be downloaded from ${url}. ${
+      `The upterm SSH client was not on PATH and could not be downloaded from ${directUrl}. ${
         err instanceof Error ? err.message : String(err)
       }`
     );
@@ -193,7 +217,7 @@ export async function startUptermHostAsync(
   ctx: BuildContext,
   { relayServerUrl }: { relayServerUrl: string }
 ): Promise<UptermHost> {
-  const uptermPath = await resolveUptermPathAsync(ctx.env);
+  const uptermPath = await resolveUptermPathAsync(ctx.env, ctx.logger);
 
   const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-ssh-'));
   const hostKeyPath = path.join(stateDir, 'id_host');

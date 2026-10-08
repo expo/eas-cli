@@ -293,6 +293,63 @@ describe(startUptermHostAsync, () => {
     );
   });
 
+  it('downloads through the cache proxy when one is configured', async () => {
+    uptermOnPath = false;
+
+    await startUptermHostAsync(
+      makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
+      {
+        relayServerUrl: 'wss://relay.expo.dev',
+      }
+    );
+
+    expect(mockedDownloadFile).toHaveBeenCalledTimes(1);
+    expect(mockedDownloadFile).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^http:\/\/10\.0\.0\.1:8081\/repository\/proxy\/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/
+      ),
+      expect.stringContaining('/tmp/eas-upterm-1'),
+      expect.objectContaining({ retry: 3 })
+    );
+  });
+
+  it('falls back to the direct URL when the proxied download fails', async () => {
+    uptermOnPath = false;
+    mockedDownloadFile.mockRejectedValueOnce(new Error('502 Bad Gateway') as never);
+
+    const host = await startUptermHostAsync(
+      makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
+      { relayServerUrl: 'wss://relay.expo.dev' }
+    );
+
+    expect(host.connectionConfig.secret).toBe('TOKENx');
+    expect(mockedDownloadFile).toHaveBeenCalledTimes(2);
+    expect(mockedDownloadFile).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^https:\/\/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/),
+      expect.stringContaining('/tmp/eas-upterm-1'),
+      expect.objectContaining({ retry: 3 })
+    );
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      expect.stringContaining('/tmp/eas-upterm-1'),
+      expect.arrayContaining(['host']),
+      expect.anything()
+    );
+  });
+
+  it('names the direct URL when both the proxied and the direct download fail', async () => {
+    uptermOnPath = false;
+    mockedDownloadFile.mockRejectedValue(new Error('403 Forbidden') as never);
+
+    await expect(
+      startUptermHostAsync(
+        makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
+        {
+          relayServerUrl: 'wss://r',
+        }
+      )
+    ).rejects.toThrow(/could not be downloaded from https:\/\/storage\.googleapis\.com/);
+  });
+
   it('throws when upterm is missing from PATH and the GCS download fails', async () => {
     uptermOnPath = false;
     mockedDownloadFile.mockRejectedValue(new Error('403 Forbidden') as never);
