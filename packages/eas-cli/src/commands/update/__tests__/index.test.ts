@@ -25,6 +25,7 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { selectAsync } from '../../../prompts';
@@ -82,6 +83,7 @@ describe(UpdatePublish.name, () => {
     vol.reset();
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
     jest.mocked(selectAsync).mockClear();
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockReset();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -118,6 +120,37 @@ describe(UpdatePublish.name, () => {
 
     await new UpdatePublish(flags, commandOptions).run();
 
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('skips the active rollout check when the branch was just created', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    mockTestProject();
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
+      createdBranch: true,
+    });
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mockRejectedValue(new Error('Could not find branch "wat"'));
+
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 

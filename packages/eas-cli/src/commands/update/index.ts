@@ -511,7 +511,7 @@ export default class UpdatePublish extends EasCommand {
         runtimeVersionInfoObjects
       );
 
-    const { branch } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branch, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
@@ -623,16 +623,16 @@ export default class UpdatePublish extends EasCommand {
           };
         }
       );
-    const updateGroupsToPublish = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
-      graphqlClient,
-      updateGroups,
-      {
-        appId: projectId,
-        branchName: branch.name,
-        forceEndActiveRollout,
-        rolloutPercentage,
-      }
-    );
+    // A branch created by this command has no updates, so it cannot have an active rollout.
+    // Reading it back by name this soon after creation can also fail to find it.
+    const updateGroupsToPublish = createdBranch
+      ? updateGroups
+      : await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
+          appId: projectId,
+          branchName: branch.name,
+          forceEndActiveRollout,
+          rolloutPercentage,
+        });
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
