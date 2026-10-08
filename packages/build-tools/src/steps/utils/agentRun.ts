@@ -9,14 +9,15 @@ import path from 'node:path';
 import readline from 'node:readline';
 
 import { leaseAgentRunProviderCredentialsAsync } from './agentRunLease';
-import { type AgentInvocation } from './agents/agent';
+import { type AgentCli, type AgentInvocation, type AgentLogMessage } from './agents/agent';
 import { CLAUDE_CODE_CLI, prepareClaudeCodeAsync } from './agents/claude';
 import { CODEX_CLI, prepareCodexAsync } from './agents/codex';
+import { Sentry } from '../../sentry';
 import { killProcessGroup } from '../../utils/processes';
 
 export type AgentKind = 'claude-code' | 'codex';
 
-const AGENT_CLIS: Record<AgentKind, { packageSpec: string; bin: string }> = {
+const AGENT_CLIS: Record<AgentKind, AgentCli> = {
   'claude-code': CLAUDE_CODE_CLI,
   codex: CODEX_CLI,
 };
@@ -50,6 +51,7 @@ export async function runAgentAsync({
 }): Promise<void> {
   const leaseOptions = { expoApiV2BaseUrl, expoToken, agentRunId, signal };
   let credentials = await leaseAgentRunProviderCredentialsAsync(leaseOptions);
+  const secrets = new Set<string>();
 
   const runDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-agent-run-'));
   try {
@@ -70,7 +72,7 @@ export async function runAgentAsync({
       LANG: 'C.UTF-8',
     };
 
-    const { packageSpec, bin } = AGENT_CLIS[agentKind];
+    const { packageSpec, bin, formatOutputLine } = AGENT_CLIS[agentKind];
     logger.info(`Installing ${packageSpec}.`);
     try {
       await turtleSpawn(
@@ -123,10 +125,15 @@ export async function runAgentAsync({
           break;
       }
 
+      for (const secret of invocation.secrets) {
+        secrets.add(secret);
+      }
       const { exitCode, exitSignal } = await runAgentProcessAsync({
         command: path.join(cliDirectory, 'node_modules', '.bin', bin),
         ...invocation,
         cwd: workingDirectory,
+        formatOutputLine,
+        secrets: [...secrets],
         logger,
         signal,
       });
@@ -162,6 +169,7 @@ async function runAgentProcessAsync({
   env,
   cwd,
   stdin,
+  formatOutputLine,
   secrets,
   logger,
   signal,
@@ -171,6 +179,7 @@ async function runAgentProcessAsync({
   env: Record<string, string>;
   cwd: string;
   stdin: string;
+  formatOutputLine: AgentCli['formatOutputLine'];
   secrets: string[];
   logger: bunyan;
   signal: AbortSignal;
@@ -179,14 +188,26 @@ async function runAgentProcessAsync({
   // Detached, so the agent leads a process group that can be signaled as a whole.
   const child = spawn(command, args, { cwd, env, detached: true });
   const outputClosed = new Promise<void>(resolve => child.once('close', () => resolve()));
-  for (const source of ['stdout', 'stderr'] as const) {
-    const sourceLogger = logger.child({ source });
-    readline.createInterface({ input: child[source] }).on('line', line => {
-      sourceLogger.info(
-        secrets.reduce((masked, secret) => masked.replaceAll(secret, '[redacted]'), line)
-      );
-    });
-  }
+  const redact = (text: string): string =>
+    secrets.reduce((masked, secret) => masked.replaceAll(secret, '[redacted]'), text);
+  const stdoutLogger = logger.child({ source: 'stdout' });
+  readline.createInterface({ input: child.stdout }).on('line', line => {
+    let messages: AgentLogMessage[];
+    try {
+      messages = formatOutputLine(line);
+    } catch (error) {
+      // An exception in a readline listener is uncaught and would end the worker process.
+      Sentry.capture('Could not format a line of the agent output', error as Error);
+      return;
+    }
+    for (const { level, message } of messages) {
+      stdoutLogger[level](redact(message).trimEnd());
+    }
+  });
+  const stderrLogger = logger.child({ source: 'stderr' });
+  readline.createInterface({ input: child.stderr }).on('line', line => {
+    stderrLogger.info(redact(line));
+  });
   // The agent may exit before it reads the prompt; its exit status reports that.
   child.stdin.on('error', () => {});
   child.stdin.end(stdin);
