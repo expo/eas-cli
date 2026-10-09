@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { stripVTControlCharacters } from 'util';
 
 import {
@@ -509,4 +510,45 @@ export function stripTerminalControlCharacters(
   return stripVTControlCharacters(value).replace(/\p{Cc}/gu, character =>
     keepNewlinesAndTabs && (character === '\n' || character === '\t') ? character : ''
   );
+}
+
+export function isValidLogTime(at: unknown): at is number {
+  return typeof at === 'number' && !Number.isNaN(new Date(at).getTime());
+}
+
+export function formatLogLine(raw: string, timestamp = false, at = Date.now()): string {
+  const time = new Date(isValidLogTime(at) ? at : Date.now()).toISOString();
+  try {
+    const entry = JSON.parse(raw) as {
+      timestamp?: string;
+      processImagePath?: string;
+      processID?: number;
+      eventMessage?: string;
+      messageType?: string | number;
+    };
+    if (typeof entry.eventMessage === 'string') {
+      const prefix = timestamp
+        ? `${chalk.dim(stripTerminalControlCharacters(entry.timestamp ?? time))}  `
+        : '';
+      const processName = entry.processImagePath?.split('/').at(-1) ?? 'unknown';
+      const processId = typeof entry.processID === 'number' ? `:${entry.processID}` : '';
+      const processLabel = chalk.cyan(
+        stripTerminalControlCharacters(`[${processName}${processId}]`)
+      );
+      const level = String(entry.messageType ?? '').toLowerCase();
+      let message = stripTerminalControlCharacters(entry.eventMessage, {
+        keepNewlinesAndTabs: true,
+      });
+      if (level === 'error' || level === '16') {
+        message = chalk.red(message);
+      } else if (level === 'fault' || level === '17') {
+        message = chalk.red.bold(message);
+      } else if (level === 'debug' || level === '2') {
+        message = chalk.dim(message);
+      }
+      return `${prefix}${processLabel} ${message}`;
+    }
+  } catch {}
+  const prefix = timestamp ? `${chalk.dim(time)}  ` : '';
+  return `${prefix}${stripTerminalControlCharacters(raw, { keepNewlinesAndTabs: true })}`;
 }
