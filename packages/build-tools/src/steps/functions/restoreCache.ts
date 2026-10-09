@@ -113,6 +113,7 @@ export async function downloadCacheAsync({
   expoApiServerURL,
   robotAccessToken,
   paths,
+  cacheVersion,
   key,
   keyPrefixes,
   platform,
@@ -122,6 +123,7 @@ export async function downloadCacheAsync({
   expoApiServerURL: string;
   robotAccessToken: string;
   paths: string[];
+  cacheVersion?: string;
   key: string;
   keyPrefixes: string[];
   platform: Platform | undefined;
@@ -134,13 +136,13 @@ export async function downloadCacheAsync({
         ? {
             buildId: jobId,
             key,
-            version: getCacheVersion(paths),
+            version: cacheVersion ?? getCacheVersion(paths),
             keyPrefixes,
           }
         : {
             jobRunId: jobId,
             key,
-            version: getCacheVersion(paths),
+            version: cacheVersion ?? getCacheVersion(paths),
             keyPrefixes,
           },
       headers: {

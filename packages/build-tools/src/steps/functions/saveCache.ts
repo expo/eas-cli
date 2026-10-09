@@ -99,6 +99,7 @@ export async function uploadCacheAsync({
   expoApiServerURL,
   robotAccessToken,
   paths,
+  cacheVersion,
   key,
   archivePath,
   size,
@@ -110,6 +111,7 @@ export async function uploadCacheAsync({
   expoApiServerURL: string;
   robotAccessToken: string;
   paths: string[];
+  cacheVersion?: string;
   key: string;
   archivePath: string;
   size: number;
@@ -127,14 +129,14 @@ export async function uploadCacheAsync({
       ? JSON.stringify({
           buildId: jobId,
           key,
-          version: getCacheVersion(paths),
+          version: cacheVersion ?? getCacheVersion(paths),
           size,
           force,
         })
       : JSON.stringify({
           jobRunId: jobId,
           key,
-          version: getCacheVersion(paths),
+          version: cacheVersion ?? getCacheVersion(paths),
           size,
           force,
         }),

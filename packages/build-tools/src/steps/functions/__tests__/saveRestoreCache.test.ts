@@ -4,9 +4,11 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
+import { Readable } from 'stream';
 
 import { compressCacheAsync, uploadCacheAsync } from '../saveCache';
-import { decompressCacheAsync } from '../restoreCache';
+import { decompressCacheAsync, downloadCacheAsync } from '../restoreCache';
+import { getCacheVersion } from '../../utils/cache';
 
 jest.mock('node-fetch');
 
@@ -94,9 +96,10 @@ describe(uploadCacheAsync, () => {
   });
 
   it.each([
-    ['normal upload', undefined, false],
-    ['forced upload', true, true],
-  ] as const)('sends force for %s', async (_name, force, expectedForce) => {
+    ['normal upload', undefined, false, undefined],
+    ['forced upload', true, true, undefined],
+    ['portable Metro upload', true, true, 'metro-transform-v1'],
+  ] as const)('sends force for %s', async (_name, force, expectedForce, cacheVersion) => {
     const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'upload-cache-test-'));
     const archivePath = path.join(tempDir, 'cache.tar.gz');
     await fs.promises.writeFile(archivePath, 'cache archive');
@@ -134,6 +137,7 @@ describe(uploadCacheAsync, () => {
         size: 13,
         platform: Platform.ANDROID,
         force,
+        cacheVersion,
       });
 
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -146,6 +150,7 @@ describe(uploadCacheAsync, () => {
         force: expectedForce,
         key: 'cache-key',
         size: 13,
+        version: cacheVersion ?? getCacheVersion(['/cache/path']),
       });
       expect(jest.mocked(fetch).mock.calls[1][0].toString()).toBe(
         'https://storage.expo.test/cache'
@@ -154,4 +159,50 @@ describe(uploadCacheAsync, () => {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
     }
   });
+});
+
+describe(downloadCacheAsync, () => {
+  it.each([Platform.IOS, Platform.ANDROID, undefined])(
+    'uses the same Metro version with platform=%s',
+    async platform => {
+      jest.mocked(fetch).mockReset();
+      jest
+        .mocked(fetch)
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              data: {
+                matchedKey: 'metro-transform-v1',
+                downloadUrl: 'https://storage.expo.test/cache.tar.gz',
+              },
+            })
+          )
+        )
+        .mockResolvedValueOnce(new Response(Readable.from(['cache archive'])));
+      await expect(
+        downloadCacheAsync({
+          logger: createLoggerMock(),
+          jobId: 'job-id',
+          expoApiServerURL: 'https://api.expo.test',
+          robotAccessToken: 'token',
+          paths: ['metro-transform-cache-v1'],
+          key: 'metro-transform-v1',
+          cacheVersion: 'metro-transform-v1',
+          keyPrefixes: [],
+          platform,
+        })
+      ).resolves.toMatchObject({ matchedKey: 'metro-transform-v1' });
+      expect(fetch).toHaveBeenCalledTimes(2);
+      const [url, request] = jest.mocked(fetch).mock.calls[0];
+      expect(url.toString()).toBe(
+        `https://api.expo.test/v2/${platform ? 'turtle-builds/caches' : 'turtle-caches'}/download`
+      );
+      expect(JSON.parse(request!.body as string)).toEqual({
+        [platform ? 'buildId' : 'jobRunId']: 'job-id',
+        version: 'metro-transform-v1',
+        key: 'metro-transform-v1',
+        keyPrefixes: [],
+      });
+    }
+  );
 });
