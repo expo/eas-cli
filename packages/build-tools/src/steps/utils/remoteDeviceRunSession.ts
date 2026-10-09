@@ -30,6 +30,8 @@ import { Sentry } from '../../sentry';
 import { isProcessGroupRunning } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { createProcessOutput } from './processOutput';
+import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
@@ -647,24 +649,34 @@ export function spawnDetached({
   cwd,
   env,
   stopGracePeriodMs,
+  logger,
+  secrets,
 }: {
   command: string;
   args: string[];
   cwd?: string;
   env: BuildStepEnv;
   stopGracePeriodMs?: number;
+  logger?: bunyan;
+  secrets?: string[];
 }): DetachedProcessHandle {
   const promise = spawn(command, args, {
     cwd,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
+    ignoreStdio: true,
   });
+  const output = createProcessOutput(logger, secrets);
+  const outputDrained = new Promise<void>(resolve =>
+    promise.child.once('close', () => {
+      output.finish();
+      resolve();
+    })
+  );
   // Observe completion without rejecting in the background. Startup callers can
   // distinguish a dead process from one that is still preparing its state file.
   let exitError: Error | undefined;
-  // The spawn promise waits for stdio to close. Descendants may keep those
-  // pipes open after the launcher exits, so observe the exit itself as well.
   promise.child.once('exit', (code, signal) => {
     exitError = new Error(
       signal ? `Process exited with signal ${signal}.` : `Process exited with code ${code}.`
@@ -680,19 +692,28 @@ export function spawnDetached({
   );
   promise.child.unref();
 
-  let output = '';
-  const appendChunk = (chunk: Buffer | string): void => {
-    output += chunk.toString();
-  };
-  promise.child.stdout?.on('data', appendChunk);
-  promise.child.stderr?.on('data', appendChunk);
+  promise.child.stdout?.on('data', chunk => output.stdout.append(chunk));
+  promise.child.stderr?.on('data', chunk => output.stderr.append(chunk));
 
   const pid = promise.child.pid;
   return {
     pid,
-    getOutput: () => output,
+    getOutput: output.getOutput,
     getExitError: () => exitError,
-    stopAsync: async () => await stopDetachedProcessAsync(pid, stopGracePeriodMs),
+    stopAsync: async () => {
+      await stopDetachedProcessAsync(pid, stopGracePeriodMs);
+      try {
+        await withDeviceRunSessionTimeoutAsync(
+          { name: 'Process output drain', timeoutMs: 5_000 },
+          async () => await outputDrained
+        );
+      } catch (err) {
+        promise.child.stdout?.destroy();
+        promise.child.stderr?.destroy();
+        output.finish();
+        throw err;
+      }
+    },
   };
 }
 
@@ -826,21 +847,22 @@ export async function startNgrokTunnelAsync({
     await listener.close();
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
-  let stopped = false;
+  let stopTask: Promise<void> | undefined;
   return {
     url,
     subdomainId,
-    stopAsync: async () => {
-      if (stopped) {
-        return;
-      }
-      stopped = true;
-      try {
-        await listener.close();
-      } catch (error) {
-        logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
-      }
-    },
+    stopAsync: () =>
+      (stopTask ??= (async () => {
+        try {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: 'Ngrok tunnel stop', timeoutMs: 4_000 },
+            async () => await listener.close()
+          );
+        } catch (error) {
+          logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+          throw error;
+        }
+      })()),
   };
 }
 

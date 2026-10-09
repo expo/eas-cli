@@ -437,11 +437,13 @@ describe(configureSimulatorProxyEnvironmentAsync, () => {
 });
 
 describe(startChiselServerAsync, () => {
+  const logger = { warn: jest.fn() } as unknown as bunyan;
   const options = {
     chiselPath: '/tmp/chisel',
     controlPort: 52001,
     authfilePath: '/tmp/authfile.json',
     env: { PATH: '/bin', AUTH: 'unexpected:password' },
+    logger,
   };
   let output: string;
   let stopAsync: jest.Mock;
@@ -483,7 +485,9 @@ describe(startChiselServerAsync, () => {
     expect(stopAsync).not.toHaveBeenCalled();
   });
 
-  it('rejects and stops a child that prints its fingerprint then fails to bind', async () => {
+  it('keeps the bind error and warns when a child that failed to bind cannot be stopped', async () => {
+    const stopError = new Error('drain timed out');
+    stopAsync.mockRejectedValueOnce(stopError);
     const started = startChiselServerAsync(options);
     const rejected = expect(started).rejects.toThrow('address already in use');
     output += 'listen tcp 127.0.0.1:52001: bind: address already in use\n';
@@ -493,16 +497,27 @@ describe(startChiselServerAsync, () => {
     await jest.advanceTimersByTimeAsync(250);
     await rejected;
     expect(stopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the reverse tunnel server after it failed to start.'
+    );
   });
 
-  it('stops the child when startup is cancelled', async () => {
+  it('keeps the cancellation and warns when the cancelled child cannot be stopped', async () => {
+    const stopError = new Error('drain timed out');
+    stopAsync.mockRejectedValueOnce(stopError);
     const controller = new AbortController();
+    const cancelled = new Error('cancelled');
     const started = startChiselServerAsync({ ...options, signal: controller.signal });
-    const rejected = expect(started).rejects.toThrow('cancelled');
-    controller.abort(new Error('cancelled'));
+    const rejected = expect(started).rejects.toBe(cancelled);
+    controller.abort(cancelled);
     await jest.advanceTimersByTimeAsync(250);
     await rejected;
     expect(stopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the reverse tunnel server after it failed to start.'
+    );
   });
 });
 
