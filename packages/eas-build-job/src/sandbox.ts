@@ -86,8 +86,19 @@ export const SandboxDaemonCommands = {
     params: z.object({
       path: z.string().min(1),
       name: z.string().min(1).max(1024),
+      yieldTimeMs: z.number().int().min(0).max(30_000).optional(),
     }),
-    result: z.strictObject({ id: z.uuid() }),
+    result: z.union([
+      z.strictObject({
+        id: z.uuid(),
+        status: z.literal('uploaded'),
+        downloadUrl: z.url(),
+      }),
+      z.strictObject({
+        id: z.uuid(),
+        status: z.enum(['uploading', 'failed']),
+      }),
+    ]),
   },
 } as const satisfies Record<string, { params: z.ZodType; result: z.ZodType }>;
 
