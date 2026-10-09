@@ -65,6 +65,46 @@ describe('sandbox daemon protocol', () => {
     expect(() => SandboxDaemonCommands.writeStdin.result.parse(result)).toThrow();
   });
 
+  it.each([
+    { path: '', name: 'Crash log' },
+    { path: 'crash.log', name: '' },
+    { path: 'crash.log', name: 'a'.repeat(1025) },
+    { path: 'crash.log', name: 'Crash log', yieldTimeMs: 30_001 },
+  ])('rejects invalid artifact upload parameters', params => {
+    expect(() => SandboxDaemonCommands.uploadArtifact.params.parse(params)).toThrow();
+  });
+
+  it('accepts a valid artifact name', () => {
+    const params = { path: 'crash.log', name: 'a'.repeat(1024) };
+    expect(SandboxDaemonCommands.uploadArtifact.params.parse(params)).toEqual(params);
+  });
+
+  it('rejects an artifact upload result without a status, with a non-UUID id or extra fields', () => {
+    const id = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
+    const result = { id, status: 'uploading' };
+    expect(SandboxDaemonCommands.uploadArtifact.result.parse(result)).toEqual(result);
+    expect(() => SandboxDaemonCommands.uploadArtifact.result.parse({ id })).toThrow();
+    expect(() =>
+      SandboxDaemonCommands.uploadArtifact.result.parse({ ...result, id: 'artifact' })
+    ).toThrow();
+    expect(() =>
+      SandboxDaemonCommands.uploadArtifact.result.parse({ ...result, url: 'https://r2.test' })
+    ).toThrow();
+  });
+
+  it('requires a download URL exactly when an artifact upload result is uploaded', () => {
+    const id = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
+    const downloadUrl = 'https://r2.test/artifact?X-Amz-Signature=signature';
+    const uploaded = { id, status: 'uploaded', downloadUrl };
+    expect(SandboxDaemonCommands.uploadArtifact.result.parse(uploaded)).toEqual(uploaded);
+    expect(() =>
+      SandboxDaemonCommands.uploadArtifact.result.parse({ id, status: 'uploaded' })
+    ).toThrow();
+    expect(() =>
+      SandboxDaemonCommands.uploadArtifact.result.parse({ id, status: 'failed', downloadUrl })
+    ).toThrow();
+  });
+
   it('validates success and error response envelopes', () => {
     expect(
       SandboxDaemonRequestZ.parse({
