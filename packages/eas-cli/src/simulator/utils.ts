@@ -516,8 +516,14 @@ export function isValidLogTime(at: unknown): at is number {
   return typeof at === 'number' && !Number.isNaN(new Date(at).getTime());
 }
 
-export function formatLogLine(raw: string, timestamp = false, at = Date.now()): string {
-  const time = new Date(isValidLogTime(at) ? at : Date.now()).toISOString();
+export function formatLogLine(
+  raw: string,
+  timestamp = false,
+  { at = Date.now(), fallbackTimestamp = true }: { at?: number; fallbackTimestamp?: boolean } = {}
+): string {
+  const time = fallbackTimestamp
+    ? new Date(isValidLogTime(at) ? at : Date.now()).toISOString()
+    : undefined;
   try {
     const entry = JSON.parse(raw) as {
       timestamp?: string;
@@ -527,9 +533,13 @@ export function formatLogLine(raw: string, timestamp = false, at = Date.now()): 
       messageType?: string | number;
     };
     if (typeof entry.eventMessage === 'string') {
-      const prefix = timestamp
-        ? `${chalk.dim(stripTerminalControlCharacters(entry.timestamp ?? time))}  `
-        : '';
+      const lineTime = fallbackTimestamp
+        ? (entry.timestamp ?? time)
+        : typeof entry.timestamp === 'string' && Number.isFinite(Date.parse(entry.timestamp))
+          ? entry.timestamp
+          : undefined;
+      const prefix =
+        timestamp && lineTime ? `${chalk.dim(stripTerminalControlCharacters(lineTime))}  ` : '';
       const processName = entry.processImagePath?.split('/').at(-1) ?? 'unknown';
       const processId = typeof entry.processID === 'number' ? `:${entry.processID}` : '';
       const processLabel = chalk.cyan(
@@ -549,6 +559,6 @@ export function formatLogLine(raw: string, timestamp = false, at = Date.now()): 
       return `${prefix}${processLabel} ${message}`;
     }
   } catch {}
-  const prefix = timestamp ? `${chalk.dim(time)}  ` : '';
+  const prefix = timestamp && time ? `${chalk.dim(time)}  ` : '';
   return `${prefix}${stripTerminalControlCharacters(raw, { keepNewlinesAndTabs: true })}`;
 }

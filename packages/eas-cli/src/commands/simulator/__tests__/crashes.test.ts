@@ -287,6 +287,31 @@ describe(SimulatorCrashes, () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
+  it('does not invent timestamps for retained logs without a valid original timestamp', async () => {
+    mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce({
+      record: crash,
+      occurrence: {
+        logTail: [
+          'plain log',
+          JSON.stringify({ eventMessage: 'untimed app log' }),
+          JSON.stringify({ timestamp: 'not a date', eventMessage: 'invalid time' }),
+        ],
+      },
+      report: 'raw crash report',
+      reportError: null,
+    });
+
+    await createCommand(['--report-id', 'crash-id', '--timestamp']).runAsync();
+
+    expect(mockLog.mock.calls.map(([line]) => line)).toEqual([
+      `${crash.capturedAt}  CoinFlip  EXC_CRASH  (2 occurrences)  crash-id`,
+      'raw crash report',
+      'plain log',
+      '[unknown] untimed app log',
+      '[unknown] invalid time',
+    ]);
+  });
+
   it('shows why a raw report disappeared and prints the retained app log tail', async () => {
     mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce({
       record: crash,
