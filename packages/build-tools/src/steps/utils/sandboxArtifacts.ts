@@ -87,7 +87,7 @@ export class SandboxArtifactUploadManager {
   }: {
     filePath: string;
     name: string;
-    yieldTimeMs?: number;
+    yieldTimeMs: number;
   }): Promise<SandboxDaemonCommandResult<'uploadArtifact'>> {
     this.options.signal.throwIfAborted();
     const uploadPromise = startSandboxArtifactUploadAsync({ ...this.options, filePath, name });
@@ -98,9 +98,6 @@ export class SandboxArtifactUploadManager {
     this.uploads.add(completed);
     void completed.finally(() => this.uploads.delete(completed));
     const upload = await uploadPromise;
-    if (yieldTimeMs === undefined) {
-      return { id: upload.id, status: 'uploading' };
-    }
     let timer: NodeJS.Timeout | undefined;
     try {
       const outcome = await Promise.race([

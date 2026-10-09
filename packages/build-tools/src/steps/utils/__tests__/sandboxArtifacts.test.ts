@@ -316,7 +316,9 @@ describe('sandbox artifact uploads', () => {
     const controller = new AbortController();
     const manager = createManager(controller.signal);
 
-    await expect(manager.startAsync({ filePath, name: 'Crash log' })).resolves.toEqual({
+    await expect(
+      manager.startAsync({ filePath, name: 'Crash log', yieldTimeMs: 0 })
+    ).resolves.toEqual({
       id: ARTIFACT_ID,
       status: 'uploading',
     });
@@ -327,7 +329,9 @@ describe('sandbox artifact uploads', () => {
       expect.anything(),
       `Failed to upload sandbox artifact "Crash log" (${ARTIFACT_ID}).`
     );
-    await expect(manager.startAsync({ filePath, name: 'Late log' })).rejects.toMatchObject({
+    await expect(
+      manager.startAsync({ filePath, name: 'Late log', yieldTimeMs: 0 })
+    ).rejects.toMatchObject({
       name: 'AbortError',
     });
     expect(mutation).toHaveBeenCalledTimes(1);
