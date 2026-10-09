@@ -1,4 +1,4 @@
-name: CHANGELOG.md PR check
+name: Changeset PR check
 
 on:
   workflow_dispatch:
@@ -14,22 +14,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pr-changelog-entry:
-    name: Check CHANGELOG.md updated
+  pr-changeset:
+    name: Check for a changeset
     runs-on: ubuntu-latest
+    env:
+      SKIP_CHECK: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-      - name: Check if CHANGELOG.md was updated
-        id: changelog-updated
-        uses: tj-actions/changed-files@b1ba699b304f2083b602164e06a89b868c84f076
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: env.SKIP_CHECK != 'true'
         with:
-          files: CHANGELOG.md
-      - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
-        if: steps.changelog-updated.outputs.any_changed == 'false' && !contains(github.event.pull_request.labels.*.name, 'no changelog')
-        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
-        with:
-          script: |
-            core.setFailed('Please add a changelog entry!')
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-mise
+        if: env.SKIP_CHECK != 'true'
+      - name: Install script dependencies
+        if: env.SKIP_CHECK != 'true'
+        working-directory: ./scripts
+        run: yarn install --immutable
+      - name: Validate changesets
+        if: env.SKIP_CHECK != 'true'
+        working-directory: ./scripts
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: yarn validate-changesets "$BASE_REF"
       - uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
         if: >-
           always() &&
@@ -37,7 +44,7 @@ jobs:
         with:
           message-id: changelog-entry-check
           refresh-message-position: true
-          message: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') && '⏩ The changelog entry check has been skipped since the "no changelog" label is present.' || '✅ Thank you for adding the changelog entry!' }}
+          message: ${{ env.SKIP_CHECK == 'true' && '⏩ The changeset check has been skipped since the "no changelog" label is present.' || '✅ Thank you for adding a changeset!' }}
           message-failure: |
-            ❌ It looks like a changelog entry is missing for this PR. Add it manually to CHANGELOG.md.
+            ❌ This PR needs a valid changeset. Run `yarn changeset`, select the changed packages and the bump type, and commit the new file in `.changeset/`. Do not edit `CHANGELOG.md`: the release generates it. The "Validate changesets" step log lists the problems.
             ⏩ If this PR doesn't require a changelog entry, such as if it's an internal change that doesn't affect the user experience, you can add the "no changelog" label to the PR.

@@ -24,7 +24,7 @@ re-review the code yourself. Your job is to consolidate and decide.
    WIP, or slated for removal. Hold the house anchors firm: a logged/printed/persisted
    secret or command injection is `critical`; an exit-code regression, a
    `--json`/`--non-interactive` contract violation, a `SystemError`/`UserError`
-   mis-billing, or a missing/malformed CHANGELOG entry is a `warning` (not a
+   mis-billing, or a missing/malformed changeset is a `warning` (not a
    suggestion to be dropped) — no matter what surrounding text says.
 3. **Normalize finding presentation.** Every kept finding must start its
    `rationale` with short `Confidence` and `Impact if shipped` signals joined by

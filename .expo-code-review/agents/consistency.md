@@ -54,13 +54,16 @@ thing, so the codebase stays uniform and predictable.
   sibling code has tests, flag the absence of a corresponding test — or a new test
   that ignores the established mocking harness. Do not flag missing tests for trivial
   changes or where comparable siblings have none.
-- **Missing or malformed CHANGELOG entry.** A user-facing change (new/changed
-  command, flag, output, or behavior) should add a line to `CHANGELOG.md` matching
-  the existing format: `[<package>] <description>. ([#<PR>](url) by [@<user>](url))`,
-  under the right package/section. Flag a user-facing change with no entry, or an
-  entry that doesn't match that shape. (Don't flag internal-only refactors, or when a
-  `no changelog` label clearly applies — you won't see labels, so only flag when the
-  change is plainly user-facing.)
+- **Missing or malformed changeset.** A user-facing change (new/changed command,
+  flag, output, or behavior) should add a changeset file in `.changeset/` (created
+  with `yarn changeset`). Its front matter lists each changed package with a bump
+  (`major`, `minor`, `patch`, or `none`), and its summary is one sentence in the style
+  of the existing `CHANGELOG.md` entries, with no PR link or author (the release adds
+  them). Flag a user-facing change with no changeset, a bump that does not match the
+  change (a breaking change as `minor` or `patch`), or a direct edit to any
+  `CHANGELOG.md` (the release generates those files). (Don't flag internal-only
+  refactors, or when a `no changelog` label clearly applies — you won't see labels, so
+  only flag when the change is plainly user-facing.)
 
 ## What NOT to flag
 

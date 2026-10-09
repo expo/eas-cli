@@ -48,7 +48,7 @@ yarn start-allow-unused
 
 ## Format
 
-- Be sure to update the [`CHANGELOG.md`](./CHANGELOG.md) with changes for every PR. There is a changelog bot that can generate the proper entry for you. The instructions on how to use it are in the PR description placeholder.
+- Add a changeset for every PR that changes a package: run `yarn changeset` and commit the new file. Do not edit `CHANGELOG.md`; the release generates it. See [`.changeset/README.md`](./.changeset/README.md).
 - End `async` functions with `Async` like `runAsync`. This is just how we format functions at Expo.
 - Utilize the unified `Log` module instead of `console.log`.
 
