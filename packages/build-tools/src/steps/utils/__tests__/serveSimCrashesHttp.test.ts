@@ -307,6 +307,66 @@ it('keeps retrying streams that process a healthy empty crash list', async () =>
   ).toBe(false);
 });
 
+it.each([
+  ['keeps retrying while new occurrences are saved', true],
+  ['stops after ten retries that only replay a saved occurrence', false],
+])('%s before a later detail fails', async (_name, productive) => {
+  let connections = 0;
+  let failedDetails = 0;
+  const keys: number[] = [];
+  server.on('request', (request, response) => {
+    const url = new URL(request.url!, baseUrl);
+    if (url.pathname === '/crashes') {
+      connections += 1;
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      if (productive && connections > 12) {
+        response.flushHeaders();
+        return;
+      }
+      const key = productive ? connections : 1;
+      response.write(
+        `data: ${JSON.stringify({
+          type: 'list',
+          crashes: [
+            { ...summary, occurrenceTimes: [{ key: 1 }, { key }] },
+            { id: 'crash/b', occurrenceTimes: [{ key: 1 }] },
+          ],
+        })}\n\n`
+      );
+    } else if (url.pathname === '/crashes/crash%2Fb') {
+      failedDetails += 1;
+      response.writeHead(503).end();
+    } else {
+      const key = Number(url.searchParams.get('key'));
+      keys.push(key);
+      response.end(JSON.stringify(detail(key)));
+    }
+  });
+  await start();
+  if (productive) {
+    await waitFor(() => failedDetails === 12);
+    expect(connections).toBeGreaterThanOrEqual(12);
+  } else {
+    await waitFor(() =>
+      jest
+        .mocked(logger.warn)
+        .mock.calls.some(([message]) =>
+          String(message).startsWith('Stopped retrying simulator crash collection')
+        )
+    );
+    expect(connections).toBe(11);
+    expect(failedDetails).toBe(11);
+  }
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  const expectedKeys = Array.from({ length: productive ? 12 : 1 }, (_, index) => index + 1);
+  expect(keys).toEqual(expectedKeys);
+  expect(collected.crashes).toHaveLength(1);
+  expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(
+    expectedKeys.map(key => JSON.stringify(detail(key)) + '\n').join('')
+  );
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
+
 it('recovers the same server after registry absence without resetting dedupe or the byte budget', async () => {
   let connections = 0;
   let healthy = false;

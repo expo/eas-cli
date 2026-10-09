@@ -286,6 +286,7 @@ async function recordServeSimCrashesAsync({
             await file.writeFile(record);
             device.bytesWritten += size;
             device.seen.add(key);
+            device.failures = 0;
             onRecorded();
           }
         }
