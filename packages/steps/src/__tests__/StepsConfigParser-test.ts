@@ -286,7 +286,7 @@ describe(StepsConfigParser, () => {
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.stepEnvOverrides).toEqual({});
       expect(step1.inputs).toBeUndefined();
-      expect(step1.outputById).toStrictEqual({});
+      expect(Object.keys(step1.outputById)).toEqual([]);
       expect(step1.ifCondition).toBeUndefined();
 
       const step2 = result.buildSteps[1];
@@ -299,7 +299,7 @@ describe(StepsConfigParser, () => {
         a: 'b',
       });
       expect(step2.inputs).toBeUndefined();
-      expect(step2.outputById).toStrictEqual({});
+      expect(Object.keys(step2.outputById)).toEqual([]);
       expect(step2.ifCondition).toBeUndefined();
 
       const step3 = result.buildSteps[2];
@@ -386,7 +386,7 @@ describe(StepsConfigParser, () => {
       expect(input4.defaultValue).toBeUndefined();
       expect(input4.rawValue).toBe('${ step3.my_output }');
       expect(input4.required).toBe(true);
-      expect(step4.outputById).toStrictEqual({});
+      expect(Object.keys(step4.outputById)).toEqual([]);
       expect(step4.ifCondition).toBe('${ ctx.job.platform } == "android"');
     });
   });
