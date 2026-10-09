@@ -879,6 +879,48 @@ describe(Simulator, () => {
     });
   });
 
+  it('passes --network-capture-recording when requested', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+      '--network-capture-recording',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ networkCapture: true, networkCaptureRecording: true })
+    );
+  });
+
+  it.each([false, true])('omits recording without the flag (capture: %s)', async capture => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      ...(capture ? ['--network-capture'] : []),
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty(
+      'networkCaptureRecording'
+    );
+  });
+
+  it('rejects --network-capture-recording without --network-capture', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture-recording',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(/network-capture/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('passes the requested capture fields, splitting a comma-separated value', async () => {
     const { command } = createCommand([
       '--platform',

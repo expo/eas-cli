@@ -6515,9 +6515,9 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
-   * Record HTTP(S) traffic from apps on the device for the whole session. iOS only.
-   * HTTPS is decrypted, so recordings contain credentials and cookies in cleartext.
-   * If omitted, no traffic is recorded.
+   * Capture HTTP(S) traffic from apps on the device for live inspection. iOS only.
+   * HTTPS is decrypted, so captured traffic can contain credentials and cookies in cleartext.
+   * If omitted, network capture is disabled.
    */
   networkCapture?: InputMaybe<Scalars['Boolean']['input']>;
   /**
@@ -6526,6 +6526,11 @@ export type CreateDeviceRunSessionInput = {
    * it is asked for. Requires networkCapture.
    */
   networkCaptureFields?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
+   * Record network capture as a HAR artifact for access after the session. Requires networkCapture.
+   * If omitted, HAR artifact recording is disabled.
+   */
+  networkCaptureRecording?: InputMaybe<Scalars['Boolean']['input']>;
   /**
    * Expo or development-client URL to open after launching the installed application. Requires
    * buildId, applicationArchiveUrl, or expoGo.

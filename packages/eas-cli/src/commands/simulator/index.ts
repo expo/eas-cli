@@ -143,7 +143,11 @@ export default class Simulator extends EasCommand {
     }),
     'network-capture': Flags.boolean({
       description:
-        'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
+        'Capture HTTP(S) traffic from apps on the device for live inspection (iOS only). HTTPS is decrypted, so captured traffic can contain credentials in cleartext and certificate-pinned apps fail to connect.',
+    }),
+    'network-capture-recording': Flags.boolean({
+      description: 'Save network capture as HAR artifacts for access after the session ends.',
+      dependsOn: ['network-capture'],
     }),
     'network-capture-field': Flags.string({
       description:
@@ -336,6 +340,7 @@ export default class Simulator extends EasCommand {
             type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
+            ...(flags['network-capture-recording'] ? { networkCaptureRecording: true } : {}),
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
             ...(deviceIdentifier
               ? platform === AppPlatform.Ios
