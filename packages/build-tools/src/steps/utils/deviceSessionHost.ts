@@ -1,4 +1,4 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { BuildPhaseResult, SystemError, UserError } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import { randomBytes } from 'node:crypto';
@@ -45,6 +45,7 @@ import {
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
 } from './IosSimulatorRecordingUtils';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
+import { startLogPhase } from '../../utils/logPhase';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
 const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
@@ -273,7 +274,43 @@ type AndroidSessionRecording = {
   env: BuildStepEnv;
 };
 
+type DeviceSessionHostOptions = {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+  timeoutMs: number;
+  separateLogPhase?: boolean;
+  packageVersion?: string;
+  networkCapture?: boolean;
+  networkCaptureFields?: string[];
+} & ServeSimLaunchOptions;
+
 export async function startDeviceSessionHostAsync(
+  ctx: CustomBuildContext,
+  options: DeviceSessionHostOptions
+): Promise<DeviceSessionHost> {
+  if (!options.separateLogPhase) {
+    return await startDeviceSessionHostInternalAsync(ctx, options, () => {}, options.logger);
+  }
+  const phase = startLogPhase(options.logger, 'Simulator preview');
+  let ready = false;
+  try {
+    const host = await startDeviceSessionHostInternalAsync(
+      ctx,
+      { ...options, logger: phase.logger },
+      successful =>
+        phase.end(ready && successful ? BuildPhaseResult.SUCCESS : BuildPhaseResult.FAIL),
+      options.logger
+    );
+    ready = true;
+    return host;
+  } catch (error) {
+    phase.end(BuildPhaseResult.FAIL);
+    throw error;
+  }
+}
+
+async function startDeviceSessionHostInternalAsync(
   ctx: CustomBuildContext,
   {
     runtimePlatform,
@@ -286,15 +323,9 @@ export async function startDeviceSessionHostAsync(
     openUrl,
     networkCapture = false,
     networkCaptureFields = [],
-  }: {
-    runtimePlatform: BuildRuntimePlatform;
-    env: BuildStepEnv;
-    logger: bunyan;
-    timeoutMs: number;
-    packageVersion?: string;
-    networkCapture?: boolean;
-    networkCaptureFields?: string[];
-  } & ServeSimLaunchOptions
+  }: DeviceSessionHostOptions,
+  onFinished: (successful: boolean) => void,
+  artifactLogger: bunyan
 ): Promise<DeviceSessionHost> {
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
   // Unreachable from the step functions, which reject a non-Darwin launch while parsing.
@@ -362,7 +393,7 @@ export async function startDeviceSessionHostAsync(
   ];
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
-    logger,
+    logger: artifactLogger,
   });
   let previewServer: DetachedProcessHandle;
   try {
@@ -392,6 +423,7 @@ export async function startDeviceSessionHostAsync(
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
+  let previewFailed = false;
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain }) {
@@ -420,6 +452,7 @@ export async function startDeviceSessionHostAsync(
           throw new SystemError('Session host finalized while the preview was opening.');
         }
         let closeTask: Promise<void> | null = null;
+        previewFailed = false;
         return {
           previewPageUrl,
           apiUrl: tunnel.url,
@@ -440,6 +473,7 @@ export async function startDeviceSessionHostAsync(
       previewTask = opening;
       // A failed tunnel may be retried without restarting capture.
       void opening.catch(() => {
+        previewFailed = true;
         if (previewTask === opening) {
           previewTask = null;
         }
@@ -457,6 +491,11 @@ export async function startDeviceSessionHostAsync(
         // A host that never answered /readyz has nothing to finalize or upload.
         recording: hostReady ? recording : null,
         logger,
+        artifactLogger,
+        onStopped: successful => onFinished(successful && !previewFailed),
+      }).catch(err => {
+        artifactLogger.warn({ err }, 'Could not finish the simulator preview.');
+        onFinished(false);
       }));
     },
   };
@@ -523,6 +562,8 @@ async function finishDeviceSessionHostAsync(
     port,
     recording,
     logger,
+    artifactLogger,
+    onStopped,
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
     stopSessionPreviewAsync: () => Promise<void>;
@@ -532,10 +573,13 @@ async function finishDeviceSessionHostAsync(
     port: number;
     recording: AndroidSessionRecording | null;
     logger: bunyan;
+    artifactLogger: bunyan;
+    onStopped: (successful: boolean) => void;
   }
 ): Promise<void> {
   // Stop capturing before the host stops, so the last thumbnail shows the session, not shutdown.
   await stopSessionPreviewAsync();
+  const hostExited = previewServer.getExitError() !== undefined;
   // Native ngrok operations have no scoped cancellation. Retire a late listener too.
   const retirePreview = withDeviceRunSessionTimeoutAsync(
     { name: 'Preview tunnel retirement', timeoutMs: 5_000 },
@@ -544,9 +588,13 @@ async function finishDeviceSessionHostAsync(
       const preview = await previewTask?.catch(() => null);
       await preview?.closeAsync();
     }
-  ).catch(err => {
-    logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
-  });
+  ).then(
+    () => true,
+    err => {
+      logger.warn({ err }, `Could not close the ${serverName} preview tunnel within its deadline.`);
+      return false;
+    }
+  );
   let finalization: AndroidRecordingFinalization | null = null;
   if (recording) {
     // stopAsync signals the whole process group, including capture's encoder.
@@ -567,17 +615,21 @@ async function finishDeviceSessionHostAsync(
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
   }
-  await retirePreview;
+  const previewRetired = await retirePreview;
+  onStopped(hostStopped && !hostExited && previewRetired);
   await screenshots.finishAsync(hostStopped);
   // A Hub that never recorded has logged its reason and left nothing to upload.
   const captured = finalization !== 'not-recording';
   let uploaded = false;
   if (recording && captured && hostStopped) {
-    uploaded = await uploadFinishedAndroidRecordingAsync(ctx, { recording, logger });
+    uploaded = await uploadFinishedAndroidRecordingAsync(ctx, {
+      recording,
+      logger: artifactLogger,
+    });
   }
   if (recording && captured && (finalization === 'failed' || !uploaded)) {
     // The Hub reports capture failures on stderr; the stop route answers with only a summary.
-    logger.warn(
+    artifactLogger.warn(
       { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
       'Session host output around the recording failure.'
     );

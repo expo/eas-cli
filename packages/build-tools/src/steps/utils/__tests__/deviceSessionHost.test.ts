@@ -1,3 +1,4 @@
+import { BuildPhase, BuildPhaseResult, LogMarker } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
@@ -22,6 +23,7 @@ import {
   fetchWebPreviewTurnArgsAsync,
   spawnDetached,
 } from '../remoteDeviceRunSession';
+import * as screenshotCollector from '../deviceRunSessionScreenshots';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../deviceRunSessionArtifacts');
@@ -62,17 +64,22 @@ const env = {
   NGROK_AUTHTOKEN: 'token',
 } as BuildStepEnv;
 const ctx = {} as CustomBuildContext;
-const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+const logger = {
+  info: jest.fn(),
+  warn: jest.fn(),
+  child: jest.fn().mockReturnThis(),
+} as unknown as bunyan;
 const stopServer = jest.fn();
 const closeTunnel = jest.fn();
 const directories: string[] = [];
 const baseDomain = 'preview.example.test';
 
-async function startHostAsync() {
+async function startHostAsync(separateLogPhase = true) {
   return await startDeviceSessionHostAsync(ctx, {
     runtimePlatform: BuildRuntimePlatform.LINUX,
     env,
     logger,
+    separateLogPhase,
     timeoutMs: 10_000,
   });
 }
@@ -374,6 +381,10 @@ it('finishes despite a stalled tunnel close', async () => {
   await finishing;
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('deadline'));
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
   closing.resolve();
 });
 
@@ -466,6 +477,7 @@ it('leaves iOS recording to its existing build steps', async () => {
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
+    separateLogPhase: true,
     timeoutMs: 10_000,
   });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
@@ -475,6 +487,237 @@ it('leaves iOS recording to its existing build steps', async () => {
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+const turnArgs = [
+  '--turn-url',
+  'turn:turn.example.test:3478',
+  '--turn-username',
+  'turn-user',
+  '--turn-credential',
+  'turn-secret',
+];
+
+it('passes the TURN credential and the Android control token to the host as secrets', async () => {
+  jest.mocked(fetchWebPreviewTurnArgsAsync).mockResolvedValueOnce(turnArgs);
+  const host = await startHostAsync();
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  const controlToken = options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN;
+  expect(controlToken).toMatch(/^[a-f0-9]{64}$/);
+  expect(options.secrets).toEqual(['turn-secret', controlToken]);
+  await host.finishAsync();
+});
+
+it('adds the iOS preview token to the host secrets once serve-sim is ready', async () => {
+  jest.mocked(fetchWebPreviewTurnArgsAsync).mockResolvedValueOnce(turnArgs);
+  let secretsAtSpawn: string[] | undefined;
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    secretsAtSpawn = [...(options.secrets ?? [])];
+    return {
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    };
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+  });
+  expect(secretsAtSpawn).toEqual(['turn-secret']);
+  // Host output is redacted against this array, so the token must land in the one passed at spawn.
+  expect(jest.mocked(spawnDetached).mock.calls[0][0].secrets).toEqual([
+    'turn-secret',
+    'preview-token',
+  ]);
+  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('preview-token');
+  await host.finishAsync();
+});
+
+it('keeps the preview phase open until shutdown output has been logged', async () => {
+  const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  jest.mocked(logger.child).mockReturnValueOnce(previewLogger);
+  const host = await startHostAsync();
+  expect(logger.child).toHaveBeenCalledWith({
+    phase: BuildPhase.CUSTOM,
+    buildStepId: expect.stringMatching(/^step-\d{3,}$/),
+    buildStepDisplayName: 'Simulator preview',
+  });
+  expect(spawnDetached).toHaveBeenCalledWith(expect.objectContaining({ logger: previewLogger }));
+  expect(previewLogger.info).not.toHaveBeenCalledWith(
+    expect.objectContaining({ marker: LogMarker.END_PHASE }),
+    expect.anything()
+  );
+  stopServer.mockImplementationOnce(async () => previewLogger.info('shutdown output'));
+  await host.finishAsync();
+  await host.finishAsync();
+  const calls = jest.mocked(previewLogger.info).mock.calls;
+  const endings = calls.filter(([fields]) => fields?.marker === LogMarker.END_PHASE);
+  expect(endings).toEqual([
+    [
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.SUCCESS },
+      'End phase: Simulator preview',
+    ],
+  ]);
+  expect(calls.findIndex(([message]) => message === 'shutdown output')).toBeLessThan(
+    calls.length - 1
+  );
+});
+
+it('ends the preview phase before waiting for screenshot uploads', async () => {
+  const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  jest.mocked(logger.child).mockReturnValueOnce(previewLogger);
+  const uploading = deferred<void>();
+  const uploaded = deferred<void>();
+  const finishScreenshots = jest.fn(async () => {
+    uploading.resolve();
+    await uploaded.promise;
+  });
+  const collector = jest
+    .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+    .mockResolvedValueOnce({ directory: '/tmp/screenshots', finishAsync: finishScreenshots });
+  try {
+    const host = await startHostAsync();
+    const finishing = host.finishAsync();
+    let finished = false;
+    void finishing.then(() => {
+      finished = true;
+    });
+    await uploading.promise;
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(previewLogger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.SUCCESS },
+      'End phase: Simulator preview'
+    );
+    expect(finished).toBe(false);
+    uploaded.resolve();
+    await finishing;
+    expect(collector).toHaveBeenCalledWith(ctx, expect.objectContaining({ logger }));
+  } finally {
+    uploaded.resolve();
+    collector.mockRestore();
+  }
+});
+
+it('ends the preview phase with failure when spawning fails', async () => {
+  jest.mocked(spawnDetached).mockImplementationOnce(() => {
+    throw new Error('could not spawn');
+  });
+  await expect(startHostAsync()).rejects.toThrow('could not spawn');
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
+});
+
+it('ends the preview phase with failure when the host cannot stop', async () => {
+  const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  jest.mocked(logger.child).mockReturnValueOnce(previewLogger);
+  const host = await startHostAsync();
+  stopServer.mockRejectedValueOnce(new Error('could not stop'));
+  await host.finishAsync();
+  expect(previewLogger.warn).toHaveBeenCalledWith(
+    expect.anything(),
+    'Could not stop the expo-device-hub session host.'
+  );
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
+    'Could not stop the expo-device-hub session host.'
+  );
+  expect(previewLogger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
+});
+
+it.each([
+  ['exited during the session', true, BuildPhaseResult.FAIL],
+  ['exited only when stopped', false, BuildPhaseResult.SUCCESS],
+])('finishes cleanup and uploads when the host %s', async (_description, exitedEarly, result) => {
+  let exitError: Error | undefined;
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    return {
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => exitError,
+      stopAsync: stopServer,
+    };
+  });
+  stopServer.mockImplementationOnce(async () => {
+    exitError ??= new Error('Process exited with signal SIGTERM.');
+  });
+  const host = await startHostAsync();
+  await host.openPreviewAsync({ baseDomain });
+  const directory = directories[0];
+  await writeRecordingDescriptorAsync(directory);
+  jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
+  const screenshotDirectory =
+    jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
+  if (!screenshotDirectory) {
+    throw new Error('Missing screenshot artifact directory');
+  }
+  if (exitedEarly) {
+    exitError = new Error('Process exited with code 1.');
+  }
+  await host.finishAsync();
+  expect(closeTunnel).toHaveBeenCalledTimes(1);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(uploadDeviceRunSessionScreenRecordingsAsync).toHaveBeenCalledTimes(1);
+  await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
+  await expect(access(screenshotDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result },
+    'End phase: Simulator preview'
+  );
+});
+
+it('ends the preview phase with failure when the tunnel cannot close', async () => {
+  const host = await startHostAsync();
+  await host.openPreviewAsync({ baseDomain });
+  closeTunnel.mockRejectedValue(new Error('tunnel close failure'));
+  jest.useFakeTimers();
+  const finishing = host.finishAsync();
+  await jest.advanceTimersByTimeAsync(4_000);
+  await finishing;
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
+  closeTunnel.mockResolvedValue(undefined);
+});
+
+it('ends the preview phase with failure when startup never provides a token', async () => {
+  const metrics = jest.requireMock('../serveSimMetricsRecorder');
+  metrics.readServeSimServersAsync.mockResolvedValueOnce([]);
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    })
+  ).rejects.toThrow('wrote no session token');
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
+});
+
+it('ends the preview phase with failure if opening the tunnel fails', async () => {
+  const host = await startHostAsync();
+  jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
+  await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow('tunnel unavailable');
+  await host.finishAsync();
+  expect(logger.info).toHaveBeenCalledWith(
+    { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+    'End phase: Simulator preview'
+  );
 });
 
 it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
@@ -551,6 +794,7 @@ it('does not delay macOS readiness on encoder setup or start the preview after f
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
+    separateLogPhase: true,
     timeoutMs: 10_000,
   });
   await host.finishAsync();
@@ -568,6 +812,7 @@ it('keeps the session running when encoder setup for the preview fails', async (
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
+    separateLogPhase: true,
     timeoutMs: 10_000,
   });
   await new Promise(resolve => setImmediate(resolve));
@@ -579,38 +824,8 @@ it('keeps the session running when encoder setup for the preview fails', async (
   await host.finishAsync();
 });
 
-it('adds the iOS preview token to the host secrets once serve-sim is ready', async () => {
-  jest
-    .mocked(fetchWebPreviewTurnArgsAsync)
-    .mockResolvedValueOnce(['--turn-credential', 'turn-secret']);
-  let secretsAtSpawn: string[] | undefined;
-  jest.mocked(spawnDetached).mockImplementationOnce(options => {
-    secretsAtSpawn = [...(options.secrets ?? [])];
-    return {
-      pid: undefined,
-      getOutput: () => '',
-      getExitError: () => undefined,
-      stopAsync: stopServer,
-    };
-  });
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 10_000,
-  });
-  expect(secretsAtSpawn).toEqual(['turn-secret']);
-  // Host output is redacted against this array, so the token must land in the one passed at spawn.
-  expect(jest.mocked(spawnDetached).mock.calls[0][0].secrets).toEqual([
-    'turn-secret',
-    'preview-token',
-  ]);
-  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('preview-token');
-  await host.finishAsync();
-});
-
 it('uses the existing step logger for startup and shutdown output', async () => {
-  const host = await startHostAsync();
+  const host = await startHostAsync(false);
   const processLogger = jest.mocked(spawnDetached).mock.calls[0][0].logger;
   expect(processLogger).toBe(logger);
   stopServer.mockImplementationOnce(async () => processLogger?.info('last host output'));
