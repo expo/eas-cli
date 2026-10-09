@@ -506,6 +506,16 @@ describe(getProjectIdAsync, () => {
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).not.toHaveBeenCalled();
     });
 
+    it('gives the non-interactive error the EAS_PROJECT_NOT_CONFIGURED code', async () => {
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).rejects.toMatchObject({ code: 'EAS_PROJECT_NOT_CONFIGURED' });
+    });
+
     it('defers to the project fetch in non-interactive mode when the account is already known', async () => {
       const sessionManagerMock = mock<SessionManager>();
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
