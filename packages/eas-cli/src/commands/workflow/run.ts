@@ -91,6 +91,62 @@ export function resolveWorkflowRunSshInput({
   return ssh ? { idleTimeoutSeconds } : null;
 }
 
+const PASSTHROUGH_REF_PREFIXES = ['refs/heads/', 'refs/tags/'];
+
+/**
+ * Pick the value to send as `gitRef` when running a workflow from `--ref`.
+ *
+ * The server resolves the ref itself and records it as the run's `requestedGitRef`,
+ * which is what the website shows in the "Branch" column and offers in the Git branch
+ * filter. Resolving the ref to a commit locally before dispatching therefore throws
+ * away the branch or tag name the user asked for.
+ *
+ * Branch and tag names are passed through untouched, whether they are given in short
+ * (`my-branch`) or fully qualified (`refs/heads/my-branch`) form. Everything else keeps
+ * being sent as the locally resolved commit, because it either has no meaning in the
+ * remote repository or does not mean the same thing there: `HEAD` and `@` resolve to the
+ * default branch server-side, revision expressions such as `HEAD~2` are not refs at all,
+ * and remote-tracking refs like `origin/my-branch` are local names for remote branches.
+ */
+export function resolveWorkflowRunGitRef({
+  requestedRef,
+  symbolicFullName,
+  commitSha,
+}: {
+  requestedRef: string;
+  symbolicFullName: string | null;
+  commitSha: string;
+}): string {
+  const prefix = PASSTHROUGH_REF_PREFIXES.find(candidate =>
+    symbolicFullName?.startsWith(candidate)
+  );
+  if (!symbolicFullName || !prefix) {
+    return commitSha;
+  }
+  const shortName = symbolicFullName.slice(prefix.length);
+  return requestedRef === shortName || requestedRef === symbolicFullName ? requestedRef : commitSha;
+}
+
+/**
+ * Full ref name (e.g. `refs/heads/my-branch`) that `ref` points at, or null when it does
+ * not name a ref (a commit hash, a revision expression, or a detached `HEAD`).
+ */
+async function maybeResolveSymbolicFullNameAsync(
+  ref: string,
+  projectDir: string
+): Promise<string | null> {
+  try {
+    const { output } = await spawnAsync(
+      'git',
+      ['rev-parse', '--symbolic-full-name', '--verify', ref],
+      { cwd: projectDir }
+    );
+    return output[0].trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export default class WorkflowRun extends EasCommand {
   static override description =
     'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used.';
@@ -184,15 +240,26 @@ export default class WorkflowRun extends EasCommand {
       // Run from git ref
       const fileName = path.basename(args.file);
       // Find the real commit, make sure the ref is valid
-      gitRef = (
+      const commitSha = (
         await spawnAsync('git', ['rev-parse', flags.ref], {
           cwd: projectDir,
         })
       ).output[0].trim();
-      if (!gitRef) {
+      if (!commitSha) {
         throw new Error('Failed to resolve git reference');
       }
-      Log.log(`Using workflow file ${fileName} at ${gitRef}`);
+      // Send the branch or tag name the user asked for, so that the server records it as
+      // the run's requested git ref instead of a bare commit hash.
+      gitRef = resolveWorkflowRunGitRef({
+        requestedRef: flags.ref,
+        symbolicFullName: await maybeResolveSymbolicFullNameAsync(flags.ref, projectDir),
+        commitSha,
+      });
+      Log.log(
+        gitRef === commitSha
+          ? `Using workflow file ${fileName} at ${gitRef}`
+          : `Using workflow file ${fileName} at ${gitRef} (${commitSha})`
+      );
       let revisionResult: WorkflowRevision | undefined;
       try {
         revisionResult = await WorkflowRevisionMutation.getOrCreateWorkflowRevisionFromGitRefAsync(

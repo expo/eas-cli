@@ -119,6 +119,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Send the branch or tag name to `eas workflow:run --ref`, instead of resolving it to a commit hash locally, so that runs are labeled with the ref that was requested. ([#4355](https://github.com/expo/eas-cli/pull/4355) by [@dennytosp](https://github.com/dennytosp))
 - [build-tools] Report early Argent server exits during simulator startup instead of waiting for the full readiness timeout. ([#4454](https://github.com/expo/eas-cli/pull/4454) by [@sjkim-expo](https://github.com/sjkim-expo))
 - [eas-cli] Stop spinners from printing a new line on every frame after the terminal gets narrower. ([#4470](https://github.com/expo/eas-cli/pull/4470) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Exclude time waiting for simulator concurrency from the session startup timeout and show queue progress. ([#4411](https://github.com/expo/eas-cli/pull/4411) by [@szdziedzic](https://github.com/szdziedzic))
