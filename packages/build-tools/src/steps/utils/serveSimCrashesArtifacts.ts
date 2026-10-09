@@ -12,13 +12,11 @@ export async function uploadServeSimCrashesFileAsync(
     udid,
     filePath,
     logger,
-    signal,
   }: {
     deviceRunSessionId: string;
     udid: string;
     filePath: string;
     logger: bunyan;
-    signal?: AbortSignal;
   }
 ): Promise<void> {
   try {
@@ -36,7 +34,6 @@ export async function uploadServeSimCrashesFileAsync(
       size,
       stream: createReadStream(filePath),
       reopenStream: () => createReadStream(filePath),
-      signal,
     });
   } catch (err) {
     logger.warn(
