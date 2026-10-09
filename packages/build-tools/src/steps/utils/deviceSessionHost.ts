@@ -93,7 +93,7 @@ export function websiteOriginServeSimArgs(env: BuildStepEnv): string[] {
   return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
-function createServeSimPackageSpec(packageVersion: string | undefined): string {
+export function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
