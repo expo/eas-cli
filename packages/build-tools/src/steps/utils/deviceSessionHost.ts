@@ -355,6 +355,11 @@ export async function startDeviceSessionHostAsync(
   logger.info(
     `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
   );
+  // Redact these credentials before forwarding process output to build logs.
+  const secrets = [
+    ...turnArgs.filter((_, index) => turnArgs[index - 1] === '--turn-credential'),
+    ...(recording ? [recording.controlToken] : []),
+  ];
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
     logger,
@@ -373,6 +378,8 @@ export async function startDeviceSessionHostAsync(
       stopGracePeriodMs: recording
         ? RECORDING_STOP_GRACE_PERIOD_MS
         : SERVE_SIM_STOP_GRACE_PERIOD_MS,
+      logger,
+      secrets,
     });
   } catch (error) {
     // Nothing was spawned, so nothing can still write into the directory.
@@ -472,6 +479,7 @@ export async function startDeviceSessionHostAsync(
             'report it if it repeats.'
         );
       }
+      secrets.push(previewToken);
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
