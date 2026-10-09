@@ -19,6 +19,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
+import { createProcessOutput } from '../../utils/processOutput';
 import { type StartupTasks, createStartupTasks } from '../../utils/startupTasks';
 import { runAgentDeviceRemoteSessionAsync } from '../startAgentDeviceRemoteSession';
 
@@ -161,6 +162,27 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
     expect(mockEventCollectionStopAsync).toHaveBeenCalledTimes(1);
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('redacts learned daemon credentials in arbitrary output and retained diagnostics', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const token = 'daemon secret/+';
+    jest.mocked(waitForFileAsync).mockResolvedValue({ port: 5678, token });
+    jest.mocked(startNgrokTunnelAsync).mockImplementation(async () => {
+      const options = jest.mocked(spawnDetached).mock.calls[0][0];
+      expect(options.secrets).toContain(token);
+      const output = createProcessOutput(options.logger, options.secrets);
+      output.stdout.append('unrecognized value: daemon sec');
+      output.stdout.append('ret/+\n');
+      output.stderr.append(`escaped value: ${encodeURIComponent(token)}\n`);
+      expect(output.getOutput()).toBe(
+        'unrecognized value: [REDACTED]\nescaped value: [REDACTED]\n'
+      );
+      return { url: 'https://daemon.test', subdomainId: 'daemon', stopAsync: mockTunnelStopAsync };
+    });
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain(token);
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain(encodeURIComponent(token));
   });
 
   it('hands network capture to serve-sim', async () => {
