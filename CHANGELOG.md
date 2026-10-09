@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Add the `eas/record_serve_sim_network_capture` and `eas/collect_serve_sim_network_capture` steps, which record each serve-sim's network capture with `serve-sim capture har` and upload the HAR as a session artifact. The recording continues through capture restarts. ([#4495](https://github.com/expo/eas-cli/pull/4495) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Collect simulator crash reports and app log tails as session artifacts. ([#4596](https://github.com/expo/eas-cli/pull/4596) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ### 🐛 Bug fixes
