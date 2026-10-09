@@ -146,6 +146,28 @@ export const AccountQuery = {
                       id
                       ...UsageMetricTotalFragment
                     }
+                    EAS_SIMULATOR: byBillingPeriod(date: $currentDate, service: SIMULATOR) {
+                      id
+                      ...UsageMetricTotalFragment
+                    }
+                    IOS_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "ios" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    ANDROID_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "android" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
                   }
                 }
               }

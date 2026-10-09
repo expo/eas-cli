@@ -15,6 +15,21 @@ export interface UsageMetricDisplay {
   overageValue: number;
   overageCost: number;
   unit?: string;
+  maxDecimals?: number;
+}
+
+export interface SimulatorJobTypeBreakdown {
+  workflows: number;
+  simulator: number;
+  other: number;
+}
+
+export interface SimulatorUsageDisplay {
+  minutes: UsageMetricDisplay;
+  iosMinutes: number;
+  androidMinutes: number;
+  jobTypeBreakdown?: SimulatorJobTypeBreakdown;
+  overageCostCents: number;
 }
 
 export interface BuildOverageByWorkerSize {
@@ -50,6 +65,7 @@ export interface UsageDisplayData {
     bandwidth: UsageMetricDisplay;
     overageCostCents: number;
   };
+  simulator?: SimulatorUsageDisplay;
   totalOverageCostCents: number;
   estimatedBillCents: number;
   recurringCents: number | null;
@@ -108,6 +124,9 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
     LARGE_ANDROID_BUILDS,
     MEDIUM_IOS_BUILDS,
     LARGE_IOS_BUILDS,
+    EAS_SIMULATOR,
+    IOS_SIMULATOR_MINUTES,
+    ANDROID_SIMULATOR_MINUTES,
   } = usageMetrics;
 
   // Find build metrics
@@ -201,9 +220,17 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   const bandwidthOverageValue = bandwidthOverage?.value ?? 0;
   const bandwidthLimit = bandwidthMetric?.limit ?? 0;
 
+  const simulator = extractSimulatorUsage(
+    EAS_SIMULATOR,
+    IOS_SIMULATOR_MINUTES?.[0]?.value ?? 0,
+    ANDROID_SIMULATOR_MINUTES?.[0]?.value ?? 0
+  );
+
   const buildOverageCostCents = EAS_BUILD.totalCost;
   const updateOverageCostCents = EAS_UPDATE.totalCost;
-  const totalOverageCostCents = buildOverageCostCents + updateOverageCostCents;
+  const simulatorOverageCostCents = simulator?.overageCostCents ?? 0;
+  const totalOverageCostCents =
+    buildOverageCostCents + updateOverageCostCents + simulatorOverageCostCents;
 
   // Calculate total overage count for display
   const totalOverageBuilds = overagesByWorkerSize.reduce((sum, o) => sum + o.count, 0);
@@ -272,9 +299,52 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
       },
       overageCostCents: updateOverageCostCents,
     },
+    simulator,
     totalOverageCostCents,
     estimatedBillCents: (subscription?.recurringCents ?? 0) + totalOverageCostCents,
     recurringCents: subscription?.recurringCents ?? null,
+  };
+}
+
+// Accounts without EAS Simulator get no SIMULATOR_USAGE plan metric, so the section is hidden.
+// On the Free plan the metric is the minute pool shared with Workflows, split by jobTypeBreakdown.
+function extractSimulatorUsage(
+  simulatorTotal: AccountFullUsageData['usageMetrics']['EAS_SIMULATOR'],
+  iosMinutes: number,
+  androidMinutes: number
+): SimulatorUsageDisplay | undefined {
+  const planMetric = simulatorTotal.planMetrics.find(
+    m => m.serviceMetric === EasServiceMetric.SimulatorUsage
+  );
+  if (!planMetric) {
+    return undefined;
+  }
+  const overage = simulatorTotal.overageMetrics.find(
+    m => m.serviceMetric === EasServiceMetric.SimulatorUsage
+  );
+  const jobTypeBreakdown = planMetric.jobTypeBreakdown
+    ? {
+        workflows: planMetric.jobTypeBreakdown.workflows,
+        simulator: planMetric.jobTypeBreakdown.simulator,
+        other: planMetric.jobTypeBreakdown.other,
+      }
+    : undefined;
+
+  return {
+    minutes: {
+      name: jobTypeBreakdown ? 'CI/CD and Simulator minutes' : 'Simulator minutes',
+      planValue: planMetric.value,
+      limit: planMetric.limit,
+      percentUsed: calculatePercentUsed(planMetric.value, planMetric.limit),
+      overageValue: overage?.value ?? 0,
+      overageCost: overage?.totalCost ?? 0,
+      unit: 'minutes',
+      maxDecimals: 1,
+    },
+    iosMinutes,
+    androidMinutes,
+    jobTypeBreakdown,
+    overageCostCents: simulatorTotal.totalCost,
   };
 }
 
