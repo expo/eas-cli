@@ -287,3 +287,61 @@ it('keeps polling after a follower fails to start, and retries after the restart
   );
   expect(followerArgs()[1]).toContainEqual(expect.stringMatching(/SIM-A-2\.har$/));
 });
+
+it('bounds repeated empty failures, warns once, and retries a new server identity', async () => {
+  jest.mocked(spawnDetached).mockImplementation(() => ({
+    pid: 1234,
+    getOutput: () => 'npm error: the requested serve-sim package was not found',
+    getExitError: () => new Error('Process exited with code 1.'),
+    stopAsync: stopFollower,
+  }));
+  await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+  await ServeSimNetworkCaptureRecorder.startAsync({
+    logger,
+    env,
+    stateDir,
+    pollIntervalMs: 1,
+    restartIntervalMs: 0,
+  });
+  await waitForFollowersAsync(20);
+  await delay(50);
+  expect(spawnDetached).toHaveBeenCalledTimes(20);
+  const warnings = jest
+    .mocked(logger.warn)
+    .mock.calls.filter(([, message]) =>
+      String(message).startsWith('Stopped retrying network capture')
+    );
+  expect(warnings).toEqual([
+    [
+      { output: 'npm error: the requested serve-sim package was not found' },
+      'Stopped retrying network capture for SIM-A after 20 attempts; recorded captures will be retained.',
+    ],
+  ]);
+
+  jest.mocked(spawnDetached).mockImplementation(() => ({
+    pid: 1234,
+    getOutput: () => '',
+    getExitError: () => undefined,
+    stopAsync: stopFollower,
+  }));
+  await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'new-token' });
+  await waitForFollowersAsync(21);
+  await delay(50);
+  expect(spawnDetached).toHaveBeenCalledTimes(21);
+  expect(followerArgs()[20]).toContainEqual(expect.stringMatching(/SIM-A-21\.har$/));
+});
+
+it('keeps a running empty follower waiting without spending more attempts', async () => {
+  await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+  await ServeSimNetworkCaptureRecorder.startAsync({
+    logger,
+    env,
+    stateDir,
+    pollIntervalMs: 1,
+    restartIntervalMs: 0,
+  });
+  await waitForFollowersAsync(1);
+  await delay(50);
+  expect(spawnDetached).toHaveBeenCalledTimes(1);
+  expect(logger.warn).not.toHaveBeenCalled();
+});

@@ -40,6 +40,7 @@ type ServeSimNetworkCaptureSession = {
   followers: Follower[];
   current: Map<string, Follower>;
   spawnCounts: Map<string, number>;
+  fileCounts: Map<string, number>;
   failedAt: Map<string, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -84,6 +85,7 @@ export namespace ServeSimNetworkCaptureRecorder {
       followers: [],
       current: new Map(),
       spawnCounts: new Map(),
+      fileCounts: new Map(),
       failedAt: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -185,8 +187,20 @@ async function ensureFollowerAsync(
   if (session.followers.length - (listed >= 0 ? 1 : 0) >= MAX_RECORDINGS) {
     return;
   }
-  const count = (session.spawnCounts.get(udid) ?? 0) + 1;
-  session.spawnCounts.set(udid, count);
+  const attempts = session.spawnCounts.get(key) ?? 0;
+  if (attempts >= MAX_RECORDINGS) {
+    if (attempts === MAX_RECORDINGS) {
+      session.logger.warn(
+        { output: previous?.handle.getOutput().slice(-OUTPUT_TAIL_CHARS) || '<empty>' },
+        `Stopped retrying network capture for ${udid} after ${MAX_RECORDINGS} attempts; recorded captures will be retained.`
+      );
+      session.spawnCounts.set(key, attempts + 1);
+    }
+    return;
+  }
+  session.spawnCounts.set(key, attempts + 1);
+  const count = (session.fileCounts.get(udid) ?? 0) + 1;
+  session.fileCounts.set(udid, count);
   const filePath = path.join(session.outputDirectory, `${udid}-${count}.har`);
   if (!previous) {
     session.logger.info(`Recording network capture for ${udid}.`);
