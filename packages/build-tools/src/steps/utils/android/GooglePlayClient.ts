@@ -1,5 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { Response } from 'node-fetch';
+import fetch, { RequestInit, Response } from 'node-fetch';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -11,6 +11,32 @@ export class GooglePlayApiError extends Error {
     readonly reasons: string[]
   ) {
     super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
+  }
+
+  static async fromResponseAsync(
+    response: Response,
+    signal?: AbortSignal
+  ): Promise<GooglePlayApiError> {
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      signal?.throwIfAborted();
+      // Raw text or HTML can contain the request URL, including an upload secret.
+    }
+    const parsed = z
+      .object({
+        error: z.object({
+          message: z.string().optional(),
+          errors: z.array(z.object({ reason: z.string().optional() })).optional(),
+        }),
+      })
+      .safeParse(data);
+    return new GooglePlayApiError(
+      response.status,
+      parsed.data?.error.message ?? '',
+      parsed.data?.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? []
+    );
   }
 }
 
@@ -143,7 +169,10 @@ export class GooglePlayClient {
     path: TPath,
     body: z.input<(typeof PostApi)[TPath]['request']>,
     params: z.input<(typeof PostApi)[TPath]['path']>,
-    options: { query?: z.input<(typeof PostApi)[TPath]['query']>; signal?: AbortSignal } = {}
+    options: {
+      query?: z.input<(typeof PostApi)[TPath]['query']>;
+      signal?: AbortSignal;
+    } = {}
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
     return await this.sendJsonRequestAsync(
       'POST',
@@ -210,7 +239,8 @@ export class GooglePlayClient {
       method,
       search.size ? `${path}?${search}` : path,
       method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal
+      signal,
+      { 'Content-Type': 'application/json' }
     );
 
     let data: unknown;
@@ -233,11 +263,12 @@ export class GooglePlayClient {
     return parsed.data;
   }
 
-  private async requestAsync(
+  async requestAsync(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     body?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    headers?: RequestInit['headers']
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     const token = await this.getTokenAsync(signal);
@@ -248,36 +279,18 @@ export class GooglePlayClient {
         method,
         body,
         signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { ...headers, Authorization: `Bearer ${token}` },
         redirect: 'manual',
       });
-    } catch {
+    } catch (error) {
       signal?.throwIfAborted();
-      throw new SystemError('Google Play request failed before a response was received.');
+      throw new SystemError('Google Play request failed before a response was received.', {
+        cause: error,
+      });
     }
 
     if (!response.ok) {
-      let data: unknown;
-      try {
-        data = await response.json();
-      } catch {
-        signal?.throwIfAborted();
-      }
-      const parsed = z
-        .object({
-          error: z.object({
-            message: z.string().optional(),
-            errors: z.array(z.object({ reason: z.string().optional() })).optional(),
-          }),
-        })
-        .safeParse(data);
-      throw new GooglePlayApiError(
-        response.status,
-        parsed.success ? (parsed.data.error.message ?? '') : '',
-        parsed.success
-          ? (parsed.data.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [])
-          : []
-      );
+      throw await GooglePlayApiError.fromResponseAsync(response, signal);
     }
 
     return response;
