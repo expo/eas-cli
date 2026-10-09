@@ -10,6 +10,40 @@ export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
 
 /**
+ * Resolve the `.easignore` file to apply.
+ *
+ * Prefer a file next to `eas.json` (the EAS project directory) when it exists,
+ * otherwise fall back to the repository / copy root. Patterns stay relative to
+ * `rootDir` regardless of which file is chosen.
+ */
+export async function resolveEasignorePathAsync(
+  rootDir: string,
+  projectDir?: string
+): Promise<string | null> {
+  const rootEasignorePath = path.join(rootDir, EASIGNORE_FILENAME);
+
+  if (projectDir) {
+    const projectEasignorePath = path.join(projectDir, EASIGNORE_FILENAME);
+    if (
+      path.resolve(projectEasignorePath) !== path.resolve(rootEasignorePath) &&
+      (await fsExtra.pathExists(projectEasignorePath))
+    ) {
+      Log.debug('using .easignore from the project directory', {
+        projectEasignorePath,
+        rootEasignorePath,
+      });
+      return projectEasignorePath;
+    }
+  }
+
+  if (await fsExtra.pathExists(rootEasignorePath)) {
+    return rootEasignorePath;
+  }
+
+  return null;
+}
+
+/**
  * Ignore wraps the 'ignore' package to support multiple .gitignore files
  * in subdirectories.
  *
@@ -18,14 +52,19 @@ const GITIGNORE_FILENAME = '.gitignore';
  *   file will still be ignored,
  * - node_modules is always ignored,
  * - if .easignore exists, .gitignore files are not used.
+ * - `.easignore` is read from `projectDir` (next to eas.json) when present,
+ *   otherwise from `rootDir`.
  */
 export class Ignore {
   public ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
 
-  private constructor(private readonly rootDir: string) {}
+  private constructor(
+    private readonly rootDir: string,
+    private readonly projectDir?: string
+  ) {}
 
-  static async createForCopyingAsync(rootDir: string): Promise<Ignore> {
-    const ignore = new Ignore(rootDir);
+  static async createForCopyingAsync(rootDir: string, projectDir?: string): Promise<Ignore> {
+    const ignore = new Ignore(rootDir, projectDir);
     await ignore.initIgnoreAsync({
       defaultIgnore: `
 .git
@@ -36,8 +75,8 @@ node_modules
   }
 
   /** Does not include the default .git and node_modules ignore rules. */
-  static async createForCheckingAsync(rootDir: string): Promise<Ignore> {
-    const ignore = new Ignore(rootDir);
+  static async createForCheckingAsync(rootDir: string, projectDir?: string): Promise<Ignore> {
+    const ignore = new Ignore(rootDir, projectDir);
     await ignore.initIgnoreAsync({
       defaultIgnore: ``,
     });
@@ -45,8 +84,8 @@ node_modules
   }
 
   public async initIgnoreAsync({ defaultIgnore }: { defaultIgnore: string }): Promise<void> {
-    const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
-    if (await fsExtra.pathExists(easIgnorePath)) {
+    const easIgnorePath = await resolveEasignorePathAsync(this.rootDir, this.projectDir);
+    if (easIgnorePath) {
       this.ignoreMapping = [
         ['', createIgnore().add(defaultIgnore)],
         ['', createIgnore().add(await fsExtra.readFile(easIgnorePath, 'utf-8'))],
@@ -93,7 +132,11 @@ node_modules
   }
 }
 
-export async function makeShallowCopyAsync(_src: string, dst: string): Promise<void> {
+export async function makeShallowCopyAsync(
+  _src: string,
+  dst: string,
+  projectDir?: string
+): Promise<void> {
   // `node:fs` on Windows adds a namespace prefix (e.g. `\\?\`) to the path provided
   // to the `filter` function in `fs.cp`. We need to ensure that we compare the right paths
   // (both with prefix), otherwise the `relativePath` ends up being wrong and causes no files
@@ -101,7 +144,7 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
   const src = path.toNamespacedPath(path.normalize(_src));
 
   Log.debug('makeShallowCopyAsync', { src, dst });
-  const ignore = await Ignore.createForCopyingAsync(src);
+  const ignore = await Ignore.createForCopyingAsync(src, projectDir);
   Log.debug('makeShallowCopyAsync ignoreMapping', { ignoreMapping: ignore.ignoreMapping });
 
   await fs.cp(src, dst, {

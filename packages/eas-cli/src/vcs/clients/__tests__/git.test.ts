@@ -330,4 +330,113 @@ describe('git', () => {
       });
     });
   });
+
+  describe('nested project .easignore', () => {
+    let repoRoot: string;
+    let projectDir: string;
+
+    afterEach(async () => {
+      if (repoRoot) {
+        await fs.rm(repoRoot, { recursive: true, force: true });
+      }
+    });
+
+    async function setupNestedProjectAsync(): Promise<GitClient> {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(projectDir, '.easignore'), 'secret.txt\n');
+      await fs.writeFile(path.join(repoRoot, 'secret.txt'), 'secret');
+      await fs.writeFile(path.join(repoRoot, 'kept.txt'), 'kept');
+      return new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+        projectDir,
+      });
+    }
+
+    it('isFileIgnoredAsync reads .easignore next to the project, not only at the git root', async () => {
+      const vcs = await setupNestedProjectAsync();
+      expect(await vcs.isFileIgnoredAsync('secret.txt')).toBe(true);
+      expect(await vcs.isFileIgnoredAsync('kept.txt')).toBe(false);
+    });
+
+    it('makeShallowCopyAsync excludes files listed in the project .easignore', async () => {
+      const vcs = await setupNestedProjectAsync();
+      await spawnAsync('git', ['add', 'kept.txt', 'secret.txt', 'apps/app-a/.easignore'], {
+        cwd: repoRoot,
+      });
+      await spawnAsync('git', ['commit', '-m', 'setup'], { cwd: repoRoot });
+
+      const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(copyRoot, 'secret.txt'))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(copyRoot, 'kept.txt'))).resolves.not.toThrow();
+      await fs.rm(copyRoot, { recursive: true, force: true });
+    });
+
+    it('falls back to the git root .easignore when the project directory has none', async () => {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(repoRoot, '.easignore'), 'secret.txt\n');
+      await fs.writeFile(path.join(repoRoot, 'secret.txt'), 'secret');
+      await fs.writeFile(path.join(repoRoot, 'kept.txt'), 'kept');
+
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+        projectDir,
+      });
+
+      expect(await vcs.isFileIgnoredAsync('secret.txt')).toBe(true);
+      expect(await vcs.isFileIgnoredAsync('kept.txt')).toBe(false);
+    });
+
+    it('prefers the project .easignore when both project and root files exist', async () => {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(repoRoot, '.easignore'), 'from-root.txt\n');
+      await fs.writeFile(path.join(projectDir, '.easignore'), 'from-app.txt\n');
+      await fs.writeFile(path.join(repoRoot, 'from-root.txt'), 'root');
+      await fs.writeFile(path.join(repoRoot, 'from-app.txt'), 'app');
+
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+        projectDir,
+      });
+
+      expect(await vcs.isFileIgnoredAsync('from-app.txt')).toBe(true);
+      expect(await vcs.isFileIgnoredAsync('from-root.txt')).toBe(false);
+    });
+
+    it('makeShallowCopyAsync with requireCommit excludes files from the project .easignore', async () => {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(projectDir, '.easignore'), 'secret.txt\n');
+      await fs.writeFile(path.join(repoRoot, 'secret.txt'), 'secret');
+      await fs.writeFile(path.join(repoRoot, 'kept.txt'), 'kept');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'setup'], { cwd: repoRoot });
+
+      const vcs = new GitClient({
+        requireCommit: true,
+        maybeCwdOverride: repoRoot,
+        projectDir,
+      });
+
+      const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(copyRoot, 'secret.txt'))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(copyRoot, 'kept.txt'))).resolves.not.toThrow();
+      await fs.rm(copyRoot, { recursive: true, force: true });
+    });
+  });
 });
