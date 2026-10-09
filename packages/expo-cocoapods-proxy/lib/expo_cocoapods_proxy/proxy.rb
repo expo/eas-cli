@@ -38,12 +38,24 @@ module Pod
       end
 
       def download_file(full_filename)
+        return download_already_proxied_maven_file(full_filename) if already_proxied_maven?
         return orig_download_file(full_filename) unless should_proxy?
 
         download_file_via_proxy(full_filename)
       end
 
       private
+
+      def download_already_proxied_maven_file(full_filename)
+        orig_download_file(full_filename)
+      rescue ::StandardError
+        @url = url.sub("#{normalized_proxy}/repo1.maven.org", 'https://repo1.maven.org')
+        orig_download_file(full_filename)
+      end
+
+      def already_proxied_maven?
+        proxy && url.start_with?("#{normalized_proxy}/repo1.maven.org/")
+      end
 
       def should_proxy?
         return false unless proxy
@@ -69,6 +81,10 @@ module Pod
 
       def proxy
         ENV['EAS_BUILD_COCOAPODS_CACHE_URL']
+      end
+
+      def normalized_proxy
+        proxy.chomp('/')
       end
 
       def parsed_url
