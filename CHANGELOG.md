@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `simulator:network-requests` to list, follow, and inspect captured network requests from a running iOS simulator session, and download them as a HAR file. ([#4546](https://github.com/expo/eas-cli/pull/4546) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `simulator:crashes` to list and read crash reports from a running iOS simulator session. ([#4547](https://github.com/expo/eas-cli/pull/4547) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ### 🐛 Bug fixes
