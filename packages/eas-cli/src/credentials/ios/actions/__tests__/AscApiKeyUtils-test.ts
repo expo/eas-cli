@@ -1,7 +1,6 @@
 import { UserRole } from '@expo/apple-utils';
 import fs from 'fs-extra';
 
-import env from '../../../../env';
 import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../../../../log';
 import { confirmAsync, promptAsync, selectAsync } from '../../../../prompts';
@@ -86,13 +85,6 @@ describe(getAscApiKeyName, () => {
 });
 
 describe(promptForAscApiKeyPathAsync, () => {
-  beforeEach(() => {
-    env.enableIndividualAscApiKeys = '1';
-  });
-  afterEach(() => {
-    env.enableIndividualAscApiKeys = undefined;
-  });
-
   it('prompts for keyId, keyP8Path and issuerId when user is not authenticated to Apple', async () => {
     jest.mocked(selectAsync).mockResolvedValueOnce(false); // team key
     jest.mocked(promptAsync).mockImplementationOnce(async () => ({
@@ -209,35 +201,6 @@ describe(promptForAscApiKeyPathAsync, () => {
     });
     expect(selectAsync).not.toHaveBeenCalled();
   });
-  it('does not ask the key type in the submission flow when individual keys are not enabled', async () => {
-    env.enableIndividualAscApiKeys = undefined;
-    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
-      keyP8Path: '/asc-api-key.p8',
-    }));
-    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
-      keyId: 'test-key-id',
-      issuerId: 'test-issuer-id',
-    }));
-    const ctx = createCtxMock({
-      nonInteractive: false,
-      appStore: {
-        ...getAppstoreMock(),
-        authCtx: null,
-      },
-    });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
-      ctx,
-      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-    );
-    expect(ascApiKeyPath).toEqual({
-      keyId: 'test-key-id',
-      issuerId: 'test-issuer-id',
-      keyP8Path: '/asc-api-key.p8',
-    });
-    expect(selectAsync).not.toHaveBeenCalled();
-    expect(promptAsync).toHaveBeenCalledTimes(1); // keyP8Path
-    expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(2); // keyId, issuerId
-  });
 });
 
 describe(provideOrGenerateAscApiKeyAsync, () => {
@@ -321,7 +284,6 @@ describe(provideOrGenerateAscApiKeyAsync, () => {
   });
 
   it('accepts a user-provided individual key without validating it on Apple servers', async () => {
-    env.enableIndividualAscApiKeys = '1';
     const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
     jest.mocked(shouldAutoGenerateCredentialsAsync).mockResolvedValue(false);
     jest.mocked(selectAsync).mockResolvedValueOnce(true); // individual key
@@ -350,7 +312,6 @@ describe(provideOrGenerateAscApiKeyAsync, () => {
       expect(confirmAsync).not.toHaveBeenCalled();
       expect(logWarnSpy).not.toHaveBeenCalled();
     } finally {
-      env.enableIndividualAscApiKeys = undefined;
       logWarnSpy.mockRestore();
     }
   });

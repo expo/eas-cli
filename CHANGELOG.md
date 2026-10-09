@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4589](https://github.com/expo/eas-cli/pull/4589) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Stop reporting individual App Store Connect API keys as not valid on Apple's servers when adding them in `eas credentials`. ([#4588](https://github.com/expo/eas-cli/pull/4588) by [@sswrk](https://github.com/sswrk))
