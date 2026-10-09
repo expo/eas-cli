@@ -5,7 +5,7 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import { gql } from '@urql/core';
+import { graphql } from 'gql.tada';
 import { z } from 'zod';
 
 import { downloadBuildAsync } from './downloadBuild';
@@ -13,13 +13,13 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { promiseRetryWithCondition } from '../../utils/promiseRetryWithCondition';
 
-const CREATE_ARCHIVE_DOWNLOAD_URL = gql`
+const CREATE_ARCHIVE_DOWNLOAD_URL = graphql(`
   mutation GenerateSubmissionArchiveDownloadUrl($submissionId: ID!) {
     submission {
       generateSubmissionArchiveDownloadUrl(submissionId: $submissionId)
     }
   }
-`;
+`);
 
 export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -64,11 +64,7 @@ export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext)
           signal?.throwIfAborted();
 
           const result = await ctx.graphqlClient
-            .mutation<{ submission: { generateSubmissionArchiveDownloadUrl: string } }>(
-              CREATE_ARCHIVE_DOWNLOAD_URL,
-              { submissionId },
-              graphqlAbortContext(signal)
-            )
+            .mutation(CREATE_ARCHIVE_DOWNLOAD_URL, { submissionId }, graphqlAbortContext(signal))
             .toPromise();
 
           signal?.throwIfAborted();
