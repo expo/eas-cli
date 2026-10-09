@@ -10,6 +10,7 @@ import { graphql } from 'gql.tada';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -90,6 +91,7 @@ export class SandboxArtifactUploadManager {
     yieldTimeMs: number;
   }): Promise<SandboxDaemonCommandResult<'uploadArtifact'>> {
     this.options.signal.throwIfAborted();
+    const deadline = performance.now() + yieldTimeMs;
     const uploadPromise = startSandboxArtifactUploadAsync({ ...this.options, filePath, name });
     const completed = uploadPromise.then(
       ({ completed }) => completed,
@@ -103,7 +105,10 @@ export class SandboxArtifactUploadManager {
       const outcome = await Promise.race([
         upload.completed,
         new Promise<{ status: 'uploading' }>(resolve => {
-          timer = setTimeout(() => resolve({ status: 'uploading' }), yieldTimeMs);
+          timer = setTimeout(
+            () => resolve({ status: 'uploading' }),
+            Math.max(0, deadline - performance.now())
+          );
         }),
       ]);
       return { id: upload.id, ...outcome };

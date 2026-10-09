@@ -10,7 +10,9 @@ import fetch, { type RequestInit } from 'node-fetch';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { type Readable } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
 import { inspect } from 'node:util';
 
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
@@ -398,6 +400,26 @@ describe('sandbox artifact uploads', () => {
     ).resolves.toEqual({ id: ARTIFACT_ID, status: 'uploading' });
     respond(new Response('', { status: 200 }));
     await finalizeCalledPromise;
+  });
+
+  it('counts upload session creation toward the yield time', async () => {
+    mutation.mockReturnValueOnce({
+      toPromise: async () => {
+        await delay(400);
+        return createdResult;
+      },
+    });
+    jest.mocked(fetch).mockReturnValueOnce(new Promise(() => {}) as ReturnType<typeof fetch>);
+    const controller = new AbortController();
+    const manager = createManager(controller.signal);
+    const startedAt = performance.now();
+
+    await expect(
+      manager.startAsync({ filePath, name: 'Crash log', yieldTimeMs: 400 })
+    ).resolves.toEqual({ id: ARTIFACT_ID, status: 'uploading' });
+    expect(performance.now() - startedAt).toBeLessThan(600);
+    controller.abort();
+    await manager.stoppedPromise;
   });
 
   function createManager(signal: AbortSignal): SandboxArtifactUploadManager {
