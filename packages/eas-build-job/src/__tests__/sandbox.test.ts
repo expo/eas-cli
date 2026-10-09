@@ -1,4 +1,9 @@
-import { SandboxDaemonCommands, SandboxDaemonRequestZ, SandboxDaemonResponseZ } from '../sandbox';
+import {
+  SandboxDaemonCommands,
+  SandboxDaemonErrorCode,
+  SandboxDaemonRequestZ,
+  SandboxDaemonResponseZ,
+} from '../sandbox';
 
 describe('sandbox daemon protocol', () => {
   it('validates command parameters', () => {
@@ -17,6 +22,32 @@ describe('sandbox daemon protocol', () => {
         yieldTimeMs: 0,
       })
     ).toEqual({ sessionId: 1, chars: '\u0003', yieldTimeMs: 0 });
+  });
+
+  it.each(['maxTextBytes', 'maxImageBytes'])(
+    'requires the caller to set %s when reading a file',
+    limit => {
+      const params: Record<string, unknown> = {
+        path: 'screenshot.png',
+        maxTextBytes: 40_000,
+        maxImageBytes: 3_000_000,
+      };
+      delete params[limit];
+
+      expect(() => SandboxDaemonCommands.readFile.params.parse(params)).toThrow();
+    }
+  );
+
+  it('rejects an image result with both data and an error', () => {
+    expect(() =>
+      SandboxDaemonCommands.readFile.result.parse({
+        kind: 'image',
+        mimeType: 'image/png',
+        data: 'iVBORw0KGgo=',
+        size: 8,
+        error: 'tooLarge',
+      })
+    ).toThrow();
   });
 
   it.each([
@@ -62,5 +93,15 @@ describe('sandbox daemon protocol', () => {
       id: 'request-id',
       error: { code: -32603, message: 'Command failed' },
     });
+  });
+
+  it('accepts an error code that this version does not define', () => {
+    const response = {
+      jsonrpc: '2.0',
+      id: 'request-id',
+      error: { code: 99, message: 'Added by a newer daemon' },
+    };
+    expect(Object.values(SandboxDaemonErrorCode)).not.toContain(99);
+    expect(SandboxDaemonResponseZ.parse(response)).toEqual(response);
   });
 });

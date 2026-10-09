@@ -10,9 +10,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `simulator:network-requests` to list, follow, and inspect captured network requests from a running iOS simulator session, and download them as a HAR file. ([#4546](https://github.com/expo/eas-cli/pull/4546) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ### 🐛 Bug fixes
 
+- [build-tools] Look up ffmpeg on PATH instead of running it. ([#4582](https://github.com/expo/eas-cli/pull/4582) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
