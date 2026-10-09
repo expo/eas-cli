@@ -4,9 +4,21 @@ function red(text) {
   return '\u001b[31m' + text + '\u001b[39m';
 }
 
+function yellow(text) {
+  return '\u001b[33m' + text + '\u001b[39m';
+}
+
 if (!require('semver').gte(process.version, '12.9.0')) {
   console.error(red('Node.js version 12.9.0 or newer is required.'));
   process.exit(1);
+}
+
+if (require('semver').lt(process.version, '22.0.0')) {
+  console.warn(
+    yellow(
+      `Node.js ${process.version} is deprecated. A future release of eas-cli-local-build-plugin will require Node.js 22 or newer.`
+    )
+  );
 }
 
 require('../dist/main.js');

@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+if (require('semver').lt(process.version, '22.0.0')) {
+  console.warn(
+    require('chalk').yellow(
+      `Node.js ${process.version} is deprecated. A future release of EAS CLI will require Node.js 22 or newer.`
+    )
+  );
+}
+
 (async () => {
   const oclif = require('@oclif/core');
   await oclif.execute({ dir: __dirname });
