@@ -46004,7 +46004,7 @@
           },
           {
             "name": "networkCapture",
-            "description": "Record HTTP(S) traffic from apps on the device for the whole session. iOS only.\nHTTPS is decrypted, so recordings contain credentials and cookies in cleartext.\nIf omitted, no traffic is recorded.",
+            "description": "Capture HTTP(S) traffic from apps on the device for live inspection. iOS only.\nHTTPS is decrypted, so captured traffic can contain credentials and cookies in cleartext.\nIf omitted, network capture is disabled.",
             "type": {
               "kind": "SCALAR",
               "name": "Boolean",
@@ -46029,6 +46029,18 @@
                   "ofType": null
                 }
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "networkCaptureRecording",
+            "description": "Record network capture as a HAR artifact for access after the session. Requires networkCapture.\nIf omitted, HAR artifact recording is disabled.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
