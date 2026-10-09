@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { downloadBuildAsync } from './downloadBuild';
 import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
+import { promiseRetryWithCondition } from '../../utils/promiseRetryWithCondition';
 
 const CREATE_ARCHIVE_DOWNLOAD_URL = gql`
   mutation GenerateSubmissionArchiveDownloadUrl($submissionId: ID!) {
@@ -58,37 +59,49 @@ export function createDownloadSubmissionArchiveFunction(ctx: CustomBuildContext)
 
       stepsCtx.logger.info(`Downloading archive for submission ${submissionId}...`);
 
-      signal?.throwIfAborted();
+      const applicationArchiveUrl = await promiseRetryWithCondition(
+        async () => {
+          signal?.throwIfAborted();
 
-      const result = await ctx.graphqlClient
-        .mutation<{ submission: { generateSubmissionArchiveDownloadUrl: string } }>(
-          CREATE_ARCHIVE_DOWNLOAD_URL,
-          { submissionId },
-          graphqlAbortContext(signal)
-        )
-        .toPromise();
+          const result = await ctx.graphqlClient
+            .mutation<{ submission: { generateSubmissionArchiveDownloadUrl: string } }>(
+              CREATE_ARCHIVE_DOWNLOAD_URL,
+              { submissionId },
+              graphqlAbortContext(signal)
+            )
+            .toPromise();
 
-      signal?.throwIfAborted();
+          signal?.throwIfAborted();
 
-      if (result.error) {
-        throw result.error.networkError || result.error.response?.status >= 500
-          ? new SystemError('Could not request the submission archive. Try again later.', {
-              cause: result.error,
-            })
-          : new UserError(
-              'EAS_SUBMISSION_ARCHIVE_FETCH_FAILED',
-              'Could not request the submission archive. Check your project access and the submission archive.',
-              { cause: result.error }
+          if (result.error) {
+            throw result.error.networkError || result.error.response?.status >= 500
+              ? new SystemError('Could not request the submission archive. Try again later.', {
+                  cause: result.error,
+                })
+              : new UserError(
+                  'EAS_SUBMISSION_ARCHIVE_FETCH_FAILED',
+                  'Could not request the submission archive. Check your project access and the submission archive.',
+                  { cause: result.error }
+                );
+          }
+
+          const url = result.data?.submission.generateSubmissionArchiveDownloadUrl;
+
+          if (!url) {
+            throw new SystemError(
+              'The server did not return a submission archive URL. Try again later.'
             );
-      }
-
-      const applicationArchiveUrl = result.data?.submission.generateSubmissionArchiveDownloadUrl;
-
-      if (!applicationArchiveUrl) {
-        throw new SystemError(
-          'The server did not return a submission archive URL. Try again later.'
-        );
-      }
+          }
+          return url;
+        },
+        error => !signal?.aborted && error instanceof SystemError,
+        { retries: 3, minTimeout: 1000, maxTimeout: 1000 },
+        ({ attemptNumber, maxAttemptsCount }) => {
+          stepsCtx.logger.info(
+            `Retrying submission archive URL request (${attemptNumber}/${maxAttemptsCount})...`
+          );
+        }
+      )();
 
       const { artifactPath } = await downloadBuildAsync({
         logger: stepsCtx.logger,
