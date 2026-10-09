@@ -60,6 +60,20 @@ describe(Ignore, () => {
     expect((ignore as any).ignoreMapping.map((i: any) => i[0])).toEqual(['', '', 'dir/']);
   });
 
+  it('reads .gitignore from a dot-directory', async () => {
+    vol.fromJSON(
+      {
+        '.gitignore': 'aaa',
+        '.cache/.gitignore': 'bbb',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect(ignore.ignores('bbb')).toBe(false);
+    expect(ignore.ignores('.cache/bbb')).toBe(true);
+  });
+
   it('applies all gitignore files in parent directories', async () => {
     vol.fromJSON(
       {
