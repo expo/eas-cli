@@ -117,11 +117,11 @@ export function createSandboxCommandImplementations({
         }
       },
       async uploadArtifact(params) {
-        const id = await artifactUploads.startAsync({
+        return await artifactUploads.startAsync({
           filePath: path.resolve(workingDirectory, params.path),
           name: params.name,
+          yieldTimeMs: params.yieldTimeMs,
         });
-        return { id };
       },
     },
     stoppedPromise,
