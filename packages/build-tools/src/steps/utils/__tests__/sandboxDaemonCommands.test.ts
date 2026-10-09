@@ -3,7 +3,11 @@ jest.unmock('fs/promises');
 jest.unmock('node:fs');
 jest.unmock('node:fs/promises');
 
-import { type SandboxDaemonCommandResult, type SandboxDaemonMethod } from '@expo/eas-build-job';
+import {
+  type SandboxDaemonCommandResult,
+  SandboxDaemonErrorCode,
+  type SandboxDaemonMethod,
+} from '@expo/eas-build-job';
 import fs from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
@@ -194,9 +198,10 @@ describe('sandbox daemon commands', () => {
   it('reports a missing working directory', async () => {
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'missing' })
-    ).rejects.toThrow(
-      `Working directory does not exist: ${path.join(workingDirectory, 'missing')}`
-    );
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory does not exist: ${path.join(workingDirectory, 'missing')}`,
+    });
   });
 
   it('reports a working directory that is not a directory', async () => {
@@ -205,7 +210,10 @@ describe('sandbox daemon commands', () => {
 
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'file' })
-    ).rejects.toThrow(`Working directory is not a directory: ${file}`);
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory is not a directory: ${file}`,
+    });
   });
 
   it('reports an inaccessible working directory', async () => {
@@ -217,7 +225,10 @@ describe('sandbox daemon commands', () => {
 
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'inaccessible' })
-    ).rejects.toThrow(`Working directory is not accessible: ${directory}`);
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory is not accessible: ${directory}`,
+    });
 
     await fs.chmod(directory, 0o700);
   });
