@@ -18,7 +18,7 @@ import {
   fetchSimulatorPreviewJsonAsync,
   resolveSimulatorPreviewAsync,
 } from '../../simulator/preview';
-import { stripTerminalControlCharacters } from '../../simulator/utils';
+import { formatLogLine, stripTerminalControlCharacters } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 interface SimulatorCrashSummary {
@@ -158,7 +158,7 @@ export default class SimulatorCrashes extends EasCommand {
         );
       }
       for (const line of logTail) {
-        Log.log(stripTerminalControlCharacters(line, { keepNewlinesAndTabs: true }));
+        Log.log(formatLogLine(line, flags.timestamp));
       }
       return;
     }
