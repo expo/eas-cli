@@ -1,4 +1,9 @@
-import { SandboxDaemonError, SandboxDaemonErrorCode, SystemError } from '@expo/eas-build-job';
+import {
+  type SandboxDaemonCommandResult,
+  SandboxDaemonError,
+  SandboxDaemonErrorCode,
+  SystemError,
+} from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { type Client, CombinedError } from '@urql/core';
 import { graphql } from 'gql.tada';
@@ -40,6 +45,7 @@ const FINALIZE_SANDBOX_ARTIFACT_MUTATION = graphql(`
     sandbox {
       finalizeArtifact(artifactId: $artifactId) {
         id
+        downloadUrl
       }
     }
   }
@@ -48,8 +54,12 @@ const FINALIZE_SANDBOX_ARTIFACT_MUTATION = graphql(`
 const FINALIZE_ATTEMPTS = 3;
 const REJECTED_UPLOAD_SESSION_ERROR_CODES = new Set(['VALIDATION_ERROR', 'UNAUTHORIZED']);
 
+type SandboxArtifactUploadOutcome =
+  | { status: 'uploaded'; downloadUrl: string }
+  | { status: 'failed' };
+
 export class SandboxArtifactUploadManager {
-  private readonly uploads = new Set<Promise<void>>();
+  private readonly uploads = new Set<Promise<unknown>>();
   public readonly stoppedPromise: Promise<void>;
 
   public constructor(
@@ -70,17 +80,39 @@ export class SandboxArtifactUploadManager {
     })();
   }
 
-  public async startAsync({ filePath, name }: { filePath: string; name: string }): Promise<string> {
+  public async startAsync({
+    filePath,
+    name,
+    yieldTimeMs,
+  }: {
+    filePath: string;
+    name: string;
+    yieldTimeMs?: number;
+  }): Promise<SandboxDaemonCommandResult<'uploadArtifact'>> {
     this.options.signal.throwIfAborted();
-    const upload = startSandboxArtifactUploadAsync({ ...this.options, filePath, name });
-    const completed = upload.then(
+    const uploadPromise = startSandboxArtifactUploadAsync({ ...this.options, filePath, name });
+    const completed = uploadPromise.then(
       ({ completed }) => completed,
       () => {}
     );
     this.uploads.add(completed);
     void completed.finally(() => this.uploads.delete(completed));
-    const { id } = await upload;
-    return id;
+    const upload = await uploadPromise;
+    if (yieldTimeMs === undefined) {
+      return { id: upload.id, status: 'uploading' };
+    }
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      const outcome = await Promise.race([
+        upload.completed,
+        new Promise<{ status: 'uploading' }>(resolve => {
+          timer = setTimeout(() => resolve({ status: 'uploading' }), yieldTimeMs);
+        }),
+      ]);
+      return { id: upload.id, ...outcome };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -98,7 +130,7 @@ export async function startSandboxArtifactUploadAsync({
   filePath: string;
   name: string;
   signal: AbortSignal;
-}): Promise<{ id: string; completed: Promise<void> }> {
+}): Promise<{ id: string; completed: Promise<SandboxArtifactUploadOutcome> }> {
   let stats;
   try {
     stats = await fs.stat(filePath);
@@ -136,24 +168,26 @@ export async function startSandboxArtifactUploadAsync({
         createSignal
       )
   );
-  const completed = (async () => {
+  const completed = (async (): Promise<SandboxArtifactUploadOutcome> => {
     logger.info(`Uploading sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
     try {
       await putSandboxArtifactAsync({ filePath, size, uploadSession, signal });
     } catch (error) {
       logger.error({ err: error }, `Failed to upload sandbox artifact "${name}" (${artifactId}).`);
-      return;
+      return { status: 'failed' };
     }
+    let downloadUrl: string;
     try {
-      await finalizeSandboxArtifactAsync(graphqlClient, artifactId, signal);
+      downloadUrl = await finalizeSandboxArtifactAsync(graphqlClient, artifactId, signal);
     } catch (error) {
       logger.error(
         { err: error },
         `Uploaded sandbox artifact "${name}" (${artifactId}), but could not finalize it.`
       );
-      return;
+      return { status: 'failed' };
     }
     logger.info(`Uploaded sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
+    return { status: 'uploaded', downloadUrl };
   })();
   return { id: artifactId, completed };
 }
@@ -232,10 +266,10 @@ async function finalizeSandboxArtifactAsync(
   graphqlClient: Client,
   artifactId: string,
   signal: AbortSignal
-): Promise<void> {
+): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     try {
-      await withTimeoutAsync(
+      return await withTimeoutAsync(
         { name: 'Sandbox artifact finalization', timeoutMs: 15_000, signal },
         async finalizeSignal => {
           const result = await graphqlClient
@@ -249,9 +283,13 @@ async function finalizeSandboxArtifactAsync(
           if (result.error) {
             throw result.error;
           }
+          const { downloadUrl } = result.data!.sandbox.finalizeArtifact;
+          if (downloadUrl === null) {
+            throw new SystemError(`Finalized sandbox artifact ${artifactId} has no download URL.`);
+          }
+          return downloadUrl;
         }
       );
-      return;
     } catch (error) {
       signal.throwIfAborted();
       const retryable =

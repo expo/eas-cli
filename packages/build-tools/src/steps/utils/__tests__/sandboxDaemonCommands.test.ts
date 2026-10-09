@@ -433,7 +433,7 @@ describe('sandbox daemon commands', () => {
     expect(mutation).not.toHaveBeenCalled();
   });
 
-  it('uploads an artifact from a path relative to the working directory', async () => {
+  it('uploads an artifact from a path relative to the working directory and waits for it', async () => {
     await fs.mkdir(path.join(workingDirectory, 'logs'));
     await fs.writeFile(path.join(workingDirectory, 'logs', 'crash.log'), 'crash');
     mutation
@@ -450,16 +450,30 @@ describe('sandbox daemon commands', () => {
         }),
       })
       .mockReturnValueOnce({
-        toPromise: async () => ({ data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID } } } }),
+        toPromise: async () => ({
+          data: {
+            sandbox: {
+              finalizeArtifact: {
+                id: ARTIFACT_ID,
+                downloadUrl: 'https://downloads.expo.test/artifact',
+              },
+            },
+          },
+        }),
       });
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const result = await commandImplementations.uploadArtifact({
       path: 'logs/crash.log',
       name: 'Crash log',
+      yieldTimeMs: 30_000,
     });
 
-    expect(result).toEqual({ id: ARTIFACT_ID });
+    expect(result).toEqual({
+      id: ARTIFACT_ID,
+      status: 'uploaded',
+      downloadUrl: 'https://downloads.expo.test/artifact',
+    });
     expect(mutation).toHaveBeenCalledWith(
       expect.anything(),
       { sandboxId: 'sandbox-id', input: { name: 'Crash log', filename: 'crash.log', size: 5 } },

@@ -19,6 +19,7 @@ const { FetchError, Response } = jest.requireActual('node-fetch') as typeof impo
 
 const ARTIFACT_ID = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
 const SIGNED_URL = 'https://uploads.expo.test/artifact?X-Amz-Signature=secret-signature';
+const DOWNLOAD_URL = 'https://downloads.expo.test/artifact?X-Amz-Signature=download-signature';
 
 const createdResult = {
   data: {
@@ -30,7 +31,9 @@ const createdResult = {
     },
   },
 };
-const finalizedResult = { data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID } } } };
+const finalizedResult = {
+  data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID, downloadUrl: DOWNLOAD_URL } } },
+};
 
 describe('sandbox artifact uploads', () => {
   let directory: string;
@@ -88,7 +91,10 @@ describe('sandbox artifact uploads', () => {
       expect.anything()
     );
     respond(new Response('', { status: 200 }));
-    await upload.completed;
+    await expect(upload.completed).resolves.toEqual({
+      status: 'uploaded',
+      downloadUrl: DOWNLOAD_URL,
+    });
     expect(mutation).toHaveBeenLastCalledWith(
       expect.anything(),
       { artifactId: ARTIFACT_ID },
@@ -216,7 +222,7 @@ describe('sandbox artifact uploads', () => {
       signal: new AbortController().signal,
     });
 
-    await expect(upload.completed).resolves.toBeUndefined();
+    await expect(upload.completed).resolves.toEqual({ status: 'failed' });
     expect(mutation).toHaveBeenCalledTimes(3);
     expect(logger.error).toHaveBeenCalledWith(
       expect.anything(),
@@ -308,14 +314,12 @@ describe('sandbox artifact uploads', () => {
     mockMutationResults(createdResult);
     jest.mocked(fetch).mockReturnValueOnce(new Promise(() => {}) as ReturnType<typeof fetch>);
     const controller = new AbortController();
-    const manager = new SandboxArtifactUploadManager({
-      graphqlClient,
-      sandboxId: 'sandbox-id',
-      logger: logger as unknown as bunyan,
-      signal: controller.signal,
-    });
+    const manager = createManager(controller.signal);
 
-    await expect(manager.startAsync({ filePath, name: 'Crash log' })).resolves.toBe(ARTIFACT_ID);
+    await expect(manager.startAsync({ filePath, name: 'Crash log' })).resolves.toEqual({
+      id: ARTIFACT_ID,
+      status: 'uploading',
+    });
     controller.abort();
     await manager.stoppedPromise;
 
@@ -328,6 +332,78 @@ describe('sandbox artifact uploads', () => {
     });
     expect(mutation).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    {
+      case: 'a finalized upload as uploaded with its download URL',
+      finalizeResult: finalizedResult,
+      outcome: { status: 'uploaded', downloadUrl: DOWNLOAD_URL },
+    },
+    {
+      case: 'a failed finalization as failed',
+      finalizeResult: {
+        error: new CombinedError({
+          graphQLErrors: ['Sandbox artifact "Crash log" has no uploaded file.'],
+          response: { status: 200 },
+        }),
+      },
+      outcome: { status: 'failed' },
+    },
+    {
+      case: 'a finalized artifact without a download URL as failed',
+      finalizeResult: {
+        data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID, downloadUrl: null } } },
+      },
+      outcome: { status: 'failed' },
+    },
+  ])(
+    'waits for an upload that ends within the yield time and reports $case',
+    async ({ finalizeResult, outcome }) => {
+      mockMutationResults(createdResult, finalizeResult);
+      jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
+      const manager = createManager(new AbortController().signal);
+
+      await expect(
+        manager.startAsync({ filePath, name: 'Crash log', yieldTimeMs: 30_000 })
+      ).resolves.toEqual({ id: ARTIFACT_ID, ...outcome });
+    }
+  );
+
+  it('reports an upload that outlasts the yield time as uploading and keeps uploading', async () => {
+    let finalizeCalled!: () => void;
+    const finalizeCalledPromise = new Promise<void>(resolve => {
+      finalizeCalled = resolve;
+    });
+    mockMutationResults(createdResult);
+    mutation.mockReturnValueOnce({
+      toPromise: async () => {
+        finalizeCalled();
+        return finalizedResult;
+      },
+    });
+    let respond!: (response: InstanceType<typeof Response>) => void;
+    jest.mocked(fetch).mockReturnValueOnce(
+      new Promise(resolve => {
+        respond = resolve;
+      }) as ReturnType<typeof fetch>
+    );
+    const manager = createManager(new AbortController().signal);
+
+    await expect(
+      manager.startAsync({ filePath, name: 'Crash log', yieldTimeMs: 10 })
+    ).resolves.toEqual({ id: ARTIFACT_ID, status: 'uploading' });
+    respond(new Response('', { status: 200 }));
+    await finalizeCalledPromise;
+  });
+
+  function createManager(signal: AbortSignal): SandboxArtifactUploadManager {
+    return new SandboxArtifactUploadManager({
+      graphqlClient,
+      sandboxId: 'sandbox-id',
+      logger: logger as unknown as bunyan,
+      signal,
+    });
+  }
 
   function mockMutationResults(...results: unknown[]): void {
     for (const result of results) {
