@@ -18,6 +18,7 @@ import { ShellSessionManager } from './shellSessionManager';
 
 const DEFAULT_EXEC_YIELD_TIME_MS = 10_000;
 const DEFAULT_WRITE_YIELD_TIME_MS = 250;
+const DEFAULT_UPLOAD_YIELD_TIME_MS = 20_000;
 
 export type SandboxDaemonCommandImplementations = {
   [Method in SandboxDaemonMethod]: (
@@ -120,7 +121,7 @@ export function createSandboxCommandImplementations({
         return await artifactUploads.startAsync({
           filePath: path.resolve(workingDirectory, params.path),
           name: params.name,
-          yieldTimeMs: params.yieldTimeMs,
+          yieldTimeMs: params.yieldTimeMs ?? DEFAULT_UPLOAD_YIELD_TIME_MS,
         });
       },
     },

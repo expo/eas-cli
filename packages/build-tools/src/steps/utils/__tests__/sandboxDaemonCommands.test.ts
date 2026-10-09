@@ -433,7 +433,7 @@ describe('sandbox daemon commands', () => {
     expect(mutation).not.toHaveBeenCalled();
   });
 
-  it('uploads an artifact from a path relative to the working directory and waits for it', async () => {
+  it('uploads an artifact from a path relative to the working directory and waits for it by default', async () => {
     await fs.mkdir(path.join(workingDirectory, 'logs'));
     await fs.writeFile(path.join(workingDirectory, 'logs', 'crash.log'), 'crash');
     mutation
@@ -466,7 +466,6 @@ describe('sandbox daemon commands', () => {
     const result = await commandImplementations.uploadArtifact({
       path: 'logs/crash.log',
       name: 'Crash log',
-      yieldTimeMs: 30_000,
     });
 
     expect(result).toEqual({
