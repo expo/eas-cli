@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { createServer } from 'node:net';
+import path from 'node:path';
 import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
@@ -299,11 +300,31 @@ async function sleepUntilAbortedAsync(
   }
 }
 
-// Device-session tools resolve `ffmpeg` from PATH. Spawning it with the step's
-// environment rejects with ENOENT when the binary is absent, and running it also
-// proves that the installed binary works.
-async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
+// Look up ffmpeg on PATH like device-session tools do. Running it on a fresh VM is slow
+// (about 13 s for ffmpeg-full on macos-tahoe-26.6-xcode-27.1).
+async function findFfmpegOnPathAsync(env: BuildStepEnv): Promise<string | null> {
+  for (const directory of (env.PATH ?? '').split(path.delimiter)) {
+    // An empty entry is the current directory.
+    const candidate = path.join(directory || '.', 'ffmpeg');
+    const stats = await asyncResult(fs.promises.stat(candidate));
+    if (
+      stats.ok &&
+      stats.value.isFile() &&
+      (await asyncResult(fs.promises.access(candidate, fs.constants.X_OK))).ok
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+// Load ffmpeg in the background so its first real use skips the cold start.
+function warmUpFfmpeg(env: BuildStepEnv): void {
+  void asyncResult(
+    (async () => {
+      await spawn('ffmpeg', ['-version'], { env });
+    })()
+  );
 }
 
 async function installFfmpegWithHomebrewAsync({
@@ -360,8 +381,10 @@ async function ensureFfmpegInstalledAsync({
   logger: bunyan;
 }): Promise<void> {
   try {
-    if (await isFfmpegAvailableAsync(env)) {
-      logger.info('ffmpeg is already installed.');
+    const ffmpegPath = await findFfmpegOnPathAsync(env);
+    if (ffmpegPath) {
+      logger.info(`ffmpeg is already installed at ${ffmpegPath}.`);
+      warmUpFfmpeg(env);
       return;
     }
 
@@ -377,6 +400,7 @@ async function ensureFfmpegInstalledAsync({
       await installFfmpegWithAptAsync({ env, logger });
     }
     logger.info('Installed ffmpeg.');
+    warmUpFfmpeg(env);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     Sentry.capture('Could not install ffmpeg for the device session', error, {
