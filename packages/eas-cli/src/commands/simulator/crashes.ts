@@ -158,7 +158,7 @@ export default class SimulatorCrashes extends EasCommand {
         );
       }
       for (const line of logTail) {
-        Log.log(formatLogLine(line, flags.timestamp));
+        Log.log(formatLogLine(line, flags.timestamp, { fallbackTimestamp: false }));
       }
       return;
     }
