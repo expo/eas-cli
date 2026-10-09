@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Start `expo-device-hub` for Android simulator sessions with `--require-token` and the website origins, as serve-sim starts for iOS, and report its session token. ([#4578](https://github.com/expo/eas-cli/pull/4578) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
