@@ -13,8 +13,8 @@ import {
   BuildStepGlobalContext,
   HookEntry,
   constructHookEntriesAsync,
-  createLocalCompositeFunctionLoader,
-  extendCompositeFunctionCatalogFromStepsAsync,
+  createLocalFunctionLoader,
+  extendLocalFunctionCatalogFromStepsAsync,
   validateHookStepsAsync,
 } from '@expo/steps';
 
@@ -98,11 +98,10 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
   // outputs accumulate across keys.
   const hookEntriesByKey: Partial<Record<HookKey, HookEntry[]>> = {};
   const orderedSteps: BuildStep[] = [];
-  const compositeFunctionCatalog: LocalFunctionCatalog = {};
-  const loadCompositeFunction = createLocalCompositeFunctionLoader(
-    ctx.getReactNativeProjectDirectory(),
-    { logger: ctx.logger }
-  );
+  const localFunctionCatalog: LocalFunctionCatalog = {};
+  const loadLocalFunction = createLocalFunctionLoader(ctx.getReactNativeProjectDirectory(), {
+    logger: ctx.logger,
+  });
   for (const anchor of wrappedAnchors) {
     for (const side of ['before', 'after'] as const) {
       const key: HookKey = `${side}_${anchor}`;
@@ -113,15 +112,15 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
       let entries: HookEntry[];
       try {
         // Extended per key so a bad `uses:` path is attributed to that hook key.
-        await extendCompositeFunctionCatalogFromStepsAsync({
-          catalog: compositeFunctionCatalog,
+        await extendLocalFunctionCatalogFromStepsAsync({
+          catalog: localFunctionCatalog,
           rootSteps: steps,
-          loadCompositeFunction,
+          loadLocalFunction,
         });
         entries = await constructHookEntriesAsync(globalContext, steps, {
           externalFunctions,
           externalFunctionGroups,
-          compositeFunctionCatalog,
+          localFunctionCatalog,
         });
       } catch (err) {
         throw new UserError(
