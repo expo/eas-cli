@@ -28,6 +28,8 @@ export async function downloadMetadataAsync({
   nonInteractive,
   graphqlClient,
   projectId,
+  skipScreenshots = false,
+  skipPreviews = false,
 }: {
   projectDir: string;
   profile: SubmitProfile;
@@ -37,6 +39,8 @@ export async function downloadMetadataAsync({
   nonInteractive: boolean;
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
+  skipScreenshots?: boolean;
+  skipPreviews?: boolean;
 }): Promise<string> {
   const filePath = getStaticConfigFilePath({ projectDir, profile });
 
@@ -76,7 +80,7 @@ export async function downloadMetadataAsync({
 
   const errors: Error[] = [];
   const config = createAppleWriter();
-  const tasks = createAppleTasks();
+  const tasks = createAppleTasks({ skipScreenshots, skipPreviews });
   const taskCtx = { app, projectDir };
 
   for (const task of tasks) {
