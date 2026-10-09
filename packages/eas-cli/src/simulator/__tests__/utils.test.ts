@@ -18,8 +18,10 @@ import {
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
   getLoopbackForwardPlan,
+  getPreviewToken,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
+  stripTerminalControlCharacters,
 } from '../utils';
 
 const agentDeviceConfig = {
@@ -614,5 +616,38 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
     expect(formatRemoteSessionInstructions(remoteConfig, 'dotenv')).not.toContain(
       'eas simulator:egress'
     );
+  });
+});
+
+describe(getPreviewToken, () => {
+  it.each([
+    ['ArgentRunSessionRemoteConfig', 'webPreviewToken'],
+    ['AgentDeviceRunSessionRemoteConfig', 'webPreviewToken'],
+    ['AppiumRunSessionRemoteConfig', 'webPreviewToken'],
+    ['ServeSimRunSessionRemoteConfig', 'previewToken'],
+    ['WebPreviewOnlyRunSessionRemoteConfig', 'previewToken'],
+  ])('returns the preview token for %s', (__typename, tokenKey) => {
+    expect(
+      getPreviewToken({
+        __typename,
+        [tokenKey]: 'preview-token',
+      } as unknown as DeviceRunSessionRemoteConfig)
+    ).toBe('preview-token');
+  });
+});
+
+describe(stripTerminalControlCharacters, () => {
+  it('removes terminal escapes and all control characters by default', () => {
+    expect(stripTerminalControlCharacters('\u001b[31mhello\u001b[0m\u0007\n\tworld\u009b')).toBe(
+      'helloworld'
+    );
+  });
+
+  it('keeps newlines and tabs when requested', () => {
+    expect(
+      stripTerminalControlCharacters('\u001b[31mhello\u001b[0m\u0007\n\tworld', {
+        keepNewlinesAndTabs: true,
+      })
+    ).toBe('hello\n\tworld');
   });
 });
