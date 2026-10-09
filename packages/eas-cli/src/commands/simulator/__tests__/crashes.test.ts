@@ -56,6 +56,14 @@ const crash = {
   count: 2,
 };
 
+const crashLog = JSON.stringify({
+  timestamp: '2026-10-05T11:59:59.000Z',
+  processImagePath: '/Applications/CoinFlip.app/CoinFlip',
+  processID: 42,
+  eventMessage: '\u001b[31mlast app log\u001b[0m\u0007',
+  messageType: 'Error',
+});
+
 function getMockOclifConfig(): Config {
   const config = new Config({ root: __dirname });
   config.runHook = async () => ({ failures: [], successes: [] });
@@ -218,7 +226,7 @@ describe(SimulatorCrashes, () => {
   it('arms the watcher before reading the report and encodes its ID as a path segment', async () => {
     const detail = {
       record: crash,
-      occurrence: { index: 1, total: 2, logTail: ['last app log'] },
+      occurrence: { index: 1, total: 2, logTail: [crashLog] },
       report: 'raw crash report',
       reportError: null,
     };
@@ -257,20 +265,24 @@ describe(SimulatorCrashes, () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('includes sanitized app logs alongside an available crash report', async () => {
+  it.each([false, true])('formats captured app logs with timestamp=%s', async timestamp => {
     mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce({
       record: crash,
-      occurrence: { logTail: ['\u001b[31mlast app log\u001b[0m\u0007'] },
+      occurrence: { logTail: [crashLog] },
       report: 'raw crash report',
       reportError: null,
     });
 
-    await createCommand(['--report-id', 'crash-id']).runAsync();
+    await createCommand([
+      '--report-id',
+      'crash-id',
+      ...(timestamp ? ['--timestamp'] : []),
+    ]).runAsync();
 
     expect(mockLog.mock.calls.map(([line]) => line)).toEqual([
-      'CoinFlip  EXC_CRASH  (2 occurrences)  crash-id',
+      `${timestamp ? `${crash.capturedAt}  ` : ''}CoinFlip  EXC_CRASH  (2 occurrences)  crash-id`,
       'raw crash report',
-      'last app log',
+      `${timestamp ? '2026-10-05T11:59:59.000Z  ' : ''}[CoinFlip:42] last app log`,
     ]);
     expect(mockWarn).not.toHaveBeenCalled();
   });
