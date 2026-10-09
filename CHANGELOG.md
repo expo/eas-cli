@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `code` to the `--json` error: `EAS_PROJECT_NOT_CONFIGURED` when the project is not linked to EAS, and `EAS_LOGIN_REQUIRED` when a non-interactive run is not logged in. ([#4594](https://github.com/expo/eas-cli/pull/4594) by [@vonovak](https://github.com/vonovak))
 - [eas-cli] Print `{"error": {"message", "requestId"?}}` on stdout when a command run with `--json` fails, and keep all other output off stdout from the start of the command. ([#4593](https://github.com/expo/eas-cli/pull/4593) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
