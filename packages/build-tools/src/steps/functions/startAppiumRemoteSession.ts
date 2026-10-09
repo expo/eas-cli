@@ -142,25 +142,20 @@ export function createStartAppiumRemoteSessionBuildFunction(
           JSON.stringify({ 'appium:eventTimings': true }),
         ],
         env: appiumEnv,
-      });
-      try {
-        await waitForAppiumReadyAsync({ appiumProcess, logger });
-      } catch (error) {
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
-        throw error;
-      }
-
-      const eventCollection = await startAppiumEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
         logger,
       });
+      let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let sessionFailed = false;
       try {
+        await waitForAppiumReadyAsync({ appiumProcess, logger });
+        eventCollection = await startAppiumEventCollectionAsync({
+          ctx,
+          deviceRunSessionId,
+          appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
+          logger,
+        });
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
           subdomainPrefix: 'appium',
@@ -176,6 +171,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost = await startDeviceSessionHostAsync(ctx, {
+          separateLogPhase: true,
           runtimePlatform,
           env,
           logger,
@@ -233,10 +229,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
               'Appium server',
               (async () => {
                 try {
-                  await eventCollection.stopAsync();
+                  await eventCollection?.stopAsync();
                 } finally {
-                  await appiumProcess.stopAsync();
-                  await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                  try {
+                    await appiumProcess.stopAsync();
+                  } finally {
+                    await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                  }
                 }
               })(),
             ],

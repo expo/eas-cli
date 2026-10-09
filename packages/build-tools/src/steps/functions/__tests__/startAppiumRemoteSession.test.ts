@@ -1,4 +1,4 @@
-import { BuildRuntimePlatform } from '@expo/steps';
+import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
@@ -6,7 +6,15 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
-import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
+import { sleepAsync } from '../../../utils/retry';
+import { turtleFetch } from '../../../utils/turtleFetch';
+import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
+import {
+  selectXcodeDeveloperDirectoryAsync,
+  spawnDetached,
+  startNgrokTunnelAsync,
+} from '../../utils/remoteDeviceRunSession';
 
 import {
   createStartAppiumRemoteSessionBuildFunction,
@@ -24,8 +32,26 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
+  spawnDetached: jest.fn(),
+  startNgrokTunnelAsync: jest.fn(),
+  waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../../../sentry');
+jest.mock('../../../utils/retry', () => ({
+  ...jest.requireActual('../../../utils/retry'),
+  sleepAsync: jest.fn(),
+}));
+jest.mock('../../../utils/turtleFetch', () => ({
+  ...jest.requireActual('../../../utils/turtleFetch'),
+  turtleFetch: jest.fn(),
+}));
+jest.mock('../../utils/appiumEvents', () => ({ startAppiumEventCollectionAsync: jest.fn() }));
+jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/localEgressSession', () => ({
+  ...jest.requireActual('../../utils/localEgressSession'),
+  uploadRemoteSessionConfigWithLocalEgressAsync: jest.fn(),
+}));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as never;
 
@@ -165,5 +191,117 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
     ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
+  });
+});
+
+describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => {
+  const stopError = new Error('Process output drain timed out after 5000ms.');
+  const stopAppium = jest.fn();
+  const stopEventCollection = jest.fn();
+
+  beforeEach(() => {
+    jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => ({
+      stdout: args.includes('--json') ? '{}' : '',
+    })) as never);
+    jest
+      .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+      .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' } as never]);
+    stopAppium.mockRejectedValue(stopError);
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 4242,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopAppium,
+    });
+    jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as never);
+    stopEventCollection.mockResolvedValue(undefined);
+    jest.mocked(startAppiumEventCollectionAsync).mockResolvedValue({
+      stopAsync: stopEventCollection,
+      getLastEventObservedAt: () => undefined,
+    });
+    jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
+      url: 'https://appium-abc.tunnel.example.com',
+      subdomainId: 'appium-abc',
+      stopAsync: jest.fn(),
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.tunnel.example.com',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: jest.fn(),
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function runSessionAsync(logger: { info: jest.Mock; warn: jest.Mock }): Promise<void> {
+    await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {
+          DEVICE_RUN_SESSION_ID: 'device-run-session-id',
+          EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'tunnel.example.com',
+          NGROK_AUTHTOKEN: 'ngrok-token',
+        },
+      } as never
+    );
+  }
+
+  function expectAppiumStoppedAndHomeRemoved(logger: { warn: jest.Mock }): void {
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME!)).toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the Appium server during remote session teardown.'
+    );
+  }
+
+  it('keeps the readiness error when Appium cannot be stopped', async () => {
+    let now = Date.now();
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    jest.mocked(sleepAsync).mockImplementation(async ms => {
+      now += ms;
+    });
+    jest.mocked(turtleFetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await expect(runSessionAsync(logger)).rejects.toThrow(
+      'Timed out waiting for Appium to become ready.'
+    );
+    expectAppiumStoppedAndHomeRemoved(logger);
+    expect(startAppiumEventCollectionAsync).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the event collection error when Appium cannot be stopped', async () => {
+    const collectionError = new Error('event collection failed');
+    jest.mocked(startAppiumEventCollectionAsync).mockRejectedValueOnce(collectionError);
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await expect(runSessionAsync(logger)).rejects.toBe(collectionError);
+    expectAppiumStoppedAndHomeRemoved(logger);
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+  });
+
+  it('fails a finished session when Appium cannot be stopped', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+
+    await expect(runSessionAsync(logger)).rejects.toBe(stopError);
+    expectAppiumStoppedAndHomeRemoved(logger);
+    expect(stopEventCollection.mock.invocationCallOrder[0]).toBeLessThan(
+      stopAppium.mock.invocationCallOrder[0]
+    );
   });
 });
