@@ -156,6 +156,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
           controlPort,
           authfilePath,
           env,
+          logger,
           signal: startupSignal,
         });
         server = started.process;

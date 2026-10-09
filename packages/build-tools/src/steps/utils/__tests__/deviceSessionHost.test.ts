@@ -17,7 +17,11 @@ import {
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
-import { ensureFfmpegInstalledOnceAsync, spawnDetached } from '../remoteDeviceRunSession';
+import {
+  ensureFfmpegInstalledOnceAsync,
+  fetchWebPreviewTurnArgsAsync,
+  spawnDetached,
+} from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../deviceRunSessionArtifacts');
@@ -573,4 +577,48 @@ it('keeps the session running when encoder setup for the preview fails', async (
     'Could not start refreshing the session preview.'
   );
   await host.finishAsync();
+});
+
+it('adds the iOS preview token to the host secrets once serve-sim is ready', async () => {
+  jest
+    .mocked(fetchWebPreviewTurnArgsAsync)
+    .mockResolvedValueOnce(['--turn-credential', 'turn-secret']);
+  let secretsAtSpawn: string[] | undefined;
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    secretsAtSpawn = [...(options.secrets ?? [])];
+    return {
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    };
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  expect(secretsAtSpawn).toEqual(['turn-secret']);
+  // Host output is redacted against this array, so the token must land in the one passed at spawn.
+  expect(jest.mocked(spawnDetached).mock.calls[0][0].secrets).toEqual([
+    'turn-secret',
+    'preview-token',
+  ]);
+  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('preview-token');
+  await host.finishAsync();
+});
+
+it('uses the existing step logger for startup and shutdown output', async () => {
+  const host = await startHostAsync();
+  const processLogger = jest.mocked(spawnDetached).mock.calls[0][0].logger;
+  expect(processLogger).toBe(logger);
+  stopServer.mockImplementationOnce(async () => processLogger?.info('last host output'));
+  await host.finishAsync();
+  expect(logger.info).toHaveBeenCalledWith('last host output');
+  expect(
+    jest
+      .mocked(logger.info)
+      .mock.calls.some(([record]) => typeof record === 'object' && 'marker' in record)
+  ).toBe(false);
 });
