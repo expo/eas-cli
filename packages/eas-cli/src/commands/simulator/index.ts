@@ -386,7 +386,7 @@ export default class Simulator extends EasCommand {
       );
       if (flags['network-capture']) {
         Log.warn(
-          'Network capture was requested. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an installed app to record its traffic.'
+          'Network capture was requested. HTTPS is decrypted, so captured traffic can contain credentials in cleartext. Relaunch an installed app to capture its traffic.'
         );
       }
     } catch (err) {
