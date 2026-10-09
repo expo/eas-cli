@@ -278,13 +278,16 @@ export default abstract class EasCommand extends Command {
     const commandId = this.id ?? 'unknown';
     let baseMessage = `${commandId} command failed.`;
     let message = err.message;
+    let code: string | undefined;
     let requestId: string | undefined;
     if (err instanceof Errors.ExitError) {
       // Errors.exit(1) carries no reason; the code that called it printed the reason already.
       Log.errorToStderr(err.message);
       message = baseMessage;
-    } else if (err instanceof EasCommandError) {
+    } else if (err instanceof EasCommandError || err instanceof Errors.CLIError) {
       Log.errorToStderr(err.message);
+      // Only codes that eas-cli sets. GraphQL error codes belong to the server and stay out.
+      code = err.code;
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
@@ -329,7 +332,7 @@ export default abstract class EasCommand extends Command {
       Log.errorToStderr(err.message);
     }
     if (this.jsonOutputRequested()) {
-      printJsonErrorOutput({ message, requestId });
+      printJsonErrorOutput({ message, code, requestId });
     }
     Log.debug(err);
     Sentry.withScope(scope => {

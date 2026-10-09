@@ -1,3 +1,4 @@
+import { EasCommandError } from '../commandUtils/errors';
 import { Actor, getCreatableAccountNames } from '../user/User';
 
 /**
@@ -20,8 +21,8 @@ export function getUnconfiguredProjectError({
   accountName?: string;
   reason?: string;
   additionalFix?: string;
-}): Error {
-  return new Error(
+}): EasCommandError {
+  return new EasCommandError(
     `EAS project not configured. ${reason} ` +
       `Run one of the following, then re-run this command:\n\n` +
       `To link an existing project:\n\n` +
@@ -29,6 +30,7 @@ export function getUnconfiguredProjectError({
       `To create a new project:\n\n` +
       `  eas init --account ${accountName ?? '<account-name>'} --non-interactive\n\n` +
       `Accounts you can create projects in: ${getCreatableAccountNames(actor).join(', ')}` +
-      (additionalFix ? `\n\n${additionalFix}` : '')
+      (additionalFix ? `\n\n${additionalFix}` : ''),
+    { code: 'EAS_PROJECT_NOT_CONFIGURED' }
   );
 }
