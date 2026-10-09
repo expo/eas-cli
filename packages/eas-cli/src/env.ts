@@ -22,6 +22,12 @@ export default {
    */
   featureGateDisable: process.env.EAS_FG_DISABLE,
   /**
+   * Comma separated list of experiment overrides in the form `namespace:param=value`.
+   * Overrides apply in every scope, even when analytics is disabled. A namespace with any override
+   * returns defaults for its other params and logs no exposure.
+   */
+  experimentOverride: process.env.EAS_EXPERIMENT_OVERRIDE,
+  /**
    * Enables the individual App Store Connect API key option in the interactive submission key prompt.
    */
   enableIndividualAscApiKeys: process.env.EAS_ENABLE_INDIVIDUAL_ASC_API_KEYS,
