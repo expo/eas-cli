@@ -1,9 +1,11 @@
 import {
   type SandboxDaemonCommandParams,
   type SandboxDaemonCommandResult,
+  SandboxDaemonError,
+  SandboxDaemonErrorCode,
   type SandboxDaemonMethod,
 } from '@expo/eas-build-job';
-import fs from 'node:fs/promises';
+import fs, { type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
@@ -61,11 +63,14 @@ export function createSandboxCommandImplementations({
       },
       async readFile(params) {
         const filePath = path.resolve(workingDirectory, params.path);
-        const file = await fs.open(filePath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+        const file = await openFileAsync(filePath);
         try {
           const stats = await file.stat();
           if (!stats.isFile()) {
-            throw new Error(`${filePath} is not a regular file.`);
+            throw new SandboxDaemonError(
+              SandboxDaemonErrorCode.BAD_REQUEST,
+              `${filePath} is not a regular file.`
+            );
           }
           const mimeType = await detectFileType(file);
 
@@ -94,4 +99,24 @@ export function createSandboxCommandImplementations({
     },
     stoppedPromise: sessions.stoppedPromise,
   };
+}
+
+async function openFileAsync(filePath: string): Promise<FileHandle> {
+  try {
+    return await fs.open(filePath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') {
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `File does not exist: ${filePath}`
+      );
+    }
+    if (error?.code === 'EACCES') {
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `File is not accessible: ${filePath}`
+      );
+    }
+    throw error;
+  }
 }

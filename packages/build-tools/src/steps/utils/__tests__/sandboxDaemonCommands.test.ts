@@ -354,20 +354,49 @@ describe('sandbox daemon commands', () => {
       expect(await readAsync(contents)).toEqual({ kind: 'binary', size: 3 });
     });
 
+    it('reports a missing file', async () => {
+      await expect(
+        commandImplementations.readFile({ path: 'missing', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `File does not exist: ${path.join(workingDirectory, 'missing')}`,
+      });
+    });
+
+    it('reports an inaccessible file', async () => {
+      const file = path.join(workingDirectory, 'inaccessible');
+      await fs.writeFile(file, 'content', { mode: 0o000 });
+
+      await expect(
+        commandImplementations.readFile({ path: 'inaccessible', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `File is not accessible: ${file}`,
+      });
+    });
+
     it('rejects a directory', async () => {
-      await fs.mkdir(path.join(workingDirectory, 'directory'));
+      const directory = path.join(workingDirectory, 'directory');
+      await fs.mkdir(directory);
 
       await expect(
         commandImplementations.readFile({ path: 'directory', ...READ_FILE_LIMITS })
-      ).rejects.toThrow('is not a regular file.');
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `${directory} is not a regular file.`,
+      });
     });
 
     it('rejects a FIFO without waiting for a writer', async () => {
-      expect(spawnSync('mkfifo', [path.join(workingDirectory, 'fifo')]).status).toBe(0);
+      const fifo = path.join(workingDirectory, 'fifo');
+      expect(spawnSync('mkfifo', [fifo]).status).toBe(0);
 
       await expect(
         commandImplementations.readFile({ path: 'fifo', ...READ_FILE_LIMITS })
-      ).rejects.toThrow('is not a regular file.');
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `${fifo} is not a regular file.`,
+      });
     });
   });
 
