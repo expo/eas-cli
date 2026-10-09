@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const SandboxImageMimeTypeZ = z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
 export const SandboxDaemonCommands = {
   execCommand: {
     params: z.object({
@@ -50,6 +52,36 @@ export const SandboxDaemonCommands = {
       }),
     ]),
   },
+  readFile: {
+    params: z.object({
+      path: z.string().min(1),
+      maxTextBytes: z.number().int().positive(),
+      maxImageBytes: z.number().int().positive(),
+    }),
+    result: z.union([
+      z.strictObject({
+        kind: z.literal('image'),
+        mimeType: SandboxImageMimeTypeZ,
+        data: z.base64(),
+      }),
+      z.strictObject({
+        kind: z.literal('image'),
+        mimeType: SandboxImageMimeTypeZ,
+        error: z.literal('tooLarge'),
+        size: z.number().int().nonnegative(),
+      }),
+      z.strictObject({
+        kind: z.literal('text'),
+        text: z.string(),
+        truncated: z.boolean(),
+        size: z.number().int().nonnegative(),
+      }),
+      z.strictObject({
+        kind: z.literal('binary'),
+        size: z.number().int().nonnegative(),
+      }),
+    ]),
+  },
 } as const satisfies Record<string, { params: z.ZodType; result: z.ZodType }>;
 
 export type SandboxDaemonMethod = keyof typeof SandboxDaemonCommands;
@@ -84,3 +116,25 @@ export const SandboxDaemonResponseZ = z.union([
 ]);
 
 export type SandboxDaemonResponse = z.output<typeof SandboxDaemonResponseZ>;
+
+export enum SandboxDaemonErrorCode {
+  PARSE_ERROR = -32700,
+  INVALID_REQUEST = -32600,
+  METHOD_NOT_FOUND = -32601,
+  INVALID_PARAMS = -32602,
+  INTERNAL_ERROR = -32603,
+  BAD_REQUEST = 1,
+}
+
+export type SandboxDaemonErrorCodeName = keyof typeof SandboxDaemonErrorCode;
+
+export class SandboxDaemonError extends Error {
+  constructor(
+    public readonly code: (typeof SandboxDaemonErrorCode)[SandboxDaemonErrorCodeName],
+    message: string,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = 'SandboxDaemonError';
+  }
+}

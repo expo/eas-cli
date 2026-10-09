@@ -4,6 +4,7 @@ import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
 import WebSocket, { WebSocketServer } from 'ws';
 
+import * as sandboxCommandImplementations from '../sandboxCommandImplementations';
 import { startSandboxDaemonAsync } from '../sandboxDaemon';
 
 jest.unmock('@expo/logger');
@@ -289,12 +290,72 @@ describe(startSandboxDaemonAsync.name, () => {
       )
     ).resolves.toMatchObject({
       id: '3',
-      error: { code: -32603, message: 'Command session 999 does not exist.' },
+      error: { code: 1, message: 'Command session 999 does not exist.' },
     });
 
     await daemon.stopAsync();
     mcpServer.close();
     await new Promise<void>(resolve => httpServer.close(() => resolve()));
+  });
+
+  it('returns an internal error for a command failure without a daemon error code', async () => {
+    const createCommandImplementations =
+      sandboxCommandImplementations.createSandboxCommandImplementations;
+    const createSpy = jest
+      .spyOn(sandboxCommandImplementations, 'createSandboxCommandImplementations')
+      .mockImplementation(options => {
+        const created = createCommandImplementations(options);
+        return {
+          ...created,
+          commandImplementations: {
+            ...created.commandImplementations,
+            execCommand: async () => {
+              throw new Error('Unexpected failure');
+            },
+          },
+        };
+      });
+    const httpServer = http.createServer();
+    const mcpServer = new WebSocketServer({ noServer: true });
+    httpServer.on('upgrade', (request, socket, head) => {
+      mcpServer.handleUpgrade(request, socket, head, client =>
+        mcpServer.emit('connection', client)
+      );
+    });
+    await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve));
+    const address = httpServer.address() as AddressInfo;
+    const connection = new Promise<WebSocket>(resolve => mcpServer.once('connection', resolve));
+    const daemon = await startSandboxDaemonAsync({
+      credential: 'secret-token',
+      serverUrl: `ws://127.0.0.1:${address.port}`,
+      reconnectDelayMs: 10,
+      logger,
+      workingDirectory: process.cwd(),
+      env: process.env,
+    });
+    const socket = await connection;
+    await daemon.ready;
+    const commandResponse = new Promise<string>(resolve =>
+      socket.once('message', data => resolve(`${data}`))
+    );
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'command-1',
+        method: 'execCommand',
+        params: { cmd: 'pwd' },
+      })
+    );
+
+    expect(JSON.parse(await commandResponse)).toEqual({
+      jsonrpc: '2.0',
+      id: 'command-1',
+      error: { code: -32603, message: 'Unexpected failure' },
+    });
+    await daemon.stopAsync();
+    mcpServer.close();
+    await new Promise<void>(resolve => httpServer.close(() => resolve()));
+    createSpy.mockRestore();
   });
 
   it('cancels the reconnect delay when stopped', async () => {
