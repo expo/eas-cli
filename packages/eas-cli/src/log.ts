@@ -39,6 +39,16 @@ export default class Log {
     Log.consoleLog(...Log.withTextColor(args, chalk.red));
   }
 
+  /**
+   * Print the reason a command failed. It goes to stderr, next to oclif's "command failed." line,
+   * so a program that runs eas-cli finds it there.
+   */
+  public static errorToStderr(...args: any[]): void {
+    Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
+    console.error(...Log.withTextColor(args, chalk.red));
+  }
+
   public static warn(...args: any[]): void {
     Log.consoleLog(...Log.withTextColor(args, chalk.yellow));
   }
