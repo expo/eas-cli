@@ -7,6 +7,8 @@ import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 import { uploadServeSimCrashesFileAsync } from '../utils/serveSimCrashesArtifacts';
 import { ServeSimCrashesRecorder } from '../utils/serveSimCrashesRecorder';
 
+const UPLOAD_TIMEOUT_MS = 30_000;
+
 export function createCollectServeSimCrashesBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -30,6 +32,7 @@ export function createCollectServeSimCrashesBuildFunction(ctx: CustomBuildContex
             udid,
             filePath,
             logger,
+            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
           });
         }
       } catch (err) {

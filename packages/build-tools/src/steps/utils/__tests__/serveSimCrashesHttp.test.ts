@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { uploadServeSimCrashesFileAsync } from '../serveSimCrashesArtifacts';
 import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
+import * as serveSimServers from '../serveSimMetricsRecorder';
 
 jest.mock('../../../sentry');
 jest.unmock('fs');
@@ -39,7 +40,7 @@ async function waitFor(read: () => boolean | Promise<boolean>): Promise<void> {
   throw new Error('Timed out waiting for crash recording');
 }
 
-async function start(): Promise<void> {
+async function start(maxBytes?: number): Promise<void> {
   await writeFile(
     path.join(directory, 'server-device-A.json'),
     JSON.stringify({
@@ -48,7 +49,12 @@ async function start(): Promise<void> {
       token: 'test-token',
     })
   );
-  await ServeSimCrashesRecorder.startAsync({ logger, stateDir: directory, pollIntervalMs: 10 });
+  await ServeSimCrashesRecorder.startAsync({
+    logger,
+    stateDir: directory,
+    pollIntervalMs: 10,
+    maxBytes,
+  });
 }
 
 beforeEach(async () => {
@@ -92,11 +98,14 @@ it('reconnects without duplicating occurrences, retains reports and log tails, a
       expect(request.headers.accept).toBe('text/event-stream');
       connections += 1;
       response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      const wire = `data: ${JSON.stringify({ type: 'list', crashes: [summary] })}\r\n\r\n`;
+      const initial = { ...summary, occurrenceTimes: [{ key: 1 }] };
+      const wire = `data: ${JSON.stringify({ type: 'list', crashes: [initial] })}\r\n\r\n`;
       if (connections === 1) {
         response.end(wire);
       } else {
-        response.write(wire);
+        response.write(
+          wire + `data: ${JSON.stringify({ type: 'recurred', record: summary })}\r\n\r\n`
+        );
       }
     } else {
       expect(url.pathname).toBe('/crashes/crash%2Fa');
@@ -105,7 +114,7 @@ it('reconnects without duplicating occurrences, retains reports and log tails, a
     }
   });
   await start();
-  await waitFor(() => connections >= 2);
+  await waitFor(() => requests === 2);
   await ServeSimCrashesRecorder.stopAsync();
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
   expect(files).toHaveLength(1);
@@ -114,6 +123,7 @@ it('reconnects without duplicating occurrences, retains reports and log tails, a
   const expected = Buffer.from(JSON.stringify(detail(1)) + '\n' + JSON.stringify(detail(2)) + '\n');
   expect(await readFile(filePath)).toEqual(expected);
   expect((await stat(filePath)).mode & 0o777).toBe(0o600);
+  expect((await stat(path.dirname(filePath))).mode & 0o777).toBe(0o700);
   const mutation = jest.fn().mockReturnValue({
     toPromise: async () => ({
       data: {
@@ -244,4 +254,196 @@ it('retries a failed detail request by reconnecting and replaying the retained l
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
   expect(await readFile(files[0].filePath, 'utf8')).toBe(JSON.stringify(detail(1)) + '\n');
   await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
+});
+
+it.each([
+  ['empty', ''],
+  ['heartbeat-only', ': heartbeat\n\n'],
+  ['meta-only', `data: ${JSON.stringify({ type: 'meta', meta: { statusError: null } })}\n\n`],
+  ['invalid JSON', 'data: {invalid}\n\n'],
+  ['invalid frame', 'data: {"type":"list","crashes":false}\n\n'],
+])('stops retrying after ten %s streams', async (_name, payload) => {
+  let connections = 0;
+  server.on('request', (_request, response) => {
+    connections += 1;
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    response.end(payload);
+  });
+  await start();
+  await waitFor(() =>
+    jest
+      .mocked(logger.warn)
+      .mock.calls.some(([message]) =>
+        String(message).startsWith('Stopped retrying simulator crash collection')
+      )
+  );
+  await delay(30);
+  expect(connections).toBe(10);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(collected.crashes).toEqual([]);
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
+
+it('keeps retrying streams that process a healthy empty crash list', async () => {
+  let connections = 0;
+  server.on('request', (_request, response) => {
+    connections += 1;
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    const frame = `data: ${JSON.stringify({ type: 'list', crashes: [] })}\n\n`;
+    if (connections < 12) {
+      response.end(frame);
+    } else {
+      response.write(frame);
+    }
+  });
+  await start();
+  await waitFor(() => connections === 12);
+  expect(
+    jest
+      .mocked(logger.warn)
+      .mock.calls.some(([message]) =>
+        String(message).startsWith('Stopped retrying simulator crash collection')
+      )
+  ).toBe(false);
+});
+
+it('recovers the same server after registry absence without resetting dedupe or the byte budget', async () => {
+  let connections = 0;
+  let healthy = false;
+  let expectAbsence = false;
+  let observedAbsence = false;
+  const keys: number[] = [];
+  const readServers = serveSimServers.readServeSimServersAsync;
+  const registry = jest
+    .spyOn(serveSimServers, 'readServeSimServersAsync')
+    .mockImplementation(async stateDir => {
+      const servers = await readServers(stateDir);
+      if (expectAbsence && servers.length === 0) {
+        observedAbsence = true;
+      }
+      return servers;
+    });
+  server.on('request', (request, response) => {
+    const url = new URL(request.url!, baseUrl);
+    if (url.pathname === '/crashes') {
+      connections += 1;
+      if (connections > 1 && !healthy) {
+        response.writeHead(503).end();
+        return;
+      }
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      const record = {
+        ...summary,
+        occurrenceTimes: healthy ? [{ key: 1 }, { key: 2 }, { key: 3 }] : [{ key: 1 }],
+      };
+      const frame = `data: ${JSON.stringify({ type: 'list', crashes: [record] })}\n\n`;
+      if (healthy) {
+        response.write(frame);
+      } else {
+        response.end(frame);
+      }
+    } else {
+      const key = Number(url.searchParams.get('key'));
+      keys.push(key);
+      response.end(JSON.stringify(detail(key)));
+    }
+  });
+  try {
+    const expected = JSON.stringify(detail(1)) + '\n' + JSON.stringify(detail(2)) + '\n';
+    await start(Buffer.byteLength(expected));
+    await waitFor(() =>
+      jest
+        .mocked(logger.warn)
+        .mock.calls.some(([message]) =>
+          String(message).startsWith('Stopped retrying simulator crash collection')
+        )
+    );
+    expect(connections).toBe(11);
+    expectAbsence = true;
+    await rm(path.join(directory, 'server-device-A.json'));
+    await waitFor(() => observedAbsence);
+    healthy = true;
+    await writeFile(
+      path.join(directory, 'server-device-A.json'),
+      JSON.stringify({
+        device: 'device-A',
+        url: baseUrl,
+        token: 'test-token',
+      })
+    );
+    await waitFor(() => keys.includes(3));
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    expect(connections).toBe(12);
+    expect(keys).toEqual([1, 2, 3]);
+    expect(collected.crashes).toHaveLength(1);
+    expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(expected);
+    await rm(collected.outputDirectory!, { recursive: true, force: true });
+  } finally {
+    registry.mockRestore();
+  }
+});
+
+it('closes a stalled upload within its budget and lets another device upload', async () => {
+  const firstFile = path.join(directory, 'A.ndjson');
+  const secondFile = path.join(directory, 'B.ndjson');
+  await writeFile(firstFile, JSON.stringify(detail(1)) + '\n');
+  const expected = Buffer.from(JSON.stringify(detail(2)) + '\n');
+  await writeFile(secondFile, expected);
+  let firstClosed = false;
+  let firstRequests = 0;
+  let uploaded: Buffer | undefined;
+  server.on('request', (request, response) => {
+    if (request.url === '/stalled') {
+      firstRequests += 1;
+      response.on('close', () => {
+        firstClosed = true;
+      });
+      request.resume();
+    } else {
+      const chunks: Buffer[] = [];
+      request.on('data', chunk => chunks.push(chunk));
+      request.on('end', () => {
+        uploaded = Buffer.concat(chunks);
+        response.end();
+      });
+    }
+  });
+  let sessions = 0;
+  const mutation = jest.fn().mockImplementation(() => ({
+    toPromise: async () => ({
+      data: {
+        deviceRunSession: {
+          createArtifactUploadSession: {
+            uploadSession: {
+              url: baseUrl + (sessions++ === 0 ? '/stalled' : '/upload'),
+              headers: {},
+            },
+          },
+        },
+      },
+    }),
+  }));
+  const context = { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+  await uploadServeSimCrashesFileAsync(context, {
+    deviceRunSessionId: 'session-id',
+    udid: 'A',
+    filePath: firstFile,
+    logger,
+    signal: AbortSignal.timeout(50),
+  });
+  await waitFor(() => firstClosed);
+  expect(firstRequests).toBe(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    expect.any(Object),
+    'Could not upload simulator crashes for A; other artifacts will continue.'
+  );
+  await uploadServeSimCrashesFileAsync(context, {
+    deviceRunSessionId: 'session-id',
+    udid: 'B',
+    filePath: secondFile,
+    logger,
+    signal: AbortSignal.timeout(1_000),
+  });
+  expect(mutation).toHaveBeenCalledTimes(2);
+  expect(uploaded).toEqual(expected);
 });

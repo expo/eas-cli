@@ -61,6 +61,28 @@ it('uploads each device and removes the collection directory', async () => {
   await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
+it('gives each device its own 30-second upload budget', async () => {
+  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
+    outputDirectory: null,
+    crashes: [
+      { udid: 'A', filePath: '/tmp/A.ndjson' },
+      { udid: 'B', filePath: '/tmp/B.ndjson' },
+    ],
+  });
+  const timeout = jest.spyOn(AbortSignal, 'timeout');
+  try {
+    await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
+    expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
+    const signals = jest
+      .mocked(uploadServeSimCrashesFileAsync)
+      .mock.calls.map(([, file]) => file.signal);
+    expect(signals).toEqual([expect.any(AbortSignal), expect.any(AbortSignal)]);
+    expect(signals[0]).not.toBe(signals[1]);
+  } finally {
+    timeout.mockRestore();
+  }
+});
+
 it('skips empty collection and warns on finalization failure', async () => {
   await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
   expect(uploadServeSimCrashesFileAsync).not.toHaveBeenCalled();

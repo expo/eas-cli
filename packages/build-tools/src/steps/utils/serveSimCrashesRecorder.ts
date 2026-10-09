@@ -88,6 +88,12 @@ export namespace ServeSimCrashesRecorder {
       const devices = new Map<string, Device>();
       while (!controller.signal.aborted) {
         const servers = await readServeSimServersAsync(stateDir);
+        const present = new Set(servers.map(server => server.udid));
+        for (const [udid, device] of devices) {
+          if (!present.has(udid)) {
+            device.failures = 0;
+          }
+        }
         for (const server of servers) {
           if (controller.signal.aborted) {
             break;
@@ -215,7 +221,6 @@ async function recordServeSimCrashesAsync({
     ) {
       throw new Error('Crash stream unavailable');
     }
-    device.failures = 0;
     const decoder = new TextDecoder();
     let buffer = '';
     stream: for await (const chunk of response.body) {
@@ -284,6 +289,7 @@ async function recordServeSimCrashesAsync({
             onRecorded();
           }
         }
+        device.failures = 0;
       }
       if (buffer.length > MAX_FRAME_LENGTH) {
         throw new Error('Crash frame exceeded limit');
