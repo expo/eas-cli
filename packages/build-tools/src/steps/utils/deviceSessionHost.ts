@@ -493,9 +493,7 @@ async function startDeviceSessionHostInternalAsync(
   let stagedAppDirectory: string | undefined;
   let beforeLaunch: ReturnType<typeof asyncResult<void>> | undefined;
   const readinessController = new AbortController();
-  const readinessSignal = signal
-    ? AbortSignal.any([signal, readinessController.signal])
-    : readinessController.signal;
+  const readinessSignal = AbortSignal.any([startup.signal, readinessController.signal]);
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
   let finishTask: Promise<void> | null = null;
@@ -594,6 +592,9 @@ async function startDeviceSessionHostInternalAsync(
         timeoutMs,
         startupTimeoutMs,
         signal: readinessSignal,
+      }).catch(error => {
+        startup.abort(error);
+        throw error;
       })
     );
     if (iosSimulatorUdid) {
@@ -603,7 +604,7 @@ async function startDeviceSessionHostInternalAsync(
         previewServer,
         stateDir: serveSimStateDir,
         timeoutMs: startupTimeoutMs ?? timeoutMs,
-        signal,
+        signal: readinessSignal,
       });
       secrets.push(previewToken);
       if (Object.keys(bootEnv).length > 0) {

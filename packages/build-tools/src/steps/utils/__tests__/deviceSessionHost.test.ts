@@ -1545,6 +1545,54 @@ it('reports startup failure before waiting for host cleanup', async () => {
   await rejected;
 });
 
+it.each(['control state', 'app download'])(
+  'stops owned startup when readiness fails while waiting for %s',
+  async waitingFor => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    const controller = new AbortController();
+    const application = deferred<ServeSimApplicationOptions>();
+    const onStartupError = jest.fn();
+    jest.mocked(turtleFetch).mockResolvedValue({ ok: false, status: 503 } as never);
+    if (waitingFor === 'control state') {
+      jest.mocked(spawnDetached).mockReturnValueOnce({
+        pid: undefined,
+        getOutput: () => '',
+        getExitError: () => undefined,
+        stopAsync: stopServer,
+      });
+      jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+    }
+    const starting = startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 1_000,
+      iosSimulatorUdid: 'emulator-5554',
+      application: waitingFor === 'app download' ? application.promise : undefined,
+      signal: controller.signal,
+      onStartupError,
+    });
+    const outcome = starting.catch(error => error);
+    try {
+      while (!jest.mocked(turtleFetch).mock.calls.length) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect(onStartupError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('readiness returned HTTP 503'),
+        })
+      );
+      expect(stopServer).toHaveBeenCalledTimes(1);
+      expect(runServeSimActionAsync).not.toHaveBeenCalled();
+    } finally {
+      controller.abort(new Error('test cleanup'));
+      await jest.advanceTimersByTimeAsync(1_000);
+      await outcome;
+    }
+  }
+);
+
 it('cancels an in-flight install while Simulator setup is pending', async () => {
   const controller = new AbortController();
   const failure = new Error('session canceled');
