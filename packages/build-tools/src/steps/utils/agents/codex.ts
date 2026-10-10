@@ -115,6 +115,7 @@ const CodexItemSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('mcp_tool_call'),
     id: z.string().optional(),
+    status: z.enum(['in_progress', 'completed', 'failed']).optional(),
     server: z.string(),
     tool: z.string(),
     arguments: z.record(z.string(), z.unknown()),
@@ -198,13 +199,12 @@ function formatCompletedItem(
       ];
     case 'mcp_tool_call': {
       const text = item.error?.message ?? item.result?.content ?? '';
+      const isError = !!item.error || item.status === 'failed';
       return [
         {
-          level: item.error ? 'warn' : 'info',
-          message: `${item.error ? 'Tool error' : 'Tool result'}: ${text}`,
-          agentEvent: item.id
-            ? { type: 'tool_result', callId: item.id, text, isError: !!item.error }
-            : undefined,
+          level: isError ? 'warn' : 'info',
+          message: `${isError ? 'Tool error' : 'Tool result'}: ${text}`,
+          agentEvent: item.id ? { type: 'tool_result', callId: item.id, text, isError } : undefined,
         },
       ];
     }

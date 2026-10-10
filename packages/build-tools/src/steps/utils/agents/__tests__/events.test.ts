@@ -26,3 +26,34 @@ describe.each([
     );
   });
 });
+
+it('marks a Codex tool result as failed when the server returned an error in its content', () => {
+  expect(
+    CODEX_CLI.formatOutputLine(
+      JSON.stringify({
+        type: 'item.completed',
+        item: {
+          id: 'item_1',
+          type: 'mcp_tool_call',
+          server: 'expo',
+          tool: 'sandbox_list',
+          arguments: {},
+          status: 'failed',
+          error: null,
+          result: { content: [{ type: 'text', text: 'Network connection lost.' }] },
+        },
+      })
+    )
+  ).toEqual([
+    {
+      level: 'warn',
+      message: 'Tool error: Network connection lost.',
+      agentEvent: {
+        type: 'tool_result',
+        callId: 'item_1',
+        text: 'Network connection lost.',
+        isError: true,
+      },
+    },
+  ]);
+});
