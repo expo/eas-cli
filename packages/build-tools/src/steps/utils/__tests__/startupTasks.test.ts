@@ -88,4 +88,23 @@ describe(createStartupTasks, () => {
       createStartupTasks(createLoggerMock()).untilAborted(Promise.resolve('ok'))
     ).resolves.toBe('ok');
   });
+  it.each([false, true])(
+    'inherits parent cancellation, already aborted=%s',
+    async alreadyAborted => {
+      const parent = new AbortController();
+      const reason = new Error('cancelled');
+      if (alreadyAborted) {
+        parent.abort(reason);
+      }
+      const tasks = createStartupTasks(createLoggerMock(), parent.signal);
+      const waiting = tasks.untilAborted(new Promise<void>(() => {}));
+      if (!alreadyAborted) {
+        parent.abort(reason);
+      }
+      await expect(waiting).rejects.toBe(reason);
+      expect(tasks.signal.reason).toBe(reason);
+      tasks.abort(new Error('later failure'));
+      expect(tasks.signal.reason).toBe(reason);
+    }
+  );
 });

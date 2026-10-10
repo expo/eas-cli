@@ -30,17 +30,20 @@ export type StartupTasks = {
   summary(): string;
 };
 
-export function createStartupTasks(logger: bunyan): StartupTasks {
+export function createStartupTasks(logger: bunyan, parentSignal?: AbortSignal): StartupTasks {
   const startedAt = Date.now();
   const finished: { name: string; ms: number }[] = [];
   const controller = new AbortController();
+  const signal = parentSignal
+    ? AbortSignal.any([parentSignal, controller.signal])
+    : controller.signal;
   const abort = (reason: unknown): void => {
     if (!controller.signal.aborted) {
       controller.abort(reason);
     }
   };
   return {
-    signal: controller.signal,
+    signal,
     run<T>(name: string, fn: (taskLogger: bunyan) => Promise<T>): Promise<T> {
       const taskStartedAt = Date.now();
       logger.info(`Starting ${name}.`);
@@ -61,7 +64,6 @@ export function createStartupTasks(logger: bunyan): StartupTasks {
       return promise;
     },
     untilAborted<T>(promise: Promise<T>): Promise<T> {
-      const { signal } = controller;
       const result = new Promise<T>((resolve, reject) => {
         if (signal.aborted) {
           reject(signal.reason);

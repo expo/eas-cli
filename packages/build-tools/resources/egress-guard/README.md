@@ -71,6 +71,17 @@ by a coverage report from `lsof`, listing any process without the library. Both 
 `packages/worker/package.sh` for the iOS worker tarball and by the
 `test-egress-guard` EAS workflow, not committed.
 
+For serve-sim-owned iOS session startup, build-tools passes the guard through
+`SERVE_SIM_ADDITIONAL_DYLIBS` and its configuration and proxy variables through
+inherited `SIMCTL_CHILD_` variables. It shuts down an already booted selected
+device so every process inherits the guard. Serve-sim boots that device while
+build-tools prepares the app. After serve-sim's control endpoint is available,
+build-tools runs the packaged guard self-check before requesting installation
+and launch through the authenticated host API. Preview readiness and application
+startup both complete before reporting the remote session live. Build-tools keeps
+the event relay and egress cleanup without rewriting launchd's dylib list after
+serve-sim adds its capability loader.
+
 Failure semantics: a missing library, a failed `launchctl setenv`, or a failed
 self-check fails the session, since a `--egress local` session without the
 guard would silently leak. Only an unwritable event log is a warning, because

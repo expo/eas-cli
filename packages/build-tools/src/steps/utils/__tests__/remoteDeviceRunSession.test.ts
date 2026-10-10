@@ -51,6 +51,10 @@ import {
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../localEgress', () => ({
+  ...jest.requireActual('../localEgress'),
+  readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
@@ -703,6 +707,8 @@ describe(waitForWebPreviewReadyAsync, () => {
       .mocked(turtleFetch)
       .mockRejectedValueOnce(new Error('not ready'))
       .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
@@ -918,6 +924,8 @@ describe(startDeviceSessionHostAsync, () => {
         } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
       }
       return {
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
