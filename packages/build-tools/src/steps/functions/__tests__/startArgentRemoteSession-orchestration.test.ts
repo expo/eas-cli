@@ -25,7 +25,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
-import { readIosApplicationIdentifierAsync } from '../installBuild';
+import { readIosApplicationIdentifierAsync } from '../../utils/serveSimActions';
 
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
@@ -47,7 +47,8 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
-jest.mock('../installBuild', () => ({
+jest.mock('../../utils/serveSimActions', () => ({
+  ...jest.requireActual('../../utils/serveSimActions'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
 }));
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
