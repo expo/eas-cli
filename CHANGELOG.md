@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Keep structured agent events alongside readable job logs for the agent run Activity view. ([#4600](https://github.com/expo/eas-cli/pull/4600) by [@sjchmiela](https://github.com/sjchmiela))
+
 - [build-tools] Upload the embedded bundle from custom builds that use `eas/build`. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add the `eas/upload_embedded_bundle` step for custom build configs. ([#4494](https://github.com/expo/eas-cli/pull/4494) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/run_agent`, a step that runs Claude Code for an agent run and connects it to the Expo MCP server. ([#4552](https://github.com/expo/eas-cli/pull/4552) by [@hSATAC](https://github.com/hSATAC))
