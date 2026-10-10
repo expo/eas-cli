@@ -26,6 +26,7 @@ import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
+  createIosSessionStartupInputProviders,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -34,6 +35,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
+  validateServeSimLaunchOptions,
   waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
 
@@ -210,6 +212,51 @@ function createStatusCtxMock(
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(createIosSessionStartupInputProviders, () => {
+  it('declares optional inputs so existing workflows do not opt into owned startup', () => {
+    const inputs = createIosSessionStartupInputProviders().map(provider =>
+      provider(createGlobalContextMock(), 'Test step')
+    );
+    expect(
+      inputs.map(({ id, required, allowedValueTypeName }) => ({
+        id,
+        required,
+        allowedValueTypeName,
+      }))
+    ).toEqual([
+      {
+        id: 'boot_simulator',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      },
+      {
+        id: 'device_identifier',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+      {
+        id: 'install_app_path',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+    ]);
+  });
+});
+
+describe(validateServeSimLaunchOptions, () => {
+  it('accepts empty options and arguments at the count, character and byte limits', () => {
+    expect(() => validateServeSimLaunchOptions({})).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: Array(256).fill('a') })).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: ['a'.repeat(8192)] })).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ launchArgs: Array(16).fill('a'.repeat(8191)) })
+    ).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ openUrl: `https://${'a'.repeat(8184)}` })
+    ).not.toThrow();
+  });
+});
 
 describe(createServeSimLaunchInputProviders, () => {
   it('declares the launch inputs as optional', () => {
