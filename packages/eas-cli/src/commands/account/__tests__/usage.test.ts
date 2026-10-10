@@ -191,6 +191,7 @@ function createMockFullUsageData(
       },
       // Accounts without EAS Simulator get empty metrics from the server
       EAS_SIMULATOR: {
+        unavailableServiceUsageMetrics: [],
         __typename: 'UsageMetricTotal',
         id: 'simulator-metric-id',
         billingPeriod: {
