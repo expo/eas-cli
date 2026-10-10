@@ -1,3 +1,4 @@
+import spawn from '@expo/turtle-spawn';
 import { once } from 'node:events';
 import {
   access,
@@ -15,7 +16,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import {
+  readIosApplicationIdentifierAsync,
+  runServeSimActionAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
+
+jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -143,4 +150,55 @@ it("stages a local app without consuming the caller's original", async () => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+describe(readIosApplicationIdentifierAsync, () => {
+  let directory: string;
+  let artifactPath: string;
+
+  beforeEach(async () => {
+    jest.mocked(spawn).mockReset();
+    directory = await mkdtemp(path.join(os.tmpdir(), 'serve-sim-app-metadata-'));
+    artifactPath = path.join(directory, 'Example.app');
+    await mkdir(artifactPath);
+  });
+
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  it('reads app metadata without installing or launching', async () => {
+    jest.mocked(spawn).mockResolvedValue({ stdout: 'com.example.app\n', stderr: '' } as never);
+    await expect(readIosApplicationIdentifierAsync({ artifactPath, env: {} })).resolves.toBe(
+      'com.example.app'
+    );
+    expect(jest.mocked(spawn).mock.calls).toEqual([
+      [
+        'plutil',
+        ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', path.join(artifactPath, 'Info.plist')],
+        { stdio: 'pipe', env: {} },
+      ],
+    ]);
+  });
+
+  it.each(['missing', 'file', 'wrong extension'])('rejects an invalid artifact: %s', async kind => {
+    await rm(artifactPath, { recursive: true });
+    if (kind === 'file') {
+      await writeFile(artifactPath, 'not an app directory');
+    } else if (kind === 'wrong extension') {
+      artifactPath = path.join(directory, 'Example.ipa');
+      await mkdir(artifactPath);
+    }
+    await expect(
+      readIosApplicationIdentifierAsync({ artifactPath, env: {} })
+    ).rejects.toMatchObject({ errorCode: 'EAS_INSTALL_BUILD_INVALID_ARTIFACT' });
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing bundle identifier', async () => {
+    jest.mocked(spawn).mockResolvedValue({ stdout: '  ', stderr: '' } as never);
+    await expect(
+      readIosApplicationIdentifierAsync({ artifactPath, env: {} })
+    ).rejects.toMatchObject({ errorCode: 'EAS_INSTALL_BUILD_MISSING_IDENTIFIER' });
+  });
 });

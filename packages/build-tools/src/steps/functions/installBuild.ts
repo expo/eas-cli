@@ -63,18 +63,41 @@ export async function installBuildAsync({
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<{ applicationIdentifier: string; activityName?: string }> {
+  const artifactStat = await fs.promises.stat(artifactPath).catch(err => {
+    throw new UserError(
+      'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
+      `Build artifact does not exist at ${artifactPath}.`,
+      { cause: err }
+    );
+  });
+
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    const applicationIdentifier = await readIosApplicationIdentifierAsync({ artifactPath, env });
+    if (path.extname(artifactPath) !== '.app' || !artifactStat.isDirectory()) {
+      throw new UserError(
+        'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
+        'iOS Simulator sessions require a .app build artifact.'
+      );
+    }
+
+    const infoPlistPath = path.join(artifactPath, 'Info.plist');
+    const { stdout } = await spawn(
+      'plutil',
+      ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
+      { stdio: 'pipe', env }
+    );
+    const applicationIdentifier = stdout.trim();
+    if (!applicationIdentifier) {
+      throw new UserError(
+        'EAS_INSTALL_BUILD_MISSING_IDENTIFIER',
+        `Could not read CFBundleIdentifier from ${infoPlistPath}.`
+      );
+    }
 
     logger.info(`Installing ${artifactPath} on the iOS Simulator.`);
-    await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], {
-      env,
-      logger,
-    });
+    await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
     return { applicationIdentifier };
   }
 
-  const artifactStat = await statArtifactAsync(artifactPath);
   if (path.extname(artifactPath) !== '.apk' || !artifactStat.isFile()) {
     throw new UserError(
       'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
@@ -98,44 +121,4 @@ export async function installBuildAsync({
   logger.info(`Installing ${artifactPath} on the Android Emulator.`);
   await spawn('adb', ['install', '-r', artifactPath], { env, logger });
   return { applicationIdentifier, activityName };
-}
-
-export async function readIosApplicationIdentifierAsync({
-  artifactPath,
-  env,
-}: {
-  artifactPath: string;
-  env: BuildStepEnv;
-}): Promise<string> {
-  const artifactStat = await statArtifactAsync(artifactPath);
-  if (path.extname(artifactPath) !== '.app' || !artifactStat.isDirectory()) {
-    throw new UserError(
-      'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
-      'iOS Simulator sessions require a .app build artifact.'
-    );
-  }
-  const infoPlistPath = path.join(artifactPath, 'Info.plist');
-  const { stdout } = await spawn(
-    'plutil',
-    ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
-    { stdio: 'pipe', env }
-  );
-  const applicationIdentifier = stdout.trim();
-  if (!applicationIdentifier) {
-    throw new UserError(
-      'EAS_INSTALL_BUILD_MISSING_IDENTIFIER',
-      `Could not read CFBundleIdentifier from ${infoPlistPath}.`
-    );
-  }
-  return applicationIdentifier;
-}
-
-async function statArtifactAsync(artifactPath: string): Promise<fs.Stats> {
-  return fs.promises.stat(artifactPath).catch(err => {
-    throw new UserError(
-      'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
-      `Build artifact does not exist at ${artifactPath}.`,
-      { cause: err }
-    );
-  });
 }

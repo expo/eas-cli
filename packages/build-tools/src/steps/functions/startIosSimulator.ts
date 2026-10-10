@@ -1,7 +1,5 @@
-import { UserError } from '@expo/eas-build-job';
 import {
   BuildFunction,
-  BuildRuntimePlatform,
   BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
@@ -14,8 +12,6 @@ import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
 import {
   installLocalEgressGuardAsync,
   resolveLocalEgressBootEnvironmentAsync,
-  resolveLocalEgressServeSimBootEnvironmentAsync,
-  startLocalEgressGuardRelayAsync,
   verifyLocalEgressGuardAsync,
 } from '../utils/localEgressGuard';
 
@@ -24,13 +20,6 @@ import {
   IosSimulatorUtils,
   IosSimulatorUuid,
 } from '../../utils/IosSimulatorUtils';
-
-import { readIosApplicationIdentifierAsync } from './installBuild';
-import {
-  type ServeSimLaunchOptions,
-  parseServeSimLaunchInputs,
-  validateServeSimLaunchOptions,
-} from '../utils/remoteDeviceRunSession';
 
 export function createStartIosSimulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -101,7 +90,16 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             logger,
           });
 
-          await prepareBootedIosSimulatorAsync({ udid: cloneUdid, env, logger });
+          try {
+            await IosSimulatorUtils.disableApsdAsync({ udid: cloneUdid, env });
+          } catch (err) {
+            logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+          }
+
+          await IosSimulatorUtils.waitForReadyAsync({
+            udid: cloneUdid,
+            env,
+          });
 
           logger.info(`${cloneDeviceName} is ready.`);
           logger.info('');
@@ -146,16 +144,23 @@ export async function bootIosSimulatorAsync({
     logger.info('');
   }
 
-  const deviceIdentifier = await selectIosSimulatorIdentifierAsync({
-    deviceIdentifier: deviceIdentifierInput,
-    env,
-  });
+  const deviceIdentifier = deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
+  if (!deviceIdentifier) {
+    throw new Error('Could not find an iPhone among available simulator devices.');
+  }
 
   if (enableAccessibilitySettings) {
     await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
   }
   const udid = await bootWithLocalEgressAsync({ deviceIdentifier, env, logger });
-  await prepareBootedIosSimulatorAsync({ udid, env, logger });
+
+  try {
+    await IosSimulatorUtils.disableApsdAsync({ udid, env });
+  } catch (err) {
+    logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+  }
+
+  await IosSimulatorUtils.waitForReadyAsync({ udid, env });
 
   logger.info('');
 
@@ -163,64 +168,6 @@ export async function bootIosSimulatorAsync({
   const displayName = device?.displayName ?? deviceIdentifier;
   logger.info(`${displayName} is ready.`);
   return { deviceIdentifier, udid, displayName };
-}
-
-type BootedIosSimulatorOptions = {
-  udid: IosSimulatorUuid;
-  env: BuildStepEnv;
-  logger: bunyan;
-  signal?: AbortSignal;
-};
-
-export async function prepareBootedIosSimulatorAsync(
-  options: BootedIosSimulatorOptions
-): Promise<void> {
-  await disableIosSimulatorPushAsync(options);
-  await IosSimulatorUtils.waitForReadyAsync({ udid: options.udid, env: options.env });
-}
-
-export async function disableIosSimulatorPushAsync({
-  udid,
-  env,
-  logger,
-  signal,
-}: BootedIosSimulatorOptions): Promise<void> {
-  try {
-    await IosSimulatorUtils.disableApsdAsync({ udid, env });
-  } catch (err) {
-    signal?.throwIfAborted();
-    logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
-  }
-  signal?.throwIfAborted();
-}
-
-export async function resolveIosSimulatorUdidAsync({
-  deviceIdentifier,
-  env,
-}: {
-  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
-  env: BuildStepEnv;
-}): Promise<IosSimulatorUuid> {
-  const selectedIdentifier = await selectIosSimulatorIdentifierAsync({ deviceIdentifier, env });
-  const udid = await IosSimulatorUtils.resolveUdidAsync({
-    deviceIdentifier: selectedIdentifier,
-    env,
-  });
-  return udid.toUpperCase() as IosSimulatorUuid;
-}
-
-async function selectIosSimulatorIdentifierAsync({
-  deviceIdentifier,
-  env,
-}: {
-  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
-  env: BuildStepEnv;
-}): Promise<IosSimulatorUuid | IosSimulatorName> {
-  const selectedIdentifier = deviceIdentifier ?? (await findMostGenericIphoneUuidAsync({ env }));
-  if (!selectedIdentifier) {
-    throw new Error('Could not find an iPhone among available simulator devices.');
-  }
-  return selectedIdentifier;
 }
 
 /**
@@ -275,80 +222,4 @@ async function findMostGenericIphoneUuidAsync({
   // It's funny, but it works.
   const iphoneWithShortestName = minBy(availableIphones, device => device.name.length);
   return iphoneWithShortestName?.udid ?? null;
-}
-
-export type IosSessionStartup = {
-  iosSimulatorUdid: string;
-  installAppPath?: string;
-  bootEnv?: Record<string, string>;
-};
-
-export async function resolveIosSessionStartupAsync({
-  runtimePlatform,
-  bootSimulator,
-  deviceIdentifier,
-  installAppPath,
-  launchAppIdentifier,
-  launchArgs,
-  openUrl,
-  env,
-  logger,
-  signal,
-}: {
-  runtimePlatform: BuildRuntimePlatform;
-  bootSimulator?: boolean;
-  deviceIdentifier?: string;
-  installAppPath?: string;
-  launchAppIdentifier?: unknown;
-  launchArgs?: unknown;
-  openUrl?: unknown;
-  env: BuildStepEnv;
-  logger: bunyan;
-  signal?: AbortSignal;
-}): Promise<{ launch: ServeSimLaunchOptions; iosStartup?: IosSessionStartup }> {
-  signal?.throwIfAborted();
-  if ((bootSimulator || installAppPath) && runtimePlatform !== BuildRuntimePlatform.DARWIN) {
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-      'install_app_path is only supported for iOS Simulator sessions.'
-    );
-  }
-  const applicationIdentifier =
-    launchAppIdentifier ??
-    (installAppPath
-      ? await readIosApplicationIdentifierAsync({ artifactPath: installAppPath, env })
-      : undefined);
-  const launch = parseServeSimLaunchInputs(
-    { launchAppIdentifier: applicationIdentifier, launchArgs, openUrl },
-    { runtimePlatform }
-  );
-  if (
-    runtimePlatform !== BuildRuntimePlatform.DARWIN ||
-    (!bootSimulator && !deviceIdentifier && !installAppPath)
-  ) {
-    return { launch };
-  }
-  validateServeSimLaunchOptions(launch);
-  signal?.throwIfAborted();
-  const iosSimulatorUdid = await resolveIosSimulatorUdidAsync({
-    deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
-    env,
-  });
-  const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync();
-  signal?.throwIfAborted();
-  if (bootEnv) {
-    const device = await IosSimulatorUtils.getDeviceAsync({ udid: iosSimulatorUdid, env });
-    signal?.throwIfAborted();
-    if (device && device.state !== 'Shutdown') {
-      logger.info(`Shutting down ${iosSimulatorUdid} to apply the local egress guard at boot.`);
-      await spawn('xcrun', ['simctl', 'shutdown', iosSimulatorUdid], { env, logger, signal });
-    }
-    signal?.throwIfAborted();
-    await startLocalEgressGuardRelayAsync({ logger });
-  }
-  signal?.throwIfAborted();
-  return {
-    launch,
-    iosStartup: { iosSimulatorUdid, installAppPath, bootEnv: bootEnv ?? undefined },
-  };
 }
