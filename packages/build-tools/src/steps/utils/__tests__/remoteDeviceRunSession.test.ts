@@ -520,6 +520,14 @@ describe(createServeSimArgs, () => {
     );
   });
 
+  it('passes a capture proxy as one argument, including when capture will be enabled later', () => {
+    const proxy = 'http://user:p%40ss%20word@proxy.example:8899';
+    const args = createServeSimArgs({ port: 4321, networkCaptureProxy: proxy });
+    expect(args.slice(-2)).toEqual(['--network-capture-proxy', proxy]);
+    expect(args).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture-proxy');
+  });
+
   it('appends --network-capture when enabled, which also covers an already booted simulator', () => {
     const args = createServeSimArgs({ port: 4321, networkCapture: true });
     expect(args).toContain('--network-capture');

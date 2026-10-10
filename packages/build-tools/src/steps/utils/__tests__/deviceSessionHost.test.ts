@@ -10,8 +10,10 @@ import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
+import { readLocalEgressHandoffAsync } from '../localEgress';
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
+import { createProcessOutput } from '../processOutput';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -41,6 +43,10 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
+jest.mock('../localEgress', () => ({
+  ...jest.requireActual('../localEgress'),
+  readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
@@ -105,6 +111,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
+  jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1171,6 +1178,69 @@ it('uses the existing step logger for startup and shutdown output', async () => 
       .mocked(logger.info)
       .mock.calls.some(([record]) => typeof record === 'object' && 'marker' in record)
   ).toBe(false);
+});
+
+it('passes the active local-egress address to serve-sim without tunnel credentials', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({
+    port: 8899,
+    url: 'https://tunnel.example',
+    token: 'tunnel-secret',
+    fingerprint: 'fingerprint',
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    networkCapture: true,
+  });
+  const spawned = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(spawned.args).toEqual(
+    expect.arrayContaining(['--network-capture-proxy', 'http://127.0.0.1:8899'])
+  );
+  expect(spawned.args).toContain('--network-capture');
+  expect(JSON.stringify(spawned)).not.toContain('tunnel-secret');
+  await host.finishAsync();
+});
+
+it('passes an explicit authenticated capture proxy as a launch argument without logging it', async () => {
+  const proxy = 'http://user:proxy-secret@proxy.example:8899';
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    networkCaptureProxy: proxy,
+  });
+  const spawned = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(spawned.args).toEqual(expect.arrayContaining(['--network-capture-proxy', proxy]));
+  const output = createProcessOutput(logger, spawned.secrets);
+  output.stderr.append(`Command failed: serve-sim --network-capture-proxy ${proxy}\n`);
+  output.finish();
+  expect(output.getOutput()).not.toContain('proxy-secret');
+  expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toContain('proxy-secret');
+  expect(readLocalEgressHandoffAsync).not.toHaveBeenCalled();
+  await host.finishAsync();
+});
+
+it('lets a direct capture launch parameter override local egress', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    networkCaptureProxy: 'none',
+  });
+  const spawned = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(spawned.args).toEqual(expect.arrayContaining(['--network-capture-proxy', 'none']));
+  expect(readLocalEgressHandoffAsync).not.toHaveBeenCalled();
+  await host.finishAsync();
+});
+
+it('does not read the iOS egress handoff for an Android host', async () => {
+  const host = await startHostAsync();
+  expect(readLocalEgressHandoffAsync).not.toHaveBeenCalled();
+  await host.finishAsync();
 });
 
 it.each([true, false])(
