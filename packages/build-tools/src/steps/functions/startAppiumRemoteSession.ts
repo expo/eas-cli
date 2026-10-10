@@ -27,7 +27,7 @@ import {
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
-import { type IosSimulatorUuid, IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
+import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import {
   PackageManager,
   resolveConfiguredPackageManager,
