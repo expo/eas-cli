@@ -6,7 +6,11 @@ import path from 'node:path';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import { createInstallBuildFunction, installBuildAsync } from '../installBuild';
+import {
+  createInstallBuildFunction,
+  installBuildAsync,
+  readIosApplicationIdentifierAsync,
+} from '../installBuild';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -88,6 +92,22 @@ describe(installBuildAsync, () => {
     expect(mockedSpawn.mock.calls).toEqual([
       ['aapt2', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
       ['adb', ['install', '-r', artifactPath], { env: {}, logger }],
+    ]);
+  });
+
+  it('reads iOS metadata without installing the application', async () => {
+    const artifactPath = path.join(await makeTemporaryDirectoryAsync(), 'Example.app');
+    await fs.promises.mkdir(artifactPath);
+    mockedSpawn.mockResolvedValueOnce({ stdout: 'com.example.app\n', stderr: '' } as any);
+    await expect(readIosApplicationIdentifierAsync({ artifactPath, env: {} })).resolves.toBe(
+      'com.example.app'
+    );
+    expect(mockedSpawn.mock.calls).toEqual([
+      [
+        'plutil',
+        ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', path.join(artifactPath, 'Info.plist')],
+        { stdio: 'pipe', env: {} },
+      ],
     ]);
   });
 
