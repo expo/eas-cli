@@ -263,6 +263,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           subdomainPrefix: 'appium',
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
+          healthCheck: { path: '/status' },
           logger,
         });
 
