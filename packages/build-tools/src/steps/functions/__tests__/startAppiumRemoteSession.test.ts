@@ -10,6 +10,7 @@ import { sleepAsync } from '../../../utils/retry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
+import { preparePreinstalledWdaAsync } from '../../utils/preinstalledWda';
 import {
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -27,7 +28,11 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: { getAttachedDevicesAsync: jest.fn() },
 }));
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
-  IosSimulatorUtils: { getAvailableDevicesAsync: jest.fn() },
+  IosSimulatorUtils: {
+    getAvailableDevicesAsync: jest.fn(),
+    getDeviceAsync: jest.fn(),
+    resolveUdidAsync: jest.fn().mockResolvedValue('chosen-ios-udid'),
+  },
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -48,6 +53,14 @@ jest.mock('../../../utils/turtleFetch', () => ({
 }));
 jest.mock('../../utils/appiumEvents', () => ({ startAppiumEventCollectionAsync: jest.fn() }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/preinstalledWda', () => ({ preparePreinstalledWdaAsync: jest.fn() }));
+jest.mock('../../utils/iosAppArtifact', () => ({
+  readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../utils/localEgressSession', () => ({
   ...jest.requireActual('../../utils/localEgressSession'),
   uploadRemoteSessionConfigWithLocalEgressAsync: jest.fn(),
@@ -88,7 +101,6 @@ describe(resolveAppiumDeviceAsync, () => {
       resolveAppiumDeviceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: {},
-        logger,
       })
     ).resolves.toEqual({
       platformName: 'iOS',
@@ -97,7 +109,6 @@ describe(resolveAppiumDeviceAsync, () => {
       udid: 'ios-simulator-id',
       runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
     });
-    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledWith({ env: {}, logger });
     expect(IosSimulatorUtils.getAvailableDevicesAsync).toHaveBeenCalledWith({
       env: {},
       filter: 'booted',
@@ -113,7 +124,6 @@ describe(resolveAppiumDeviceAsync, () => {
       resolveAppiumDeviceAsync({
         runtimePlatform: BuildRuntimePlatform.LINUX,
         env: {},
-        logger,
       })
     ).resolves.toEqual({
       platformName: 'Android',
@@ -204,6 +214,12 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   const stopEventCollection = jest.fn();
 
   beforeEach(() => {
+    jest.mocked(preparePreinstalledWdaAsync).mockResolvedValue({});
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({
+      udid: 'CHOSEN-IOS-UDID',
+      runtime: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+      state: 'Shutdown',
+    } as never);
     jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => ({
       stdout: args.includes('--json') ? '{}' : '',
     })) as never);
@@ -242,11 +258,14 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     jest.restoreAllMocks();
   });
 
-  async function runSessionAsync(logger: { info: jest.Mock; warn: jest.Mock }): Promise<void> {
+  async function runSessionAsync(
+    logger: { info: jest.Mock; warn: jest.Mock },
+    runtimePlatform = BuildRuntimePlatform.LINUX
+  ): Promise<void> {
     await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
       {
         logger,
-        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        global: { runtimePlatform },
       } as unknown as BuildStepContext,
       {
         inputs: {
@@ -271,6 +290,115 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       'Could not stop the Appium server during remote session teardown.'
     );
   }
+
+  it('selects Xcode only once for an already-prepared iOS session', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    jest.mocked(selectXcodeDeveloperDirectoryAsync).mockClear();
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockResolvedValue([
+      {
+        udid: 'chosen-ios-udid',
+        runtime: 'com.apple.CoreSimulator.SimRuntime.iOS-26-4',
+      } as never,
+    ]);
+    jest.mocked(preparePreinstalledWdaAsync).mockResolvedValue({
+      'appium:usePreinstalledWDA': true,
+      'appium:prebuiltWDAPath': '/tmp/legacy-wda.app',
+    });
+    await runSessionAsync({ info: jest.fn(), warn: jest.fn() }, BuildRuntimePlatform.DARWIN);
+    expect(preparePreinstalledWdaAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-4' })
+    );
+    expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
+    expect(JSON.parse(jest.mocked(spawnDetached).mock.calls[0][0].args.at(-1)!)).toEqual({
+      'appium:eventTimings': true,
+      'appium:usePreinstalledWDA': true,
+      'appium:prebuiltWDAPath': '/tmp/legacy-wda.app',
+    });
+    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('starts serve-sim on the selected iOS device while Appium installation is pending', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    jest.mocked(selectXcodeDeveloperDirectoryAsync).mockClear();
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockClear();
+    jest.mocked(preparePreinstalledWdaAsync).mockResolvedValue({
+      'appium:usePreinstalledWDA': true,
+      'appium:prebuiltWDAPath': '/tmp/selected-wda.app',
+    });
+    let releaseInstall!: (value: unknown) => void;
+    let enteredInstall!: () => void;
+    const installEntered = new Promise<void>(resolve => {
+      enteredInstall = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce(() => {
+      enteredInstall();
+      return new Promise(resolve => {
+        releaseInstall = resolve;
+      }) as never;
+    });
+    const running = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          device_identifier: { value: 'chosen-device' },
+          install_app_path: { value: '/tmp/App.app' },
+          launch_args: { value: ['--literal'] },
+          open_url: { value: 'example://home' },
+        },
+        outputs: {},
+        env: {
+          DEVICE_RUN_SESSION_ID: 'device-run-session-id',
+          EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'tunnel.example.com',
+          NGROK_AUTHTOKEN: 'ngrok-token',
+        },
+      } as never
+    );
+    await installEntered;
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(IosSimulatorUtils.resolveUdidAsync).mock.invocationCallOrder[0]);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        iosSimulatorUdid: 'CHOSEN-IOS-UDID',
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--literal'],
+        openUrl: 'example://home',
+      })
+    );
+    expect(IosSimulatorUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
+    expect(preparePreinstalledWdaAsync).not.toHaveBeenCalled();
+    releaseInstall({ stdout: '' });
+    await running;
+    expect(IosSimulatorUtils.getDeviceAsync).toHaveBeenCalledWith({
+      udid: 'CHOSEN-IOS-UDID',
+      env: expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'device-run-session-id' }),
+    });
+    expect(preparePreinstalledWdaAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+        appiumHome: jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME,
+      })
+    );
+    expect(JSON.parse(jest.mocked(spawnDetached).mock.calls[0][0].args.at(-1)!)).toEqual({
+      'appium:eventTimings': true,
+      'appium:usePreinstalledWDA': true,
+      'appium:prebuiltWDAPath': '/tmp/selected-wda.app',
+    });
+    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(1);
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+  });
 
   it('keeps the readiness error when Appium cannot be stopped', async () => {
     let now = Date.now();
@@ -303,6 +431,13 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     const logger = { info: jest.fn(), warn: jest.fn() };
 
     await expect(runSessionAsync(logger)).rejects.toBe(stopError);
+    expect(preparePreinstalledWdaAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimeIdentifier: undefined })
+    );
+    expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
+    expect(JSON.parse(jest.mocked(spawnDetached).mock.calls[0][0].args.at(-1)!)).toEqual({
+      'appium:eventTimings': true,
+    });
     expectAppiumStoppedAndHomeRemoved(logger);
     expect(stopEventCollection.mock.invocationCallOrder[0]).toBeLessThan(
       stopAppium.mock.invocationCallOrder[0]
