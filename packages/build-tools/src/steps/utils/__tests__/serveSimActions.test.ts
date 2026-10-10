@@ -5,6 +5,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   readlink,
   rm,
   stat,
@@ -48,9 +49,12 @@ afterEach(async () => {
 
 it('authenticates the upgrade, waits for ready, and sends the action once', async () => {
   const actions: unknown[] = [];
+  const upgrades: unknown[] = [];
   server.on('connection', (socket, upgrade) => {
-    expect(upgrade.url).toBe('/exec-ws');
-    expect(upgrade.headers['sec-websocket-protocol']).toBe(`serve-sim.token.${token}`);
+    upgrades.push({
+      url: upgrade.url,
+      protocol: upgrade.headers['sec-websocket-protocol'],
+    });
     socket.on('message', raw => {
       actions.push(JSON.parse(raw.toString()));
       socket.send(JSON.stringify({ id: 1, stdout: '', stderr: '', exitCode: 0 }));
@@ -59,6 +63,7 @@ it('authenticates the upgrade, waits for ready, and sends the action once', asyn
     socket.send(JSON.stringify({ ready: true }));
   });
   await runServeSimActionAsync(request());
+  expect(upgrades).toEqual([{ url: '/exec-ws', protocol: `serve-sim.token.${token}` }]);
   expect(actions).toEqual([{ id: 1, action: 'app.install', params: request().params }]);
 });
 
@@ -83,6 +88,27 @@ it.each([
 it('rejects a connection that closes before its action finishes', async () => {
   server.on('connection', socket => socket.close());
   await expect(runServeSimActionAsync(request())).rejects.toThrow('closed before completion');
+});
+
+it('rejects an upgrade refused by the server without executing an action', async () => {
+  const connected = jest.fn();
+  server.options.verifyClient = () => false;
+  server.on('connection', connected);
+  await expect(runServeSimActionAsync(request())).rejects.toThrow('connection failed');
+  expect(connected).not.toHaveBeenCalled();
+});
+
+it('rejects malformed replies without resending the action', async () => {
+  const actions = jest.fn();
+  server.on('connection', socket => {
+    socket.send(JSON.stringify({ ready: true }));
+    socket.on('message', () => {
+      actions();
+      socket.send('not JSON');
+    });
+  });
+  await expect(runServeSimActionAsync(request())).rejects.toThrow('returned invalid JSON');
+  expect(actions).toHaveBeenCalledTimes(1);
 });
 
 it('times out and closes a socket that never becomes ready', async () => {
@@ -140,6 +166,18 @@ it("stages a local app without consuming the caller's original", async () => {
     expect((await stat(path.join(root, 'serve-sim-uploads'))).mode & 0o777).toBe(0o700);
     await rm(staged.directory, { recursive: true, force: true });
     expect(await readFile(path.join(source, 'marker'), 'utf8')).toBe('app');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('removes its staging directory when the source app cannot be read', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'serve-sim-stage-test-'));
+  try {
+    await expect(stageServeSimAppAsync(path.join(root, 'Missing.app'), root)).rejects.toThrow(
+      'ENOENT'
+    );
+    expect(await readdir(path.join(root, 'serve-sim-uploads'))).toEqual([]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -61,6 +61,23 @@ describe('serve-sim Simulator preparation', () => {
     expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['an oversized URL', `https://example.test/${'a'.repeat(8192)}`],
+    ['NUL in a URL', 'exp://example.test/a\0b'],
+  ])('rejects %s before Simulator preparation', async (_, openUrl) => {
+    await expect(
+      resolveIosSessionStartupAsync({
+        ...hostOptions,
+        bootSimulator: true,
+        launchAppIdentifier: 'dev.example.app',
+        openUrl,
+      })
+    ).rejects.toThrow('iOS open_url');
+    expect(mockedUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
+    expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
+  });
+
   it('keeps an explicit launch identifier independent of the installed app', async () => {
     const startup = await resolveIosSessionStartupAsync({
       ...hostOptions,

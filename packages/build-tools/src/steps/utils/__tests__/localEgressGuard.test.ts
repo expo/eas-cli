@@ -403,6 +403,38 @@ describe(installLocalEgressGuardAsync, () => {
     expect(sessionLogger.lines.at(-1)?.msg).toContain('refused 1 connection attempt(s)');
   });
 
+  it('still installs the guard when its event log cannot be created', async () => {
+    const handoffPath = path.join(dir, 'handoff.json');
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    const libraryPath = path.join(dir, 'egress-guard.dylib');
+    const blockedDirectory = path.join(dir, 'not-a-directory');
+    await fs.promises.writeFile(blockedDirectory, 'file');
+    await expect(
+      installLocalEgressGuardAsync({
+        udid: 'u' as any,
+        env: process.env,
+        logger,
+        handoffPath,
+        libraryPath,
+        logPath: path.join(blockedDirectory, 'guard.log'),
+      })
+    ).resolves.toBe(true);
+    expect(mockedSetEnv).toHaveBeenCalledWith({
+      udid: 'u',
+      env: process.env,
+      variables: buildGuardLaunchdEnvironment({
+        libraryPath,
+        logPath: path.join(blockedDirectory, 'guard.log'),
+        mode: 'block',
+      }),
+    });
+    expect(
+      logger.lines.some(
+        line => line.level === 'warn' && line.msg.includes('They are still refused.')
+      )
+    ).toBe(true);
+  });
+
   it('fails the session when launchctl fails', async () => {
     const handoffPath = path.join(dir, 'handoff.json');
     await writeLocalEgressHandoffAsync(handoff, handoffPath);
@@ -530,7 +562,7 @@ describe(resolveLocalEgressServeSimBootEnvironmentAsync, () => {
 });
 
 describe(startLocalEgressGuardRelayAsync, () => {
-  it('relays boot events without setting launchd environment or truncating the log', async () => {
+  it('relays boot events once after repeated starts without changing Simulator state', async () => {
     const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'guard-relay-'));
     const logPath = path.join(dir, 'guard.log');
     const logger = createLogger();
@@ -539,21 +571,28 @@ describe(startLocalEgressGuardRelayAsync, () => {
       logPath,
       'eas-egress-guard\tSpringBoard\t4001\tconnect\tblocked\t1.1.1.1:443\tNetwork\n'
     );
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
     try {
-      await startLocalEgressGuardRelayAsync({ logger, logPath });
+      await startLocalEgressGuardRelayAsync({ logger, logPath, tailIntervalMs: 5 });
+      await startLocalEgressGuardRelayAsync({ logger, logPath, tailIntervalMs: 5 });
       await fs.promises.appendFile(
         logPath,
         'eas-egress-guard\tMyApp\t4002\tconnect\tblocked\t1.1.1.1:443\tNetwork\n'
       );
+      await jest.advanceTimersByTimeAsync(20);
       await stopLocalEgressGuardRelaysAsync(logger);
       expect(mockedSetEnv).not.toHaveBeenCalled();
-      expect(logger.lines.some(line => /refused connect from SpringBoard/.test(line.msg))).toBe(
-        true
+      expect(
+        logger.lines.filter(line => /refused connect from SpringBoard/.test(line.msg))
+      ).toHaveLength(1);
+      expect(logger.lines.filter(line => /refused connect from MyApp/.test(line.msg))).toHaveLength(
+        1
       );
-      expect(logger.lines.some(line => /refused connect from MyApp/.test(line.msg))).toBe(true);
       expect(logger.lines.at(-1)?.msg).toContain('refused 2 connection attempt(s)');
     } finally {
       await stopLocalEgressGuardRelaysAsync(logger);
+      jest.clearAllTimers();
+      jest.useRealTimers();
       await fs.promises.rm(dir, { recursive: true, force: true });
     }
   });
