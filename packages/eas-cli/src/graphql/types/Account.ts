@@ -116,6 +116,11 @@ export const EstimatedUsageFragmentNode = gql`
     platformBreakdown {
       ...EstimatedUsagePlatformBreakdownFragment
     }
+    jobTypeBreakdown {
+      workflows
+      simulator
+      other
+    }
   }
 `;
 

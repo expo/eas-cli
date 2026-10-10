@@ -34,6 +34,15 @@ function createMockFullUsageData(
     bandwidthLimit: number;
     buildOverageCost: number;
     updateOverageCost: number;
+    simulator: {
+      planValue: number;
+      limit: number;
+      iosMinutes: number;
+      androidMinutes: number;
+      overageMinutes?: number;
+      overageCost?: number;
+      jobTypeBreakdown?: { workflows: number; simulator: number; other: number };
+    };
   }> = {}
 ): AccountFullUsageQueryType['account']['byId'] {
   const {
@@ -47,6 +56,7 @@ function createMockFullUsageData(
     bandwidthLimit = 10,
     buildOverageCost = 0,
     updateOverageCost = 0,
+    simulator,
   } = overrides;
 
   const now = new Date();
@@ -179,8 +189,86 @@ function createMockFullUsageData(
             : [],
         totalCost: updateOverageCost,
       },
+      // Accounts without EAS Simulator get empty metrics from the server
+      EAS_SIMULATOR: {
+        unavailableServiceUsageMetrics: [],
+        __typename: 'UsageMetricTotal',
+        id: 'simulator-metric-id',
+        billingPeriod: {
+          __typename: 'BillingPeriod',
+          id: 'billing-period-id',
+          start: startOfMonth.toISOString(),
+          end: endOfMonth.toISOString(),
+          anchor: startOfMonth.toISOString(),
+        },
+        planMetrics: simulator
+          ? [
+              {
+                __typename: 'EstimatedUsage',
+                id: 'simulator-plan-metric-id',
+                service: EasService.Simulator,
+                serviceMetric: EasServiceMetric.SimulatorUsage,
+                metricType: UsageMetricType.Minute,
+                value: simulator.planValue,
+                limit: simulator.limit,
+                jobTypeBreakdown: simulator.jobTypeBreakdown
+                  ? { __typename: 'EstimatedUsageJobTypeBreakdown', ...simulator.jobTypeBreakdown }
+                  : null,
+              },
+            ]
+          : [],
+        overageMetrics:
+          simulator && (simulator.overageMinutes ?? 0) > 0
+            ? [
+                {
+                  __typename: 'EstimatedOverageAndCost',
+                  id: 'simulator-overage-id',
+                  service: EasService.Simulator,
+                  serviceMetric: EasServiceMetric.SimulatorUsage,
+                  metricType: UsageMetricType.Minute,
+                  value: simulator.overageMinutes ?? 0,
+                  limit: simulator.limit,
+                  totalCost: simulator.overageCost ?? 0,
+                },
+              ]
+            : [],
+        totalCost: simulator?.overageCost ?? 0,
+      },
+      IOS_SIMULATOR_MINUTES: simulator
+        ? [
+            {
+              __typename: 'AccountUsageMetric',
+              id: 'ios-simulator-minutes-id',
+              serviceMetric: EasServiceMetric.SimulatorUsage,
+              metricType: UsageMetricType.Minute,
+              value: simulator.iosMinutes,
+            },
+          ]
+        : [],
+      ANDROID_SIMULATOR_MINUTES: simulator
+        ? [
+            {
+              __typename: 'AccountUsageMetric',
+              id: 'android-simulator-minutes-id',
+              serviceMetric: EasServiceMetric.SimulatorUsage,
+              metricType: UsageMetricType.Minute,
+              value: simulator.androidMinutes,
+            },
+          ]
+        : [],
     },
   };
+}
+
+function renderUsage(usageData: ReturnType<typeof createMockFullUsageData>): string {
+  const mockLog = jest.mocked(Log.log);
+  mockLog.mockClear();
+  displayUsage(extractUsageData(usageData), usageData);
+  // eslint-disable-next-line no-control-regex
+  return mockLog.mock.calls
+    .flat()
+    .join('\n')
+    .replace(/\u001b\[\d+m/g, '');
 }
 
 describe('AccountQuery', () => {
@@ -219,12 +307,6 @@ describe('AccountQuery', () => {
 });
 
 describe('displayUsage', () => {
-  const mockLog = jest.mocked(Log.log);
-
-  beforeEach(() => {
-    mockLog.mockClear();
-  });
-
   it('labels usage beyond included credits as "additional usage"', () => {
     const usageData = createMockFullUsageData({
       buildValue: 55,
@@ -234,20 +316,70 @@ describe('displayUsage', () => {
       buildOverageCost: 1500,
       updateOverageCost: 250,
     });
-    const displayData = extractUsageData(usageData);
+    const output = renderUsage(usageData);
 
-    displayUsage(displayData, usageData);
-
-    // eslint-disable-next-line no-control-regex
-    const output = mockLog.mock.calls
-      .flat()
-      .join('\n')
-      .replace(/\u001b\[\d+m/g, '');
     expect(output).toContain('Unique Updaters (additional usage): 500 users ($2.50)');
     expect(output).toContain('Additional usage: $17.50');
     expect(output).toContain('Builds: $15.00');
     expect(output).toContain('Updates: $2.50');
     expect(output.toLowerCase()).not.toContain('overage');
+  });
+
+  it('hides the EAS Simulator section when the account has no simulator metric', () => {
+    const usageData = createMockFullUsageData();
+
+    const output = renderUsage(usageData);
+
+    expect(output).not.toContain('EAS Simulator');
+    expect(extractUsageData(usageData).simulator).toBeUndefined();
+  });
+
+  it('shows simulator minutes with the platform breakdown and additional usage', () => {
+    const usageData = createMockFullUsageData({
+      simulator: {
+        planValue: 60,
+        limit: 60,
+        iosMinutes: 50.25,
+        androidMinutes: 13.5,
+        overageMinutes: 3.75,
+        overageCost: 52,
+      },
+    });
+
+    const output = renderUsage(usageData);
+
+    expect(output).toContain('EAS Simulator');
+    expect(output).toContain('Simulator minutes (plan): 60/60 minutes');
+    expect(output).toContain('Simulator minutes (additional usage): 3.8 minutes ($0.52)');
+    expect(output).toContain('Simulator minutes by platform:');
+    expect(output).toContain('iOS: 50.3 minutes');
+    expect(output).toContain('Android: 13.5 minutes');
+    expect(output).not.toContain('Breakdown by job type');
+    expect(output).toContain('Simulator: $0.52');
+    expect(output).toContain('Additional usage: $0.52');
+    expect(output).toContain('Estimated bill: $19.52');
+  });
+
+  it('shows the shared minute pool by job type on the Free plan', () => {
+    const usageData = createMockFullUsageData({
+      subscriptionName: 'Free',
+      simulator: {
+        planValue: 50,
+        limit: 60,
+        iosMinutes: 10,
+        androidMinutes: 0,
+        jobTypeBreakdown: { workflows: 40, simulator: 10, other: 0 },
+      },
+    });
+
+    const output = renderUsage(usageData);
+
+    expect(output).toContain('CI/CD and Simulator minutes (plan): 50/60 minutes');
+    expect(output).toContain('Breakdown by job type:');
+    expect(output).toContain('Workflows: 40 minutes');
+    expect(output).toContain('Simulator: 10 minutes');
+    expect(output).not.toContain('Other jobs');
+    expect(output).toContain('iOS: 10 minutes');
   });
 });
 
