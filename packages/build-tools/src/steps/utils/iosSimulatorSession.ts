@@ -13,7 +13,7 @@ import {
   resolveLocalEgressServeSimBootEnvironmentAsync,
   startLocalEgressGuardRelayAsync,
 } from './localEgressGuard';
-import { readIosApplicationIdentifierAsync } from './serveSimActions';
+import { readIosApplicationIdentifierAsync } from './iosAppArtifact';
 import {
   type ServeSimLaunchOptions,
   parseServeSimLaunchInputs,
