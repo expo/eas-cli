@@ -1,6 +1,7 @@
 import {
   AppPlatform,
   EasBuildBillingResourceClass,
+  EasService,
   EasServiceMetric,
   UsageMetricType,
 } from '../graphql/generated';
@@ -313,6 +314,15 @@ function extractSimulatorUsage(
   iosMinutes: number,
   androidMinutes: number
 ): SimulatorUsageDisplay | undefined {
+  if (
+    simulatorTotal.unavailableServiceUsageMetrics.some(
+      metric => metric.service === EasService.Simulator
+    )
+  ) {
+    throw new Error(
+      'Simulator usage is temporarily unavailable, so the bill cannot be estimated. Try again in a few minutes.'
+    );
+  }
   const planMetric = simulatorTotal.planMetrics.find(
     m => m.serviceMetric === EasServiceMetric.SimulatorUsage
   );

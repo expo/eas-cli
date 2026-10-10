@@ -178,6 +178,7 @@ function createMockFullUsageData(
         totalCost: updateOverageCost,
       },
       EAS_SIMULATOR: {
+        unavailableServiceUsageMetrics: [],
         __typename: 'UsageMetricTotal',
         id: 'simulator-metric-id',
         billingPeriod: {
@@ -315,6 +316,14 @@ describe('calculateBillingPeriodDays', () => {
 });
 
 describe('extractUsageData', () => {
+  it('does not estimate a bill when Simulator usage is unavailable', () => {
+    const data = createMockFullUsageData();
+    data.usageMetrics.EAS_SIMULATOR.unavailableServiceUsageMetrics = [
+      { service: EasService.Simulator },
+    ];
+    expect(() => extractUsageData(data)).toThrow('Simulator usage is temporarily unavailable');
+  });
+
   it('correctly extracts usage data from API response', () => {
     const mockData = createMockFullUsageData({
       buildValue: 25,

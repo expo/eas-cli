@@ -147,6 +147,9 @@ export const AccountQuery = {
                       ...UsageMetricTotalFragment
                     }
                     EAS_SIMULATOR: byBillingPeriod(date: $currentDate, service: SIMULATOR) {
+                      unavailableServiceUsageMetrics {
+                        service
+                      }
                       id
                       ...UsageMetricTotalFragment
                     }
