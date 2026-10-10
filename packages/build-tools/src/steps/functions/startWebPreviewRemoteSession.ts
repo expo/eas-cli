@@ -7,7 +7,7 @@ import {
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
-import { resolveIosSessionStartupAsync } from './startIosSimulator';
+import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
