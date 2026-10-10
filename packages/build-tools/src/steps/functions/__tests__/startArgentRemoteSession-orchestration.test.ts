@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
+import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
@@ -24,6 +25,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
+import { readIosApplicationIdentifierAsync } from '../installBuild';
 
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
@@ -45,6 +47,21 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../installBuild', () => ({
+  readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
+}));
+jest.mock('../../../utils/IosSimulatorUtils', () => ({
+  IosSimulatorUtils: {
+    resolveUdidAsync: jest.fn().mockResolvedValue('selected-ios-udid'),
+    getAvailableDevicesAsync: jest
+      .fn()
+      .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
+  },
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
@@ -463,6 +480,60 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       'serve-sim will launch host.exp.Exponent with arguments ' +
         '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
     );
+  });
+
+  it('boots and prepares the downloaded app while Argent installation is pending, and closes the host if installation fails', async () => {
+    let rejectInstall!: (error: Error) => void;
+    let enteredInstall!: () => void;
+    const installEntered = new Promise<void>(resolve => {
+      enteredInstall = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce(() => {
+      enteredInstall();
+      return new Promise((_resolve, reject) => {
+        rejectInstall = reject;
+      }) as never;
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          device_identifier: { value: 'chosen-device' },
+          install_app_path: { value: '/tmp/App.app' },
+          launch_args: { value: ['--literal'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    await installEntered;
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(IosSimulatorUtils.resolveUdidAsync).mock.invocationCallOrder[0]);
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledWith({
+      artifactPath: '/tmp/App.app',
+      env: {},
+    });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        iosSimulatorUdid: 'SELECTED-IOS-UDID',
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--literal'],
+      })
+    );
+    const error = new Error('Argent install failed');
+    rejectInstall(error);
+    await expect(running).rejects.toBe(error);
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
   });
 
   it('fails before starting anything when a launch is asked for on Android', async () => {

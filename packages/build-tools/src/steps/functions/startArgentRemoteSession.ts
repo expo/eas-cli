@@ -1,5 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { type Result, asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -19,6 +20,7 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { resolveIosSessionStartupAsync } from './startIosSimulator';
 import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
@@ -34,6 +36,7 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createIosSessionStartupInputProviders,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -41,7 +44,6 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
-  parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -80,6 +82,7 @@ export function createStartArgentRemoteSessionBuildFunction(
     __metricsId: 'eas/start_argent_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
@@ -113,14 +116,21 @@ export function createStartArgentRemoteSessionBuildFunction(
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
-      const launch = parseServeSimLaunchInputs(
-        {
-          launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
-          launchArgs: inputs.launch_args?.value,
-          openUrl: inputs.open_url?.value as string | undefined,
-        },
-        { runtimePlatform }
-      );
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
+      }
+      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+        runtimePlatform,
+        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+        installAppPath: inputs.install_app_path?.value as string | undefined,
+        launchAppIdentifier: inputs.launch_app_identifier?.value,
+        launchArgs: inputs.launch_args?.value,
+        openUrl: inputs.open_url?.value,
+        env,
+        logger,
+        signal,
+      });
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
@@ -131,10 +141,6 @@ export function createStartArgentRemoteSessionBuildFunction(
       logger.info(
         `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
-
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
 
       // Start the potentially slow installation while Argent is being prepared.
       // On Linux expo-device-hub calls this again and awaits the same in-flight
@@ -147,58 +153,79 @@ export function createStartArgentRemoteSessionBuildFunction(
       const argentExec = (args: string[]): { command: string; args: string[] } =>
         resolvePackageExec(packageManager, args);
 
-      logger.info('Enabling the Argent artifacts list endpoint flag.');
-      const enableArtifacts = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'enable',
-        ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
-      ]);
-      await spawn(enableArtifacts.command, enableArtifacts.args, { env, logger });
-
-      logger.info('Enabling the Argent tool-server event log flag.');
-      const enableEventLog = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'enable',
-        ARGENT_EVENT_LOG_FLAG,
-      ]);
-      await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
-
-      const startServer = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'server',
-        'start',
-        '--port',
-        '0',
-        '--idle-timeout',
-        '0',
-        '--force',
-      ]);
-      logger.info(
-        `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
-      );
-      // Keep Argent itself in foreground mode under the detached process. This preserves
-      // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
-      const secrets: string[] = [];
-      const argentServer = spawnDetached({
-        command: startServer.command,
-        args: startServer.args,
-        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
-        logger,
-        secrets,
-      });
-      if (argentServer.pid === undefined) {
-        throw new SystemError(
-          'Failed to start Argent: could not determine the PID of the launched process.'
-        );
-      }
-
+      const startupAbortController = new AbortController();
+      const startupSignal = signal
+        ? AbortSignal.any([signal, startupAbortController.signal])
+        : startupAbortController.signal;
       const artifactPollAbortController = new AbortController();
       let artifactPollingPromise: Promise<void> | undefined;
       let eventCollection: Awaited<ReturnType<typeof startArgentEventCollectionAsync>> | undefined;
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let sessionHost: DeviceSessionHost | undefined;
+      let argentServer: ReturnType<typeof spawnDetached> | undefined;
+      let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
       let sessionFailed = false;
+      const startHost = () =>
+        startDeviceSessionHostAsync(ctx, {
+          ...iosStartup,
+          separateLogPhase: true,
+          runtimePlatform,
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+          signal: startupSignal,
+          ...launch,
+          networkCapture,
+          networkCaptureFields,
+        });
       try {
+        if (iosStartup) {
+          hostStartup = asyncResult(startHost());
+        }
+        logger.info('Enabling the Argent artifacts list endpoint flag.');
+        const enableArtifacts = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
+        ]);
+        await spawn(enableArtifacts.command, enableArtifacts.args, { env, logger });
+
+        logger.info('Enabling the Argent tool-server event log flag.');
+        const enableEventLog = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_EVENT_LOG_FLAG,
+        ]);
+        await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
+
+        const startServer = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'server',
+          'start',
+          '--port',
+          '0',
+          '--idle-timeout',
+          '0',
+          '--force',
+        ]);
+        logger.info(
+          `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
+        );
+        // Keep Argent itself in foreground mode under the detached process. This preserves
+        // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+        const secrets: string[] = [];
+        argentServer = spawnDetached({
+          command: startServer.command,
+          args: startServer.args,
+          env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
+          logger,
+          secrets,
+        });
+        if (argentServer.pid === undefined) {
+          throw new SystemError(
+            'Failed to start Argent: could not determine the PID of the launched process.'
+          );
+        }
+
         logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
         let toolServerPort: number;
         let toolServerToken: string | undefined;
@@ -256,18 +283,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        sessionHost = await startDeviceSessionHostAsync(ctx, {
-          separateLogPhase: true,
-          runtimePlatform,
-          env,
-          logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-          launchAppIdentifier: launch.launchAppIdentifier,
-          launchArgs: launch.launchArgs,
-          openUrl: launch.openUrl,
-          networkCapture,
-          networkCaptureFields,
-        });
+        const sessionHost = (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
         const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
@@ -306,6 +322,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         sessionFailed = true;
         throw error;
       } finally {
+        startupAbortController.abort(new Error('Argent session ended.'));
         await finishRemoteSessionAsync({
           logger,
           sessionFailed,
@@ -337,11 +354,11 @@ export function createStartArgentRemoteSessionBuildFunction(
                     );
                   }
                 } finally {
-                  await argentServer.stopAsync();
+                  await argentServer?.stopAsync();
                 }
               })(),
             ],
-            ['session host', sessionHost?.finishAsync()],
+            ['session host', hostStartup?.then(result => result.value?.finishAsync())],
           ],
         });
       }
