@@ -17,9 +17,16 @@ export interface AgentInvocation {
   secrets: string[];
 }
 
+export type AgentEvent =
+  | { type: 'message'; text: string }
+  | { type: 'tool_call'; callId: string; name: string; arguments: Record<string, unknown> }
+  | { type: 'tool_result'; callId: string; text: string; isError: boolean }
+  | { type: 'error'; message: string };
+
 export interface AgentLogMessage {
   level: 'info' | 'warn' | 'error';
   message: string;
+  agentEvent?: AgentEvent;
 }
 
 export interface AgentCli {

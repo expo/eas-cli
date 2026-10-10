@@ -74,12 +74,14 @@ const AssistantBlockSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }),
   z.object({
     type: z.literal('tool_use'),
+    id: z.string().optional(),
     name: z.string(),
     input: z.record(z.string(), z.unknown()),
   }),
 ]);
 const ToolResultBlockSchema = z.object({
   type: z.literal('tool_result'),
+  tool_use_id: z.string().optional(),
   content: z.union([z.string(), ContentBlocksTextSchema]).default(''),
   is_error: z.boolean().optional(),
 });
@@ -122,25 +124,43 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
         .map(server => ({
           level: 'warn',
           message: `MCP server ${server.name} is not connected (${server.status}).`,
+          agentEvent: {
+            type: 'error',
+            message: `MCP server ${server.name} is not connected (${server.status}).`,
+          },
         }));
     case 'assistant':
       return event.data.message.content.map(block => {
         switch (block.type) {
           case 'text':
-            return { level: 'info', message: `Agent: ${block.text}` };
+            return {
+              level: 'info',
+              message: `Agent: ${block.text}`,
+              agentEvent: { type: 'message', text: block.text },
+            };
           case 'tool_use':
             return {
               level: 'info',
               message: `Tool call: ${block.name} ${JSON.stringify(block.input)}`,
+              agentEvent: block.id
+                ? { type: 'tool_call', callId: block.id, name: block.name, arguments: block.input }
+                : undefined,
             };
         }
       });
     case 'user':
-      return event.data.message.content.map(block =>
-        block.is_error
-          ? { level: 'warn', message: `Tool error: ${block.content}` }
-          : { level: 'info', message: `Tool result: ${block.content}` }
-      );
+      return event.data.message.content.map(block => ({
+        level: block.is_error ? 'warn' : 'info',
+        message: `${block.is_error ? 'Tool error' : 'Tool result'}: ${block.content}`,
+        agentEvent: block.tool_use_id
+          ? {
+              type: 'tool_result',
+              callId: block.tool_use_id,
+              text: block.content,
+              isError: !!block.is_error,
+            }
+          : undefined,
+      }));
     case 'result': {
       // `result` repeats the agent's last text block, so on success there is nothing to add.
       const { is_error, result, errors, subtype } = event.data;
@@ -149,6 +169,7 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
             {
               level: 'error',
               message: `Agent failed: ${(result ?? errors?.join('\n')) || subtype}`,
+              agentEvent: { type: 'error', message: (result ?? errors?.join('\n')) || subtype },
             },
           ]
         : [];
