@@ -274,6 +274,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
           rewriteHostHeader: true,
+          healthCheck: { path: '/tools', statuses: [200, 401] },
           logger,
         });
         const publicToolsUrl = toolsTunnel.url;
