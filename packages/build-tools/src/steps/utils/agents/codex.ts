@@ -205,9 +205,7 @@ function formatCompletedItem(
         {
           level: isError ? 'warn' : 'info',
           message: `${isError ? 'Tool error' : 'Tool result'}: ${text}`,
-          agentEvent: item.id
-            ? { type: 'tool_result', callId: item.id, text, isError }
-            : undefined,
+          agentEvent: item.id ? { type: 'tool_result', callId: item.id, text, isError } : undefined,
         },
       ];
     }
