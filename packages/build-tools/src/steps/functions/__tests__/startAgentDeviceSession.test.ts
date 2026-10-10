@@ -12,7 +12,8 @@ import {
 } from '../../utils/localEgressGuard';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
-import { installBuildAsync, readIosApplicationIdentifierAsync } from '../installBuild';
+import { installBuildAsync } from '../installBuild';
+import { readIosApplicationIdentifierAsync } from '../../utils/serveSimActions';
 import { launchApplicationAsync } from '../launchApplication';
 import {
   getAgentDeviceRemoteSessionEnvOrThrow,
@@ -41,8 +42,9 @@ jest.mock('../startIosSimulator', () => ({
 }));
 jest.mock('../startAndroidEmulator', () => ({ startAndroidEmulatorAsync: jest.fn() }));
 jest.mock('../downloadBuild', () => ({ downloadBuildAsync: jest.fn() }));
-jest.mock('../installBuild', () => ({
-  installBuildAsync: jest.fn(),
+jest.mock('../installBuild', () => ({ installBuildAsync: jest.fn() }));
+jest.mock('../../utils/serveSimActions', () => ({
+  ...jest.requireActual('../../utils/serveSimActions'),
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
 jest.mock('../launchApplication', () => ({

@@ -28,7 +28,7 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 import { downloadBuildAsync } from './downloadBuild';
-import { installBuildAsync, readIosApplicationIdentifierAsync } from './installBuild';
+import { installBuildAsync } from './installBuild';
 import {
   launchApplicationAsync,
   parseLaunchArgsInput,
@@ -39,7 +39,8 @@ import {
   runAgentDeviceRemoteSessionAsync,
 } from './startAgentDeviceRemoteSession';
 import { startAndroidEmulatorAsync } from './startAndroidEmulator';
-import { resolveIosSessionStartupAsync } from './startIosSimulator';
+import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
+import { readIosApplicationIdentifierAsync } from '../utils/serveSimActions';
 
 const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
 
