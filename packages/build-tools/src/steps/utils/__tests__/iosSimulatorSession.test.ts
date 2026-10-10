@@ -4,7 +4,7 @@ import spawn from '@expo/turtle-spawn';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../../utils/IosSimulatorUtils';
 import { resolveIosSessionStartupAsync } from '../iosSimulatorSession';
-import { readIosApplicationIdentifierAsync } from '../serveSimActions';
+import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
 import {
   resolveLocalEgressServeSimBootEnvironmentAsync,
   startLocalEgressGuardRelayAsync,
@@ -12,7 +12,7 @@ import {
 
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../utils/IosSimulatorUtils');
-jest.mock('../serveSimActions', () => ({ readIosApplicationIdentifierAsync: jest.fn() }));
+jest.mock('../iosAppArtifact', () => ({ readIosApplicationIdentifierAsync: jest.fn() }));
 jest.mock('../localEgressGuard', () => ({
   resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn(),
   startLocalEgressGuardRelayAsync: jest.fn(),
