@@ -40,7 +40,7 @@ import {
 } from './startAgentDeviceRemoteSession';
 import { startAndroidEmulatorAsync } from './startAndroidEmulator';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
-import { readIosApplicationIdentifierAsync } from '../utils/serveSimActions';
+import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 
 const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
 

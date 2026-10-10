@@ -13,7 +13,7 @@ import {
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
-import { readIosApplicationIdentifierAsync } from '../../utils/serveSimActions';
+import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 import { launchApplicationAsync } from '../launchApplication';
 import {
   getAgentDeviceRemoteSessionEnvOrThrow,
@@ -43,8 +43,8 @@ jest.mock('../startIosSimulator', () => ({
 jest.mock('../startAndroidEmulator', () => ({ startAndroidEmulatorAsync: jest.fn() }));
 jest.mock('../downloadBuild', () => ({ downloadBuildAsync: jest.fn() }));
 jest.mock('../installBuild', () => ({ installBuildAsync: jest.fn() }));
-jest.mock('../../utils/serveSimActions', () => ({
-  ...jest.requireActual('../../utils/serveSimActions'),
+jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
 jest.mock('../launchApplication', () => ({
