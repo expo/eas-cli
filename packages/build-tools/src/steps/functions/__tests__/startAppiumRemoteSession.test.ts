@@ -51,7 +51,8 @@ jest.mock('../../../utils/turtleFetch', () => ({
 }));
 jest.mock('../../utils/appiumEvents', () => ({ startAppiumEventCollectionAsync: jest.fn() }));
 jest.mock('../../utils/deviceSessionHost');
-jest.mock('../installBuild', () => ({
+jest.mock('../../utils/serveSimActions', () => ({
+  ...jest.requireActual('../../utils/serveSimActions'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
