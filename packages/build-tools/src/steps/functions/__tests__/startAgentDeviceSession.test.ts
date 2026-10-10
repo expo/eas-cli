@@ -1,10 +1,18 @@
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
+import { UserError } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
+import {
+  resolveLocalEgressServeSimBootEnvironmentAsync,
+  startLocalEgressGuardRelayAsync,
+} from '../../utils/localEgressGuard';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
-import { installBuildAsync } from '../installBuild';
+import { installBuildAsync, readIosApplicationIdentifierAsync } from '../installBuild';
 import { launchApplicationAsync } from '../launchApplication';
 import {
   getAgentDeviceRemoteSessionEnvOrThrow,
@@ -14,17 +22,29 @@ import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceS
 import { startAndroidEmulatorAsync } from '../startAndroidEmulator';
 import { bootIosSimulatorAsync } from '../startIosSimulator';
 
-jest.mock('../../utils/localEgressSession', () => ({
-  withLocalEgressSession: (fn: unknown) => fn,
+jest.mock('../../utils/localEgress', () => ({
+  stopLocalEgressResourcesAsync: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn(),
+  startLocalEgressGuardRelayAsync: jest.fn(),
+}));
+jest.mock('@expo/turtle-spawn');
+jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
 }));
-jest.mock('../startIosSimulator', () => ({ bootIosSimulatorAsync: jest.fn() }));
+jest.mock('../startIosSimulator', () => ({
+  ...jest.requireActual('../startIosSimulator'),
+  bootIosSimulatorAsync: jest.fn(),
+}));
 jest.mock('../startAndroidEmulator', () => ({ startAndroidEmulatorAsync: jest.fn() }));
 jest.mock('../downloadBuild', () => ({ downloadBuildAsync: jest.fn() }));
-jest.mock('../installBuild', () => ({ installBuildAsync: jest.fn() }));
+jest.mock('../installBuild', () => ({
+  installBuildAsync: jest.fn(),
+  readIosApplicationIdentifierAsync: jest.fn(),
+}));
 jest.mock('../launchApplication', () => ({
   ...jest.requireActual('../launchApplication'),
   launchApplicationAsync: jest.fn(),
@@ -42,7 +62,17 @@ const sessionEnv = {
   ngrokAuthtoken: 'ngrok-token',
 };
 
-type Device = { booted: Promise<unknown>; ready: Promise<unknown> };
+type Device = Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]['device'];
+let deviceLaunch: unknown;
+
+function runDevicePreparationAsync(device: Device): Promise<unknown> {
+  return (
+    'iosSimulatorUdid' in device ? (device.application ?? Promise.resolve()) : device.ready
+  ).then(async launch => {
+    deviceLaunch = launch;
+    return launch;
+  });
+}
 
 function deferred<T = void>(): {
   promise: Promise<T>;
@@ -67,7 +97,8 @@ async function flushAsync(): Promise<void> {
 
 function runStep(
   runtimePlatform: BuildRuntimePlatform,
-  inputValues: Record<string, unknown> = {}
+  inputValues: Record<string, unknown> = {},
+  signal?: AbortSignal
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
@@ -97,22 +128,32 @@ function runStep(
         staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
       },
     } as unknown as BuildStepContext,
-    { inputs, outputs: {}, env: {}, signal: undefined } as never
+    { inputs, outputs: {}, env: {}, signal } as never
   ) as Promise<void>;
 }
 
-/** The `device` promises handed to the shared agent-device session code. */
 function sessionDevice(): Device {
   return jest.mocked(runAgentDeviceRemoteSessionAsync).mock.calls[0][1].device;
 }
 
 describe(createStartAgentDeviceSessionBuildFunction, () => {
   beforeEach(() => {
+    deviceLaunch = undefined;
     jest.clearAllMocks();
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
+    jest.mocked(startLocalEgressGuardRelayAsync).mockResolvedValue(undefined);
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Shutdown' } as never);
+    jest.mocked(spawn).mockResolvedValue({ stdout: '' } as never);
+    jest.mocked(IosSimulatorUtils.resolveUdidAsync).mockResolvedValue('selected-udid' as never);
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ name: 'iPhone 17', udid: 'SELECTED-UDID' }] as never);
     jest.mocked(getAgentDeviceRemoteSessionEnvOrThrow).mockReturnValue(sessionEnv);
-    jest.mocked(runAgentDeviceRemoteSessionAsync).mockImplementation(async (_ctx, { device }) => {
-      await device.ready;
-    });
+    jest
+      .mocked(runAgentDeviceRemoteSessionAsync)
+      .mockImplementation(async (_ctx, { device, tasks }) => {
+        await tasks.untilAborted(runDevicePreparationAsync(device));
+      });
     jest.mocked(bootIosSimulatorAsync).mockResolvedValue({
       deviceIdentifier: 'iPhone 17' as never,
       udid: 'udid' as never,
@@ -128,22 +169,31 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       .mocked(installBuildAsync)
       .mockResolvedValue({ applicationIdentifier: 'dev.example.app', activityName: '.Main' });
     jest.mocked(launchApplicationAsync).mockResolvedValue(undefined);
+    jest.mocked(readIosApplicationIdentifierAsync).mockResolvedValue('dev.example.app');
   });
 
-  it('downloads the build and starts the session while the iOS Simulator boots', async () => {
-    const boot = deferred<Awaited<ReturnType<typeof bootIosSimulatorAsync>>>();
-    jest.mocked(bootIosSimulatorAsync).mockReturnValue(boot.promise);
-
-    const step = runStep(BuildRuntimePlatform.DARWIN, {
+  it('hands guarded iOS boot to serve-sim and starts reporting before host startup', async () => {
+    const bootEnv = {
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+      SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
+      SIMCTL_CHILD_http_proxy: 'http://127.0.0.1:8899',
+    };
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(bootEnv);
+    await runStep(BuildRuntimePlatform.DARWIN, {
       build_id: 'build-id',
       launch_args: ['-flag'],
       open_url: 'exp://example.test',
     });
-    await flushAsync();
-
     expect(
       jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
-    ).toBeLessThan(jest.mocked(bootIosSimulatorAsync).mock.invocationCallOrder[0]);
+    ).toBeLessThan(
+      jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mock.invocationCallOrder[0]
+    );
+    expect(startLocalEgressGuardRelayAsync).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(startLocalEgressGuardRelayAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(runAgentDeviceRemoteSessionAsync).mock.invocationCallOrder[0]
+    );
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
     expect(downloadBuildAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         buildId: 'build-id',
@@ -153,32 +203,138 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       })
     );
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(1);
-    // The install needs the booted Simulator.
-    expect(installBuildAsync).not.toHaveBeenCalled();
-
-    boot.resolve({
-      deviceIdentifier: 'iPhone 17' as never,
-      udid: 'udid' as never,
-      displayName: '',
+    const device = sessionDevice();
+    expect(device).toEqual({
+      iosSimulatorUdid: 'SELECTED-UDID',
+      bootEnv,
+      application: expect.any(Promise),
     });
-    await step;
+    expect(spawn).not.toHaveBeenCalled();
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledWith({
+      artifactPath: '/tmp/App.app',
+      env: {},
+    });
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(deviceLaunch).toEqual({
+      installAppPath: '/tmp/App.app',
+      launchAppIdentifier: 'dev.example.app',
+      launchArgs: ['-flag'],
+      openUrl: 'exp://example.test',
+    });
+  });
 
-    expect(installBuildAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ artifactPath: '/tmp/App.app' })
-    );
-    expect(launchApplicationAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        applicationIdentifier: 'dev.example.app',
-        launchArgs: ['-flag'],
-        openUrl: 'exp://example.test',
-      })
-    );
-    expect(jest.mocked(installBuildAsync).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(launchApplicationAsync).mock.invocationCallOrder[0]
+  it('shuts down only the selected guarded Booted device before host startup', async () => {
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
+    await runStep(BuildRuntimePlatform.DARWIN);
+    expect(IosSimulatorUtils.getDeviceAsync).toHaveBeenCalledWith({
+      udid: 'SELECTED-UDID',
+      env: {},
+    });
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith('xcrun', ['simctl', 'shutdown', 'SELECTED-UDID'], {
+      env: {},
+      logger: expect.any(Object),
+      signal: expect.any(AbortSignal),
+    });
+    expect(jest.mocked(spawn).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(runAgentDeviceRemoteSessionAsync).mock.invocationCallOrder[0]
     );
   });
 
-  it('waits for the download when the Simulator boots first', async () => {
+  it('fails before download or host startup when guarded device shutdown fails', async () => {
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
+    jest.mocked(spawn).mockRejectedValue(new Error('shutdown failed'));
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'shutdown failed'
+    );
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('provides Simulator preparation and downloaded startup options to the remote session', async () => {
+    const hostReady = deferred();
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest.mocked(runAgentDeviceRemoteSessionAsync).mockImplementation(async (_ctx, { device }) => {
+      expect('iosSimulatorUdid' in device).toBe(true);
+      if (!('iosSimulatorUdid' in device)) {
+        return;
+      }
+      await hostReady.promise;
+      deviceLaunch = await device.application;
+    });
+    const step = runStep(BuildRuntimePlatform.DARWIN, {
+      device_identifier: 'iPhone 17',
+      build_id: 'build-id',
+      launch_args: ['-flag'],
+      open_url: 'exp://example.test',
+    });
+    await flushAsync();
+    expect(IosSimulatorUtils.resolveUdidAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'iPhone 17',
+      env: {},
+    });
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).toHaveBeenCalledTimes(1);
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledWith({
+      artifactPath: '/tmp/App.app',
+      env: {},
+    });
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(deviceLaunch).toBeUndefined();
+    hostReady.resolve();
+    await step;
+    expect(deviceLaunch).toEqual({
+      installAppPath: '/tmp/App.app',
+      launchAppIdentifier: 'dev.example.app',
+      launchArgs: ['-flag'],
+      openUrl: 'exp://example.test',
+    });
+  });
+
+  it('fails a guarded session before download or host startup if its boot files are missing', async () => {
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockRejectedValue(new Error('missing bin/egress-guard-check'));
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'missing bin/egress-guard-check'
+    );
+    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
+    expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases guard reporting and egress resources when host startup fails', async () => {
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest
+      .mocked(runAgentDeviceRemoteSessionAsync)
+      .mockRejectedValueOnce(new Error('guard check failed'));
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'guard check failed'
+    );
+    expect(startLocalEgressGuardRelayAsync).toHaveBeenCalledTimes(1);
+    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+  });
+
+  it('waits for the download before handing the app to the host', async () => {
     const download = deferred<{ artifactPath: string }>();
     jest.mocked(downloadBuildAsync).mockReturnValue(download.promise);
 
@@ -190,16 +346,21 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
 
     download.resolve({ artifactPath: '/tmp/App.app' });
     await step;
-    expect(installBuildAsync).toHaveBeenCalledTimes(1);
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledTimes(1);
+    expect(installBuildAsync).not.toHaveBeenCalled();
   });
 
-  it('makes the session ready when the device boots if there is no app', async () => {
+  it('passes the selected Simulator to the host even when there is no app', async () => {
     await runStep(BuildRuntimePlatform.DARWIN);
 
     expect(downloadBuildAsync).not.toHaveBeenCalled();
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
-    await expect(sessionDevice().ready).resolves.toBeUndefined();
+    expect(sessionDevice()).toEqual({
+      iosSimulatorUdid: 'SELECTED-UDID',
+      bootEnv: undefined,
+      application: undefined,
+    });
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -231,23 +392,10 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   });
 
   it('fails the session when the download fails, without an unhandled rejection', async () => {
-    const boot = deferred<Awaited<ReturnType<typeof bootIosSimulatorAsync>>>();
-    jest.mocked(bootIosSimulatorAsync).mockReturnValue(boot.promise);
     jest.mocked(downloadBuildAsync).mockRejectedValue(new Error('download failed'));
-
-    const stepFailure = expect(
-      runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })
-    ).rejects.toThrow('download failed');
-    // The download fails while the boot still runs. Nothing inside the step may leave
-    // that rejection unhandled; Jest fails the test if it does.
-    await flushAsync();
-    boot.resolve({
-      deviceIdentifier: 'iPhone 17' as never,
-      udid: 'udid' as never,
-      displayName: '',
-    });
-
-    await stepFailure;
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'download failed'
+    );
     expect(installBuildAsync).not.toHaveBeenCalled();
   });
 
@@ -276,23 +424,24 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     jest
       .mocked(runAgentDeviceRemoteSessionAsync)
       .mockImplementation(async (_ctx, { tasks, device }) => {
+        const ready = runDevicePreparationAsync(device);
         await beforeFailure?.();
         const daemon = tasks.run('agent-device daemon', async () => {
           throw new Error('daemon failed');
         });
         try {
-          await Promise.all([daemon, device.ready]);
+          await Promise.all([daemon, ready]);
         } finally {
-          await Promise.allSettled([daemon, device.ready]);
+          await Promise.allSettled([daemon, ready]);
         }
       });
   }
 
-  it('stops the download and waits for it when the boot fails', async () => {
+  it('stops the download and waits for it when Android boot fails', async () => {
     const download = mockStalledDownload();
-    jest.mocked(bootIosSimulatorAsync).mockRejectedValue(new Error('boot failed'));
+    jest.mocked(startAndroidEmulatorAsync).mockRejectedValue(new Error('boot failed'));
 
-    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+    await expect(runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' })).rejects.toThrow(
       'boot failed'
     );
 
@@ -316,25 +465,79 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).not.toHaveBeenCalled();
   });
 
-  it('does not launch the app when startup fails during the install', async () => {
-    const install = deferred<Awaited<ReturnType<typeof installBuildAsync>>>();
-    const installStarted = deferred();
-    jest.mocked(installBuildAsync).mockImplementation(() => {
-      installStarted.resolve();
-      return install.promise;
+  it('drains the download when host startup fails before app preparation', async () => {
+    const download = mockStalledDownload();
+    jest.mocked(runAgentDeviceRemoteSessionAsync).mockRejectedValue(new Error('host failed'));
+
+    await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
+      'host failed'
+    );
+    expect(download.aborted()).toBe(true);
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not start work for an already cancelled step', async () => {
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled'));
+
+    await expect(
+      runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' }, controller.signal)
+    ).rejects.toThrow('cancelled');
+    expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('cancels and drains a pending download through the external signal', async () => {
+    const controller = new AbortController();
+    const download = mockStalledDownload();
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' }, controller.signal);
+    const failure = expect(step).rejects.toThrow('cancelled');
+    await flushAsync();
+    controller.abort(new Error('cancelled'));
+
+    await failure;
+    expect(download.aborted()).toBe(true);
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not start device or download work after cancellation during Xcode selection', async () => {
+    const controller = new AbortController();
+    const selected = deferred();
+    jest.mocked(selectXcodeDeveloperDirectoryAsync).mockReturnValue(selected.promise);
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' }, controller.signal);
+    const failure = expect(step).rejects.toThrow('cancelled');
+    await flushAsync();
+    controller.abort(new Error('cancelled'));
+    selected.resolve();
+
+    await failure;
+    expect(IosSimulatorUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('drains app preparation when the daemon fails', async () => {
+    const metadata = deferred<string>();
+    const metadataStarted = deferred();
+    jest.mocked(readIosApplicationIdentifierAsync).mockImplementation(() => {
+      metadataStarted.resolve();
+      return metadata.promise;
     });
     mockSessionWithFailingDaemon(async () => {
-      await installStarted.promise;
-      // The install finishes only after the daemon failed.
-      setImmediate(() => install.resolve({ applicationIdentifier: 'dev.example.app' }));
+      await metadataStarted.promise;
+      setImmediate(() => metadata.resolve('dev.example.app'));
     });
-
     await expect(runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' })).rejects.toThrow(
       'daemon failed'
     );
-
-    expect(installBuildAsync).toHaveBeenCalledTimes(1);
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledTimes(1);
+    expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(deviceLaunch).toBeUndefined();
   });
 
   it('rejects conflicting application inputs before it boots anything', async () => {
@@ -374,6 +577,31 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'max_idle_time_minutes',
       'max_duration_seconds',
     ]);
+  });
+
+  it.each([
+    ['argument count', { launch_args: Array(257).fill('a') }],
+    ['argument length', { launch_args: ['a'.repeat(9000)] }],
+    ['NUL argument', { launch_args: ['a\u0000b'] }],
+    ['total UTF-8 bytes', { launch_args: Array(8).fill('😃'.repeat(4096)) }],
+    ['NUL URL', { open_url: 'example:\u0000screen' }],
+    ['URL length', { open_url: `example://${'a'.repeat(8192)}` }],
+  ])('rejects iOS launch %s before startup work', async (_name, inputs) => {
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id', ...inputs });
+    await expect(step).rejects.toBeInstanceOf(UserError);
+    expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
+    expect(IosSimulatorUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps Android launch inputs on its existing direct path', async () => {
+    const launchArgs = ['a'.repeat(9000)];
+    await runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id', launch_args: launchArgs });
+    expect(launchApplicationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX, launchArgs })
+    );
   });
 
   it('passes network capture to the session', async () => {

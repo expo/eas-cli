@@ -70,7 +70,7 @@ const mockEventCollectionStopAsync = jest.fn();
 type CaptureInputs = Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]['capture'];
 const NO_CAPTURE: CaptureInputs = { networkCapture: false, networkCaptureFields: [] };
 
-/** Runs the session for a device that is already booted, with the app (if any) launched. */
+/** Runs an Android session that is ready, or an iOS session with no application preparation. */
 async function runAsync(
   logger: { info: jest.Mock; warn: jest.Mock; child: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
@@ -90,7 +90,10 @@ async function runAsync(
     maxDurationSeconds: undefined,
     capture,
     tasks: createStartupTasks(logger as never),
-    device: { booted: Promise.resolve(), ready: Promise.resolve() },
+    device:
+      runtimePlatform === BuildRuntimePlatform.DARWIN
+        ? { iosSimulatorUdid: 'selected-udid', application: Promise.resolve() }
+        : { booted: Promise.resolve(), ready: Promise.resolve() },
   });
 }
 
@@ -120,13 +123,23 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       subdomainId: 'agent-device-abc',
       stopAsync: mockTunnelStopAsync,
     });
-    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+    const host = {
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.tunnel.example.com',
         closeAsync: jest.fn(),
       }),
       finishAsync: mockPreviewStopAsync,
+    };
+    jest.mocked(startDeviceSessionHostAsync).mockImplementation(async (_ctx, options) => {
+      try {
+        await options.application;
+        options.signal?.throwIfAborted();
+      } catch (error) {
+        await mockPreviewStopAsync();
+        throw error;
+      }
+      return host;
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -146,7 +159,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
 
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
-      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX, timeoutMs: 60_000 })
     );
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -267,14 +280,14 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
   });
 
   describe('runAgentDeviceRemoteSessionAsync with a device that is still starting', () => {
-    function deferred(): {
-      promise: Promise<void>;
-      resolve: () => void;
+    function deferred<T = void>(): {
+      promise: Promise<T>;
+      resolve: (value: T) => void;
       reject: (e: Error) => void;
     } {
-      let resolve!: () => void;
+      let resolve!: (value: T) => void;
       let reject!: (e: Error) => void;
-      const promise = new Promise<void>((res, rej) => {
+      const promise = new Promise<T>((res, rej) => {
         resolve = res;
         reject = rej;
       });
@@ -282,18 +295,26 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       return { promise, resolve, reject };
     }
 
-    type Device = { booted: Promise<unknown>; ready: Promise<unknown> };
-    function startSession(device: Device | ((tasks: StartupTasks) => Device)) {
+    type Device = Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]['device'];
+    function startSession(
+      device: Device | ((tasks: StartupTasks) => Device),
+      signal?: AbortSignal
+    ) {
       const logger = {
         info: jest.fn(),
         warn: jest.fn(),
         child: jest.fn().mockReturnThis(),
       } as never;
-      const tasks = createStartupTasks(logger);
+      const tasks = createStartupTasks(logger, signal);
+      const sessionDevice = typeof device === 'function' ? device(tasks) : device;
       return runAgentDeviceRemoteSessionAsync(ctx, {
         env: {},
         logger,
-        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        signal,
+        runtimePlatform:
+          'iosSimulatorUdid' in sessionDevice
+            ? BuildRuntimePlatform.DARWIN
+            : BuildRuntimePlatform.LINUX,
         sessionEnv: {
           deviceRunSessionId: 'device-run-session-id',
           ngrokTunnelDomain: 'tunnel.example.com',
@@ -304,7 +325,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         maxDurationSeconds: undefined,
         capture: NO_CAPTURE,
         tasks,
-        device: typeof device === 'function' ? device(tasks) : device,
+        device: sessionDevice,
       });
     }
 
@@ -314,7 +335,31 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       }
     }
 
-    it('starts the daemon during the boot and the session host after it', async () => {
+    it('aborts parallel startup before host failure cleanup finishes', async () => {
+      const failure = new Error('guard refused startup');
+      const cleanup = deferred();
+      const notified = deferred();
+      let startupTasks!: StartupTasks;
+      jest.mocked(startDeviceSessionHostAsync).mockImplementation(async (_ctx, options) => {
+        options.onStartupError?.(failure);
+        notified.resolve();
+        await cleanup.promise;
+        throw failure;
+      });
+      const session = startSession(tasks => {
+        startupTasks = tasks;
+        return { iosSimulatorUdid: 'selected-udid' };
+      });
+      const rejected = expect(session).rejects.toBe(failure);
+      await notified.promise;
+      expect(startupTasks.signal.aborted).toBe(true);
+      expect(startupTasks.signal.reason).toBe(failure);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      cleanup.resolve();
+      await rejected;
+    });
+
+    it('starts the daemon during the Android boot and the session host after it', async () => {
       const booted = deferred();
       const session = startSession({ booted: booted.promise, ready: booted.promise });
       await flushAsync();
@@ -326,10 +371,234 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       booted.resolve();
       await session;
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          timeoutMs: 60_000,
+          iosSimulatorUdid: undefined,
+        })
+      );
       expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     });
 
-    it('reports the session as ready only after the app is launched', async () => {
+    it('preserves a failed download when aborting daemon installation rejects first', async () => {
+      const failure = new Error('download failed: build not found');
+      const installStarted = deferred();
+      jest.mocked(spawn).mockImplementation((async (_command, _args, options) => {
+        return await new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener(
+            'abort',
+            () => {
+              const error = new Error('The operation was aborted');
+              error.name = 'AbortError';
+              reject(error);
+            },
+            { once: true }
+          );
+          installStarted.resolve();
+        });
+      }) as typeof spawn);
+      jest.mocked(startDeviceSessionHostAsync).mockImplementation(async (_ctx, { signal }) => {
+        return await new Promise((_resolve, reject) => {
+          signal!.addEventListener(
+            'abort',
+            () => {
+              setTimeout(() => reject(signal!.reason), 20);
+            },
+            { once: true }
+          );
+        });
+      });
+      const applicationReady = Promise.resolve();
+      const session = startSession(tasks => {
+        void tasks.run('build download', async () => {
+          await installStarted.promise;
+          throw failure;
+        });
+        return { iosSimulatorUdid: 'selected-udid', application: applicationReady };
+      });
+      await expect(session).rejects.toBe(failure);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('boots the host during download and releases startup only after preparation', async () => {
+      const hostReady = deferred();
+      const application = deferred<{
+        installAppPath: string;
+        launchAppIdentifier: string;
+        launchArgs: string[];
+        openUrl: string;
+      }>();
+      const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+        ctx,
+        {} as never
+      );
+      const release = jest.fn();
+      jest
+        .mocked(startDeviceSessionHostAsync)
+        .mockClear()
+        .mockImplementation(async (_ctx, options) => {
+          release(await options.application);
+          await hostReady.promise;
+          return host;
+        });
+      const applicationReady = application.promise;
+      const session = startSession({
+        iosSimulatorUdid: 'selected-udid',
+        application: applicationReady,
+      });
+      await flushAsync();
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      expect(release).not.toHaveBeenCalled();
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      const startup = {
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--flag'],
+        openUrl: 'example://screen',
+      };
+      application.resolve(startup);
+      await flushAsync();
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          application: applicationReady,
+          iosSimulatorUdid: 'selected-udid',
+          timeoutMs: 60_000,
+          signal: expect.any(AbortSignal),
+        })
+      );
+      expect(release).toHaveBeenCalledWith(startup);
+      expect(host.openPreviewAsync).not.toHaveBeenCalled();
+      hostReady.resolve();
+      await session;
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('passes the guard boot environment with the startup installation and launch', async () => {
+      const startup = {
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--flag'],
+        openUrl: 'example://screen',
+      };
+      const bootEnv = {
+        SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+        SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
+        SIMCTL_CHILD_EAS_EGRESS_GUARD_LOG: '/tmp/egress-guard.log',
+        SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:8899',
+      };
+      await startSession({
+        iosSimulatorUdid: 'guarded-udid',
+        bootEnv,
+        application: Promise.resolve(startup),
+      });
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          application: expect.any(Promise),
+          bootEnv,
+          iosSimulatorUdid: 'guarded-udid',
+        })
+      );
+      const hostOptions = jest.mocked(startDeviceSessionHostAsync).mock.calls[0][1];
+      expect(hostOptions.bootEnv).toBe(bootEnv);
+      expect(hostOptions.bootEnv).not.toHaveProperty('DYLD_INSERT_LIBRARIES');
+      expect(hostOptions.bootEnv).not.toHaveProperty('SIMCTL_CHILD_DYLD_INSERT_LIBRARIES');
+    });
+
+    it('cleans up a host returned after cancellation without configuring the device', async () => {
+      const hostReady = deferred();
+      const controller = new AbortController();
+      const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+        ctx,
+        {} as never
+      );
+      jest.mocked(startDeviceSessionHostAsync).mockImplementation(async () => {
+        await hostReady.promise;
+        return host;
+      });
+      const applicationReady = Promise.resolve();
+      const session = startSession(
+        { iosSimulatorUdid: 'selected-udid', application: applicationReady },
+        controller.signal
+      );
+      const failure = expect(session).rejects.toThrow('cancelled');
+      await flushAsync();
+      controller.abort(new Error('cancelled'));
+      hostReady.resolve();
+
+      await failure;
+      expect(host.openPreviewAsync).not.toHaveBeenCalled();
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('drains in-flight application preparation and stops the waiting host after cancellation', async () => {
+      const controller = new AbortController();
+      const appReady = deferred();
+      const session = startSession(
+        { iosSimulatorUdid: 'selected-udid', application: appReady.promise },
+        controller.signal
+      );
+      const failure = expect(session).rejects.toThrow('cancelled');
+      await flushAsync();
+      controller.abort(new Error('cancelled'));
+      await flushAsync();
+      expect(mockPreviewStopAsync).not.toHaveBeenCalled();
+
+      appReady.resolve();
+      await failure;
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not report readiness when cancellation arrives during preview startup', async () => {
+      const controller = new AbortController();
+      const previewReady = deferred();
+      const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+        ctx,
+        {} as never
+      );
+      const preview = await host.openPreviewAsync({ baseDomain: 'tunnel.example.com' });
+      jest.mocked(host.openPreviewAsync).mockImplementation(async () => {
+        await previewReady.promise;
+        return preview;
+      });
+      const session = startSession(
+        { iosSimulatorUdid: 'selected-udid', application: Promise.resolve() },
+        controller.signal
+      );
+      const failure = expect(session).rejects.toThrow('cancelled');
+      await flushAsync();
+      controller.abort(new Error('cancelled'));
+      previewReady.resolve();
+
+      await failure;
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not start resources for an already cancelled session', async () => {
+      const controller = new AbortController();
+      controller.abort(new Error('cancelled'));
+      const applicationReady = Promise.resolve();
+
+      await expect(
+        startSession(
+          { iosSimulatorUdid: 'selected-udid', application: applicationReady },
+          controller.signal
+        )
+      ).rejects.toThrow('cancelled');
+      expect(spawn).not.toHaveBeenCalled();
+      expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    });
+
+    it('starts the Android host before application readiness and waits before reporting ready', async () => {
       const ready = deferred();
       const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
       await flushAsync();
@@ -339,10 +608,11 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
 
       ready.resolve();
       await session;
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
       expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     });
 
-    it('stops waiting for the boot when the daemon fails', async () => {
+    it('stops waiting for the Android boot when the daemon fails', async () => {
       jest.mocked(waitForFileAsync).mockRejectedValue(new Error('no daemon credentials'));
       const neverBooted = new Promise<void>(() => {});
 
@@ -356,7 +626,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
     });
 
-    it('stops the session host when the app fails while the daemon install hangs', async () => {
+    it('cancels daemon installation and stops the Android host when the download fails', async () => {
       jest.mocked(spawn).mockImplementation(((
         command: string,
         args: string[],
@@ -372,21 +642,22 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       await flushAsync();
       expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
 
-      ready.reject(new Error('simctl install failed'));
+      ready.reject(new Error('download failed'));
 
-      await expect(session).rejects.toThrow('simctl install failed');
+      await expect(session).rejects.toThrow('download failed');
       expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
       expect(spawnDetached).not.toHaveBeenCalled();
       expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
     });
 
-    it('stops everything it started when the app install fails', async () => {
+    it('stops the Android host, daemon and tunnel when the download fails', async () => {
       const ready = deferred();
       const session = startSession({ booted: Promise.resolve(), ready: ready.promise });
       await flushAsync();
-      ready.reject(new Error('simctl install failed'));
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+      ready.reject(new Error('download failed'));
 
-      await expect(session).rejects.toThrow('simctl install failed');
+      await expect(session).rejects.toThrow('download failed');
       expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
       expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
       expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);

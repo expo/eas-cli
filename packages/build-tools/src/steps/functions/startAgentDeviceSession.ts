@@ -15,7 +15,6 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
-import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import { selectXcodeDeveloperDirectoryAsync } from '../utils/remoteDeviceRunSession';
 import {
@@ -23,9 +22,13 @@ import {
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
 import { createStartupTasks } from '../utils/startupTasks';
+import {
+  type ServeSimApplicationOptions,
+  validateServeSimLaunchOptions,
+} from '../utils/remoteDeviceRunSession';
 
 import { downloadBuildAsync } from './downloadBuild';
-import { installBuildAsync } from './installBuild';
+import { installBuildAsync, readIosApplicationIdentifierAsync } from './installBuild';
 import {
   launchApplicationAsync,
   parseLaunchArgsInput,
@@ -36,26 +39,14 @@ import {
   runAgentDeviceRemoteSessionAsync,
 } from './startAgentDeviceRemoteSession';
 import { startAndroidEmulatorAsync } from './startAndroidEmulator';
-import { bootIosSimulatorAsync } from './startIosSimulator';
+import { resolveIosSessionStartupAsync } from './startIosSimulator';
 
 const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
 
 /**
- * One step for a whole agent-device session: boot the device, download, install and
- * launch the app, and start the agent-device daemon and the web preview.
- *
- * It does the work of eas/start_ios_simulator or eas/start_android_emulator,
- * eas/download_build, eas/install_build and eas/launch_application, plus the agent-device
- * session, so the parts that do not depend on each other can run at the same time:
- *
- *   boot ─────────────┬─► install ─► launch ─┐
- *   download ─────────┘                      │
- *   boot ─► session host ─► web preview ─────┼─► ready
- *   agent-device daemon ─► tunnel ───────────┘
- *
- * The first failure aborts the rest: the download stops, and nothing installs, launches
- * or starts after it. A boot cannot be cancelled, so it can still run when a failed
- * step returns.
+ * Starts a device session, downloading the app alongside daemon startup.
+ * On iOS, serve-sim boots the selected Simulator, then installs and launches
+ * the downloaded app. Build-tools verifies any egress guard before install and launch.
  */
 export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -155,6 +146,9 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           'launch_args and open_url need an application: pass build_id or application_archive_url.'
         );
       }
+      if (isIos) {
+        validateServeSimLaunchOptions({ launchArgs, openUrl });
+      }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
         {
@@ -164,104 +158,132 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         { runtimePlatform }
       );
 
-      if (isIos) {
-        // Before the boot, so every Xcode tool below uses the same developer directory.
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
+      const tasks = createStartupTasks(logger, signal);
+      let downloaded: Promise<string> | undefined;
+      let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
 
-      const tasks = createStartupTasks(logger);
-
-      const booted = tasks.run(
-        isIos ? 'iOS Simulator boot' : 'Android Emulator boot',
-        async taskLogger => {
-          if (isIos) {
-            await bootIosSimulatorAsync({
-              deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName | undefined,
-              env,
-              logger: taskLogger,
-            });
-            return;
-          }
-          await startAndroidEmulatorAsync({
-            deviceName: ANDROID_DEVICE_NAME,
-            systemImagePackage: `${inputs.system_image_package.value}`,
-            deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
-            lcdWidth: inputs.lcd_width.value as number | undefined,
-            lcdHeight: inputs.lcd_height.value as number | undefined,
-            lcdDensity: inputs.lcd_density.value as number | undefined,
-            logcatDirectory: await fs.promises.mkdtemp(
-              path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
-            ),
-            env,
-            logger: taskLogger,
-          });
+      try {
+        if (isIos) {
+          // Select Xcode before serve-sim boots the device or any Simulator tools run.
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
         }
-      );
-
-      const downloaded = hasApplication
-        ? tasks.run('build download', async taskLogger => {
-            const { artifactPath } = await downloadBuildAsync({
-              logger: taskLogger,
-              ...(buildId ? { buildId } : { applicationArchiveUrl: applicationArchiveUrl! }),
-              graphqlClient: ctx.graphqlClient,
-              robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
-              extensions: isIos ? ['app'] : ['apk'],
+        tasks.signal.throwIfAborted();
+        const { iosStartup } = isIos
+          ? await resolveIosSessionStartupAsync({
+              runtimePlatform,
+              bootSimulator: true,
+              deviceIdentifier,
+              env,
+              logger,
               signal: tasks.signal,
-            });
-            return artifactPath;
-          })
-        : undefined;
+            })
+          : {};
+        const iosSimulatorUdid = iosStartup?.iosSimulatorUdid;
+        if (iosSimulatorUdid) {
+          logger.info(`Selected iOS Simulator: ${iosSimulatorUdid}.`);
+        }
 
-      // `ready` settles only after everything it started has settled, so the session
-      // teardown, which waits for it, never leaves a download running. It must also settle
-      // soon after an abort: it stops waiting for the boot then, and the download stops.
-      const ready = downloaded
-        ? tasks.run('app install and launch', async taskLogger => {
-            const [download, boot] = await Promise.allSettled([
-              downloaded,
-              tasks.untilAborted(booted),
-            ]);
-            // After a failure elsewhere, report that failure, not the abort it caused here.
-            tasks.signal.throwIfAborted();
-            if (download.status === 'rejected') {
-              throw download.reason;
-            }
-            if (boot.status === 'rejected') {
-              throw boot.reason;
-            }
-            const { applicationIdentifier, activityName } = await installBuildAsync({
-              artifactPath: download.value,
-              runtimePlatform,
-              env,
-              logger: taskLogger,
+        const booted = iosSimulatorUdid
+          ? undefined
+          : tasks.run('Android Emulator boot', async taskLogger => {
+              const logcatDirectory = await fs.promises.mkdtemp(
+                path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
+              );
+              tasks.signal.throwIfAborted();
+              await startAndroidEmulatorAsync({
+                deviceName: ANDROID_DEVICE_NAME,
+                systemImagePackage: `${inputs.system_image_package.value}`,
+                deviceIdentifier: deviceIdentifier as AndroidDeviceName | undefined,
+                lcdWidth: inputs.lcd_width.value as number | undefined,
+                lcdHeight: inputs.lcd_height.value as number | undefined,
+                lcdDensity: inputs.lcd_density.value as number | undefined,
+                logcatDirectory,
+                env,
+                logger: taskLogger,
+              });
             });
-            tasks.signal.throwIfAborted();
-            await launchApplicationAsync({
-              applicationIdentifier,
-              activityName,
-              launchArgs,
-              openUrl,
-              runtimePlatform,
-              env,
-              logger: taskLogger,
-            });
-          })
-        : tasks.untilAborted(booted);
 
-      await runAgentDeviceRemoteSessionAsync(ctx, {
-        env,
-        logger,
-        signal,
-        runtimePlatform,
-        sessionEnv,
-        packageVersion: inputs.package_version.value as string | undefined,
-        // A missing or non-positive value disables the idle timeout (opt-in feature).
-        maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
-        maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
-        capture,
-        tasks,
-        device: { booted, ready },
-      });
+        downloaded = hasApplication
+          ? tasks.run('build download', async taskLogger => {
+              const { artifactPath } = await downloadBuildAsync({
+                logger: taskLogger,
+                ...(buildId ? { buildId } : { applicationArchiveUrl: applicationArchiveUrl! }),
+                graphqlClient: ctx.graphqlClient,
+                robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
+                extensions: isIos ? ['app'] : ['apk'],
+                signal: tasks.signal,
+              });
+              return artifactPath;
+            })
+          : undefined;
+
+        const download = downloaded;
+        applicationReady = download
+          ? tasks.run(isIos ? 'app preparation' : 'app install and launch', async taskLogger => {
+              if (booted) {
+                await tasks.untilAborted(booted);
+              }
+              const artifactPath = await download;
+              tasks.signal.throwIfAborted();
+              if (isIos) {
+                const applicationIdentifier = await readIosApplicationIdentifierAsync({
+                  artifactPath,
+                  env,
+                });
+                tasks.signal.throwIfAborted();
+                return {
+                  installAppPath: artifactPath,
+                  launchAppIdentifier: applicationIdentifier,
+                  launchArgs,
+                  openUrl,
+                };
+              }
+              const { applicationIdentifier, activityName } = await installBuildAsync({
+                artifactPath,
+                runtimePlatform,
+                env,
+                logger: taskLogger,
+              });
+              tasks.signal.throwIfAborted();
+              await launchApplicationAsync({
+                applicationIdentifier,
+                activityName,
+                launchArgs,
+                openUrl,
+                runtimePlatform,
+                env,
+                logger: taskLogger,
+              });
+            })
+          : undefined;
+
+        await runAgentDeviceRemoteSessionAsync(ctx, {
+          env,
+          logger,
+          signal,
+          runtimePlatform,
+          sessionEnv,
+          packageVersion: inputs.package_version.value as string | undefined,
+          // A missing or non-positive value disables the idle timeout (opt-in feature).
+          maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
+          maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
+          capture,
+          tasks,
+          device: iosSimulatorUdid
+            ? {
+                ...iosStartup,
+                iosSimulatorUdid,
+                application: applicationReady,
+              }
+            : {
+                booted: booted!,
+                ready: applicationReady ?? tasks.untilAborted(booted!),
+              },
+        });
+      } finally {
+        tasks.abort(new Error('Agent-device session ended.'));
+        await Promise.allSettled([downloaded, applicationReady]);
+      }
     }),
   });
 }
