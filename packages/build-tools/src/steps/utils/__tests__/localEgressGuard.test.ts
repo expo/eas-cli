@@ -21,6 +21,8 @@ import {
   rebindLocalEgressGuardRelays,
   resolveEgressGuardLibraryAsync,
   resolveLocalEgressBootEnvironmentAsync,
+  resolveLocalEgressServeSimBootEnvironmentAsync,
+  startLocalEgressGuardRelayAsync,
   stopLocalEgressGuardRelaysAsync,
   verifyLocalEgressGuardAsync,
 } from '../localEgressGuard';
@@ -466,6 +468,94 @@ describe(resolveLocalEgressBootEnvironmentAsync, () => {
       no_proxy: 'localhost,127.0.0.1,::1',
       NO_PROXY: 'localhost,127.0.0.1,::1',
     });
+  });
+});
+
+describe(resolveLocalEgressServeSimBootEnvironmentAsync, () => {
+  let dir: string;
+  let handoffPath: string;
+  beforeEach(async () => {
+    dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'guard-serve-sim-'));
+    handoffPath = path.join(dir, 'handoff.json');
+  });
+  afterEach(async () => {
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  });
+
+  it('does not require the guard or check for an ordinary session', async () => {
+    await expect(
+      resolveLocalEgressServeSimBootEnvironmentAsync({
+        handoffPath,
+        libraryPath: null,
+        checkPath: null,
+      })
+    ).resolves.toBeNull();
+  });
+
+  it('requires both packaged files before handing startup to serve-sim', async () => {
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    await expect(
+      resolveLocalEgressServeSimBootEnvironmentAsync({ handoffPath, libraryPath: null })
+    ).rejects.toThrow('missing bin/egress-guard.dylib');
+    await expect(
+      resolveLocalEgressServeSimBootEnvironmentAsync({
+        handoffPath,
+        libraryPath: '/w/bin/egress-guard.dylib',
+        checkPath: null,
+      })
+    ).rejects.toThrow('missing bin/egress-guard-check');
+  });
+
+  it('passes the additional dylib and prefixed child variables without host DYLD injection', async () => {
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync({
+      handoffPath,
+      libraryPath: '/w/bin/egress-guard.dylib',
+      checkPath: '/w/bin/egress-guard-check',
+      logPath: '/tmp/guard.log',
+    });
+    expect(bootEnv).toEqual({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+      SIMCTL_CHILD_EAS_EGRESS_GUARD_LOG: '/tmp/guard.log',
+      SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
+      SIMCTL_CHILD_http_proxy: 'http://127.0.0.1:8899',
+      SIMCTL_CHILD_https_proxy: 'http://127.0.0.1:8899',
+      SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:8899',
+      SIMCTL_CHILD_HTTPS_PROXY: 'http://127.0.0.1:8899',
+      SIMCTL_CHILD_grpc_proxy: 'http://127.0.0.1:8899',
+      SIMCTL_CHILD_no_proxy: 'localhost,127.0.0.1,::1',
+      SIMCTL_CHILD_NO_PROXY: 'localhost,127.0.0.1,::1',
+    });
+  });
+});
+
+describe(startLocalEgressGuardRelayAsync, () => {
+  it('relays boot events without setting launchd environment or truncating the log', async () => {
+    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'guard-relay-'));
+    const logPath = path.join(dir, 'guard.log');
+    const logger = createLogger();
+    mockedSetEnv.mockClear();
+    await fs.promises.writeFile(
+      logPath,
+      'eas-egress-guard\tSpringBoard\t4001\tconnect\tblocked\t1.1.1.1:443\tNetwork\n'
+    );
+    try {
+      await startLocalEgressGuardRelayAsync({ logger, logPath });
+      await fs.promises.appendFile(
+        logPath,
+        'eas-egress-guard\tMyApp\t4002\tconnect\tblocked\t1.1.1.1:443\tNetwork\n'
+      );
+      await stopLocalEgressGuardRelaysAsync(logger);
+      expect(mockedSetEnv).not.toHaveBeenCalled();
+      expect(logger.lines.some(line => /refused connect from SpringBoard/.test(line.msg))).toBe(
+        true
+      );
+      expect(logger.lines.some(line => /refused connect from MyApp/.test(line.msg))).toBe(true);
+      expect(logger.lines.at(-1)?.msg).toContain('refused 2 connection attempt(s)');
+    } finally {
+      await stopLocalEgressGuardRelaysAsync(logger);
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
