@@ -1,7 +1,8 @@
 import { CODEX_CLI } from '../codex';
 import { readFixtureLines } from './readFixture';
 
-const format = CODEX_CLI.formatOutputLine;
+const format = (line: string) =>
+  CODEX_CLI.formatOutputLine(line).map(({ level, message }) => ({ level, message }));
 
 function formatFixture(name: string): ReturnType<typeof format> {
   return readFixtureLines(name).flatMap(line => format(line));

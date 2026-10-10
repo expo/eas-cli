@@ -238,6 +238,23 @@ describe(runAgentAsync, () => {
         agent.child.stdout.write(
           '{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["boom"]}\n'
         );
+        agent.child.stdout.write(
+          JSON.stringify({
+            type: 'assistant',
+            message: {
+              content: [
+                {
+                  type: 'tool_use',
+                  id: 'toolu_2',
+                  name: 'mcp__expo__sandbox_exec',
+                  input: {
+                    nested: [{ 'anthropic-access-token': 'expo-token anthropic-access-token' }],
+                  },
+                },
+              ],
+            },
+          }) + '\n'
+        );
         agent.child.stderr.write('warning: anthropic-access-token\n');
         agent.exit(0);
       },
@@ -248,12 +265,56 @@ describe(runAgentAsync, () => {
     const child = jest.mocked(logger.child);
     expect(child.mock.calls).toEqual([[{ source: 'stdout' }], [{ source: 'stderr' }]]);
     const [stdoutLogger, stderrLogger] = child.mock.results.map(result => result.value);
-    expect(stdoutLogger.info.mock.calls).toEqual([
-      ['Tool result: token: [redacted]'],
-      ['Agent: Done.\nThe token was [redacted].'],
+    expect(stdoutLogger.info.mock.calls.slice(0, 2)).toEqual([
+      [
+        {
+          agentEvent: {
+            version: 1,
+            invocationId: expect.any(String),
+            type: 'tool_result',
+            callId: 'toolu_1',
+            text: 'token: [redacted]',
+            isError: false,
+          },
+        },
+        'Tool result: token: [redacted]',
+      ],
+      [
+        {
+          agentEvent: {
+            version: 1,
+            invocationId: expect.any(String),
+            type: 'message',
+            text: 'Done.\nThe token was [redacted].\n',
+          },
+        },
+        'Agent: Done.\nThe token was [redacted].',
+      ],
     ]);
-    expect(stdoutLogger.error.mock.calls).toEqual([['Agent failed: boom']]);
+    expect(stdoutLogger.error.mock.calls).toEqual([
+      [
+        {
+          agentEvent: {
+            version: 1,
+            invocationId: expect.any(String),
+            type: 'error',
+            message: 'boom',
+          },
+        },
+        'Agent failed: boom',
+      ],
+    ]);
     expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
+    expect(stdoutLogger.info.mock.calls[2][0]).toEqual({
+      agentEvent: {
+        version: 1,
+        invocationId: stdoutLogger.info.mock.calls[0][0].agentEvent.invocationId,
+        type: 'tool_call',
+        callId: 'toolu_2',
+        name: 'mcp__expo__sandbox_exec',
+        arguments: { nested: [{ '[redacted]': '[redacted] [redacted]' }] },
+      },
+    });
   });
 
   it('reports a line the formatter cannot handle instead of ending the run', async () => {
@@ -287,7 +348,12 @@ describe(runAgentAsync, () => {
       expect.any(RangeError)
     );
     const [stdoutLogger] = jest.mocked(logger.child).mock.results.map(result => result.value);
-    expect(stdoutLogger.info.mock.calls).toEqual([['Agent: Still here.']]);
+    expect(stdoutLogger.info.mock.calls).toEqual([
+      [
+        { agentEvent: expect.objectContaining({ type: 'message', text: 'Still here.' }) },
+        'Agent: Still here.',
+      ],
+    ]);
   });
 
   it('runs Codex with its shell tool off and the credentials in a private home', async () => {
@@ -440,6 +506,16 @@ describe(runAgentAsync, () => {
         if (invocations.length === 2) {
           agent.child.stderr.write('tokens: anthropic-access-token renewed-access-token\n');
         }
+        agent.child.stdout.write(
+          JSON.stringify({
+            type: 'assistant',
+            message: {
+              content: [
+                { type: 'tool_use', id: 'toolu_1', name: 'mcp__expo__sandbox_list', input: {} },
+              ],
+            },
+          }) + '\n'
+        );
         agent.exit(invocations.length === 1 ? 1 : 0);
       },
     });
@@ -462,7 +538,12 @@ describe(runAgentAsync, () => {
       [{ source: 'stdout' }],
       [{ source: 'stderr' }],
     ]);
-    const [, , , resumedStderrLogger] = child.mock.results.map(result => result.value);
+    const [firstStdoutLogger, , resumedStdoutLogger, resumedStderrLogger] = child.mock.results.map(
+      result => result.value
+    );
+    expect(firstStdoutLogger.info.mock.calls[0][0].agentEvent.invocationId).not.toBe(
+      resumedStdoutLogger.info.mock.calls[0][0].agentEvent.invocationId
+    );
     expect(resumedStderrLogger.info.mock.calls).toEqual([['tokens: [redacted] [redacted]']]);
   });
 

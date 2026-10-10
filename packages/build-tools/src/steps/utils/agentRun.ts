@@ -204,6 +204,7 @@ async function runAgentProcessAsync({
   const outputClosed = new Promise<void>(resolve => child.once('close', () => resolve()));
   const redact = (text: string): string =>
     secrets.reduce((masked, secret) => masked.replaceAll(secret, '[redacted]'), text);
+  const invocationId = randomUUID();
   const stdoutLogger = logger.child({ source: 'stdout' });
   readline.createInterface({ input: child.stdout }).on('line', line => {
     let messages: AgentLogMessage[];
@@ -214,8 +215,15 @@ async function runAgentProcessAsync({
       Sentry.capture('Could not format a line of the agent output', error as Error);
       return;
     }
-    for (const { level, message } of messages) {
-      stdoutLogger[level](redact(message).trimEnd());
+    for (const { level, message, agentEvent } of messages) {
+      if (agentEvent) {
+        stdoutLogger[level](
+          { agentEvent: { version: 1, invocationId, ...redactEvent(agentEvent, redact) } },
+          redact(message).trimEnd()
+        );
+      } else {
+        stdoutLogger[level](redact(message).trimEnd());
+      }
     }
   });
   const stderrLogger = logger.child({ source: 'stderr' });
@@ -280,4 +288,21 @@ function createTimeoutError(maxDurationSeconds: number): UserError {
     'EAS_RUN_AGENT_TIMEOUT',
     `The agent did not finish within its limit of ${maxDurationSeconds} seconds, so it was stopped. Raise the agent's maximum duration or give it a smaller task, then start a new agent run.`
   );
+}
+
+/** Redact each JSON string separately so quotes and backslashes in secrets stay valid JSON. */
+function redactEvent(
+  value: Record<string, unknown>,
+  redact: (text: string) => string
+): Record<string, unknown> {
+  const result = JSON.parse(JSON.stringify(value), (_key, item: unknown) => {
+    if (typeof item === 'string') {
+      return redact(item);
+    }
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      return Object.fromEntries(Object.entries(item).map(([key, value]) => [redact(key), value]));
+    }
+    return item;
+  });
+  return result;
 }
