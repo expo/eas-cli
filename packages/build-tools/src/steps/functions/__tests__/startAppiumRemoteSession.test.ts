@@ -27,7 +27,10 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: { getAttachedDevicesAsync: jest.fn() },
 }));
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
-  IosSimulatorUtils: { getAvailableDevicesAsync: jest.fn() },
+  IosSimulatorUtils: {
+    getAvailableDevicesAsync: jest.fn(),
+    resolveUdidAsync: jest.fn().mockResolvedValue('chosen-ios-udid'),
+  },
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -48,6 +51,14 @@ jest.mock('../../../utils/turtleFetch', () => ({
 }));
 jest.mock('../../utils/appiumEvents', () => ({ startAppiumEventCollectionAsync: jest.fn() }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
+  readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../utils/localEgressSession', () => ({
   ...jest.requireActual('../../utils/localEgressSession'),
   uploadRemoteSessionConfigWithLocalEgressAsync: jest.fn(),
@@ -85,7 +96,6 @@ describe(resolveAppiumDeviceAsync, () => {
       resolveAppiumDeviceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env: {},
-        logger,
       })
     ).resolves.toEqual({
       platformName: 'iOS',
@@ -93,7 +103,6 @@ describe(resolveAppiumDeviceAsync, () => {
       driverName: 'xcuitest',
       udid: 'ios-simulator-id',
     });
-    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledWith({ env: {}, logger });
     expect(IosSimulatorUtils.getAvailableDevicesAsync).toHaveBeenCalledWith({
       env: {},
       filter: 'booted',
@@ -109,7 +118,6 @@ describe(resolveAppiumDeviceAsync, () => {
       resolveAppiumDeviceAsync({
         runtimePlatform: BuildRuntimePlatform.LINUX,
         env: {},
-        logger,
       })
     ).resolves.toEqual({
       platformName: 'Android',
@@ -238,11 +246,14 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     jest.restoreAllMocks();
   });
 
-  async function runSessionAsync(logger: { info: jest.Mock; warn: jest.Mock }): Promise<void> {
+  async function runSessionAsync(
+    logger: { info: jest.Mock; warn: jest.Mock },
+    runtimePlatform = BuildRuntimePlatform.LINUX
+  ): Promise<void> {
     await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
       {
         logger,
-        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        global: { runtimePlatform },
       } as unknown as BuildStepContext,
       {
         inputs: {
@@ -267,6 +278,79 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       'Could not stop the Appium server during remote session teardown.'
     );
   }
+
+  it('selects Xcode only once for an already-prepared iOS session', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    jest.mocked(selectXcodeDeveloperDirectoryAsync).mockClear();
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+    await runSessionAsync({ info: jest.fn(), warn: jest.fn() }, BuildRuntimePlatform.DARWIN);
+    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('starts serve-sim on the selected iOS device while Appium installation is pending', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    jest.mocked(selectXcodeDeveloperDirectoryAsync).mockClear();
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockClear();
+    let releaseInstall!: (value: unknown) => void;
+    let enteredInstall!: () => void;
+    const installEntered = new Promise<void>(resolve => {
+      enteredInstall = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce(() => {
+      enteredInstall();
+      return new Promise(resolve => {
+        releaseInstall = resolve;
+      }) as never;
+    });
+    const running = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          device_identifier: { value: 'chosen-device' },
+          install_app_path: { value: '/tmp/App.app' },
+          launch_args: { value: ['--literal'] },
+          open_url: { value: 'example://home' },
+        },
+        outputs: {},
+        env: {
+          DEVICE_RUN_SESSION_ID: 'device-run-session-id',
+          EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'tunnel.example.com',
+          NGROK_AUTHTOKEN: 'ngrok-token',
+        },
+      } as never
+    );
+    await installEntered;
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(IosSimulatorUtils.resolveUdidAsync).mock.invocationCallOrder[0]);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        iosSimulatorUdid: 'CHOSEN-IOS-UDID',
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--literal'],
+        openUrl: 'example://home',
+      })
+    );
+    expect(IosSimulatorUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
+    releaseInstall({ stdout: '' });
+    await running;
+    expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(1);
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+  });
 
   it('keeps the readiness error when Appium cannot be stopped', async () => {
     let now = Date.now();
