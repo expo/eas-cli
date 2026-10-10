@@ -56,6 +56,7 @@ jest.mock('../../utils/appiumEvents', () => ({ startAppiumEventCollectionAsync: 
 jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/preinstalledWda', () => ({ preparePreinstalledWdaAsync: jest.fn() }));
 jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
