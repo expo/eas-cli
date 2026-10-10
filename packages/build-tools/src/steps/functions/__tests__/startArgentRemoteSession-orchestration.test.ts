@@ -6,10 +6,12 @@ import path from 'node:path';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
+import { createProcessOutput } from '../../utils/processOutput';
 import {
   ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
@@ -119,18 +121,21 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     await fs.promises.rm(TEST_HOME, { recursive: true, force: true });
   });
 
-  it('reports an early exit with output before opening tunnels or publishing readiness', async () => {
+  it('reports an early exit with output and stops Argent before opening tunnels', async () => {
+    const stopError = new Error('drain timed out');
+    const stopServer = jest.fn().mockRejectedValue(stopError);
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 4242,
       getOutput: () => 'could not bind server port',
       getExitError: () => new Error('process exited with code 1'),
-      stopAsync: jest.fn(),
+      stopAsync: stopServer,
     });
+    const logger = { info: jest.fn(), warn: jest.fn() };
     const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
     await expect(
       buildFunction.fn!(
         {
-          logger: { info: jest.fn(), warn: jest.fn() },
+          logger,
           global: { runtimePlatform: BuildRuntimePlatform.LINUX },
         } as unknown as BuildStepContext,
         {
@@ -145,9 +150,64 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     ).rejects.toThrow(
       'Argent exited before becoming ready: process exited with code 1\nArgent tool-server output:\ncould not bind server port'
     );
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the Argent tool-server during remote session teardown.'
+    );
+    expect(pollArgentArtifactsForUploadAsync).not.toHaveBeenCalled();
     expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
     expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
     expect(startArgentEventCollectionAsync).not.toHaveBeenCalled();
+  });
+
+  it('drains artifact polling and stops the tool-server when event collection cannot start', async () => {
+    const collectionError = new Error('event collection failed');
+    const stopError = new Error('drain timed out');
+    let pollingFinished = false;
+    jest
+      .mocked(pollArgentArtifactsForUploadAsync)
+      .mockImplementationOnce(async (_ctx, { signal }) => {
+        await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+        pollingFinished = true;
+      });
+    jest.mocked(startArgentEventCollectionAsync).mockRejectedValueOnce(collectionError);
+    const stopServer = jest.fn(async () => {
+      expect(pollingFinished).toBe(true);
+      throw stopError;
+    });
+    jest.mocked(spawnDetached).mockReturnValueOnce({
+      pid: 4242,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    });
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toBe(collectionError);
+    expect(pollingFinished).toBe(true);
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the Argent tool-server during remote session teardown.'
+    );
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
   });
 
   it.each(['preview', 'config', 'wait'])(
@@ -185,6 +245,59 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
       expect(mockStopAsync).toHaveBeenCalledTimes(1);
       expect(jest.mocked(spawnDetached).mock.results[0].value.stopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([
+    ['succeeded', false],
+    ['failed', true],
+  ])(
+    'fails after stopping the host and tools when the tools tunnel cannot close and the session %s',
+    async (_description, sessionFails) => {
+      const closeError = new Error('ngrok close failed');
+      const sessionError = new Error('session failed');
+      mockTunnelStopAsync.mockRejectedValueOnce(closeError);
+      if (sessionFails) {
+        jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(sessionError);
+      }
+      const logger = { info: jest.fn(), warn: jest.fn() };
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      // The tunnel may still be serving, so its failure fails a session that otherwise succeeded.
+      await expect(
+        buildFunction.fn!(
+          {
+            logger,
+            global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      ).rejects.toBe(sessionFails ? sessionError : closeError);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockStopAsync).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(spawnDetached).mock.results[0].value.stopAsync).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: closeError },
+        'Could not stop the Argent tunnel during remote session teardown.'
+      );
+      expect(jest.mocked(Sentry.capture).mock.calls).toEqual(
+        sessionFails
+          ? [
+              [
+                'Could not stop the Argent tunnel after the remote session failed',
+                closeError,
+                { level: 'warning' },
+              ],
+            ]
+          : []
+      );
     }
   );
 
@@ -265,6 +378,52 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       })
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('redacts startup credentials and registers the state token for later output', async () => {
+    const token = 'tool/server "secret"';
+    await fs.promises.writeFile(
+      path.join(ARGENT_STATE_DIR, 'tool-server-orchestration.json'),
+      JSON.stringify({ port: 5678, pid: 9999, token })
+    );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const output = createProcessOutput(options.logger, options.secrets);
+      output.stdout.append(`argent link argent://${encodeURIComponent(token)}@127.0.0.1:5678\n`);
+      return {
+        pid: 4242,
+        getOutput: output.getOutput,
+        getExitError: () => undefined,
+        stopAsync: async () => {
+          output.stderr.append(`opaque ${token}\nencoded ${encodeURIComponent(token)}\n`);
+          output.stderr.append(`escaped ${JSON.stringify(token).slice(1, -1)}\n`);
+          output.finish();
+        },
+      };
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      { source: 'stdout' },
+      'argent link argent://[REDACTED]@127.0.0.1:5678'
+    );
+    for (const label of ['opaque', 'encoded', 'escaped']) {
+      expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, `${label} [REDACTED]`);
+    }
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain('secret');
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
