@@ -23,8 +23,8 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
       .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
   },
 }));
-jest.mock('../../utils/serveSimActions', () => ({
-  ...jest.requireActual('../../utils/serveSimActions'),
+jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
