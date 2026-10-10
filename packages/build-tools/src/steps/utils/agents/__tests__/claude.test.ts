@@ -1,7 +1,8 @@
 import { CLAUDE_CODE_CLI } from '../claude';
 import { readFixtureLines } from './readFixture';
 
-const format = CLAUDE_CODE_CLI.formatOutputLine;
+const format = (line: string) =>
+  CLAUDE_CODE_CLI.formatOutputLine(line).map(({ level, message }) => ({ level, message }));
 
 function formatFixture(name: string): ReturnType<typeof format> {
   return readFixtureLines(name).flatMap(line => format(line));

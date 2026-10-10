@@ -115,6 +115,7 @@ const CodexItemSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('agent_message'), text: z.string() }),
   z.object({
     type: z.literal('mcp_tool_call'),
+    id: z.string().optional(),
     server: z.string(),
     tool: z.string(),
     arguments: z.record(z.string(), z.unknown()).nullable(),
@@ -153,15 +154,35 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'info',
           message: `Tool call: ${item.server}.${item.tool} ${JSON.stringify(item.arguments ?? {})}`,
+          agentEvent: item.id
+            ? {
+                type: 'tool_call',
+                callId: item.id,
+                name: `${item.server}.${item.tool}`,
+                arguments: item.arguments ?? {},
+              }
+            : undefined,
         },
       ];
     }
     case 'item.completed':
       return formatCompletedItem(event.data.item);
     case 'error':
-      return [{ level: 'warn', message: `Error: ${event.data.message}` }];
+      return [
+        {
+          level: 'warn',
+          message: `Error: ${event.data.message}`,
+          agentEvent: { type: 'error', message: event.data.message },
+        },
+      ];
     case 'turn.failed':
-      return [{ level: 'error', message: `Agent failed: ${event.data.error.message}` }];
+      return [
+        {
+          level: 'error',
+          message: `Agent failed: ${event.data.error.message}`,
+          agentEvent: { type: 'error', message: event.data.error.message },
+        },
+      ];
   }
 }
 
@@ -170,15 +191,34 @@ function formatCompletedItem(
 ): AgentLogMessage[] {
   switch (item?.type) {
     case 'agent_message':
-      return [{ level: 'info', message: `Agent: ${item.text}` }];
+      return [
+        {
+          level: 'info',
+          message: `Agent: ${item.text}`,
+          agentEvent: { type: 'message', text: item.text },
+        },
+      ];
     case 'mcp_tool_call': {
-      const resultText = contentBlocksText(item.result?.content ?? []);
-      return item.status === 'failed'
-        ? [{ level: 'warn', message: `Tool error: ${item.error?.message ?? resultText}` }]
-        : [{ level: 'info', message: `Tool result: ${resultText}` }];
+      const text = item.error?.message ?? contentBlocksText(item.result?.content ?? []);
+      const isError = item.status === 'failed';
+      return [
+        {
+          level: isError ? 'warn' : 'info',
+          message: `${isError ? 'Tool error' : 'Tool result'}: ${text}`,
+          agentEvent: item.id
+            ? { type: 'tool_result', callId: item.id, text, isError }
+            : undefined,
+        },
+      ];
     }
     case 'error':
-      return [{ level: 'warn', message: `Error: ${item.message}` }];
+      return [
+        {
+          level: 'warn',
+          message: `Error: ${item.message}`,
+          agentEvent: { type: 'error', message: item.message },
+        },
+      ];
     case undefined:
       return [];
   }
