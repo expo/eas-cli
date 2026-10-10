@@ -49,9 +49,8 @@ import {
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
-import { disableIosSimulatorPushAsync } from '../functions/startIosSimulator';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
-import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createStartupTasks } from './startupTasks';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -615,14 +614,18 @@ async function startDeviceSessionHostInternalAsync(
       signal?.throwIfAborted();
       beforeLaunch = asyncResult(
         startup.untilAborted(
-          startup.run('Simulator setup', taskLogger =>
-            disableIosSimulatorPushAsync({
-              udid: iosSimulatorUdid as IosSimulatorUuid,
-              env,
-              logger: taskLogger,
-              signal: startup.signal,
-            })
-          )
+          startup.run('Simulator setup', async taskLogger => {
+            try {
+              await IosSimulatorUtils.disableApsdAsync({
+                udid: iosSimulatorUdid as IosSimulatorUuid,
+                env,
+              });
+            } catch (err) {
+              startup.signal.throwIfAborted();
+              taskLogger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+            }
+            startup.signal.throwIfAborted();
+          })
         )
       );
       const app = (application ? await startup.untilAborted(application) : undefined) ?? {

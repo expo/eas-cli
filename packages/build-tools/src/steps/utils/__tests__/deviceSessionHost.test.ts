@@ -6,7 +6,7 @@ import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promise
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
-import { disableIosSimulatorPushAsync } from '../../functions/startIosSimulator';
+import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
@@ -36,7 +36,9 @@ import {
 import * as screenshotCollector from '../deviceRunSessionScreenshots';
 
 jest.mock('@ngrok/ngrok');
-jest.mock('../../functions/startIosSimulator', () => ({ disableIosSimulatorPushAsync: jest.fn() }));
+jest.mock('../../../utils/IosSimulatorUtils', () => ({
+  IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
+}));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
 jest.mock('../deviceRunSessionArtifacts');
@@ -101,7 +103,7 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.mocked(disableIosSimulatorPushAsync).mockReset().mockResolvedValue(undefined);
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
@@ -301,7 +303,7 @@ it('preserves startup CLI flags for already-prepared workflows', async () => {
     'literal value',
   ]);
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
-  expect(disableIosSimulatorPushAsync).not.toHaveBeenCalled();
+  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
   expect(verifyLocalEgressGuardAsync).not.toHaveBeenCalled();
   await host.finishAsync();
 });
@@ -1177,7 +1179,7 @@ it.each([true, false])(
     const setup = deferred<void>();
     const prepared = deferred<ServeSimApplicationOptions | void>();
     const ready = deferred<Awaited<ReturnType<typeof turtleFetch>>>();
-    jest.mocked(disableIosSimulatorPushAsync).mockReturnValue(setup.promise);
+    jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValue(setup.promise);
     await mkdir('/tmp', { recursive: true });
     const directory = await import('node:fs/promises').then(fs =>
       fs.mkdtemp('/tmp/eas-staged-test-')
@@ -1217,7 +1219,7 @@ it.each([true, false])(
       iosSimulatorUdid: 'emulator-5554',
       application: prepared.promise,
     });
-    while (!jest.mocked(disableIosSimulatorPushAsync).mock.calls.length) {
+    while (!jest.mocked(IosSimulatorUtils.disableApsdAsync).mock.calls.length) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     expect(turtleFetch).toHaveBeenCalled();
@@ -1326,16 +1328,10 @@ it('stops the host without installing or launching when guard verification fails
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
-it.each(['install', 'setup'])('does not launch after %s fails', async failure => {
+it('does not launch after installation fails', async () => {
   const setup = deferred<void>();
-  if (failure === 'install') {
-    jest.mocked(runServeSimActionAsync).mockRejectedValueOnce(new Error('install failed'));
-  }
-  jest
-    .mocked(disableIosSimulatorPushAsync)
-    .mockImplementation(() =>
-      failure === 'setup' ? Promise.reject(new Error('setup failed')) : setup.promise
-    );
+  jest.mocked(runServeSimActionAsync).mockRejectedValueOnce(new Error('install failed'));
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValue(setup.promise);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const port = options.args[options.args.indexOf('--port') + 1];
     jest
@@ -1365,20 +1361,18 @@ it.each(['install', 'setup'])('does not launch after %s fails', async failure =>
     installAppPath: '/tmp/App.app',
     launchAppIdentifier: 'dev.example.app',
   });
-  const rejected = expect(starting).rejects.toThrow(`${failure} failed`);
-  if (failure === 'install') {
-    while (!stopServer.mock.calls.length) {
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    await access(directory);
-    let settled = false;
-    void starting.catch(() => {
-      settled = true;
-    });
-    await new Promise(resolve => setImmediate(resolve));
-    expect(settled).toBe(false);
-    setup.resolve();
+  const rejected = expect(starting).rejects.toThrow('install failed');
+  while (!stopServer.mock.calls.length) {
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
+  await access(directory);
+  let settled = false;
+  void starting.catch(() => {
+    settled = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(settled).toBe(false);
+  setup.resolve();
   await rejected;
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
   expect(stopServer).toHaveBeenCalledTimes(1);
@@ -1409,24 +1403,44 @@ it('verifies the guard before starting setup or installing the app', async () =>
     env,
     logger,
   });
-  expect(disableIosSimulatorPushAsync).not.toHaveBeenCalled();
+  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   guard.resolve();
   const host = await starting;
-  expect(disableIosSimulatorPushAsync).toHaveBeenCalledWith({
+  expect(IosSimulatorUtils.disableApsdAsync).toHaveBeenCalledWith({
     udid: 'emulator-5554',
     env,
-    logger: expect.anything(),
-    signal: expect.any(AbortSignal),
   });
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(2);
+  await host.finishAsync();
+});
+
+it('warns and continues launching when disabling push fails', async () => {
+  const error = new Error('apsd disable failed');
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockRejectedValueOnce(error);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 2_000,
+    iosSimulatorUdid: 'emulator-5554',
+    launchAppIdentifier: 'dev.example.app',
+  });
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: error },
+    'Failed to disable apsd in the Simulator.'
+  );
+  expect(runServeSimActionAsync).toHaveBeenCalledWith(
+    expect.objectContaining({ action: 'app.launch' })
+  );
+  expect(IosSimulatorUtils.waitForReadyAsync).not.toHaveBeenCalled();
   await host.finishAsync();
 });
 
 it('cancels pending setup without launching and observes its late failure', async () => {
   const controller = new AbortController();
   let rejectSetup!: (error: Error) => void;
-  jest.mocked(disableIosSimulatorPushAsync).mockReturnValue(
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValue(
     new Promise((_resolve, reject) => {
       rejectSetup = reject;
     })
@@ -1441,14 +1455,11 @@ it('cancels pending setup without launching and observes its late failure', asyn
     signal: controller.signal,
   });
   const rejected = expect(starting).rejects.toThrow('session canceled');
-  while (!jest.mocked(disableIosSimulatorPushAsync).mock.calls.length) {
+  while (!jest.mocked(IosSimulatorUtils.disableApsdAsync).mock.calls.length) {
     await new Promise(resolve => setImmediate(resolve));
   }
-  const setupSignal = jest.mocked(disableIosSimulatorPushAsync).mock.calls[0][0].signal;
-  expect(setupSignal?.aborted).toBe(false);
   controller.abort(new Error('session canceled'));
   await rejected;
-  expect(setupSignal?.aborted).toBe(true);
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
   rejectSetup(new Error('late setup failure'));
@@ -1480,16 +1491,19 @@ it('cancels a pending guard check before setup or app startup', async () => {
   }
   controller.abort(new Error('session canceled'));
   await rejected;
-  expect(disableIosSimulatorPushAsync).not.toHaveBeenCalled();
+  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
   rejectGuard(new Error('late guard failure'));
   await new Promise(resolve => setImmediate(resolve));
 });
 
-it('stops startup when setup fails while the app download is still pending', async () => {
+it('cancels setup while the app download is still pending', async () => {
+  const controller = new AbortController();
   const application = deferred<ServeSimApplicationOptions>();
-  jest.mocked(disableIosSimulatorPushAsync).mockRejectedValueOnce(new Error('setup failed'));
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockImplementationOnce(async () => {
+    controller.abort(new Error('session canceled'));
+  });
   await expect(
     startDeviceSessionHostAsync(ctx, {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -1498,8 +1512,9 @@ it('stops startup when setup fails while the app download is still pending', asy
       timeoutMs: 2_000,
       iosSimulatorUdid: 'emulator-5554',
       application: application.promise,
+      signal: controller.signal,
     })
-  ).rejects.toThrow('setup failed');
+  ).rejects.toThrow('session canceled');
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
@@ -1530,13 +1545,14 @@ it('reports startup failure before waiting for host cleanup', async () => {
   await rejected;
 });
 
-it('cancels an in-flight install when parallel Simulator setup fails', async () => {
-  const failure = new Error('setup failed');
+it('cancels an in-flight install while Simulator setup is pending', async () => {
+  const controller = new AbortController();
+  const failure = new Error('session canceled');
   let rejectSetup!: (error: Error) => void;
   const setup = new Promise<void>((_resolve, reject) => {
     rejectSetup = reject;
   });
-  jest.mocked(disableIosSimulatorPushAsync).mockReturnValue(setup);
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValue(setup);
   jest
     .mocked(stageServeSimAppAsync)
     .mockResolvedValue({ directory: '/staged', path: '/staged/App.app' });
@@ -1557,14 +1573,17 @@ it('cancels an in-flight install when parallel Simulator setup fails', async () 
     iosSimulatorUdid: 'emulator-5554',
     installAppPath: '/tmp/App.app',
     launchAppIdentifier: 'dev.example.app',
+    signal: controller.signal,
   });
   const rejected = expect(starting).rejects.toBe(failure);
   while (!jest.mocked(runServeSimActionAsync).mock.calls.length) {
     await new Promise(resolve => setImmediate(resolve));
   }
   expect(installSignal?.aborted).toBe(false);
-  rejectSetup(failure);
+  controller.abort(failure);
   await rejected;
+  rejectSetup(new Error('late setup failure'));
+  await new Promise(resolve => setImmediate(resolve));
   expect(installSignal?.aborted).toBe(true);
   expect(installSignal?.reason).toBe(failure);
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
