@@ -115,12 +115,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:20.19.43":
-  version: 20.19.43
-  resolution: "@types/node@npm:20.19.43"
+"@types/node@npm:22.20.5":
+  version: 22.20.5
+  resolution: "@types/node@npm:22.20.5"
   dependencies:
     undici-types: "npm:~6.21.0"
-  checksum: 10c0/9bcec3b5295bdd77ff0b44a528a69f7e22028c347507ba2c69be47ec84e30299f45043b222e9c86c510e138c9c53b2419dd5cd34920602a4a5a381c288075318
+  checksum: 10c0/0cf61a89c6a69917ab49f976a6bb11a29e3b348a6ae19f5827ceb91d3ade781faab58dcf3b8fa625f975f5d7536b9166ff94e8250c29272c667164f77c28fa88
   languageName: node
   linkType: hard
 
@@ -252,7 +252,7 @@ __metadata:
     "@types/dateformat": "npm:3.0.1"
     "@types/fs-extra": "npm:11.0.4"
     "@types/lodash-es": "npm:4.17.12"
-    "@types/node": "npm:20.19.43"
+    "@types/node": "npm:22.20.5"
     "@types/semver": "npm:7.5.6"
     chalk: "npm:5.2.0"
     dateformat: "npm:4.5.1"
