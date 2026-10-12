@@ -43,6 +43,7 @@ describe('sandbox artifact uploads', () => {
   let directory: string;
   let filePath: string;
   let mutation: jest.Mock;
+  let put: jest.Mock<ReturnType<typeof fetch>, Parameters<typeof fetch>>;
   let graphqlClient: Client;
   let logger: { info: jest.Mock; error: jest.Mock };
   let uploadArtifactAsync: (options: {
@@ -55,7 +56,14 @@ describe('sandbox artifact uploads', () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sandbox-artifacts-'));
     filePath = path.join(directory, 'crash.log');
     await fs.writeFile(filePath, 'crash');
-    jest.mocked(fetch).mockReset();
+    put = jest.fn();
+    jest
+      .mocked(fetch)
+      .mockReset()
+      .mockImplementation((url, init) => {
+        (init!.body as Readable).on('error', () => {});
+        return put(url, init);
+      });
     mutation = jest.fn();
     logger = { info: jest.fn(), error: jest.fn() };
     graphqlClient = { mutation } as unknown as Client;
@@ -75,7 +83,7 @@ describe('sandbox artifact uploads', () => {
   it('returns the artifact id before the PUT completes', async () => {
     mockMutationResults(createdResult, finalizedResult);
     let respond!: (response: InstanceType<typeof Response>) => void;
-    jest.mocked(fetch).mockReturnValueOnce(
+    put.mockReturnValueOnce(
       new Promise(resolve => {
         respond = resolve;
       }) as ReturnType<typeof fetch>
@@ -127,8 +135,7 @@ describe('sandbox artifact uploads', () => {
         bodies.push(Buffer.concat(chunks).toString());
         return new Response('', { status });
       };
-    jest
-      .mocked(fetch)
+    put
       .mockImplementationOnce(respondAfterReadingBody(503) as unknown as typeof fetch)
       .mockImplementationOnce(respondAfterReadingBody(200) as unknown as typeof fetch);
 
@@ -147,7 +154,7 @@ describe('sandbox artifact uploads', () => {
     await fs.writeFile(filePath, '');
     mockMutationResults(createdResult, finalizedResult);
     let body: string | undefined;
-    jest.mocked(fetch).mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
+    put.mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
       const chunks: Buffer[] = [];
       for await (const chunk of init!.body as Readable) {
         chunks.push(chunk);
@@ -174,8 +181,7 @@ describe('sandbox artifact uploads', () => {
 
   it('finalizes when a retry fails the upload precondition', async () => {
     mockMutationResults(createdResult, finalizedResult);
-    jest
-      .mocked(fetch)
+    put
       .mockRejectedValueOnce(
         new FetchError(`request to ${SIGNED_URL} failed, reason: socket hang up`, 'system', {
           code: 'ECONNRESET',
@@ -218,7 +224,7 @@ describe('sandbox artifact uploads', () => {
         }),
       }
     );
-    jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
+    put.mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const upload = await uploadArtifactAsync({
       filePath,
@@ -294,7 +300,7 @@ describe('sandbox artifact uploads', () => {
 
   it('keeps the signed URL out of logs', async () => {
     mockMutationResults(createdResult);
-    jest.mocked(fetch).mockRejectedValue(
+    put.mockRejectedValue(
       new FetchError(`request to ${SIGNED_URL} failed, reason: socket hang up`, 'system', {
         code: 'ECONNRESET',
       } as any)
@@ -368,7 +374,7 @@ describe('sandbox artifact uploads', () => {
     'waits for an upload that ends within the yield time and reports $case',
     async ({ finalizeResult, outcome }) => {
       mockMutationResults(createdResult, finalizeResult);
-      jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
+      put.mockResolvedValueOnce(new Response('', { status: 200 }));
       const manager = createManager(new AbortController().signal);
 
       await expect(
@@ -390,7 +396,7 @@ describe('sandbox artifact uploads', () => {
       },
     });
     let respond!: (response: InstanceType<typeof Response>) => void;
-    jest.mocked(fetch).mockReturnValueOnce(
+    put.mockReturnValueOnce(
       new Promise(resolve => {
         respond = resolve;
       }) as ReturnType<typeof fetch>
@@ -434,7 +440,7 @@ describe('sandbox artifact uploads', () => {
   }
 
   function mockPutUntilAborted(): void {
-    jest.mocked(fetch).mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
+    put.mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
       await new Promise<never>((_resolve, reject) => {
         init!.signal!.addEventListener('abort', () => {
           reject(new AbortError('The user aborted a request.'));
