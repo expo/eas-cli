@@ -1,4 +1,5 @@
 import { BuildPhase } from '@expo/eas-build-job';
+import MockDate from 'mockdate';
 import { v4 as uuid } from 'uuid';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -13,11 +14,14 @@ import {
   BuildStatus,
 } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import Log from '../../log';
 import { Ora, isSpinnerEnabled, ora } from '../../ora';
 import { createRealtimeLogsClient } from '../../utils/centrifuge';
 import { sleepAsync } from '../../utils/promise';
 import { waitForBuildEndAsync } from '../build';
+import { ConcurrencyLimitMessage, TREATMENT_SPINNER_TEXT } from '../concurrencyLimitMessage';
 
+jest.mock('cli-progress');
 jest.mock('../../ora', () => ({
   ...jest.requireActual('../../ora'),
   ora: jest.fn(),
@@ -41,14 +45,31 @@ jest.mock('../../utils/promise', () => ({
 
 const graphqlClient = {} as unknown as ExpoGraphqlClient;
 
-function createBuildFragment(status: BuildStatus): BuildFragment {
+function createBuildFragment(
+  status: BuildStatus,
+  {
+    id = 'build-id',
+    platform = AppPlatform.Android,
+    priority = BuildPriority.Normal,
+    queue,
+  }: {
+    id?: string;
+    platform?: AppPlatform;
+    priority?: BuildPriority;
+    queue?: Pick<
+      BuildFragment,
+      'initialQueuePosition' | 'queuePosition' | 'estimatedWaitTimeLeftSeconds'
+    >;
+  } = {}
+): BuildFragment {
   return {
-    id: 'build-id',
+    id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    platform: AppPlatform.Android,
+    platform,
     logFiles: [],
-    priority: BuildPriority.Normal,
+    priority,
+    ...queue,
     app: {
       __typename: 'App',
       slug: 'test-project',
@@ -87,6 +108,37 @@ function setBuildStatuses(statuses: BuildStatus[]): void {
   }
 }
 
+/** One status queue per build ID, consumed in order on each poll. */
+function setBuildStatusesById(statusesById: Record<string, BuildStatus[]>): void {
+  const queues = new Map(Object.entries(statusesById).map(([id, s]) => [id, [...s]]));
+  jest.mocked(BuildQuery.byIdAsync).mockImplementation(async (_client, buildId) => {
+    const status = queues.get(buildId)?.shift();
+    if (!status) {
+      throw new Error(`No more statuses for ${buildId}`);
+    }
+    const platform = buildId === 'build-ios' ? AppPlatform.Ios : AppPlatform.Android;
+    return createBuildFragment(status, { id: buildId, platform });
+  });
+}
+
+function createConcurrencyLimitMessage(shown: boolean): ConcurrencyLimitMessage & {
+  maybeShowAsync: jest.Mock;
+} {
+  return { maybeShowAsync: jest.fn(async () => shown) } as unknown as ConcurrencyLimitMessage & {
+    maybeShowAsync: jest.Mock;
+  };
+}
+
+/** Moves the clock past the NEW-status grace period on every poll. */
+function advanceClockOnSleep(): void {
+  jest.mocked(sleepAsync).mockImplementation(async () => {
+    MockDate.set(Date.now() + 16_000);
+  });
+}
+
+const GRACE_TEXT = 'Waiting for build to get enqueued…';
+const CONTROL_TEXT_PREFIX = 'Build concurrency limit reached for your account.';
+
 describe(waitForBuildEndAsync, () => {
   let spinner: Ora;
   let publish: () => void;
@@ -118,6 +170,11 @@ describe(waitForBuildEndAsync, () => {
     jest.mocked(sleepAsync).mockImplementation(async () => {
       publish();
     });
+    MockDate.set('2026-10-12T00:00:00.000Z');
+  });
+
+  afterEach(() => {
+    MockDate.reset();
   });
 
   it('does not create a watcher when the spinner is disabled', async () => {
@@ -159,5 +216,121 @@ describe(waitForBuildEndAsync, () => {
 
     expect(jest.mocked(sleepAsync).mock.calls.length).toBe(2);
     expect(spinner.text).toBe('Build queued...');
+  });
+
+  it('suggests the priority queue when a free-tier build gets a queue position', async () => {
+    jest.mocked(isSpinnerEnabled).mockReturnValue(false);
+    const logSpy = jest.spyOn(Log, 'log').mockImplementation(() => {});
+    const queue = { initialQueuePosition: 4, queuePosition: 2, estimatedWaitTimeLeftSeconds: 60 };
+    jest
+      .mocked(BuildQuery.byIdAsync)
+      .mockResolvedValueOnce(createBuildFragment(BuildStatus.InQueue, { queue }))
+      .mockResolvedValueOnce(createBuildFragment(BuildStatus.Finished));
+
+    await waitForBuildEndAsync(graphqlClient, { buildIds: ['build-id'], accountName: 'acct' });
+
+    const logged = logSpy.mock.calls.map(call => call.join(' ')).join('\n');
+    expect(logged).toContain('Start builds sooner in the priority queue.');
+    expect(logged).toContain('Sign up for a paid plan at');
+    expect(logged).toContain('/accounts/acct/settings/billing');
+    expect(logged).toContain('Waiting in Free tier queue');
+    logSpy.mockRestore();
+  });
+
+  describe('concurrency limit message', () => {
+    beforeEach(() => {
+      jest.mocked(isSpinnerEnabled).mockReturnValue(false);
+    });
+
+    it('shows the grace text and does not consult the message inside the grace period', async () => {
+      const message = createConcurrencyLimitMessage(true);
+      setBuildStatuses([BuildStatus.New, BuildStatus.Finished]);
+
+      await waitForBuildEndAsync(graphqlClient, {
+        buildIds: ['build-id'],
+        accountName: 'acct',
+        concurrencyLimitMessage: message,
+      });
+
+      expect(spinner.text).toBe(GRACE_TEXT);
+      expect(message.maybeShowAsync).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing text when no message is given', async () => {
+      advanceClockOnSleep();
+      setBuildStatuses([BuildStatus.New, BuildStatus.New, BuildStatus.Finished]);
+
+      await waitForBuildEndAsync(graphqlClient, { buildIds: ['build-id'], accountName: 'acct' });
+
+      expect(spinner.text).toContain(CONTROL_TEXT_PREFIX);
+      expect(spinner.text).toContain('/accounts/acct/settings/billing');
+    });
+
+    it('switches to the treatment spinner text when the message was shown', async () => {
+      advanceClockOnSleep();
+      const message = createConcurrencyLimitMessage(true);
+      setBuildStatuses([
+        BuildStatus.New,
+        BuildStatus.New,
+        BuildStatus.New,
+        BuildStatus.Finished,
+      ]);
+
+      await waitForBuildEndAsync(graphqlClient, {
+        buildIds: ['build-id'],
+        accountName: 'acct',
+        concurrencyLimitMessage: message,
+      });
+
+      expect(spinner.text).toBe(TREATMENT_SPINNER_TEXT);
+      expect(message.maybeShowAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the existing text when the message was not shown', async () => {
+      advanceClockOnSleep();
+      const message = createConcurrencyLimitMessage(false);
+      setBuildStatuses([BuildStatus.New, BuildStatus.New, BuildStatus.Finished]);
+
+      await waitForBuildEndAsync(graphqlClient, {
+        buildIds: ['build-id'],
+        accountName: 'acct',
+        concurrencyLimitMessage: message,
+      });
+
+      expect(spinner.text).toContain(CONTROL_TEXT_PREFIX);
+      expect(message.maybeShowAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('consults the message once per poll for multi-platform builds', async () => {
+      advanceClockOnSleep();
+      const message = createConcurrencyLimitMessage(true);
+      setBuildStatusesById({
+        'build-android': [BuildStatus.New, BuildStatus.New, BuildStatus.Finished],
+        'build-ios': [BuildStatus.New, BuildStatus.New, BuildStatus.Finished],
+      });
+
+      await waitForBuildEndAsync(graphqlClient, {
+        buildIds: ['build-android', 'build-ios'],
+        accountName: 'acct',
+        concurrencyLimitMessage: message,
+      });
+
+      expect(message.maybeShowAsync).toHaveBeenCalledTimes(1);
+      expect(spinner.text).toContain('Android build - status:');
+      expect(spinner.text).toContain('iOS build - status:');
+      expect(spinner.text.split('(concurrency limit reached)')).toHaveLength(3);
+    });
+
+    it('resets the NEW-status timer between runs', async () => {
+      advanceClockOnSleep();
+      setBuildStatuses([BuildStatus.New, BuildStatus.New, BuildStatus.Finished]);
+      await waitForBuildEndAsync(graphqlClient, { buildIds: ['build-id'], accountName: 'acct' });
+      expect(spinner.text).toContain(CONTROL_TEXT_PREFIX);
+
+      setBuildStatuses([BuildStatus.New, BuildStatus.Finished]);
+      await waitForBuildEndAsync(graphqlClient, { buildIds: ['build-id'], accountName: 'acct' });
+
+      expect(spinner.text).toBe(GRACE_TEXT);
+    });
   });
 });

@@ -13,6 +13,7 @@ import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
+import { ConcurrencyLimitMessage, TREATMENT_SPINNER_TEXT } from './concurrencyLimitMessage';
 import { BuildContext } from './context';
 import {
   EasBuildDownForMaintenanceError,
@@ -38,6 +39,7 @@ import {
 } from './logs';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
+import { getAccountBillingUrl } from './utils/url';
 import {
   LocalFile,
   assertProjectTarballSizeDoesNotExceedLimit,
@@ -48,7 +50,6 @@ import {
 } from './utils/repository';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
 import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
@@ -534,9 +535,20 @@ export type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   graphqlClient: ExpoGraphqlClient,
-  { buildIds, accountName }: { buildIds: string[]; accountName: string },
+  {
+    buildIds,
+    accountName,
+    concurrencyLimitMessage,
+  }: {
+    buildIds: string[];
+    accountName: string;
+    /** Prints the concurrency-limit experiment message once per run. Absent means control. */
+    concurrencyLimitMessage?: ConcurrencyLimitMessage;
+  },
   { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
+  statusNewSetAt = null;
+  queueProgressBarStarted = false;
   let spinner;
   let originalSpinnerText;
   if (buildIds.length === 1) {
@@ -568,11 +580,11 @@ export async function waitForBuildEndAsync(
       const { refetch } =
         builds.length === 1
           ? await handleSingleBuildProgressAsync(
-              { build: builds[0], accountName },
+              { build: builds[0], accountName, concurrencyLimitMessage },
               { spinner, logsStates, installRender }
             )
           : await handleMultipleBuildsProgressAsync(
-              { builds },
+              { builds, concurrencyLimitMessage },
               { spinner, originalSpinnerText, logsStates, installRender }
             );
       if (!refetch) {
@@ -642,9 +654,11 @@ async function handleSingleBuildProgressAsync(
   {
     build,
     accountName,
+    concurrencyLimitMessage,
   }: {
     build: MaybeBuildFragment;
     accountName: string;
+    concurrencyLimitMessage?: ConcurrencyLimitMessage;
   },
   { spinner, logsStates, installRender }: { spinner: Ora } & BuildLogsProgressOptions
 ): Promise<BuildProgressResult> {
@@ -678,10 +692,13 @@ async function handleSingleBuildProgressAsync(
       if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
         updateSpinnerText(spinner, { text: 'Waiting for build to get enqueued…' });
       } else {
+        const shownTreatmentMessage = (await concurrencyLimitMessage?.maybeShowAsync()) ?? false;
         updateSpinnerText(spinner, {
-          text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-            formatAccountBillingUrl(accountName)
-          )}.`,
+          text: shownTreatmentMessage
+            ? TREATMENT_SPINNER_TEXT
+            : `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
+                getAccountBillingUrl(accountName)
+              )}.`,
         });
       }
       break;
@@ -703,7 +720,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
+          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
@@ -768,7 +785,10 @@ const statusToDisplayName: Record<BuildStatus, string> = {
 const platforms = [AppPlatform.Android, AppPlatform.Ios];
 
 async function handleMultipleBuildsProgressAsync(
-  { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
+  {
+    builds: maybeBuilds,
+    concurrencyLimitMessage,
+  }: { builds: MaybeBuildFragment[]; concurrencyLimitMessage?: ConcurrencyLimitMessage },
   {
     spinner,
     originalSpinnerText,
@@ -808,6 +828,9 @@ async function handleMultipleBuildsProgressAsync(
       someNew &&
       statusNewSetAt !== null &&
       Date.now() - statusNewSetAt >= NEW_STATUS_GRACE_PERIOD_MS;
+    if (showConcurrencyWarning) {
+      await concurrencyLimitMessage?.maybeShowAsync();
+    }
     const pendingBuildsText = formatPendingBuildsText(
       originalSpinnerText,
       builds,
@@ -893,10 +916,6 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
     return `starting in about ${n}0 minutes...`;
   }
-}
-
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(
