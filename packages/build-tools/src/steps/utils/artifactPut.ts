@@ -1,26 +1,29 @@
 import { SystemError } from '@expo/eas-build-job';
 import fetch, { Headers } from 'node-fetch';
 import type { Readable } from 'node:stream';
+import { finished } from 'node:stream/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { AbortUtils } from '../../utils/AbortUtils';
 
 export type ArtifactUploadSession = { url: string; headers: unknown };
-export type ArtifactSource = { stream: Readable; reopenStream?: () => Readable };
+export type ArtifactSource = { openStream: () => Readable };
 
-export async function putArtifactWithRetriesAsync({
-  uploadSession,
-  source,
-  signal,
-}: {
-  uploadSession: ArtifactUploadSession;
-  source: ArtifactSource;
-  signal?: AbortSignal;
-}): Promise<void> {
-  const attempts = source.reopenStream ? 3 : 1;
+export async function putArtifactWithRetriesAsync(
+  {
+    uploadSession,
+    source,
+    signal,
+  }: {
+    uploadSession: ArtifactUploadSession;
+    source: ArtifactSource;
+    signal?: AbortSignal;
+  },
+  { attempts = 1 }: { attempts?: number } = {}
+): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt++) {
     signal?.throwIfAborted();
-    const stream = attempt > 0 && source.reopenStream ? source.reopenStream() : source.stream;
+    const stream = source.openStream();
     // Upload time scales with file size, so the deadline bounds stalls, not the whole request.
     const timeout = AbortUtils.resettableTimeout(90_000);
     try {
@@ -43,6 +46,7 @@ export async function putArtifactWithRetriesAsync({
       await delay(500 * (attempt + 1), undefined, { signal });
     } finally {
       stream.destroy();
+      await finished(stream).catch(() => {});
     }
   }
 }
