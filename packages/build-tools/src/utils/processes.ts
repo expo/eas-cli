@@ -37,6 +37,24 @@ export function killProcessGroup(
   }
 }
 
+/**
+ * Kill each of the given pids. A process tree collected with
+ * getParentAndDescendantProcessPidsAsync can shrink before the kill lands (e.g. a child
+ * exits on its own, or exits because its parent was just killed), so pids that no longer
+ * exist are skipped instead of throwing ESRCH.
+ */
+export function killProcesses(pids: number[], signal: NodeJS.Signals = 'SIGTERM'): void {
+  for (const pid of pids) {
+    try {
+      process.kill(pid, signal);
+    } catch (error: any) {
+      if (error?.code !== 'ESRCH') {
+        throw error;
+      }
+    }
+  }
+}
+
 async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
   try {
     const result = await spawn('pgrep', ['-P', parentPids.join(',')], {
