@@ -216,7 +216,7 @@ export async function uploadArgentArtifactAsync(
       filename,
       kind: getArgentArtifactKind(artifact),
       size,
-      stream: createReadStream(temporaryArtifactPath),
+      openStream: () => createReadStream(temporaryArtifactPath),
     });
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });

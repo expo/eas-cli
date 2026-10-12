@@ -49,7 +49,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       kind: 'agent-device-test-report',
       metadata: { firstFrameRecordAt: 'test-time' },
       size: reportedSize,
-      stream,
+      openStream: () => stream,
     });
 
     expect(mutation).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
         filename: 'logs.ndjson',
         kind: 'simulator-log',
         size: 0,
-        stream: Readable.from([]),
+        openStream: () => Readable.from([]),
         signal: controller.signal,
       })
     ).rejects.toThrow();

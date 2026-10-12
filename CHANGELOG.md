@@ -10,14 +10,32 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `simulator:network-requests` to list, follow, and inspect captured network requests from a running iOS simulator session, and download them as a HAR file. ([#4546](https://github.com/expo/eas-cli/pull/4546) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
+
+### 🎉 New features
+
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [eas-cli][local-build-plugin] Deprecate Node.js 20, and print a warning when running on it. A future release will require Node.js 22 or newer. Development and CI now use Node.js 22. ([#4579](https://github.com/expo/eas-cli/pull/4579) by [@douglowder](https://github.com/douglowder))
+- [build-tools] Add `eas/run_agent`, a step that runs Claude Code for an agent run and connects it to the Expo MCP server. ([#4552](https://github.com/expo/eas-cli/pull/4552) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Support Codex in `eas/run_agent`. ([#4553](https://github.com/expo/eas-cli/pull/4553) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Write the agent's messages, tool calls, tool results and errors to the `eas/run_agent` job log as plain lines instead of raw JSON events. ([#4568](https://github.com/expo/eas-cli/pull/4568) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Show the average and P75 end-to-end run duration in `eas workflow:insights`. ([#4566](https://github.com/expo/eas-cli/pull/4566) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4589](https://github.com/expo/eas-cli/pull/4589) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Add `eas/download_submission_archive` to request a fresh archive URL when the step runs. ([#4539](https://github.com/expo/eas-cli/pull/4539) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-build-job] Add an `uploadArtifact` command to the sandbox daemon protocol. ([#4562](https://github.com/expo/eas-cli/pull/4562) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [build-tools] Let connected sandboxes upload files as sandbox artifacts through the Expo MCP server. ([#4563](https://github.com/expo/eas-cli/pull/4563) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ### 🐛 Bug fixes
 
 - [build-tools] Look up ffmpeg on PATH instead of running it. ([#4582](https://github.com/expo/eas-cli/pull/4582) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Stop reporting individual App Store Connect API keys as not valid on Apple's servers when adding them in `eas credentials`. ([#4588](https://github.com/expo/eas-cli/pull/4588) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
-
-### 🧹 Chores
+- [build-tools] Close the file of an artifact upload before reporting that the upload is done. ([#4609](https://github.com/expo/eas-cli/pull/4609) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ## [24.12.1](https://github.com/expo/eas-cli/releases/tag/v24.12.1) - 2026-10-08
 
@@ -246,7 +264,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Report a system error when project source refresh fails for a remote build. ([#4359](https://github.com/expo/eas-cli/pull/4359) by [@sjchmiela](https://github.com/sjchmiela))
-
 - [eas-cli] Remove the obsolete `appVersion` runtime policy warning that referenced SDK 46 and expo-updates 0.14.4. ([#4375](https://github.com/expo/eas-cli/pull/4375) by [@brentvatne](https://github.com/brentvatne))
 
 ## [24.0.0](https://github.com/expo/eas-cli/releases/tag/v24.0.0) - 2026-09-09

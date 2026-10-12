@@ -21,16 +21,12 @@ export async function uploadServeSimLogsFileAsync(
     signal?: AbortSignal;
   }
 ): Promise<void> {
-  let stream: ReturnType<typeof createReadStream> | undefined;
   try {
     const { size } = await stat(filePath);
     if (size === 0) {
       return;
     }
     const fileController = new AbortController();
-    stream = createReadStream(filePath);
-    // A read error can occur while the upload session is still being allocated.
-    stream.on('error', err => fileController.abort(err));
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
       artifactId: `simulator-log-${udid}`,
@@ -39,7 +35,7 @@ export async function uploadServeSimLogsFileAsync(
       kind: 'simulator-log',
       metadata: { __eas_type: 'simulator-log', udid, scope: 'user-apps', source: 'serve-sim/logs' },
       size,
-      stream,
+      openStream: () => createReadStream(filePath).on('error', err => fileController.abort(err)),
       signal: AbortSignal.any([fileController.signal, ...(signal ? [signal] : [])]),
     });
   } catch (err) {
@@ -47,7 +43,5 @@ export async function uploadServeSimLogsFileAsync(
       { err },
       `Could not upload simulator logs for ${udid}; other artifacts will continue.`
     );
-  } finally {
-    stream?.destroy();
   }
 }
