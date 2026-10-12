@@ -2,6 +2,7 @@ import { SystemError, UserError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import turtleSpawn from '@expo/turtle-spawn';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -51,7 +52,7 @@ export async function runAgentAsync({
 }): Promise<void> {
   const leaseOptions = { expoApiV2BaseUrl, expoToken, agentRunId, signal };
   let credentials = await leaseAgentRunProviderCredentialsAsync(leaseOptions);
-  const secrets = new Set<string>();
+  const secrets = new Set([expoToken]);
 
   const runDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-agent-run-'));
   try {
