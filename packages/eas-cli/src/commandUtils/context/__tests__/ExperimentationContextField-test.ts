@@ -65,8 +65,17 @@ async function flushPromisesAsync(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
 }
 
+afterAll(() => {
+  process.env = ORIGINAL_ENV;
+});
+
+const ORIGINAL_ENV = process.env;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env = { ...ORIGINAL_ENV };
+  delete process.env.CI;
+  delete process.env.EAS_BUILD;
   mockEnv.experimentOverride = undefined;
   jest.mocked(createGraphqlClient).mockReturnValue(fakeGraphqlClient);
   getConfigsAsyncMock.mockResolvedValue(allConfigs);
@@ -84,6 +93,31 @@ describe(ExperimentationContextField, () => {
     expect(getConfigsAsyncMock).not.toHaveBeenCalled();
     expect(createGraphqlClient).not.toHaveBeenCalled();
     verify(mocked.getUserAsync()).never();
+  });
+
+  it.each(['CI', 'EAS_BUILD'])(
+    'returns a disabled client and fetches nothing when %s is set',
+    async flag => {
+      process.env[flag] = '1';
+      const { sessionManager, mocked } = createSessionManager();
+      const client = await new ExperimentationContextField().getValueAsync(
+        options({ sessionManager })
+      );
+
+      expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
+      expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
+      expect(getConfigsAsyncMock).not.toHaveBeenCalled();
+      expect(createGraphqlClient).not.toHaveBeenCalled();
+      verify(mocked.getUserAsync()).never();
+    }
+  );
+
+  it('still honors EAS_EXPERIMENT_OVERRIDE in CI', async () => {
+    process.env.CI = 'true';
+    mockEnv.experimentOverride = 'cli-full:variant=treatment';
+    const client = await new ExperimentationContextField().getValueAsync(options());
+    expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('treatment');
+    expect(getConfigsAsyncMock).not.toHaveBeenCalled();
   });
 
   it('still honors EAS_EXPERIMENT_OVERRIDE when analytics is disabled', async () => {
