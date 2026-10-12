@@ -479,8 +479,10 @@ export async function startDeviceSessionHostAsync(
             'report it if it repeats.'
         );
       }
-      secrets.push(previewToken);
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
+    }
+    if (previewToken) {
+      secrets.push(previewToken);
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.
