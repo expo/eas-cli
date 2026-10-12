@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Show the average and P75 end-to-end run duration in `eas workflow:insights`. ([#4566](https://github.com/expo/eas-cli/pull/4566) by [@hSATAC](https://github.com/hSATAC))
 - [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4589](https://github.com/expo/eas-cli/pull/4589) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Add `eas/download_submission_archive` to request a fresh archive URL when the step runs. ([#4539](https://github.com/expo/eas-cli/pull/4539) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-build-job] Add an `uploadArtifact` command to the sandbox daemon protocol. ([#4562](https://github.com/expo/eas-cli/pull/4562) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ### 🐛 Bug fixes
 
