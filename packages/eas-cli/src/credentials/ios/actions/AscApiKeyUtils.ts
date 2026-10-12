@@ -6,7 +6,6 @@ import { UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import env from '../../../env';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log, { learnMore } from '../../../log';
@@ -41,10 +40,7 @@ export async function promptForAscApiKeyPathAsync(
 ): Promise<AscApiKeyPath> {
   // Individual keys are valid only as submission keys. Every other purpose
   // requires a team key, so the key type question is not asked there.
-  // The option stays behind an env var until every server-side submission
-  // path runs a fastlane version that accepts keys without an issuer ID.
   const isIndividualKey =
-    !!env.enableIndividualAscApiKeys &&
     purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE &&
     !ctx.nonInteractive &&
     (await promptForAscApiKeyTypeIsIndividualAsync());
