@@ -99,6 +99,8 @@ class ScopedNamespaces {
 /**
  * Resolves experiment params for the current CLI run. Units: user is the actor ID, account is the
  * ID the command passes to `getAccountNamespace`, device is the analytics device ID.
+ * User and account units are shared across surfaces. The device unit is specific to the CLI, so a
+ * device namespace must not be shared with another surface.
  * The first `getParam` on a namespace logs an exposure, so call it only where the variant is used.
  */
 export class ExperimentationClient {
