@@ -39,8 +39,8 @@ export async function uploadNetworkCaptureHarsAsync(
         kind: 'network-capture',
         metadata: { __eas_type: 'network-capture', format: 'har', udid: capture.udid, part },
         size: capture.size,
-        stream: createReadStream(capture.filePath),
-        reopenStream: () => createReadStream(capture.filePath),
+        openStream: () => createReadStream(capture.filePath),
+        attempts: 3,
       });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

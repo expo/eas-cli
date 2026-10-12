@@ -482,9 +482,9 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
     const uploads: Buffer[] = [];
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementation(async (_ctx, { stream }) => {
+      .mockImplementation(async (_ctx, { openStream }) => {
         const chunks: Buffer[] = [];
-        for await (const chunk of stream) {
+        for await (const chunk of openStream()) {
           chunks.push(Buffer.from(chunk));
         }
         uploads.push(Buffer.concat(chunks));

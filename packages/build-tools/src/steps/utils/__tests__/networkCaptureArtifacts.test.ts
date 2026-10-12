@@ -2,7 +2,6 @@ import type { bunyan } from '@expo/logger';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
@@ -23,9 +22,8 @@ async function harAsync(name: string): Promise<string> {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // The real helper destroys the stream it was given.
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementation(async (_ctx, options) => {
-    options.stream.destroy();
+    options.openStream().destroy();
   });
 });
 
@@ -58,14 +56,14 @@ it('uploads each HAR as a network-capture artifact, numbering restarts per devic
     kind: 'network-capture',
     metadata: { __eas_type: 'network-capture', format: 'har', udid: 'ABCDEF123456', part: 1 },
     size: 22,
-    stream: expect.any(Readable),
-    reopenStream: expect.any(Function),
+    openStream: expect.any(Function),
+    attempts: 3,
   });
 });
 
 it('logs a failed upload and continues with the next HAR', async () => {
   jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementationOnce(async (_ctx, options) => {
-    options.stream.destroy();
+    options.openStream().destroy();
     throw new Error('offline');
   });
   await expect(

@@ -34,8 +34,8 @@ export async function uploadServeSimCrashesFileAsync(
       kind: 'simulator-crashes',
       metadata: { __eas_type: 'simulator-crashes', udid, source: 'serve-sim/crashes' },
       size,
-      stream: createReadStream(filePath),
-      reopenStream: () => createReadStream(filePath),
+      openStream: () => createReadStream(filePath),
+      attempts: 3,
       signal,
     });
   } catch (err) {

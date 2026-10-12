@@ -164,7 +164,7 @@ Each package has independent TypeScript compilation:
 
 TypeScript configs:
 
-- `tsconfig.json` - Base configuration (extends @tsconfig/node20)
+- `tsconfig.json` - Base configuration (extends @tsconfig/node22)
 - `tsconfig.build.json` - Production builds
 - `tsconfig.allowUnused.json` - Development with relaxed rules
 
