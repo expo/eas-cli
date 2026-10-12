@@ -16915,13 +16915,6 @@ export type ExperimentationConfigsQueryVariables = Exact<{ [key: string]: never;
 
 export type ExperimentationConfigsQuery = { __typename?: 'RootQuery', experimentation: { __typename?: 'ExperimentationQuery', userConfig: any, accountConfig: any, deviceConfig: any } };
 
-export type ExperimentationOwnerAccountQueryVariables = Exact<{
-  appId: Scalars['String']['input'];
-}>;
-
-
-export type ExperimentationOwnerAccountQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string } } } };
-
 export type FingerprintsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   after?: InputMaybe<Scalars['String']['input']>;
