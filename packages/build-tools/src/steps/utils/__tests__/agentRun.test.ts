@@ -296,6 +296,7 @@ describe(runAgentAsync, () => {
             version: 1,
             invocationId: expect.any(String),
             type: 'error',
+            severity: 'error',
             message: 'boom',
           },
         },

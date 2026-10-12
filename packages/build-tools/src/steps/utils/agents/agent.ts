@@ -18,10 +18,12 @@ export interface AgentInvocation {
 }
 
 export type AgentEvent =
-  | { type: 'message'; text: string }
+  // Provider IDs are scoped to an invocation. Multiple content blocks can share a message ID.
+  | { type: 'message'; messageId?: string; text: string }
   | { type: 'tool_call'; callId: string; name: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; callId: string; text: string; isError: boolean }
-  | { type: 'error'; message: string };
+  // Severity describes this event, not the final run status.
+  | { type: 'error'; severity: 'warning' | 'error'; message: string };
 
 export interface AgentLogMessage {
   level: 'info' | 'warn' | 'error';

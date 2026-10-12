@@ -112,7 +112,7 @@ export async function prepareCodexAsync({
 }
 
 const CodexItemSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('agent_message'), text: z.string() }),
+  z.object({ type: z.literal('agent_message'), id: z.string().optional(), text: z.string() }),
   z.object({
     type: z.literal('mcp_tool_call'),
     id: z.string().optional(),
@@ -172,7 +172,7 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'warn',
           message: `Error: ${event.data.message}`,
-          agentEvent: { type: 'error', message: event.data.message },
+          agentEvent: { type: 'error', severity: 'warning', message: event.data.message },
         },
       ];
     case 'turn.failed':
@@ -180,7 +180,7 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'error',
           message: `Agent failed: ${event.data.error.message}`,
-          agentEvent: { type: 'error', message: event.data.error.message },
+          agentEvent: { type: 'error', severity: 'error', message: event.data.error.message },
         },
       ];
   }
@@ -195,7 +195,7 @@ function formatCompletedItem(
         {
           level: 'info',
           message: `Agent: ${item.text}`,
-          agentEvent: { type: 'message', text: item.text },
+          agentEvent: { type: 'message', messageId: item.id, text: item.text },
         },
       ];
     case 'mcp_tool_call': {
@@ -214,7 +214,7 @@ function formatCompletedItem(
         {
           level: 'warn',
           message: `Error: ${item.message}`,
-          agentEvent: { type: 'error', message: item.message },
+          agentEvent: { type: 'error', severity: 'warning', message: item.message },
         },
       ];
     case undefined:

@@ -92,7 +92,7 @@ const ClaudeCodeEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('assistant'),
-    message: z.object({ content: tolerantArray(AssistantBlockSchema) }),
+    message: z.object({ id: z.string().optional(), content: tolerantArray(AssistantBlockSchema) }),
   }),
   z.object({
     type: z.literal('user'),
@@ -126,18 +126,20 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
               message: `MCP server ${server.name} is not connected (${server.status}).`,
               agentEvent: {
                 type: 'error',
+                severity: 'warning',
                 message: `MCP server ${server.name} is not connected (${server.status}).`,
               },
             }
       );
-    case 'assistant':
+    case 'assistant': {
+      const messageId = event.data.message.id;
       return event.data.message.content.map(block => {
         switch (block.type) {
           case 'text':
             return {
               level: 'info',
               message: `Agent: ${block.text}`,
-              agentEvent: { type: 'message', text: block.text },
+              agentEvent: { type: 'message', messageId, text: block.text },
             };
           case 'tool_use':
             return {
@@ -149,6 +151,7 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
             };
         }
       });
+    }
     case 'user':
       return event.data.message.content.map(block => {
         const text =
@@ -169,7 +172,11 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
             {
               level: 'error',
               message: `Agent failed: ${result || errors?.join('\n') || subtype}`,
-              agentEvent: { type: 'error', message: result || errors?.join('\n') || subtype },
+              agentEvent: {
+                type: 'error',
+                severity: 'error',
+                message: result || errors?.join('\n') || subtype,
+              },
             },
           ]
         : [];

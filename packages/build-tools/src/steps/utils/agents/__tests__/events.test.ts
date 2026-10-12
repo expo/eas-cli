@@ -3,9 +3,9 @@ import { CODEX_CLI } from '../codex';
 import { readFixtureLines } from './readFixture';
 
 describe.each([
-  ['Codex', CODEX_CLI, 'codex-tool-calls.jsonl'],
-  ['Claude Code', CLAUDE_CODE_CLI, 'claude-code-tool-call.jsonl'],
-] as const)('%s activity', (_name, cli, fixture) => {
+  ['Codex', CODEX_CLI, 'codex-tool-calls.jsonl', ['item_0', 'item_3']],
+  ['Claude Code', CLAUDE_CODE_CLI, 'claude-code-tool-call.jsonl', ['msg_002']],
+] as const)('%s activity', (_name, cli, fixture, messageIds) => {
   it('keeps tool arguments and pairs results with their calls', () => {
     const events = readFixtureLines(fixture)
       .flatMap(line => cli.formatOutputLine(line))
@@ -21,8 +21,8 @@ describe.each([
         isError: false,
       });
     }
-    expect(events).toContainEqual(
-      expect.objectContaining({ type: 'message', text: expect.any(String) })
+    expect(events.filter(event => event?.type === 'message').map(event => event.messageId)).toEqual(
+      messageIds
     );
   });
 });
@@ -55,5 +55,46 @@ it('marks a Codex tool result as failed when the server returned an error in its
         isError: true,
       },
     },
+  ]);
+});
+
+// A provider can report a recoverable error before it finishes the same invocation.
+it.each([
+  [CODEX_CLI, { type: 'error', message: 'Retrying.' }, 'warning'],
+  [CODEX_CLI, { type: 'item.completed', item: { type: 'error', message: 'Retrying.' } }, 'warning'],
+  [CODEX_CLI, { type: 'turn.failed', error: { message: 'Stopped.' } }, 'error'],
+  [
+    CLAUDE_CODE_CLI,
+    { type: 'system', subtype: 'init', mcp_servers: [{ name: 'expo', status: 'failed' }] },
+    'warning',
+  ],
+  [
+    CLAUDE_CODE_CLI,
+    { type: 'result', subtype: 'error', is_error: true, result: 'Stopped.' },
+    'error',
+  ],
+] as const)('keeps error severity in the structured event (%j, %j)', (cli, input, severity) => {
+  expect(cli.formatOutputLine(JSON.stringify(input))[0]?.agentEvent).toMatchObject({
+    type: 'error',
+    severity,
+  });
+});
+
+it('keeps all text blocks of a Claude message under the provider message ID', () => {
+  const events = CLAUDE_CODE_CLI.formatOutputLine(
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        id: 'msg_123',
+        content: [
+          { type: 'text', text: 'First.' },
+          { type: 'text', text: 'Second.' },
+        ],
+      },
+    })
+  ).map(log => log.agentEvent);
+  expect(events).toEqual([
+    { type: 'message', messageId: 'msg_123', text: 'First.' },
+    { type: 'message', messageId: 'msg_123', text: 'Second.' },
   ]);
 });
