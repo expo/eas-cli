@@ -92,4 +92,33 @@ describe(createGraphqlClient, () => {
       expect(result.data).toEqual({ __typename: 'RootQuery' });
     });
   });
+
+  describe('against a closed port', () => {
+    beforeAll(async () => {
+      // Listen once to reserve a free port, then close so the port refuses connections.
+      const server = http.createServer();
+      process.env.CREATE_GRAPHQL_CLIENT_TEST_URL = await startSlowServerAsync(server, 0);
+      await new Promise<void>(resolve => {
+        server.close(() => {
+          resolve();
+        });
+      });
+    });
+
+    afterAll(() => {
+      delete process.env.CREATE_GRAPHQL_CLIENT_TEST_URL;
+    });
+
+    it('passes through fetch errors that are not timeouts', async () => {
+      const client = createGraphqlClient(
+        { accessToken: 'token', sessionSecret: null },
+        { requestTimeoutMs: 5000 }
+      );
+      const result = await client.query(TEST_QUERY, {}, { noRetry: true }).toPromise();
+      expect(result.data).toBeUndefined();
+      expect(result.error?.networkError).toBeDefined();
+      expect(result.error?.networkError?.name).not.toBe('TimeoutError');
+      expect(result.error?.networkError?.message).toContain('ECONNREFUSED');
+    });
+  });
 });
