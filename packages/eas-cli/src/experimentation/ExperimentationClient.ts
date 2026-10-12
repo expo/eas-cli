@@ -23,7 +23,8 @@ export type ExperimentationScope = 'user' | 'account' | 'device';
 
 export type ExperimentationConfigs = Record<ExperimentationScope, ExperimentationDefinition>;
 
-export type ExperimentationUnits = Record<ExperimentationScope, string | null>;
+/** Commands pass the account unit on each `getAccountNamespace` call. */
+export type ExperimentationUnits = Record<Exclude<ExperimentationScope, 'account'>, string | null>;
 
 export const EMPTY_EXPERIMENTATION_DEFINITION: ExperimentationDefinition = {
   experiments: [],
@@ -36,7 +37,7 @@ const EMPTY_CONFIGS: ExperimentationConfigs = {
   device: EMPTY_EXPERIMENTATION_DEFINITION,
 };
 
-const NULL_UNITS: ExperimentationUnits = { user: null, account: null, device: null };
+const NULL_UNITS: ExperimentationUnits = { user: null, device: null };
 
 function sha1(input: string): string {
   return createHash('sha1').update(input).digest('hex');
@@ -97,7 +98,7 @@ class ScopedNamespaces {
 
 /**
  * Resolves experiment params for the current CLI run. Units: user is the actor ID, account is the
- * linked project's owner account (or an explicit `accountId`), device is the analytics device ID.
+ * ID the command passes to `getAccountNamespace`, device is the analytics device ID.
  * The first `getParam` on a namespace logs an exposure, so call it only where the variant is used.
  */
 export class ExperimentationClient {
@@ -111,7 +112,7 @@ export class ExperimentationClient {
   ) {
     this.scopes = {
       user: new ScopedNamespaces(configs.user, loggerConfig, units.user),
-      account: new ScopedNamespaces(configs.account, loggerConfig, units.account),
+      account: new ScopedNamespaces(configs.account, loggerConfig, null),
       device: new ScopedNamespaces(configs.device, loggerConfig, units.device),
     };
   }
@@ -127,11 +128,12 @@ export class ExperimentationClient {
     return this.resolve('user', name, this.units.user);
   }
 
+  /** Takes the account the command already resolved, so no extra lookup or config read happens here. */
   public getAccountNamespace(
     name: string,
-    options: { accountId?: string } = {}
+    { accountId }: { accountId: string }
   ): ExperimentNamespace {
-    return this.resolve('account', name, options.accountId ?? this.units.account);
+    return this.resolve('account', name, accountId);
   }
 
   public getDeviceNamespace(name: string): ExperimentNamespace {

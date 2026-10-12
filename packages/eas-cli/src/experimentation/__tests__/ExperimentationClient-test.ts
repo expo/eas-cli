@@ -35,7 +35,7 @@ function createClient({
       account: configs.account ?? EMPTY_EXPERIMENTATION_DEFINITION,
       device: configs.device ?? EMPTY_EXPERIMENTATION_DEFINITION,
     },
-    { user: units.user ?? null, account: units.account ?? null, device: units.device ?? null },
+    { user: units.user ?? null, device: units.device ?? null },
     overrides,
     createLoggerConfig(analytics)
   );
@@ -90,32 +90,31 @@ describe(ExperimentationClient, () => {
     });
 
     it('returns the default and logs no exposure when the scope has no unit', () => {
-      const { client, analytics } = createClient({ configs: { account: TEST_DEFINITION } });
-      expect(client.getAccountNamespace('cli-full').getParam('variant', 'control')).toBe('control');
+      const { client, analytics } = createClient({ configs: { user: TEST_DEFINITION } });
+      expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
       expect(analytics.logEvent).not.toHaveBeenCalled();
       expect(Log.debug).not.toHaveBeenCalled();
     });
 
     it('treats an empty string unit like a missing unit', () => {
-      const { client, analytics } = createClient({
-        configs: { account: TEST_DEFINITION },
-        units: { account: '' },
-      });
-      expect(client.getAccountNamespace('cli-full').getParam('variant', 'control')).toBe('control');
+      const { client, analytics } = createClient({ configs: { account: TEST_DEFINITION } });
+      expect(
+        client.getAccountNamespace('cli-full', { accountId: '' }).getParam('variant', 'control')
+      ).toBe('control');
       expect(analytics.logEvent).not.toHaveBeenCalled();
     });
 
-    it('uses an explicit account ID over the default account unit', () => {
-      const { client } = createClient({
-        configs: { account: TEST_DEFINITION },
-        units: { account: controlUnit },
-      });
-      expect(client.getAccountNamespace('cli-full').getParam('variant', 'x')).toBe('control');
+    it('buckets account experiments on the account ID the command passes', () => {
+      const { client, analytics } = createClient({ configs: { account: TEST_DEFINITION } });
+      expect(
+        client.getAccountNamespace('cli-full', { accountId: controlUnit }).getParam('variant', 'x')
+      ).toBe('control');
       expect(
         client
           .getAccountNamespace('cli-full', { accountId: treatmentUnit })
           .getParam('variant', 'x')
       ).toBe('treatment');
+      expect(analytics.logEvent).toHaveBeenCalledTimes(2);
     });
 
     it('resolves the same namespace name independently per scope', () => {
@@ -143,10 +142,12 @@ describe(ExperimentationClient, () => {
           account: scoped('from-account'),
           device: scoped('from-device'),
         },
-        units: { user: 'u', account: 'a', device: 'd' },
+        units: { user: 'u', device: 'd' },
       });
       expect(client.getUserNamespace('shared').getParam('variant', 'x')).toBe('from-user');
-      expect(client.getAccountNamespace('shared').getParam('variant', 'x')).toBe('from-account');
+      expect(
+        client.getAccountNamespace('shared', { accountId: 'a' }).getParam('variant', 'x')
+      ).toBe('from-account');
       expect(client.getDeviceNamespace('shared').getParam('variant', 'x')).toBe('from-device');
     });
 
@@ -282,7 +283,9 @@ describe(ExperimentationClient, () => {
         overrides: new ExperimentOverrides(parseExperimentOverrides('ns:enabled=true')),
       });
       expect(client.getUserNamespace('ns').getParam('enabled', false)).toBe(true);
-      expect(client.getAccountNamespace('ns').getParam('enabled', false)).toBe(true);
+      expect(client.getAccountNamespace('ns', { accountId: 'a' }).getParam('enabled', false)).toBe(
+        true
+      );
       expect(client.getDeviceNamespace('ns').getParam('enabled', false)).toBe(true);
     });
   });
@@ -331,8 +334,8 @@ describe(ExperimentationClient, () => {
       ).toThrow(/requested 20 segments/);
     });
 
-    it('returns the default when a namespace fails to build for an explicit account ID', () => {
-      // No default account unit, so nothing is built eagerly and the failure surfaces on lookup.
+    it('returns the default when a namespace fails to build for an account ID', () => {
+      // Account namespaces have no default unit, so the failure surfaces on lookup, not construction.
       const { client, analytics } = createClient({ configs: { account: overAllocated } });
       expect(
         client.getAccountNamespace('too-many', { accountId: 'a' }).getParam('variant', 'control')
@@ -346,12 +349,16 @@ describe(ExperimentationClient, () => {
   });
 
   describe('createDisabled', () => {
-    it('returns defaults for every scope and logs nothing', () => {
+    it('returns defaults for every scope and logs no exposure', () => {
       const client = ExperimentationClient.createDisabled(ExperimentOverrides.empty());
       expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
-      expect(client.getAccountNamespace('cli-full').getParam('variant', 'control')).toBe('control');
       expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
       expect(Log.debug).not.toHaveBeenCalled();
+      // The account scope always has a unit, so the empty config reports the namespace as missing.
+      expect(
+        client.getAccountNamespace('cli-full', { accountId: 'a' }).getParam('variant', 'control')
+      ).toBe('control');
+      expect(Log.debug).toHaveBeenCalledWith(expect.stringContaining('not found'));
     });
 
     it('reads overrides from the environment by default', () => {

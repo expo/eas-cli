@@ -87,27 +87,3 @@ describe('ExperimentationConfigQuery.getConfigsAsync', () => {
     );
   });
 });
-
-describe('ExperimentationConfigQuery.getOwnerAccountIdForProjectAsync', () => {
-  it('returns the owner account ID of the project', async () => {
-    const graphqlClient = makeGraphqlClient({
-      data: { app: { byId: { id: 'project-1', ownerAccount: { id: 'account-1' } } } },
-    });
-    await expect(
-      ExperimentationConfigQuery.getOwnerAccountIdForProjectAsync(graphqlClient, 'project-1')
-    ).resolves.toBe('account-1');
-
-    const [, variables, context] = graphqlClient.query.mock.calls[0];
-    expect(variables).toEqual({ appId: 'project-1' });
-    expect(context).toEqual({ additionalTypenames: ['App', 'Account'], noRetry: true });
-  });
-
-  it('rejects on a GraphQL error without logging', async () => {
-    const error = new CombinedError({ graphQLErrors: ['Not authorized'] });
-    const graphqlClient = makeGraphqlClient({ error });
-    await expect(
-      ExperimentationConfigQuery.getOwnerAccountIdForProjectAsync(graphqlClient, 'project-1')
-    ).rejects.toBe(error);
-    expect(Log.error).not.toHaveBeenCalled();
-  });
-});

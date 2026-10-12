@@ -18,7 +18,9 @@ describe(mockCommandContext, () => {
     expect(ctx.experimentation.getUserNamespace('any').getParam('variant', 'control')).toBe(
       'control'
     );
-    expect(ctx.experimentation.getAccountNamespace('any').getParam('enabled', true)).toBe(true);
+    expect(
+      ctx.experimentation.getAccountNamespace('any', { accountId: 'a' }).getParam('enabled', true)
+    ).toBe(true);
     expect(ctx.experimentation.getDeviceNamespace('any').getParam('count', 3)).toBe(3);
   });
 });

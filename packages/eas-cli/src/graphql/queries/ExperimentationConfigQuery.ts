@@ -4,12 +4,7 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EMPTY_EXPERIMENTATION_DEFINITION } from '../../experimentation/ExperimentationClient';
-import {
-  ExperimentationConfigsQuery,
-  ExperimentationConfigsQueryVariables,
-  ExperimentationOwnerAccountQuery,
-  ExperimentationOwnerAccountQueryVariables,
-} from '../generated';
+import { ExperimentationConfigsQuery, ExperimentationConfigsQueryVariables } from '../generated';
 
 export type ExperimentationConfigsResult = {
   userConfig: ExperimentationDefinition;
@@ -67,33 +62,5 @@ export const ExperimentationConfigQuery = {
       accountConfig: toExperimentationDefinition(data.experimentation.accountConfig),
       deviceConfig: toExperimentationDefinition(data.experimentation.deviceConfig),
     };
-  },
-
-  /** Separate from `AppQuery.byIdAsync` so that a failure stays silent. */
-  async getOwnerAccountIdForProjectAsync(
-    graphqlClient: ExpoGraphqlClient,
-    projectId: string
-  ): Promise<string> {
-    const data = await quietQueryAsync(
-      graphqlClient
-        .query<ExperimentationOwnerAccountQuery, ExperimentationOwnerAccountQueryVariables>(
-          gql`
-            query ExperimentationOwnerAccount($appId: String!) {
-              app {
-                byId(appId: $appId) {
-                  id
-                  ownerAccount {
-                    id
-                  }
-                }
-              }
-            }
-          `,
-          { appId: projectId },
-          { additionalTypenames: ['App', 'Account'], noRetry: true }
-        )
-        .toPromise()
-    );
-    return data.app.byId.ownerAccount.id;
   },
 };
