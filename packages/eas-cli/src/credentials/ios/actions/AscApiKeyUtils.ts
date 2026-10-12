@@ -113,6 +113,11 @@ export async function provideOrGenerateAscApiKeyAsync(
     return await generateAscApiKeyAsync(ctx, purpose);
   }
 
+  // The validation below supports team keys only.
+  if (!userProvided.issuerId) {
+    return userProvided;
+  }
+
   if (!ctx.appStore.authCtx) {
     Log.warn('Unable to validate App Store Connect API Key, you are not authenticated with Apple.');
     return userProvided;
