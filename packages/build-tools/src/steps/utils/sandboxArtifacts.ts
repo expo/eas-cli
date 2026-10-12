@@ -243,19 +243,15 @@ async function putSandboxArtifactAsync({
 }): Promise<void> {
   const openStream = (): Readable =>
     size === 0 ? Readable.from([]) : createReadStream(filePath, { start: 0, end: size - 1 });
-  const stream = openStream();
   try {
-    await putArtifactWithRetriesAsync({
-      uploadSession,
-      source: { stream, reopenStream: openStream },
-      signal,
-    });
+    await putArtifactWithRetriesAsync(
+      { uploadSession, source: { openStream }, signal },
+      { attempts: 3 }
+    );
   } catch (error) {
     if (!(error instanceof ArtifactPutError && error.status === 412)) {
       throw error;
     }
-  } finally {
-    stream.destroy();
   }
 }
 

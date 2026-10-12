@@ -39,7 +39,7 @@ type ArtifactMetadata = {
 
 export async function uploadDeviceRunSessionArtifactAsync(
   ctx: CustomBuildContext,
-  options: ArtifactMetadata & ArtifactSource & { signal?: AbortSignal }
+  options: ArtifactMetadata & ArtifactSource & { signal?: AbortSignal; attempts?: number }
 ): Promise<void> {
   try {
     const uploadSession = await withDeviceRunSessionTimeoutAsync(
@@ -47,15 +47,15 @@ export async function uploadDeviceRunSessionArtifactAsync(
       async signal => await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, signal)
     );
     options.signal?.throwIfAborted();
-    await putArtifactWithRetriesAsync({ uploadSession, source: options, signal: options.signal });
+    await putArtifactWithRetriesAsync(
+      { uploadSession, source: options, signal: options.signal },
+      { attempts: options.attempts }
+    );
   } catch (error) {
     if (error instanceof ArtifactPutError || error instanceof ArtifactPutNetworkError) {
       throw new DeviceRunSessionArtifactUploadError(options.artifactId, error.reason);
     }
     throw error;
-  } finally {
-    // One-shot callers may have opened their stream before upload-session creation failed.
-    options.stream.destroy();
   }
 }
 
