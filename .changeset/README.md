@@ -32,7 +32,7 @@ All packages share one version. The highest bump in all changesets sets the next
 | `patch` | 🐛 Bug fixes                | PATCH        |
 | `none`  | 🧹 Chores                   | no bump      |
 
-`yarn changeset` does not offer `none`. To record a chore, write `none` as the bump type by hand, or run `yarn changeset --empty` for a change that touches no package.
+`yarn changeset` does not offer `none`. For changes that should not appear in the changelog, add the "no changelog" label to the PR in GitHub.
 
 If a PR needs no changelog entry at all, add the "no changelog" label to the PR instead.
 
