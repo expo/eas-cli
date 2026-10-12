@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import {
   type AgentCli,
+  type AgentContentLogMessage,
   type AgentInvocation,
   type AgentLogMessage,
   ContentBlocksSchema,
@@ -12,7 +13,7 @@ import {
   contentBlocksText,
   createContinuationPrompt,
   createProviderMismatchError,
-  parseJsonLine,
+  formatAgentOutputLine,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
 
@@ -136,10 +137,10 @@ const CodexEventSchema = z.discriminatedUnion('type', [
 ]);
 
 function formatCodexOutputLine(line: string): AgentLogMessage[] {
-  const json = parseJsonLine(line);
-  if (json === undefined) {
-    return [{ level: 'info', message: line }];
-  }
+  return formatAgentOutputLine(line, 'codex', formatCodexEvent);
+}
+
+function formatCodexEvent(json: Record<string, unknown>): AgentContentLogMessage[] {
   const event = CodexEventSchema.safeParse(json);
   if (!event.success) {
     return [];
@@ -154,7 +155,7 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'info',
           message: `Tool call: ${item.server}.${item.tool} ${JSON.stringify(item.arguments ?? {})}`,
-          agentEvent: item.id
+          content: item.id
             ? {
                 type: 'tool_call',
                 callId: item.id,
@@ -172,7 +173,7 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'warn',
           message: `Error: ${event.data.message}`,
-          agentEvent: { type: 'error', severity: 'warning', message: event.data.message },
+          content: { type: 'error', severity: 'warning', message: event.data.message },
         },
       ];
     case 'turn.failed':
@@ -180,7 +181,7 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'error',
           message: `Agent failed: ${event.data.error.message}`,
-          agentEvent: { type: 'error', severity: 'error', message: event.data.error.message },
+          content: { type: 'error', severity: 'error', message: event.data.error.message },
         },
       ];
   }
@@ -188,14 +189,14 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
 
 function formatCompletedItem(
   item: z.output<typeof CodexItemSchema> | undefined
-): AgentLogMessage[] {
+): AgentContentLogMessage[] {
   switch (item?.type) {
     case 'agent_message':
       return [
         {
           level: 'info',
           message: `Agent: ${item.text}`,
-          agentEvent: { type: 'message', messageId: item.id, text: item.text },
+          content: { type: 'message', messageId: item.id, text: item.text },
         },
       ];
     case 'mcp_tool_call': {
@@ -205,7 +206,7 @@ function formatCompletedItem(
         {
           level: isError ? 'warn' : 'info',
           message: `${isError ? 'Tool error' : 'Tool result'}: ${text}`,
-          agentEvent: item.id ? { type: 'tool_result', callId: item.id, text, isError } : undefined,
+          content: item.id ? { type: 'tool_result', callId: item.id, text, isError } : undefined,
         },
       ];
     }
@@ -214,7 +215,7 @@ function formatCompletedItem(
         {
           level: 'warn',
           message: `Error: ${item.message}`,
-          agentEvent: { type: 'error', severity: 'warning', message: item.message },
+          content: { type: 'error', severity: 'warning', message: item.message },
         },
       ];
     case undefined:

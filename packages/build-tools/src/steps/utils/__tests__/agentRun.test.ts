@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { AgentRunEventZ, SystemError } from '@expo/eas-build-job';
 import turtleSpawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import { spawn } from 'node:child_process';
@@ -263,57 +263,44 @@ describe(runAgentAsync, () => {
     const child = jest.mocked(logger.child);
     expect(child.mock.calls).toEqual([[{ source: 'stdout' }], [{ source: 'stderr' }]]);
     const [stdoutLogger, stderrLogger] = child.mock.results.map(result => result.value);
-    expect(stdoutLogger.info.mock.calls.slice(0, 2)).toEqual([
-      [
-        {
-          agentEvent: {
-            version: 1,
-            invocationId: expect.any(String),
-            type: 'tool_result',
-            callId: 'toolu_1',
-            text: 'token: [redacted]',
-            isError: false,
-          },
-        },
-        'Tool result: token: [redacted]',
+    const infoEvents = stdoutLogger.info.mock.calls.map(([fields]: [{ agentEvent: unknown }]) =>
+      AgentRunEventZ.parse(fields.agentEvent)
+    );
+    const errorEvent = AgentRunEventZ.parse(stdoutLogger.error.mock.calls[0][0].agentEvent);
+    expect(infoEvents[0]).toMatchObject({
+      producer: 'claude-code',
+      content: [
+        { type: 'tool_result', callId: 'toolu_1', text: 'token: [redacted]', isError: false },
       ],
-      [
-        {
-          agentEvent: {
-            version: 1,
-            invocationId: expect.any(String),
-            type: 'message',
-            text: 'Done.\nThe token was [redacted].\n',
-          },
-        },
-        'Agent: Done.\nThe token was [redacted].',
-      ],
-    ]);
-    expect(stdoutLogger.error.mock.calls).toEqual([
-      [
-        {
-          agentEvent: {
-            version: 1,
-            invocationId: expect.any(String),
-            type: 'error',
-            severity: 'error',
-            message: 'boom',
-          },
-        },
-        'Agent failed: boom',
-      ],
-    ]);
-    expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
-    expect(stdoutLogger.info.mock.calls[2][0]).toEqual({
-      agentEvent: {
-        version: 1,
-        invocationId: stdoutLogger.info.mock.calls[0][0].agentEvent.invocationId,
-        type: 'tool_call',
-        callId: 'toolu_2',
-        name: 'mcp__expo__sandbox_exec',
-        arguments: { nested: [{ '[redacted]': '[redacted] [redacted]' }] },
-      },
     });
+    expect(infoEvents[1].content).toEqual([
+      { type: 'message', text: 'Done.\nThe token was [redacted].\n' },
+    ]);
+    expect(errorEvent).toMatchObject({
+      content: [{ type: 'error', severity: 'error', message: 'boom' }],
+    });
+    expect(infoEvents[2]).toMatchObject({
+      content: [
+        {
+          type: 'tool_call',
+          callId: 'toolu_2',
+          name: 'mcp__expo__sandbox_exec',
+          arguments: { nested: [{ '[redacted]': '[redacted] [redacted]' }] },
+        },
+      ],
+    });
+    const events = [...infoEvents, errorEvent];
+    expect(new Set(events.map(event => event.eventId)).size).toBe(events.length);
+    expect(new Set(events.map(event => event.invocationId)).size).toBe(1);
+    expect(JSON.stringify(events)).not.toContain('anthropic-access-token');
+    expect(JSON.stringify(events)).not.toContain('expo-token');
+    expect(stdoutLogger.info.mock.calls.map(([, text]: [unknown, string]) => text)).toEqual([
+      'Tool result: token: [redacted]',
+      'Agent: Done.\nThe token was [redacted].',
+      'Tool call: mcp__expo__sandbox_exec {"nested":[{"[redacted]":"[redacted] [redacted]"}]}',
+    ]);
+    expect(stdoutLogger.error.mock.calls[0][1]).toBe('Agent failed: boom');
+    expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
   });
 
   it('reports a line the formatter cannot handle instead of ending the run', async () => {
@@ -349,7 +336,11 @@ describe(runAgentAsync, () => {
     const [stdoutLogger] = jest.mocked(logger.child).mock.results.map(result => result.value);
     expect(stdoutLogger.info.mock.calls).toEqual([
       [
-        { agentEvent: expect.objectContaining({ type: 'message', text: 'Still here.' }) },
+        {
+          agentEvent: expect.objectContaining({
+            content: [{ type: 'message', text: 'Still here.' }],
+          }),
+        },
         'Agent: Still here.',
       ],
     ]);

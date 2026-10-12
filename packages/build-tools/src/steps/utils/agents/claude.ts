@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import {
   type AgentCli,
+  type AgentContentLogMessage,
   type AgentInvocation,
   type AgentLogMessage,
   ContentBlocksSchema,
@@ -12,7 +13,7 @@ import {
   contentBlocksText,
   createContinuationPrompt,
   createProviderMismatchError,
-  parseJsonLine,
+  formatAgentOutputLine,
   tolerantArray,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
@@ -108,10 +109,10 @@ const ClaudeCodeEventSchema = z.discriminatedUnion('type', [
 ]);
 
 function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
-  const json = parseJsonLine(line);
-  if (json === undefined) {
-    return [{ level: 'info', message: line }];
-  }
+  return formatAgentOutputLine(line, 'claude-code', formatClaudeCodeEvent);
+}
+
+function formatClaudeCodeEvent(json: Record<string, unknown>): AgentContentLogMessage[] {
   const event = ClaudeCodeEventSchema.safeParse(json);
   if (!event.success) {
     return [];
@@ -124,7 +125,7 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
           : {
               level: 'warn',
               message: `MCP server ${server.name} is not connected (${server.status}).`,
-              agentEvent: {
+              content: {
                 type: 'error',
                 severity: 'warning',
                 message: `MCP server ${server.name} is not connected (${server.status}).`,
@@ -139,13 +140,13 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
             return {
               level: 'info',
               message: `Agent: ${block.text}`,
-              agentEvent: { type: 'message', messageId, text: block.text },
+              content: { type: 'message', messageId, text: block.text },
             };
           case 'tool_use':
             return {
               level: 'info',
               message: `Tool call: ${block.name} ${JSON.stringify(block.input)}`,
-              agentEvent: block.id
+              content: block.id
                 ? { type: 'tool_call', callId: block.id, name: block.name, arguments: block.input }
                 : undefined,
             };
@@ -159,20 +160,20 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
         return {
           level: block.is_error ? 'warn' : 'info',
           message: `${block.is_error ? 'Tool error' : 'Tool result'}: ${text}`,
-          agentEvent: block.tool_use_id
+          content: block.tool_use_id
             ? { type: 'tool_result', callId: block.tool_use_id, text, isError: !!block.is_error }
             : undefined,
         };
       });
     case 'result': {
-      // `result` repeats the agent's last text block, so on success there is nothing to add.
+      // A successful `result` repeats the last text block; it needs no additional readable message.
       const { is_error, result, errors, subtype } = event.data;
       return is_error
         ? [
             {
               level: 'error',
               message: `Agent failed: ${result || errors?.join('\n') || subtype}`,
-              agentEvent: {
+              content: {
                 type: 'error',
                 severity: 'error',
                 message: result || errors?.join('\n') || subtype,

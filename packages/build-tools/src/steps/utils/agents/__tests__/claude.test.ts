@@ -9,16 +9,23 @@ function formatFixture(name: string): ReturnType<typeof format> {
 }
 
 describe('CLAUDE_CODE_CLI.formatOutputLine', () => {
-  it('renders a run with a tool call and skips thinking and token counts', () => {
+  it('renders tool activity and keeps other events with generic messages', () => {
     expect(formatFixture('claude-code-tool-call.jsonl')).toEqual([
       { level: 'info', message: 'MCP server expo is connected.' },
+      { level: 'info', message: 'Agent event: system' },
+      { level: 'info', message: 'Agent event: system' },
+      { level: 'info', message: 'Agent event: assistant' },
       { level: 'info', message: 'Tool call: mcp__expo__sandbox_exec {"command":"echo hi"}' },
       { level: 'info', message: 'Tool result: stub ran: echo hi' },
+      { level: 'info', message: 'Agent event: system' },
+      { level: 'info', message: 'Agent event: system' },
+      { level: 'info', message: 'Agent event: assistant' },
       {
         level: 'info',
         message:
           'Agent: The command returned exactly: `stub ran: echo hi`\n\nThe tools I can call are:\n\n1. `mcp__expo__sandbox_exec` — Execute a shell command in a running sandbox\n2. `mcp__expo__sandbox_list` — List the sandboxes of the project',
       },
+      { level: 'info', message: 'Agent event: result' },
     ]);
   });
 
@@ -100,18 +107,21 @@ describe('CLAUDE_CODE_CLI.formatOutputLine', () => {
     ).toEqual([{ level: 'error', message: 'Agent failed: error_during_execution' }]);
   });
 
-  it('skips what it does not know without failing', () => {
-    expect(format(JSON.stringify({ type: 'rate_limit_event', rate_limit_info: {} }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'stream_event', event: {} }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'assistant', message: { content: 'text' } }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'user', message: { content: 'the prompt' } }))).toEqual(
-      []
-    );
-    expect(format(JSON.stringify({ type: 'result', subtype: 'success', is_error: 'yes' }))).toEqual(
-      []
-    );
+  it('keeps unrecognized typed events with a generic log message', () => {
+    for (const event of [
+      { type: 'rate_limit_event', rate_limit_info: {} },
+      { type: 'stream_event', event: {} },
+      { type: 'assistant', message: { content: 'text' } },
+      { type: 'user', message: { content: 'the prompt' } },
+      { type: 'result', subtype: 'success', is_error: 'yes' },
+    ]) {
+      expect(format(JSON.stringify(event))).toEqual([
+        { level: 'info', message: `Agent event: ${event.type}` },
+      ]);
+    }
     expect(format('null')).toEqual([]);
     expect(format('[]')).toEqual([]);
+    expect(format('true')).toEqual([]);
   });
 
   it('keeps the known blocks of a message with an unknown block', () => {

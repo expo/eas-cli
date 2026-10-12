@@ -205,7 +205,14 @@ async function runAgentProcessAsync({
     for (const { level, message, agentEvent } of messages) {
       if (agentEvent) {
         stdoutLogger[level](
-          { agentEvent: { version: 1, invocationId, ...redactEvent(agentEvent, redact) } },
+          {
+            agentEvent: {
+              version: 1,
+              eventId: randomUUID(),
+              invocationId,
+              ...redactEvent(agentEvent, redact),
+            },
+          },
           redact(message).trimEnd()
         );
       } else {

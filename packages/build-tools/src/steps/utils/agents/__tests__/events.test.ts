@@ -9,7 +9,7 @@ describe.each([
   it('keeps tool arguments and pairs results with their calls', () => {
     const events = readFixtureLines(fixture)
       .flatMap(line => cli.formatOutputLine(line))
-      .map(log => log.agentEvent);
+      .flatMap(log => log.agentEvent?.content ?? []);
     const calls = events.filter(event => event?.type === 'tool_call');
     expect(calls.length).toBeGreaterThan(0);
     expect(calls[0]).toMatchObject({ arguments: { command: 'echo hi' } });
@@ -49,10 +49,15 @@ it('marks a Codex tool result as failed when the server returned an error in its
       level: 'warn',
       message: 'Tool error: Network connection lost.',
       agentEvent: {
-        type: 'tool_result',
-        callId: 'item_1',
-        text: 'Network connection lost.',
-        isError: true,
+        producer: 'codex',
+        content: [
+          {
+            type: 'tool_result',
+            callId: 'item_1',
+            text: 'Network connection lost.',
+            isError: true,
+          },
+        ],
       },
     },
   ]);
@@ -74,7 +79,7 @@ it.each([
     'error',
   ],
 ] as const)('keeps error severity in the structured event (%j, %j)', (cli, input, severity) => {
-  expect(cli.formatOutputLine(JSON.stringify(input))[0]?.agentEvent).toMatchObject({
+  expect(cli.formatOutputLine(JSON.stringify(input))[0]?.agentEvent?.content[0]).toMatchObject({
     type: 'error',
     severity,
   });
@@ -92,9 +97,54 @@ it('keeps all text blocks of a Claude message under the provider message ID', ()
         ],
       },
     })
-  ).map(log => log.agentEvent);
+  ).flatMap(log => log.agentEvent?.content ?? []);
   expect(events).toEqual([
     { type: 'message', messageId: 'msg_123', text: 'First.' },
     { type: 'message', messageId: 'msg_123', text: 'Second.' },
+  ]);
+});
+
+// Source fields must not be copied into the shared event.
+it.each([
+  ['Claude Code', CLAUDE_CODE_CLI, 'claude-code-tool-call.jsonl'],
+  ['Codex', CODEX_CLI, 'codex-tool-calls.jsonl'],
+] as const)('keeps one typed event per line without source data for %s', (_name, cli, fixture) => {
+  for (const line of readFixtureLines(fixture)) {
+    const source = { ...JSON.parse(line), futureField: { image: 'base64-image-payload' } };
+    const events = cli
+      .formatOutputLine(JSON.stringify(source))
+      .flatMap(log => (log.agentEvent ? [log.agentEvent] : []));
+    expect(events).toHaveLength(1);
+    expect(events[0]).not.toHaveProperty('data');
+    expect(JSON.stringify(events)).not.toContain('base64-image-payload');
+  }
+});
+
+it('groups a Claude message with mixed content in one shared event', () => {
+  const source = {
+    type: 'assistant',
+    message: {
+      id: 'msg_123',
+      content: [
+        { type: 'text', text: 'Checking.' },
+        { type: 'tool_use', id: 'toolu_1', name: 'check', input: { path: '/' } },
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/png', data: 'base64-image-payload' },
+        },
+      ],
+    },
+  };
+  const events = CLAUDE_CODE_CLI.formatOutputLine(JSON.stringify(source)).flatMap(log =>
+    log.agentEvent ? [log.agentEvent] : []
+  );
+  expect(events).toEqual([
+    {
+      producer: 'claude-code',
+      content: [
+        { type: 'message', messageId: 'msg_123', text: 'Checking.' },
+        { type: 'tool_call', callId: 'toolu_1', name: 'check', arguments: { path: '/' } },
+      ],
+    },
   ]);
 });

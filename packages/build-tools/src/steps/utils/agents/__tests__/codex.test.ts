@@ -9,8 +9,10 @@ function formatFixture(name: string): ReturnType<typeof format> {
 }
 
 describe('CODEX_CLI.formatOutputLine', () => {
-  it('renders a run with two tool calls and skips the thread and turn events', () => {
+  it('renders tool activity and keeps the thread and turn events', () => {
     expect(formatFixture('codex-tool-calls.jsonl')).toEqual([
+      { level: 'info', message: 'Agent event: thread.started' },
+      { level: 'info', message: 'Agent event: turn.started' },
       {
         level: 'info',
         message:
@@ -25,11 +27,14 @@ describe('CODEX_CLI.formatOutputLine', () => {
         message:
           'Agent: The exact results, in order:\n\n1. `expo sandbox_exec` with command `echo hi`:\n   ```json\n   {"content":[{"type":"text","text":"stub ran: echo hi"}],"isError":false}\n   ```\n\n2. `expo sandbox_list`:\n   ```json\n   {"content":[{"type":"text","text":"no sandboxes"}],"isError":false}\n   ```\n\n3. `apply_patch` to create `probe.txt` with the single line `hello` failed:\n   ```text\n   patch rejected: writing is blocked by read-only sandbox; rejected by user approval settings\n   ```\n   The file was not created.',
       },
+      { level: 'info', message: 'Agent event: turn.completed' },
     ]);
   });
 
   it('renders a refused tool call as a warning', () => {
     expect(formatFixture('codex-tool-call-refused.jsonl')).toEqual([
+      { level: 'info', message: 'Agent event: thread.started' },
+      { level: 'info', message: 'Agent event: turn.started' },
       {
         level: 'info',
         message:
@@ -46,6 +51,7 @@ describe('CODEX_CLI.formatOutputLine', () => {
           /^Agent: 1\. Called `sandbox_exec` on the `expo` MCP server/
         ),
       },
+      { level: 'info', message: 'Agent event: turn.completed' },
     ]);
   });
 
@@ -55,6 +61,8 @@ describe('CODEX_CLI.formatOutputLine', () => {
       message: `Error: Reconnecting... ${attempt}/5 (workspace routing discovery unauthorized (401))`,
     });
     expect(formatFixture('codex-failed-turn.jsonl')).toEqual([
+      { level: 'info', message: 'Agent event: thread.started' },
+      { level: 'info', message: 'Agent event: turn.started' },
       reconnecting(2),
       reconnecting(3),
       reconnecting(4),
@@ -80,7 +88,9 @@ describe('CODEX_CLI.formatOutputLine', () => {
       type: 'agent_message',
       text: 'Hello',
     };
-    expect(format(JSON.stringify({ type: 'item.started', item }))).toEqual([]);
+    expect(format(JSON.stringify({ type: 'item.started', item }))).toEqual([
+      { level: 'info', message: 'Agent event: item.started' },
+    ]);
     expect(format(JSON.stringify({ type: 'item.completed', item }))).toEqual([
       { level: 'info', message: 'Agent: Hello' },
     ]);
@@ -118,18 +128,19 @@ describe('CODEX_CLI.formatOutputLine', () => {
     ]);
   });
 
-  it('skips what it does not know without failing', () => {
-    expect(format(JSON.stringify({ type: 'turn.completed', usage: {} }))).toEqual([]);
-    expect(
-      format(
-        JSON.stringify({
-          type: 'item.completed',
-          item: { id: 'item_1', type: 'reasoning', text: 'Thinking.' },
-        })
-      )
-    ).toEqual([]);
-    expect(format(JSON.stringify({ type: 'item.completed', item: 'bad' }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'error', message: 42 }))).toEqual([]);
+  it('keeps unrecognized typed events with a generic log message', () => {
+    for (const event of [
+      { type: 'turn.completed', usage: {} },
+      { type: 'item.completed', item: { id: 'item_1', type: 'reasoning', text: 'Thinking.' } },
+      { type: 'item.completed', item: 'bad' },
+      { type: 'error', message: 42 },
+    ]) {
+      expect(format(JSON.stringify(event))).toEqual([
+        { level: 'info', message: `Agent event: ${event.type}` },
+      ]);
+    }
+    expect(format('null')).toEqual([]);
+    expect(format('[]')).toEqual([]);
     expect(format('true')).toEqual([]);
   });
 

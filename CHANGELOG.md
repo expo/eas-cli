@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Keep structured agent events alongside readable job logs for the agent run Activity view. ([#4600](https://github.com/expo/eas-cli/pull/4600) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools][eas-build-job] Share typed agent events and event IDs alongside readable job logs for the agent run Activity view. ([#4600](https://github.com/expo/eas-cli/pull/4600) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 - [eas-cli][local-build-plugin] Deprecate Node.js 20, and print a warning when running on it. A future release will require Node.js 22 or newer. Development and CI now use Node.js 22. ([#4579](https://github.com/expo/eas-cli/pull/4579) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Add `eas/run_agent`, a step that runs Claude Code for an agent run and connects it to the Expo MCP server. ([#4552](https://github.com/expo/eas-cli/pull/4552) by [@hSATAC](https://github.com/hSATAC))
