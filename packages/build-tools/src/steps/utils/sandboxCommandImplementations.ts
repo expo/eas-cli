@@ -5,16 +5,20 @@ import {
   SandboxDaemonErrorCode,
   type SandboxDaemonMethod,
 } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
+import { type Client } from '@urql/core';
 import fs, { type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { readBytesAsync, readTextAsync } from '../../utils/files';
 import { detectFileType } from '../../utils/files/filetypes';
+import { SandboxArtifactUploadManager } from './sandboxArtifacts';
 import { ShellSessionManager } from './shellSessionManager';
 
 const DEFAULT_EXEC_YIELD_TIME_MS = 10_000;
 const DEFAULT_WRITE_YIELD_TIME_MS = 250;
+const DEFAULT_UPLOAD_YIELD_TIME_MS = 20_000;
 
 export type SandboxDaemonCommandImplementations = {
   [Method in SandboxDaemonMethod]: (
@@ -26,15 +30,32 @@ export function createSandboxCommandImplementations({
   workingDirectory,
   env,
   signal,
+  graphqlClient,
+  sandboxId,
+  logger,
 }: {
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
   signal: AbortSignal;
+  graphqlClient: Client;
+  sandboxId: string;
+  logger: bunyan;
 }): {
   commandImplementations: SandboxDaemonCommandImplementations;
   stoppedPromise: Promise<void>;
 } {
   const sessions = new ShellSessionManager({ workingDirectory, env, signal });
+  const artifactUploads = new SandboxArtifactUploadManager({
+    graphqlClient,
+    sandboxId,
+    logger,
+    signal,
+  });
+  const stoppedPromise = Promise.all([
+    sessions.stoppedPromise,
+    artifactUploads.stoppedPromise,
+  ]).then(() => {});
+  stoppedPromise.catch(() => {});
   return {
     commandImplementations: {
       async execCommand(params) {
@@ -96,11 +117,15 @@ export function createSandboxCommandImplementations({
           await file.close();
         }
       },
-      async uploadArtifact() {
-        throw new Error('Uploading sandbox artifacts is not supported yet.');
+      async uploadArtifact(params) {
+        return await artifactUploads.startAsync({
+          filePath: path.resolve(workingDirectory, params.path),
+          name: params.name,
+          yieldTimeMs: params.yieldTimeMs ?? DEFAULT_UPLOAD_YIELD_TIME_MS,
+        });
       },
     },
-    stoppedPromise: sessions.stoppedPromise,
+    stoppedPromise,
   };
 }
 
