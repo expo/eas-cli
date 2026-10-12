@@ -3,7 +3,7 @@ import fetch, { Headers } from 'node-fetch';
 import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { OperationTimeoutError, withTimeoutAsync } from '../../utils/timeout';
+import { AbortUtils } from '../../utils/AbortUtils';
 
 export type ArtifactUploadSession = { url: string; headers: unknown };
 export type ArtifactSource = { stream: Readable; reopenStream?: () => Readable };
@@ -21,25 +21,22 @@ export async function putArtifactWithRetriesAsync({
   for (let attempt = 0; attempt < attempts; attempt++) {
     signal?.throwIfAborted();
     const stream = attempt > 0 && source.reopenStream ? source.reopenStream() : source.stream;
+    // Upload time scales with file size, so the deadline bounds stalls, not the whole request.
+    const timeout = AbortUtils.resettableTimeout(90_000);
     try {
-      // Upload time scales with file size, so the deadline bounds stalls, not the whole request.
-      await withTimeoutAsync(
-        { name: 'Artifact PUT', timeoutMs: 90_000, signal },
-        async (putSignal, resetDeadline) =>
-          await putArtifactAsync({
-            uploadSession,
-            stream,
-            signal: putSignal,
-            onProgress: resetDeadline,
-          })
-      );
+      await putArtifactAsync({
+        uploadSession,
+        stream,
+        signal: signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal,
+        onProgress: timeout.resetDeadline,
+      });
       return;
     } catch (error) {
       signal?.throwIfAborted();
       const retryable =
         error instanceof ArtifactPutError
           ? [408, 429, 500, 502, 503, 504].includes(error.status)
-          : error instanceof OperationTimeoutError || error instanceof ArtifactPutNetworkError;
+          : timeout.signal.aborted || error instanceof ArtifactPutNetworkError;
       if (!retryable || attempt + 1 === attempts) {
         throw error;
       }
@@ -75,6 +72,7 @@ async function putArtifactAsync({
     try {
       response = await responding;
     } catch (error) {
+      signal.throwIfAborted();
       throw error instanceof Error && error.name === 'FetchError'
         ? new ArtifactPutNetworkError(error)
         : error;

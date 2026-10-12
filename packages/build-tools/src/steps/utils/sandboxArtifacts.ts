@@ -15,7 +15,6 @@ import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import { OperationTimeoutError, withTimeoutAsync } from '../../utils/timeout';
 import {
   ArtifactPutError,
   type ArtifactUploadSession,
@@ -161,14 +160,10 @@ export async function startSandboxArtifactUploadAsync({
   const {
     artifact: { id: artifactId },
     uploadSession,
-  } = await withTimeoutAsync(
-    { name: 'Sandbox artifact upload session creation', timeoutMs: 15_000, signal },
-    async createSignal =>
-      await createSandboxArtifactUploadSessionAsync(
-        graphqlClient,
-        { sandboxId, name, filename: path.basename(filePath), size },
-        createSignal
-      )
+  } = await createSandboxArtifactUploadSessionAsync(
+    graphqlClient,
+    { sandboxId, name, filename: path.basename(filePath), size },
+    AbortSignal.any([signal, AbortSignal.timeout(15_000)])
   );
   const completed = (async (): Promise<SandboxArtifactUploadOutcome> => {
     logger.info(`Uploading sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
@@ -270,33 +265,29 @@ async function finalizeSandboxArtifactAsync(
   signal: AbortSignal
 ): Promise<string> {
   for (let attempt = 1; ; attempt++) {
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    const finalizeSignal = AbortSignal.any([signal, timeoutSignal]);
     try {
-      return await withTimeoutAsync(
-        { name: 'Sandbox artifact finalization', timeoutMs: 15_000, signal },
-        async finalizeSignal => {
-          const result = await graphqlClient
-            .mutation(
-              FINALIZE_SANDBOX_ARTIFACT_MUTATION,
-              { artifactId },
-              graphqlAbortContext(finalizeSignal)
-            )
-            .toPromise();
-          finalizeSignal.throwIfAborted();
-          if (result.error) {
-            throw result.error;
-          }
-          const { downloadUrl } = result.data!.sandbox.finalizeArtifact;
-          if (downloadUrl === null) {
-            throw new SystemError(`Finalized sandbox artifact ${artifactId} has no download URL.`);
-          }
-          return downloadUrl;
-        }
-      );
+      const result = await graphqlClient
+        .mutation(
+          FINALIZE_SANDBOX_ARTIFACT_MUTATION,
+          { artifactId },
+          graphqlAbortContext(finalizeSignal)
+        )
+        .toPromise();
+      finalizeSignal.throwIfAborted();
+      if (result.error) {
+        throw result.error;
+      }
+      const { downloadUrl } = result.data!.sandbox.finalizeArtifact;
+      if (downloadUrl === null) {
+        throw new SystemError(`Finalized sandbox artifact ${artifactId} has no download URL.`);
+      }
+      return downloadUrl;
     } catch (error) {
       signal.throwIfAborted();
       const retryable =
-        error instanceof OperationTimeoutError ||
-        (error instanceof CombinedError && isTransientGraphqlError(error));
+        timeoutSignal.aborted || (error instanceof CombinedError && isTransientGraphqlError(error));
       if (!retryable || attempt >= FINALIZE_ATTEMPTS) {
         throw error;
       }

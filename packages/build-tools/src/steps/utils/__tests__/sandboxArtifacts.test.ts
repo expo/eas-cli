@@ -17,7 +17,9 @@ import { inspect } from 'node:util';
 
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
 
-const { FetchError, Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+const { AbortError, FetchError, Response } = jest.requireActual(
+  'node-fetch'
+) as typeof import('node-fetch');
 
 const ARTIFACT_ID = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
 const SIGNED_URL = 'https://uploads.expo.test/artifact?X-Amz-Signature=secret-signature';
@@ -314,7 +316,7 @@ describe('sandbox artifact uploads', () => {
 
   it('waits for an aborted upload before the manager reports that it stopped', async () => {
     mockMutationResults(createdResult);
-    jest.mocked(fetch).mockReturnValueOnce(new Promise(() => {}) as ReturnType<typeof fetch>);
+    mockPutUntilAborted();
     const controller = new AbortController();
     const manager = createManager(controller.signal);
 
@@ -409,7 +411,7 @@ describe('sandbox artifact uploads', () => {
         return createdResult;
       },
     });
-    jest.mocked(fetch).mockReturnValueOnce(new Promise(() => {}) as ReturnType<typeof fetch>);
+    mockPutUntilAborted();
     const controller = new AbortController();
     const manager = createManager(controller.signal);
     const startedAt = performance.now();
@@ -429,6 +431,16 @@ describe('sandbox artifact uploads', () => {
       logger: logger as unknown as bunyan,
       signal,
     });
+  }
+
+  function mockPutUntilAborted(): void {
+    jest.mocked(fetch).mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
+      await new Promise<never>((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => {
+          reject(new AbortError('The user aborted a request.'));
+        });
+      });
+    }) as unknown as typeof fetch);
   }
 
   function mockMutationResults(...results: unknown[]): void {
