@@ -47,10 +47,10 @@ export function formatAgentOutputLine(
   }
   const messages = formatEvent(event.data);
   const content = messages.flatMap(message => (message.content ? [message.content] : []));
-  const logs: AgentLogMessage[] = messages.length
-    ? messages.map(({ level, message }) => ({ level, message }))
-    : [{ level: 'info', message: `Agent event: ${event.data.type}` }];
-  logs[0].agentEvent = { producer, content };
+  const logs: AgentLogMessage[] = messages.map(({ level, message }) => ({ level, message }));
+  if (content.length) {
+    logs[0].agentEvent = { producer, content };
+  }
   return logs;
 }
 

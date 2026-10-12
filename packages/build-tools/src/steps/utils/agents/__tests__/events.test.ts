@@ -106,19 +106,25 @@ it('keeps all text blocks of a Claude message under the provider message ID', ()
 
 // Source fields must not be copied into the shared event.
 it.each([
-  ['Claude Code', CLAUDE_CODE_CLI, 'claude-code-tool-call.jsonl'],
-  ['Codex', CODEX_CLI, 'codex-tool-calls.jsonl'],
-] as const)('keeps one typed event per line without source data for %s', (_name, cli, fixture) => {
-  for (const line of readFixtureLines(fixture)) {
-    const source = { ...JSON.parse(line), futureField: { image: 'base64-image-payload' } };
-    const events = cli
-      .formatOutputLine(JSON.stringify(source))
-      .flatMap(log => (log.agentEvent ? [log.agentEvent] : []));
-    expect(events).toHaveLength(1);
-    expect(events[0]).not.toHaveProperty('data');
+  ['Claude Code', CLAUDE_CODE_CLI, 'claude-code-tool-call.jsonl', 3],
+  ['Codex', CODEX_CLI, 'codex-tool-calls.jsonl', 6],
+] as const)(
+  'keeps only typed activity without source data for %s',
+  (_name, cli, fixture, count) => {
+    const events = readFixtureLines(fixture).flatMap(line => {
+      const source = { ...JSON.parse(line), futureField: { image: 'base64-image-payload' } };
+      return cli
+        .formatOutputLine(JSON.stringify(source))
+        .flatMap(log => (log.agentEvent ? [log.agentEvent] : []));
+    });
+    expect(events).toHaveLength(count);
+    for (const event of events) {
+      expect(event.content.length).toBeGreaterThan(0);
+      expect(event).not.toHaveProperty('data');
+    }
     expect(JSON.stringify(events)).not.toContain('base64-image-payload');
   }
-});
+);
 
 it('groups a Claude message with mixed content in one shared event', () => {
   const source = {
