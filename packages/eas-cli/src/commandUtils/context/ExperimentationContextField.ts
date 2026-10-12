@@ -12,9 +12,15 @@ import Log from '../../log';
 /** Caps how long the config fetch can delay a command. */
 const REQUEST_TIMEOUT_MS = 3000;
 
+const CI_ENVIRONMENT_FLAGS = ['EAS_BUILD', 'CI'];
+
+function isRunningInCi(): boolean {
+  return CI_ENVIRONMENT_FLAGS.some(flag => !!process.env[flag]);
+}
+
 /**
  * Never prompts, throws, writes files, or reads the app config. A failed config fetch disables
- * all scopes.
+ * all scopes. CI runs skip the fetch and get defaults.
  */
 export default class ExperimentationContextField extends ContextField<ExperimentationClient> {
   // One client per command run, so repeated getContextAsync calls cannot log duplicate exposures.
@@ -37,6 +43,11 @@ export default class ExperimentationContextField extends ContextField<Experiment
     analytics,
   }: ContextOptions): Promise<ExperimentationClient> {
     const overrides = ExperimentOverrides.fromEnv();
+
+    if (isRunningInCi()) {
+      Log.debug('[experimentation] Running in CI. Experiments return defaults.');
+      return ExperimentationClient.createDisabled(overrides);
+    }
 
     const deviceId = analytics.getDeviceId();
     if (deviceId === null) {
