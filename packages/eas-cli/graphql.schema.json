@@ -52553,6 +52553,12 @@
             "deprecationReason": null
           },
           {
+            "name": "SIMULATOR",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "UPDATES",
             "description": null,
             "isDeprecated": false,
@@ -52613,6 +52619,12 @@
           },
           {
             "name": "RUN_TIME",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SIMULATOR_USAGE",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -52699,6 +52711,12 @@
           },
           {
             "name": "EVENT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MINUTE",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -59469,6 +59487,18 @@
             "deprecationReason": null
           },
           {
+            "name": "jobTypeBreakdown",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "EstimatedUsageJobTypeBreakdown",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "limit",
             "description": null,
             "args": [],
@@ -59546,6 +59576,65 @@
           },
           {
             "name": "value",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EstimatedUsageJobTypeBreakdown",
+        "description": null,
+        "fields": [
+          {
+            "name": "other",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "simulator",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "workflows",
             "description": null,
             "args": [],
             "type": {
@@ -77369,6 +77458,22 @@
             "deprecationReason": null
           },
           {
+            "name": "usageBudget",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "UsageBudgetQuery",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "userActorPublicData",
             "description": "Top-level query object for querying UserActorPublicData publicly.",
             "args": [],
@@ -82780,6 +82885,39 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "CreateSubmissionResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "generateSubmissionArchiveDownloadUrl",
+            "description": null,
+            "args": [
+              {
+                "name": "submissionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               }
             },
@@ -90350,6 +90488,22 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "remaining",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "UsageBudgetRemaining",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -90461,6 +90615,85 @@
                 "name": "UsageBudget",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "UsageBudgetQuery",
+        "description": null,
+        "fields": [
+          {
+            "name": "byId",
+            "description": null,
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "UsageBudget",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "UsageBudgetRemaining",
+        "description": null,
+        "fields": [
+          {
+            "name": "builds",
+            "description": "Available builds, or null when there is no build limit.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "simulatorMinutes",
+            "description": "Available minutes after completed usage and active reservations, or null when unlimited.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -104341,6 +104574,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "AGENT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "APPLE_DEVICE_REGISTRATION_REQUEST",
             "description": null,
             "isDeprecated": false,
@@ -105586,6 +105825,11 @@
             "kind": "OBJECT",
             "name": "WorkflowRunCancelReasonConcurrencyGroup",
             "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "WorkflowRunCancelReasonWorkflowCall",
+            "ofType": null
           }
         ]
       },
@@ -105597,6 +105841,29 @@
           {
             "name": "cancelingWorkflowRun",
             "description": "The newer run in the same concurrency group whose creation canceled this run.\nNull if that run no longer exists.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowRun",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "WorkflowRunCancelReasonWorkflowCall",
+        "description": null,
+        "fields": [
+          {
+            "name": "parentWorkflowRun",
+            "description": "The run that called this run through workflow_call and whose cancellation\ncanceled this run. Null if that run no longer exists.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -106789,6 +107056,41 @@
       },
       {
         "kind": "OBJECT",
+        "name": "WorkflowsInsightsNullableMetric",
+        "description": "Same shape as WorkflowsInsightsMetric but nullable on both sides. Null means the window had\nno qualifying run, which is different from 0.",
+        "fields": [
+          {
+            "name": "currentValue",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousValue",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "WorkflowsInsightsOverviewMetrics",
         "description": null,
         "fields": [
@@ -106802,6 +107104,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "WorkflowsInsightsMetric",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "avgDurationMs",
+            "description": "Mean milliseconds from run creation to finalization, the same duration the run page shows,\nso queue and approval wait count. Canceled runs are excluded.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowsInsightsNullableMetric",
                 "ofType": null
               }
             },
@@ -106834,6 +107152,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "WorkflowsInsightsMetric",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "p75DurationMs",
+            "description": "Approximate 75th percentile of the same duration, excluding canceled runs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowsInsightsNullableMetric",
                 "ofType": null
               }
             },
@@ -107164,6 +107498,18 @@
         "description": null,
         "fields": [
           {
+            "name": "avgDurationMs",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "canceledRuns",
             "description": null,
             "args": [],
@@ -107223,6 +107569,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "p75DurationMs",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

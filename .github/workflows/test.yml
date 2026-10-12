@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['20.18.3', '22', '24']
+        node: ['22', '24']
         include:
-          - node: '20.18.3'
+          - node: '22'
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
