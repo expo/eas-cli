@@ -183,8 +183,8 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
                 : {}),
             },
             size,
-            stream: createReadStream(recordingPath),
-            reopenStream: () => createReadStream(recordingPath),
+            openStream: () => createReadStream(recordingPath),
+            attempts: 3,
           });
           return true;
         } catch (err) {

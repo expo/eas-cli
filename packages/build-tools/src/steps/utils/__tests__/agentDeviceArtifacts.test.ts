@@ -153,8 +153,8 @@ describe(uploadAgentDeviceArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadAgentDeviceArtifactAsync(ctx, {
@@ -179,7 +179,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       filename: 'report.json',
       kind: 'agent-device-test-report',
       size: data.length,
-      stream: expect.anything(),
+      openStream: expect.any(Function),
     });
   });
 
@@ -191,8 +191,8 @@ describe(uploadAgentDeviceArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadAgentDeviceArtifactAsync(ctx, {
@@ -222,8 +222,8 @@ describe(uploadAgentDeviceArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadAgentDeviceArtifactAsync(ctx, {
@@ -255,8 +255,8 @@ describe(uploadAgentDeviceArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadAgentDeviceArtifactAsync(ctx, {
@@ -345,8 +345,8 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
       .mockRejectedValueOnce(new Error('upload failed'))
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     void pollAgentDeviceArtifactsForUploadAsync(ctx, {

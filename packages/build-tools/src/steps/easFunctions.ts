@@ -10,6 +10,7 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createDownloadSubmissionArchiveFunction } from './functions/downloadSubmissionArchive';
 import { createEasDeployBuildFunction } from './functions/deploy';
 import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
@@ -44,6 +45,7 @@ import { runGradleFunction } from './functions/runGradle';
 import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag';
+import { createRunAgentBuildFunction } from './functions/runAgent';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
@@ -87,6 +89,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createReadIpaInfoBuildFunction(),
     createReadAndroidAppInfoBuildFunction(),
     createDownloadBuildFunction(ctx),
+    createDownloadSubmissionArchiveFunction(ctx),
     createInstallBuildFunction(),
     createLaunchApplicationFunction(),
     createEasExportBuildFunction(),
@@ -123,6 +126,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
+    createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
     createRecordServeSimNetworkCaptureBuildFunction(),
     createCollectServeSimNetworkCaptureBuildFunction(ctx),

@@ -56,7 +56,7 @@ export async function uploadServeSimMetricsFileAsync(
         }),
       },
       size,
-      stream: createReadStream(filePath),
+      openStream: () => createReadStream(filePath),
     });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
