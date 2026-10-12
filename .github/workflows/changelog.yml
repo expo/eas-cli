@@ -13,12 +13,21 @@ concurrency:
   group: changelog-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   pr-changeset:
     name: Check for a changeset
     runs-on: ubuntu-latest
     env:
-      SKIP_CHECK: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
+      # Dependabot PRs only update dependencies, so they need no changeset.
+      SKIP_CHECK: >-
+        ${{
+          contains(github.event.pull_request.labels.*.name, 'no changelog') ||
+          github.event.pull_request.user.login == 'dependabot[bot]'
+        }}
       BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -47,7 +56,8 @@ jobs:
       - uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
         if: >-
           always() &&
-          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+          github.event.pull_request.user.login != 'dependabot[bot]'
         with:
           message-id: changelog-entry-check
           refresh-message-position: true
