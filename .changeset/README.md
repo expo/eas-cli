@@ -34,6 +34,6 @@ All packages share one version. The highest bump in all changesets sets the next
 
 `yarn changeset` does not offer `none`. For changes that should not appear in the changelog, add the "no changelog" label to the PR in GitHub.
 
-If a PR needs no changelog entry at all, add the "no changelog" label to the PR instead.
+The "no changelog" label skips the changeset check, but not the `CHANGELOG.md` check. A PR that edits a `CHANGELOG.md` file always fails.
 
 See [RELEASING.md](../RELEASING.md) for how a release uses the changesets.
