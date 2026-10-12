@@ -7487,6 +7487,7 @@ export enum EasService {
   Jobs = 'JOBS',
   Mcp = 'MCP',
   Observe = 'OBSERVE',
+  Simulator = 'SIMULATOR',
   Updates = 'UPDATES'
 }
 
@@ -7499,6 +7500,7 @@ export enum EasServiceMetric {
   McpRequests = 'MCP_REQUESTS',
   ObserveEvents = 'OBSERVE_EVENTS',
   RunTime = 'RUN_TIME',
+  SimulatorUsage = 'SIMULATOR_USAGE',
   UniqueUpdaters = 'UNIQUE_UPDATERS',
   UniqueUsers = 'UNIQUE_USERS'
 }
@@ -7514,6 +7516,7 @@ export enum EasTotalPlanEnablementUnit {
   Byte = 'BYTE',
   Concurrency = 'CONCURRENCY',
   Event = 'EVENT',
+  Minute = 'MINUTE',
   Request = 'REQUEST',
   Updater = 'UPDATER',
   User = 'USER'
@@ -8536,12 +8539,20 @@ export type EstimatedOverageAndCost = {
 export type EstimatedUsage = {
   __typename?: 'EstimatedUsage';
   id: Scalars['ID']['output'];
+  jobTypeBreakdown?: Maybe<EstimatedUsageJobTypeBreakdown>;
   limit: Scalars['Float']['output'];
   metricType: UsageMetricType;
   platformBreakdown?: Maybe<EstimatedUsagePlatformBreakdown>;
   service: EasService;
   serviceMetric: EasServiceMetric;
   value: Scalars['Float']['output'];
+};
+
+export type EstimatedUsageJobTypeBreakdown = {
+  __typename?: 'EstimatedUsageJobTypeBreakdown';
+  other: Scalars['Float']['output'];
+  simulator: Scalars['Float']['output'];
+  workflows: Scalars['Float']['output'];
 };
 
 export type EstimatedUsagePlatformBreakdown = {
@@ -11034,6 +11045,7 @@ export type RootQuery = {
   updates: UpdateQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
+  usageBudget: UsageBudgetQuery;
   /** Top-level query object for querying UserActorPublicData publicly. */
   userActorPublicData: UserActorPublicDataQuery;
   /** Top-level query object for querying User Audit Logs. */
@@ -11817,6 +11829,7 @@ export type SubmissionMutation = {
   createAndroidSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
+  generateSubmissionArchiveDownloadUrl: Scalars['String']['output'];
   /** Retry an EAS Submit submission */
   retrySubmission: CreateSubmissionResult;
 };
@@ -11834,6 +11847,11 @@ export type SubmissionMutation_CreateAndroidSubmissionArgs = {
 
 export type SubmissionMutation_CreateIosSubmissionArgs = {
   input: CreateIosSubmissionInput;
+};
+
+
+export type SubmissionMutation_GenerateSubmissionArchiveDownloadUrlArgs = {
+  submissionId: Scalars['ID']['input'];
 };
 
 
@@ -12915,6 +12933,7 @@ export type UsageBudget = {
   __typename?: 'UsageBudget';
   id: Scalars['ID']['output'];
   limits: UsageBudgetLimits;
+  remaining: UsageBudgetRemaining;
 };
 
 export type UsageBudgetLimits = {
@@ -12936,6 +12955,24 @@ export type UsageBudgetMutation = {
 
 export type UsageBudgetMutation_CreateUsageBudgetArgs = {
   limits: UsageBudgetLimitsInput;
+};
+
+export type UsageBudgetQuery = {
+  __typename?: 'UsageBudgetQuery';
+  byId: UsageBudget;
+};
+
+
+export type UsageBudgetQuery_ByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type UsageBudgetRemaining = {
+  __typename?: 'UsageBudgetRemaining';
+  /** Available builds, or null when there is no build limit. */
+  builds?: Maybe<Scalars['Int']['output']>;
+  /** Available minutes after completed usage and active reservations, or null when unlimited. */
+  simulatorMinutes?: Maybe<Scalars['Float']['output']>;
 };
 
 export type UsageMetricTotal = {
@@ -14813,6 +14850,7 @@ export enum WorkflowJobStatus {
 }
 
 export enum WorkflowJobType {
+  Agent = 'AGENT',
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   BranchDelete = 'BRANCH_DELETE',
   Build = 'BUILD',
@@ -14968,7 +15006,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14977,6 +15015,15 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonWorkflowCall = {
+  __typename?: 'WorkflowRunCancelReasonWorkflowCall';
+  /**
+   * The run that called this run through workflow_call and whose cancellation
+   * canceled this run. Null if that run no longer exists.
+   */
+  parentWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunEdge = {
@@ -15158,11 +15205,28 @@ export type WorkflowsInsightsMutation_ExportWorkflowRunsArgs = {
   input: WorkflowsInsightsExportInput;
 };
 
+/**
+ * Same shape as WorkflowsInsightsMetric but nullable on both sides. Null means the window had
+ * no qualifying run, which is different from 0.
+ */
+export type WorkflowsInsightsNullableMetric = {
+  __typename?: 'WorkflowsInsightsNullableMetric';
+  currentValue?: Maybe<Scalars['Float']['output']>;
+  previousValue?: Maybe<Scalars['Float']['output']>;
+};
+
 export type WorkflowsInsightsOverviewMetrics = {
   __typename?: 'WorkflowsInsightsOverviewMetrics';
   activeWorkflows: WorkflowsInsightsMetric;
+  /**
+   * Mean milliseconds from run creation to finalization, the same duration the run page shows,
+   * so queue and approval wait count. Canceled runs are excluded.
+   */
+  avgDurationMs: WorkflowsInsightsNullableMetric;
   canceledRuns: WorkflowsInsightsMetric;
   failedRuns: WorkflowsInsightsMetric;
+  /** Approximate 75th percentile of the same duration, excluding canceled runs. */
+  p75DurationMs: WorkflowsInsightsNullableMetric;
   successfulRuns: WorkflowsInsightsMetric;
   totalRuns: WorkflowsInsightsMetric;
 };
@@ -15206,10 +15270,12 @@ export type WorkflowsInsightsWorkflowMetrics = {
 
 export type WorkflowsInsightsWorkflowNode = {
   __typename?: 'WorkflowsInsightsWorkflowNode';
+  avgDurationMs?: Maybe<Scalars['Float']['output']>;
   canceledRuns: Scalars['Int']['output'];
   failedRuns: Scalars['Int']['output'];
   lastRunAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
+  p75DurationMs?: Maybe<Scalars['Float']['output']>;
   successfulRuns: Scalars['Int']['output'];
   totalRuns: Scalars['Int']['output'];
   workflowId: Scalars['ID']['output'];
@@ -17355,7 +17421,7 @@ export type WorkflowsInsightsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null }, p75DurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, avgDurationMs?: number | null, p75DurationMs?: number | null, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?:
     | { __typename?: 'SSOUser', id: string, username: string }

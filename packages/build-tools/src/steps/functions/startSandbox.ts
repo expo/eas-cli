@@ -52,6 +52,8 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         signal,
         workingDirectory: stepCtx.workingDirectory,
         env: commandEnv,
+        graphqlClient: ctx.graphqlClient,
+        sandboxId,
       });
       try {
         await daemon.ready;

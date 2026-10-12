@@ -13,6 +13,18 @@ export function toMetricSummary(metric: {
   return { current: metric.currentValue, previous: metric.previousValue };
 }
 
+export interface NullableMetricSummary {
+  current: number | null;
+  previous: number | null;
+}
+
+export function toNullableMetricSummary(metric: {
+  currentValue?: number | null;
+  previousValue?: number | null;
+}): NullableMetricSummary {
+  return { current: metric.currentValue ?? null, previous: metric.previousValue ?? null };
+}
+
 export function ratePercent(part: number, total: number): number {
   return total === 0 ? 0 : (part / total) * 100;
 }
@@ -54,6 +66,21 @@ export function formatTrend(
   }
   const pct = ((metric.current - metric.previous) / metric.previous) * 100;
   return formatSignedChange(pct, '%', lowerIsBetter ? pct < 0 : pct > 0);
+}
+
+export function formatNullableMetricWithTrend(
+  metric: NullableMetricSummary,
+  formatValue: (value: number) => string,
+  options?: { lowerIsBetter?: boolean }
+): string {
+  if (metric.current === null) {
+    return chalk.dim('n/a');
+  }
+  const trend =
+    metric.previous === null
+      ? chalk.dim('n/a')
+      : formatTrend({ current: metric.current, previous: metric.previous }, options);
+  return `${formatValue(metric.current)} (${trend})`;
 }
 
 function formatSignedChange(value: number, unit: string, isImprovement: boolean): string {

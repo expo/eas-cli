@@ -163,7 +163,7 @@ export async function uploadAgentDeviceArtifactAsync(
         ? { metadata: { displayRotation: artifact.displayRotation } }
         : {}),
       size,
-      stream: createReadStream(temporaryArtifactPath),
+      openStream: () => createReadStream(temporaryArtifactPath),
     });
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
