@@ -1,6 +1,10 @@
 import { Client, cacheExchange, createClient as createUrqlClient, fetchExchange } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
-import fetch from 'node-fetch';
+import fetch, {
+  RequestInfo as NodeFetchRequestInfo,
+  RequestInit as NodeFetchRequestInit,
+  Response as NodeFetchResponse,
+} from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../../../api';
 import { httpsProxyAgent } from '../../../fetch';
@@ -18,6 +22,36 @@ export function createGraphqlClient(
     requestTimeoutMs?: number;
   } = {}
 ): ExpoGraphqlClient {
+  const { requestTimeoutMs } = options;
+  // urql overwrites `fetchOptions.signal`, so the timeout must be added inside fetch.
+  const fetchWithTimeoutAsync = async (
+    url: NodeFetchRequestInfo,
+    init?: NodeFetchRequestInit
+  ): Promise<NodeFetchResponse> => {
+    if (!requestTimeoutMs) {
+      return await fetch(url, init);
+    }
+    const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: AbortSignal.any([
+          ...(init?.signal ? [init.signal as AbortSignal] : []),
+          timeoutSignal,
+        ]),
+      });
+    } catch (error) {
+      if (timeoutSignal.aborted) {
+        const timeoutError = new Error(`Request timed out after ${requestTimeoutMs} ms`, {
+          cause: error,
+        });
+        timeoutError.name = 'TimeoutError';
+        throw timeoutError;
+      }
+      throw error;
+    }
+  };
+
   return createUrqlClient({
     url: getExpoApiBaseUrl() + '/graphql',
     exchanges: [
@@ -35,7 +69,7 @@ export function createGraphqlClient(
       fetchExchange,
     ],
     // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
-    fetch,
+    fetch: fetchWithTimeoutAsync,
     fetchOptions: (): RequestInit => {
       const headers: Record<string, string> = {};
       if (authInfo.accessToken) {
@@ -45,9 +79,6 @@ export function createGraphqlClient(
       }
       return {
         ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
-        ...(options.requestTimeoutMs
-          ? { signal: AbortSignal.timeout(options.requestTimeoutMs) }
-          : {}),
         headers,
       };
     },
