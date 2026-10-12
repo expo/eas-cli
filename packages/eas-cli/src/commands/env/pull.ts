@@ -14,6 +14,34 @@ import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
+/**
+ * Serialize a value so that it round-trips through a dotenv parser.
+ *
+ * Without quoting, dotenv treats an unquoted `#` as the start of an inline comment, trims
+ * surrounding whitespace and splits on newlines, so values like a `#ffffff` hex color or a URL
+ * with a fragment would be silently truncated when the `.env` file is read back. See
+ * https://github.com/motdotla/dotenv#comments.
+ *
+ * Single quotes are preferred because dotenv treats single-quoted values as literal, preserving
+ * `#`, whitespace, backslashes and double quotes as-is. Double quotes (with `\n`/`\r` escaping) are
+ * only used when the value contains a single quote or a newline.
+ */
+export function serializeDotenvValue(value: string): string {
+  // Values made up of "safe" characters can be written verbatim.
+  if (value !== '' && !/[\s#'"`\\]/.test(value)) {
+    return value;
+  }
+  if (!value.includes("'") && !/[\r\n]/.test(value)) {
+    return `'${value}'`;
+  }
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+  return `"${escaped}"`;
+}
+
 export default class EnvPull extends EasCommand {
   static override description =
     'pull environment variables for the selected environment to .env file';
@@ -111,7 +139,7 @@ export default class EnvPull extends EasCommand {
         if (variable.visibility === EnvironmentVariableVisibility.Secret) {
           if (currentEnvLocal[variable.name]) {
             overridenSecretVariables.push(variable.name);
-            return `${variable.name}=${currentEnvLocal[variable.name]}`;
+            return `${variable.name}=${serializeDotenvValue(currentEnvLocal[variable.name])}`;
           }
           skippedSecretVariables.push(variable.name);
           return `# ${variable.name}=***** (secret)`;
@@ -119,9 +147,9 @@ export default class EnvPull extends EasCommand {
         if (variable.type === EnvironmentSecretType.FileBase64 && variable.valueWithFileContent) {
           const filePath = path.join(envDir, variable.name);
           await fs.writeFile(filePath, variable.valueWithFileContent, 'base64');
-          return `${variable.name}=${filePath}`;
+          return `${variable.name}=${serializeDotenvValue(filePath)}`;
         }
-        return `${variable.name}=${variable.value}`;
+        return `${variable.name}=${serializeDotenvValue(variable.value ?? '')}`;
       })
     );
 

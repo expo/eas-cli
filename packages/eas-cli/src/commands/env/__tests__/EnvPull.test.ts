@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
@@ -16,7 +17,7 @@ import {
 } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import EnvPull from '../pull';
+import EnvPull, { serializeDotenvValue } from '../pull';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../prompts');
@@ -384,5 +385,88 @@ describe(EnvPull, () => {
         expect.stringContaining('Reused local values for following secrets: SECRET_KEY')
       );
     });
+  });
+
+  describe('values with special characters', () => {
+    it('quotes values that would otherwise be misparsed by dotenv', async () => {
+      jest.mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).mockResolvedValue([
+        {
+          id: 'var1',
+          name: 'HEX_COLOR',
+          value: '#ffffff',
+          environments: [DefaultEnvironment.Development],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          scope: EnvironmentVariableScope.Project,
+          visibility: EnvironmentVariableVisibility.Public,
+          type: EnvironmentSecretType.String,
+        },
+        {
+          id: 'var2',
+          name: 'CALLBACK_URL',
+          value: 'https://example.com/page#section',
+          environments: [DefaultEnvironment.Development],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          scope: EnvironmentVariableScope.Project,
+          visibility: EnvironmentVariableVisibility.Public,
+          type: EnvironmentSecretType.String,
+        },
+      ]);
+
+      const command = new EnvPull(['development'], mockConfig);
+
+      // @ts-expect-error
+      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+        loggedIn: { graphqlClient },
+        projectId: testProjectId,
+        projectDir: testProjectDir,
+      });
+
+      await command.runAsync();
+
+      const writeFileCalls = jest.mocked(fs.writeFile).mock.calls;
+      const envFileCall = writeFileCalls.find(call => call[0] === testTargetPath);
+      expect(envFileCall).toBeDefined();
+      const fileContent = envFileCall![1] as string;
+
+      // The raw line must be quoted so the `#` is not read as an inline comment ...
+      expect(fileContent).toContain("HEX_COLOR='#ffffff'");
+      expect(fileContent).toContain("CALLBACK_URL='https://example.com/page#section'");
+
+      // ... and the written file must round-trip back to the original values.
+      const parsed = dotenv.parse(fileContent);
+      expect(parsed.HEX_COLOR).toBe('#ffffff');
+      expect(parsed.CALLBACK_URL).toBe('https://example.com/page#section');
+    });
+  });
+});
+
+describe(serializeDotenvValue, () => {
+  it('leaves values without special characters unquoted', () => {
+    expect(serializeDotenvValue('https://api.example.com')).toBe('https://api.example.com');
+    expect(serializeDotenvValue('postgres://localhost:5432/mydb')).toBe(
+      'postgres://localhost:5432/mydb'
+    );
+  });
+
+  it('round-trips values with special characters through dotenv', () => {
+    const values = [
+      '#ffffff',
+      'https://example.com/page#section',
+      'value with spaces',
+      'has#hash and space',
+      "it's a #test",
+      'line1\nline2',
+      'has"quote',
+      'C:\\Users\\me\\with space',
+      '  leading and trailing  ',
+      '',
+    ];
+
+    for (const value of values) {
+      const parsed = dotenv.parse(`K=${serializeDotenvValue(value)}`);
+      expect(parsed.K).toBe(value);
+    }
   });
 });
