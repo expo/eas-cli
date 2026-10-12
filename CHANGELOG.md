@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Add `eas/run_agent`, a step that runs Claude Code for an agent run and connects it to the Expo MCP server. ([#4552](https://github.com/expo/eas-cli/pull/4552) by [@hSATAC](https://github.com/hSATAC))
 - [build-tools] Support Codex in `eas/run_agent`. ([#4553](https://github.com/expo/eas-cli/pull/4553) by [@hSATAC](https://github.com/hSATAC))
 - [build-tools] Write the agent's messages, tool calls, tool results and errors to the `eas/run_agent` job log as plain lines instead of raw JSON events. ([#4568](https://github.com/expo/eas-cli/pull/4568) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Show the average and P75 end-to-end run duration in `eas workflow:insights`. ([#4566](https://github.com/expo/eas-cli/pull/4566) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
 
