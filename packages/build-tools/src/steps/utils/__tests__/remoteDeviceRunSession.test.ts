@@ -5,6 +5,7 @@ import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import {
   clearTimeout as clearTimeoutCallback,
@@ -842,11 +843,9 @@ describe(startDeviceSessionHostAsync, () => {
       url: () => 'https://android-preview.example.test',
       close,
     } as never);
+    // `env` has no PATH, so the host installs ffmpeg.
     jest
       .mocked(spawn)
-      .mockReturnValueOnce(
-        Promise.reject(new Error('ffmpeg is missing')) as ReturnType<typeof spawn>
-      )
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
@@ -860,24 +859,24 @@ describe(startDeviceSessionHostAsync, () => {
     const preview = await host.openPreviewAsync({ baseDomain });
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
-    expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
-    expect(spawnCalls[1]).toEqual([
+    expect(spawnCalls[0]).toEqual([
       'sudo',
       ['apt-get', 'update'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       }),
     ]);
-    expect(spawnCalls[2]).toEqual([
+    expect(spawnCalls[1]).toEqual([
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       }),
     ]);
+    expect(spawnCalls[2]).toEqual(['ffmpeg', ['-version'], { env }]);
     const expoDeviceHubCallIndex = spawnCalls.findIndex(([command]) => command === 'npx');
     expect(expoDeviceHubCallIndex).toBeGreaterThan(2);
-    expect(jest.mocked(spawn).mock.invocationCallOrder[2]).toBeLessThan(
+    expect(jest.mocked(spawn).mock.invocationCallOrder[1]).toBeLessThan(
       jest.mocked(spawn).mock.invocationCallOrder[expoDeviceHubCallIndex]
     );
     const [command, args] = spawnCalls[expoDeviceHubCallIndex];
@@ -1508,6 +1507,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
 describe(ensureFfmpegInstalledOnceAsync, () => {
   const spawnMock = jest.mocked(spawn);
+  let binDirectory: string;
 
   function spawnResolved(): ReturnType<typeof spawn> {
     return Promise.resolve({}) as unknown as ReturnType<typeof spawn>;
@@ -1517,68 +1517,140 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     return Promise.reject(new Error('boom')) as unknown as ReturnType<typeof spawn>;
   }
 
-  beforeEach(() => {
+  function spawnPending(): ReturnType<typeof spawn> {
+    return new Promise(() => {}) as unknown as ReturnType<typeof spawn>;
+  }
+
+  async function installFakeFfmpegAsync({ mode }: { mode: number }): Promise<string> {
+    const ffmpegPath = path.join(binDirectory, 'ffmpeg');
+    await fs.writeFile(ffmpegPath, '#!/bin/sh\n');
+    await fs.chmod(ffmpegPath, mode);
+    return ffmpegPath;
+  }
+
+  function createPathEnv(): BuildStepEnv {
+    return { ...createEnvMock(), PATH: binDirectory };
+  }
+
+  const warmUpCall = ['ffmpeg', ['-version'], expect.anything()];
+
+  beforeEach(async () => {
     spawnMock.mockReset();
     jest.mocked(Sentry).capture.mockReset();
+    binDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'ffmpeg-path-'));
   });
 
-  it('does not install when ffmpeg is on PATH', async () => {
-    spawnMock.mockReturnValueOnce(spawnResolved());
+  afterEach(async () => {
+    await fs.rm(binDirectory, { recursive: true, force: true });
+  });
+
+  it('finds ffmpeg on PATH without waiting for it to run, then warms it up', async () => {
+    const ffmpegPath = await installFakeFfmpegAsync({ mode: 0o755 });
+    spawnMock.mockReturnValueOnce(spawnPending());
+    const logger = createLoggerMock();
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env: createEnvMock(),
-      logger: createLoggerMock(),
+      env: createPathEnv(),
+      logger,
     });
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(spawnMock).toHaveBeenCalledWith('ffmpeg', ['-version'], expect.anything());
+    expect(spawnMock).toHaveBeenCalledWith(...warmUpCall);
+    expect(logger.info).toHaveBeenCalledWith(`ffmpeg is already installed at ${ffmpegPath}.`);
   });
 
-  it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnResolved());
+  it('installs ffmpeg when the file on PATH is not executable', async () => {
+    await installFakeFfmpegAsync({ mode: 0o644 });
+    spawnMock.mockReturnValue(spawnResolved());
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     });
 
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith('brew', ['install', 'ffmpeg'], expect.anything());
+  });
+
+  it('installs ffmpeg when the ffmpeg entry on PATH is a directory', async () => {
+    await fs.mkdir(path.join(binDirectory, 'ffmpeg'));
+    spawnMock.mockReturnValue(spawnResolved());
+
+    await ensureFfmpegInstalledOnceAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenCalledWith('brew', ['install', 'ffmpeg'], expect.anything());
+  });
+
+  it('treats an empty PATH entry as the current directory', async () => {
+    await installFakeFfmpegAsync({ mode: 0o755 });
+    jest.spyOn(process, 'cwd').mockReturnValue(binDirectory);
+    spawnMock.mockReturnValue(spawnResolved());
+
+    try {
+      await ensureFfmpegInstalledOnceAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: { ...createEnvMock(), PATH: `${path.delimiter}/nonexistent` },
+        logger: createLoggerMock(),
+      });
+    } finally {
+      jest.mocked(process.cwd).mockRestore();
+    }
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawnMock).toHaveBeenCalledWith(...warmUpCall);
+  });
+
+  it('installs ffmpeg with Homebrew on darwin when it is missing, then warms it up', async () => {
+    spawnMock.mockReturnValue(spawnResolved());
+
+    await ensureFfmpegInstalledOnceAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      1,
       'brew',
       ['install', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }),
       })
     );
+    expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
   });
 
   it('installs ffmpeg with apt on linux when it is missing', async () => {
-    spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
-      .mockReturnValueOnce(spawnResolved()) // apt-get update
-      .mockReturnValueOnce(spawnResolved()); // apt-get install
+    spawnMock.mockReturnValue(spawnResolved());
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     });
 
-    expect(spawnMock).toHaveBeenCalledWith(
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      1,
       'sudo',
       ['apt-get', 'update'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       })
     );
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      2,
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       })
     );
+    expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
   });
 
   it('shares an in-flight ffmpeg setup between callers', async () => {
@@ -1587,21 +1659,21 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
       finishInstall = resolve;
     });
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnResolved()) // apt-get update
-      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>); // apt-get install
+      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>) // apt-get install
+      .mockReturnValueOnce(spawnResolved()); // ffmpeg -version warm-up
     const options = {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     };
 
     const firstSetup = ensureFfmpegInstalledOnceAsync(options);
     await new Promise<void>(resolve => setImmediate(resolve));
-    expect(spawnMock).toHaveBeenCalledTimes(3);
+    expect(spawnMock).toHaveBeenCalledTimes(2);
 
     const secondSetup = ensureFfmpegInstalledOnceAsync(options);
-    expect(spawnMock).toHaveBeenCalledTimes(3);
+    expect(spawnMock).toHaveBeenCalledTimes(2);
 
     finishInstall?.();
     await Promise.all([firstSetup, secondSetup]);
@@ -1610,18 +1682,17 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
 
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnRejected()) // apt-get update
-      .mockReturnValueOnce(spawnResolved()); // apt-get install
+      .mockReturnValue(spawnResolved());
     const logger = createLoggerMock();
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger,
     });
 
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith(
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.anything()
@@ -1630,17 +1701,18 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
   });
 
   it('warns and resolves when the install fails, so the session still starts', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnRejected());
+    spawnMock.mockReturnValueOnce(spawnRejected());
     const logger = createLoggerMock();
 
     await expect(
       ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        env: createEnvMock(),
+        env: createPathEnv(),
         logger,
       })
     ).resolves.toBeUndefined();
 
+    expect(spawnMock).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
   });
@@ -1648,7 +1720,7 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
   // The caller runs this with `void` and the worker installs no unhandledRejection
   // handler, so a rejection here would crash the process. `spawn` is not async and
   // can throw synchronously, which `asyncResult` cannot catch.
-  it('resolves when the availability check throws synchronously', async () => {
+  it('resolves when the install throws synchronously', async () => {
     spawnMock.mockImplementationOnce(() => {
       throw new Error('sync spawn failure');
     });
@@ -1657,12 +1729,37 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     await expect(
       ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        env: createEnvMock(),
+        env: createPathEnv(),
         logger,
       })
     ).resolves.toBeUndefined();
 
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['rejects', () => spawnRejected()],
+    [
+      'throws synchronously',
+      () => {
+        throw new Error('sync spawn failure');
+      },
+    ],
+  ])('ignores a warm-up that %s', async (_, warmUp) => {
+    await installFakeFfmpegAsync({ mode: 0o755 });
+    spawnMock.mockImplementationOnce(warmUp as () => ReturnType<typeof spawn>);
+    const logger = createLoggerMock();
+
+    await expect(
+      ensureFfmpegInstalledOnceAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: createPathEnv(),
+        logger,
+      })
+    ).resolves.toBeUndefined();
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

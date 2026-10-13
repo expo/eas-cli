@@ -20,7 +20,8 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
       .mockReset()
-      .mockImplementation(async (_ctx, { stream }) => {
+      .mockImplementation(async (_ctx, { openStream }) => {
+        const stream = openStream();
         await new Promise<void>((resolve, reject) => {
           stream.once('end', resolve);
           stream.once('error', reject);

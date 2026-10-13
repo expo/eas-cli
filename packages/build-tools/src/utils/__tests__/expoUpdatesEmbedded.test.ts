@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import { PipeMode } from '@expo/logger';
 
 import * as expoUpdates from '../../steps/utils/expoUpdates';
 import { uploadEmbeddedBundleAsync } from '../expoUpdatesEmbedded';
@@ -148,6 +149,7 @@ describe('uploadEmbeddedBundleAsync', () => {
           '--build-id',
           'build-123',
         ]),
+        options: expect.objectContaining({ mode: PipeMode.COMBINED_AS_STDOUT }),
       })
     );
   });

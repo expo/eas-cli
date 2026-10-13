@@ -44,6 +44,11 @@ export type AccessToken = {
   note?: Maybe<Scalars['String']['output']>;
   owner: Actor;
   revokedAt?: Maybe<Scalars['DateTime']['output']>;
+  /**
+   * Scopes this token is restricted to. Null for a full token that authenticates as the owner
+   * with all of their permissions.
+   */
+  scopes?: Maybe<Array<AccessTokenScope>>;
   updatedAt: Scalars['DateTime']['output'];
   visibleTokenPrefix: Scalars['String']['output'];
 };
@@ -73,6 +78,35 @@ export type AccessTokenMutation_SetAccessTokenRevokedArgs = {
   id: Scalars['ID']['input'];
   revoked?: InputMaybe<Scalars['Boolean']['input']>;
 };
+
+/** One scope narrowing an AccessToken below its owner's full access */
+export type AccessTokenScope = {
+  __typename?: 'AccessTokenScope';
+  /** The account this scope applies to. Only present for ACCOUNT scopes. */
+  accountID?: Maybe<Scalars['ID']['output']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export type AccessTokenScopeInput = {
+  /**
+   * The account this scope applies to. Required for ACCOUNT scopes and must be omitted for
+   * ALL_ACCOUNTS scopes.
+   */
+  accountID?: InputMaybe<Scalars['ID']['input']>;
+  permissions: Array<Permission>;
+  type: AccessTokenScopeType;
+};
+
+export enum AccessTokenScopeType {
+  /** One account, named by accountID, narrowed to the scope's permissions. */
+  Account = 'ACCOUNT',
+  /**
+   * Every account the token's owner has permissions on at request time, narrowed to the
+   * scope's permissions.
+   */
+  AllAccounts = 'ALL_ACCOUNTS'
+}
 
 /** A GitHub App installation visible to a viewer, not necessarily linked yet. */
 export type AccessibleGitHubAppInstallation = {
@@ -149,6 +183,8 @@ export type Account = {
   /** Convex team connections for this account */
   convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
+  /** Simulator sessions for all apps associated with this account, sorted newest first. */
+  deviceRunSessionsPaginated: AccountDeviceRunSessionsConnection;
   displayName?: Maybe<Scalars['String']['output']>;
   /** Echo projects for this account (paginated, most recent first) */
   echoProjects: EchoProjectConnection;
@@ -423,6 +459,19 @@ export type Account_ConcurrencyConsumersArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
+export type Account_DeviceRunSessionsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AccountDeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
 export type Account_EchoProjectsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -622,6 +671,22 @@ export type AccountDataInput = {
   userSpecifiedAccountUsage?: InputMaybe<UserSpecifiedAccountUsage>;
 };
 
+export type AccountDeviceRunSessionFilterInput = {
+  statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
+};
+
+export type AccountDeviceRunSessionsConnection = {
+  __typename?: 'AccountDeviceRunSessionsConnection';
+  edges: Array<AccountDeviceRunSessionsEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AccountDeviceRunSessionsEdge = {
+  __typename?: 'AccountDeviceRunSessionsEdge';
+  cursor: Scalars['String']['output'];
+  node: DeviceRunSession;
+};
+
 export type AccountGoogleServiceAccountKeysConnection = {
   __typename?: 'AccountGoogleServiceAccountKeysConnection';
   edges: Array<AccountGoogleServiceAccountKeysEdge>;
@@ -696,8 +761,6 @@ export type AccountMutation = {
   cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
-  /** Buys or revokes account's additional agent credits, charging the account the appropriate amount if needed. */
-  changeAdditionalAgentCreditsCount: Account;
   /** Buys or revokes account's additional concurrencies, charging the account the appropriate amount if needed. */
   changeAdditionalConcurrenciesCount: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
@@ -737,12 +800,6 @@ export type AccountMutation_CancelAllSubscriptionsImmediatelyArgs = {
 
 export type AccountMutation_CancelScheduledSubscriptionChangeArgs = {
   accountID: Scalars['ID']['input'];
-};
-
-
-export type AccountMutation_ChangeAdditionalAgentCreditsCountArgs = {
-  accountID: Scalars['ID']['input'];
-  newAdditionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -6295,6 +6352,12 @@ export type CrashesFilters = {
 export type CreateAccessTokenInput = {
   actorID: Scalars['ID']['input'];
   note?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * When given, requests authenticated with the new token are restricted to these scopes instead
+   * of the actor's full access. Either a single ALL_ACCOUNTS scope or one ACCOUNT scope per
+   * account.
+   */
+  scopes?: InputMaybe<Array<AccessTokenScopeInput>>;
 };
 
 export type CreateAccessTokenResponse = {
@@ -6667,6 +6730,7 @@ export type CreatePostHogDeepLinkInput = {
 };
 
 export type CreateSandboxInput = {
+  agentRunId?: InputMaybe<Scalars['ID']['input']>;
   appId: Scalars['ID']['input'];
   image?: InputMaybe<Scalars['String']['input']>;
   operatingSystem: SandboxOperatingSystem;
@@ -7232,10 +7296,15 @@ export type DeviceRunSessionMutation = {
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
   /**
-   * Create a standard artifact and a two-hour upload URL for repeatedly
+   * Create or reuse a standard artifact and a two-hour upload URL for repeatedly
    * overwriting its structured event log while the backing job run is running.
    */
   createEventLogUploadSession: CreateDeviceRunSessionEventLogUploadSessionResult;
+  /**
+   * Create or renew a two-hour upload URL for overwriting the session preview.
+   * Reuses one WebP artifact while the backing job run is active.
+   */
+  createPreviewUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /**
    * Permanently delete a finished session and its artifacts. The backing job,
    * if present, must also have finished. Returns the deleted session ID.
@@ -7269,6 +7338,11 @@ export type DeviceRunSessionMutation_CreateDeviceRunSessionArgs = {
 
 
 export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+
+export type DeviceRunSessionMutation_CreatePreviewUploadSessionArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
@@ -7404,11 +7478,11 @@ export enum EasBuildWaiverType {
 }
 
 export enum EasService {
-  Agent = 'AGENT',
   Builds = 'BUILDS',
   Jobs = 'JOBS',
   Mcp = 'MCP',
   Observe = 'OBSERVE',
+  Simulator = 'SIMULATOR',
   Updates = 'UPDATES'
 }
 
@@ -7416,12 +7490,12 @@ export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
-  CreditUsage = 'CREDIT_USAGE',
   LocalBuilds = 'LOCAL_BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
   McpRequests = 'MCP_REQUESTS',
   ObserveEvents = 'OBSERVE_EVENTS',
   RunTime = 'RUN_TIME',
+  SimulatorUsage = 'SIMULATOR_USAGE',
   UniqueUpdaters = 'UNIQUE_UPDATERS',
   UniqueUsers = 'UNIQUE_USERS'
 }
@@ -7437,6 +7511,7 @@ export enum EasTotalPlanEnablementUnit {
   Byte = 'BYTE',
   Concurrency = 'CONCURRENCY',
   Event = 'EVENT',
+  Minute = 'MINUTE',
   Request = 'REQUEST',
   Updater = 'UPDATER',
   User = 'USER'
@@ -8459,12 +8534,20 @@ export type EstimatedOverageAndCost = {
 export type EstimatedUsage = {
   __typename?: 'EstimatedUsage';
   id: Scalars['ID']['output'];
+  jobTypeBreakdown?: Maybe<EstimatedUsageJobTypeBreakdown>;
   limit: Scalars['Float']['output'];
   metricType: UsageMetricType;
   platformBreakdown?: Maybe<EstimatedUsagePlatformBreakdown>;
   service: EasService;
   serviceMetric: EasServiceMetric;
   value: Scalars['Float']['output'];
+};
+
+export type EstimatedUsageJobTypeBreakdown = {
+  __typename?: 'EstimatedUsageJobTypeBreakdown';
+  other: Scalars['Float']['output'];
+  simulator: Scalars['Float']['output'];
+  workflows: Scalars['Float']['output'];
 };
 
 export type EstimatedUsagePlatformBreakdown = {
@@ -9385,8 +9468,6 @@ export type InvoicePeriod = {
 
 export type InvoiceQuery = {
   __typename?: 'InvoiceQuery';
-  /** Previews the invoice for the specified number of additional agent credit units. */
-  previewInvoiceForAdditionalAgentCreditsCountUpdate?: Maybe<Invoice>;
   /**
    * Previews the invoice for the specified number of additional concurrencies.
    * This is the total number of concurrencies the customer wishes to purchase
@@ -9397,12 +9478,6 @@ export type InvoiceQuery = {
   previewInvoiceForAdditionalConcurrenciesCountUpdate?: Maybe<Invoice>;
   /** Preview an upgrade subscription invoice, with proration */
   previewInvoiceForSubscriptionUpdate: Invoice;
-};
-
-
-export type InvoiceQuery_PreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
-  accountID: Scalars['ID']['input'];
-  additionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -10965,6 +11040,7 @@ export type RootQuery = {
   updates: UpdateQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
+  usageBudget: UsageBudgetQuery;
   /** Top-level query object for querying UserActorPublicData publicly. */
   userActorPublicData: UserActorPublicDataQuery;
   /** Top-level query object for querying User Audit Logs. */
@@ -11721,7 +11797,9 @@ export type SubmissionArchiveSourceInput = {
 };
 
 export enum SubmissionArchiveSourceType {
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchive = 'GCS_BUILD_APPLICATION_ARCHIVE',
+  /** @deprecated Submit with the build ID instead. */
   GcsBuildApplicationArchiveOrchestrator = 'GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR',
   GcsSubmitArchive = 'GCS_SUBMIT_ARCHIVE',
   Url = 'URL'
@@ -11746,6 +11824,7 @@ export type SubmissionMutation = {
   createAndroidSubmission: CreateSubmissionResult;
   /** Create an iOS EAS Submit submission */
   createIosSubmission: CreateSubmissionResult;
+  generateSubmissionArchiveDownloadUrl: Scalars['String']['output'];
   /** Retry an EAS Submit submission */
   retrySubmission: CreateSubmissionResult;
 };
@@ -11763,6 +11842,11 @@ export type SubmissionMutation_CreateAndroidSubmissionArgs = {
 
 export type SubmissionMutation_CreateIosSubmissionArgs = {
   input: CreateIosSubmissionInput;
+};
+
+
+export type SubmissionMutation_GenerateSubmissionArchiveDownloadUrlArgs = {
+  submissionId: Scalars['ID']['input'];
 };
 
 
@@ -11804,7 +11888,6 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']['output']>;
   futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID']['output'];
-  includedAgentCreditsInCents: Scalars['Int']['output'];
   isDowngrading?: Maybe<Scalars['Boolean']['output']>;
   meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']['output']>;
@@ -12185,6 +12268,7 @@ export type Update = ActivityTimelineProjectActivity & {
   runtime: Runtime;
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
+  sourceMapUrl?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   workflowJob?: Maybe<WorkflowJob>;
 };
@@ -12844,15 +12928,18 @@ export type UsageBudget = {
   __typename?: 'UsageBudget';
   id: Scalars['ID']['output'];
   limits: UsageBudgetLimits;
+  remaining: UsageBudgetRemaining;
 };
 
 export type UsageBudgetLimits = {
   __typename?: 'UsageBudgetLimits';
   builds?: Maybe<Scalars['Int']['output']>;
+  simulatorMinutes?: Maybe<Scalars['Int']['output']>;
 };
 
 export type UsageBudgetLimitsInput = {
   builds?: InputMaybe<Scalars['Int']['input']>;
+  simulatorMinutes?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UsageBudgetMutation = {
@@ -12863,6 +12950,24 @@ export type UsageBudgetMutation = {
 
 export type UsageBudgetMutation_CreateUsageBudgetArgs = {
   limits: UsageBudgetLimitsInput;
+};
+
+export type UsageBudgetQuery = {
+  __typename?: 'UsageBudgetQuery';
+  byId: UsageBudget;
+};
+
+
+export type UsageBudgetQuery_ByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type UsageBudgetRemaining = {
+  __typename?: 'UsageBudgetRemaining';
+  /** Available builds, or null when there is no build limit. */
+  builds?: Maybe<Scalars['Int']['output']>;
+  /** Available minutes after completed usage and active reservations, or null when unlimited. */
+  simulatorMinutes?: Maybe<Scalars['Float']['output']>;
 };
 
 export type UsageMetricTotal = {
@@ -12880,7 +12985,6 @@ export type UsageMetricTotal = {
 export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
   Build = 'BUILD',
-  Credit = 'CREDIT',
   Event = 'EVENT',
   Minute = 'MINUTE',
   Request = 'REQUEST',
@@ -14741,6 +14845,7 @@ export enum WorkflowJobStatus {
 }
 
 export enum WorkflowJobType {
+  Agent = 'AGENT',
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   BranchDelete = 'BRANCH_DELETE',
   Build = 'BUILD',
@@ -14896,7 +15001,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14905,6 +15010,15 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonWorkflowCall = {
+  __typename?: 'WorkflowRunCancelReasonWorkflowCall';
+  /**
+   * The run that called this run through workflow_call and whose cancellation
+   * canceled this run. Null if that run no longer exists.
+   */
+  parentWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunEdge = {
@@ -15086,11 +15200,28 @@ export type WorkflowsInsightsMutation_ExportWorkflowRunsArgs = {
   input: WorkflowsInsightsExportInput;
 };
 
+/**
+ * Same shape as WorkflowsInsightsMetric but nullable on both sides. Null means the window had
+ * no qualifying run, which is different from 0.
+ */
+export type WorkflowsInsightsNullableMetric = {
+  __typename?: 'WorkflowsInsightsNullableMetric';
+  currentValue?: Maybe<Scalars['Float']['output']>;
+  previousValue?: Maybe<Scalars['Float']['output']>;
+};
+
 export type WorkflowsInsightsOverviewMetrics = {
   __typename?: 'WorkflowsInsightsOverviewMetrics';
   activeWorkflows: WorkflowsInsightsMetric;
+  /**
+   * Mean milliseconds from run creation to finalization, the same duration the run page shows,
+   * so queue and approval wait count. Canceled runs are excluded.
+   */
+  avgDurationMs: WorkflowsInsightsNullableMetric;
   canceledRuns: WorkflowsInsightsMetric;
   failedRuns: WorkflowsInsightsMetric;
+  /** Approximate 75th percentile of the same duration, excluding canceled runs. */
+  p75DurationMs: WorkflowsInsightsNullableMetric;
   successfulRuns: WorkflowsInsightsMetric;
   totalRuns: WorkflowsInsightsMetric;
 };
@@ -15134,10 +15265,12 @@ export type WorkflowsInsightsWorkflowMetrics = {
 
 export type WorkflowsInsightsWorkflowNode = {
   __typename?: 'WorkflowsInsightsWorkflowNode';
+  avgDurationMs?: Maybe<Scalars['Float']['output']>;
   canceledRuns: Scalars['Int']['output'];
   failedRuns: Scalars['Int']['output'];
   lastRunAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
+  p75DurationMs?: Maybe<Scalars['Float']['output']>;
   successfulRuns: Scalars['Int']['output'];
   totalRuns: Scalars['Int']['output'];
   workflowId: Scalars['ID']['output'];
@@ -17037,6 +17170,18 @@ export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup
       | { __typename: 'User', username: string, id: string }
      | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
 
+export type ViewUpdatesByGroupWithFileUrlsQueryVariables = Exact<{
+  groupId: Scalars['ID']['input'];
+}>;
+
+
+export type ViewUpdatesByGroupWithFileUrlsQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, assetMapUrl?: string | null, sourceMapUrl?: string | null, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+      | { __typename: 'PartnerActor', username: string, id: string }
+      | { __typename: 'Robot', firstName?: string | null, id: string }
+      | { __typename: 'SSOUser', username: string, id: string }
+      | { __typename: 'User', username: string, id: string }
+     | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
+
 export type ViewUpdateGroupsOnBranchQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   branchName: Scalars['String']['input'];
@@ -17271,7 +17416,7 @@ export type WorkflowsInsightsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+export type WorkflowsInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflows: Array<{ __typename?: 'Workflow', id: string, fileName: string }>, workflowsInsights: { __typename?: 'AppWorkflowsInsights', overviewMetrics: { __typename?: 'WorkflowsInsightsOverviewMetrics', totalRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, successfulRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, failedRuns: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, activeWorkflows: { __typename?: 'WorkflowsInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null }, p75DurationMs: { __typename?: 'WorkflowsInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null } }, runsOverTime: { __typename?: 'WorkflowsInsightsRunsOverTimeData', lineChart: { __typename?: 'LineChartData', labels: Array<string>, datasets: Array<{ __typename?: 'LineDataset', id: string, data: Array<number | null> }> } }, workflows: { __typename?: 'WorkflowsInsightsWorkflowConnection', edges: Array<{ __typename?: 'WorkflowsInsightsWorkflowEdge', node: { __typename?: 'WorkflowsInsightsWorkflowNode', workflowId: string, name: string, totalRuns: number, successfulRuns: number, failedRuns: number, canceledRuns: number, avgDurationMs?: number | null, p75DurationMs?: number | null, lastRunAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?:
     | { __typename?: 'SSOUser', id: string, username: string }
@@ -17412,6 +17557,13 @@ export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: stri
 export type SupabaseAdvisorLintFragment = { __typename?: 'SupabaseAdvisorLint', name: string, title: string, level: SupabaseAdvisorLintLevel, description: string, detail: string, entity?: string | null, remediation?: string | null, cacheKey: string };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
+    | { __typename: 'PartnerActor', username: string, id: string }
+    | { __typename: 'Robot', firstName?: string | null, id: string }
+    | { __typename: 'SSOUser', username: string, id: string }
+    | { __typename: 'User', username: string, id: string }
+   | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null };
+
+export type UpdateWithFileUrlsFragment = { __typename?: 'Update', id: string, assetMapUrl?: string | null, sourceMapUrl?: string | null, group: string, message?: string | null, createdAt: any, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, runtime: { __typename?: 'Runtime', id: string, version: string }, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }
     | { __typename: 'Robot', firstName?: string | null, id: string }
     | { __typename: 'SSOUser', username: string, id: string }

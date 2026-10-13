@@ -1,6 +1,6 @@
 import { vol } from 'memfs';
 
-import { decompressTarAsync, isFileTarGzAsync } from '../files';
+import { decompressTarAsync, isFileTarGzAsync } from '..';
 
 // contains a 'hello.txt' file with 'hello' content
 const HELLO_TAR_GZ_BUFFER = Buffer.from(

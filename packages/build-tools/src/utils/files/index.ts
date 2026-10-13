@@ -1,4 +1,4 @@
-import fsPromises from 'node:fs/promises';
+import fsPromises, { type FileHandle } from 'node:fs/promises';
 import * as tar from 'tar';
 
 export async function decompressTarAsync({
@@ -33,4 +33,29 @@ export async function isFileTarGzAsync(path: string): Promise<boolean> {
   // Gzip files always begin with 0x1F 0x8B 0x08 magic bytes
   // Source: https://en.wikipedia.org/wiki/Gzip#File_format
   return buffer[0] === 0x1f && buffer[1] === 0x8b && buffer[2] === 0x08;
+}
+
+export async function readBytesAsync(file: FileHandle, length: number): Promise<Buffer> {
+  const { bytesRead, buffer } = await file.read(Buffer.alloc(length), 0, length, 0);
+  return buffer.subarray(0, bytesRead);
+}
+
+export async function readTextAsync(
+  file: FileHandle,
+  length: number,
+  isTruncated: boolean
+): Promise<string | null> {
+  const bytes = await readBytesAsync(file, length);
+  return decodeText(bytes, isTruncated);
+}
+
+function decodeText(contents: Buffer, isTruncated: boolean): string | null {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(contents, {
+      stream: isTruncated,
+    });
+    return text;
+  } catch {
+    return null;
+  }
 }

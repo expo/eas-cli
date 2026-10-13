@@ -50,8 +50,8 @@ describe(uploadServeSimMetricsFileAsync, () => {
     let uploaded = '';
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementation(async (_ctx, { stream }) => {
-        uploaded = await readStreamAsync(stream);
+      .mockImplementation(async (_ctx, { openStream }) => {
+        uploaded = await readStreamAsync(openStream());
       });
 
     await uploadServeSimMetricsFileAsync(ctx, {
@@ -87,8 +87,8 @@ describe(uploadServeSimMetricsFileAsync, () => {
     await writeFile(filePath, NDJSON);
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementation(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementation(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadServeSimMetricsFileAsync(ctx, {
