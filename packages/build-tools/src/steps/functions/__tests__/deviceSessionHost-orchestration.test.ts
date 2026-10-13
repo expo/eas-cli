@@ -260,3 +260,76 @@ describe.each([
     );
   });
 });
+
+describe('Appium ffmpeg setup', () => {
+  async function runAppiumAsync(): Promise<void> {
+    const fn = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+    await fn.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: new Proxy({} as Record<string, { value: unknown }>, {
+          get: (target, id: string) => target[id] ?? { value: undefined },
+        }),
+        outputs: {},
+        env: {
+          DEVICE_RUN_SESSION_ID: 'session-id',
+          EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+          NGROK_AUTHTOKEN: 'token',
+        },
+      } as never
+    );
+  }
+
+  function holdFfmpegInstall({ appiumError }: { appiumError?: Error } = {}) {
+    let finish!: (outcome: 'installed' | 'failed') => void;
+    const install = new Promise((resolve, reject) => {
+      finish = outcome =>
+        outcome === 'installed' ? resolve({}) : reject(new Error('apt-get failed'));
+    });
+    jest.mocked(spawn).mockImplementation(((command: string, args: string[]) => {
+      if (command === 'ffmpeg') {
+        return Promise.reject(new Error('ffmpeg missing'));
+      }
+      if (args.includes('install') && args.includes('ffmpeg')) {
+        return install;
+      }
+      return command === 'npm' && appiumError
+        ? Promise.reject(appiumError)
+        : Promise.resolve({ stdout: '{}' });
+    }) as never);
+    return finish;
+  }
+
+  it.each(['installed', 'failed'] as const)(
+    'starts Appium after the ffmpeg install settles (%s)',
+    async outcome => {
+      const finishFfmpegInstall = holdFfmpegInstall();
+
+      const run = runAppiumAsync();
+      await new Promise(resolve => setImmediate(resolve));
+      expect(spawnDetached).not.toHaveBeenCalled();
+
+      finishFfmpegInstall(outcome);
+      await run;
+      expect(spawnDetached).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('waits for the ffmpeg install before failing on an Appium install error', async () => {
+    const appiumError = new Error('npm failed');
+    const finishFfmpegInstall = holdFfmpegInstall({ appiumError });
+
+    let settled = false;
+    const run = runAppiumAsync().finally(() => {
+      settled = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(settled).toBe(false);
+
+    finishFfmpegInstall('installed');
+    await expect(run).rejects.toBe(appiumError);
+  });
+});
