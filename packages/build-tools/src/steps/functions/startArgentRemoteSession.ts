@@ -172,7 +172,15 @@ export function createStartArgentRemoteSessionBuildFunction(
         'disable',
         ARGENT_VIDEO_WATERMARK_FLAG,
       ]);
-      await spawn(disableVideoWatermark.command, disableVideoWatermark.args, { env, logger });
+      // The watermark is cosmetic, so a failure here must not fail the session.
+      try {
+        await spawn(disableVideoWatermark.command, disableVideoWatermark.args, { env, logger });
+      } catch (err) {
+        logger.warn(
+          { err },
+          'Could not disable the Argent video watermark, so recorded videos may include it. Continuing the session.'
+        );
+      }
 
       const startServer = argentExec([
         `${ARGENT_PACKAGE_NAME}@${versionSpec}`,

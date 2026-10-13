@@ -281,6 +281,43 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('continues the session when disabling the video watermark fails', async () => {
+    const error = new Error('bun x failed');
+    jest
+      .mocked(spawn)
+      .mockImplementation(
+        (_command, args) =>
+          (args.includes('video-watermark')
+            ? Promise.reject(error)
+            : Promise.resolve(undefined)) as never
+      );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      expect.stringContaining('Could not disable the Argent video watermark')
+    );
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
     const ctx = {} as unknown as CustomBuildContext;
     const logger = { info: jest.fn(), warn: jest.fn() };
