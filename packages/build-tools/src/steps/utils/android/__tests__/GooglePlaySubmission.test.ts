@@ -86,7 +86,6 @@ it.each([
   [400, 'Only releases with status draft may be created on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
   [409, 'edit invalid', 'EAS_GOOGLE_PLAY_EDIT_INVALID'],
   [400, 'unknown track', 'EAS_GOOGLE_PLAY_INVALID_RELEASE'],
-  [500, 'server failure', 'EAS_GOOGLE_PLAY_REQUEST_FAILED'],
 ] as const)('keeps the Google error behind %s %s', (status, message, code) => {
   const original = new GooglePlayApiError(status, message, []);
   const mapped = GooglePlayUtils.mapGooglePlayError(original);
@@ -97,15 +96,22 @@ it.each([
     cause: original,
   });
 });
-it('maps a rejected OAuth key but preserves transient OAuth errors', () => {
+it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');
   expect(GooglePlayUtils.mapGooglePlayError(original)).toMatchObject({
     errorCode: 'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
     cause: original,
   });
-  for (const status of [429, 503]) {
-    const error = new GooglePlayAuthRequestError(status, 'temporarily_unavailable');
-    expect(GooglePlayUtils.mapGooglePlayError(error)).toBe(error);
+});
+it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system errors', status => {
+  for (const original of [
+    new GooglePlayApiError(status, 'temporary failure', []),
+    new GooglePlayAuthRequestError(status, 'temporarily_unavailable'),
+  ]) {
+    const mapped = GooglePlayUtils.mapGooglePlayError(original);
+    expect(mapped).toBeInstanceOf(SystemError);
+    expect(mapped).toMatchObject({ cause: original });
+    expect((mapped as Error).message).not.toContain('settings');
   }
 });
 it('keeps non-Google errors unchanged', () => {

@@ -206,6 +206,15 @@ export namespace GooglePlayUtils {
 
   export function mapGooglePlayError(error: unknown): unknown {
     if (
+      (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
+      (error.status === 408 || error.status === 429 || error.status >= 500)
+    ) {
+      return new SystemError(
+        `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
+        { cause: error }
+      );
+    }
+    if (
       error instanceof GooglePlayAuthRequestError &&
       error.status >= 400 &&
       error.status < 500 &&

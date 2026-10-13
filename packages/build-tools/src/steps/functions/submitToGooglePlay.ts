@@ -21,7 +21,7 @@ const InputsZ = z
     package_name: z.string().regex(/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/),
     service_account_key_path: z.string().min(1),
     track: z.string().trim().min(1).default('internal'),
-    release_status: ReleaseStatusZ.default('completed'),
+    release_status: ReleaseStatusZ.exclude(['halted']).default('completed'),
     rollout: z.number().finite().gt(0).max(1).optional(),
     changelog: z.string().optional(),
     changes_not_sent_for_review: z.boolean().default(false),
@@ -41,13 +41,6 @@ const InputsZ = z
         message: 'An inProgress release requires a rollout greater than 0 and at most 1.',
       });
     }
-    if (release_status === 'halted' && rollout !== undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['rollout'],
-        message: 'A halted release cannot have a rollout. Omit rollout or use inProgress status.',
-      });
-    }
   });
 
 // Does not inspect the binary. The caller must run eas/read_android_app_info and
@@ -58,6 +51,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
     id: 'submit_to_google_play',
     name: 'Submit to Google Play',
     __metricsId: 'eas/submit_to_google_play',
+    __hookId: 'submit',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'artifact_path',

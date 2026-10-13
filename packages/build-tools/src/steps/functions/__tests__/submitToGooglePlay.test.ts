@@ -91,7 +91,7 @@ it.each([
   ['draft', 0, 'invalid'],
   ['draft', 0.25, 'invalid'],
   ['draft', 1, 'invalid'],
-  ['halted', undefined, { status: 'halted' }],
+  ['halted', undefined, 'invalid'],
   ['halted', 0, 'invalid'],
   ['halted', 0.25, 'invalid'],
   ['halted', 1, 'invalid'],
@@ -105,7 +105,7 @@ it.each([
     ...(rollout !== undefined ? { rollout } : {}),
   });
   if (expected === 'invalid') {
-    await expect(task.run()).rejects.toThrow(/rollout/);
+    await expect(task.run()).rejects.toThrow(status === 'halted' ? /release_status/ : /rollout/);
     expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
     return;
   }
@@ -136,6 +136,7 @@ it('runs the step with a string rollout and validates its required output', asyn
     .reply(200, { track: 'internal' });
   api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
   const { step } = submission({ rollout: '0.25' });
+  expect(step.__hookId).toBe('submit');
   await step.executeAsync();
   expect(step.outputs[0].value).toBe('145');
 });
