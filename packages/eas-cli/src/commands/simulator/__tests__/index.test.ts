@@ -95,6 +95,7 @@ const projectDir = '/test/project';
 const simulatorDotenvPath = `${projectDir}/.env.eas-simulator`;
 const deviceRunSessionUrl =
   'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
+const deviceRunSessionPreviewUrl = `${deviceRunSessionUrl}/preview`;
 
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
@@ -694,7 +695,7 @@ describe(Simulator, () => {
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
-        'https://preview.example.com',
+        deviceRunSessionPreviewUrl,
       ].join('\n')
     );
   });
@@ -768,7 +769,7 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({ type: DeviceRunSessionType.WebPreviewOnly })
     );
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://preview.example.test'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
   });
 
   it('overwrites .env.eas-simulator when outputting dotenv and the file exists', async () => {
@@ -1944,6 +1945,71 @@ describe(Simulator, () => {
       expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
     );
   });
+
+  it.each([false, true])(
+    'uses the %s public-link choice in start JSON and human output',
+    async publicLink => {
+      const publicUrl = 'https://expo.dev/simulator-preview/preview-123';
+      const remoteConfig = {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: publicUrl,
+        previewToken: 'preview-secret',
+        previewApiUrl: 'https://preview-api.example.test',
+      };
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig,
+        })
+      );
+      const choice = publicLink ? ['--public-link'] : [];
+      const expectedUrl = publicLink
+        ? `${publicUrl}#token=preview-secret`
+        : deviceRunSessionPreviewUrl;
+
+      const { command: jsonCommand } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        'web-preview-only',
+        '--non-interactive',
+        '--json',
+        ...choice,
+      ]);
+      await jsonCommand.runAsync();
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: expect.objectContaining({ previewUrl: expectedUrl }),
+        })
+      );
+      if (!publicLink) {
+        expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
+          'preview-secret'
+        );
+      }
+
+      jest.clearAllMocks();
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig,
+        })
+      );
+      const { command: humanCommand } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        'web-preview-only',
+        '--non-interactive',
+        ...choice,
+      ]);
+      await humanCommand.runAsync();
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(expectedUrl));
+      if (!publicLink) {
+        expect(JSON.stringify(jest.mocked(Log.log).mock.calls)).not.toContain('preview-secret');
+      }
+    }
+  );
 
   it('warns but continues when the dotenv file cannot be written', async () => {
     jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);

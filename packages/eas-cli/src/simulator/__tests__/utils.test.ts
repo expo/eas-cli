@@ -305,111 +305,216 @@ describe(formatPreviewUrl, () => {
 
 describe(sanitizeRemoteConfigForJson, () => {
   const PREVIEW_URL = 'https://preview.example.test';
-
   const PAGE_URL = 'https://expo.dev/simulator-preview/abc';
+  const PRIVATE_URL =
+    'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview';
 
-  it('moves the token into the preview url and drops the standalone field', () => {
-    const sanitized = sanitizeRemoteConfigForJson({
-      __typename: 'ServeSimRunSessionRemoteConfig' as const,
-      previewUrl: PREVIEW_URL,
-      previewToken: 'tok-1',
-    });
+  it('uses the authenticated preview URL by default and drops the standalone token', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'ServeSimRunSessionRemoteConfig' as const,
+        previewUrl: PREVIEW_URL,
+        previewToken: 'tok-1',
+      },
+      PRIVATE_URL
+    );
 
     expect(sanitized).toEqual({
       __typename: 'ServeSimRunSessionRemoteConfig',
-      previewUrl: `${PREVIEW_URL}/?token=tok-1`,
+      previewUrl: PRIVATE_URL,
     });
-    expect(JSON.stringify(sanitized)).not.toContain('previewToken');
+    expect(JSON.stringify(sanitized)).not.toContain('tok-1');
   });
 
-  it('puts the token on the api url query, for a caller that cannot send a header', () => {
-    const sanitized = sanitizeRemoteConfigForJson({
-      __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
-      previewUrl: PAGE_URL,
-      previewToken: 'tok-1',
-      previewApiUrl: PREVIEW_URL,
-    });
+  it('leaves the API URL free of the preview token by default', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE_URL,
+        previewToken: 'tok-1',
+        previewApiUrl: `${PREVIEW_URL}/?token=tok-1&mode=stream`,
+      },
+      PRIVATE_URL
+    );
 
     expect(sanitized).toEqual({
       __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
-      previewUrl: `${PAGE_URL}#token=tok-1`,
-      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
+      previewUrl: PRIVATE_URL,
+      previewApiUrl: `${PREVIEW_URL}/?mode=stream`,
     });
-    expect(JSON.stringify(sanitized)).not.toContain('previewToken');
+    expect(JSON.stringify(sanitized)).not.toContain('tok-1');
   });
 
-  it('does the same for a controller session', () => {
-    const sanitized = sanitizeRemoteConfigForJson({
-      __typename: 'ArgentRunSessionRemoteConfig' as const,
-      toolsUrl: 'https://argent.example.test',
+  it('removes preexisting query and fragment tokens but preserves other URL parameters', () => {
+    const pretokenizedUrl = `${PREVIEW_URL}/?mode=stream&token=tok-1#token=tok-1&view=logs`;
+    const tokenlessUrl = `${PREVIEW_URL}/?mode=stream#view=logs`;
+    const remoteConfig = {
+      __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+      previewUrl: pretokenizedUrl,
+      previewApiUrl: pretokenizedUrl,
+      previewToken: 'tok-1',
+    };
+
+    expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL)).toMatchObject({
+      previewUrl: PRIVATE_URL,
+      previewApiUrl: tokenlessUrl,
+    });
+    const fallbackInstructions = formatRemoteSessionInstructions(remoteConfig, 'env');
+    expect(fallbackInstructions).toContain(tokenlessUrl);
+    expect(fallbackInstructions).not.toContain('tok-1');
+  });
+
+  it('keeps controller credentials separate from the preview token', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'ArgentRunSessionRemoteConfig' as const,
+        toolsUrl: 'https://argent.example.test',
+        toolsAuthToken: 'argent-token',
+        webPreviewUrl: PREVIEW_URL,
+        webPreviewToken: 'tok-1',
+      },
+      PRIVATE_URL
+    );
+
+    expect(sanitized).toMatchObject({
+      webPreviewUrl: PRIVATE_URL,
       toolsAuthToken: 'argent-token',
-      webPreviewUrl: PREVIEW_URL,
-      webPreviewToken: 'tok-1',
     });
-
-    expect(sanitized).toMatchObject({ webPreviewUrl: `${PREVIEW_URL}/?token=tok-1` });
-    expect(JSON.stringify(sanitized)).not.toContain('webPreviewToken');
-    // The controller credential is a different secret and stays: it is what simulator:exec needs.
-    expect(sanitized).toMatchObject({ toolsAuthToken: 'argent-token' });
+    expect(JSON.stringify(sanitized)).not.toContain('tok-1');
   });
 
-  it('leaves an ungated session untouched', () => {
+  it('uses the authenticated preview URL even when the public preview is ungated', () => {
     const remoteConfig = {
       __typename: 'ServeSimRunSessionRemoteConfig' as const,
       previewUrl: PREVIEW_URL,
       previewToken: null,
     };
 
-    expect(sanitizeRemoteConfigForJson(remoteConfig)).toEqual({
+    expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL)).toEqual({
       __typename: 'ServeSimRunSessionRemoteConfig',
-      previewUrl: PREVIEW_URL,
+      previewUrl: PRIVATE_URL,
     });
   });
 
   it('leaves a controller session with no web preview alone', () => {
-    const sanitized = sanitizeRemoteConfigForJson({
-      __typename: 'AppiumRunSessionRemoteConfig' as const,
-      appiumUrl: 'https://appium.example.test',
-      capabilities: {},
-      webPreviewUrl: null,
-      webPreviewToken: null,
-    });
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'AppiumRunSessionRemoteConfig' as const,
+        appiumUrl: 'https://appium.example.test',
+        capabilities: {},
+        webPreviewUrl: null,
+        webPreviewToken: null,
+      },
+      PRIVATE_URL
+    );
 
     expect(sanitized).toMatchObject({ webPreviewUrl: null });
+  });
+
+  it('returns a fragment-bearing website link with --public-link', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE_URL,
+        previewToken: 'tok-1',
+        previewApiUrl: PREVIEW_URL,
+      },
+      PRIVATE_URL,
+      true
+    );
+
+    expect(sanitized).toEqual({
+      __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+      previewUrl: `${PAGE_URL}#token=tok-1`,
+      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+  });
+
+  it('returns the legacy direct-preview link with --public-link', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'ServeSimRunSessionRemoteConfig' as const,
+        previewUrl: PREVIEW_URL,
+        previewToken: 'tok-1',
+      },
+      PRIVATE_URL,
+      true
+    );
+
+    expect(sanitized).toMatchObject({ previewUrl: `${PREVIEW_URL}/?token=tok-1` });
   });
 });
 
 describe('gated preview links', () => {
   const PREVIEW = 'https://preview.example.test';
   const GATED = `${PREVIEW}/?token=tok-1`;
+  const PRIVATE =
+    'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview';
 
-  it('prints the tokenized preview for a serve-sim session', () => {
+  it('prints the private preview by default while retaining controller credentials', () => {
+    const instructions = formatRemoteSessionInstructions(
+      {
+        __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+        agentDeviceRemoteSessionUrl: 'https://daemon.example.test',
+        agentDeviceRemoteSessionToken: 'daemon-token',
+        webPreviewUrl: PREVIEW,
+        webPreviewToken: 'tok-1',
+      },
+      'env',
+      { privatePreviewUrl: PRIVATE }
+    );
+
+    expect(instructions).toContain(PRIVATE);
+    expect(instructions).not.toContain(PREVIEW);
+    expect(instructions).not.toContain('tok-1');
+    expect(instructions).toContain("export AGENT_DEVICE_DAEMON_AUTH_TOKEN='daemon-token'");
+  });
+
+  it('prints the shareable link when explicitly requested', () => {
+    const instructions = formatRemoteSessionInstructions(
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: 'https://expo.dev/simulator-preview/abc',
+        previewToken: 'tok-1',
+        previewApiUrl: PREVIEW,
+      },
+      'env',
+      { privatePreviewUrl: PRIVATE, publicLink: true }
+    );
+
+    expect(instructions).toContain('https://expo.dev/simulator-preview/abc#token=tok-1');
+    expect(instructions).not.toContain(PRIVATE);
+  });
+
+  it('prints the tokenized preview for a serve-sim session with --public-link', () => {
     const instructions = formatRemoteSessionInstructions(
       {
         __typename: 'ServeSimRunSessionRemoteConfig' as const,
         previewUrl: PREVIEW,
         previewToken: 'tok-1',
       },
-      'env'
+      'env',
+      { publicLink: true }
     );
 
     expect(instructions).toContain(GATED);
   });
 
-  it('prints the tokenized preview for a web-preview-only session', () => {
+  it('prints the tokenized preview for a web-preview-only session with --public-link', () => {
     const instructions = formatRemoteSessionInstructions(
       {
         __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
         previewUrl: PREVIEW,
         previewToken: 'tok-1',
       },
-      'env'
+      'env',
+      { publicLink: true }
     );
 
     expect(instructions).toContain(GATED);
   });
 
-  it('prints the tokenized preview for every controller session type', () => {
+  it('prints the tokenized preview for every controller session type with --public-link', () => {
     const controllers = [
       {
         __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
@@ -429,11 +534,13 @@ describe('gated preview links', () => {
     ];
 
     for (const remoteConfig of controllers) {
-      expect(formatRemoteSessionInstructions(remoteConfig, 'env')).toContain(GATED);
+      expect(formatRemoteSessionInstructions(remoteConfig, 'env', { publicLink: true })).toContain(
+        GATED
+      );
     }
   });
 
-  it('prints the fragment link for every session the worker gave a preview api url', () => {
+  it('prints the fragment link for every session the worker gave a preview api url with --public-link', () => {
     const PAGE = 'https://expo.dev/simulator-preview/abc';
     const API = 'https://web-preview-abc.eas-simulator.ngrok.dev';
     const sessions = [
@@ -469,7 +576,9 @@ describe('gated preview links', () => {
     ];
 
     for (const remoteConfig of sessions) {
-      const instructions = formatRemoteSessionInstructions(remoteConfig, 'env');
+      const instructions = formatRemoteSessionInstructions(remoteConfig, 'env', {
+        publicLink: true,
+      });
       expect(instructions).toContain(`${PAGE}#token=tok-1`);
       expect(instructions).not.toContain('?token=');
     }

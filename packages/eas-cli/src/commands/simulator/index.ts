@@ -8,7 +8,7 @@ import {
   isAnalyticsOptedOutAsync,
 } from '../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../analytics/agent';
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../commandUtils/errors';
@@ -78,7 +78,7 @@ export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.';
 
   static override flags = {
     platform: Flags.option({
@@ -188,6 +188,10 @@ export default class Simulator extends EasCommand {
       options: Object.values(OUT_CONFIG_TYPE_VALUES),
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
+    'public-link': Flags.boolean({
+      description:
+        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -310,6 +314,7 @@ export default class Simulator extends EasCommand {
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
+    let deviceRunSessionPreviewUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
       const agentIdentity = await agentIdentityInputAsync();
@@ -363,6 +368,11 @@ export default class Simulator extends EasCommand {
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
       deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        deviceRunSessionId
+      );
+      deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
         session.app.ownerAccount.name,
         session.app.slug,
         deviceRunSessionId
@@ -496,7 +506,11 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
+        remoteConfig: sanitizeRemoteConfigForJson(
+          remoteConfig,
+          deviceRunSessionPreviewUrl,
+          flags['public-link']
+        ),
       });
       return;
     }
@@ -507,6 +521,8 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        privatePreviewUrl: deviceRunSessionPreviewUrl,
+        publicLink: flags['public-link'],
         platform,
       })
     );

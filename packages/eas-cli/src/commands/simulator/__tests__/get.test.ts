@@ -154,10 +154,76 @@ describe(SimulatorGet, () => {
       updatedAt: '2025-01-01T00:01:00.000Z',
       deviceRunSessionUrl:
         'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
-      remoteConfig: session.remoteConfig,
+      remoteConfig: {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl:
+          'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview',
+        previewApiUrl: undefined,
+      },
       artifacts: session.artifacts,
     });
   });
+
+  it.each([false, true])(
+    'uses the %s public-link choice for JSON and human previews',
+    async publicLink => {
+      const publicUrl = 'https://expo.dev/simulator-preview/preview-123';
+      const privateUrl =
+        'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview';
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: publicUrl,
+            previewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+      const choice = publicLink ? ['--public-link'] : [];
+      const expectedUrl = publicLink ? `${publicUrl}#token=preview-secret` : privateUrl;
+      const expectedApiUrl = publicLink
+        ? 'https://preview-api.example.test/?token=preview-secret'
+        : 'https://preview-api.example.test';
+
+      const { command: jsonCommand } = createCommand(['--id', 'session-123', '--json', ...choice]);
+      await jsonCommand.runAsync();
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: expect.objectContaining({
+            previewUrl: expectedUrl,
+            previewApiUrl: expectedApiUrl,
+          }),
+        })
+      );
+      if (!publicLink) {
+        expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
+          'preview-secret'
+        );
+      }
+
+      jest.clearAllMocks();
+      mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: publicUrl,
+            previewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+      const { command: humanCommand } = createCommand(['--id', 'session-123', ...choice]);
+      await humanCommand.runAsync();
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(expectedUrl));
+      if (!publicLink) {
+        expect(JSON.stringify(jest.mocked(Log.log).mock.calls)).not.toContain('preview-secret');
+      }
+    }
+  );
 
   it('includes the session name in JSON and human output when the session is named', async () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));

@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -30,11 +30,15 @@ type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 export default class SimulatorGet extends EasCommand {
   static override aliases = ['sim:get'];
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
+    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser preview link requires sign-in.';
 
   static override flags = {
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
+    }),
+    'public-link': Flags.boolean({
+      description:
+        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -82,6 +86,11 @@ export default class SimulatorGet extends EasCommand {
       session.app.slug,
       session.id
     );
+    const deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
+      session.app.ownerAccount.name,
+      session.app.slug,
+      session.id
+    );
 
     if (jsonFlag) {
       printJsonOnlyOutput({
@@ -97,7 +106,11 @@ export default class SimulatorGet extends EasCommand {
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
         remoteConfig: session.remoteConfig
-          ? sanitizeRemoteConfigForJson(session.remoteConfig)
+          ? sanitizeRemoteConfigForJson(
+              session.remoteConfig,
+              deviceRunSessionPreviewUrl,
+              flags['public-link']
+            )
           : session.remoteConfig,
         artifacts: session.artifacts,
       });
@@ -113,6 +126,8 @@ export default class SimulatorGet extends EasCommand {
         Log.log(
           formatRemoteSessionInstructions(session.remoteConfig, 'env', {
             sessionUrl: deviceRunSessionUrl,
+            privatePreviewUrl: deviceRunSessionPreviewUrl,
+            publicLink: flags['public-link'],
             platform: session.platform,
           })
         );
