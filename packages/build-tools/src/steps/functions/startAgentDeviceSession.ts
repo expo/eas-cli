@@ -16,6 +16,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import { selectXcodeDeveloperDirectoryAsync } from '../utils/remoteDeviceRunSession';
 import {
@@ -204,6 +205,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
               logger: taskLogger,
               ...(buildId ? { buildId } : { applicationArchiveUrl: applicationArchiveUrl! }),
               graphqlClient: ctx.graphqlClient,
+              deviceRunSessionWorkerApi: buildId ? getDeviceRunSessionWorkerApi(ctx) : null,
               robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
               extensions: isIos ? ['app'] : ['apk'],
               signal: tasks.signal,

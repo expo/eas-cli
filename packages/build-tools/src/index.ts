@@ -33,5 +33,6 @@ export type { GradleProfileTask } from './android/gradleProfile';
 export * from './generic';
 
 export { Datadog } from './datadog';
+export { DEVICE_RUN_SESSION_TOKEN_ENV } from './steps/utils/deviceRunSessionWorkerApi';
 export { Sentry } from './sentry';
 export * from './runtimeSettings';

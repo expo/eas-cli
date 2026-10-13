@@ -1,6 +1,7 @@
 import {
   Artifacts,
   BuildContext,
+  DEVICE_RUN_SESSION_TOKEN_ENV,
   Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
@@ -10,6 +11,7 @@ import {
   BuildJob,
   BuildMode,
   BuildPhase,
+  EnvironmentSecretType,
   Ios,
   Job,
   Metadata,
@@ -281,7 +283,19 @@ export default class BuildService {
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
       const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken) {
+      const deviceRunSessionToken = job.secrets?.environmentSecrets?.find(
+        ({ name, type }) =>
+          name === DEVICE_RUN_SESSION_TOKEN_ENV && type === EnvironmentSecretType.STRING
+      )?.value;
+      if (!job.platform && deviceRunSessionToken) {
+        // A device run session job reports metrics with its session token, which names the
+        // session and its job run, so it does not need the account-wide robot access token.
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          deviceRunSessionToken,
+          target: { kind: 'deviceRunSession' },
+        });
+      } else if (robotAccessToken) {
         Datadog.setup({
           expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
           robotAccessToken,

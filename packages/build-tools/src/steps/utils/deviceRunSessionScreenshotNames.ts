@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const SHORT_COMMIT_HASH_LENGTH = 7;
 const MAX_APP_SLUG_LENGTH = 80;
@@ -52,12 +53,24 @@ export async function loadScreenshotSessionAsync(
   logger: bunyan
 ): Promise<ScreenshotSession | null> {
   try {
+    const signal = AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS);
+    const workerApi = getDeviceRunSessionWorkerApi(ctx);
+    if (workerApi) {
+      const application = await workerApi.getApplicationAsync({ signal });
+      return ScreenshotSessionSchema.parse({
+        platform: application.platform,
+        app: { slug: application.appSlug },
+        build: application.build
+          ? {
+              id: application.build.id,
+              gitCommitHash: application.build.gitCommitHash,
+              app: { slug: application.build.appSlug },
+            }
+          : null,
+      });
+    }
     const result = await ctx.graphqlClient
-      .query(
-        SCREENSHOT_SESSION_QUERY,
-        { deviceRunSessionId },
-        graphqlAbortContext(AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS))
-      )
+      .query(SCREENSHOT_SESSION_QUERY, { deviceRunSessionId }, graphqlAbortContext(signal))
       .toPromise();
     if (result.error) {
       throw result.error;
