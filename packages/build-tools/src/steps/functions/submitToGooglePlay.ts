@@ -11,7 +11,10 @@ import { z } from 'zod';
 
 import { GooglePlayAuthUtils } from '../utils/android/GooglePlayAuthUtils';
 import { GooglePlayClient, ReleaseStatus, ReleaseStatusZ } from '../utils/android/GooglePlayClient';
-import { GooglePlayUtils } from '../utils/android/GooglePlayUtils';
+import {
+  GooglePlayCommitOutcomeUnknownError,
+  GooglePlayUtils,
+} from '../utils/android/GooglePlayUtils';
 import { AndroidArtifactType } from '../utils/android/appArtifact';
 
 const InputsZ = z
@@ -175,6 +178,7 @@ async function submitToGooglePlayAsync({
 }): Promise<number> {
   let editId: string | undefined;
   let committed = false;
+  let commitOutcomeUnknown = false;
   try {
     const packageName = submission.package_name;
     logger.info(
@@ -227,9 +231,10 @@ async function submitToGooglePlayAsync({
     );
     return versionCode;
   } catch (error) {
+    commitOutcomeUnknown = error instanceof GooglePlayCommitOutcomeUnknownError;
     throw GooglePlayUtils.mapGooglePlayError(error);
   } finally {
-    if (editId && !committed) {
+    if (editId && !committed && !commitOutcomeUnknown) {
       try {
         await GooglePlayUtils.deleteEditAsync(client, {
           packageName: submission.package_name,

@@ -82,6 +82,8 @@ it.each([
   [404, 'Package not found', 'EAS_GOOGLE_PLAY_FIRST_UPLOAD'],
   [403, 'Version code 144 has already been used', 'EAS_GOOGLE_PLAY_VERSION_CODE_USED'],
   [403, 'The caller does not have permission', 'EAS_GOOGLE_PLAY_PERMISSION_DENIED'],
+  [403, 'privacy policy required', 'EAS_GOOGLE_PLAY_PRIVACY_POLICY_REQUIRED'],
+  [403, 'wrong signing key', 'EAS_GOOGLE_PLAY_REQUEST_FAILED'],
   [400, 'privacy policy required', 'EAS_GOOGLE_PLAY_PRIVACY_POLICY_REQUIRED'],
   [400, 'Only releases with status draft may be created on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
   [409, 'edit invalid', 'EAS_GOOGLE_PLAY_EDIT_INVALID'],

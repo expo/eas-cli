@@ -179,13 +179,21 @@ it('preserves the original failure when cleanup fails', async () => {
     cause: expect.objectContaining({ apiMessage: 'unknown track' }),
   });
 });
-it('does not publish outputs when commit outcome is unknown', async () => {
+it('does not delete the edit or publish outputs when commit outcome is unknown', async () => {
   upload();
   api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
   api().post(`${editPath}:commit`).query(true).reply(503);
-  api().delete(editPath).reply(204);
+  let deleted = false;
+  api()
+    .delete(editPath)
+    .optionally()
+    .reply(() => {
+      deleted = true;
+      return [204];
+    });
   const task = submission();
   await expect(task.run()).rejects.toBeInstanceOf(SystemError);
+  expect(deleted).toBe(false);
   expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
 });
 it('reports a missing service-account file with its path', async () => {
@@ -201,4 +209,14 @@ it('does not expose invalid credential contents', async () => {
     .catch(error => error);
   expect(error).toBeInstanceOf(UserError);
   expect(JSON.stringify(error) + String(error)).not.toContain('PRIVATE_SECRET');
+});
+
+it('preserves the cause when the service-account file cannot be read', async () => {
+  const cause = Object.assign(new Error('permission denied'), { code: 'EACCES' });
+  const read = jest.spyOn(fs, 'readFile').mockRejectedValueOnce(cause);
+  try {
+    await expect(submission().run()).rejects.toMatchObject({ cause });
+  } finally {
+    read.mockRestore();
+  }
 });

@@ -8,6 +8,8 @@ import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePla
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
+export class GooglePlayCommitOutcomeUnknownError extends SystemError {}
+
 export namespace GooglePlayUtils {
   export async function uploadApplicationAsync(
     client: GooglePlayClient,
@@ -165,7 +167,7 @@ export namespace GooglePlayUtils {
           error.status === 408 ||
           error.status === 429
         ) {
-          throw new SystemError(
+          throw new GooglePlayCommitOutcomeUnknownError(
             'Google Play commit outcome is unknown. Check the release in Play Console before you submit again. The commit was not retried.',
             { cause: error }
           );
@@ -247,14 +249,6 @@ export namespace GooglePlayUtils {
       detail =
         'This version code was already uploaded. Increase the Android version code and build a new binary.';
     } else if (
-      error.status === 401 ||
-      error.status === 403 ||
-      message.includes('The caller does not have permission')
-    ) {
-      code = 'EAS_GOOGLE_PLAY_PERMISSION_DENIED';
-      detail =
-        'The Google service account cannot submit this app. Check its key and app permissions in Play Console.';
-    } else if (
       /privacy policy/i.test(message) ||
       reasons.has('apkNotificationMessageKeyPermissionsRequirePrivacyPolicy') ||
       message.includes('apkNotificationMessageKeyPermissionsRequirePrivacyPolicy')
@@ -269,6 +263,10 @@ export namespace GooglePlayUtils {
       code = 'EAS_GOOGLE_PLAY_EDIT_INVALID';
       detail =
         'The Google Play edit is no longer valid. A concurrent edit or Play Console change can invalidate it. Check the app in Play Console before you submit again.';
+    } else if (error.status === 401 || message.includes('The caller does not have permission')) {
+      code = 'EAS_GOOGLE_PLAY_PERMISSION_DENIED';
+      detail =
+        'The Google service account cannot submit this app. Check its key and app permissions in Play Console.';
     } else if (error.status === 400) {
       code = 'EAS_GOOGLE_PLAY_INVALID_RELEASE';
       detail =

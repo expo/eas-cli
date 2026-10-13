@@ -18,6 +18,18 @@ export namespace GooglePlayAuthUtils {
   }: {
     keyPath: string;
   }): Promise<GoogleServiceAccount> {
+    let contents: string;
+    try {
+      contents = await fs.readFile(keyPath, 'utf8');
+    } catch (error) {
+      throw new UserError(
+        'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
+        (error as NodeJS.ErrnoException).code === 'ENOENT'
+          ? `Service-account key file not found at ${keyPath}.`
+          : `Cannot read the service-account key file at ${keyPath}.`,
+        { cause: error }
+      );
+    }
     try {
       const credentials = z
         .object({
@@ -26,25 +38,13 @@ export namespace GooglePlayAuthUtils {
           private_key: z.string().min(1),
           private_key_id: z.string().optional(),
         })
-        .parse(JSON.parse(await fs.readFile(keyPath, 'utf8')));
+        .parse(JSON.parse(contents));
       const privateKey = createPrivateKey(credentials.private_key);
       if (privateKey.asymmetricKeyType !== 'rsa') {
         throw new Error('Expected an RSA private key.');
       }
       return { ...credentials, private_key: privateKey };
-    } catch (error) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ) {
-        throw new UserError(
-          'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
-          `Service-account key file not found at ${keyPath}.`,
-          { cause: error }
-        );
-      }
+    } catch {
       // Neither JSON parse errors nor validation errors may include credential content.
       throw new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
