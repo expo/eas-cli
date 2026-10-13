@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
+- [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
@@ -56,6 +57,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Improve the embedded bundle upload output in build logs. ([#4557](https://github.com/expo/eas-cli/pull/4557) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Allow the unnotarized mitmproxy cask to run in iOS network capture sessions. ([#4556](https://github.com/expo/eas-cli/pull/4556) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Open Android URLs with a VIEW intent instead of pinning them to the launch activity. ([#4559](https://github.com/expo/eas-cli/pull/4559) by [@kudo](https://github.com/kudo))
 
 ### 🧹 Chores
 

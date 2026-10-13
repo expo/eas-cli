@@ -29,6 +29,7 @@ import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
 import { createReadAndroidAppInfoBuildFunction } from './functions/readAndroidAppInfo';
+import { createSubmitToGooglePlayBuildFunction } from './functions/submitToGooglePlay';
 import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
@@ -141,6 +142,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     calculateEASUpdateRuntimeVersionFunction(),
 
     createSubmissionEntityFunction(),
+    createSubmitToGooglePlayBuildFunction(),
     createUploadToAscBuildFunction(),
     createUpdateTestFlightMetadataBuildFunction(),
 
