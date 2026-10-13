@@ -126,6 +126,7 @@ export default class IosCredentialsManager {
 
       logger.info('Validating whether distribution certificate has been imported successfully');
       await this.keychain.ensureCertificateImported({
+        logger,
         teamId: provisioningProfile.data.teamId,
         fingerprint: certificateFingerprint,
       });
