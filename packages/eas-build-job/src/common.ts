@@ -207,6 +207,7 @@ const GitHubContextZ = z.object({
     .record(z.string(), z.unknown())
     .and(
       z.object({
+        action: z.string().optional(),
         label: z
           .looseObject({
             name: z.string(),
@@ -221,6 +222,19 @@ const GitHubContextZ = z.object({
         pull_request: z
           .looseObject({
             number: z.number(),
+            title: z.string().optional(),
+            body: z.string().nullable().optional(),
+            state: z.enum(['open', 'closed']).optional(),
+            draft: z.boolean().optional(),
+            merged: z.boolean().nullable().optional(),
+            html_url: z.string().optional(),
+            user: z.looseObject({ login: z.string() }).nullable().optional(),
+            labels: z.array(z.looseObject({ name: z.string() })).optional(),
+            head: z.looseObject({ ref: z.string(), sha: z.string() }).optional(),
+            base: z.looseObject({ ref: z.string(), sha: z.string() }).optional(),
+            created_at: z.string().optional(),
+            updated_at: z.string().optional(),
+            merged_at: z.string().nullable().optional(),
           })
           .optional(),
         number: z.number().optional(),
