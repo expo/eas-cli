@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix capability sync failing for App Clip targets with the on-demand install entitlement. ([#4617](https://github.com/expo/eas-cli/pull/4617) by [@janicduplessis](https://github.com/janicduplessis))
+
 ### 🧹 Chores
 
 - [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
