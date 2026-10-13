@@ -263,7 +263,13 @@ export async function downloadBuildAsync(
       deviceRunSessionWorkerApi,
       signal,
     });
-    headers = robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined;
+    // The archive URL from the device run session worker API points to an artifact route that
+    // needs no auth. After www stops minting EXPO_TOKEN for session jobs, robotAccessToken is the
+    // session token, and www rejects it as a bearer credential on every route.
+    headers =
+      robotAccessToken && !deviceRunSessionWorkerApi
+        ? { Authorization: `Bearer ${robotAccessToken}` }
+        : undefined;
   } else {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',

@@ -334,7 +334,7 @@ describe('with a device run session token', () => {
     expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
   });
 
-  it('downloads the session build from the archive URL that the worker API returns', async () => {
+  it('downloads the session build from the worker API archive URL without an Authorization header', async () => {
     const ctx = createCtx({ withToken: true });
     jest.mocked(turtleFetch).mockResolvedValueOnce(
       jsonResponse({
@@ -365,7 +365,10 @@ describe('with a device run session token', () => {
     ).rejects.toThrow('Unexpected response from server (500): stop here');
 
     expectWorkerApiCall('application', 'GET');
-    expect(jest.mocked(fetch)).toHaveBeenCalledWith(APPLICATION_ARCHIVE_URL, expect.anything());
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      APPLICATION_ARCHIVE_URL,
+      expect.objectContaining({ headers: undefined })
+    );
     expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
   });
 
