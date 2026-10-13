@@ -109,6 +109,17 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
   return authtoken;
 }
 
+/**
+ * Returns the step env without NGROK_AUTHTOKEN, for everything the step spawns.
+ * Only the step process opens ngrok tunnels. The processes it starts (daemons,
+ * preview servers, package installs) are reachable by whoever controls the
+ * session, and the token can run tunnels on Expo's ngrok account.
+ */
+export function omitNgrokAuthtoken(env: BuildStepEnv): BuildStepEnv {
+  const { NGROK_AUTHTOKEN: _ngrokAuthtoken, ...childEnv } = env;
+  return childEnv;
+}
+
 const TurnIceServersSchema = z.array(
   z.object({
     urls: z.array(z.string()),

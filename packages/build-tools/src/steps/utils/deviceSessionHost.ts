@@ -36,7 +36,6 @@ import {
   fetchWebPreviewTurnArgsAsync,
   findAvailablePortAsync,
   getDeviceRunSessionIdOrThrow,
-  getNgrokAuthtokenOrThrow,
   isProcessRunning,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -316,7 +315,7 @@ export type DeviceWebPreview = {
 };
 
 export type DeviceSessionHost = {
-  openPreviewAsync(options: { baseDomain: string }): Promise<DeviceWebPreview>;
+  openPreviewAsync(options: { baseDomain: string; authtoken: string }): Promise<DeviceWebPreview>;
   /**
    * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
    * and reported, so callers need no error handling around it.
@@ -529,7 +528,7 @@ async function startDeviceSessionHostInternalAsync(
   let previewFailed = false;
 
   const host: DeviceSessionHost = {
-    openPreviewAsync({ baseDomain }) {
+    openPreviewAsync({ baseDomain, authtoken }) {
       if (finishTask) {
         return Promise.reject(
           new SystemError('Cannot open a preview after session host finalization.')
@@ -544,7 +543,7 @@ async function startDeviceSessionHostInternalAsync(
           subdomainPrefix: 'web-preview',
           subdomainId,
           baseDomain,
-          authtoken: getNgrokAuthtokenOrThrow(env),
+          authtoken,
           logger,
         });
         if (finishTask) {

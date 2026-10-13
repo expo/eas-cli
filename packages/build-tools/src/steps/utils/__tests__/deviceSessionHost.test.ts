@@ -81,7 +81,6 @@ function deferred<T>() {
 
 const env = {
   DEVICE_RUN_SESSION_ID: 'drs-id',
-  NGROK_AUTHTOKEN: 'token',
 } as BuildStepEnv;
 const ctx = {} as CustomBuildContext;
 const logger = {
@@ -94,6 +93,7 @@ const closeTunnel = jest.fn();
 const directories: string[] = [];
 const hubStateFiles: string[] = [];
 const baseDomain = 'preview.example.test';
+const authtoken = 'ngrok-token';
 
 // expo-device-hub records its session token in `server-<port>.json` before it answers /readyz,
 // in the state directory it resolves from its env.
@@ -543,15 +543,15 @@ it('records by default with no preview and finalizes before process stop, upload
   expect(stopServer.mock.invocationCallOrder[0]).toBeLessThan(
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.invocationCallOrder[0]
   );
-  await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow(
+  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
     'after session host finalization'
   );
 });
 
 it('coalesces preview opens and allows close/reopen without ending capture', async () => {
   const host = await startHostAsync();
-  const opening = host.openPreviewAsync({ baseDomain });
-  expect(host.openPreviewAsync({ baseDomain })).toBe(opening);
+  const opening = host.openPreviewAsync({ baseDomain, authtoken });
+  expect(host.openPreviewAsync({ baseDomain, authtoken })).toBe(opening);
   const first = await opening;
   const closing = first.closeAsync();
   expect(first.closeAsync()).toBe(closing);
@@ -561,9 +561,9 @@ it('coalesces preview opens and allows close/reopen without ending capture', asy
     url: () => 'https://replacement.example.test',
     close: secondClose,
   } as never);
-  const second = await host.openPreviewAsync({ baseDomain });
+  const second = await host.openPreviewAsync({ baseDomain, authtoken });
   await first.closeAsync();
-  expect(await host.openPreviewAsync({ baseDomain })).toBe(second);
+  expect(await host.openPreviewAsync({ baseDomain, authtoken })).toBe(second);
   expect(secondClose).not.toHaveBeenCalled();
   expect(spawnDetached).toHaveBeenCalledTimes(1);
   expect(stopServer).not.toHaveBeenCalled();
@@ -578,9 +578,11 @@ it('coalesces preview opens and allows close/reopen without ending capture', asy
 it('retries a failed tunnel without restarting the host', async () => {
   const host = await startHostAsync();
   jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
-  await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow('tunnel unavailable');
+  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
+    'tunnel unavailable'
+  );
   expect(stopServer).not.toHaveBeenCalled();
-  await host.openPreviewAsync({ baseDomain });
+  await host.openPreviewAsync({ baseDomain, authtoken });
   expect(spawnDetached).toHaveBeenCalledTimes(1);
   await host.finishAsync();
   expect(closeTunnel).toHaveBeenCalledTimes(1);
@@ -590,9 +592,9 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
   const host = await startHostAsync();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
-  const opening = host.openPreviewAsync({ baseDomain });
+  const opening = host.openPreviewAsync({ baseDomain, authtoken });
   const finishing = host.finishAsync();
-  await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow(
+  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
     'after session host finalization'
   );
   tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
@@ -615,7 +617,7 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
   });
   const host = await startHostAsync();
   await writeFile(path.join(directories[0], 'recordings.json'), '[]');
-  await host.openPreviewAsync({ baseDomain });
+  await host.openPreviewAsync({ baseDomain, authtoken });
   closeTunnel.mockRejectedValueOnce(new Error('tunnel close failure'));
   jest.mocked(turtleFetch).mockResolvedValueOnce({
     ok: false,
@@ -738,7 +740,7 @@ it.each([true, false])(
 
 it('finishes despite a stalled tunnel close', async () => {
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain });
+  await host.openPreviewAsync({ baseDomain, authtoken });
   const closing = deferred<void>();
   closeTunnel.mockReturnValueOnce(closing.promise);
   jest.useFakeTimers();
@@ -826,7 +828,7 @@ it('closes a listener that arrives after finish has already timed out waiting fo
   const host = await startHostAsync();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
-  const opening = host.openPreviewAsync({ baseDomain });
+  const opening = host.openPreviewAsync({ baseDomain, authtoken });
   const rejected = expect(opening).rejects.toThrow('finalized while the preview was opening');
   jest.useFakeTimers();
   const finishing = host.finishAsync();
@@ -846,7 +848,7 @@ it('starts expo-device-hub with a session token and the website origins', async 
   expect(args.join(' ')).toContain(
     '--cors-origin https://expo.dev --frame-ancestor https://expo.dev'
   );
-  const preview = await host.openPreviewAsync({ baseDomain });
+  const preview = await host.openPreviewAsync({ baseDomain, authtoken });
   expect(preview.previewToken).toBe('hub-preview-token');
   await host.finishAsync();
 });
@@ -866,7 +868,9 @@ it.each([
   });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.env.EXPO_DEVICE_HUB_STATE_DIR).toBe(EXPO_DEVICE_HUB_STATE_DIR);
-  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('hub-preview-token');
+  expect((await host.openPreviewAsync({ baseDomain, authtoken })).previewToken).toBe(
+    'hub-preview-token'
+  );
   await host.finishAsync();
 });
 
@@ -956,7 +960,9 @@ it('adds the iOS preview token to the host secrets once serve-sim is ready', asy
     'turn-secret',
     'preview-token',
   ]);
-  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('preview-token');
+  expect((await host.openPreviewAsync({ baseDomain, authtoken })).previewToken).toBe(
+    'preview-token'
+  );
   await host.finishAsync();
 });
 
@@ -1075,7 +1081,7 @@ it.each([
     exitError ??= new Error('Process exited with signal SIGTERM.');
   });
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain });
+  await host.openPreviewAsync({ baseDomain, authtoken });
   const directory = directories[0];
   await writeRecordingDescriptorAsync(directory);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
@@ -1101,7 +1107,7 @@ it.each([
 
 it('ends the preview phase with failure when the tunnel cannot close', async () => {
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain });
+  await host.openPreviewAsync({ baseDomain, authtoken });
   closeTunnel.mockRejectedValue(new Error('tunnel close failure'));
   jest.useFakeTimers();
   const finishing = host.finishAsync();
@@ -1136,7 +1142,9 @@ it('ends the preview phase with failure when startup never provides a token', as
 it('ends the preview phase with failure if opening the tunnel fails', async () => {
   const host = await startHostAsync();
   jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
-  await expect(host.openPreviewAsync({ baseDomain })).rejects.toThrow('tunnel unavailable');
+  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
+    'tunnel unavailable'
+  );
   await host.finishAsync();
   expect(logger.info).toHaveBeenCalledWith(
     { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
@@ -1163,7 +1171,7 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
       logger,
       timeoutMs: 10_000,
     });
-    await host.openPreviewAsync({ baseDomain });
+    await host.openPreviewAsync({ baseDomain, authtoken });
     const directory =
       jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
     if (!directory) {
