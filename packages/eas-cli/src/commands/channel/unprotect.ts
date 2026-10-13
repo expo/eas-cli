@@ -14,7 +14,7 @@ import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelUnprotect extends EasCommand {
-  static override description = "remove a channel's admin-only publishing restriction";
+  static override description = "remove a channel's protected publishing restriction";
 
   static override args = {
     name: Args.string({
