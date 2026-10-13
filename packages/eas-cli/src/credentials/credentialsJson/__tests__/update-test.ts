@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
+import path from 'path';
 import prompts from 'prompts';
 
 import { IosDistributionType } from '../../../graphql/generated';
@@ -114,6 +115,26 @@ describe('update credentials.json', () => {
       const newCredJson = await fs.readJson('./credentials.json');
       expect(keystore).toEqual('c29tZWJpbmFyeWRhdGE='); // base64 "somebinarydata"
       expect(newCredJson).toEqual(credJson);
+    });
+    it('should write the keystore to the project directory when it is not the current directory', async () => {
+      const projectDir = '/app';
+      const ctx = createCtxMock({ projectDir });
+      vol.fromJSON({
+        '/app/credentials.json': JSON.stringify({
+          android: {
+            keystore: {
+              keystorePath: 'keystore.jks',
+              keystorePassword: 'keystorePassword',
+              keyAlias: 'keyAlias',
+              keyPassword: 'keyPassword',
+            },
+          },
+        }),
+        '/app/keystore.jks': 'somebinarydata',
+      });
+      await updateAndroidCredentialsAsync(ctx, testLegacyAndroidBuildCredentialsFragment);
+      expect(await fs.readFile('/app/keystore.jks', 'base64')).toEqual(testKeystore.keystore);
+      expect(await fs.pathExists(path.join(process.cwd(), 'keystore.jks'))).toBe(false);
     });
     it('should update keystore and credentials.json if android part of credentials.json is not valid', async () => {
       const ctx = createCtxMock();
@@ -256,6 +277,29 @@ describe('update credentials.json', () => {
           },
         },
       });
+    });
+    it('should write ios credentials to the project directory when it is not the current directory', async () => {
+      const ctx = createCtxMock({
+        projectDir: '/app',
+        ios: {
+          ...getNewIosApiMock(),
+          getIosAppCredentialsWithCommonFieldsAsync: jest.fn(
+            () => testCommonIosAppCredentialsFragment
+          ),
+        },
+      });
+      vol.fromJSON({ '/app/package.json': '{}' });
+      const app = await getAppFromContextAsync(ctx);
+
+      await updateIosCredentialsAsync(ctx, app, targets, IosDistributionType.AppStore);
+
+      expect(await fs.readFile('/app/credentials/ios/dist-cert.p12', 'base64')).toEqual(
+        testDistCertFragmentNoDependencies.certificateP12
+      );
+      expect(await fs.readFile('/app/credentials/ios/profile.mobileprovision', 'base64')).toEqual(
+        testProvisioningProfileFragment.provisioningProfile
+      );
+      expect(await fs.pathExists(path.join(process.cwd(), 'credentials'))).toBe(false);
     });
     it('should not do anything if no credentials are returned from www', async () => {
       const ctx = createCtxMock({

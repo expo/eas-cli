@@ -291,8 +291,8 @@ async function updateFileAsync(
     await fs.remove(absolutePath);
   }
   if (base64Data) {
-    await fs.mkdirp(path.dirname(filePath));
-    await fs.writeFile(filePath, Buffer.from(base64Data, 'base64'));
+    await fs.mkdirp(path.dirname(absolutePath));
+    await fs.writeFile(absolutePath, Buffer.from(base64Data, 'base64'));
   }
 }
 
