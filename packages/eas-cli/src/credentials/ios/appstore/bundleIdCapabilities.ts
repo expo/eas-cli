@@ -185,9 +185,12 @@ function getCapabilitiesToDisable(
 
   for (const existingCapability of currentCapabilities) {
     // GC and IAP are always enabled in apps by default so we should avoid modifying them.
+    // App Clip bundle IDs are created with ON_DEMAND_INSTALL_CAPABLE, and Xcode adds its
+    // entitlement at signing time, so it is often missing from the local entitlements.
     if (
       existingCapability.isType(CapabilityType.IN_APP_PURCHASE) ||
-      existingCapability.isType(CapabilityType.GAME_CENTER)
+      existingCapability.isType(CapabilityType.GAME_CENTER) ||
+      existingCapability.isType(CapabilityType.ON_DEMAND_INSTALL_CAPABLE)
     ) {
       continue;
     }
