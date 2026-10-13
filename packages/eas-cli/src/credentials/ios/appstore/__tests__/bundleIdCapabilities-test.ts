@@ -67,6 +67,25 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     ]);
   });
 
+  it('does not re-enable the on-demand install capability of an App Clip', async () => {
+    const capabilities = [
+      {
+        id: 'QQT5Y8UUW9_ON_DEMAND_INSTALL_CAPABLE',
+        attributes: { settings: null, capabilityType: 'ON_DEMAND_INSTALL_CAPABLE' },
+      },
+    ].map(({ id, attributes }) => new BundleIdCapability(ctx, id, attributes as any));
+    const bundleId = createMockBundleId('QQT5Y8UUW9', capabilities);
+
+    const result = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      { 'com.apple.developer.on-demand-install-capable': true },
+      noBroadcastNotificationOption
+    );
+
+    expect(result).toStrictEqual({ enabled: [], disabled: [] });
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+  });
+
   it('skips syncing capabilities with settings if they do not contain the expected `enabled` field', async () => {
     const capabilityJson = {
       id: 'U78L9459DG_APPLE_ID_AUTH',
@@ -509,7 +528,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         option: 'ON',
       },
       {
-        capabilityType: 'ONDEMANDINSTALL_EXTENSIONS',
+        capabilityType: 'ON_DEMAND_INSTALL_CAPABLE',
         option: 'ON',
       },
       {
