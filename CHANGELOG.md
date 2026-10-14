@@ -2,18 +2,6 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
-## main
-
-### 🛠 Breaking changes
-
-### 🎉 New features
-
-- [build-tools] Add the `eas/record_serve_sim_network_capture` and `eas/collect_serve_sim_network_capture` steps, which record each serve-sim's network capture with `serve-sim capture har` and upload the HAR as a session artifact. The recording continues through capture restarts. ([#4495](https://github.com/expo/eas-cli/pull/4495) by [@gwdp](https://github.com/gwdp))
-
-### 🐛 Bug fixes
-
-### 🧹 Chores
-
 ## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
 
 ### 🎉 New features
