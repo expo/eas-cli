@@ -72,7 +72,6 @@ const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
 const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
-const SERVE_SIM_HELP_PROBE_TIMEOUT_MS = 30_000;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -105,76 +104,6 @@ export function websiteOriginArgs(env: BuildStepEnv): string[] {
 
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
-}
-
-/** Observe the launcher exit, not pipe close: package-manager descendants can hold pipes open. */
-export async function probeServeSimHelpAsync({
-  command,
-  args,
-  env,
-  timeoutMs = SERVE_SIM_HELP_PROBE_TIMEOUT_MS,
-}: {
-  command: string;
-  args: string[];
-  env: BuildStepEnv;
-  timeoutMs?: number;
-}): Promise<boolean> {
-  let probe: DetachedProcessHandle | undefined;
-  try {
-    const spawned = spawnDetached({ command, args, env, stopGracePeriodMs: 0 });
-    probe = spawned;
-    return await withDeviceRunSessionTimeoutAsync(
-      { name: 'serve-sim help probe', timeoutMs },
-      async signal => {
-        while (!spawned.getOutput().includes('--disable-share') && !spawned.getExitError()) {
-          signal.throwIfAborted();
-          await sleepAsync(25);
-        }
-        // The child exit event may arrive just before its last stdout chunk.
-        if (!spawned.getOutput().includes('--disable-share')) {
-          await sleepAsync(25);
-        }
-        return spawned.getOutput().includes('--disable-share');
-      }
-    );
-  } catch {
-    return false;
-  } finally {
-    // SIGKILL is sent synchronously after SIGTERM (zero grace period). The asynchronous
-    // reap check is observed but cannot extend the probe's hard deadline.
-    if (probe) {
-      void probe.stopAsync().catch(() => {});
-    }
-  }
-}
-
-async function canDisableServeSimShareAsync({
-  disableShare,
-  packageVersion,
-  packageManager,
-  env,
-  logger,
-}: {
-  disableShare: boolean;
-  packageVersion?: string;
-  packageManager: PackageManager;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<boolean> {
-  if (!disableShare || !packageVersion || packageVersion === 'latest') {
-    return disableShare;
-  }
-  const probe = resolvePackageExec(packageManager, [
-    createServeSimPackageSpec(packageVersion),
-    '--help',
-  ]);
-  if (await probeServeSimHelpAsync({ ...probe, env })) {
-    return true;
-  }
-  logger.warn(
-    `Could not confirm --disable-share support for serve-sim (${packageVersion}); Share remains available and copies the direct preview URL.`
-  );
-  return false;
 }
 
 function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): string {
@@ -529,15 +458,6 @@ async function startDeviceSessionHostInternalAsync(
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
   const packageManager = resolveConfiguredPackageManager(env, PackageManager.NPM);
-  const shouldDisableShare =
-    !isAndroid &&
-    (await canDisableServeSimShareAsync({
-      disableShare,
-      packageVersion,
-      packageManager,
-      env,
-      logger,
-    }));
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
   const previewExec = resolvePackageExec(
     packageManager,
@@ -555,8 +475,9 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
+          // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
           shareUrl: disableShare ? undefined : previewPageUrl,
-          disableShare: shouldDisableShare,
+          disableShare,
           installAppPath: iosSimulatorUdid ? undefined : installAppPath,
           launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
           launchArgs: iosSimulatorUdid ? [] : launchArgs,

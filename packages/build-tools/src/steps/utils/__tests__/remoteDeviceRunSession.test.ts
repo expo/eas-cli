@@ -1015,73 +1015,26 @@ describe(startDeviceSessionHostAsync, () => {
     await host.finishAsync();
   });
 
-  it('disables Share for the default serve-sim without an extra package probe', async () => {
-    const host = await startDeviceSessionHostAsync(createCtxMock(), {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger: createLoggerMock(),
-      timeoutMs: 10_000,
-      disableShare: true,
-    });
-
-    const serveSimCalls = jest
-      .mocked(spawn)
-      .mock.calls.filter(([, args]) => args.includes('@expo/serve-sim@latest'));
-    expect(serveSimCalls).toHaveLength(1);
-    expect(serveSimCalls[0][1]).toContain('--disable-share');
-    await host.finishAsync();
-  });
-
-  it.each([true, false])(
-    'keeps a pinned serve-sim launch compatible when --disable-share support is %s',
-    async supportsDisableShare => {
-      const logger = createLoggerMock();
-      const actualSpawnDetached = remoteDeviceRunSession.spawnDetached;
-      const stopProbe = jest.fn().mockResolvedValue(undefined);
-      const spawnDetachedSpy = jest
-        .spyOn(remoteDeviceRunSession, 'spawnDetached')
-        .mockImplementationOnce(() => ({
-          pid: 1234,
-          getOutput: () => (supportsDisableShare ? '--disable-share' : '--share-url'),
-          getExitError: () => new Error('Process exited with code 0.'),
-          stopAsync: stopProbe,
-        }))
-        .mockImplementation(actualSpawnDetached);
-
+  it.each([undefined, 'latest', '1.2.3'])(
+    'passes private sharing flags directly to serve-sim version %s',
+    async packageVersion => {
       const host = await startDeviceSessionHostAsync(createCtxMock(), {
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env,
-        logger,
+        logger: createLoggerMock(),
         timeoutMs: 10_000,
-        packageVersion: '1.2.3',
+        packageVersion,
         disableShare: true,
       });
 
-      expect(spawnDetachedSpy.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          command: 'npx',
-          args: ['--yes', '@expo/serve-sim@1.2.3', '--help'],
-          env,
-          stopGracePeriodMs: 0,
-        })
-      );
-      expect(stopProbe).toHaveBeenCalledTimes(1);
-      const launchArgs = jest
+      const serveSimCalls = jest
         .mocked(spawn)
-        .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@1.2.3'))![1];
-      expect(launchArgs).not.toContain('--share-url');
-      expect(launchArgs.includes('--disable-share')).toBe(supportsDisableShare);
-      const compatibilityWarnings = jest
-        .mocked(logger.warn)
-        .mock.calls.filter(([message]) =>
-          String(message).includes('Could not confirm --disable-share support')
+        .mock.calls.filter(([, args]) =>
+          args.includes(`@expo/serve-sim@${packageVersion ?? 'latest'}`)
         );
-      expect(compatibilityWarnings).toHaveLength(supportsDisableShare ? 0 : 1);
-      if (!supportsDisableShare) {
-        expect(compatibilityWarnings[0][0]).toBe(
-          'Could not confirm --disable-share support for serve-sim (1.2.3); Share remains available and copies the direct preview URL.'
-        );
-      }
+      expect(serveSimCalls).toHaveLength(1);
+      expect(serveSimCalls[0][1]).toContain('--disable-share');
+      expect(serveSimCalls[0][1]).not.toContain('--share-url');
       await host.finishAsync();
     }
   );
@@ -1228,6 +1181,7 @@ describe(startDeviceSessionHostAsync, () => {
       .mocked(spawn)
       .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
     expect(serveSimArgs[serveSimArgs.indexOf('--share-url') + 1]).toBe(preview.previewPageUrl);
+    expect(serveSimArgs).not.toContain('--disable-share');
   });
 
   it.each([
