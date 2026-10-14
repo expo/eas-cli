@@ -174,6 +174,11 @@ export namespace GooglePlayUtils {
         }
         throw error;
       }
+      logger.info(
+        changesNotSentForReview
+          ? 'Google Play saved the changes without sending them for review. Send them for review at https://play.google.com/console/.'
+          : 'Google Play saved the release using its normal review process. Check its review and publishing status at https://play.google.com/console/.'
+      );
     };
     try {
       // Omit the optional parameter for normal review submission. Some app states

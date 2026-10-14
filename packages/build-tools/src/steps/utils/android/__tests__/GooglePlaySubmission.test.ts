@@ -18,15 +18,17 @@ afterEach(() => {
 function commit({
   signal,
   changesNotSentForReview = false,
+  logger = createMockLogger(),
 }: {
   signal?: AbortSignal;
   changesNotSentForReview?: boolean;
+  logger?: ReturnType<typeof createMockLogger>;
 } = {}) {
   return GooglePlayUtils.commitEditAsync(new GooglePlayClient(serviceAccount), {
     packageName,
     editId: 'edit',
     changesNotSentForReview,
-    logger: createMockLogger(),
+    logger,
     signal,
   });
 }
@@ -57,10 +59,16 @@ it.each([
 ] as const)(
   'retries the rejected review setting (requested=%s)',
   async (changesNotSentForReview, initialQuery, message, retryQuery) => {
+    const logger = createMockLogger();
     mockToken();
     api().post(`${editPath}:commit`).query(initialQuery).reply(400, { error: { message } });
     api().post(`${editPath}:commit`).query(retryQuery).reply(200, { id: 'edit' });
-    await expect(commit({ changesNotSentForReview })).resolves.toBeUndefined();
+    await expect(commit({ changesNotSentForReview, logger })).resolves.toBeUndefined();
+    expect(logger.info).toHaveBeenLastCalledWith(
+      changesNotSentForReview
+        ? 'Google Play saved the release using its normal review process. Check its review and publishing status at https://play.google.com/console/.'
+        : 'Google Play saved the changes without sending them for review. Send them for review at https://play.google.com/console/.'
+    );
   }
 );
 it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
