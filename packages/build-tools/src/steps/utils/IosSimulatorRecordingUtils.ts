@@ -19,14 +19,22 @@ import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const IOS_SIMULATOR_RECORDING_POLL_INTERVAL_MS = 2_000;
-// Once the poller stops, each recording stops in parallel within 60 + 130 + 5 + 30 = 225 s.
+// Once the poller stops, each recording stops in parallel within 60 + 430 + 5 + 310 = 805 s.
 const SERVE_SIM_START_TIMEOUT_MS = 60_000;
-/** serve-sim finalizes an active recording within this grace period after SIGTERM. */
-export const SERVE_SIM_STOP_GRACE_PERIOD_MS = 90_000;
-const SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS = 30_000;
-// serve-sim may be stopping at the same time: its grace period, the manifest wait, and 10 s.
+// Match record-video's control request, recording lease, and finalization allowances.
+const SERVE_SIM_CONTROL_REQUEST_TIMEOUT_MS = 120_000;
+const SERVE_SIM_RECORDING_LEASE_MS = 180_000;
+const SERVE_SIM_FINALIZATION_TIMEOUT_MS = 120_000;
+const SERVE_SIM_SHUTDOWN_MARGIN_MS = 10_000;
+/** Give the session host time to finalize its active writer before SIGKILL. */
+export const SERVE_SIM_STOP_GRACE_PERIOD_MS =
+  SERVE_SIM_FINALIZATION_TIMEOUT_MS + SERVE_SIM_SHUTDOWN_MARGIN_MS;
+// A recorder can exit before its lease expires and the host writes the manifest.
+const SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS =
+  SERVE_SIM_RECORDING_LEASE_MS + SERVE_SIM_FINALIZATION_TIMEOUT_MS + SERVE_SIM_SHUTDOWN_MARGIN_MS;
+// An ambiguous stop can use a full control request before lease/finalization reconciliation.
 const SERVE_SIM_FINISH_TIMEOUT_MS =
-  SERVE_SIM_STOP_GRACE_PERIOD_MS + SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS + 10_000;
+  SERVE_SIM_CONTROL_REQUEST_TIMEOUT_MS + SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS;
 const SERVE_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
 const SERVE_SIM_RECORDING_STARTED = 'serve-sim:recording-started';
 // The serve-sim package the session host started; every recorder runs `record-video` from it.
@@ -46,6 +54,7 @@ type IosSimulatorRecording = {
 type ActiveIosSimulatorRecording = IosSimulatorRecording & {
   recordingProcess: ChildProcess;
   completionPromise: Promise<void>;
+  hasExited: () => boolean;
 };
 
 type IosSimulatorRecordingSession = {
@@ -128,6 +137,7 @@ export namespace IosSimulatorRecordingUtils {
         logger.info(`Stopping screen recording for ${recording.deviceName}.`);
         const startState = await waitForRecorderStartAsync(recording, SERVE_SIM_START_TIMEOUT_MS);
         if (startState === 'exited') {
+          await recording.completionPromise;
           return;
         }
         if (startState === 'timeout') {
@@ -357,6 +367,7 @@ async function startIosSimulatorRecordingAsync(
     });
     return true;
   };
+  let processExited = false;
   const completionPromise = (async () => {
     let spawnError: unknown;
     try {
@@ -367,6 +378,7 @@ async function startIosSimulatorRecordingAsync(
     // A package-manager wrapper can exit while its record-video child still
     // runs in the detached group. Keep this device active until the group exits.
     await waitForRecordingProcessGroupExitAsync(recordingSpawn.child);
+    processExited = true;
     // Host shutdown can end the recorder's lease after its video has been saved.
     if ((hasStarted() || !spawnError) && (await saveFinalizedRecordingAsync())) {
       return;
@@ -400,6 +412,7 @@ async function startIosSimulatorRecordingAsync(
     outputDirectory,
     recordingProcess: recordingSpawn.child,
     completionPromise,
+    hasExited: () => processExited,
     startedAt,
     getOutput,
     hasStarted,
@@ -428,6 +441,9 @@ async function waitForRecorderStartAsync(
 ): Promise<'started' | 'exited' | 'timeout'> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (recording.hasExited()) {
+      return 'exited';
+    }
     if (recording.hasStarted()) {
       return 'started';
     }
@@ -439,7 +455,7 @@ async function waitForRecorderStartAsync(
       return 'exited';
     }
   }
-  return 'timeout';
+  return recording.hasExited() ? 'exited' : recording.hasStarted() ? 'started' : 'timeout';
 }
 
 function reportLostRecording(logger: bunyan, deviceName: string, recorderOutput: string): void {

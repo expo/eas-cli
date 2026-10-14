@@ -10,14 +10,26 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Add the `eas/record_serve_sim_network_capture` and `eas/collect_serve_sim_network_capture` steps, which record each serve-sim's network capture with `serve-sim capture har` and upload the HAR as a session artifact. The recording continues through capture restarts. ([#4495](https://github.com/expo/eas-cli/pull/4495) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Collect simulator crash reports and app log tails as session artifacts. ([#4596](https://github.com/expo/eas-cli/pull/4596) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
+## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
+
+### 🎉 New features
+
+- [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
+
+### 🐛 Bug fixes
+
+- [build-tools] Allow more time for iOS screen recordings to finalize during session shutdown. ([#4626](https://github.com/expo/eas-cli/pull/4626) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
 - [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Download the upterm binary through the build cache proxy. ([#4442](https://github.com/expo/eas-cli/pull/4442) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
