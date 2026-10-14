@@ -186,7 +186,7 @@ test('reports a started recording that ends without a manifest to Sentry', async
   child.stderr?.emit('data', 'GET http://127.0.0.1:43563/record?token=session-token failed\n');
   exitRecorder();
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await setTimeout(1_100);
 
   expect(Sentry.capture).toHaveBeenCalledWith(
@@ -226,7 +226,7 @@ test('says when a recorder never reported its start before it is stopped', async
   await setTimeout(50);
   currentTime += 61_000;
   await setTimeout(200);
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(child.kill).toHaveBeenCalledWith('SIGINT');
@@ -377,7 +377,7 @@ test('does not signal a recorder that exits before it reports its start', async 
   recorder.exit();
   await setTimeout(50);
   // Past the manifest wait, so the recorder's completion settles.
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(recorder.child.kill).not.toHaveBeenCalled();
@@ -435,7 +435,7 @@ test('reports a finalized recording whose manifest is gone at finish', async () 
   await rm(manifest);
   const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(Sentry.capture).toHaveBeenCalledWith(
@@ -493,7 +493,7 @@ test('reports a started recorder that fails without a manifest', async () => {
   recorder.child.stderr?.emit('data', 'serve-sim:recording-started\n');
   recorder.fail(new Error('record-video exited with code 1'));
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await setTimeout(1_100);
 
   expect(logger.warn).toHaveBeenCalledWith(
@@ -534,6 +534,6 @@ test('records every booted device with the first serve-sim package', async () =>
 
   recorder.exit();
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await IosSimulatorRecordingUtils.finishAsync({ logger });
 });
