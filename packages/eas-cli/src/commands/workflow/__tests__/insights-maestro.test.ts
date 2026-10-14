@@ -42,6 +42,13 @@ const totals: any = {
   distinctFlakyTestCount: metric(3, 2),
   avgDurationMs: { currentValue: 42100, previousValue: 45000 },
   p90DurationMs: { currentValue: 72000, previousValue: null },
+  platforms: [
+    {
+      platform: 'IOS',
+      totalRuns: metric(120, 100),
+      distinctTestCount: metric(8, 8),
+    },
+  ],
 };
 
 const timeSeries: any[] = [
@@ -175,6 +182,8 @@ describe(WorkflowInsightsMaestro, () => {
       'FLAKY',
       '--tag',
       'smoke',
+      '--platform',
+      'ios',
       '--git-ref',
       'main',
       '--search',
@@ -196,6 +205,7 @@ describe(WorkflowInsightsMaestro, () => {
           workflowIds: ['id-of-e2e.yml'],
           statuses: ['PASSED_CLEAN', 'FLAKY'],
           tags: ['smoke'],
+          platforms: ['IOS'],
           gitRefs: ['refs/heads/main'],
         },
         search: 'login',
@@ -206,7 +216,7 @@ describe(WorkflowInsightsMaestro, () => {
     );
   });
 
-  it('queries one flow history with --flow, keeping only the workflow and git ref filters', async () => {
+  it('queries one flow history with --flow, keeping the workflow, git ref, and platform filters', async () => {
     const { command } = createCommand([
       '--flow',
       'flows/login.yaml',
@@ -214,6 +224,8 @@ describe(WorkflowInsightsMaestro, () => {
       'e2e.yml',
       '--git-ref',
       'main',
+      '--platform',
+      'android',
     ]);
     await command.runAsync();
 
@@ -222,7 +234,11 @@ describe(WorkflowInsightsMaestro, () => {
       path: 'flows/login.yaml',
       startTime: '2026-09-01T00:00:00.000Z',
       endTime: '2026-09-09T00:00:00.000Z',
-      filters: { workflowIds: ['id-of-e2e.yml'], gitRefs: ['refs/heads/main'] },
+      filters: {
+        workflowIds: ['id-of-e2e.yml'],
+        gitRefs: ['refs/heads/main'],
+        platforms: ['ANDROID'],
+      },
       granularity: 'DAY',
       errorPatternsFirst: 5,
       recentRunsFirst: 50,
@@ -238,6 +254,11 @@ describe(WorkflowInsightsMaestro, () => {
 
   it('rejects unknown statuses', async () => {
     const { command } = createCommand(['--status', 'BROKEN']);
+    await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('rejects unknown platforms', async () => {
+    const { command } = createCommand(['--platform', 'web']);
     await expect(command.runAsync()).rejects.toThrow();
   });
 
@@ -264,6 +285,13 @@ describe(WorkflowInsightsMaestro, () => {
     expect(json.project).toBe('@acme/app');
     expect(json.totals.passRatePercent).toEqual({ current: 90, previous: 90 });
     expect(json.totals.avgDurationMs).toEqual({ current: 42100, previous: 45000 });
+    expect(json.totals.platforms).toEqual([
+      {
+        platform: 'IOS',
+        totalRuns: { current: 120, previous: 100 },
+        distinctFlows: { current: 8, previous: 8 },
+      },
+    ]);
     expect(json.flows[0].path).toBe('flows/login.yaml');
     expect(json.sort).toEqual({ field: 'fails', direction: 'desc' });
   });
