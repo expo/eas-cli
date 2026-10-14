@@ -204,7 +204,7 @@ async function submitToGooglePlayAsync({
     }
     editId = (await GooglePlayUtils.createEditAsync(client, { packageName, signal })).id;
     let lastPercent: number | undefined;
-    const { versionCode, reused } = await GooglePlayUtils.uploadApplicationAsync(client, {
+    const { versionCode } = await GooglePlayUtils.uploadApplicationAsync(client, {
       packageName,
       editId,
       artifactPath: submission.artifact_path,
@@ -218,18 +218,7 @@ async function submitToGooglePlayAsync({
         }
       },
     });
-    if (reused) {
-      logger.info(`Reusing uploaded version ${versionCode} after verifying its SHA-256 hash.`);
-      await GooglePlayUtils.checkTrackForRecoveryAsync(client, {
-        packageName,
-        editId,
-        track: submission.track,
-        versionCode,
-        signal,
-      });
-    } else {
-      logger.info(`Uploaded version code: ${versionCode}.`);
-    }
+    logger.info(`Uploaded version code: ${versionCode}.`);
     await GooglePlayUtils.updateTrackAsync(client, {
       packageName,
       editId,

@@ -71,10 +71,73 @@ it.each([
     );
   }
 );
-it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
+it.each([408, 429, 503])(
+  'recovers an uncertain HTTP %s commit using the same edit',
+  async status => {
+    mockToken();
+    api().post(`${editPath}:commit`).query(true).reply(status);
+    api().get(editPath).reply(200, { id: 'edit' });
+    api()
+      .post(`${editPath}:commit`)
+      .query({ changesInReviewBehavior: 'ERROR_IF_IN_REVIEW' })
+      .reply(200, { id: 'edit' });
+    await expect(commit()).resolves.toBeUndefined();
+  }
+);
+it.each([404, 409, 503])('does not infer success from HTTP %s during recovery', async status => {
   mockToken();
-  api().post(`${editPath}:commit`).query(true).reply(status);
-  await expect(commit()).rejects.toMatchObject({ cause: expect.objectContaining({ status }) });
+  const logger = createMockLogger();
+  api().post(`${editPath}:commit`).query(true).reply(503);
+  api().get(editPath).reply(status);
+  await expect(commit({ logger })).rejects.toThrow('Could not confirm');
+  expect(logger.info).not.toHaveBeenCalled();
+});
+it.each([{}, { id: 'other-edit' }])(
+  'does not accept an invalid recovery receipt %j',
+  async receipt => {
+    mockToken();
+    api().post(`${editPath}:commit`).query(true).reply(503);
+    api().get(editPath).reply(200, { id: 'edit' });
+    api().post(`${editPath}:commit`).query(true).reply(200, receipt);
+    await expect(commit()).rejects.toThrow('Could not confirm');
+  }
+);
+it.each([400, 404, 409, 503])(
+  'keeps the outcome unknown if the recovery commit returns HTTP %s',
+  async status => {
+    mockToken();
+    const logger = createMockLogger();
+    api().post(`${editPath}:commit`).query(true).reply(503);
+    api().get(editPath).reply(200, { id: 'edit' });
+    api().post(`${editPath}:commit`).query(true).reply(status);
+    await expect(commit({ logger })).rejects.toThrow('Could not confirm');
+    expect(logger.info).not.toHaveBeenCalled();
+  }
+);
+it('preserves the review setting when recovering a lost response', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({ changesNotSentForReview: 'true' })
+    .replyWithError('socket closed');
+  api().get(editPath).reply(200, { id: 'edit' });
+  api()
+    .post(`${editPath}:commit`)
+    .query({ changesNotSentForReview: 'true', changesInReviewBehavior: 'ERROR_IF_IN_REVIEW' })
+    .reply(200, { id: 'edit' });
+  await expect(commit({ changesNotSentForReview: true })).resolves.toBeUndefined();
+});
+it('does not send a recovery request after cancellation, and keeps the outcome unknown', async () => {
+  mockToken();
+  const controller = new AbortController();
+  api()
+    .post(`${editPath}:commit`)
+    .query(true)
+    .reply(() => {
+      controller.abort();
+      return [503];
+    });
+  await expect(commit({ signal: controller.signal })).rejects.toThrow('Could not confirm');
 });
 it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();
