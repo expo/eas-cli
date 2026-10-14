@@ -109,3 +109,19 @@ it.each(['network failure', 'malformed JSON'])('returns a system error for %s', 
     }
   }
 });
+
+it.each([429, 503])('retries temporary OAuth HTTP %s responses', async status => {
+  nock('https://oauth2.googleapis.com')
+    .post('/token', request)
+    .reply(status)
+    .post('/token', request)
+    .reply(200, { access_token: 'recovered', expires_in: 3600, token_type: 'Bearer' });
+  await expect(client.postAsync('/token', request)).resolves.toMatchObject({
+    access_token: 'recovered',
+  });
+});
+
+it('stops after three OAuth retries', async () => {
+  nock('https://oauth2.googleapis.com').post('/token', request).times(4).reply(503);
+  await expect(client.postAsync('/token', request)).rejects.toMatchObject({ status: 503 });
+}, 15000);
