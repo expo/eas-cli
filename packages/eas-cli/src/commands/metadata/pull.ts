@@ -22,6 +22,14 @@ export default class MetadataPull extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
+    'skip-screenshots': Flags.boolean({
+      description: 'Skip downloading screenshots from the app stores',
+      default: false,
+    }),
+    'skip-previews': Flags.boolean({
+      description: 'Skip downloading video previews from the app stores',
+      default: false,
+    }),
     ...EASNonInteractiveFlag,
   };
 
@@ -46,6 +54,14 @@ export default class MetadataPull extends EasCommand {
       nonInteractive,
       withServerSideEnvironment: null,
     });
+
+    if (flags['skip-previews']) {
+      Log.warn(
+        `Skipping video previews. Pushing the generated store config without ${chalk.bold(
+          '--skip-previews'
+        )} will delete existing video previews from the app stores.`
+      );
+    }
 
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive, vcsClient });
 
@@ -82,6 +98,8 @@ export default class MetadataPull extends EasCommand {
         nonInteractive,
         graphqlClient,
         projectId,
+        skipScreenshots: flags['skip-screenshots'],
+        skipPreviews: flags['skip-previews'],
       });
       const relativePath = path.relative(process.cwd(), filePath);
 
