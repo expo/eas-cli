@@ -22,6 +22,10 @@ import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
+import {
+  createFrameAncestorsInputProvider,
+  parseFrameAncestorsInput,
+} from '../utils/frameAncestors';
 import { createStartupTasks } from '../utils/startupTasks';
 
 import { downloadBuildAsync } from './downloadBuild';
@@ -114,6 +118,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       }),
       // Session.
       ...createNetworkCaptureInputProviders(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -163,6 +168,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         },
         { runtimePlatform }
       );
+      const frameAncestors = parseFrameAncestorsInput(inputs.frame_ancestors.value);
 
       if (isIos) {
         // Before the boot, so every Xcode tool below uses the same developer directory.
@@ -259,6 +265,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
         maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
         capture,
+        frameAncestors,
         tasks,
         device: { booted, ready },
       });

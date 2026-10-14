@@ -23,6 +23,10 @@ import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
+import {
+  createFrameAncestorsInputProvider,
+  parseFrameAncestorsInput,
+} from '../utils/frameAncestors';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -84,6 +88,7 @@ export function createStartArgentRemoteSessionBuildFunction(
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -131,6 +136,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
+      const frameAncestors = parseFrameAncestorsInput(inputs.frame_ancestors?.value);
       logger.info(
         `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
@@ -277,6 +283,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           openUrl: launch.openUrl,
           networkCapture,
           networkCaptureFields,
+          frameAncestors,
         });
         const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(

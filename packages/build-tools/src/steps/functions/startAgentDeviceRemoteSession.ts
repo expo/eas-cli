@@ -96,6 +96,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes,
     maxDurationSeconds,
     capture,
+    frameAncestors = [],
     tasks,
     device,
   }: {
@@ -108,6 +109,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes: number | undefined;
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
+    frameAncestors?: string[];
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -161,6 +163,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       timeoutMs: STARTUP_TIMEOUT_MS,
       networkCapture: capture.networkCapture,
       networkCaptureFields: capture.networkCaptureFields,
+      frameAncestors,
     });
     tasks.signal.throwIfAborted();
     const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
