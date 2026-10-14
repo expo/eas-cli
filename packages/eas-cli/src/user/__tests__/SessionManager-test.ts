@@ -5,6 +5,8 @@ import path from 'path';
 import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
+import { createGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
@@ -17,16 +19,17 @@ jest.mock('../../log');
 jest.mock('fs');
 jest.mock('../../graphql/queries/UserQuery', () => ({
   UserQuery: {
-    currentUserAsync: async () => ({
+    currentUserAsync: jest.fn(async () => ({
       __typename: 'User',
       username: 'USERNAME',
       id: 'USER_ID',
-    }),
+    })),
   },
 }));
 jest.mock('../fetchSessionSecretAndUser');
 jest.mock('../fetchSessionSecretAndUserFromBrowserAuthFlow');
 jest.mock('../../api');
+jest.mock('../../commandUtils/context/contextUtils/createGraphqlClient');
 
 const authStub: any = {
   sessionSecret: 'SESSION_SECRET',
@@ -131,6 +134,36 @@ describe(SessionManager, () => {
         currentConnection: 'Username-Password-Authentication',
       });
       expect(await sessionManager.getUserAsync()).toMatchObject({ __typename: 'User' });
+    });
+
+    it('creates the GraphQL client without a timeout and keeps retries by default', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync();
+      expect(createGraphqlClient).toHaveBeenCalledWith(
+        { accessToken: 'accesstoken', sessionSecret: null },
+        { requestTimeoutMs: undefined }
+      );
+      expect(jest.mocked(UserQuery.currentUserAsync).mock.calls[0][1]).toEqual({ noRetry: false });
+    });
+
+    it('forwards the request timeout to the GraphQL client and disables retries', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync({ requestTimeoutMs: 1234 });
+      expect(createGraphqlClient).toHaveBeenCalledWith(
+        { accessToken: 'accesstoken', sessionSecret: null },
+        { requestTimeoutMs: 1234 }
+      );
+      expect(jest.mocked(UserQuery.currentUserAsync).mock.calls[0][1]).toEqual({ noRetry: true });
+    });
+
+    it('skips the request once an actor is cached', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync();
+      await sessionManager.getUserAsync({ requestTimeoutMs: 1234 });
+      expect(createGraphqlClient).toHaveBeenCalledTimes(1);
     });
   });
 

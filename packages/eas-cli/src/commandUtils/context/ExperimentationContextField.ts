@@ -10,7 +10,7 @@ import { LazyExperimentationClient } from '../../experimentation/LazyExperimenta
 import { ExperimentationConfigQuery } from '../../graphql/queries/ExperimentationConfigQuery';
 import Log from '../../log';
 
-/** Caps how long the config fetch can delay a command. */
+/** Caps how long the config fetch and the actor lookup can delay a command. */
 const REQUEST_TIMEOUT_MS = 3000;
 
 const CI_ENVIRONMENT_FLAGS = ['EAS_BUILD', 'CI'];
@@ -67,8 +67,10 @@ export default class ExperimentationContextField extends ContextField<LazyExperi
         { requestTimeoutMs: REQUEST_TIMEOUT_MS }
       );
 
+      // The session manager skips the request once an actor is cached. Without a cached actor
+      // (for example, a stale session) it makes its own request, so it needs the same cap.
       const [actorResult, configsResult] = await Promise.allSettled([
-        sessionManager.getUserAsync(),
+        sessionManager.getUserAsync({ requestTimeoutMs: REQUEST_TIMEOUT_MS }),
         ExperimentationConfigQuery.getConfigsAsync(graphqlClient),
       ]);
 

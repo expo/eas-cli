@@ -1,4 +1,4 @@
-import { instance, mock, verify, when } from 'ts-mockito';
+import { anything, deepEqual, instance, mock, verify, when } from 'ts-mockito';
 
 import { AnalyticsWithOrchestration } from '../../../analytics/AnalyticsManager';
 import { TEST_DEFINITION } from '../../../experimentation/__tests__/fixtures';
@@ -49,7 +49,7 @@ function createSessionManager({ loggedOut = false }: { loggedOut?: boolean } = {
   const mocked = mock<SessionManager>();
   when(mocked.getAccessToken()).thenReturn(null);
   when(mocked.getSessionSecret()).thenReturn(loggedOut ? null : 'secret');
-  when(mocked.getUserAsync()).thenResolve(loggedOut ? undefined : actor);
+  when(mocked.getUserAsync(anything())).thenResolve(loggedOut ? undefined : actor);
   return { sessionManager: instance(mocked), mocked };
 }
 
@@ -101,7 +101,7 @@ describe(ExperimentationContextField, () => {
     expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
     expect(getConfigsAsyncMock).not.toHaveBeenCalled();
     expect(createGraphqlClient).not.toHaveBeenCalled();
-    verify(mocked.getUserAsync()).never();
+    verify(mocked.getUserAsync(anything())).never();
   });
 
   it.each(['CI', 'EAS_BUILD'])(
@@ -115,7 +115,7 @@ describe(ExperimentationContextField, () => {
       expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
       expect(getConfigsAsyncMock).not.toHaveBeenCalled();
       expect(createGraphqlClient).not.toHaveBeenCalled();
-      verify(mocked.getUserAsync()).never();
+      verify(mocked.getUserAsync(anything())).never();
     }
   );
 
@@ -229,6 +229,14 @@ describe(ExperimentationContextField, () => {
     );
   });
 
+  it('caps the actor lookup with the same timeout as the config fetch', async () => {
+    const { sessionManager, mocked } = createSessionManager();
+    await loadClientAsync(options({ sessionManager }));
+
+    verify(mocked.getUserAsync(deepEqual({ requestTimeoutMs: 3000 }))).once();
+    expect(createGraphqlClient).toHaveBeenCalledWith(expect.anything(), { requestTimeoutMs: 3000 });
+  });
+
   it('runs the actor lookup and the config fetch in parallel', async () => {
     let resolveConfigs!: (value: typeof allConfigs) => void;
     let resolveActor!: (value: Actor) => void;
@@ -236,13 +244,15 @@ describe(ExperimentationContextField, () => {
     const mocked = mock<SessionManager>();
     when(mocked.getAccessToken()).thenReturn(null);
     when(mocked.getSessionSecret()).thenReturn('secret');
-    when(mocked.getUserAsync()).thenReturn(new Promise(resolve => (resolveActor = resolve)));
+    when(mocked.getUserAsync(anything())).thenReturn(
+      new Promise(resolve => (resolveActor = resolve))
+    );
 
     const pending = loadClientAsync(options({ sessionManager: instance(mocked) }));
     await flushPromisesAsync();
 
     expect(getConfigsAsyncMock).toHaveBeenCalledTimes(1);
-    verify(mocked.getUserAsync()).once();
+    verify(mocked.getUserAsync(anything())).once();
 
     resolveConfigs(allConfigs);
     resolveActor(actor);
@@ -257,7 +267,7 @@ describe(ExperimentationContextField, () => {
 
     expect(getConfigsAsyncMock).not.toHaveBeenCalled();
     expect(createGraphqlClient).not.toHaveBeenCalled();
-    verify(mocked.getUserAsync()).never();
+    verify(mocked.getUserAsync(anything())).never();
 
     await lazyClient.getClientAsync();
     expect(getConfigsAsyncMock).toHaveBeenCalledTimes(1);
