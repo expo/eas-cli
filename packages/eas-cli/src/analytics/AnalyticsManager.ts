@@ -81,6 +81,8 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
+
+  CONCURRENCY_LIMIT_MESSAGE_SHOWN = 'build cli concurrency limit message shown',
 }
 
 export enum SimulatorEvent {

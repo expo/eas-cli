@@ -16579,6 +16579,16 @@ export type AccountSubscriptionQueryVariables = Exact<{
 
 export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null } | null } } };
 
+export type AccountConcurrencyUsageQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type AccountConcurrencyUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null, concurrencies?: { __typename?: 'Concurrencies', total: number, android: number, ios: number } | null } | null, concurrencyConsumers: Array<
+        | { __typename: 'Build', id: string }
+        | { __typename: 'JobRun', id: string }
+      > } } };
+
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
 }>;

@@ -27,6 +27,13 @@ export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
   return new URL(url, getExpoWebsiteBaseUrl()).toString();
 }
 
+export function getAccountBillingUrl(accountName: string): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/settings/billing`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
 export function getArtifactUrl(artifactId: string): string {
   return new URL(`/artifacts/${artifactId}`, getExpoWebsiteBaseUrl()).toString();
 }

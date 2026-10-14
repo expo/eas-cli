@@ -16,6 +16,7 @@ import nullthrows from 'nullthrows';
 
 import { prepareAndroidBuildAsync } from './android/build';
 import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
+import { ConcurrencyLimitMessage } from './concurrencyLimitMessage';
 import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
@@ -30,6 +31,7 @@ import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { ExperimentationClient } from '../experimentation/ExperimentationClient';
 import {
   AppPlatform,
   BuildFragment,
@@ -118,6 +120,7 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
   envOverride,
+  experimentation,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -128,6 +131,8 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
   envOverride?: Env;
+  /** Enables the concurrency-limit experiment while waiting for the build. */
+  experimentation?: ExperimentationClient;
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -324,6 +329,14 @@ export async function runBuildAndSubmitAsync({
   const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
+    concurrencyLimitMessage: ConcurrencyLimitMessage.forBuildRun({
+      experimentation,
+      graphqlClient,
+      analytics,
+      startedBuilds,
+      nonInteractive: flags.nonInteractive,
+      buildCtx: Object.values(buildCtxByPlatform)[0],
+    }),
   });
   if (!flags.json) {
     printBuildResults(builds);

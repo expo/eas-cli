@@ -6,6 +6,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   AccountByNameQuery as AccountByNameQueryType,
   AccountByNameQueryVariables,
+  AccountConcurrencyUsageQuery as AccountConcurrencyUsageQueryType,
+  AccountConcurrencyUsageQueryVariables,
   AccountFullUsageQuery as AccountFullUsageQueryType,
   AccountFullUsageQueryVariables,
   AccountSubscriptionQuery as AccountSubscriptionQueryType,
@@ -16,6 +18,7 @@ import {
 import {
   AccountUsageMetricFragmentNode,
   BillingPeriodFragmentNode,
+  ConcurrenciesFragmentNode,
   SubscriptionDetailsFragmentNode,
   UsageMetricTotalFragmentNode,
 } from '../types/Account';
@@ -24,6 +27,7 @@ export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['accoun
 export type AccountSubscriptionInfo = NonNullable<
   NonNullable<AccountSubscriptionQueryType['account']['byId']>['subscription']
 >;
+export type AccountConcurrencyUsage = AccountConcurrencyUsageQueryType['account']['byId'];
 
 export const AccountQuery = {
   async getByNameAsync(
@@ -316,5 +320,49 @@ export const AccountQuery = {
     );
 
     return data.account.byId?.subscription ?? null;
+  },
+
+  /** Plan concurrency total and the builds and workflow jobs that hold a concurrency right now. */
+  async getConcurrencyUsageAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string
+  ): Promise<AccountConcurrencyUsage> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AccountConcurrencyUsageQueryType, AccountConcurrencyUsageQueryVariables>(
+          gql`
+            query AccountConcurrencyUsage($accountId: String!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  subscription {
+                    id
+                    name
+                    planId
+                    concurrencies {
+                      ...ConcurrenciesFragment
+                    }
+                  }
+                  concurrencyConsumers {
+                    __typename
+                    ... on Build {
+                      id
+                    }
+                    ... on JobRun {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+            ${print(ConcurrenciesFragmentNode)}
+          `,
+          { accountId },
+          { additionalTypenames: ['Account', 'SubscriptionDetails', 'Build', 'JobRun'] }
+        )
+        .toPromise()
+    );
+
+    return data.account.byId;
   },
 };
