@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Speed up cold iOS Appium sessions by launching preinstalled WebDriverAgent. ([#4618](https://github.com/expo/eas-cli/pull/4618) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
