@@ -58,7 +58,6 @@ const TurnIceServersSchema = z.object({
 });
 
 const DeviceRunSessionApplicationSchema = z.object({
-  platform: z.enum(['ios', 'android']),
   build: z
     .object({
       id: z.string(),

@@ -623,7 +623,6 @@ describe('createDownloadBuildFunction', () => {
           return new ActualResponse(
             JSON.stringify({
               data: {
-                platform: 'ios',
                 build: {
                   id: buildId,
                   gitCommitHash: null,

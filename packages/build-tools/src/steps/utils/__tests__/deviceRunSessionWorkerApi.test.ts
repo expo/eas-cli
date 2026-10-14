@@ -186,7 +186,6 @@ describe(DeviceRunSessionWorkerApi, () => {
       route: 'application',
       json: undefined,
       data: {
-        platform: 'ios',
         build: {
           id: 'build-id',
           gitCommitHash: null,
@@ -194,7 +193,6 @@ describe(DeviceRunSessionWorkerApi, () => {
         },
       },
       expected: {
-        platform: 'ios',
         build: {
           id: 'build-id',
           gitCommitHash: null,
@@ -234,12 +232,8 @@ describe(DeviceRunSessionWorkerApi, () => {
     await expect(createApi().getSessionAsync()).resolves.toEqual({ id: 'drs-id', status });
   });
 
-  it('rejects the old application shape with GraphQL platform values', async () => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(
-        jsonResponse({ data: { platform: 'IOS', appSlug: 'app', build: null } })
-      );
+  it('rejects an application response without the build field', async () => {
+    jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { platform: 'ios' } }));
 
     await expect(createApi().getApplicationAsync()).rejects.toThrow(
       'GET /v2/device-run-session-worker/application returned an unexpected response'

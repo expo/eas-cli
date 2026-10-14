@@ -1,4 +1,5 @@
 import type { bunyan } from '@expo/logger';
+import { BuildRuntimePlatform } from '@expo/steps';
 import { graphql } from 'gql.tada';
 import { z } from 'zod';
 
@@ -66,7 +67,9 @@ export async function loadScreenshotSessionAsync(
     if (workerApi) {
       const application = await workerApi.getApplicationAsync({ signal });
       return {
-        platform: application.platform === 'ios' ? 'IOS' : 'ANDROID',
+        // www runs iOS sessions only on macOS workers and Android sessions only on Linux workers,
+        // so the worker API does not return the platform.
+        platform: ctx.runtimePlatform === BuildRuntimePlatform.DARWIN ? 'IOS' : 'ANDROID',
         app: null,
         build: application.build
           ? {

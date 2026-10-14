@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 import { setImmediate } from 'node:timers/promises';
@@ -307,36 +307,40 @@ describe('with a device run session token', () => {
     expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('loads the screenshot naming details through the worker API', async () => {
-    const ctx = createCtx({ withToken: true });
-    jest.mocked(turtleFetch).mockResolvedValueOnce(
-      jsonResponse({
-        data: {
-          platform: 'ios',
-          build: {
-            id: BUILD_ID,
-            gitCommitHash: 'abc',
-            applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+  it.each([
+    [BuildRuntimePlatform.DARWIN, 'IOS'],
+    [BuildRuntimePlatform.LINUX, 'ANDROID'],
+  ] as const)(
+    'loads the screenshot naming details through the worker API on a %s worker',
+    async (runtimePlatform, platform) => {
+      const ctx = { ...createCtx({ withToken: true }), runtimePlatform } as CustomBuildContext;
+      jest.mocked(turtleFetch).mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            build: {
+              id: BUILD_ID,
+              gitCommitHash: 'abc',
+              applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+            },
           },
-        },
-      })
-    );
+        })
+      );
 
-    await expect(loadScreenshotSessionAsync(ctx, 'drs-id', logger)).resolves.toEqual({
-      platform: 'IOS',
-      app: null,
-      build: { id: BUILD_ID, gitCommitHash: 'abc', app: null },
-    });
-    expectWorkerApiCall('application', 'GET', { signal: expect.any(AbortSignal), retries: 0 });
-    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
-  });
+      await expect(loadScreenshotSessionAsync(ctx, 'drs-id', logger)).resolves.toEqual({
+        platform,
+        app: null,
+        build: { id: BUILD_ID, gitCommitHash: 'abc', app: null },
+      });
+      expectWorkerApiCall('application', 'GET', { signal: expect.any(AbortSignal), retries: 0 });
+      expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
+    }
+  );
 
   it('downloads the session build from the worker API archive URL without an Authorization header', async () => {
     const ctx = createCtx({ withToken: true });
     jest.mocked(turtleFetch).mockResolvedValueOnce(
       jsonResponse({
         data: {
-          platform: 'ios',
           build: {
             id: BUILD_ID,
             gitCommitHash: null,
@@ -367,9 +371,7 @@ describe('with a device run session token', () => {
   });
 
   it('refuses to download a build that is not the session build', async () => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { platform: 'ios', build: null } }));
+    jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { build: null } }));
 
     const error = await downloadBuildAsync({
       logger,
