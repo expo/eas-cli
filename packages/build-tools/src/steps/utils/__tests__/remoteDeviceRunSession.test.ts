@@ -1074,9 +1074,14 @@ describe(startDeviceSessionHostAsync, () => {
       const compatibilityWarnings = jest
         .mocked(logger.warn)
         .mock.calls.filter(([message]) =>
-          String(message).includes('does not support --disable-share')
+          String(message).includes('Could not confirm --disable-share support')
         );
       expect(compatibilityWarnings).toHaveLength(supportsDisableShare ? 0 : 1);
+      if (!supportsDisableShare) {
+        expect(compatibilityWarnings[0][0]).toBe(
+          'Could not confirm --disable-share support for serve-sim (1.2.3); Share remains available and copies the direct preview URL.'
+        );
+      }
       await host.finishAsync();
     }
   );

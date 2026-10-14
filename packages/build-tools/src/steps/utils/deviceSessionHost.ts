@@ -172,7 +172,7 @@ async function canDisableServeSimShareAsync({
     return true;
   }
   logger.warn(
-    `The selected serve-sim package (${packageVersion}) does not support --disable-share; its Share button will remain visible.`
+    `Could not confirm --disable-share support for serve-sim (${packageVersion}); Share remains available and copies the direct preview URL.`
   );
   return false;
 }
