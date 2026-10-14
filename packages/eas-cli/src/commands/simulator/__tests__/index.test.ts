@@ -901,6 +901,36 @@ describe(Simulator, () => {
     );
   });
 
+  it('passes each --frame-ancestor to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--frame-ancestor',
+      'https://example.com',
+      '--frame-ancestor',
+      'https://*.example.com',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        frameAncestors: ['https://example.com', 'https://*.example.com'],
+      })
+    );
+  });
+
+  it('does not send frame ancestors when none were asked for', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ frameAncestors: expect.anything() })
+    );
+  });
+
   it('does not send a capture field list when none was asked for', async () => {
     const { command } = createCommand([
       '--platform',

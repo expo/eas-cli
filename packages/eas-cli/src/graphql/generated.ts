@@ -6491,6 +6491,15 @@ export type CreateDeviceRunSessionInput = {
    * and applicationArchiveUrl.
    */
   expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Origins, besides expo.dev, that may embed the session's web preview in an iframe, such as
+   * https://example.com or https://*.example.com. Use https, or http only on localhost. The
+   * preview server enforces the list against every frame ancestor, so it also covers framing the
+   * expo.dev preview page. An origin listed here can show the preview, not drive the device from
+   * its own origin. At most 20. Android previews do not restrict framing yet, so there it has no
+   * effect.
+   */
+  frameAncestors?: InputMaybe<Array<Scalars['String']['input']>>;
   /** iOS Simulator options. Only supported when platform is IOS. */
   ios?: InputMaybe<CreateIosDeviceRunSessionInput>;
   /**
