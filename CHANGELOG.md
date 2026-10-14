@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Let simulator sessions name extra origins that may embed the web preview with the `frame_ancestors` step input. ([#4627](https://github.com/expo/eas-cli/pull/4627) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
