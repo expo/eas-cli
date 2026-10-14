@@ -331,12 +331,13 @@ When creating pull requests, make sure to adhere to [PULL_REQUEST_TEMPLATE](./.g
 
 ## Release Process
 
-1. Update `CHANGELOG.md` in the appropriate package
-2. Version bump is automated based on changelog:
-   - Breaking changes → MAJOR
-   - New features → MINOR
-   - Otherwise → PATCH
-3. GitHub Actions workflow handles release automation
+1. Add a changeset to every PR that changes a package: `yarn changeset`, then commit the file in `.changeset/`. Never edit `CHANGELOG.md` files; the release generates them. See `.changeset/README.md`
+2. All packages share one version. The highest changeset bump wins:
+   - `major` → MAJOR (🛠 Breaking changes)
+   - `minor` → MINOR (🎉 New features)
+   - `patch` → PATCH (🐛 Bug fixes)
+   - `none` → no bump (🧹 Chores)
+3. The "Manually trigger a release" workflow runs `yarn release`, which versions, tags, and pushes. See `RELEASING.md`
 4. Notifications sent to Slack #eas-cli channel
 
 ## Licensing

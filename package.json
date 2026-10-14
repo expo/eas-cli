@@ -15,12 +15,14 @@
     "lint": "oxlint --type-aware --import-plugin --max-warnings=0 --tsconfig ./tsconfig.oxlint.json .",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
-    "lint-changelog": "./scripts/bin/run lint-changelog",
     "release": "lerna run rebuild --concurrency 1 && ./scripts/bin/run release",
     "test": "lerna run test",
-    "clean": "lerna run clean && rimraf node_modules coverage"
+    "clean": "lerna run clean && rimraf node_modules coverage",
+    "changeset": "changeset"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
+    "@changesets/get-github-info": "1.0.1",
     "@types/jest": "29.5.11",
     "@types/node": "22.20.5",
     "eslint-plugin-async-protect": "3.1.0",
