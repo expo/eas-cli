@@ -643,6 +643,12 @@ describe('gated preview links', () => {
       const instructions = formatRemoteSessionInstructions(remoteConfig, 'env', {
         publicLink: true,
       });
+      expect(instructions).toContain(
+        'Warning: Anyone with this link can view and control the simulator, including your app and logs that may contain sensitive data. Share this link only with trusted recipients.'
+      );
+      expect(instructions.indexOf('Warning:')).toBeLessThan(
+        instructions.indexOf(`${PAGE}#token=tok-1`)
+      );
       expect(instructions).toContain(`${PAGE}#token=tok-1`);
       expect(instructions).not.toContain('?token=');
     }

@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -317,6 +319,18 @@ function formatBrowserPreviewUrl(
     : (privatePreviewUrl ?? withoutPreviewToken(url));
 }
 
+function formatBrowserPreviewInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined,
+  options: PreviewLinkOptions
+): string {
+  const previewUrl = formatBrowserPreviewUrl(remoteConfig, url, token, options);
+  return options.publicLink
+    ? `${chalk.yellow('Warning: Anyone with this link can view and control the simulator, including your app and logs that may contain sensitive data. Share this link only with trusted recipients.')}\n${previewUrl}`
+    : previewUrl;
+}
+
 /**
  * Remote config for `--json`. Private sessions omit the direct preview API address and preview
  * tokens. Public sessions include bearer preview links while preserving controller credentials.
@@ -448,7 +462,7 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatBrowserPreviewUrl(
+          formatBrowserPreviewInstructions(
             remoteConfig,
             remoteConfig.webPreviewUrl,
             remoteConfig.webPreviewToken,
@@ -491,7 +505,7 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatBrowserPreviewUrl(
+          formatBrowserPreviewInstructions(
             remoteConfig,
             remoteConfig.webPreviewUrl,
             remoteConfig.webPreviewToken,
@@ -524,7 +538,7 @@ function formatControllerInstructions(
           '',
           'Open the simulator preview:',
           '',
-          formatBrowserPreviewUrl(
+          formatBrowserPreviewInstructions(
             remoteConfig,
             remoteConfig.webPreviewUrl,
             remoteConfig.webPreviewToken,
@@ -538,7 +552,7 @@ function formatControllerInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatBrowserPreviewUrl(
+        formatBrowserPreviewInstructions(
           remoteConfig,
           remoteConfig.previewUrl,
           remoteConfig.previewToken,
@@ -549,7 +563,7 @@ function formatControllerInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatBrowserPreviewUrl(
+        formatBrowserPreviewInstructions(
           remoteConfig,
           remoteConfig.previewUrl,
           remoteConfig.previewToken,
