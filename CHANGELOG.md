@@ -10,10 +10,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Add the `eas/record_serve_sim_network_capture` and `eas/collect_serve_sim_network_capture` steps, which record each serve-sim's network capture with `serve-sim capture har` and upload the HAR as a session artifact. The recording continues through capture restarts. ([#4495](https://github.com/expo/eas-cli/pull/4495) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Collect simulator crash reports and app log tails as session artifacts. ([#4596](https://github.com/expo/eas-cli/pull/4596) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
+- [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
@@ -57,6 +61,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Improve the embedded bundle upload output in build logs. ([#4557](https://github.com/expo/eas-cli/pull/4557) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Allow the unnotarized mitmproxy cask to run in iOS network capture sessions. ([#4556](https://github.com/expo/eas-cli/pull/4556) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Encode macOS simulator session previews with cwebp, because Homebrew's FFmpeg cannot encode WebP. ([#4549](https://github.com/expo/eas-cli/pull/4549) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Open Android URLs with a VIEW intent instead of pinning them to the launch activity. ([#4559](https://github.com/expo/eas-cli/pull/4559) by [@kudo](https://github.com/kudo))
 
 ### 🧹 Chores
 
