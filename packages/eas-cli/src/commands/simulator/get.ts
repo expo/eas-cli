@@ -38,7 +38,7 @@ export default class SimulatorGet extends EasCommand {
     }),
     'public-link': Flags.boolean({
       description:
-        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.',
+        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };

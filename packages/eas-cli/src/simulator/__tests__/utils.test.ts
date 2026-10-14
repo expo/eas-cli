@@ -322,11 +322,12 @@ describe(sanitizeRemoteConfigForJson, () => {
     expect(sanitized).toEqual({
       __typename: 'ServeSimRunSessionRemoteConfig',
       previewUrl: PRIVATE_URL,
+      previewApiUrl: null,
     });
     expect(JSON.stringify(sanitized)).not.toContain('tok-1');
   });
 
-  it('leaves the API URL free of the preview token by default', () => {
+  it('omits the direct preview API address by default', () => {
     const sanitized = sanitizeRemoteConfigForJson(
       {
         __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
@@ -340,7 +341,7 @@ describe(sanitizeRemoteConfigForJson, () => {
     expect(sanitized).toEqual({
       __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
       previewUrl: PRIVATE_URL,
-      previewApiUrl: `${PREVIEW_URL}/?mode=stream`,
+      previewApiUrl: null,
     });
     expect(JSON.stringify(sanitized)).not.toContain('tok-1');
   });
@@ -357,11 +358,73 @@ describe(sanitizeRemoteConfigForJson, () => {
 
     expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL)).toMatchObject({
       previewUrl: PRIVATE_URL,
-      previewApiUrl: tokenlessUrl,
+      previewApiUrl: null,
     });
     const fallbackInstructions = formatRemoteSessionInstructions(remoteConfig, 'env');
     expect(fallbackInstructions).toContain(tokenlessUrl);
     expect(fallbackInstructions).not.toContain('tok-1');
+  });
+
+  it.each([
+    {
+      name: 'legacy serve-sim',
+      config: {
+        __typename: 'ServeSimRunSessionRemoteConfig' as const,
+        previewUrl: PREVIEW_URL,
+        previewToken: 'preview-secret',
+      },
+    },
+    {
+      name: 'web-preview-only',
+      config: {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE_URL,
+        previewToken: 'preview-secret',
+      },
+    },
+    {
+      name: 'agent-device on Android',
+      config: {
+        ...agentDeviceConfig,
+        webPreviewUrl: null,
+        webPreviewToken: null,
+      },
+    },
+    {
+      name: 'Argent',
+      config: {
+        __typename: 'ArgentRunSessionRemoteConfig' as const,
+        toolsUrl: 'https://argent.example.test',
+        toolsAuthToken: 'argent-secret',
+        webPreviewUrl: PREVIEW_URL,
+        webPreviewToken: 'preview-secret',
+      },
+    },
+    {
+      name: 'Appium',
+      config: {
+        __typename: 'AppiumRunSessionRemoteConfig' as const,
+        appiumUrl: 'https://appium.example.test',
+        capabilities: {},
+        webPreviewUrl: PREVIEW_URL,
+        webPreviewToken: 'preview-secret',
+      },
+    },
+  ])('hides the direct API address for $name unless opted in', ({ config }) => {
+    const remoteConfig: DeviceRunSessionRemoteConfig = {
+      ...config,
+      previewApiUrl: PREVIEW_URL,
+    };
+    const token =
+      'previewToken' in config
+        ? config.previewToken
+        : 'webPreviewToken' in config
+          ? config.webPreviewToken
+          : null;
+    expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL).previewApiUrl).toBeNull();
+    expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL, true).previewApiUrl).toBe(
+      token ? `${PREVIEW_URL}/?token=${token}` : PREVIEW_URL
+    );
   });
 
   it('keeps controller credentials separate from the preview token', () => {
@@ -393,6 +456,7 @@ describe(sanitizeRemoteConfigForJson, () => {
     expect(sanitizeRemoteConfigForJson(remoteConfig, PRIVATE_URL)).toEqual({
       __typename: 'ServeSimRunSessionRemoteConfig',
       previewUrl: PRIVATE_URL,
+      previewApiUrl: null,
     });
   });
 

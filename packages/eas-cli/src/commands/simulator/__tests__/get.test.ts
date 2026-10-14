@@ -158,7 +158,7 @@ describe(SimulatorGet, () => {
         __typename: 'ServeSimRunSessionRemoteConfig',
         previewUrl:
           'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview',
-        previewApiUrl: undefined,
+        previewApiUrl: null,
       },
       artifacts: session.artifacts,
     });
@@ -185,7 +185,7 @@ describe(SimulatorGet, () => {
       const expectedUrl = publicLink ? `${publicUrl}#token=preview-secret` : privateUrl;
       const expectedApiUrl = publicLink
         ? 'https://preview-api.example.test/?token=preview-secret'
-        : 'https://preview-api.example.test';
+        : null;
 
       const { command: jsonCommand } = createCommand(['--id', 'session-123', '--json', ...choice]);
       await jsonCommand.runAsync();

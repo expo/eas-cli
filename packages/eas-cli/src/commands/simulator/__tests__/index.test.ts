@@ -2003,7 +2003,12 @@ describe(Simulator, () => {
       );
       expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
         expect.objectContaining({
-          remoteConfig: expect.objectContaining({ previewUrl: expectedUrl }),
+          remoteConfig: expect.objectContaining({
+            previewUrl: expectedUrl,
+            previewApiUrl: publicLink
+              ? 'https://preview-api.example.test/?token=preview-secret'
+              : null,
+          }),
         })
       );
       if (!publicLink) {

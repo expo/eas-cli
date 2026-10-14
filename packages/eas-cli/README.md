@@ -2847,7 +2847,7 @@ FLAGS
   --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
   --public-link      Print a shareable preview link containing an access token. Anyone with the link can control the
-                     simulator. With --json, previewApiUrl also includes the token for API clients when available.
+                     simulator. With --json, include previewApiUrl and its token for API clients when available.
 
 DESCRIPTION
   [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser
@@ -2986,7 +2986,7 @@ FLAGS
 
   --public-link
       Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
-      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
@@ -3125,7 +3125,7 @@ FLAGS
 
   --public-link
       Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
-      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
@@ -3247,7 +3247,7 @@ FLAGS
   --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
   --public-link      Print a shareable preview link containing an access token. Anyone with the link can control the
-                     simulator. With --json, previewApiUrl also includes the token for API clients when available.
+                     simulator. With --json, include previewApiUrl and its token for API clients when available.
 
 DESCRIPTION
   [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser
@@ -3390,7 +3390,7 @@ FLAGS
 
   --public-link
       Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
-      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.

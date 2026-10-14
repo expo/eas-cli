@@ -318,8 +318,8 @@ function formatBrowserPreviewUrl(
 }
 
 /**
- * Remote config for `--json`. Preview tokens are omitted by default; `--public-link` puts them
- * into the preview URLs for callers that explicitly need a shareable bearer link.
+ * Remote config for `--json`. The direct preview API address and preview tokens are omitted by
+ * default; `--public-link` includes them for callers that explicitly need bearer access.
  */
 export function sanitizeRemoteConfigForJson(
   remoteConfig: DeviceRunSessionRemoteConfig,
@@ -336,11 +336,10 @@ export function sanitizeRemoteConfigForJson(
           privatePreviewUrl,
           publicLink,
         }),
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? publicLink
-            ? formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
-            : withoutPreviewToken(remoteConfig.previewApiUrl)
-          : remoteConfig.previewApiUrl,
+        previewApiUrl: publicLink
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
+          : null,
       };
     }
     case 'AgentDeviceRunSessionRemoteConfig':
@@ -355,11 +354,10 @@ export function sanitizeRemoteConfigForJson(
               publicLink,
             })
           : remoteConfig.webPreviewUrl,
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? publicLink
-            ? formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
-            : withoutPreviewToken(remoteConfig.previewApiUrl)
-          : remoteConfig.previewApiUrl,
+        previewApiUrl: publicLink
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
+          : null,
       };
     }
   }
