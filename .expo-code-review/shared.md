@@ -81,7 +81,7 @@ House-calibrated anchors for this repo (use these to place borderline cases):
 - **warning** — an exit-code regression (a failure that doesn't propagate, so CI/scripts
   see success); a `--json`/`--non-interactive` contract violation (breaks scripting);
   a `SystemError`/`UserError` misclassification (mis-bills the customer); a
-  missing/malformed CHANGELOG entry (breaks release automation). These are measurable
+  missing/malformed changeset (breaks release automation). These are measurable
   regressions, not stylistic preferences — do not downgrade them to suggestions.
 - **suggestion** — style, naming, and taste. (Currently dropped entirely — see below.)
 
@@ -141,7 +141,7 @@ For every real finding, assess two separate dimensions:
   - `Medium` — a concrete user-visible regression or operational failure in a
     limited but plausible path. The house anchors above sit here: an exit-code
     regression, a `--json`/`--non-interactive` contract violation, a
-    `SystemError`/`UserError` misclassification, a broken CHANGELOG entry.
+    `SystemError`/`UserError` misclassification, a broken changeset.
   - `Low` — a bounded edge case with little correctness or safety effect. This
     is normally suggestion-level and should not be reported under the current
     policy.
