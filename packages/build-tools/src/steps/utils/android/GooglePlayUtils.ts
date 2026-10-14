@@ -1,5 +1,6 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
@@ -21,7 +22,7 @@ export namespace GooglePlayUtils {
       signal?: AbortSignal;
       onProgress?: (uploadedBytes: number, totalBytes: number) => void;
     }
-  ): Promise<{ versionCode: number }> {
+  ): Promise<{ versionCode: number; reused?: boolean }> {
     options.signal?.throwIfAborted();
     const file = await fs.open(options.artifactPath, 'r');
     try {
@@ -58,6 +59,46 @@ export namespace GooglePlayUtils {
         },
         { retries: 2, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true }
       );
+    } catch (error) {
+      options.signal?.throwIfAborted();
+      if (!isVersionCodeUsedError(error)) {
+        throw error;
+      }
+
+      // A version code alone does not prove that this is the same binary.
+      const hash = createHash('sha256');
+      for await (const chunk of file.createReadStream({
+        start: 0,
+        autoClose: false,
+        signal: options.signal,
+      })) {
+        hash.update(chunk);
+      }
+      const sha256 = hash.digest('hex');
+      let artifacts: { versionCode: number; sha256?: string }[];
+      if (options.artifactType === 'aab') {
+        const response = await client.getAsync(
+          '/androidpublisher/v3/applications/:packageName/edits/:editId/bundles',
+          options,
+          options.signal
+        );
+        artifacts = response.bundles ?? [];
+      } else {
+        const response = await client.getAsync(
+          '/androidpublisher/v3/applications/:packageName/edits/:editId/apks',
+          options,
+          options.signal
+        );
+        artifacts = (response.apks ?? []).map(apk => ({
+          versionCode: apk.versionCode,
+          sha256: apk.binary?.sha256,
+        }));
+      }
+      const matching = artifacts.filter(artifact => artifact.sha256?.toLowerCase() === sha256);
+      if (matching.length !== 1) {
+        throw error;
+      }
+      return { versionCode: matching[0].versionCode, reused: true };
     } finally {
       await file.close();
     }
@@ -112,6 +153,58 @@ export namespace GooglePlayUtils {
       { packageName, editId, track },
       signal
     );
+  }
+
+  export async function checkTrackForRecoveryAsync(
+    client: GooglePlayClient,
+    options: {
+      packageName: string;
+      editId: string;
+      track: string;
+      versionCode: number;
+      signal?: AbortSignal;
+    }
+  ): Promise<void> {
+    // Use the same edit as the upload and commit. Concurrent changes invalidate
+    // the edit; do not retry those changes in a new edit automatically.
+    const track = await client.getAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
+      options,
+      options.signal
+    );
+    const releases = track.releases ?? [];
+    if (releases.some(release => release.versionCodes.includes(String(options.versionCode)))) {
+      // Track state does not tell us whether the release was sent for review.
+      throw new UserError(
+        'EAS_GOOGLE_PLAY_RELEASE_ALREADY_EXISTS',
+        `Version ${options.versionCode} of ${options.packageName} is already on track ${JSON.stringify(options.track)}. Check its release and review status at https://play.google.com/console/. No release settings were changed.`
+      );
+    }
+    // Only replace a single, older completed release (or an empty track).
+    // Do not overwrite drafts, rollouts, retained APKs, or unrecognized settings.
+    if (
+      track.track !== options.track ||
+      releases.length > 1 ||
+      releases.some(
+        release =>
+          release.status !== 'completed' ||
+          release.versionCodes.length !== 1 ||
+          !/^\d+$/.test(release.versionCodes[0]) ||
+          BigInt(release.versionCodes[0]) >= BigInt(options.versionCode) ||
+          release.userFraction !== undefined ||
+          Object.keys(release).some(
+            key =>
+              !['name', 'versionCodes', 'status', 'releaseNotes', 'inAppUpdatePriority'].includes(
+                key
+              )
+          )
+      )
+    ) {
+      throw new UserError(
+        'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+        `Cannot safely reuse version ${options.versionCode} of ${options.packageName} on track ${JSON.stringify(options.track)}. The track has a newer release or settings that recovery cannot replace. Check the track at https://play.google.com/console/ before submitting again. No release settings were changed.`
+      );
+    }
   }
 
   export async function deleteEditAsync(
@@ -245,11 +338,7 @@ export namespace GooglePlayUtils {
       code = 'EAS_GOOGLE_PLAY_FIRST_UPLOAD';
       detail =
         'Google Play cannot find the app. Check the package name and upload the first version manually in Play Console.';
-    } else if (
-      /version code.*already (?:been )?used/i.test(message) ||
-      reasons.has('apkNotificationMessageKeyUpgradeVersionConflict') ||
-      message.includes('apkNotificationMessageKeyUpgradeVersionConflict')
-    ) {
+    } else if (isVersionCodeUsedError(error)) {
       code = 'EAS_GOOGLE_PLAY_VERSION_CODE_USED';
       detail =
         'This version code was already uploaded. Check whether the intended release already exists. To upload a new binary, increase the Android version code and build again.';
@@ -287,4 +376,14 @@ export namespace GooglePlayUtils {
       }
     );
   }
+}
+
+function isVersionCodeUsedError(error: unknown): boolean {
+  return (
+    error instanceof GooglePlayApiError &&
+    [400, 403, 409].includes(error.status) &&
+    (/version code.*already (?:been )?used/i.test(error.apiMessage) ||
+      error.reasons.includes('apkNotificationMessageKeyUpgradeVersionConflict') ||
+      error.apiMessage.includes('apkNotificationMessageKeyUpgradeVersionConflict'))
+  );
 }

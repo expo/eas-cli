@@ -82,6 +82,192 @@ function upload() {
     .reply(200, '', { Location: `https://androidpublisher.googleapis.com${session}` });
   nock('https://androidpublisher.googleapis.com').put(session).reply(200, { versionCode: 145 });
 }
+
+// SHA-256 of the fixture file, whose contents are "binary".
+const binarySha256 = '9a3a45d01531a20e89ac6ae10b0b0beb0492acd7216a368aa062d1a5fecaf9cd';
+
+function duplicateUpload(artifactType: 'apk' | 'aab', artifacts: Record<string, unknown>) {
+  const resource = artifactType === 'aab' ? 'bundles' : 'apks';
+  mockToken();
+  api().post(createPath).reply(200, { id: 'edit' });
+  api()
+    .post(`/upload${editPath}/${resource}`)
+    .query({ uploadType: 'resumable' })
+    .reply(200, '', { Location: `https://androidpublisher.googleapis.com${session}` });
+  nock('https://androidpublisher.googleapis.com')
+    .put(session)
+    .reply(403, { error: { message: 'Version code 145 has already been used' } });
+  api().get(`${editPath}/${resource}`).reply(200, artifacts);
+}
+
+it.each(['apk', 'aab'] as const)(
+  'reuses an identical uploaded %s and waits for commit',
+  async artifactType => {
+    duplicateUpload(
+      artifactType,
+      artifactType === 'aab'
+        ? { bundles: [{ versionCode: 145, sha256: binarySha256 }] }
+        : { apks: [{ versionCode: 145, binary: { sha256: binarySha256 } }] }
+    );
+    api()
+      .get(`${editPath}/tracks/internal`)
+      .reply(200, {
+        track: 'internal',
+        releases: artifactType === 'apk' ? [] : [{ status: 'completed', versionCodes: ['144'] }],
+      });
+    api()
+      .put(`${editPath}/tracks/internal`, {
+        track: 'internal',
+        releases: [{ status: 'completed', versionCodes: ['145'] }],
+      })
+      .reply(200, { track: 'internal' });
+    const task = submission({ artifact_type: artifactType });
+    api()
+      .post(`${editPath}:commit`)
+      .query({})
+      .reply(() => {
+        expect(task.setters[0]).not.toHaveBeenCalled();
+        return [200, { id: 'edit' }];
+      });
+    await task.run();
+    expect(task.setters[0]).toHaveBeenCalledWith('145');
+  }
+);
+
+it.each([
+  ['aab', { bundles: [{ versionCode: 145, sha256: '0'.repeat(64) }] }],
+  ['apk', { apks: [{ versionCode: 145, binary: { sha256: '0'.repeat(64) } }] }],
+  ['aab', { bundles: [{ versionCode: 145 }] }],
+  ['apk', { apks: [{ versionCode: 145 }] }],
+  ['aab', {}],
+  [
+    'aab',
+    {
+      bundles: [
+        { versionCode: 145, sha256: binarySha256 },
+        { versionCode: 146, sha256: binarySha256 },
+      ],
+    },
+  ],
+] as const)(
+  'does not recover %s without a unique hash match: %j',
+  async (artifactType, artifacts) => {
+    duplicateUpload(artifactType, artifacts);
+    api().delete(editPath).reply(204);
+    const task = submission({ artifact_type: artifactType });
+    await expect(task.run()).rejects.toMatchObject({
+      errorCode: 'EAS_GOOGLE_PLAY_VERSION_CODE_USED',
+    });
+    expect(task.setters[0]).not.toHaveBeenCalled();
+  }
+);
+
+it.each([
+  [
+    'same release',
+    [{ status: 'completed', versionCodes: ['145'] }],
+    'EAS_GOOGLE_PLAY_RELEASE_ALREADY_EXISTS',
+  ],
+  [
+    'newer release',
+    [{ status: 'completed', versionCodes: ['146'] }],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+  ['draft', [{ status: 'draft', versionCodes: ['144'] }], 'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT'],
+  [
+    'rollout',
+    [{ status: 'inProgress', userFraction: 0.1, versionCodes: ['144'] }],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+  [
+    'halted rollout',
+    [{ status: 'halted', userFraction: 0.1, versionCodes: ['144'] }],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+  [
+    'retained APKs',
+    [{ status: 'completed', versionCodes: ['143', '144'] }],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+  [
+    'multiple releases',
+    [
+      { status: 'completed', versionCodes: ['143'] },
+      { status: 'completed', versionCodes: ['144'] },
+    ],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+  [
+    'unknown settings',
+    [{ status: 'completed', versionCodes: ['144'], countryTargeting: { countries: ['PL'] } }],
+    'EAS_GOOGLE_PLAY_RECOVERY_CONFLICT',
+  ],
+] as const)('does not overwrite %s during recovery', async (_scenario, releases, code) => {
+  duplicateUpload('aab', { bundles: [{ versionCode: 145, sha256: binarySha256 }] });
+  api().get(`${editPath}/tracks/internal`).reply(200, { track: 'internal', releases });
+  api().delete(editPath).reply(204);
+  const task = submission();
+  await expect(task.run()).rejects.toMatchObject({ errorCode: code });
+  expect(task.setters[0]).not.toHaveBeenCalled();
+});
+
+it('applies the requested rollout, changelog and review setting to a reused artifact', async () => {
+  duplicateUpload('aab', { bundles: [{ versionCode: 145, sha256: binarySha256.toUpperCase() }] });
+  api().get(`${editPath}/tracks/beta`).reply(200, { track: 'beta' });
+  api()
+    .put(`${editPath}/tracks/beta`, {
+      track: 'beta',
+      releases: [
+        {
+          status: 'inProgress',
+          userFraction: 0.25,
+          versionCodes: ['145'],
+          releaseNotes: [{ language: 'en-US', text: 'Fix startup' }],
+        },
+      ],
+    })
+    .reply(200, { track: 'beta' });
+  api()
+    .post(`${editPath}:commit`)
+    .query({ changesNotSentForReview: 'true' })
+    .reply(200, { id: 'edit' });
+  const task = submission({
+    track: 'beta',
+    rollout: 0.25,
+    changelog: 'Fix startup',
+    changes_not_sent_for_review: true,
+  });
+  await task.run();
+  expect(task.setters[0]).toHaveBeenCalledWith('145');
+});
+
+it.each([409, 503])('does not retry recovery after HTTP %s at commit', async status => {
+  duplicateUpload('aab', { bundles: [{ versionCode: 145, sha256: binarySha256 }] });
+  api().get(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
+  api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(status, { error: { message: 'edit invalidated or commit unavailable' } });
+  if (status === 409) {
+    api().delete(editPath).reply(204);
+  }
+  const task = submission();
+  await expect(task.run()).rejects.toMatchObject({ cause: expect.objectContaining({ status }) });
+  expect(task.setters[0]).not.toHaveBeenCalled();
+});
+
+it('stops recovery when the track cannot be read', async () => {
+  duplicateUpload('aab', { bundles: [{ versionCode: 145, sha256: binarySha256 }] });
+  api().get(`${editPath}/tracks/internal`).reply(503);
+  api().delete(editPath).reply(204);
+  const task = submission();
+  await expect(task.run()).rejects.toMatchObject({
+    cause: expect.objectContaining({ status: 503 }),
+  });
+  expect(task.setters[0]).not.toHaveBeenCalled();
+});
+
 it.each([
   ['completed', undefined, { status: 'completed' }],
   ['completed', 0, 'invalid'],

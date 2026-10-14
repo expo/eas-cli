@@ -249,7 +249,7 @@ it('stops when uploads and status checks repeatedly confirm no progress', async 
   await expect(upload()).rejects.toThrow('confirmed 0 of 12 bytes');
 });
 
-it('preserves Google upload error details', async () => {
+it('preserves Google upload error details when no uploaded binary matches', async () => {
   mockToken();
   mockStart();
   uploadApi()
@@ -260,6 +260,7 @@ it('preserves Google upload error details', async () => {
         errors: [{ reason: 'apkNotificationMessageKeyUpgradeVersionConflict' }],
       },
     });
+  api().get(`${editPath}/apks`).reply(200, {});
   await expect(upload()).rejects.toMatchObject({
     status: 403,
     apiMessage: 'Version code has already been used.',

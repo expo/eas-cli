@@ -57,6 +57,36 @@ const ReleaseZ = z.object({
 });
 
 const GetApi = {
+  '/androidpublisher/v3/applications/:packageName/edits/:editId/bundles': {
+    path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
+    request: z.object({}),
+    query: z.object({}),
+    response: z.object({
+      bundles: z
+        .array(
+          z.object({
+            versionCode: z.number().int().positive(),
+            sha256: z.string().optional(),
+          })
+        )
+        .optional(),
+    }),
+  },
+  '/androidpublisher/v3/applications/:packageName/edits/:editId/apks': {
+    path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
+    request: z.object({}),
+    query: z.object({}),
+    response: z.object({
+      apks: z
+        .array(
+          z.object({
+            versionCode: z.number().int().positive(),
+            binary: z.object({ sha256: z.string().optional() }).optional(),
+          })
+        )
+        .optional(),
+    }),
+  },
   '/androidpublisher/v3/applications/:packageName/edits/:editId': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
     request: z.object({}),
@@ -73,7 +103,8 @@ const GetApi = {
     query: z.object({}),
     response: z.object({
       track: z.string().min(1),
-      releases: z.array(ReleaseZ).optional(),
+      // Recovery must not discard release settings it does not understand.
+      releases: z.array(ReleaseZ.passthrough()).optional(),
     }),
   },
 };
