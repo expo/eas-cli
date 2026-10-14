@@ -9,6 +9,7 @@ import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExperimentOverrides } from '../../experimentation/ExperimentOverrides';
 import { ExperimentationClient } from '../../experimentation/ExperimentationClient';
+import { LazyExperimentationClient } from '../../experimentation/LazyExperimentationClient';
 import {
   AppFragment,
   Role,
@@ -99,7 +100,9 @@ export function mockCommandContext<
       result.sessionManager = {};
     }
     if (contextKey === 'experimentation') {
-      result.experimentation = ExperimentationClient.createDisabled(ExperimentOverrides.empty());
+      result.experimentation = LazyExperimentationClient.fromClient(
+        ExperimentationClient.createDisabled(ExperimentOverrides.empty())
+      );
     }
     if (contextKey === 'projectConfig') {
       result.projectConfig = {

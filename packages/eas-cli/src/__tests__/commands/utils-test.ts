@@ -13,14 +13,13 @@ class TestCommand extends EasCommand {
 }
 
 describe(mockCommandContext, () => {
-  it('provides a disabled experimentation client that returns defaults', () => {
+  it('provides a disabled experimentation client that returns defaults', async () => {
     const ctx = mockCommandContext(TestCommand, {});
-    expect(ctx.experimentation.getUserNamespace('any').getParam('variant', 'control')).toBe(
-      'control'
+    const client = await ctx.experimentation.getClientAsync();
+    expect(client.getUserNamespace('any').getParam('variant', 'control')).toBe('control');
+    expect(client.getAccountNamespace('any', { accountId: 'a' }).getParam('enabled', true)).toBe(
+      true
     );
-    expect(
-      ctx.experimentation.getAccountNamespace('any', { accountId: 'a' }).getParam('enabled', true)
-    ).toBe(true);
-    expect(ctx.experimentation.getDeviceNamespace('any').getParam('count', 3)).toBe(3);
+    expect(client.getDeviceNamespace('any').getParam('count', 3)).toBe(3);
   });
 });

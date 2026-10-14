@@ -7,6 +7,7 @@ import Log from '../../../log';
 import SessionManager from '../../../user/SessionManager';
 import { Actor } from '../../../user/User';
 import { ContextOptions } from '../ContextField';
+import { ExperimentationClient } from '../../../experimentation/ExperimentationClient';
 import ExperimentationContextField from '../ExperimentationContextField';
 import { createGraphqlClient } from '../contextUtils/createGraphqlClient';
 
@@ -61,6 +62,14 @@ function options(overrides: Partial<ContextOptions> = {}): ContextOptions {
   } as ContextOptions;
 }
 
+/** Resolves the context and then loads the client, as a command does on its first variant read. */
+async function loadClientAsync(
+  contextOptions: ContextOptions = options()
+): Promise<ExperimentationClient> {
+  const lazyClient = await new ExperimentationContextField().getValueAsync(contextOptions);
+  return await lazyClient.getClientAsync();
+}
+
 async function flushPromisesAsync(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
 }
@@ -84,7 +93,7 @@ beforeEach(() => {
 describe(ExperimentationContextField, () => {
   it('returns a disabled client and fetches nothing when analytics is disabled', async () => {
     const { sessionManager, mocked } = createSessionManager();
-    const client = await new ExperimentationContextField().getValueAsync(
+    const client = await loadClientAsync(
       options({ analytics: createAnalytics(null), sessionManager })
     );
 
@@ -100,9 +109,7 @@ describe(ExperimentationContextField, () => {
     async flag => {
       process.env[flag] = '1';
       const { sessionManager, mocked } = createSessionManager();
-      const client = await new ExperimentationContextField().getValueAsync(
-        options({ sessionManager })
-      );
+      const client = await loadClientAsync(options({ sessionManager }));
 
       expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
       expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
@@ -115,22 +122,20 @@ describe(ExperimentationContextField, () => {
   it('still honors EAS_EXPERIMENT_OVERRIDE in CI', async () => {
     process.env.CI = 'true';
     mockEnv.experimentOverride = 'cli-full:variant=treatment';
-    const client = await new ExperimentationContextField().getValueAsync(options());
+    const client = await loadClientAsync(options());
     expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('treatment');
     expect(getConfigsAsyncMock).not.toHaveBeenCalled();
   });
 
   it('still honors EAS_EXPERIMENT_OVERRIDE when analytics is disabled', async () => {
     mockEnv.experimentOverride = 'cli-full:variant=treatment';
-    const client = await new ExperimentationContextField().getValueAsync(
-      options({ analytics: createAnalytics(null) })
-    );
+    const client = await loadClientAsync(options({ analytics: createAnalytics(null) }));
     expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('treatment');
   });
 
   it('buckets each scope on its own unit and logs exposures through analytics', async () => {
     const analytics = createAnalytics('device-1');
-    const client = await new ExperimentationContextField().getValueAsync(options({ analytics }));
+    const client = await loadClientAsync(options({ analytics }));
 
     client.getUserNamespace('cli-full').getParam('variant', 'control');
     client
@@ -149,9 +154,7 @@ describe(ExperimentationContextField, () => {
   it('gives logged-out users defaults for user experiments but still runs device experiments', async () => {
     const analytics = createAnalytics('device-1');
     const { sessionManager } = createSessionManager({ loggedOut: true });
-    const client = await new ExperimentationContextField().getValueAsync(
-      options({ analytics, sessionManager })
-    );
+    const client = await loadClientAsync(options({ analytics, sessionManager }));
 
     expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
     expect(['control', 'treatment']).toContain(
@@ -163,7 +166,7 @@ describe(ExperimentationContextField, () => {
   it('fails open to defaults when the config fetch rejects', async () => {
     getConfigsAsyncMock.mockRejectedValue(new Error('offline'));
     const analytics = createAnalytics();
-    const client = await new ExperimentationContextField().getValueAsync(options({ analytics }));
+    const client = await loadClientAsync(options({ analytics }));
 
     expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
     expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
@@ -183,7 +186,7 @@ describe(ExperimentationContextField, () => {
       deviceConfig: emptyDefinition,
     });
     const analytics = createAnalytics();
-    const client = await new ExperimentationContextField().getValueAsync(options({ analytics }));
+    const client = await loadClientAsync(options({ analytics }));
 
     expect(client.getUserNamespace('cli-full').getParam('variant', 'control')).toBe('control');
     expect(analytics.logEvent).not.toHaveBeenCalled();
@@ -205,7 +208,7 @@ describe(ExperimentationContextField, () => {
         ],
       },
     });
-    const client = await new ExperimentationContextField().getValueAsync(options());
+    const client = await loadClientAsync(options());
 
     expect(client.getDeviceNamespace('cli-full').getParam('variant', 'control')).toBe('control');
     expect(Log.debug).toHaveBeenCalledWith(
@@ -216,7 +219,7 @@ describe(ExperimentationContextField, () => {
 
   it('logs account exposures on the account ID the command passes', async () => {
     const analytics = createAnalytics();
-    const client = await new ExperimentationContextField().getValueAsync(options({ analytics }));
+    const client = await loadClientAsync(options({ analytics }));
     client
       .getAccountNamespace('cli-full', { accountId: 'picked-account' })
       .getParam('variant', 'x');
@@ -235,9 +238,7 @@ describe(ExperimentationContextField, () => {
     when(mocked.getSessionSecret()).thenReturn('secret');
     when(mocked.getUserAsync()).thenReturn(new Promise(resolve => (resolveActor = resolve)));
 
-    const pending = new ExperimentationContextField().getValueAsync(
-      options({ sessionManager: instance(mocked) })
-    );
+    const pending = loadClientAsync(options({ sessionManager: instance(mocked) }));
     await flushPromisesAsync();
 
     expect(getConfigsAsyncMock).toHaveBeenCalledTimes(1);
@@ -246,6 +247,20 @@ describe(ExperimentationContextField, () => {
     resolveConfigs(allConfigs);
     resolveActor(actor);
     await expect(pending).resolves.toBeDefined();
+  });
+
+  it('fetches nothing until a command asks for the client', async () => {
+    const { sessionManager, mocked } = createSessionManager();
+    const lazyClient = await new ExperimentationContextField().getValueAsync(
+      options({ sessionManager })
+    );
+
+    expect(getConfigsAsyncMock).not.toHaveBeenCalled();
+    expect(createGraphqlClient).not.toHaveBeenCalled();
+    verify(mocked.getUserAsync()).never();
+
+    await lazyClient.getClientAsync();
+    expect(getConfigsAsyncMock).toHaveBeenCalledTimes(1);
   });
 
   it('caches one client per analytics instance so repeated context calls do not log duplicate exposures', async () => {
@@ -257,6 +272,8 @@ describe(ExperimentationContextField, () => {
 
     expect(second).toBe(first);
     expect(other).not.toBe(first);
+    expect(await second.getClientAsync()).toBe(await first.getClientAsync());
+    expect(await other.getClientAsync()).not.toBe(await first.getClientAsync());
     expect(getConfigsAsyncMock).toHaveBeenCalledTimes(2);
   });
 });

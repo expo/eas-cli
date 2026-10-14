@@ -6,6 +6,7 @@ import {
   ExperimentationClient,
   createLoggerConfig,
 } from '../../experimentation/ExperimentationClient';
+import { LazyExperimentationClient } from '../../experimentation/LazyExperimentationClient';
 import { ExperimentationConfigQuery } from '../../graphql/queries/ExperimentationConfigQuery';
 import Log from '../../log';
 
@@ -21,21 +22,23 @@ function isRunningInCi(): boolean {
 /**
  * Never prompts, throws, writes files, or reads the app config. A failed config fetch disables
  * all scopes. CI runs skip the fetch and get defaults.
+ * The config fetch runs on the first `getClientAsync` call, so commands that never read a variant
+ * make no request.
  */
-export default class ExperimentationContextField extends ContextField<ExperimentationClient> {
-  // One client per command run, so repeated getContextAsync calls cannot log duplicate exposures.
+export default class ExperimentationContextField extends ContextField<LazyExperimentationClient> {
+  // One handle per command run, so repeated getContextAsync calls cannot log duplicate exposures.
   private readonly clientByAnalytics = new WeakMap<
     AnalyticsWithOrchestration,
-    Promise<ExperimentationClient>
+    LazyExperimentationClient
   >();
 
-  async getValueAsync(options: ContextOptions): Promise<ExperimentationClient> {
-    let pending = this.clientByAnalytics.get(options.analytics);
-    if (!pending) {
-      pending = this.buildClientAsync(options);
-      this.clientByAnalytics.set(options.analytics, pending);
+  async getValueAsync(options: ContextOptions): Promise<LazyExperimentationClient> {
+    let client = this.clientByAnalytics.get(options.analytics);
+    if (!client) {
+      client = new LazyExperimentationClient(() => this.buildClientAsync(options));
+      this.clientByAnalytics.set(options.analytics, client);
     }
-    return await pending;
+    return client;
   }
 
   private async buildClientAsync({
