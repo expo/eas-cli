@@ -129,6 +129,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       openUrl: undefined,
       networkCapture: false,
       networkCaptureFields: [],
+      frameAncestors: [],
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
@@ -162,6 +163,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'open_url',
       'network_capture',
       'network_capture_fields',
+      'frame_ancestors',
       'package_version',
       'max_duration_seconds',
     ]);
@@ -201,6 +203,26 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         networkCaptureFields: ['header', 'response-body'],
       })
     );
+  });
+
+  it('hands the frame ancestors to the session host', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      frame_ancestors: { value: ['https://muse.example'] },
+    });
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://muse.example'] })
+    );
+  });
+
+  it('fails before starting anything when the frame ancestors are not a list', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.DARWIN, {
+        frame_ancestors: { value: 'https://muse.example' },
+      })
+    ).rejects.toThrow('must be an array of origins');
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
   });
 
   it('fails before starting anything when network capture is asked for on Android', async () => {

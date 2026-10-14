@@ -12,6 +12,10 @@ import {
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
 import {
+  createFrameAncestorsInputProvider,
+  parseFrameAncestorsInput,
+} from '../utils/frameAncestors';
+import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
@@ -38,6 +42,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -70,6 +75,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
+      const frameAncestors = parseFrameAncestorsInput(inputs.frame_ancestors?.value);
 
       logger.info(`Starting web preview remote session (runtime: ${runtimePlatform}).`);
       const launchDescription = describeServeSimLaunch(launch);
@@ -92,6 +98,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         openUrl: launch.openUrl,
         networkCapture,
         networkCaptureFields,
+        frameAncestors,
       });
 
       try {

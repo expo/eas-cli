@@ -105,6 +105,7 @@ export function createServeSimArgs({
   port,
   turnArgs = [],
   websiteArgs = [],
+  frameAncestors = [],
   shareUrl,
   packageVersion,
   launchAppIdentifier,
@@ -116,6 +117,7 @@ export function createServeSimArgs({
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
+  frameAncestors?: string[];
   shareUrl?: string;
   packageVersion?: string;
   networkCapture?: boolean;
@@ -142,6 +144,8 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...websiteArgs,
+    // Framing only: these origins are not CORS origins, so they cannot open the control socket.
+    ...frameAncestors.flatMap(origin => ['--frame-ancestor', origin]),
     ...(shareUrl ? ['--share-url', shareUrl] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
@@ -286,6 +290,7 @@ export async function startDeviceSessionHostAsync(
     openUrl,
     networkCapture = false,
     networkCaptureFields = [],
+    frameAncestors = [],
   }: {
     runtimePlatform: BuildRuntimePlatform;
     env: BuildStepEnv;
@@ -294,6 +299,11 @@ export async function startDeviceSessionHostAsync(
     packageVersion?: string;
     networkCapture?: boolean;
     networkCaptureFields?: string[];
+    /**
+     * Extra origins that may embed the preview. Android needs none: expo-device-hub runs there
+     * without `--require-token`, so it sends no `frame-ancestors` policy at all.
+     */
+    frameAncestors?: string[];
   } & ServeSimLaunchOptions
 ): Promise<DeviceSessionHost> {
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
@@ -344,6 +354,7 @@ export async function startDeviceSessionHostAsync(
           turnArgs,
           packageVersion,
           websiteArgs: websiteOriginServeSimArgs(env),
+          frameAncestors,
           shareUrl: previewPageUrl,
           launchAppIdentifier,
           launchArgs,

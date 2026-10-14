@@ -25,6 +25,10 @@ import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
+import {
+  createFrameAncestorsInputProvider,
+  parseFrameAncestorsInput,
+} from '../utils/frameAncestors';
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
@@ -71,6 +75,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -104,6 +109,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
+      const frameAncestors = parseFrameAncestorsInput(inputs.frame_ancestors?.value);
       const versionSpec = resolveAppium3VersionSpec(packageVersion);
 
       logger.info(
@@ -185,6 +191,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           openUrl: launch.openUrl,
           networkCapture,
           networkCaptureFields,
+          frameAncestors,
         });
         const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
 

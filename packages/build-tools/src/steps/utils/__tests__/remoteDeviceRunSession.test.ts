@@ -46,6 +46,7 @@ import {
   websiteOrigin,
   websiteOriginServeSimArgs,
 } from '../deviceSessionHost';
+import { parseFrameAncestorsInput } from '../frameAncestors';
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
@@ -436,6 +437,29 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
+  it('names the session frame ancestors for framing only, after the website args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
+      frameAncestors: ['https://muse.example', 'https://*.muse.example'],
+      shareUrl: 'https://expo.dev/simulator-preview/abc',
+    });
+    expect(args.slice(-10)).toEqual([
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://muse.example',
+      '--frame-ancestor',
+      'https://*.muse.example',
+      '--share-url',
+      'https://expo.dev/simulator-preview/abc',
+    ]);
+    // A CORS origin may open the control socket; a framing site must not get that.
+    expect(args.filter(arg => arg === '--cors-origin')).toHaveLength(1);
+  });
+
   it('appends the launch flags after the streaming policy', () => {
     const args = createServeSimArgs({
       port: 4321,
@@ -538,6 +562,21 @@ describe(createServeSimArgs, () => {
     expect(() => parseNetworkCaptureFieldsInput([1, 2])).toThrow(UserError);
     expect(parseNetworkCaptureFieldsInput(undefined)).toEqual([]);
     expect(parseNetworkCaptureFieldsInput(['header'])).toEqual(['header']);
+  });
+});
+
+describe(parseFrameAncestorsInput, () => {
+  it('defaults to no extra origins', () => {
+    expect(parseFrameAncestorsInput(undefined)).toEqual([]);
+  });
+
+  it('passes an array of origins through', () => {
+    expect(parseFrameAncestorsInput(['https://muse.example'])).toEqual(['https://muse.example']);
+  });
+
+  it('rejects a step input that is not an array of strings', () => {
+    expect(() => parseFrameAncestorsInput('https://muse.example')).toThrow(UserError);
+    expect(() => parseFrameAncestorsInput([1])).toThrow(/must be an array of origins/);
   });
 });
 
