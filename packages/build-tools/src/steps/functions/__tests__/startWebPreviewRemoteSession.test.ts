@@ -113,6 +113,46 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it('logs the authenticated link while publishing the public frame URL', async () => {
+    const privatePreviewUrl = 'https://expo.dev/private-preview';
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: privatePreviewUrl,
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
+    });
+
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      public_preview: { value: false },
+      private_preview_url: { value: privatePreviewUrl },
+    });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      `Preview URL: ${privatePreviewUrl} (server: https://web-preview.example.test).`
+    );
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+        }),
+      })
+    );
+  });
+
+  it('does not log the public link when a private job lacks its authenticated URL', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, { public_preview: { value: false } });
+
+    expect(logger.info).toHaveBeenCalledWith('Private preview URL unavailable for this session.');
+    expect(jest.mocked(logger.info).mock.calls).not.toEqual(
+      expect.arrayContaining([
+        expect.arrayContaining([expect.stringContaining('/simulator-preview/preview-id')]),
+      ])
+    );
+  });
+
   it.each(['preview', 'config', 'wait'])('finishes the session after %s fails', async phase => {
     const error = new Error(`${phase} failed`);
     if (phase === 'preview') {
@@ -150,6 +190,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
           }
         : {}),
       packageVersion: '1.2.3',
+      disableShare: false,
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
@@ -196,6 +237,8 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'install_app_path',
       'network_capture',
       'network_capture_fields',
+      'public_preview',
+      'private_preview_url',
       'package_version',
       'max_duration_seconds',
     ]);
@@ -243,6 +286,22 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       })
     );
   });
+  it.each([true, false])(
+    'maps public_preview=%s to the native Share option',
+    async publicPreview => {
+      await runAsync(BuildRuntimePlatform.DARWIN, {
+        public_preview: { value: publicPreview },
+        private_preview_url: { value: 'https://expo.dev/private-preview' },
+      });
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          disableShare: !publicPreview,
+          privatePreviewUrl: 'https://expo.dev/private-preview',
+        })
+      );
+    }
+  );
 
   it('hands network capture to the session host', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {

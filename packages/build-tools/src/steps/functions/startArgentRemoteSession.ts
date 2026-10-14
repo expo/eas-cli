@@ -34,6 +34,8 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -85,6 +87,8 @@ export function createStartArgentRemoteSessionBuildFunction(
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createPublicPreviewInputProvider(),
+      createPrivatePreviewUrlInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -283,6 +287,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
+          disableShare: inputs.public_preview?.value === false,
+          privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
@@ -294,7 +300,9 @@ export function createStartArgentRemoteSessionBuildFunction(
           authtoken: ngrokAuthtoken,
         });
         logger.info(
-          `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+          webPreview.sharePageUrl
+            ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+            : 'Private preview URL unavailable for this session.'
         );
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({

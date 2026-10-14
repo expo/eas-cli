@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Respect saved sharing preferences for iOS simulator preview sessions.
 
 ### 🐛 Bug fixes
 

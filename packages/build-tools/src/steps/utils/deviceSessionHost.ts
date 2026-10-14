@@ -72,6 +72,7 @@ const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
 const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
+const SERVE_SIM_HELP_PROBE_TIMEOUT_MS = 30_000;
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -106,6 +107,76 @@ function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
+/** Observe the launcher exit, not pipe close: package-manager descendants can hold pipes open. */
+export async function probeServeSimHelpAsync({
+  command,
+  args,
+  env,
+  timeoutMs = SERVE_SIM_HELP_PROBE_TIMEOUT_MS,
+}: {
+  command: string;
+  args: string[];
+  env: BuildStepEnv;
+  timeoutMs?: number;
+}): Promise<boolean> {
+  let probe: DetachedProcessHandle | undefined;
+  try {
+    const spawned = spawnDetached({ command, args, env, stopGracePeriodMs: 0 });
+    probe = spawned;
+    return await withDeviceRunSessionTimeoutAsync(
+      { name: 'serve-sim help probe', timeoutMs },
+      async signal => {
+        while (!spawned.getOutput().includes('--disable-share') && !spawned.getExitError()) {
+          signal.throwIfAborted();
+          await sleepAsync(25);
+        }
+        // The child exit event may arrive just before its last stdout chunk.
+        if (!spawned.getOutput().includes('--disable-share')) {
+          await sleepAsync(25);
+        }
+        return spawned.getOutput().includes('--disable-share');
+      }
+    );
+  } catch {
+    return false;
+  } finally {
+    // SIGKILL is sent synchronously after SIGTERM (zero grace period). The asynchronous
+    // reap check is observed but cannot extend the probe's hard deadline.
+    if (probe) {
+      void probe.stopAsync().catch(() => {});
+    }
+  }
+}
+
+async function canDisableServeSimShareAsync({
+  disableShare,
+  packageVersion,
+  packageManager,
+  env,
+  logger,
+}: {
+  disableShare: boolean;
+  packageVersion?: string;
+  packageManager: PackageManager;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<boolean> {
+  if (!disableShare || !packageVersion || packageVersion === 'latest') {
+    return disableShare;
+  }
+  const probe = resolvePackageExec(packageManager, [
+    createServeSimPackageSpec(packageVersion),
+    '--help',
+  ]);
+  if (await probeServeSimHelpAsync({ ...probe, env })) {
+    return true;
+  }
+  logger.warn(
+    `The selected serve-sim package (${packageVersion}) does not support --disable-share; its Share button will remain visible.`
+  );
+  return false;
+}
+
 function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): string {
   return `${EXPO_DEVICE_HUB_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
@@ -115,6 +186,7 @@ export function createServeSimArgs({
   turnArgs = [],
   websiteArgs = [],
   shareUrl,
+  disableShare = false,
   packageVersion,
   iosSimulatorUdid,
   installAppPath,
@@ -128,6 +200,7 @@ export function createServeSimArgs({
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
+  disableShare?: boolean;
   packageVersion?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
@@ -157,6 +230,7 @@ export function createServeSimArgs({
     ...turnArgs,
     ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
+    ...(disableShare ? ['--disable-share'] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...(installAppPath ? ['--install-app-path', installAppPath] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
@@ -308,6 +382,8 @@ export async function readServeSimPreviewTokenAsync(
 
 export type DeviceWebPreview = {
   previewPageUrl: string;
+  /** Human-facing link, absent when a private job has no authenticated URL. */
+  sharePageUrl?: string;
   apiUrl: string;
   previewToken?: string;
   /** Closes this tunnel only. The session host and recording remain running. */
@@ -339,6 +415,8 @@ type DeviceSessionHostOptions = {
   startupTimeoutMs?: number;
   signal?: AbortSignal;
   packageVersion?: string;
+  disableShare?: boolean;
+  privatePreviewUrl?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
@@ -387,6 +465,8 @@ async function startDeviceSessionHostInternalAsync(
     installAppPath,
     application,
     onStartupError,
+    disableShare = false,
+    privatePreviewUrl,
     launchAppIdentifier,
     launchArgs,
     openUrl,
@@ -442,14 +522,25 @@ async function startDeviceSessionHostInternalAsync(
   const serveSimStateDir = env.SERVE_SIM_STATE_DIR ?? SERVE_SIM_STATE_DIR;
   const subdomainId = randomBytes(16).toString('hex');
   const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
+  const sharePageUrl = disableShare ? privatePreviewUrl : previewPageUrl;
   const port = await findAvailablePortAsync();
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
+  const packageManager = resolveConfiguredPackageManager(env, PackageManager.NPM);
+  const shouldDisableShare =
+    !isAndroid &&
+    (await canDisableServeSimShareAsync({
+      disableShare,
+      packageVersion,
+      packageManager,
+      env,
+      logger,
+    }));
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
   const previewExec = resolvePackageExec(
-    resolveConfiguredPackageManager(env, PackageManager.NPM),
+    packageManager,
     isAndroid
       ? createExpoDeviceHubArgs({
           port,
@@ -464,7 +555,8 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
-          shareUrl: previewPageUrl,
+          shareUrl: disableShare ? undefined : previewPageUrl,
+          disableShare: shouldDisableShare,
           installAppPath: iosSimulatorUdid ? undefined : installAppPath,
           launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
           launchArgs: iosSimulatorUdid ? [] : launchArgs,
@@ -557,6 +649,7 @@ async function startDeviceSessionHostInternalAsync(
         previewFailed = false;
         return {
           previewPageUrl,
+          sharePageUrl,
           apiUrl: tunnel.url,
           previewToken,
           closeAsync() {

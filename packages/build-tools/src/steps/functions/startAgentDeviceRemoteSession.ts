@@ -96,6 +96,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes,
     maxDurationSeconds,
     capture,
+    disableShare = false,
+    privatePreviewUrl,
     tasks,
     device,
   }: {
@@ -108,6 +110,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes: number | undefined;
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
+    disableShare?: boolean;
+    privatePreviewUrl?: string;
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -163,6 +167,8 @@ export async function runAgentDeviceRemoteSessionAsync(
       env,
       logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
+      disableShare,
+      privatePreviewUrl,
       networkCapture: capture.networkCapture,
       networkCaptureFields: capture.networkCaptureFields,
     });
@@ -172,7 +178,9 @@ export async function runAgentDeviceRemoteSessionAsync(
       authtoken: ngrokAuthtoken,
     });
     taskLogger.info(
-      `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+      webPreview.sharePageUrl
+        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+        : 'Private preview URL unavailable for this session.'
     );
     return webPreview;
   });

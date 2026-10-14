@@ -20,6 +20,8 @@ import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
   omitNgrokAuthtoken,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
 import {
@@ -118,6 +120,8 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       }),
       // Session.
       ...createNetworkCaptureInputProviders(),
+      createPublicPreviewInputProvider(),
+      createPrivatePreviewUrlInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -265,6 +269,8 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
         maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
         capture,
+        disableShare: inputs.public_preview?.value === false,
+        privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
         tasks,
         device: { booted, ready },
       });

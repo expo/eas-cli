@@ -858,6 +858,28 @@ export function createServeSimLaunchInputProviders(): ReturnType<
   ];
 }
 
+/** Older session jobs omit this input and keep their existing Share button. */
+export function createPublicPreviewInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'public_preview',
+    required: false,
+    defaultValue: true,
+    allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+  });
+}
+
+export function createPrivatePreviewUrlInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'private_preview_url',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+  });
+}
+
 export function parseServeSimLaunchInputs(
   {
     launchAppIdentifier: rawLaunchAppIdentifier,
