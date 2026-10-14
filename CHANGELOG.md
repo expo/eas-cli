@@ -11,14 +11,26 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `simulator:network-requests` to list, follow, and inspect captured network requests from a running iOS simulator session, and download them as a HAR file. ([#4546](https://github.com/expo/eas-cli/pull/4546) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `simulator:crashes` to list and read crash reports from a running iOS simulator session. ([#4547](https://github.com/expo/eas-cli/pull/4547) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
+## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
+
+### 🎉 New features
+
+- [eas-cli] Add `--platform` to `eas workflow:insights:maestro` and list Maestro runs and flows per platform. ([#4613](https://github.com/expo/eas-cli/pull/4613) by [@hSATAC](https://github.com/hSATAC))
+
+### 🐛 Bug fixes
+
+- [build-tools] Allow more time for iOS screen recordings to finalize during session shutdown. ([#4626](https://github.com/expo/eas-cli/pull/4626) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
 - [build-tools] Disable the Argent video watermark in `eas/start_argent_remote_session`. ([#4574](https://github.com/expo/eas-cli/pull/4574) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Download the upterm binary through the build cache proxy. ([#4442](https://github.com/expo/eas-cli/pull/4442) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
