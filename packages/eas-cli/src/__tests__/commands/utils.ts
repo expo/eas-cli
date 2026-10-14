@@ -7,6 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
+import { ExperimentOverrides } from '../../experimentation/ExperimentOverrides';
+import { ExperimentationClient } from '../../experimentation/ExperimentationClient';
 import {
   AppFragment,
   Role,
@@ -96,6 +98,9 @@ export function mockCommandContext<
     }
     if (contextKey === 'sessionManager') {
       result.sessionManager = {};
+    }
+    if (contextKey === 'experimentation') {
+      result.experimentation = ExperimentationClient.createDisabled(ExperimentOverrides.empty());
     }
     if (contextKey === 'projectConfig') {
       result.projectConfig = {
