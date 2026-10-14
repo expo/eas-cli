@@ -1,17 +1,16 @@
 import {
   Artifacts,
   BuildContext,
-  DEVICE_RUN_SESSION_TOKEN_ENV,
   Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
+  getDeviceRunSessionTokenFromEnvironmentSecrets,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
   BuildJob,
   BuildMode,
   BuildPhase,
-  EnvironmentSecretType,
   Ios,
   Job,
   Metadata,
@@ -283,10 +282,10 @@ export default class BuildService {
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
       const robotAccessToken = job.secrets?.robotAccessToken;
-      const deviceRunSessionToken = job.secrets?.environmentSecrets?.find(
-        ({ name, type }) =>
-          name === DEVICE_RUN_SESSION_TOKEN_ENV && type === EnvironmentSecretType.STRING
-      )?.value;
+      // Resolves duplicate secrets like the build env does, so metrics and steps use one token.
+      const deviceRunSessionToken = getDeviceRunSessionTokenFromEnvironmentSecrets(
+        job.secrets?.environmentSecrets
+      );
       if (!job.platform && deviceRunSessionToken) {
         // A device run session job reports metrics with its session token, which names the
         // session and its job run, so it does not need the account-wide robot access token.

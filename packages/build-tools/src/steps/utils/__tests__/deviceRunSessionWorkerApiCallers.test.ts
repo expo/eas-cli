@@ -124,7 +124,7 @@ describe('with a device run session token', () => {
     const ctx = createCtx({ withToken: true });
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'STOPPED' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'stopped' } }));
 
     await waitForDeviceRunSessionStoppedAsync({ ctx, deviceRunSessionId: 'drs-id', logger });
 
@@ -136,7 +136,7 @@ describe('with a device run session token', () => {
     const ctx = createCtx({ withToken: true });
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'STOPPED' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'stopped' } }));
 
     await waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -153,7 +153,7 @@ describe('with a device run session token', () => {
     const ctx = createCtx({ withToken: true });
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'IN_PROGRESS' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'in-progress' } }));
 
     await uploadRemoteSessionConfigAsync({
       ctx,
@@ -312,12 +312,9 @@ describe('with a device run session token', () => {
     jest.mocked(turtleFetch).mockResolvedValueOnce(
       jsonResponse({
         data: {
-          platform: 'IOS',
-          appSlug: 'session-app',
+          platform: 'ios',
           build: {
             id: BUILD_ID,
-            platform: 'IOS',
-            appSlug: 'build-app',
             gitCommitHash: 'abc',
             applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
           },
@@ -327,8 +324,8 @@ describe('with a device run session token', () => {
 
     await expect(loadScreenshotSessionAsync(ctx, 'drs-id', logger)).resolves.toEqual({
       platform: 'IOS',
-      app: { slug: 'session-app' },
-      build: { id: BUILD_ID, gitCommitHash: 'abc', app: { slug: 'build-app' } },
+      app: null,
+      build: { id: BUILD_ID, gitCommitHash: 'abc', app: null },
     });
     expectWorkerApiCall('application', 'GET', { signal: expect.any(AbortSignal), retries: 0 });
     expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
@@ -339,12 +336,9 @@ describe('with a device run session token', () => {
     jest.mocked(turtleFetch).mockResolvedValueOnce(
       jsonResponse({
         data: {
-          platform: 'IOS',
-          appSlug: 'app',
+          platform: 'ios',
           build: {
             id: BUILD_ID,
-            platform: 'IOS',
-            appSlug: 'app',
             gitCommitHash: null,
             applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
           },
@@ -375,9 +369,7 @@ describe('with a device run session token', () => {
   it('refuses to download a build that is not the session build', async () => {
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(
-        jsonResponse({ data: { platform: 'IOS', appSlug: 'app', build: null } })
-      );
+      .mockResolvedValueOnce(jsonResponse({ data: { platform: 'ios', build: null } }));
 
     const error = await downloadBuildAsync({
       logger,

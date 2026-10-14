@@ -47,7 +47,7 @@ describe(getDeviceRunSessionWorkerApi, () => {
   it('uses the API v2 base URL of the context', async () => {
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'IN_PROGRESS' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'in-progress' } }));
     const api = getDeviceRunSessionWorkerApi({
       env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN, __API_SERVER_URL: 'https://other.expo.test' },
       expoApiV2BaseUrl: BASE_URL,
@@ -65,7 +65,7 @@ describe(getDeviceRunSessionWorkerApi, () => {
   it('derives the API v2 base URL from __API_SERVER_URL when the context has none', async () => {
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'IN_PROGRESS' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'in-progress' } }));
     const api = getDeviceRunSessionWorkerApi({
       env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN, __API_SERVER_URL: 'https://api.expo.test' },
     } as unknown as CustomBuildContext);
@@ -100,7 +100,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       method: 'GET',
       route: 'session',
       json: undefined,
-      data: { id: 'drs-id', status: 'IN_PROGRESS' },
+      data: { id: 'drs-id', status: 'in-progress' },
       expected: { id: 'drs-id', status: 'IN_PROGRESS' },
     },
     {
@@ -110,7 +110,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       method: 'POST',
       route: 'start',
       json: { remoteConfig: { type: 'agent-device', url: 'https://x.test' } },
-      data: { id: 'drs-id', status: 'IN_PROGRESS' },
+      data: { id: 'drs-id', status: 'in-progress' },
       expected: { id: 'drs-id', status: 'IN_PROGRESS' },
     },
     {
@@ -119,7 +119,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       method: 'POST',
       route: 'stop',
       json: undefined,
-      data: { id: 'drs-id', status: 'STOPPED' },
+      data: { id: 'drs-id', status: 'stopped' },
       expected: { id: 'drs-id', status: 'STOPPED' },
     },
     {
@@ -186,23 +186,17 @@ describe(DeviceRunSessionWorkerApi, () => {
       route: 'application',
       json: undefined,
       data: {
-        platform: 'IOS',
-        appSlug: 'my-app',
+        platform: 'ios',
         build: {
           id: 'build-id',
-          platform: 'IOS',
-          appSlug: 'my-app',
           gitCommitHash: null,
           applicationArchiveUrl: 'https://expo.test/artifacts/eas/a.tar.gz',
         },
       },
       expected: {
-        platform: 'IOS',
-        appSlug: 'my-app',
+        platform: 'ios',
         build: {
           id: 'build-id',
-          platform: 'IOS',
-          appSlug: 'my-app',
           gitCommitHash: null,
           applicationArchiveUrl: 'https://expo.test/artifacts/eas/a.tar.gz',
         },
@@ -224,6 +218,33 @@ describe(DeviceRunSessionWorkerApi, () => {
       expect(options).toEqual(expect.objectContaining({ retries: 0, shouldThrowOnNotOk: false }));
     }
   );
+
+  it.each([
+    ['new', 'NEW'],
+    ['queued', 'QUEUED'],
+    ['starting', 'STARTING'],
+    ['in-progress', 'IN_PROGRESS'],
+    ['stopped', 'STOPPED'],
+    ['errored', 'ERRORED'],
+  ])('maps the www status %s to the GraphQL status %s', async (wwwStatus, status) => {
+    jest
+      .mocked(turtleFetch)
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: wwwStatus } }));
+
+    await expect(createApi().getSessionAsync()).resolves.toEqual({ id: 'drs-id', status });
+  });
+
+  it('rejects the old application shape with GraphQL platform values', async () => {
+    jest
+      .mocked(turtleFetch)
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { platform: 'IOS', appSlug: 'app', build: null } })
+      );
+
+    await expect(createApi().getApplicationAsync()).rejects.toThrow(
+      'GET /v2/device-run-session-worker/application returned an unexpected response'
+    );
+  });
 
   it('passes the signal, timeout, and retries to the request', async () => {
     jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { iceServers: [] } }));
@@ -302,7 +323,7 @@ describe(DeviceRunSessionWorkerApi, () => {
   it('rejects a response that does not match the route contract', async () => {
     jest
       .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'UNKNOWN' } }));
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'STOPPED' } }));
 
     await expect(createApi().getSessionAsync()).rejects.toThrow(
       'GET /v2/device-run-session-worker/session returned an unexpected response'

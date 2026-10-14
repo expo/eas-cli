@@ -45,7 +45,15 @@ const ScreenshotSessionSchema = z.object({
     .nullable(),
 });
 
-export type ScreenshotSession = z.infer<typeof ScreenshotSessionSchema>;
+/**
+ * Session details used to name screenshots. `app` is null when the source does not report an app
+ * slug: the device run session worker API does not return one.
+ */
+export type ScreenshotSession = {
+  platform: 'IOS' | 'ANDROID';
+  app: { slug: string } | null;
+  build: { id: string; gitCommitHash: string | null; app: { slug: string } | null } | null;
+};
 
 export async function loadScreenshotSessionAsync(
   ctx: CustomBuildContext,
@@ -57,17 +65,17 @@ export async function loadScreenshotSessionAsync(
     const workerApi = getDeviceRunSessionWorkerApi(ctx);
     if (workerApi) {
       const application = await workerApi.getApplicationAsync({ signal });
-      return ScreenshotSessionSchema.parse({
-        platform: application.platform,
-        app: { slug: application.appSlug },
+      return {
+        platform: application.platform === 'ios' ? 'IOS' : 'ANDROID',
+        app: null,
         build: application.build
           ? {
               id: application.build.id,
               gitCommitHash: application.build.gitCommitHash,
-              app: { slug: application.build.appSlug },
+              app: null,
             }
           : null,
-      });
+      };
     }
     const result = await ctx.graphqlClient
       .query(SCREENSHOT_SESSION_QUERY, { deviceRunSessionId }, graphqlAbortContext(signal))
@@ -99,18 +107,20 @@ export function screenshotArtifactDetails(
   }
 
   const app = session.build?.app ?? session.app;
-  const appSlug =
-    app.slug
-      .replace(FILENAME_UNSAFE_RUN, '-')
-      .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
-      .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
   const platform = session.platform.toLowerCase();
-  const filenameParts = [appSlug, platform];
-  const metadata: Record<string, string> = {
-    __eas_type: 'screenshot',
-    appSlug: app.slug,
-    platform,
-  };
+  const filenameParts = [platform];
+  const metadata: Record<string, string> = { __eas_type: 'screenshot' };
+  // Without an app slug, the filename starts with the platform.
+  if (app) {
+    const appSlug =
+      app.slug
+        .replace(FILENAME_UNSAFE_RUN, '-')
+        .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
+        .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
+    filenameParts.unshift(appSlug);
+    metadata.appSlug = app.slug;
+  }
+  metadata.platform = platform;
 
   if (session.build) {
     metadata.buildId = session.build.id;

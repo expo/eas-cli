@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { type EnvironmentSecret, EnvironmentSecretType, SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { z } from 'zod';
@@ -20,9 +20,24 @@ export const DEVICE_RUN_SESSION_TOKEN_HEADER = 'expo-device-run-session-token';
 
 const DEVICE_RUN_SESSION_WORKER_PATH = 'device-run-session-worker/';
 
+/**
+ * www returns the entity value of the status. The client maps it to the GraphQL enum value, so
+ * callers compare statuses the same way on both paths.
+ */
+const DEVICE_RUN_SESSION_STATUS_FROM_ENTITY_VALUE = {
+  new: 'NEW',
+  queued: 'QUEUED',
+  starting: 'STARTING',
+  'in-progress': 'IN_PROGRESS',
+  stopped: 'STOPPED',
+  errored: 'ERRORED',
+} as const;
+
 const DeviceRunSessionStatusSchema = z.object({
   id: z.string(),
-  status: z.enum(['NEW', 'QUEUED', 'STARTING', 'IN_PROGRESS', 'STOPPED', 'ERRORED']),
+  status: z
+    .enum(['new', 'queued', 'starting', 'in-progress', 'stopped', 'errored'])
+    .transform(status => DEVICE_RUN_SESSION_STATUS_FROM_ENTITY_VALUE[status]),
 });
 
 const UploadSessionSchema = z.object({
@@ -42,16 +57,11 @@ const TurnIceServersSchema = z.object({
   ),
 });
 
-const PlatformSchema = z.enum(['IOS', 'ANDROID']);
-
 const DeviceRunSessionApplicationSchema = z.object({
-  platform: PlatformSchema,
-  appSlug: z.string(),
+  platform: z.enum(['ios', 'android']),
   build: z
     .object({
       id: z.string(),
-      platform: PlatformSchema,
-      appSlug: z.string(),
       gitCommitHash: z.string().nullable(),
       applicationArchiveUrl: z.string().nullable(),
     })
@@ -265,6 +275,23 @@ export function getDeviceRunSessionToken(
 ): string | null {
   const token = env?.[DEVICE_RUN_SESSION_TOKEN_ENV];
   return token ? token : null;
+}
+
+/**
+ * Returns the device run session token from the job's environment secrets, or null. It resolves
+ * duplicate names like the build context env does (the last secret wins), so the worker and the
+ * steps use the same token. A file secret is not a token.
+ */
+export function getDeviceRunSessionTokenFromEnvironmentSecrets(
+  environmentSecrets: EnvironmentSecret[] | undefined
+): string | null {
+  const secret = [...(environmentSecrets ?? [])]
+    .reverse()
+    .find(({ name }) => name === DEVICE_RUN_SESSION_TOKEN_ENV);
+  if (!secret || secret.type !== EnvironmentSecretType.STRING || !secret.value) {
+    return null;
+  }
+  return secret.value;
 }
 
 /**
