@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Allow more time for iOS screen recordings to finalize during session shutdown. ([#4626](https://github.com/expo/eas-cli/pull/4626) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))
