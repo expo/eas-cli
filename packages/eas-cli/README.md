@@ -2836,22 +2836,20 @@ ALIASES
 
 ## `eas sim:get`
 
-[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser preview link requires sign-in.
+[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.
 
 ```
 USAGE
-  $ eas sim:get [--id <value>] [--public-link] [--json] [--non-interactive]
+  $ eas sim:get [--id <value>] [--json] [--non-interactive]
 
 FLAGS
   --id=<value>       Simulator session ID. Defaults to .env.eas-simulator.
   --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
-  --public-link      Print a shareable preview link containing an access token. Anyone with the link can control the
-                     simulator. With --json, include previewApiUrl and its token for API clients when available.
 
 DESCRIPTION
-  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser
-  preview link requires sign-in.
+  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the
+  session's saved sharing preference.
 
 ALIASES
   $ eas sim:get
@@ -3236,22 +3234,20 @@ _See code: [packages/eas-cli/src/commands/simulator/exec.ts](https://github.com/
 
 ## `eas simulator:get`
 
-[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser preview link requires sign-in.
+[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.
 
 ```
 USAGE
-  $ eas simulator:get [--id <value>] [--public-link] [--json] [--non-interactive]
+  $ eas simulator:get [--id <value>] [--json] [--non-interactive]
 
 FLAGS
   --id=<value>       Simulator session ID. Defaults to .env.eas-simulator.
   --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
-  --public-link      Print a shareable preview link containing an access token. Anyone with the link can control the
-                     simulator. With --json, include previewApiUrl and its token for API clients when available.
 
 DESCRIPTION
-  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser
-  preview link requires sign-in.
+  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the
+  session's saved sharing preference.
 
 ALIASES
   $ eas sim:get

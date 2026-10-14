@@ -49,6 +49,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     id: 'session-123',
     name: null,
     tags: [],
+    publicPreview: false,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -165,13 +166,14 @@ describe(SimulatorGet, () => {
   });
 
   it.each([false, true])(
-    'uses the %s public-link choice for JSON and human previews',
-    async publicLink => {
+    'uses the saved publicPreview=%s preference for JSON and human previews',
+    async publicPreview => {
       const publicUrl = 'https://expo.dev/simulator-preview/preview-123';
       const privateUrl =
         'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview';
       mockByIdAsync.mockResolvedValue(
         makeDeviceRunSession({
+          publicPreview,
           type: DeviceRunSessionType.WebPreviewOnly,
           remoteConfig: {
             __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
@@ -181,13 +183,12 @@ describe(SimulatorGet, () => {
           },
         })
       );
-      const choice = publicLink ? ['--public-link'] : [];
-      const expectedUrl = publicLink ? `${publicUrl}#token=preview-secret` : privateUrl;
-      const expectedApiUrl = publicLink
+      const expectedUrl = publicPreview ? `${publicUrl}#token=preview-secret` : privateUrl;
+      const expectedApiUrl = publicPreview
         ? 'https://preview-api.example.test/?token=preview-secret'
         : null;
 
-      const { command: jsonCommand } = createCommand(['--id', 'session-123', '--json', ...choice]);
+      const { command: jsonCommand } = createCommand(['--id', 'session-123', '--json']);
       await jsonCommand.runAsync();
       expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -197,7 +198,7 @@ describe(SimulatorGet, () => {
           }),
         })
       );
-      if (!publicLink) {
+      if (!publicPreview) {
         expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
           'preview-secret'
         );
@@ -207,6 +208,7 @@ describe(SimulatorGet, () => {
       mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
       mockByIdAsync.mockResolvedValue(
         makeDeviceRunSession({
+          publicPreview,
           type: DeviceRunSessionType.WebPreviewOnly,
           remoteConfig: {
             __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
@@ -216,10 +218,10 @@ describe(SimulatorGet, () => {
           },
         })
       );
-      const { command: humanCommand } = createCommand(['--id', 'session-123', ...choice]);
+      const { command: humanCommand } = createCommand(['--id', 'session-123']);
       await humanCommand.runAsync();
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(expectedUrl));
-      if (!publicLink) {
+      if (!publicPreview) {
         expect(JSON.stringify(jest.mocked(Log.log).mock.calls)).not.toContain('preview-secret');
       }
     }
@@ -244,6 +246,45 @@ describe(SimulatorGet, () => {
 
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Checkout regression'));
   });
+
+  it.each([false, true])(
+    'uses saved publicPreview=%s for Android while preserving controller access',
+    async publicPreview => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          platform: AppPlatform.Android,
+          publicPreview,
+          remoteConfig: {
+            __typename: 'AgentDeviceRunSessionRemoteConfig',
+            agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+            agentDeviceRemoteSessionToken: 'controller-secret',
+            webPreviewUrl: 'https://expo.dev/simulator-preview/android-123',
+            webPreviewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+
+      const { command } = createCommand(['--id', 'session-123', '--json']);
+      await command.runAsync();
+
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: {
+            __typename: 'AgentDeviceRunSessionRemoteConfig',
+            agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+            agentDeviceRemoteSessionToken: 'controller-secret',
+            webPreviewUrl: publicPreview
+              ? 'https://expo.dev/simulator-preview/android-123#token=preview-secret'
+              : 'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview',
+            previewApiUrl: publicPreview
+              ? 'https://preview-api.example.test/?token=preview-secret'
+              : null,
+          },
+        })
+      );
+    }
+  );
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
     const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];

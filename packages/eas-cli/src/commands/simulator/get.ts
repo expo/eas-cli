@@ -30,15 +30,11 @@ type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 export default class SimulatorGet extends EasCommand {
   static override aliases = ['sim:get'];
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. The default browser preview link requires sign-in.';
+    "[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.";
 
   static override flags = {
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
-    }),
-    'public-link': Flags.boolean({
-      description:
-        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -109,7 +105,7 @@ export default class SimulatorGet extends EasCommand {
           ? sanitizeRemoteConfigForJson(
               session.remoteConfig,
               deviceRunSessionPreviewUrl,
-              flags['public-link']
+              session.publicPreview
             )
           : session.remoteConfig,
         artifacts: session.artifacts,
@@ -127,7 +123,7 @@ export default class SimulatorGet extends EasCommand {
           formatRemoteSessionInstructions(session.remoteConfig, 'env', {
             sessionUrl: deviceRunSessionUrl,
             privatePreviewUrl: deviceRunSessionPreviewUrl,
-            publicLink: flags['public-link'],
+            publicLink: session.publicPreview,
             platform: session.platform,
           })
         );

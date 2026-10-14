@@ -318,8 +318,8 @@ function formatBrowserPreviewUrl(
 }
 
 /**
- * Remote config for `--json`. The direct preview API address and preview tokens are omitted by
- * default; `--public-link` includes them for callers that explicitly need bearer access.
+ * Remote config for `--json`. Private sessions omit the direct preview API address and preview
+ * tokens. Public sessions include bearer preview links while preserving controller credentials.
  */
 export function sanitizeRemoteConfigForJson(
   remoteConfig: DeviceRunSessionRemoteConfig,
