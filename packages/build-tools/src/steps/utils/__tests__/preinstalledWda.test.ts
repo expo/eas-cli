@@ -46,7 +46,7 @@ it('downloads the driver-matched Simulator runner and retains its XCTest framewo
       '--kind',
       'sim',
     ],
-    expect.objectContaining({ env: options.appiumEnv, timeout: 60_000, killSignal: 'SIGKILL' })
+    expect.objectContaining({ env: options.appiumEnv, detached: true })
   );
   expect(
     (await fs.promises.stat(path.join(runner, 'Frameworks', 'XCTest.framework'))).isDirectory()

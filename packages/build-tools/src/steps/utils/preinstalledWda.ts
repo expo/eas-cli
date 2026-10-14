@@ -4,6 +4,8 @@ import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { killProcessGroup } from '../../utils/processes';
+
 export async function preparePreinstalledWdaAsync({
   runtimeIdentifier,
   appiumHome,
@@ -30,7 +32,7 @@ export async function preparePreinstalledWdaAsync({
   try {
     // The driver selects the release matching its installed WDA and the host architecture.
     // Keep the Simulator runner intact; removing its XCTest frameworks breaks launch.
-    await spawn(
+    const download = spawn(
       appiumBinPath,
       [
         'driver',
@@ -45,8 +47,16 @@ export async function preparePreinstalledWdaAsync({
         '--kind',
         'sim',
       ],
-      { env: appiumEnv, logger, timeout: 60_000, killSignal: 'SIGKILL' }
+      { env: appiumEnv, logger, detached: true }
     );
+    // Appium's downloader inherits its pipes; killing only Appium leaves spawn's
+    // close event pending. Kill the owned group, then await close before cleanup.
+    const timeout = setTimeout(() => killProcessGroup(download.child, 'SIGKILL'), 60_000);
+    try {
+      await download;
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!(await fs.promises.stat(runner)).isDirectory()) {
       throw new Error('The downloaded WebDriverAgent runner is not an app directory.');
     }
