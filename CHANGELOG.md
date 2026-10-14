@@ -2,18 +2,6 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
-## main
-
-### 🛠 Breaking changes
-
-### 🎉 New features
-
-- [eas-cli] Add `simulator:logs` to read and follow logs from a running iOS simulator session. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
-
-### 🐛 Bug fixes
-
-### 🧹 Chores
-
 ## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
 
 ### 🎉 New features
