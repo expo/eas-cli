@@ -1,4 +1,5 @@
 import {
+  AppPlatform,
   WorkflowDeviceTestCaseInsightsTimeSeriesGranularity,
   WorkflowDeviceTestCaseStatus,
 } from '../../../graphql/generated';
@@ -39,8 +40,34 @@ const timeSeries = [
   },
 ];
 
+const platformTotals = [
+  {
+    __typename: 'WorkflowDeviceTestCasePlatformTotals' as const,
+    platform: AppPlatform.Ios,
+    totalRuns: metric(120, 100),
+    distinctTestCount: metric(8, 8),
+  },
+  {
+    __typename: 'WorkflowDeviceTestCasePlatformTotals' as const,
+    platform: AppPlatform.Android,
+    totalRuns: metric(70, 60),
+    distinctTestCount: metric(6, 5),
+  },
+  {
+    __typename: 'WorkflowDeviceTestCasePlatformTotals' as const,
+    platform: null,
+    totalRuns: metric(10, 0),
+    distinctTestCount: metric(2, 0),
+  },
+];
+
 function makeApp(
-  overrides: { flows?: any[]; hasNextPage?: boolean; timeSeries?: typeof timeSeries } = {}
+  overrides: {
+    flows?: any[];
+    hasNextPage?: boolean;
+    timeSeries?: typeof timeSeries;
+    platformTotals?: typeof platformTotals;
+  } = {}
 ): AppWithMaestroInsightsObject {
   return {
     __typename: 'App',
@@ -59,6 +86,7 @@ function makeApp(
           currentValue: 42100,
           previousValue: null,
         },
+        platforms: overrides.platformTotals ?? platformTotals,
       },
       timeSeries: overrides.timeSeries ?? timeSeries,
       tests: {
@@ -206,6 +234,23 @@ describe(toMaestroInsightsSummary, () => {
       passRatePercent: { current: 90, previous: 90 },
       distinctFlakyFlows: { current: 3, previous: 2 },
       avgDurationMs: { current: 42100, previous: null },
+      platforms: [
+        {
+          platform: 'IOS',
+          totalRuns: { current: 120, previous: 100 },
+          distinctFlows: { current: 8, previous: 8 },
+        },
+        {
+          platform: 'ANDROID',
+          totalRuns: { current: 70, previous: 60 },
+          distinctFlows: { current: 6, previous: 5 },
+        },
+        {
+          platform: null,
+          totalRuns: { current: 10, previous: 0 },
+          distinctFlows: { current: 2, previous: 0 },
+        },
+      ],
     });
   });
 
@@ -256,6 +301,7 @@ describe(buildMaestroInsightsJson, () => {
       'passRatePercent',
       'distinctFlakyFlows',
       'avgDurationMs',
+      'platforms',
     ]);
     expect(json.runsOverTime.granularity).toBe('DAY');
     expect(json.flows).toHaveLength(2);
@@ -289,6 +335,25 @@ describe(buildMaestroInsightsTable, () => {
     expect(table).toContain('70.0s');
     expect(table).toContain('FAILED');
     expect(table).toContain('FLAKY');
+  });
+
+  it('lists runs and flows per platform', () => {
+    const table = stripAnsi(buildMaestroInsightsTable(makeSummary()));
+
+    expect(table).toContain('By platform (compared with the previous period):');
+    expect(table).toMatch(/iOS runs\s+120 \(\+20\.0%\)/);
+    expect(table).toMatch(/iOS flows\s+8 \(0\.0%\)/);
+    expect(table).toMatch(/Android runs\s+70 \(\+16\.7%\)/);
+    expect(table).toMatch(/Android flows\s+6 \(\+20\.0%\)/);
+    expect(table).toMatch(/Unknown runs\s+10 \(n\/a\)/);
+    expect(table).toMatch(/Unknown flows\s+2 \(n\/a\)/);
+    expect(table.indexOf('By platform')).toBeLessThan(table.indexOf('Runs over time'));
+  });
+
+  it('skips the platform section when there are no platform entries', () => {
+    const table = buildMaestroInsightsTable(makeSummary({ platformTotals: [] }));
+
+    expect(table).not.toContain('By platform');
   });
 
   it('omits buckets with no runs and says so in the heading', () => {

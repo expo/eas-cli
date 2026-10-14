@@ -89,6 +89,17 @@ export const WorkflowDeviceTestCaseInsightsQuery = {
                         currentValue
                         previousValue
                       }
+                      platforms {
+                        platform
+                        totalRuns {
+                          currentValue
+                          previousValue
+                        }
+                        distinctTestCount {
+                          currentValue
+                          previousValue
+                        }
+                      }
                     }
                     timeSeries(granularity: $granularity) {
                       bucketStartAt
