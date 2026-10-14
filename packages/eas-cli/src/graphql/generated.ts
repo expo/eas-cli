@@ -2702,6 +2702,7 @@ export type AppObserveCustomEvent = {
   errorSource?: Maybe<Scalars['String']['output']>;
   eventName: Scalars['String']['output'];
   exceptionMessage?: Maybe<Scalars['String']['output']>;
+  /** Symbolicated when a build or update with a matching source map exists; otherwise as reported. */
   exceptionStacktrace?: Maybe<Scalars['String']['output']>;
   /** Error fields below are populated only for exception events (eventName: exception). */
   exceptionType?: Maybe<Scalars['String']['output']>;
@@ -2714,8 +2715,10 @@ export type AppObserveCustomEvent = {
   sessionId?: Maybe<Scalars['String']['output']>;
   severityNumber?: Maybe<Scalars['Int']['output']>;
   severityText?: Maybe<Scalars['String']['output']>;
-  /** Build whose uploaded source map symbolicated exceptionStacktrace; null when the stack trace is shown as reported. */
+  /** Build whose uploaded source map symbolicated exceptionStacktrace; null when the stack trace is shown as reported or was symbolicated from an update. */
   symbolicationBuild?: Maybe<Build>;
+  /** Update whose uploaded source map symbolicated exceptionStacktrace; null when the stack trace is shown as reported or was symbolicated from a build. */
+  symbolicationUpdate?: Maybe<Update>;
   timestamp: Scalars['DateTime']['output'];
 };
 
@@ -2870,10 +2873,12 @@ export type AppObserveError = AppObserveLog & {
   severityNumber?: Maybe<Scalars['Int']['output']>;
   severityText?: Maybe<Scalars['String']['output']>;
   source?: Maybe<Scalars['String']['output']>;
-  /** Symbolicated when a build with a matching source map exists; otherwise as reported. */
+  /** Symbolicated when a build or update with a matching source map exists; otherwise as reported. */
   stacktrace?: Maybe<Scalars['String']['output']>;
-  /** Build whose uploaded source map symbolicated stacktrace; null when the stack trace is shown as reported. */
+  /** Build whose uploaded source map symbolicated stacktrace; null when the stack trace is shown as reported or was symbolicated from an update. */
   symbolicationBuild?: Maybe<Build>;
+  /** Update whose uploaded source map symbolicated stacktrace; null when the stack trace is shown as reported or was symbolicated from a build. */
+  symbolicationUpdate?: Maybe<Update>;
   timestamp: Scalars['DateTime']['output'];
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -6727,6 +6732,18 @@ export type CreatePostHogDeepLinkInput = {
   posthogOrganizationConnectionId: Scalars['ID']['input'];
   /** Which EAS surface opened the link; omitted lets PostHog apply its own default. */
   purpose?: InputMaybe<PostHogDeepLinkPurpose>;
+};
+
+export type CreateSandboxArtifactUploadSessionInput = {
+  filename: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  size: Scalars['ByteSize']['input'];
+};
+
+export type CreateSandboxArtifactUploadSessionResult = {
+  __typename?: 'CreateSandboxArtifactUploadSessionResult';
+  artifact: SandboxArtifact;
+  uploadSession: SandboxArtifactUploadSession;
 };
 
 export type CreateSandboxInput = {
@@ -11030,6 +11047,7 @@ export type RootQuery = {
   posthogIntegration: PostHogIntegrationQuery;
   /** Top-level query object for querying Runtimes. */
   runtimes: RuntimeQuery;
+  sandboxArtifacts: SandboxArtifactQuery;
   sandboxes: SandboxQuery;
   snack: SnackQuery;
   /** Top-level query object for querying Expo status page services. */
@@ -11279,6 +11297,7 @@ export type SsoUserDataInput = {
 export type Sandbox = {
   __typename?: 'Sandbox';
   app: App;
+  artifacts: Array<SandboxArtifact>;
   createdAt: Scalars['DateTime']['output'];
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
@@ -11287,6 +11306,34 @@ export type Sandbox = {
   status: SandboxStatus;
   turtleJobRun: JobRun;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type SandboxArtifact = {
+  __typename?: 'SandboxArtifact';
+  createdAt: Scalars['DateTime']['output'];
+  downloadUrl?: Maybe<Scalars['String']['output']>;
+  fileSizeBytes?: Maybe<Scalars['ByteSize']['output']>;
+  filename: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  sandbox: Sandbox;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type SandboxArtifactQuery = {
+  __typename?: 'SandboxArtifactQuery';
+  byId: SandboxArtifact;
+};
+
+
+export type SandboxArtifactQuery_ByIdArgs = {
+  sandboxArtifactId: Scalars['ID']['input'];
+};
+
+export type SandboxArtifactUploadSession = {
+  __typename?: 'SandboxArtifactUploadSession';
+  headers: Scalars['JSONObject']['output'];
+  url: Scalars['String']['output'];
 };
 
 export type SandboxConnection = {
@@ -11307,15 +11354,28 @@ export type SandboxFilterInput = {
 
 export type SandboxMutation = {
   __typename?: 'SandboxMutation';
+  createArtifactUploadSession: CreateSandboxArtifactUploadSessionResult;
   createSandbox: Sandbox;
+  finalizeArtifact: SandboxArtifact;
   markSandboxReady: Sandbox;
   stopSandbox: Sandbox;
   touchSandbox: Sandbox;
 };
 
 
+export type SandboxMutation_CreateArtifactUploadSessionArgs = {
+  input: CreateSandboxArtifactUploadSessionInput;
+  sandboxId: Scalars['ID']['input'];
+};
+
+
 export type SandboxMutation_CreateSandboxArgs = {
   input: CreateSandboxInput;
+};
+
+
+export type SandboxMutation_FinalizeArtifactArgs = {
+  artifactId: Scalars['ID']['input'];
 };
 
 
@@ -14434,6 +14494,8 @@ export type WorkflowDeviceTestCaseHistory_TimeSeriesArgs = {
 
 export type WorkflowDeviceTestCaseHistoryFiltersInput = {
   gitRefs?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** Runs whose platform is unknown match no platforms filter. */
+  platforms?: InputMaybe<Array<AppPlatform>>;
   workflowIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
@@ -14482,6 +14544,8 @@ export type WorkflowDeviceTestCaseInsightsFacets = {
 
 export type WorkflowDeviceTestCaseInsightsFiltersInput = {
   gitRefs?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** Runs whose platform is unknown match no platforms filter. */
+  platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<WorkflowDeviceTestCaseStatusFilter>>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   workflowIds?: InputMaybe<Array<Scalars['ID']['input']>>;
@@ -14531,6 +14595,7 @@ export type WorkflowDeviceTestCaseInsightsTimespanInput = {
  * pair on each metric.
  *
  * totalRuns = passedCleanCount + flakyCount + failedCount (over is_final_attempt=1 rows).
+ * platforms splits totalRuns by platform.
  * distinctFlakyTestCount cannot be derived in the frontend from per-test rows
  * because pagination means the frontend doesn't see all test paths.
  */
@@ -14542,6 +14607,22 @@ export type WorkflowDeviceTestCaseInsightsTotals = {
   flakyCount: WorkflowDeviceTestCaseInsightsMetric;
   p90DurationMs: WorkflowDeviceTestCaseInsightsNullableMetric;
   passedCleanCount: WorkflowDeviceTestCaseInsightsMetric;
+  /**
+   * One entry per platform with runs in the current or previous window, in the order iOS,
+   * Android, unknown.
+   */
+  platforms: Array<WorkflowDeviceTestCasePlatformTotals>;
+  totalRuns: WorkflowDeviceTestCaseInsightsMetric;
+};
+
+export type WorkflowDeviceTestCasePlatformTotals = {
+  __typename?: 'WorkflowDeviceTestCasePlatformTotals';
+  distinctTestCount: WorkflowDeviceTestCaseInsightsMetric;
+  /**
+   * Null for runs whose platform could not be derived: Maestro runs in custom jobs, and
+   * runs ingested before the platform was recorded.
+   */
+  platform?: Maybe<AppPlatform>;
   totalRuns: WorkflowDeviceTestCaseInsightsMetric;
 };
 
@@ -17308,7 +17389,7 @@ export type WorkflowDeviceTestCaseInsightsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowDeviceTestCaseInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflowDeviceTestCaseInsights: { __typename?: 'WorkflowDeviceTestCaseInsights', totals: { __typename?: 'WorkflowDeviceTestCaseInsightsTotals', totalRuns: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, passedCleanCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, flakyCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, distinctFlakyTestCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowDeviceTestCaseInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null } }, timeSeries: Array<{ __typename?: 'WorkflowDeviceTestCaseInsightsBucket', bucketStartAt: any, passedClean: number, flaky: number, failed: number }>, tests: { __typename?: 'WorkflowDeviceTestCaseStatConnection', totalCount: number, edges: Array<{ __typename?: 'WorkflowDeviceTestCaseStatEdge', node: { __typename?: 'WorkflowDeviceTestCaseStat', path: string, name: string, totalRuns: number, passedCleanCount: number, flakyCount: number, failedCount: number, p90DurationMs?: number | null, lastRunAt: any, lastRunStatus: WorkflowDeviceTestCaseStatus, lastRunIsFlaky: boolean } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
+export type WorkflowDeviceTestCaseInsightsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, workflowDeviceTestCaseInsights: { __typename?: 'WorkflowDeviceTestCaseInsights', totals: { __typename?: 'WorkflowDeviceTestCaseInsightsTotals', totalRuns: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, passedCleanCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, flakyCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, distinctFlakyTestCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, avgDurationMs: { __typename?: 'WorkflowDeviceTestCaseInsightsNullableMetric', currentValue?: number | null, previousValue?: number | null }, platforms: Array<{ __typename?: 'WorkflowDeviceTestCasePlatformTotals', platform?: AppPlatform | null, totalRuns: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number }, distinctTestCount: { __typename?: 'WorkflowDeviceTestCaseInsightsMetric', currentValue: number, previousValue: number } }> }, timeSeries: Array<{ __typename?: 'WorkflowDeviceTestCaseInsightsBucket', bucketStartAt: any, passedClean: number, flaky: number, failed: number }>, tests: { __typename?: 'WorkflowDeviceTestCaseStatConnection', totalCount: number, edges: Array<{ __typename?: 'WorkflowDeviceTestCaseStatEdge', node: { __typename?: 'WorkflowDeviceTestCaseStat', path: string, name: string, totalRuns: number, passedCleanCount: number, flakyCount: number, failedCount: number, p90DurationMs?: number | null, lastRunAt: any, lastRunStatus: WorkflowDeviceTestCaseStatus, lastRunIsFlaky: boolean } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean } } } } } };
 
 export type WorkflowDeviceTestCaseHistoryByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
