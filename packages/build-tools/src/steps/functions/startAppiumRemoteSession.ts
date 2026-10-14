@@ -35,6 +35,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
+import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
@@ -121,6 +122,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
         ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger }),
       ]);
       const { appiumHome, appiumBinPath, appiumEnv } = appiumInstall.enforceValue();
+      const wdaCapabilities = await preparePreinstalledWdaAsync({
+        runtimeIdentifier: device.runtimeIdentifier,
+        appiumHome,
+        appiumBinPath,
+        appiumEnv,
+        logger,
+      });
 
       const appiumProcess = spawnDetached({
         command: appiumBinPath,
@@ -139,7 +147,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           '--allow-insecure',
           '*:session_discovery',
           '--default-capabilities',
-          JSON.stringify({ 'appium:eventTimings': true }),
+          JSON.stringify({ 'appium:eventTimings': true, ...wdaCapabilities }),
         ],
         env: appiumEnv,
       });
@@ -264,6 +272,7 @@ export type AppiumDevice = {
   automationName: 'XCUITest' | 'UiAutomator2';
   driverName: 'xcuitest' | 'uiautomator2';
   udid: string;
+  runtimeIdentifier?: string;
 };
 
 export async function resolveAppiumDeviceAsync({
@@ -290,6 +299,7 @@ export async function resolveAppiumDeviceAsync({
         automationName: 'XCUITest',
         driverName: 'xcuitest',
         udid: bootedDevice.udid,
+        runtimeIdentifier: bootedDevice.runtime,
       };
     }
     case BuildRuntimePlatform.LINUX: {

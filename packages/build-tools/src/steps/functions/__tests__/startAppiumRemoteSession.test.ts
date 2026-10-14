@@ -51,9 +51,12 @@ describe(resolveAppiumDeviceAsync, () => {
   });
 
   it('returns XCUITest capabilities for the booted iOS simulator', async () => {
-    jest
-      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
-      .mockResolvedValue([{ udid: 'ios-simulator-id' } as never]);
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockResolvedValue([
+      {
+        udid: 'ios-simulator-id',
+        runtime: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+      } as never,
+    ]);
 
     await expect(
       resolveAppiumDeviceAsync({
@@ -66,6 +69,7 @@ describe(resolveAppiumDeviceAsync, () => {
       automationName: 'XCUITest',
       driverName: 'xcuitest',
       udid: 'ios-simulator-id',
+      runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
     });
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledWith({ env: {}, logger });
     expect(IosSimulatorUtils.getAvailableDevicesAsync).toHaveBeenCalledWith({
