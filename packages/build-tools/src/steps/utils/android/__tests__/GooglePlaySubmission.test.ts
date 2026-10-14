@@ -91,17 +91,20 @@ it.each([
   [400, 'unknown track', 'EAS_GOOGLE_PLAY_INVALID_RELEASE'],
 ] as const)('keeps the Google error behind %s %s', (status, message, code) => {
   const original = new GooglePlayApiError(status, message, []);
-  const mapped = GooglePlayUtils.mapGooglePlayError(original);
+  const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
   expect(mapped).toBeInstanceOf(UserError);
   expect(mapped).toMatchObject({
     errorCode: code,
     cause: original,
   });
   if (code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE') {
-    expect((mapped as Error).message).toContain(`\n\nGoogle Play error: ${message}`);
+    expect((mapped as Error).message).toContain(message);
   } else {
     expect((mapped as Error).message).not.toContain(message);
   }
+  expect((mapped as Error).message).toContain(`App: ${packageName}`);
+  expect((mapped as Error).message).toContain('https://play.google.com/console/');
+  expect((mapped as Error).message).not.toContain('Google Play error:');
   if (code === 'EAS_GOOGLE_PLAY_DRAFT_APP') {
     expect((mapped as Error).message).toContain('without a rollout');
     expect((mapped as Error).message).toContain('releaseStatus: "draft" in eas.json');
@@ -109,7 +112,7 @@ it.each([
 });
 it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');
-  expect(GooglePlayUtils.mapGooglePlayError(original)).toMatchObject({
+  expect(GooglePlayUtils.mapGooglePlayError(original, packageName)).toMatchObject({
     errorCode: 'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
     cause: original,
   });
@@ -119,7 +122,7 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
     new GooglePlayApiError(status, 'temporary failure', []),
     new GooglePlayAuthRequestError(status, 'temporarily_unavailable'),
   ]) {
-    const mapped = GooglePlayUtils.mapGooglePlayError(original);
+    const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
     expect(mapped).toBeInstanceOf(SystemError);
     expect(mapped).toMatchObject({ cause: original });
     expect((mapped as Error).message).not.toContain('settings');
@@ -127,5 +130,5 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
 });
 it('keeps non-Google errors unchanged', () => {
   const error = new SystemError('file failure');
-  expect(GooglePlayUtils.mapGooglePlayError(error)).toBe(error);
+  expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toBe(error);
 });

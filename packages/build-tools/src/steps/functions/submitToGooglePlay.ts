@@ -244,7 +244,7 @@ async function submitToGooglePlayAsync({
     return versionCode;
   } catch (error) {
     commitOutcomeUnknown = error instanceof GooglePlayCommitOutcomeUnknownError;
-    throw GooglePlayUtils.mapGooglePlayError(error);
+    throw GooglePlayUtils.mapGooglePlayError(error, submission.package_name);
   } finally {
     if (editId && !committed && !commitOutcomeUnknown) {
       try {

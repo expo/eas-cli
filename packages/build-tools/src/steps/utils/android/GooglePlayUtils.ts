@@ -168,7 +168,7 @@ export namespace GooglePlayUtils {
           error.status === 429
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
-            'Could not confirm whether Google Play saved the release. Check the release in Play Console before submitting again. The request was not retried to avoid submitting the release twice.',
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again. The request was not retried because it may have succeeded.`,
             { cause: error }
           );
         }
@@ -206,7 +206,7 @@ export namespace GooglePlayUtils {
     }
   }
 
-  export function mapGooglePlayError(error: unknown): unknown {
+  export function mapGooglePlayError(error: unknown, packageName: string): unknown {
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
       (error.status === 408 || error.status === 429 || error.status >= 500)
@@ -235,7 +235,7 @@ export namespace GooglePlayUtils {
     const message = error.apiMessage;
     const reasons = new Set(error.reasons);
     let code = 'EAS_GOOGLE_PLAY_REQUEST_FAILED';
-    let detail = `Google Play rejected the request (HTTP ${error.status}). Check the error details below and the app settings in Play Console before submitting again.`;
+    let detail = `Google Play rejected the request (HTTP ${error.status})${message ? `: ${message}` : '.'} Check the app settings before submitting again.`;
     if (message.includes('Package not found')) {
       code = 'EAS_GOOGLE_PLAY_FIRST_UPLOAD';
       detail =
@@ -247,7 +247,7 @@ export namespace GooglePlayUtils {
     ) {
       code = 'EAS_GOOGLE_PLAY_VERSION_CODE_USED';
       detail =
-        'This version code was already uploaded. Increase the Android version code and build a new binary.';
+        'This version code was already uploaded. Check whether the intended release already exists. To upload a new binary, increase the Android version code and build again.';
     } else if (
       /privacy policy/i.test(message) ||
       reasons.has('apkNotificationMessageKeyPermissionsRequirePrivacyPolicy') ||
@@ -272,14 +272,11 @@ export namespace GooglePlayUtils {
         'The Google service account cannot submit this app. Check its key and app permissions in Play Console.';
     } else if (error.status === 400) {
       code = 'EAS_GOOGLE_PLAY_INVALID_RELEASE';
-      detail =
-        'Google Play rejected the release or review settings. Check the track, release status, rollout, and review settings in Play Console.';
+      detail = `Google Play rejected the release or review settings${message ? `: ${message}` : '.'} Check the track, release status, rollout, and review settings in Play Console.`;
     }
-    const needsApiDetails =
-      code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE';
     return new UserError(
       code,
-      needsApiDetails && message ? `${detail}\n\nGoogle Play error: ${message}` : detail,
+      `${detail}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
       {
         cause: error,
       }
