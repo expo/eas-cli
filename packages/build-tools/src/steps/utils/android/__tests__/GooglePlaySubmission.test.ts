@@ -86,6 +86,7 @@ it.each([
   [403, 'wrong signing key', 'EAS_GOOGLE_PLAY_REQUEST_FAILED'],
   [400, 'privacy policy required', 'EAS_GOOGLE_PLAY_PRIVACY_POLICY_REQUIRED'],
   [400, 'Only releases with status draft may be created on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
+  [400, 'Staged rollout is not permitted on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
   [409, 'edit invalid', 'EAS_GOOGLE_PLAY_EDIT_INVALID'],
   [400, 'unknown track', 'EAS_GOOGLE_PLAY_INVALID_RELEASE'],
 ] as const)('keeps the Google error behind %s %s', (status, message, code) => {
@@ -94,9 +95,17 @@ it.each([
   expect(mapped).toBeInstanceOf(UserError);
   expect(mapped).toMatchObject({
     errorCode: code,
-    message: expect.stringContaining(`Google Play said: ${message}`),
     cause: original,
   });
+  if (code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE') {
+    expect((mapped as Error).message).toContain(`\n\nGoogle Play error: ${message}`);
+  } else {
+    expect((mapped as Error).message).not.toContain(message);
+  }
+  if (code === 'EAS_GOOGLE_PLAY_DRAFT_APP') {
+    expect((mapped as Error).message).toContain('without a rollout');
+    expect((mapped as Error).message).toContain('releaseStatus: "draft" in eas.json');
+  }
 });
 it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');

@@ -168,7 +168,7 @@ export namespace GooglePlayUtils {
           error.status === 429
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
-            'Google Play commit outcome is unknown. Check the release in Play Console before you submit again. The commit was not retried.',
+            'Could not confirm whether Google Play saved the release. Check the release in Play Console before submitting again. The request was not retried to avoid submitting the release twice.',
             { cause: error }
           );
         }
@@ -235,7 +235,7 @@ export namespace GooglePlayUtils {
     const message = error.apiMessage;
     const reasons = new Set(error.reasons);
     let code = 'EAS_GOOGLE_PLAY_REQUEST_FAILED';
-    let detail = `Google Play rejected the request (HTTP ${error.status}; reasons: ${error.reasons.join(', ') || 'unspecified'}). Check the app and release settings in Play Console. Concurrent edits or Console changes can invalidate an edit.`;
+    let detail = `Google Play rejected the request (HTTP ${error.status}). Check the error details below and the app settings in Play Console before submitting again.`;
     if (message.includes('Package not found')) {
       code = 'EAS_GOOGLE_PLAY_FIRST_UPLOAD';
       detail =
@@ -255,10 +255,13 @@ export namespace GooglePlayUtils {
     ) {
       code = 'EAS_GOOGLE_PLAY_PRIVACY_POLICY_REQUIRED';
       detail = 'This app requires a privacy policy. Add it in Play Console before you submit.';
-    } else if (message.includes('Only releases with status draft may be created on draft app')) {
+    } else if (
+      message.includes('Only releases with status draft may be created on draft app') ||
+      message.includes('Staged rollout is not permitted on draft app')
+    ) {
       code = 'EAS_GOOGLE_PLAY_DRAFT_APP';
       detail =
-        'This app is a draft in Play Console. Complete its required metadata or submit with release_status: draft.';
+        'This app is still a draft in Play Console. Submit a draft release without a rollout, or complete the app setup in Play Console before submitting a release to testers. Use releaseStatus: "draft" in eas.json, or release_status: "draft" in a workflow.';
     } else if (error.status === 409 || /edit.*(?:expired|invalid|not found)/i.test(message)) {
       code = 'EAS_GOOGLE_PLAY_EDIT_INVALID';
       detail =
@@ -272,8 +275,14 @@ export namespace GooglePlayUtils {
       detail =
         'Google Play rejected the release or review settings. Check the track, release status, rollout, and review settings in Play Console.';
     }
-    return new UserError(code, message ? `${detail} Google Play said: ${message}` : detail, {
-      cause: error,
-    });
+    const needsApiDetails =
+      code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE';
+    return new UserError(
+      code,
+      needsApiDetails && message ? `${detail}\n\nGoogle Play error: ${message}` : detail,
+      {
+        cause: error,
+      }
+    );
   }
 }

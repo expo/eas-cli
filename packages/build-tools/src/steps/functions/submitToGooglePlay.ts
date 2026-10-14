@@ -185,7 +185,19 @@ async function submitToGooglePlayAsync({
       `Submitting ${packageName} (${artifactType}) to track ${JSON.stringify(submission.track)}.`
     );
     logger.info(
-      `Requested status: ${submission.release_status}; rollout: ${submission.rollout ?? 'none'}. Effective status: ${release.status}; rollout: ${release.userFraction ?? 'none'}. changes_not_sent_for_review: ${submission.changes_not_sent_for_review}.`
+      `Release status: ${release.status}. Rollout: ${release.userFraction === undefined ? 'none' : `${release.userFraction * 100}%`}.`
+    );
+    if (submission.release_status !== release.status) {
+      logger.info(
+        release.status === 'completed'
+          ? 'A 100% rollout is submitted as a completed release.'
+          : 'A partial rollout is submitted as an in-progress release.'
+      );
+    }
+    logger.info(
+      submission.changes_not_sent_for_review
+        ? 'Save changes without sending them for review.'
+        : 'Send changes for review.'
     );
     if (submission.changelog) {
       logger.info(`Changelog (en-US): ${JSON.stringify(submission.changelog)}`);
@@ -216,7 +228,7 @@ async function submitToGooglePlayAsync({
       changelog: submission.changelog ? { locale: 'en-US', text: submission.changelog } : undefined,
       signal,
     });
-    logger.info('Updated Google Play track ' + JSON.stringify(submission.track) + ' in the edit.');
+    logger.info(`Saving the release to Google Play track ${JSON.stringify(submission.track)}...`);
     // Commit also validates the edit.
     await GooglePlayUtils.commitEditAsync(client, {
       packageName,
@@ -243,7 +255,7 @@ async function submitToGooglePlayAsync({
         });
       } catch {
         logger.warn(
-          'Could not delete the Google Play edit after failure. The original submission error is preserved.'
+          'Could not discard the pending Google Play changes. Check the release in Play Console before submitting again.'
         );
       }
     }
