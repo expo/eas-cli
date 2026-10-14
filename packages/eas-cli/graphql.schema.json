@@ -46099,6 +46099,18 @@
             "deprecationReason": null
           },
           {
+            "name": "publicPreview",
+            "description": "Prefer public preview links and show the preview host's Share button. Defaults to false.\nThis is a presentation preference and does not change access to bearer links.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "requestOrigin",
             "description": "The client sending this request, recorded for analytics only. Omit it when the\nclient is not one of the listed values; the session is then reported as unknown.",
             "type": {
@@ -51200,6 +51212,22 @@
               "ofType": {
                 "kind": "ENUM",
                 "name": "AppPlatform",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "publicPreview",
+            "description": "Whether this session prefers public preview links and the preview host's Share button.\nThis preference does not change access to bearer links.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
                 "ofType": null
               }
             },

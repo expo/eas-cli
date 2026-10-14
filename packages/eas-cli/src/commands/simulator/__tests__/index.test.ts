@@ -645,14 +645,18 @@ describe(Simulator, () => {
     expect(getContextAsync).toHaveBeenCalledWith(Simulator, {
       nonInteractive: true,
     });
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
       `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
@@ -808,14 +812,18 @@ describe(Simulator, () => {
         'The previous remote session will continue running until stopped. ' +
         'To stop it, run: eas simulator:stop --id existing-session'
     );
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it(`creates a new session when ${EAS_SIMULATOR_SESSION_ID} is present with --force`, async () => {
@@ -829,14 +837,18 @@ describe(Simulator, () => {
         'The previous remote session will continue running until stopped. ' +
         'To stop it, run: eas simulator:stop --id existing-session'
     );
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes --max-idle-time-minutes to the createDeviceRunSession mutation', async () => {
@@ -849,15 +861,19 @@ describe(Simulator, () => {
     ]);
     await command.runAsync();
 
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      maxIdleTimeMinutes: 30,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        maxIdleTimeMinutes: 30,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes --network-capture to the createDeviceRunSession mutation', async () => {
@@ -869,15 +885,19 @@ describe(Simulator, () => {
     ]);
     await command.runAsync();
 
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      networkCapture: true,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        networkCapture: true,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes the requested capture fields, splitting a comma-separated value', async () => {
@@ -1977,6 +1997,10 @@ describe(Simulator, () => {
         ...choice,
       ]);
       await jsonCommand.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({ publicPreview: publicLink })
+      );
       expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           remoteConfig: expect.objectContaining({ previewUrl: expectedUrl }),

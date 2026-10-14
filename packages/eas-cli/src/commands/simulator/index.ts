@@ -190,7 +190,7 @@ export default class Simulator extends EasCommand {
     })(),
     'public-link': Flags.boolean({
       description:
-        'Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.',
+        'Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -339,6 +339,7 @@ export default class Simulator extends EasCommand {
             ...(tags?.length ? { tags } : {}),
             platform,
             type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+            publicPreview: flags['public-link'] ?? false,
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),

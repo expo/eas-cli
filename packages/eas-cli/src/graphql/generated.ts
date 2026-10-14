@@ -6543,6 +6543,11 @@ export type CreateDeviceRunSessionInput = {
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
   /**
+   * Prefer public preview links and show the preview host's Share button. Defaults to false.
+   * This is a presentation preference and does not change access to bearer links.
+   */
+  publicPreview?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
    * The client sending this request, recorded for analytics only. Omit it when the
    * client is not one of the listed values; the session is then reported as unknown.
    */
@@ -7234,6 +7239,11 @@ export type DeviceRunSession = {
    */
   packageVersion?: Maybe<Scalars['String']['output']>;
   platform: AppPlatform;
+  /**
+   * Whether this session prefers public preview links and the preview host's Share button.
+   * This preference does not change access to bearer links.
+   */
+  publicPreview: Scalars['Boolean']['output'];
   remoteConfig?: Maybe<DeviceRunSessionRemoteConfig>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: DeviceRunSessionStatus;

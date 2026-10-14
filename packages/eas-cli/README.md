@@ -2985,8 +2985,8 @@ FLAGS
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
   --public-link
-      Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With
-      --json, previewApiUrl also includes the token for API clients when available.
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
@@ -3124,8 +3124,8 @@ FLAGS
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
   --public-link
-      Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With
-      --json, previewApiUrl also includes the token for API clients when available.
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
@@ -3389,8 +3389,8 @@ FLAGS
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
   --public-link
-      Print a shareable preview link containing an access token. Anyone with the link can control the simulator. With
-      --json, previewApiUrl also includes the token for API clients when available.
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, previewApiUrl also includes the token for API clients when available.
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
