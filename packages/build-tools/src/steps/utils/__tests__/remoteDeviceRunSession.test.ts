@@ -833,6 +833,7 @@ describe(startDeviceSessionHostAsync, () => {
     expect(spawnDetachedSpy).toHaveBeenCalledWith(
       expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
     );
+    expect(spawnDetachedSpy.mock.calls[0][0].stopGracePeriodMs).toBeGreaterThanOrEqual(120_000);
     await host.finishAsync();
   });
 
