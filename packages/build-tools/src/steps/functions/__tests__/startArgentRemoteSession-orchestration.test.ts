@@ -188,7 +188,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     }
   );
 
-  it('enables the event log flag, shares one path, and starts/stops the collector', async () => {
+  it('enables the event log flag, disables the video watermark, shares one path, and starts/stops the collector', async () => {
     const ctx = {} as unknown as CustomBuildContext;
     const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
 
@@ -231,6 +231,20 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(spawnDetached).mock.invocationCallOrder[0]
     );
 
+    // (2b) The video watermark flag is disabled, before the tool-server is launched.
+    const disableWatermarkIndex = spawnCalls.findIndex(
+      ([command, args]) =>
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('disable') &&
+        args.includes('video-watermark')
+    );
+    expect(disableWatermarkIndex).toBeGreaterThanOrEqual(0);
+    expect(jest.mocked(spawn).mock.invocationCallOrder[disableWatermarkIndex]).toBeLessThan(
+      jest.mocked(spawnDetached).mock.invocationCallOrder[0]
+    );
+
     // (3) The tool-server and the collector are pinned to the exact same event log path.
     const serverEnv = jest.mocked(spawnDetached).mock.calls[0][0].env;
     expect(serverEnv.ARGENT_EVENT_LOG).toBe(EXPECTED_EVENT_LOG_PATH);
@@ -265,6 +279,43 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       })
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues the session when disabling the video watermark fails', async () => {
+    const error = new Error('bun x failed');
+    jest
+      .mocked(spawn)
+      .mockImplementation(
+        (_command, args) =>
+          (args.includes('video-watermark')
+            ? Promise.reject(error)
+            : Promise.resolve(undefined)) as never
+      );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      expect.stringContaining('Could not disable the Argent video watermark')
+    );
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {

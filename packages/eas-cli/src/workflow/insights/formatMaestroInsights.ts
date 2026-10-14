@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import indentString from 'indent-string';
 
 import {
+  AppPlatform,
   WorkflowDeviceTestCaseInsightsTimeSeriesGranularity,
   WorkflowDeviceTestCaseStatus,
 } from '../../graphql/generated';
@@ -17,6 +18,7 @@ import {
   toTimespanJson,
 } from '../../insights/formatTimespan';
 import { formatAppliedFilters } from '../../insights/formatFilters';
+import { appPlatformDisplayNames } from '../../platform';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import renderTextTable from '../../utils/renderTextTable';
 import { sanitizeTerminalText, truncate } from '../../utils/terminalText';
@@ -34,12 +36,20 @@ import {
   toNullableMetricSummary,
 } from '../../insights/metrics';
 
+/** Runs on one platform; `platform` is null for runs whose platform is not recorded. */
+export interface MaestroPlatformTotals {
+  platform: AppPlatform | null;
+  totalRuns: InsightsMetricSummary;
+  distinctFlows: InsightsMetricSummary;
+}
+
 /** The Maestro tab's overview tiles. */
 export interface MaestroInsightsTotals {
   totalRuns: InsightsMetricSummary;
   passRatePercent: InsightsMetricSummary;
   distinctFlakyFlows: InsightsMetricSummary;
   avgDurationMs: NullableMetricSummary;
+  platforms: MaestroPlatformTotals[];
 }
 
 /** The tiles of one flow's detail view, which shows no previous-period comparison. */
@@ -103,7 +113,7 @@ export interface MaestroFlowHistorySummary extends InsightsTimespanFields {
   appFullName: string;
   flowPath: string;
   granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
-  filters?: Pick<AppliedMaestroInsightsFilters, 'workflows' | 'gitRef'>;
+  filters?: Pick<AppliedMaestroInsightsFilters, 'workflows' | 'gitRef' | 'platforms'>;
   totals: MaestroFlowTotals;
   runsOverTime: MaestroInsightsBucket[];
   errorPatterns: MaestroErrorPatternSummary[];
@@ -213,6 +223,11 @@ function toOverviewTotals(totals: OverviewTotalsObject): MaestroInsightsTotals {
     },
     distinctFlakyFlows: toMetricSummary(totals.distinctFlakyTestCount),
     avgDurationMs: toNullableMetricSummary(totals.avgDurationMs),
+    platforms: totals.platforms.map(entry => ({
+      platform: entry.platform ?? null,
+      totalRuns: toMetricSummary(entry.totalRuns),
+      distinctFlows: toMetricSummary(entry.distinctTestCount),
+    })),
   };
 }
 
@@ -280,6 +295,8 @@ export function buildMaestroInsightsTable(summary: MaestroInsightsSummary): stri
   sections.push('');
   sections.push(chalk.bold('Overview (compared with the previous period):'));
   sections.push(formatFields(buildOverviewTotalsFields(summary.totals)));
+
+  sections.push(...buildPlatformTotalsSection(summary.totals.platforms));
 
   sections.push(...buildMaestroRunsOverTimeSection(summary.runsOverTime, summary.granularity));
 
@@ -365,6 +382,25 @@ function buildOverviewTotalsFields(totals: MaestroInsightsTotals): FormatFieldsI
   ];
 }
 
+function buildPlatformTotalsSection(platforms: MaestroPlatformTotals[]): string[] {
+  if (platforms.length === 0) {
+    return [];
+  }
+  return [
+    '',
+    chalk.bold('By platform (compared with the previous period):'),
+    formatFields(
+      platforms.flatMap(entry => {
+        const name = entry.platform === null ? 'Unknown' : appPlatformDisplayNames[entry.platform];
+        return [
+          { label: `${name} runs`, value: formatCountWithTrend(entry.totalRuns) },
+          { label: `${name} flows`, value: formatCountWithTrend(entry.distinctFlows) },
+        ];
+      })
+    ),
+  ];
+}
+
 function buildFlowTotalsFields(totals: MaestroFlowTotals): FormatFieldsItem[] {
   return [
     { label: 'Maestro runs', value: totals.totalRuns.toLocaleString() },
@@ -446,6 +482,7 @@ function formatFilters(filters: AppliedMaestroInsightsFilters): string {
     ['workflows', filters.workflows],
     ['statuses', filters.statuses],
     ['tags', filters.tags],
+    ['platforms', filters.platforms?.map(platform => appPlatformDisplayNames[platform])],
     ['search', filters.search],
     ['git ref', filters.gitRef],
   ]);
