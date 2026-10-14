@@ -77,6 +77,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.example.test',
         closeAsync: jest.fn(),
       }),
@@ -91,6 +92,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.example.test',
         previewToken: 'tok-1',
         closeAsync: jest.fn(),
@@ -143,6 +145,14 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
   });
 
   it('does not log the public link when a private job lacks its authenticated URL', async () => {
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
+    });
     await runAsync(BuildRuntimePlatform.DARWIN, { public_preview: { value: false } });
 
     expect(logger.info).toHaveBeenCalledWith('Private preview URL unavailable for this session.');
@@ -175,6 +185,15 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
   ])('starts the web preview for %s', async (runtimePlatform, selectsXcode) => {
     await runAsync(runtimePlatform, selectsXcode ? { boot_simulator: { value: true } } : {});
 
+    expect(
+      jest
+        .mocked(logger.info)
+        .mock.calls.filter(
+          ([message]) =>
+            message ===
+            'Preview URL: https://expo.dev/simulator-preview/preview-id (server: https://web-preview.example.test).'
+        )
+    ).toHaveLength(1);
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(selectsXcode ? 1 : 0);
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, {
       runtimePlatform,

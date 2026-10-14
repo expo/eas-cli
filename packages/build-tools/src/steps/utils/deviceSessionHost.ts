@@ -457,10 +457,9 @@ async function startDeviceSessionHostInternalAsync(
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
-  const packageManager = resolveConfiguredPackageManager(env, PackageManager.NPM);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
   const previewExec = resolvePackageExec(
-    packageManager,
+    resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid
       ? createExpoDeviceHubArgs({
           port,
