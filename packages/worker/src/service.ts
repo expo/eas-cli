@@ -273,6 +273,7 @@ export default class BuildService {
     try {
       const {
         logger: buildLogger,
+        addBuildLogMask,
         cleanUp,
         logBuffer,
       } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
@@ -300,6 +301,7 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
+        addBuildLogMask,
       });
       this.buildContext = ctx;
 
