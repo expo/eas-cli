@@ -11,7 +11,7 @@ import { getEasFunctions } from '../easFunctions';
 jest.mock('fs');
 
 describe('hook anchor self-declarations', () => {
-  it('exactly the four v0 functions declare anchors, with these bindings', () => {
+  it('declares the expected hook anchors', () => {
     const declarations: Record<string, HookAnchorId> = {};
     for (const buildFunction of getEasFunctions(createCustomBuildContextMock())) {
       if (buildFunction.__hookId !== undefined) {
@@ -24,6 +24,7 @@ describe('hook anchor self-declarations', () => {
       'eas/checkout': 'checkout',
       'eas/install_node_modules': 'install_node_modules',
       'eas/upload_to_asc': 'submit',
+      'eas/submit_to_google_play': 'submit',
       'eas/maestro_tests': 'maestro_tests',
     });
   });
@@ -85,6 +86,17 @@ describe('hook anchor self-declarations', () => {
         apple_app_identifier: '1234567890',
         bundle_version: '1',
         bundle_short_version: '1.0.0',
+      },
+    ],
+    [
+      'eas/submit_to_google_play',
+      'before_submit',
+      'after_submit',
+      {
+        artifact_path: 'app.aab',
+        artifact_type: 'aab',
+        package_name: 'com.example.app',
+        service_account_key_path: 'key.json',
       },
     ],
     [
