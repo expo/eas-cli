@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix capability sync failing for App Clip targets with the on-demand install entitlement. ([#4617](https://github.com/expo/eas-cli/pull/4617) by [@janicduplessis](https://github.com/janicduplessis))
+
 ### 🧹 Chores
 
 - [eas-cli] Fix the `channel:protect` and `channel:unprotect` descriptions to include Release Managers and Owners, not only admins. ([#4616](https://github.com/expo/eas-cli/pull/4616) by [@byronkarlen](https://github.com/byronkarlen))

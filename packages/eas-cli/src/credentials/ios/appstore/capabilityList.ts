@@ -539,7 +539,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   {
     entitlement: 'com.apple.developer.on-demand-install-capable',
     name: 'On Demand Install Capable for App Clip Extensions',
-    capability: CapabilityType.ON_DEMAND_INSTALL_EXTENSIONS,
+    capability: CapabilityType.ON_DEMAND_INSTALL_CAPABLE,
     validateOptions: validateBooleanOptions,
     getSyncOperation: getBooleanSyncOperation,
   },
