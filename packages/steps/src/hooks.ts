@@ -13,12 +13,9 @@ import { BuildFunctionGroup, createBuildFunctionGroupByIdMapping } from './Build
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
-import { CompositeFunctionExpander } from './CompositeFunctionExpander';
+import { LocalFunctionExpander } from './LocalFunctionExpander';
 import { BuildConfigError, BuildWorkflowError } from './errors';
-import {
-  isLocalCompositeFunctionPath,
-  parseLocalCompositeFunctionPath,
-} from './utils/localCompositeFunctions';
+import { isLocalFunctionPath, parseLocalFunctionPath } from './utils/localFunctions';
 import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 /**
@@ -73,11 +70,14 @@ export async function constructHookEntriesAsync(
   {
     externalFunctions,
     externalFunctionGroups,
+    localFunctionCatalog,
     compositeFunctionCatalog,
   }: {
     externalFunctions?: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
-    /** When omitted, composite `uses:` fail as missing from an empty catalog. */
+    /** When omitted, local `uses:` paths fail as missing from an empty catalog. */
+    localFunctionCatalog?: LocalFunctionCatalog;
+    /** @deprecated Use `localFunctionCatalog`. */
     compositeFunctionCatalog?: LocalFunctionCatalog;
   }
 ): Promise<HookEntry[]> {
@@ -98,7 +98,7 @@ export async function constructHookEntriesAsync(
   return constructHookEntriesFromValidatedSteps(
     ctx,
     validatedSteps,
-    new CompositeFunctionExpander(ctx, compositeFunctionCatalog ?? {}, {
+    new LocalFunctionExpander(ctx, localFunctionCatalog ?? compositeFunctionCatalog ?? {}, {
       buildFunctionById,
       buildFunctionGroupById,
     })
@@ -126,7 +126,7 @@ export async function validateHookStepsAsync(
 export function constructHookEntriesFromValidatedSteps(
   ctx: BuildStepGlobalContext,
   validatedSteps: Step[],
-  compositeFunctionExpander: CompositeFunctionExpander
+  localFunctionExpander: LocalFunctionExpander
 ): HookEntry[] {
   const entries: HookEntry[] = [];
   for (const step of validatedSteps) {
@@ -136,19 +136,17 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    if (isLocalCompositeFunctionPath(step.uses)) {
+    if (isLocalFunctionPath(step.uses)) {
       entries.push({
-        steps: compositeFunctionExpander
-          .expandCompositeFunctionStep(
-            step,
-            parseLocalCompositeFunctionPath(step.uses),
-            BuildStep.getNewId(step.id)
-          )
-          .getFlattenedSteps(),
+        steps: localFunctionExpander.expandLocalFunctionStep(
+          step,
+          parseLocalFunctionPath(step.uses),
+          BuildStep.getNewId(step.id)
+        ),
       });
       continue;
     }
-    const maybeFunctionGroup = compositeFunctionExpander.buildFunctionGroupById[step.uses];
+    const maybeFunctionGroup = localFunctionExpander.buildFunctionGroupById[step.uses];
     if (maybeFunctionGroup !== undefined) {
       entries.push({
         steps: maybeFunctionGroup.createBuildStepsFromFunctionGroupCall(ctx, {
@@ -158,7 +156,7 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    const buildFunction = compositeFunctionExpander.buildFunctionById[step.uses];
+    const buildFunction = localFunctionExpander.buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
     entries.push({
       steps: [
@@ -211,7 +209,7 @@ export function validateAllStepFunctionsExist(
 ): void {
   const calledFunctionsOrFunctionGroupsSet = new Set<string>();
   for (const step of steps) {
-    if (step.uses && !isLocalCompositeFunctionPath(step.uses)) {
+    if (step.uses && !isLocalFunctionPath(step.uses)) {
       calledFunctionsOrFunctionGroupsSet.add(step.uses);
     }
   }

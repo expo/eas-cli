@@ -163,7 +163,7 @@ describe('StepsConfigParser local composite functions', () => {
         parseCompositeFunctions({
           steps: [{ uses: './.eas/functions/missing', id: 'x' }],
         })
-      ).rejects.toThrow(/Local composite function ".\/.eas\/functions\/missing"/);
+      ).rejects.toThrow(/Local function ".\/.eas\/functions\/missing" does not exist/);
     });
 
     it.each([
