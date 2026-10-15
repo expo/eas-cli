@@ -96,6 +96,9 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
       if (!ctx.mcpServerUrl) {
         throw new SystemError('MCP server URL is required to run an agent.');
       }
+      if (!ctx.runtimeApi.addBuildLogMask) {
+        throw new SystemError('A build log secrets filter is required to run an agent.');
+      }
       // The worker config holds the MCP server's WebSocket URL; its HTTP endpoint is on the same host.
       const mcpUrl = new URL('/mcp', ctx.mcpServerUrl);
       mcpUrl.protocol = mcpUrl.protocol.replace(/^ws/, 'http');
@@ -120,6 +123,7 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
           pathEnv,
           npmCacheUrl,
           logger: stepCtx.logger,
+          addBuildLogMask: ctx.runtimeApi.addBuildLogMask,
           signal: signal
             ? AbortSignal.any([signal, timeoutController.signal])
             : timeoutController.signal,
