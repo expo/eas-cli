@@ -1,14 +1,15 @@
 import { CLAUDE_CODE_CLI } from '../claude';
 import { readFixtureLines } from './readFixture';
 
-const format = CLAUDE_CODE_CLI.formatOutputLine;
+const format = (line: string) =>
+  CLAUDE_CODE_CLI.formatOutputLine(line).map(({ level, message }) => ({ level, message }));
 
 function formatFixture(name: string): ReturnType<typeof format> {
   return readFixtureLines(name).flatMap(line => format(line));
 }
 
 describe('CLAUDE_CODE_CLI.formatOutputLine', () => {
-  it('renders a run with a tool call and skips thinking and token counts', () => {
+  it('renders tool activity and skips thinking and token updates', () => {
     expect(formatFixture('claude-code-tool-call.jsonl')).toEqual([
       { level: 'info', message: 'MCP server expo is connected.' },
       { level: 'info', message: 'Tool call: mcp__expo__sandbox_exec {"command":"echo hi"}' },
@@ -99,18 +100,19 @@ describe('CLAUDE_CODE_CLI.formatOutputLine', () => {
     ).toEqual([{ level: 'error', message: 'Agent failed: error_during_execution' }]);
   });
 
-  it('skips what it does not know without failing', () => {
-    expect(format(JSON.stringify({ type: 'rate_limit_event', rate_limit_info: {} }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'stream_event', event: {} }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'assistant', message: { content: 'text' } }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'user', message: { content: 'the prompt' } }))).toEqual(
-      []
-    );
-    expect(format(JSON.stringify({ type: 'result', subtype: 'success', is_error: 'yes' }))).toEqual(
-      []
-    );
+  it('skips events without readable activity', () => {
+    for (const event of [
+      { type: 'rate_limit_event', rate_limit_info: {} },
+      { type: 'stream_event', event: {} },
+      { type: 'assistant', message: { content: 'text' } },
+      { type: 'user', message: { content: 'the prompt' } },
+      { type: 'result', subtype: 'success', is_error: 'yes' },
+    ]) {
+      expect(format(JSON.stringify(event))).toEqual([]);
+    }
     expect(format('null')).toEqual([]);
     expect(format('[]')).toEqual([]);
+    expect(format('true')).toEqual([]);
   });
 
   it('keeps the known blocks of a message with an unknown block', () => {

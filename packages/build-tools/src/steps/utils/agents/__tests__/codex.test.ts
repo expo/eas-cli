@@ -1,14 +1,15 @@
 import { CODEX_CLI } from '../codex';
 import { readFixtureLines } from './readFixture';
 
-const format = CODEX_CLI.formatOutputLine;
+const format = (line: string) =>
+  CODEX_CLI.formatOutputLine(line).map(({ level, message }) => ({ level, message }));
 
 function formatFixture(name: string): ReturnType<typeof format> {
   return readFixtureLines(name).flatMap(line => format(line));
 }
 
 describe('CODEX_CLI.formatOutputLine', () => {
-  it('renders a run with two tool calls and skips the thread and turn events', () => {
+  it('renders tool activity and skips thread and turn events', () => {
     expect(formatFixture('codex-tool-calls.jsonl')).toEqual([
       {
         level: 'info',
@@ -117,18 +118,17 @@ describe('CODEX_CLI.formatOutputLine', () => {
     ]);
   });
 
-  it('skips what it does not know without failing', () => {
-    expect(format(JSON.stringify({ type: 'turn.completed', usage: {} }))).toEqual([]);
-    expect(
-      format(
-        JSON.stringify({
-          type: 'item.completed',
-          item: { id: 'item_1', type: 'reasoning', text: 'Thinking.' },
-        })
-      )
-    ).toEqual([]);
-    expect(format(JSON.stringify({ type: 'item.completed', item: 'bad' }))).toEqual([]);
-    expect(format(JSON.stringify({ type: 'error', message: 42 }))).toEqual([]);
+  it('skips events without readable activity', () => {
+    for (const event of [
+      { type: 'turn.completed', usage: {} },
+      { type: 'item.completed', item: { id: 'item_1', type: 'reasoning', text: 'Thinking.' } },
+      { type: 'item.completed', item: 'bad' },
+      { type: 'error', message: 42 },
+    ]) {
+      expect(format(JSON.stringify(event))).toEqual([]);
+    }
+    expect(format('null')).toEqual([]);
+    expect(format('[]')).toEqual([]);
     expect(format('true')).toEqual([]);
   });
 

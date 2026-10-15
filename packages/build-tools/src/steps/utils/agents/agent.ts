@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { type AgentRunEvent, type AgentRunEventContent, SystemError } from '@expo/eas-build-job';
 import { z } from 'zod';
 
 import { type AgentRunProviderCredentials } from '../agentRunLease';
@@ -20,6 +20,38 @@ export interface AgentInvocation {
 export interface AgentLogMessage {
   level: 'info' | 'warn' | 'error';
   message: string;
+  agentEvent?: Pick<AgentRunEvent, 'producer' | 'content'>;
+}
+
+export interface AgentContentLogMessage {
+  level: AgentLogMessage['level'];
+  message: string;
+  content?: AgentRunEventContent;
+}
+
+const AgentCliEventSchema = z.object({ type: z.string() }).passthrough();
+
+/** Keep one structured record per CLI event alongside its readable log messages. */
+export function formatAgentOutputLine(
+  line: string,
+  producer: AgentRunEvent['producer'],
+  formatEvent: (data: Record<string, unknown>) => AgentContentLogMessage[]
+): AgentLogMessage[] {
+  const json = parseJsonLine(line);
+  if (json === undefined) {
+    return [{ level: 'info', message: line }];
+  }
+  const event = AgentCliEventSchema.safeParse(json);
+  if (!event.success) {
+    return [];
+  }
+  const messages = formatEvent(event.data);
+  const content = messages.flatMap(message => (message.content ? [message.content] : []));
+  const logs: AgentLogMessage[] = messages.map(({ level, message }) => ({ level, message }));
+  if (content.length) {
+    logs[0].agentEvent = { producer, content };
+  }
+  return logs;
 }
 
 export interface AgentCli {

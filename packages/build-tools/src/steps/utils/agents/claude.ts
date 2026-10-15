@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import {
   type AgentCli,
+  type AgentContentLogMessage,
   type AgentInvocation,
   type AgentLogMessage,
   ContentBlocksSchema,
@@ -12,7 +13,7 @@ import {
   contentBlocksText,
   createContinuationPrompt,
   createProviderMismatchError,
-  parseJsonLine,
+  formatAgentOutputLine,
   tolerantArray,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
@@ -73,12 +74,14 @@ const AssistantBlockSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }),
   z.object({
     type: z.literal('tool_use'),
+    id: z.string().optional(),
     name: z.string(),
     input: z.record(z.string(), z.unknown()),
   }),
 ]);
 const ToolResultBlockSchema = z.object({
   type: z.literal('tool_result'),
+  tool_use_id: z.string().optional(),
   content: z.union([z.string(), ContentBlocksSchema]).default(''),
   is_error: z.boolean().optional(),
 });
@@ -90,7 +93,7 @@ const ClaudeCodeEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('assistant'),
-    message: z.object({ content: tolerantArray(AssistantBlockSchema) }),
+    message: z.object({ id: z.string().optional(), content: tolerantArray(AssistantBlockSchema) }),
   }),
   z.object({
     type: z.literal('user'),
@@ -106,10 +109,10 @@ const ClaudeCodeEventSchema = z.discriminatedUnion('type', [
 ]);
 
 function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
-  const json = parseJsonLine(line);
-  if (json === undefined) {
-    return [{ level: 'info', message: line }];
-  }
+  return formatAgentOutputLine(line, 'claude-code', formatClaudeCodeEvent);
+}
+
+function formatClaudeCodeEvent(json: Record<string, unknown>): AgentContentLogMessage[] {
   const event = ClaudeCodeEventSchema.safeParse(json);
   if (!event.success) {
     return [];
@@ -122,36 +125,59 @@ function formatClaudeCodeOutputLine(line: string): AgentLogMessage[] {
           : {
               level: 'warn',
               message: `MCP server ${server.name} is not connected (${server.status}).`,
+              content: {
+                type: 'error',
+                severity: 'warning',
+                message: `MCP server ${server.name} is not connected (${server.status}).`,
+              },
             }
       );
-    case 'assistant':
+    case 'assistant': {
+      const messageId = event.data.message.id;
       return event.data.message.content.map(block => {
         switch (block.type) {
           case 'text':
-            return { level: 'info', message: `Agent: ${block.text}` };
+            return {
+              level: 'info',
+              message: `Agent: ${block.text}`,
+              content: { type: 'message', messageId, text: block.text },
+            };
           case 'tool_use':
             return {
               level: 'info',
               message: `Tool call: ${block.name} ${JSON.stringify(block.input)}`,
+              content: block.id
+                ? { type: 'tool_call', callId: block.id, name: block.name, arguments: block.input }
+                : undefined,
             };
         }
       });
+    }
     case 'user':
       return event.data.message.content.map(block => {
         const text =
           typeof block.content === 'string' ? block.content : contentBlocksText(block.content);
-        return block.is_error
-          ? { level: 'warn', message: `Tool error: ${text}` }
-          : { level: 'info', message: `Tool result: ${text}` };
+        return {
+          level: block.is_error ? 'warn' : 'info',
+          message: `${block.is_error ? 'Tool error' : 'Tool result'}: ${text}`,
+          content: block.tool_use_id
+            ? { type: 'tool_result', callId: block.tool_use_id, text, isError: !!block.is_error }
+            : undefined,
+        };
       });
     case 'result': {
-      // `result` repeats the agent's last text block, so on success there is nothing to add.
+      // A successful `result` repeats the last text block; it needs no additional readable message.
       const { is_error, result, errors, subtype } = event.data;
       return is_error
         ? [
             {
               level: 'error',
               message: `Agent failed: ${result || errors?.join('\n') || subtype}`,
+              content: {
+                type: 'error',
+                severity: 'error',
+                message: result || errors?.join('\n') || subtype,
+              },
             },
           ]
         : [];

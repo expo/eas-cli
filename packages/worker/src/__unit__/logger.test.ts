@@ -135,6 +135,87 @@ describe('logger', () => {
     expect(logs[1].msg).toBe('another ****** in base64 is ********************');
   });
 
+  it('masks structured agent content before both upload streams, including empty messages', async () => {
+    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
+    config.buildId = 'build-id';
+    config.loggers.gcs.signedUploadUrlForLogs = { url: 'https://gcs.expo.test/logs', headers: {} };
+    const decoded = 'private"value\\with-slash';
+    const encoded = Buffer.from(decoded).toString('base64');
+    const { logger, cleanUp } = await createBuildLoggerWithSecretsFilter({
+      robotAccessToken: 'robot-token',
+      environmentSecrets: [
+        { name: 'JOB_SECRET', value: 'job-secret', type: EnvironmentSecretType.STRING },
+        { name: 'ENCODED_SECRET', value: encoded, type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const agentEvent = {
+      version: 1,
+      eventId: 'event-id',
+      invocationId: 'invocation-id',
+      producer: 'codex',
+      content: [
+        { type: 'message', text: `Message: ${decoded}` },
+        {
+          type: 'tool_call',
+          callId: 'call-id',
+          name: 'tool',
+          arguments: {
+            nested: [{ 'job-secret': [encoded, decoded, true, 12, null] }],
+          },
+        },
+        { type: 'tool_result', callId: 'call-id', text: 'Result: job-secret', isError: false },
+      ],
+    };
+    const original = JSON.stringify(agentEvent);
+    logger.info({ agentEvent }, `Message: ${decoded}`);
+    logger.info({ agentEvent }, '');
+    await waitForStreamFlush();
+    await cleanUp();
+
+    expect(HttpLogStream.instances).toHaveLength(1);
+    expect(RemoteLoggerStream.instances).toHaveLength(1);
+    for (const stream of [HttpLogStream.instances[0], RemoteLoggerStream.instances[0]]) {
+      expect(stream.writes).toHaveLength(2);
+      expect(stream.writes.map(log => log.msg)).toEqual([
+        `Message: ${'*'.repeat(decoded.length)}`,
+        '',
+      ]);
+      for (const log of stream.writes) {
+        expect(log.agentEvent).toEqual({
+          version: 1,
+          eventId: 'event-id',
+          invocationId: 'invocation-id',
+          producer: 'codex',
+          content: [
+            { type: 'message', text: `Message: ${'*'.repeat(decoded.length)}` },
+            {
+              type: 'tool_call',
+              callId: 'call-id',
+              name: 'tool',
+              arguments: {
+                nested: [
+                  {
+                    '**********': [
+                      '*'.repeat(encoded.length),
+                      '*'.repeat(decoded.length),
+                      true,
+                      12,
+                      null,
+                    ],
+                  },
+                ],
+              },
+            },
+            { type: 'tool_result', callId: 'call-id', text: 'Result: **********', isError: false },
+          ],
+        });
+        expect(JSON.stringify(log)).not.toContain('job-secret');
+        expect(JSON.stringify(log)).not.toContain(encoded);
+      }
+    }
+    expect(JSON.stringify(agentEvent)).toBe(original);
+  });
+
   it('adds logId to each log', async () => {
     const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 

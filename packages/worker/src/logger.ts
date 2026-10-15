@@ -63,6 +63,26 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
   ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
 
+  const maskText = (text: string): string =>
+    secretList.reduce(
+      (masked, pattern) => masked.replaceAll(pattern, '*'.repeat(pattern.length)),
+      text
+    );
+  const maskAgentEvent = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      return maskText(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map(maskAgentEvent);
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [maskText(key), maskAgentEvent(item)])
+      );
+    }
+    return value;
+  };
+
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
@@ -78,18 +98,15 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
         };
       }
 
-      if (chunk && typeof chunk === 'object' && chunk.msg) {
-        const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
-          return acc.replaceAll(pattern, '*'.repeat(pattern.length));
-        }, chunk.msg as string);
-
-        callback(null, {
-          ...chunk,
-          msg: msgWithoutSecrets,
-        });
-      } else {
-        callback(null, chunk);
+      if (chunk && typeof chunk === 'object') {
+        if (typeof chunk.msg === 'string') {
+          chunk.msg = maskText(chunk.msg);
+        }
+        if (chunk.agentEvent) {
+          chunk.agentEvent = maskAgentEvent(chunk.agentEvent);
+        }
       }
+      callback(null, chunk);
     },
   });
 }

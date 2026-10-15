@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import {
   type AgentCli,
+  type AgentContentLogMessage,
   type AgentInvocation,
   type AgentLogMessage,
   ContentBlocksSchema,
@@ -12,7 +13,7 @@ import {
   contentBlocksText,
   createContinuationPrompt,
   createProviderMismatchError,
-  parseJsonLine,
+  formatAgentOutputLine,
 } from './agent';
 import { type AgentRunProviderCredentials } from '../agentRunLease';
 
@@ -112,9 +113,10 @@ export async function prepareCodexAsync({
 }
 
 const CodexItemSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('agent_message'), text: z.string() }),
+  z.object({ type: z.literal('agent_message'), id: z.string().optional(), text: z.string() }),
   z.object({
     type: z.literal('mcp_tool_call'),
+    id: z.string().optional(),
     server: z.string(),
     tool: z.string(),
     arguments: z.record(z.string(), z.unknown()).nullable(),
@@ -135,10 +137,10 @@ const CodexEventSchema = z.discriminatedUnion('type', [
 ]);
 
 function formatCodexOutputLine(line: string): AgentLogMessage[] {
-  const json = parseJsonLine(line);
-  if (json === undefined) {
-    return [{ level: 'info', message: line }];
-  }
+  return formatAgentOutputLine(line, 'codex', formatCodexEvent);
+}
+
+function formatCodexEvent(json: Record<string, unknown>): AgentContentLogMessage[] {
   const event = CodexEventSchema.safeParse(json);
   if (!event.success) {
     return [];
@@ -153,32 +155,69 @@ function formatCodexOutputLine(line: string): AgentLogMessage[] {
         {
           level: 'info',
           message: `Tool call: ${item.server}.${item.tool} ${JSON.stringify(item.arguments ?? {})}`,
+          content: item.id
+            ? {
+                type: 'tool_call',
+                callId: item.id,
+                name: `${item.server}.${item.tool}`,
+                arguments: item.arguments ?? {},
+              }
+            : undefined,
         },
       ];
     }
     case 'item.completed':
       return formatCompletedItem(event.data.item);
     case 'error':
-      return [{ level: 'warn', message: `Error: ${event.data.message}` }];
+      return [
+        {
+          level: 'warn',
+          message: `Error: ${event.data.message}`,
+          content: { type: 'error', severity: 'warning', message: event.data.message },
+        },
+      ];
     case 'turn.failed':
-      return [{ level: 'error', message: `Agent failed: ${event.data.error.message}` }];
+      return [
+        {
+          level: 'error',
+          message: `Agent failed: ${event.data.error.message}`,
+          content: { type: 'error', severity: 'error', message: event.data.error.message },
+        },
+      ];
   }
 }
 
 function formatCompletedItem(
   item: z.output<typeof CodexItemSchema> | undefined
-): AgentLogMessage[] {
+): AgentContentLogMessage[] {
   switch (item?.type) {
     case 'agent_message':
-      return [{ level: 'info', message: `Agent: ${item.text}` }];
+      return [
+        {
+          level: 'info',
+          message: `Agent: ${item.text}`,
+          content: { type: 'message', messageId: item.id, text: item.text },
+        },
+      ];
     case 'mcp_tool_call': {
-      const resultText = contentBlocksText(item.result?.content ?? []);
-      return item.status === 'failed'
-        ? [{ level: 'warn', message: `Tool error: ${item.error?.message ?? resultText}` }]
-        : [{ level: 'info', message: `Tool result: ${resultText}` }];
+      const text = item.error?.message ?? contentBlocksText(item.result?.content ?? []);
+      const isError = item.status === 'failed';
+      return [
+        {
+          level: isError ? 'warn' : 'info',
+          message: `${isError ? 'Tool error' : 'Tool result'}: ${text}`,
+          content: item.id ? { type: 'tool_result', callId: item.id, text, isError } : undefined,
+        },
+      ];
     }
     case 'error':
-      return [{ level: 'warn', message: `Error: ${item.message}` }];
+      return [
+        {
+          level: 'warn',
+          message: `Error: ${item.message}`,
+          content: { type: 'error', severity: 'warning', message: item.message },
+        },
+      ];
     case undefined:
       return [];
   }

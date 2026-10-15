@@ -2,6 +2,7 @@ import { SystemError, UserError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import turtleSpawn from '@expo/turtle-spawn';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -51,7 +52,7 @@ export async function runAgentAsync({
 }): Promise<void> {
   const leaseOptions = { expoApiV2BaseUrl, expoToken, agentRunId, signal };
   let credentials = await leaseAgentRunProviderCredentialsAsync(leaseOptions);
-  const secrets = new Set<string>();
+  const secrets = new Set([expoToken]);
 
   const runDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-agent-run-'));
   try {
@@ -190,6 +191,7 @@ async function runAgentProcessAsync({
   const outputClosed = new Promise<void>(resolve => child.once('close', () => resolve()));
   const redact = (text: string): string =>
     secrets.reduce((masked, secret) => masked.replaceAll(secret, '[redacted]'), text);
+  const invocationId = randomUUID();
   const stdoutLogger = logger.child({ source: 'stdout' });
   readline.createInterface({ input: child.stdout }).on('line', line => {
     let messages: AgentLogMessage[];
@@ -200,8 +202,22 @@ async function runAgentProcessAsync({
       Sentry.capture('Could not format a line of the agent output', error as Error);
       return;
     }
-    for (const { level, message } of messages) {
-      stdoutLogger[level](redact(message).trimEnd());
+    for (const { level, message, agentEvent } of messages) {
+      if (agentEvent) {
+        stdoutLogger[level](
+          {
+            agentEvent: {
+              version: 1,
+              eventId: randomUUID(),
+              invocationId,
+              ...redactEvent(agentEvent, redact),
+            },
+          },
+          redact(message).trimEnd()
+        );
+      } else {
+        stdoutLogger[level](redact(message).trimEnd());
+      }
     }
   });
   const stderrLogger = logger.child({ source: 'stderr' });
@@ -250,4 +266,21 @@ async function runAgentProcessAsync({
 
   signal.throwIfAborted();
   return { exitCode, exitSignal };
+}
+
+/** Redact each JSON string separately so quotes and backslashes in secrets stay valid JSON. */
+function redactEvent(
+  value: Record<string, unknown>,
+  redact: (text: string) => string
+): Record<string, unknown> {
+  const result = JSON.parse(JSON.stringify(value), (_key, item: unknown) => {
+    if (typeof item === 'string') {
+      return redact(item);
+    }
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      return Object.fromEntries(Object.entries(item).map(([key, value]) => [redact(key), value]));
+    }
+    return item;
+  });
+  return result;
 }
