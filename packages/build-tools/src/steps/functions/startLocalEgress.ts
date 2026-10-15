@@ -76,11 +76,11 @@ function awaitLocalEgressAcquisitionAsync<T>(
 
 /**
  * Points the device host's system HTTP(S) proxy at the EAS CLI's egress client.
- * Must run before `eas/start_ios_simulator`: the simulator reads the system proxy
- * at boot. Once a simulator boots, `eas/start_ios_simulator` also sets proxy
- * environment variables inside it for clients that read them (gRPC, libcurl)
- * and installs the local egress guard, which refuses connections that ignore
- * both. On Linux it starts the Android emulator relay and fence instead; see
+ * Must run before iOS simulator startup: the simulator reads the system proxy
+ * at boot. Startup supplies proxy variables for gRPC/libcurl and the guard that
+ * refuses connections bypassing the proxy. Serve-sim-owned startup passes this
+ * boot configuration to serve-sim.
+ * On Linux it starts the Android emulator relay and fence instead; see
  * androidLocalEgress.ts. The shared session cleanup releases the resources
  * started here when the session ends, with a job finalizer as a fallback.
  */
