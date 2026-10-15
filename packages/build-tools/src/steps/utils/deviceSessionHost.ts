@@ -40,6 +40,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
+import { LOCAL_EGRESS_PROXY_HOST, readLocalEgressHandoffAsync } from './localEgress';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   IosSimulatorRecordingUtils,
@@ -123,6 +124,7 @@ export function createServeSimArgs({
   openUrl,
   networkCapture = false,
   networkCaptureFields = [],
+  networkCaptureProxy,
 }: {
   port: number;
   turnArgs?: string[];
@@ -133,6 +135,7 @@ export function createServeSimArgs({
   installAppPath?: string;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
+  networkCaptureProxy?: string;
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -169,6 +172,7 @@ export function createServeSimArgs({
           ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
         ]
       : []),
+    ...(networkCaptureProxy !== undefined ? ['--network-capture-proxy', networkCaptureProxy] : []),
   ];
 }
 
@@ -448,6 +452,7 @@ async function startDeviceSessionHostInternalAsync(
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid
@@ -471,6 +476,9 @@ async function startDeviceSessionHostInternalAsync(
           openUrl: iosSimulatorUdid ? undefined : openUrl,
           networkCapture,
           networkCaptureFields,
+          networkCaptureProxy: localEgress
+            ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}`
+            : undefined,
         })
   );
   logger.info(
