@@ -1,9 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { FetchError, Response } from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 import promiseRetry from 'promise-retry';
 import { FileHandle } from 'node:fs/promises';
 import { z } from 'zod';
 
+import { isNetworkRetryable, isTransientGooglePlayStatus } from './GooglePlayRetry';
 import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -54,8 +55,7 @@ export namespace GooglePlayResumableUpload {
           if (
             timeout.aborted ||
             isNetworkRetryable(error) ||
-            (error instanceof GooglePlayApiError &&
-              (error.status === 408 || error.status === 429 || error.status >= 500))
+            (error instanceof GooglePlayApiError && isTransientGooglePlayStatus(error.status))
           ) {
             retry(
               timeout.aborted
@@ -201,7 +201,7 @@ export namespace GooglePlayResumableUpload {
               checkServerOffset = true;
               return retry(new SystemError('Google Play upload response timed out.'));
             }
-            if (response.status === 408 || response.status === 429 || response.status >= 500) {
+            if (isTransientGooglePlayStatus(response.status)) {
               checkServerOffset = true;
               retry(error);
             }
@@ -276,16 +276,4 @@ function getContentTypeFromArtifactType(artifactType: AndroidArtifactType): stri
   return artifactType === 'apk'
     ? 'application/vnd.android.package-archive'
     : 'application/octet-stream';
-}
-
-function isNetworkRetryable(error: unknown): boolean {
-  const visited = new Set<Error>();
-  while (error instanceof Error && !visited.has(error)) {
-    if (error instanceof FetchError && error.type === 'system') {
-      return true;
-    }
-    visited.add(error);
-    error = error.cause;
-  }
-  return false;
 }

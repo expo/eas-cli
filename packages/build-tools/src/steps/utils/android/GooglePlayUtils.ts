@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
+import { isTransientGooglePlayStatus } from './GooglePlayRetry';
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
 import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
@@ -161,12 +162,7 @@ export namespace GooglePlayUtils {
         if (error instanceof GooglePlayAuthRequestError) {
           throw error;
         }
-        if (
-          !(error instanceof GooglePlayApiError) ||
-          error.status >= 500 ||
-          error.status === 408 ||
-          error.status === 429
-        ) {
+        if (!(error instanceof GooglePlayApiError) || isTransientGooglePlayStatus(error.status)) {
           throw new GooglePlayCommitOutcomeUnknownError(
             `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
             { cause: error }
@@ -217,7 +213,7 @@ export namespace GooglePlayUtils {
     }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
-      (error.status === 408 || error.status === 429 || error.status >= 500)
+      isTransientGooglePlayStatus(error.status)
     ) {
       return new SystemError(
         `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
@@ -228,8 +224,7 @@ export namespace GooglePlayUtils {
       error instanceof GooglePlayAuthRequestError &&
       error.status >= 400 &&
       error.status < 500 &&
-      error.status !== 408 &&
-      error.status !== 429
+      !isTransientGooglePlayStatus(error.status)
     ) {
       return new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',

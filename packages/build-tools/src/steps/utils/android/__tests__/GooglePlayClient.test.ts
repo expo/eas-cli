@@ -160,6 +160,40 @@ it('deletes an edit with an empty response', async () => {
   ).resolves.toBeUndefined();
 });
 
+it('reports a retry even when the next request succeeds', async () => {
+  const onRetry = jest.fn();
+  client = new GooglePlayClient(serviceAccount, onRetry);
+  api().get(editPath).reply(503);
+  api().get(editPath).reply(200, { id: 'edit' });
+  await client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+    packageName,
+    editId: 'edit',
+  });
+  expect(onRetry).toHaveBeenCalledTimes(1);
+  expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), 2);
+});
+
+it('accepts a missing edit after a lost delete response', async () => {
+  api().delete(editPath).replyWithError('Lost response');
+  api().delete(editPath).reply(404);
+  await expect(
+    client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).resolves.toBeUndefined();
+});
+
+it('retains an initial delete rejection', async () => {
+  api().delete(editPath).reply(404);
+  await expect(
+    client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toMatchObject({ status: 404 });
+});
+
 it('rejects malformed success responses without exposing their contents', async () => {
   api()
     .get(editPath)

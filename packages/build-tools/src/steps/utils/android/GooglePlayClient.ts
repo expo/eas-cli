@@ -1,8 +1,9 @@
 import { SystemError } from '@expo/eas-build-job';
-import fetch, { FetchError, RequestInit, Response } from 'node-fetch';
+import fetch, { RequestInit, Response } from 'node-fetch';
 import promiseRetry from 'promise-retry';
 import { z } from 'zod';
 
+import { isNetworkRetryable, isTransientGooglePlayStatus } from './GooglePlayRetry';
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
 
 export class GooglePlayApiError extends Error {
@@ -131,7 +132,10 @@ export class GooglePlayClient {
   private readonly baseUrl = 'https://androidpublisher.googleapis.com';
   private cachedToken?: Promise<{ value: string; expiresAt: number }>;
 
-  constructor(private readonly serviceAccount: GoogleServiceAccount) {}
+  constructor(
+    private readonly serviceAccount: GoogleServiceAccount,
+    private readonly onRetry?: (error: unknown, attempt: number) => void
+  ) {}
 
   private async getTokenAsync(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
@@ -207,10 +211,21 @@ export class GooglePlayClient {
     for (const [key, value] of Object.entries(DeleteApi[path].path.parse(params))) {
       url = url.replace(`:${key}`, encodeURIComponent(value));
     }
-    await this.requestWithRetriesAsync(
-      () => this.requestAsync('DELETE', url, undefined, signal),
-      signal
-    );
+    try {
+      await this.requestWithRetriesAsync(
+        () => this.requestAsync('DELETE', url, undefined, signal),
+        signal
+      );
+    } catch (error) {
+      if (
+        error instanceof AggregateError &&
+        error.cause instanceof GooglePlayApiError &&
+        error.cause.status === 404
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private async sendJsonRequestAsync(
@@ -281,7 +296,7 @@ export class GooglePlayClient {
     const errors: unknown[] = [];
     try {
       return await promiseRetry(
-        async retry => {
+        async (retry, attempt) => {
           try {
             signal?.throwIfAborted();
             return await request();
@@ -289,11 +304,12 @@ export class GooglePlayClient {
             errors.push(error);
             const retryable =
               error instanceof GooglePlayApiError
-                ? error.status === 408 || error.status === 429 || error.status >= 500
-                : error instanceof SystemError &&
-                  error.cause instanceof FetchError &&
-                  error.cause.type === 'system';
+                ? isTransientGooglePlayStatus(error.status)
+                : isNetworkRetryable(error);
             if (retryable && !signal?.aborted) {
+              if (attempt <= 5) {
+                this.onRetry?.(error, attempt + 1);
+              }
               retry(error);
             }
             throw error;
