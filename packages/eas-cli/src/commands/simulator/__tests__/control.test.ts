@@ -232,6 +232,22 @@ describe(SimulatorControl, () => {
     ]);
   });
 
+  it('passes a webcam name through without looking for a local file', async () => {
+    actionResult = ok('');
+
+    await createCommand([
+      'camera.switch',
+      'webcam',
+      'FaceTime HD Camera',
+      '--id',
+      'session-123',
+    ]).runAsync();
+
+    expect(actionRequests()).toEqual([
+      ['camera.switch', { source: 'webcam', target: 'FaceTime HD Camera' }],
+    ]);
+  });
+
   it('refuses a relative file that does not exist on this computer', async () => {
     await expect(
       createCommand(['app.install', './MyAp.ipa', '--id', 'session-123']).runAsync()

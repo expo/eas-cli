@@ -18,6 +18,7 @@ import {
 } from '../../simulator/env';
 import {
   HostActionCatalog,
+  HostActionCatalogEntry,
   HostActionConnection,
   assertHostActionOutputAsync,
   buildHostActionParams,
@@ -166,7 +167,7 @@ export default class SimulatorControl extends EasCommand {
     }
     const params = buildHostActionParams(action, entry, values);
     await assertHostActionOutputAsync(action, entry, outputPath);
-    const localFile = await findLocalUploadAsync(entry.upload, params);
+    const localFile = await findLocalUploadAsync(entry, params);
 
     const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
     let uploadId: string | undefined;
@@ -217,16 +218,17 @@ export default class SimulatorControl extends EasCommand {
 }
 
 async function findLocalUploadAsync(
-  param: string | undefined,
+  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
   params: Record<string, unknown>
 ): Promise<{ param: string; path: string } | null> {
   const value = param ? params[param] : undefined;
-  if (!param || typeof value !== 'string') {
+  const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
+  if (!param || typeof value !== 'string' || !applies) {
     return null;
   }
   const stat = await fs.stat(value).catch(() => null);
   if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass a file, for example an .ipa.`);
+    throw new Error(`${value} is a folder. Pass the path of a file.`);
   }
   if (!stat && !path.isAbsolute(value)) {
     throw new Error(

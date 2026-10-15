@@ -31,6 +31,7 @@ const CatalogEntry = SchemaNode.extend({
   description: z.string().optional(),
   args: z.array(z.string()).optional(),
   upload: z.string().optional(),
+  uploadWhen: z.record(z.string(), z.unknown()).optional(),
   keepUpload: z.boolean().optional(),
   output: z.enum(['path', 'base64']).optional(),
 });
@@ -398,7 +399,7 @@ export async function assertHostActionOutputAsync(
     return;
   }
   const folder = await fs.stat(path.dirname(outputPath)).catch(() => null);
-  if (outputPath.endsWith(path.sep) || !folder?.isDirectory()) {
+  if (outputPath.endsWith('/') || outputPath.endsWith(path.sep) || !folder?.isDirectory()) {
     throw new Error(
       `The folder for ${outputPath} does not exist. Create it, or pass --output with a path in a folder that exists.`
     );

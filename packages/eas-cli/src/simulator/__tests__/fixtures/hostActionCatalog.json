@@ -330,6 +330,9 @@
       "target"
     ],
     "upload": "target",
+    "uploadWhen": {
+      "source": "file"
+    },
     "keepUpload": true
   },
   "camera.inject": {
@@ -452,6 +455,9 @@
       "target"
     ],
     "upload": "target",
+    "uploadWhen": {
+      "source": "file"
+    },
     "keepUpload": true
   },
   "screenshot.capture": {
