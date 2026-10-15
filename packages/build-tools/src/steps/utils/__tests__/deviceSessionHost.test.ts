@@ -15,7 +15,6 @@ import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
-import { createProcessOutput } from '../processOutput';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -1329,40 +1328,6 @@ it('passes the active local-egress address to serve-sim without tunnel credentia
   );
   expect(spawned.args).toContain('--network-capture');
   expect(JSON.stringify(spawned)).not.toContain('tunnel-secret');
-  await host.finishAsync();
-});
-
-it('passes an explicit authenticated capture proxy as a launch argument without logging it', async () => {
-  const proxy = 'http://user:proxy-secret@proxy.example:8899';
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 10_000,
-    networkCaptureProxy: proxy,
-  });
-  const spawned = jest.mocked(spawnDetached).mock.calls[0][0];
-  expect(spawned.args).toEqual(expect.arrayContaining(['--network-capture-proxy', proxy]));
-  const output = createProcessOutput(logger, spawned.secrets);
-  output.stderr.append(`Command failed: serve-sim --network-capture-proxy ${proxy}\n`);
-  output.finish();
-  expect(output.getOutput()).not.toContain('proxy-secret');
-  expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toContain('proxy-secret');
-  expect(readLocalEgressHandoffAsync).not.toHaveBeenCalled();
-  await host.finishAsync();
-});
-
-it('lets a direct capture launch parameter override local egress', async () => {
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 10_000,
-    networkCaptureProxy: 'none',
-  });
-  const spawned = jest.mocked(spawnDetached).mock.calls[0][0];
-  expect(spawned.args).toEqual(expect.arrayContaining(['--network-capture-proxy', 'none']));
-  expect(readLocalEgressHandoffAsync).not.toHaveBeenCalled();
   await host.finishAsync();
 });
 

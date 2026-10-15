@@ -350,7 +350,6 @@ type DeviceSessionHostOptions = {
   onStartupError?: (error: unknown) => void;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
-  networkCaptureProxy?: string;
 } & ServeSimLaunchOptions;
 
 export async function startDeviceSessionHostAsync(
@@ -397,7 +396,6 @@ async function startDeviceSessionHostInternalAsync(
     openUrl,
     networkCapture = false,
     networkCaptureFields = [],
-    networkCaptureProxy,
     bootEnv = {},
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
@@ -454,8 +452,7 @@ async function startDeviceSessionHostInternalAsync(
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
-  const localEgress =
-    !isAndroid && networkCaptureProxy === undefined ? await readLocalEgressHandoffAsync() : null;
+  const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid
@@ -479,9 +476,9 @@ async function startDeviceSessionHostInternalAsync(
           openUrl: iosSimulatorUdid ? undefined : openUrl,
           networkCapture,
           networkCaptureFields,
-          networkCaptureProxy:
-            networkCaptureProxy ??
-            (localEgress ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}` : undefined),
+          networkCaptureProxy: localEgress
+            ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}`
+            : undefined,
         })
   );
   logger.info(
@@ -489,7 +486,6 @@ async function startDeviceSessionHostInternalAsync(
   );
   // Redact these credentials before forwarding process output to build logs.
   const secrets = [
-    ...(networkCaptureProxy?.includes('@') ? [networkCaptureProxy] : []),
     ...turnArgs.filter((_, index) => turnArgs[index - 1] === '--turn-credential'),
     ...(recording ? [recording.controlToken] : []),
   ];
