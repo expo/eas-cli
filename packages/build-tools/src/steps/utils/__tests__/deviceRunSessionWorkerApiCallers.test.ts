@@ -128,7 +128,11 @@ describe('with a device run session token', () => {
 
     await waitForDeviceRunSessionStoppedAsync({ ctx, deviceRunSessionId: 'drs-id', logger });
 
-    expectWorkerApiCall('session', 'GET', { retries: 0 });
+    expectWorkerApiCall('session', 'GET', {
+      retries: 0,
+      timeout: 30_000,
+      signal: expect.any(AbortSignal),
+    });
     expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
   });
 
@@ -145,7 +149,7 @@ describe('with a device run session token', () => {
       idleTimeout: { maxIdleTimeMinutes: 0, getLastEventObservedAt: () => undefined },
     });
 
-    expectWorkerApiCall('stop', 'POST');
+    expectWorkerApiCall('stop', 'POST', { timeout: 30_000 });
     expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
@@ -385,6 +389,37 @@ describe('with a device run session token', () => {
     expect(error).toBeInstanceOf(SystemError);
     expect(error.message).toContain(
       `Could not fetch build ${BUILD_ID}: this device run session runs no build`
+    );
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('reports a rejected build lookup as a system error, because the job sends no user input', async () => {
+    jest.mocked(turtleFetch).mockResolvedValueOnce(
+      jsonResponse(
+        {
+          errors: [
+            {
+              code: 'UNAUTHORIZED_ERROR',
+              message: 'This device run session no longer accepts worker requests.',
+            },
+          ],
+        },
+        403
+      )
+    );
+
+    const error = await downloadBuildAsync({
+      logger,
+      buildId: BUILD_ID,
+      graphqlClient: createCtx({ withToken: true }).graphqlClient,
+      deviceRunSessionWorkerApi: new DeviceRunSessionWorkerApi(API_V2_BASE_URL, TOKEN),
+      robotAccessToken: ROBOT_ACCESS_TOKEN,
+      extensions: ['app'],
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toContain(
+      `Could not fetch build ${BUILD_ID} for this device run session: GET /v2/device-run-session-worker/application failed with status 403: This device run session no longer accepts worker requests.`
     );
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });

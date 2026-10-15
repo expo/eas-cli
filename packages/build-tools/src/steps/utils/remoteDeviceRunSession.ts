@@ -73,6 +73,8 @@ const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
 `);
 
 const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
+// A request to the device run session worker API that hangs counts as a failed poll or stop.
+const DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS = 30_000;
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
@@ -216,7 +218,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }
       }
       try {
-        const status = await fetchDeviceRunSessionStatusAsync(ctx, deviceRunSessionId);
+        const status = await fetchDeviceRunSessionStatusAsync(ctx, deviceRunSessionId, signal);
         if (!status) {
           throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
         }
@@ -254,12 +256,18 @@ export async function waitForDeviceRunSessionStoppedAsync({
 
 async function fetchDeviceRunSessionStatusAsync(
   ctx: CustomBuildContext,
-  deviceRunSessionId: string
+  deviceRunSessionId: string,
+  signal: AbortSignal
 ): Promise<string | undefined> {
   const workerApi = getDeviceRunSessionWorkerApi(ctx);
   if (workerApi) {
     // One request per poll; the polling loop retries on its own schedule.
-    return (await workerApi.getSessionAsync()).status;
+    return (
+      await workerApi.getSessionAsync({
+        signal,
+        timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+      })
+    ).status;
   }
   const result = await ctx.graphqlClient
     .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
@@ -284,7 +292,7 @@ async function ensureDeviceRunSessionStoppedSafelyAsync({
   try {
     const workerApi = getDeviceRunSessionWorkerApi(ctx);
     if (workerApi) {
-      await workerApi.stopAsync();
+      await workerApi.stopAsync({ timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS });
     } else {
       const result = await ctx.graphqlClient
         .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })

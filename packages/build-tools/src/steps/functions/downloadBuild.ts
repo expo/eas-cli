@@ -30,7 +30,6 @@ import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { pluralize } from '../../utils/strings';
 import {
   type DeviceRunSessionWorkerApi,
-  DeviceRunSessionWorkerApiError,
   getDeviceRunSessionWorkerApi,
 } from '../utils/deviceRunSessionWorkerApi';
 
@@ -181,6 +180,9 @@ async function fetchApplicationArchiveUrlAsync({
 /**
  * A device run session token can read only the build of its own session, so the build comes from
  * `GET /v2/device-run-session-worker/application` instead of the builds GraphQL query.
+ *
+ * Only device run session jobs, whose steps www generates from the session, reach this path, so
+ * every failure here is a system error: neither the request nor `build_id` comes from the user.
  */
 async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
   buildId,
@@ -196,16 +198,12 @@ async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
     application = await deviceRunSessionWorkerApi.getApplicationAsync({ signal });
   } catch (err) {
     signal?.throwIfAborted();
-    const message = `Could not fetch build ${buildId}: ${
-      err instanceof Error ? err.message : String(err)
-    }`;
-    const isServerOrNetworkError =
-      !(err instanceof DeviceRunSessionWorkerApiError) ||
-      err.status === undefined ||
-      err.status >= 500;
-    throw isServerOrNetworkError
-      ? new SystemError(message, { cause: err })
-      : new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: err });
+    throw new SystemError(
+      `Could not fetch build ${buildId} for this device run session: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
+    );
   }
   signal?.throwIfAborted();
 
@@ -213,8 +211,9 @@ async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
     throw new SystemError(
       `Could not fetch build ${buildId}: this device run session runs ${
         application.build ? `build ${application.build.id}` : 'no build'
-      }, and the session token can read only the build of its own session. ` +
-        'Start a new device run session with this build.'
+      }, and its session token can read only that build. www generates this step from the ` +
+        'session, so the two should always match. Start a new session, and contact support if ' +
+        'it happens again.'
     );
   }
   if (!application.build.applicationArchiveUrl) {
