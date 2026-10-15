@@ -2836,7 +2836,7 @@ ALIASES
 
 ## `eas sim:get`
 
-[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID
+[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.
 
 ```
 USAGE
@@ -2848,7 +2848,8 @@ FLAGS
   --non-interactive  Run the command in non-interactive mode.
 
 DESCRIPTION
-  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID
+  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the
+  session's saved sharing preference.
 
 ALIASES
   $ eas sim:get
@@ -2889,7 +2890,7 @@ ALIASES
 
 ## `eas sim:start`
 
-[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.
 
 ```
 USAGE
@@ -2897,8 +2898,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--json]
-    [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
+    [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -2981,6 +2982,10 @@ FLAGS
   --package-version=<value>
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
+  --public-link
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
+
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
 
@@ -2994,7 +2999,8 @@ FLAGS
       <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
-  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser
+  preview link requires sign-in.
 
 ALIASES
   $ eas simulator:start
@@ -3023,7 +3029,7 @@ ALIASES
 
 ## `eas simulator`
 
-[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.
 
 ```
 USAGE
@@ -3031,8 +3037,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--json]
-    [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
+    [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3115,6 +3121,10 @@ FLAGS
   --package-version=<value>
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
+  --public-link
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
+
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
 
@@ -3128,7 +3138,8 @@ FLAGS
       <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
-  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser
+  preview link requires sign-in.
 
 ALIASES
   $ eas simulator:start
@@ -3223,7 +3234,7 @@ _See code: [packages/eas-cli/src/commands/simulator/exec.ts](https://github.com/
 
 ## `eas simulator:get`
 
-[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID
+[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.
 
 ```
 USAGE
@@ -3235,7 +3246,8 @@ FLAGS
   --non-interactive  Run the command in non-interactive mode.
 
 DESCRIPTION
-  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID
+  [EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the
+  session's saved sharing preference.
 
 ALIASES
   $ eas sim:get
@@ -3280,7 +3292,7 @@ _See code: [packages/eas-cli/src/commands/simulator/list.ts](https://github.com/
 
 ## `eas simulator:start`
 
-[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.
 
 ```
 USAGE
@@ -3288,8 +3300,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--json]
-    [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
+    [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3372,6 +3384,10 @@ FLAGS
   --package-version=<value>
       Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.
 
+  --public-link
+      Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the
+      link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.
+
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
 
@@ -3385,7 +3401,8 @@ FLAGS
       <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
-  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
+  [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser
+  preview link requires sign-in.
 
 ALIASES
   $ eas simulator:start

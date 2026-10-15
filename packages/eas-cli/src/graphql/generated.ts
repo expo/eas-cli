@@ -6470,6 +6470,11 @@ export type CreateDeviceRunSessionInput = {
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
   /**
+   * Prefer public preview links and show the preview host's Share button. Defaults to false.
+   * This is a presentation preference and does not change access to bearer links.
+   */
+  publicPreview?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
    * The client sending this request, recorded for analytics only. Omit it when the
    * client is not one of the listed values; the session is then reported as unknown.
    */
@@ -7075,6 +7080,11 @@ export type DeviceRunSession = {
    */
   packageVersion?: Maybe<Scalars['String']['output']>;
   platform: AppPlatform;
+  /**
+   * Whether this session prefers public preview links and the preview host's Share button.
+   * This preference does not change access to bearer links.
+   */
+  publicPreview: Scalars['Boolean']['output'];
   remoteConfig?: Maybe<DeviceRunSessionRemoteConfig>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: DeviceRunSessionStatus;
@@ -15998,7 +16008,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, tags: Array<string>, publicPreview: boolean, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null, egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null }
         | { __typename: 'AppiumRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, appiumUrl: string, capabilities: any, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null }
