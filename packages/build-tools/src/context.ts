@@ -69,6 +69,7 @@ export interface BuildContextOptions {
   metadata?: Metadata;
   expoApiV2BaseUrl?: string;
   mcpServerUrl?: string;
+  addBuildLogMask?: (secret: string) => void;
 }
 
 export class SkipNativeBuildError extends Error {}
@@ -86,6 +87,7 @@ export class BuildContext<TJob extends Job = Job> {
   public readonly skipNativeBuild?: boolean;
   public readonly expoApiV2BaseUrl?: string;
   public readonly mcpServerUrl?: string;
+  public readonly addBuildLogMask?: (secret: string) => void;
   public artifacts: Artifacts = {};
 
   private readonly _isLocal: boolean;
@@ -115,6 +117,7 @@ export class BuildContext<TJob extends Job = Job> {
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
     this.mcpServerUrl = options.mcpServerUrl;
+    this.addBuildLogMask = options.addBuildLogMask;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {

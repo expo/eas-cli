@@ -132,7 +132,7 @@ describe.each([
 
   it('holds the host until session completion', async () => {
     await runAsync();
-    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test' });
+    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test', authtoken: 'token' });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
@@ -149,6 +149,23 @@ describe.each([
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopEvents).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens tunnels with the ngrok token but keeps it out of spawned processes', async () => {
+    await runAsync();
+    expect(startNgrokTunnelAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ authtoken: 'token' })
+    );
+    const spawnedEnvs = [
+      ...jest.mocked(spawn).mock.calls.map(([, , options]) => options?.env),
+      ...jest.mocked(spawnDetached).mock.calls.map(([options]) => options.env),
+      ...jest.mocked(startDeviceSessionHostAsync).mock.calls.map(([, options]) => options.env),
+    ];
+    expect(spawnedEnvs.length).toBeGreaterThan(0);
+    for (const env of spawnedEnvs) {
+      expect(env).toEqual(expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session-id' }));
+      expect(env).not.toHaveProperty('NGROK_AUTHTOKEN');
+    }
   });
 
   it('stops automation while recording finalization or upload is pending', async () => {

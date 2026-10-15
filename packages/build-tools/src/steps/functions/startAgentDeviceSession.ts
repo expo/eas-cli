@@ -16,8 +16,12 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
-import { selectXcodeDeveloperDirectoryAsync } from '../utils/remoteDeviceRunSession';
+import {
+  omitNgrokAuthtoken,
+  selectXcodeDeveloperDirectoryAsync,
+} from '../utils/remoteDeviceRunSession';
 import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
@@ -130,13 +134,14 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async (stepsCtx, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async (stepsCtx, { inputs, env: stepEnv, signal }) => {
       const { logger, global } = stepsCtx;
       const { runtimePlatform } = global;
       const isIos = runtimePlatform === BuildRuntimePlatform.DARWIN;
 
       // Validate everything before any expensive work starts.
-      const sessionEnv = getAgentDeviceRemoteSessionEnvOrThrow(env);
+      const sessionEnv = getAgentDeviceRemoteSessionEnvOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
       const buildId = inputs.build_id.value as string | undefined;
       const applicationArchiveUrl = inputs.application_archive_url.value as string | undefined;
       if (buildId && applicationArchiveUrl) {
@@ -204,6 +209,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
               logger: taskLogger,
               ...(buildId ? { buildId } : { applicationArchiveUrl: applicationArchiveUrl! }),
               graphqlClient: ctx.graphqlClient,
+              deviceRunSessionWorkerApi: buildId ? getDeviceRunSessionWorkerApi(ctx) : null,
               robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
               extensions: isIos ? ['app'] : ['apk'],
               signal: tasks.signal,

@@ -2,6 +2,7 @@ import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { DeviceRunSessionWorkerApi } from '../../utils/deviceRunSessionWorkerApi';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
@@ -67,9 +68,10 @@ async function flushAsync(): Promise<void> {
 
 function runStep(
   runtimePlatform: BuildRuntimePlatform,
-  inputValues: Record<string, unknown> = {}
+  inputValues: Record<string, unknown> = {},
+  stepCtx: CustomBuildContext = ctx
 ): Promise<void> {
-  const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
+  const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx);
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
   const inputs = Object.fromEntries(
     [
@@ -175,6 +177,47 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     );
     expect(jest.mocked(installBuildAsync).mock.invocationCallOrder[0]).toBeLessThan(
       jest.mocked(launchApplicationAsync).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('downloads build_id through the device run session worker API when the job has a session token', async () => {
+    const sessionCtx = {
+      graphqlClient,
+      env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'session-token' },
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+    } as unknown as CustomBuildContext;
+
+    await runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' }, sessionCtx);
+
+    expect(downloadBuildAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildId: 'build-id',
+        deviceRunSessionWorkerApi: expect.any(DeviceRunSessionWorkerApi),
+      })
+    );
+  });
+
+  it('does not use the worker API without a session token or for an archive URL', async () => {
+    await runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' });
+    expect(downloadBuildAsync).toHaveBeenLastCalledWith(
+      expect.objectContaining({ buildId: 'build-id', deviceRunSessionWorkerApi: null })
+    );
+
+    const sessionCtx = {
+      graphqlClient,
+      env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'session-token' },
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+    } as unknown as CustomBuildContext;
+    await runStep(
+      BuildRuntimePlatform.LINUX,
+      { application_archive_url: 'https://example.test/app.tar.gz' },
+      sessionCtx
+    );
+    expect(downloadBuildAsync).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        applicationArchiveUrl: 'https://example.test/app.tar.gz',
+        deviceRunSessionWorkerApi: null,
+      })
     );
   });
 

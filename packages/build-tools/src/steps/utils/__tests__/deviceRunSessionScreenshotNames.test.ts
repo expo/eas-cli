@@ -45,3 +45,38 @@ it('accepts a full SHA-256 commit hash', () => {
   expect(result.filename).toBe(`my-app-ios-bbbbbbb-${timestamp}.png`);
   expect(result.metadata.gitCommitHash).toBe(gitCommitHash);
 });
+
+describe('without an app slug (device run session worker API)', () => {
+  const sessionWithoutSlug = {
+    platform: 'IOS' as const,
+    app: null,
+    build: { id: 'installed-build', gitCommitHash, app: null },
+  };
+
+  it('starts the filename with the platform and omits appSlug from the metadata', () => {
+    expect(screenshotArtifactDetails(timestamp, sessionWithoutSlug)).toEqual({
+      name,
+      filename: `ios-a1b2c3d-${timestamp}.png`,
+      metadata: {
+        __eas_type: 'screenshot',
+        platform: 'ios',
+        buildId: 'installed-build',
+        gitCommitHash,
+      },
+    });
+  });
+
+  it('omits the commit when the session has no build', () => {
+    expect(
+      screenshotArtifactDetails(timestamp, {
+        ...sessionWithoutSlug,
+        platform: 'ANDROID',
+        build: null,
+      })
+    ).toEqual({
+      name,
+      filename: `android-${timestamp}.png`,
+      metadata: { __eas_type: 'screenshot', platform: 'android' },
+    });
+  });
+});

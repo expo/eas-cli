@@ -1,7 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
 import { createWriteStream } from 'node:fs';
@@ -11,6 +11,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { killProcessGroup } from '../../utils/processes';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
@@ -82,31 +84,7 @@ export function startDeviceRunSessionPreview({
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
       if (!uploadSession) {
-        const result = await ctx.graphqlClient
-          .mutation(
-            CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
-            { deviceRunSessionId },
-            {
-              // Keep the client's auth headers and combine cancellation after URQL sets its signal.
-              fetch: (url, options) =>
-                globalThis.fetch(url, {
-                  ...options,
-                  signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
-                }),
-            }
-          )
-          .toPromise();
-        if (result.error) {
-          throw result.error;
-        }
-        const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
-        if (!session) {
-          throw new Error('No session preview upload URL was returned.');
-        }
-        uploadSession = {
-          url: session.url,
-          headers: session.headers as Record<string, string>,
-        };
+        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
       }
       if (controller.signal.aborted) {
         return;
@@ -139,6 +117,42 @@ export function startDeviceRunSessionPreview({
   };
 }
 
+async function createPreviewUploadSessionAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<{ url: string; headers: Record<string, string> }> {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    return await workerApi.createPreviewUploadSessionAsync({ signal });
+  }
+  const result = await ctx.graphqlClient
+    .mutation(
+      CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
+      { deviceRunSessionId },
+      {
+        // Keep the client's auth headers and combine cancellation after URQL sets its signal.
+        fetch: (url, options) =>
+          globalThis.fetch(url, {
+            ...options,
+            signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
+          }),
+      }
+    )
+    .toPromise();
+  if (result.error) {
+    throw result.error;
+  }
+  const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
+  if (!session) {
+    throw new Error('No session preview upload URL was returned.');
+  }
+  return {
+    url: session.url,
+    headers: session.headers as Record<string, string>,
+  };
+}
+
 /**
  * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews with `cwebp` from
  * Homebrew's webp package instead. Throws when it cannot be installed.
@@ -146,18 +160,47 @@ export function startDeviceRunSessionPreview({
 export async function ensureMacosPreviewEncoderInstalledAsync({
   env,
   logger,
+  signal,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
-  if ((await asyncResult(spawn('cwebp', ['-version'], { env, stdio: 'pipe' }))).ok) {
+  const probe = await asyncResult(
+    runEncoderCommandAsync('cwebp', ['-version'], { env, stdio: 'pipe' }, signal)
+  );
+  if (probe.ok) {
     return;
   }
+  signal?.throwIfAborted();
   logger.info('Installing webp with Homebrew for the session preview.');
-  await spawn('brew', ['install', 'webp'], {
-    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-    logger,
-  });
+  await runEncoderCommandAsync(
+    'brew',
+    ['install', 'webp'],
+    { env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+    signal
+  );
+}
+
+async function runEncoderCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal?.throwIfAborted();
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 export async function captureDeviceRunSessionPreviewAsync({

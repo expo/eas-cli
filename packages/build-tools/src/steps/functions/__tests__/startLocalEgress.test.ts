@@ -32,6 +32,7 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   startNgrokTunnelAsync: jest.fn(),
   getNgrokAuthtokenOrThrow: () => 'ngrok-token',
   getNgrokTunnelDomainOrThrow: () => 'example.com',
+  omitNgrokAuthtoken: jest.requireActual('../../utils/remoteDeviceRunSession').omitNgrokAuthtoken,
 }));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;

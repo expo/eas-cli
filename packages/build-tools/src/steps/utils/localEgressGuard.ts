@@ -110,6 +110,18 @@ export async function resolveEgressGuardCheckAsync(
   return await resolvePackagedFileAsync(binDir, EGRESS_GUARD_CHECK_FILE);
 }
 
+async function requireEgressGuardCheckAsync(checkPath?: string | null): Promise<string> {
+  const resolvedCheck = checkPath === undefined ? await resolveEgressGuardCheckAsync() : checkPath;
+  if (!resolvedCheck) {
+    throw new SystemError(
+      'The local egress guard self-check is not available on this device host, so this session cannot ' +
+        'verify that the guard is in effect. The device host image is missing bin/egress-guard-check; ' +
+        'this is a service problem, please contact support.'
+    );
+  }
+  return resolvedCheck;
+}
+
 /**
  * Turns guard events into session log lines: one line the first time a
  * process reaches a destination through a given call, counts after that, and
@@ -278,6 +290,14 @@ export class GuardLogTailer {
   }
 }
 
+type LocalEgressBootEnvironmentOptions = {
+  handoffPath?: string;
+  /** Explicit library path, `null` for "not available"; resolved from the package when omitted. */
+  libraryPath?: string | null;
+  logPath?: string;
+  mode?: EgressGuardMode;
+};
+
 /**
  * The environment the simulator's launchd must have from its first process:
  * the guard and the proxy variables. Pass it to `IosSimulatorUtils.bootAsync`,
@@ -291,13 +311,7 @@ export async function resolveLocalEgressBootEnvironmentAsync({
   libraryPath,
   logPath = LOCAL_EGRESS_GUARD_LOG_PATH,
   mode = 'block',
-}: {
-  handoffPath?: string;
-  /** Explicit library path, `null` for "not available"; resolved from the package when omitted. */
-  libraryPath?: string | null;
-  logPath?: string;
-  mode?: EgressGuardMode;
-} = {}): Promise<Record<string, string> | null> {
+}: LocalEgressBootEnvironmentOptions = {}): Promise<Record<string, string> | null> {
   const handoff = await readLocalEgressHandoffAsync(handoffPath);
   if (!handoff) {
     return null;
@@ -317,6 +331,27 @@ export async function resolveLocalEgressBootEnvironmentAsync({
   };
 }
 
+/** Supply the guard at boot and require its self-check before starting serve-sim. */
+export async function resolveLocalEgressServeSimBootEnvironmentAsync({
+  checkPath,
+  ...options
+}: LocalEgressBootEnvironmentOptions & {
+  checkPath?: string | null;
+} = {}): Promise<Record<string, string> | null> {
+  const environment = await resolveLocalEgressBootEnvironmentAsync(options);
+  if (!environment) {
+    return null;
+  }
+  await requireEgressGuardCheckAsync(checkPath);
+  const { DYLD_INSERT_LIBRARIES, ...childEnvironment } = environment;
+  return {
+    SERVE_SIM_ADDITIONAL_DYLIBS: DYLD_INSERT_LIBRARIES,
+    ...Object.fromEntries(
+      Object.entries(childEnvironment).map(([name, value]) => [`SIMCTL_CHILD_${name}`, value])
+    ),
+  };
+}
+
 type ActiveRelay = {
   source: { stopAsync: () => Promise<void> };
   relay: GuardEventRelay;
@@ -324,6 +359,44 @@ type ActiveRelay = {
   afterSummaryAsync?: () => Promise<void>;
 };
 const activeRelays = new Map<string, ActiveRelay>();
+
+/** Start reporting guard events without changing the Simulator's launchd environment. */
+export async function startLocalEgressGuardRelayAsync({
+  logger,
+  logPath = LOCAL_EGRESS_GUARD_LOG_PATH,
+  tailIntervalMs,
+}: {
+  logger: bunyan;
+  logPath?: string;
+  tailIntervalMs?: number;
+}): Promise<void> {
+  try {
+    await fs.promises.mkdir(path.dirname(logPath), { recursive: true });
+    await fs.promises.appendFile(logPath, '');
+  } catch (err) {
+    logger.warn(
+      { err },
+      `Local egress guard: could not create ${logPath}, so refused connections will not be reported in this log. They are still refused.`
+    );
+    return;
+  }
+  if (activeRelays.has(logPath)) {
+    return;
+  }
+  const relay = new GuardEventRelay(logger);
+  const tailer = new GuardLogTailer({
+    path: logPath,
+    intervalMs: tailIntervalMs,
+    onLine: line => {
+      const event = parseGuardLogLine(line);
+      if (event) {
+        relay.handle(event);
+      }
+    },
+  });
+  tailer.start();
+  activeRelays.set(logPath, { source: tailer, relay });
+}
 
 /**
  * Report events from another source, such as the Android emulator's packet
@@ -396,17 +469,7 @@ export async function installLocalEgressGuardAsync({
 
   await logAlreadyRunningProcessesAsync({ env, logger });
 
-  let logWritable = true;
-  try {
-    await fs.promises.mkdir(path.dirname(logPath), { recursive: true });
-    await fs.promises.appendFile(logPath, '');
-  } catch (err) {
-    logWritable = false;
-    logger.warn(
-      { err },
-      `Local egress guard: could not create ${logPath}, so refused connections will not be reported in this log. They are still refused.`
-    );
-  }
+  await startLocalEgressGuardRelayAsync({ logger, logPath, tailIntervalMs });
 
   try {
     await IosSimulatorUtils.setLaunchdEnvironmentAsync({
@@ -421,22 +484,6 @@ export async function installLocalEgressGuardAsync({
         'session; if it keeps failing, please contact support.',
       { cause: err }
     );
-  }
-
-  if (logWritable && !activeRelays.has(logPath)) {
-    const relay = new GuardEventRelay(logger);
-    const tailer = new GuardLogTailer({
-      path: logPath,
-      intervalMs: tailIntervalMs,
-      onLine: line => {
-        const event = parseGuardLogLine(line);
-        if (event) {
-          relay.handle(event);
-        }
-      },
-    });
-    tailer.start();
-    activeRelays.set(logPath, { source: tailer, relay });
   }
 
   logger.info(
@@ -658,14 +705,7 @@ export async function verifyLocalEgressGuardAsync({
   /** Explicit check binary path, `null` for "not available"; resolved from the package when omitted. */
   checkPath?: string | null;
 }): Promise<void> {
-  const resolvedCheck = checkPath === undefined ? await resolveEgressGuardCheckAsync() : checkPath;
-  if (!resolvedCheck) {
-    throw new SystemError(
-      'The local egress guard self-check is not available on this device host, so this session cannot ' +
-        'verify that the guard is in effect. The device host image is missing bin/egress-guard-check; ' +
-        'this is a service problem, please contact support.'
-    );
-  }
+  const resolvedCheck = await requireEgressGuardCheckAsync(checkPath);
   let output: string;
   try {
     const result = await spawn('xcrun', ['simctl', 'spawn', udid, resolvedCheck, '--mode', mode], {

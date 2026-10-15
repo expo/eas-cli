@@ -135,6 +135,56 @@ describe('logger', () => {
     expect(logs[1].msg).toBe('another ****** in base64 is ********************');
   });
 
+  it('obfuscates secrets added after the logger was created', async () => {
+    const { logger, outputStream, logBuffer, addBuildLogMask } =
+      await createBuildLoggerWithSecretsFilter({});
+
+    const logs: any[] = [];
+    outputStream.pipe(
+      new Writable({
+        objectMode: true,
+        write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+          logs.push(chunk);
+          callback(null, chunk);
+        },
+      })
+    );
+
+    addBuildLogMask('leased-token');
+    addBuildLogMask(Buffer.from('decodedToken').toString('base64'));
+    addBuildLogMask('production');
+    logger.child({ source: 'stdout' }).info('leased-token, decodedToken, production');
+
+    await waitForStreamFlush();
+
+    expect(logs.map(log => log.msg)).toEqual(['************, ************, production']);
+    expect(logBuffer.getLogs()).toEqual(['************, ************, production']);
+  });
+
+  it('obfuscates a secret that contains another secret', async () => {
+    const { logger, outputStream, addBuildLogMask } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [{ name: 'PREFIX', value: 'sk-', type: EnvironmentSecretType.STRING }],
+    });
+
+    const logs: any[] = [];
+    outputStream.pipe(
+      new Writable({
+        objectMode: true,
+        write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+          logs.push(chunk);
+          callback(null, chunk);
+        },
+      })
+    );
+
+    addBuildLogMask('sk-leased-token');
+    logger.info('token: sk-leased-token, prefix: sk-');
+
+    await waitForStreamFlush();
+
+    expect(logs.map(log => log.msg)).toEqual(['token: ***************, prefix: ***']);
+  });
+
   it('adds logId to each log', async () => {
     const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 
