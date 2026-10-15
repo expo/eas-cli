@@ -1,19 +1,14 @@
-import { Role } from '../graphql/generated';
-import { Choice } from '../prompts';
-import { Actor } from '../user/User';
+import { SelectChoice } from '../prompts';
+import { Actor, getCannotCreateProjectsOnAccountReason } from '../user/User';
 
-export function getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(
-  actor: Actor
-): Set<string> {
-  return new Set(
-    actor.accounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
-  );
+function getDisabledProps(
+  account: Actor['accounts'][number]
+): Pick<SelectChoice, 'disabled' | 'disabledReason'> {
+  const disabledReason = getCannotCreateProjectsOnAccountReason(account);
+  return disabledReason ? { disabled: true, disabledReason } : {};
 }
 
-export function getAccountChoices(
-  actor: Actor,
-  namesWithSufficientPermissions: Set<string>
-): Choice[] {
+export function getAccountChoices(actor: Actor): SelectChoice[] {
   const allAccounts = actor.accounts;
 
   const sortedAccounts =
@@ -30,9 +25,8 @@ export function getAccountChoices(
       ? {
           title: personalAccount.name,
           value: personalAccount,
-          description: !namesWithSufficientPermissions.has(personalAccount.name)
-            ? '(Personal) (Viewer Role)'
-            : '(Personal)',
+          description: '(Personal)',
+          ...getDisabledProps(personalAccount),
         }
       : undefined;
 
@@ -41,9 +35,8 @@ export function getAccountChoices(
       .map(account => ({
         title: account.name,
         value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Team) (Viewer Role)'
-          : '(Team)',
+        description: '(Team)',
+        ...getDisabledProps(account),
       }));
 
     const organizationAccounts = allAccounts
@@ -51,12 +44,11 @@ export function getAccountChoices(
       .map(account => ({
         title: account.name,
         value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Organization) (Viewer Role)'
-          : '(Organization)',
+        description: '(Organization)',
+        ...getDisabledProps(account),
       }));
 
-    let choices: Choice[] = [];
+    let choices: SelectChoice[] = [];
     if (personalAccountChoice) {
       choices = [personalAccountChoice];
     }
@@ -69,6 +61,6 @@ export function getAccountChoices(
   return sortedAccounts.map(account => ({
     title: account.name,
     value: account,
-    description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
+    ...getDisabledProps(account),
   }));
 }
