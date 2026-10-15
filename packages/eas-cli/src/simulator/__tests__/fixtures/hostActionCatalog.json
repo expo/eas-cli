@@ -162,6 +162,56 @@
   },
   "app.install": {
     "description": "Install an app from an .ipa file.",
+    "args": [
+      "path"
+    ],
+    "upload": "path",
+    "anyOf": [
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "uploadId": {
+            "type": "string",
+            "pattern": "^(?!\\.)[A-Za-z0-9._-]{1,128}$"
+          }
+        },
+        "required": [
+          "udid",
+          "uploadId"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "path"
+        ]
+      }
+    ]
+  },
+  "media.add": {
+    "description": "Add a photo or video to the Photos library.",
+    "args": [
+      "path"
+    ],
     "upload": "path",
     "anyOf": [
       {
@@ -275,7 +325,134 @@
       }
     ],
     "description": "Change the camera feed of an app with a simulated camera.",
-    "upload": "target"
+    "args": [
+      "source",
+      "target"
+    ],
+    "upload": "target",
+    "keepUpload": true
+  },
+  "camera.inject": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "bundleId": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "mirror": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "const": "file"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "bundleId",
+          "mirror",
+          "source",
+          "target"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "bundleId": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "mirror": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "const": "webcam"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "bundleId",
+          "mirror",
+          "source"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "bundleId": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "mirror": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "const": "placeholder"
+          }
+        },
+        "required": [
+          "udid",
+          "bundleId",
+          "mirror",
+          "source"
+        ]
+      }
+    ],
+    "description": "Relaunch an app with a simulated camera feed.",
+    "args": [
+      "bundleId",
+      "mirror",
+      "source",
+      "target"
+    ],
+    "upload": "target",
+    "keepUpload": true
   },
   "screenshot.capture": {
     "type": "object",
@@ -311,5 +488,25 @@
     ],
     "description": "Download a file from the simulator host.",
     "output": "base64"
+  },
+  "app.container": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "bundleId": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      }
+    },
+    "required": [
+      "udid",
+      "bundleId"
+    ],
+    "description": "Print the path of an installed app bundle."
   }
 }

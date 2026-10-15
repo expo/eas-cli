@@ -29,7 +29,9 @@ const SchemaNode = z.looseObject({
 
 const CatalogEntry = SchemaNode.extend({
   description: z.string().optional(),
+  args: z.array(z.string()).optional(),
   upload: z.string().optional(),
+  keepUpload: z.boolean().optional(),
   output: z.enum(['path', 'base64']).optional(),
 });
 
@@ -57,7 +59,7 @@ const HOST_ACTION_TIMEOUT_MS = 130_000;
 const PREVIEW_API_TIMEOUT_MS = 30_000;
 const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
 const NAMED_VALUE = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/s;
-const NUMBER = /^-?\d+(\.\d+)?$/;
+const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 function previewEndpoint(apiUrl: string, endpoint: string): URL {
   const base = new URL(apiUrl);
@@ -153,12 +155,12 @@ export async function connectHostActionsAsync(
     const timer = setTimeout(() => {
       reject(
         new Error(
-          `The simulator preview server did not accept the connection within ${Math.round(timeoutMs / 1000)} seconds. Check that the session still runs with \`eas simulator:get\`, then try again.`
+          `The simulator preview server did not accept the connection within ${PREVIEW_API_TIMEOUT_MS / 1000} seconds. Check that the session still runs with \`eas simulator:get\`, then try again.`
         )
       );
       ws.terminate();
-    }, timeoutMs);
-    const failToConnect = (error: Error): void => {
+    }, PREVIEW_API_TIMEOUT_MS);
+    const fail = (error: Error): void => {
       clearTimeout(timer);
       reject(error);
       loseConnection(error);
@@ -198,21 +200,21 @@ export async function connectHostActionsAsync(
       }
     });
     ws.on('unexpected-response', (_req, res) => {
-      failToConnect(
+      fail(
         new Error(
           `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
         )
       );
     });
     ws.on('error', error => {
-      failToConnect(
+      fail(
         new Error(
           `Could not connect to the simulator preview server: ${error.message}. Check your network connection and that the session still runs.`
         )
       );
     });
     ws.on('close', () => {
-      failToConnect(
+      fail(
         new Error(
           'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
         )
@@ -283,10 +285,27 @@ function hostActionProperties(entry: HostActionCatalogEntry): Map<string, unknow
 }
 
 function positionalNames(entry: HostActionCatalogEntry): string[] {
-  if (entry.properties) {
-    return Object.keys(entry.properties).filter(name => name !== 'udid');
+  return entry.args ?? Object.keys(entry.properties ?? {}).filter(name => name !== 'udid');
+}
+
+function requiredProperties(node: unknown): Set<string> {
+  const parsed = SchemaNode.safeParse(node);
+  if (!parsed.success) {
+    return new Set();
   }
-  return entry.upload ? [entry.upload] : [];
+  const required = new Set(parsed.data.required ?? []);
+  for (const child of parsed.data.allOf ?? []) {
+    requiredProperties(child).forEach(name => required.add(name));
+  }
+  const branches = [...(parsed.data.anyOf ?? []), ...(parsed.data.oneOf ?? [])].map(
+    requiredProperties
+  );
+  for (const name of branches[0] ?? []) {
+    if (branches.every(branch => branch.has(name))) {
+      required.add(name);
+    }
+  }
+  return required;
 }
 
 function acceptsType(schema: unknown, types: string[]): boolean {
@@ -317,8 +336,8 @@ function coerce(value: string, schemas: unknown[]): unknown {
 }
 
 export function formatHostActionUsage(name: string, entry: HostActionCatalogEntry): string {
-  const required = new Set(entry.required ?? []);
-  const names = [...hostActionProperties(entry).keys()].map(property =>
+  const required = requiredProperties(entry);
+  const names = positionalNames(entry).map(property =>
     required.has(property) ? `<${property}>` : `[${property}]`
   );
   return [name, ...names].join(' ');
@@ -330,24 +349,41 @@ export function buildHostActionParams(
   values: string[]
 ): Record<string, unknown> {
   const properties = hostActionProperties(entry);
-  const positions = positionalNames(entry);
   const params: Record<string, unknown> = {};
-  let position = 0;
+  const positional: string[] = [];
   for (const value of values) {
     const named = NAMED_VALUE.exec(value);
-    const property = named && properties.has(named[1]) ? named[1] : positions[position++];
-    if (property === undefined) {
-      throw new Error(
-        `Too many values for ${name}. Usage: eas simulator:control ${formatHostActionUsage(name, entry)}. Name a value with name=value.`
-      );
+    if (!named || !properties.has(named[1])) {
+      positional.push(value);
+    } else if (Object.hasOwn(params, named[1])) {
+      throw new Error(`${named[1]} is given twice for ${name}.`);
+    } else {
+      params[named[1]] = coerce(named[2], properties.get(named[1]) ?? []);
     }
-    if (Object.hasOwn(params, property)) {
-      throw new Error(`${property} is given twice for ${name}.`);
-    }
-    const raw = named && property === named[1] ? named[2] : value;
-    params[property] = coerce(raw, properties.get(property) ?? []);
   }
+  const open = positionalNames(entry).filter(property => !Object.hasOwn(params, property));
+  if (positional.length > open.length) {
+    throw new Error(
+      `Too many values for ${name}. Usage: eas simulator:control ${formatHostActionUsage(name, entry)}. Name a value with name=value.`
+    );
+  }
+  positional.forEach((value, index) => {
+    params[open[index]] = coerce(value, properties.get(open[index]) ?? []);
+  });
   return params;
+}
+
+export function assertHostActionOutput(
+  name: string,
+  entry: HostActionCatalogEntry,
+  outputPath: string | undefined
+): void {
+  if (outputPath && !entry.output) {
+    throw new Error(`${name} does not return a file, so --output does not apply.`);
+  }
+  if (entry.output === 'base64' && !outputPath) {
+    throw new Error(`${name} returns a file. Pass --output with the path to save it to.`);
+  }
 }
 
 export async function uploadFileAsync(
@@ -358,17 +394,22 @@ export async function uploadFileAsync(
   const uploadId = `eas-cli-${randomUUID()}${path.extname(localPath).replace(/[^A-Za-z0-9.]/g, '')}`;
   let remotePath = '';
   let first = true;
-  for await (const chunk of fs.createReadStream(localPath, { highWaterMark: chunkBytes })) {
-    const result = await connection.requestAsync('upload.append', {
-      uploadId,
-      data: Buffer.from(chunk).toString('base64'),
-      first,
-    });
-    if (result.exitCode !== 0) {
-      throw new Error(`Could not upload ${localPath}: ${result.stderr.trim()}`);
+  try {
+    for await (const chunk of fs.createReadStream(localPath, { highWaterMark: chunkBytes })) {
+      const result = await connection.requestAsync('upload.append', {
+        uploadId,
+        data: Buffer.from(chunk).toString('base64'),
+        first,
+      });
+      if (result.exitCode !== 0) {
+        throw new Error(`Could not upload ${localPath}: ${result.stderr.trim()}`);
+      }
+      remotePath = result.stdout.trim();
+      first = false;
     }
-    remotePath = result.stdout.trim();
-    first = false;
+  } catch (error) {
+    await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
+    throw error;
   }
   if (first) {
     throw new Error(`${localPath} is empty. Pass a file with content.`);
@@ -379,7 +420,6 @@ export async function uploadFileAsync(
 export async function saveHostActionOutputAsync(
   connection: HostActionConnection,
   entry: HostActionCatalogEntry,
-  params: Record<string, unknown>,
   stdout: string,
   outputPath: string | undefined
 ): Promise<string | null> {
@@ -387,7 +427,7 @@ export async function saveHostActionOutputAsync(
     return null;
   }
   let base64 = stdout;
-  let defaultName = typeof params.path === 'string' ? path.basename(params.path) : undefined;
+  let defaultName: string | undefined;
   if (entry.output === 'path') {
     const remotePath = stdout.trim();
     const file = await connection.requestAsync('file.readBase64', { path: remotePath });
@@ -397,10 +437,25 @@ export async function saveHostActionOutputAsync(
     base64 = file.stdout;
     defaultName = path.basename(remotePath);
   }
-  const target = outputPath ?? defaultName;
+  const outputIsFolder = outputPath
+    ? (await fs.stat(outputPath).catch(() => null))?.isDirectory()
+    : false;
+  const target =
+    outputPath && !outputIsFolder
+      ? outputPath
+      : defaultName && path.join(outputPath ?? '.', defaultName);
   if (!target) {
     throw new Error('This action returns a file. Pass --output with the path to save it to.');
   }
-  await fs.writeFile(target, Buffer.from(base64, 'base64'));
+  try {
+    await fs.writeFile(target, Buffer.from(base64, 'base64'), {
+      flag: target === outputPath ? 'w' : 'wx',
+    });
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST') {
+      throw new Error(`${target} already exists. Pass --output with a new path to save the file.`);
+    }
+    throw error;
+  }
   return path.resolve(target);
 }

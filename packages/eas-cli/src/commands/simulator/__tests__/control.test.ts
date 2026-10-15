@@ -161,7 +161,10 @@ describe(SimulatorControl, () => {
     await createCommand(['--list', '--id', 'session-123']).runAsync();
 
     expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
-      'permissions.set <action> <service> <bundleId>\n    Grant, revoke or reset one permission for an app.'
+      'permissions.set <action> <service> <bundleId>'
+    );
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '    Grant, revoke or reset one permission for an app.'
     );
     expect(actionRequests()).toEqual([]);
   });
@@ -197,6 +200,35 @@ describe(SimulatorControl, () => {
       ['app.install', { path: `/tmp/serve-sim-uploads/${uploadId}` }],
       ['upload.remove', { uploadId }],
     ]);
+  });
+
+  it('keeps an upload that the action goes on reading', async () => {
+    const localFile = path.join(tmpDir, 'feed.mp4');
+    await fs.writeFile(localFile, 'video bytes');
+    actionResult = ok('');
+
+    await createCommand(['camera.switch', 'file', localFile, '--id', 'session-123']).runAsync();
+
+    const requests = actionRequests();
+    expect(requests.map(([action]) => action)).toEqual(['upload.append', 'camera.switch']);
+    expect(requests[1][1]).toEqual({
+      source: 'file',
+      target: `/tmp/serve-sim-uploads/${requests[0][1]?.uploadId}`,
+    });
+  });
+
+  it('refuses --output for an action that returns no file before it runs', async () => {
+    await expect(
+      createCommand([
+        'hardwareKeyboard.set',
+        'off',
+        '--output',
+        './out',
+        '--id',
+        'session-123',
+      ]).runAsync()
+    ).rejects.toThrow('hardwareKeyboard.set does not return a file, so --output does not apply.');
+    expect(actionRequests()).toEqual([]);
   });
 
   it('passes a path that is not a local file through unchanged', async () => {

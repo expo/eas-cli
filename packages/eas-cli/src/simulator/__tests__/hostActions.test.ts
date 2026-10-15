@@ -9,6 +9,7 @@ import { WebSocketServer } from 'ws';
 import {
   HostActionCatalog,
   HostActionConnection,
+  assertHostActionOutput,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
@@ -47,6 +48,24 @@ describe(buildHostActionParams, () => {
     expect(
       buildHostActionParams('hardwareKeyboard.set', entry('hardwareKeyboard.set'), ['1'])
     ).toEqual({ value: '1' });
+    expect(buildHostActionParams('location.set', entry('location.set'), ['1e1', '.5'])).toEqual({
+      lat: 10,
+      lng: 0.5,
+    });
+  });
+
+  it('fills the values in order around the named ones', () => {
+    expect(buildHostActionParams('location.set', entry('location.set'), ['lat=1', '2'])).toEqual({
+      lat: 1,
+      lng: 2,
+    });
+    expect(
+      buildHostActionParams('permissions.set', entry('permissions.set'), [
+        'action=grant',
+        'camera',
+        'com.example.app',
+      ])
+    ).toEqual({ action: 'grant', service: 'camera', bundleId: 'com.example.app' });
   });
 
   it('accepts named values in any order', () => {
@@ -63,13 +82,20 @@ describe(buildHostActionParams, () => {
     ).toEqual({ source: 'file', target: './photo.jpg' });
   });
 
-  it('fills the file parameter of an action whose schema has several shapes', () => {
+  it('follows the value order the catalog gives for actions with several shapes', () => {
     expect(buildHostActionParams('app.install', entry('app.install'), ['./MyApp.ipa'])).toEqual({
       path: './MyApp.ipa',
     });
     expect(
-      buildHostActionParams('camera.switch', entry('camera.switch'), ['source=file', './photo.jpg'])
+      buildHostActionParams('camera.switch', entry('camera.switch'), ['file', './photo.jpg'])
     ).toEqual({ source: 'file', target: './photo.jpg' });
+    expect(
+      buildHostActionParams('camera.inject', entry('camera.inject'), [
+        'com.example.app',
+        'off',
+        'placeholder',
+      ])
+    ).toEqual({ bundleId: 'com.example.app', mirror: 'off', source: 'placeholder' });
   });
 
   it('refuses extra values and a value given twice', () => {
@@ -79,11 +105,11 @@ describe(buildHostActionParams, () => {
       'Too many values for hardwareKeyboard.set. Usage: eas simulator:control hardwareKeyboard.set <value>.'
     );
     expect(() =>
-      buildHostActionParams('camera.switch', entry('camera.switch'), ['file', './photo.jpg'])
+      buildHostActionParams('camera.switch', entry('camera.switch'), ['file', './a.jpg', './b.jpg'])
     ).toThrow('Too many values for camera.switch.');
     expect(() =>
       buildHostActionParams('hardwareKeyboard.set', entry('hardwareKeyboard.set'), [
-        'on',
+        'value=on',
         'value=off',
       ])
     ).toThrow('value is given twice for hardwareKeyboard.set.');
@@ -98,6 +124,26 @@ describe(formatHostActionUsage, () => {
     expect(formatHostActionUsage('screenshot.capture', entry('screenshot.capture'))).toBe(
       'screenshot.capture [fileName]'
     );
+    expect(formatHostActionUsage('camera.switch', entry('camera.switch'))).toBe(
+      'camera.switch <source> [target]'
+    );
+  });
+});
+
+describe(assertHostActionOutput, () => {
+  it('allows --output only for actions that return a file', () => {
+    expect(() => {
+      assertHostActionOutput('app.container', entry('app.container'), './out');
+    }).toThrow('app.container does not return a file, so --output does not apply.');
+    expect(() => {
+      assertHostActionOutput('screenshot.capture', entry('screenshot.capture'), undefined);
+    }).not.toThrow();
+  });
+
+  it('needs --output for an action that returns file contents', () => {
+    expect(() => {
+      assertHostActionOutput('file.readBase64', entry('file.readBase64'), undefined);
+    }).toThrow('file.readBase64 returns a file. Pass --output with the path to save it to.');
   });
 });
 
@@ -277,7 +323,7 @@ describe('host action connection', () => {
     await expect(connectHostActionsAsync({ apiUrl, token: 'wrong' })).rejects.toThrow(
       'refused the session token (HTTP 401)'
     );
-    expect(received).toEqual([]);
+    expect(wss.clients.size).toBe(0);
   });
 
   it('explains a preview server that does not report its simulator', async () => {
@@ -301,6 +347,24 @@ describe('host action connection', () => {
     expect(received.map(message => message.params.first)).toEqual([true, false, false, false]);
   });
 
+  it('removes a partial upload when a chunk fails', async () => {
+    const localFile = path.join(tmpDir, 'MyApp.ipa');
+    await fs.writeFile(localFile, 'hello simulator');
+    reply = message =>
+      message.action === 'upload.append' && !message.params.first
+        ? { id: message.id, stdout: '', stderr: 'The upload staging area is full.', exitCode: 1 }
+        : serveSim(message);
+    const hostActions = await connectAsync();
+
+    await expect(uploadFileAsync(hostActions, localFile, { chunkBytes: 4 })).rejects.toThrow(
+      `Could not upload ${localFile}: The upload staging area is full.`
+    );
+    expect(received.at(-1)).toMatchObject({
+      action: 'upload.remove',
+      params: { uploadId: received[0].params.uploadId },
+    });
+  });
+
   it('refuses to upload an empty file', async () => {
     const localFile = path.join(tmpDir, 'empty.png');
     await fs.writeFile(localFile, '');
@@ -316,7 +380,6 @@ describe('host action connection', () => {
     const saved = await saveHostActionOutputAsync(
       hostActions,
       entry('screenshot.capture'),
-      {},
       '/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png\n',
       outputPath
     );
@@ -329,29 +392,57 @@ describe('host action connection', () => {
     expect(await fs.readFile(outputPath, 'utf8')).toBe('png bytes');
   });
 
-  it('saves a file the action returned and needs a name for it', async () => {
+  it('saves into a folder under the name the host gave the file', async () => {
+    const hostActions = await connectAsync();
+
+    const saved = await saveHostActionOutputAsync(
+      hostActions,
+      entry('screenshot.capture'),
+      '/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png\n',
+      tmpDir
+    );
+
+    expect(saved).toBe(path.join(tmpDir, 'serve-sim-screenshot-1.png'));
+    expect(await fs.readFile(path.join(tmpDir, 'serve-sim-screenshot-1.png'), 'utf8')).toBe(
+      'png bytes'
+    );
+  });
+
+  it('does not replace a file it named itself', async () => {
+    const existing = path.join(tmpDir, 'serve-sim-screenshot-1.png');
+    await fs.writeFile(existing, 'mine');
+    const hostActions = await connectAsync();
+
+    await expect(
+      saveHostActionOutputAsync(
+        hostActions,
+        entry('screenshot.capture'),
+        '/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png\n',
+        tmpDir
+      )
+    ).rejects.toThrow(`${existing} already exists.`);
+    expect(await fs.readFile(existing, 'utf8')).toBe('mine');
+  });
+
+  it('saves file contents the action returned', async () => {
     const hostActions = await connectAsync();
     const outputPath = path.join(tmpDir, 'Info.plist');
 
     await saveHostActionOutputAsync(
       hostActions,
       entry('file.readBase64'),
-      {},
       Buffer.from('plist').toString('base64'),
       outputPath
     );
 
     expect(await fs.readFile(outputPath, 'utf8')).toBe('plist');
-    await expect(
-      saveHostActionOutputAsync(hostActions, { output: 'base64' }, {}, '', undefined)
-    ).rejects.toThrow('Pass --output with the path to save it to.');
   });
 
   it('saves nothing for an action that returns no file', async () => {
     const hostActions = await connectAsync();
 
     await expect(
-      saveHostActionOutputAsync(hostActions, entry('hardwareKeyboard.set'), {}, 'on', undefined)
+      saveHostActionOutputAsync(hostActions, entry('hardwareKeyboard.set'), 'on', undefined)
     ).resolves.toBeNull();
   });
 });

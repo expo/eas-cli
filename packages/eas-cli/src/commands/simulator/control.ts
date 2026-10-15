@@ -18,6 +18,7 @@ import {
 import {
   HostActionCatalog,
   HostActionConnection,
+  assertHostActionOutput,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
@@ -74,7 +75,8 @@ export default class SimulatorControl extends EasCommand {
     if (jsonFlag) {
       enableJsonOutput();
     }
-    if (!flags.list && !args.action) {
+    const action = flags.list ? undefined : args.action;
+    if (!flags.list && !action) {
       throw new Error(
         'No action provided. Run `eas simulator:control --list` to see the actions, then `eas simulator:control <action> [values...]`.'
       );
@@ -109,13 +111,13 @@ export default class SimulatorControl extends EasCommand {
     }
 
     try {
-      if (flags.list || !args.action) {
+      if (!action) {
         this.printCatalog(catalog, jsonFlag);
         return;
       }
       await this.runActionAsync(connection, catalog, {
         sessionId,
-        action: args.action,
+        action,
         values: argv.slice(1).map(String),
         outputPath: flags.output,
         jsonFlag,
@@ -131,7 +133,10 @@ export default class SimulatorControl extends EasCommand {
       return;
     }
     for (const [name, entry] of Object.entries(catalog)) {
-      Log.log(`${formatHostActionUsage(name, entry)}\n    ${entry.description ?? ''}`);
+      Log.log(formatHostActionUsage(name, entry));
+      if (entry.description) {
+        Log.log(`    ${entry.description}`);
+      }
     }
   }
 
@@ -159,41 +164,40 @@ export default class SimulatorControl extends EasCommand {
       );
     }
     const params = buildHostActionParams(action, entry, values);
+    assertHostActionOutput(action, entry, outputPath);
     const uploadParam = entry.upload;
     const localFile = uploadParam ? params[uploadParam] : undefined;
-    let uploadId: string | undefined;
-    if (uploadParam && typeof localFile === 'string' && (await fs.pathExists(localFile))) {
-      if ((await fs.stat(localFile)).isDirectory()) {
-        throw new Error(`${localFile} is a folder. Pass a file, for example an .ipa.`);
-      }
-      const upload = await uploadFileAsync(connection, localFile);
-      uploadId = upload.uploadId;
-      params[uploadParam] = upload.path;
+    const localStat =
+      typeof localFile === 'string' ? await fs.stat(localFile).catch(() => null) : null;
+    if (localStat?.isDirectory()) {
+      throw new Error(`${localFile} is a folder. Pass a file, for example an .ipa.`);
     }
 
     const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
+    let uploadId: string | undefined;
     let output: string;
     let savedFile: string | null;
     try {
+      if (uploadParam && localStat && typeof localFile === 'string') {
+        spinner.text = `Uploading ${localFile}`;
+        const upload = await uploadFileAsync(connection, localFile);
+        uploadId = upload.uploadId;
+        params[uploadParam] = upload.path;
+        spinner.text = `Running ${action} on simulator session ${sessionId}`;
+      }
       const result = await connection.requestAsync(action, params);
       if (result.exitCode !== 0) {
         const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
         throw new Error(`The simulator could not run ${action}: ${detail}`);
       }
-      savedFile = await saveHostActionOutputAsync(
-        connection,
-        entry,
-        params,
-        result.stdout,
-        outputPath
-      );
+      savedFile = await saveHostActionOutputAsync(connection, entry, result.stdout, outputPath);
       output = savedFile ? '' : result.stdout.trim();
       spinner.succeed(`Ran ${action} on simulator session ${sessionId}`);
     } catch (err) {
       spinner.fail(`Failed to run ${action} on simulator session ${sessionId}`);
       throw err;
     } finally {
-      if (uploadId) {
+      if (uploadId && !entry.keepUpload) {
         await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
       }
     }
