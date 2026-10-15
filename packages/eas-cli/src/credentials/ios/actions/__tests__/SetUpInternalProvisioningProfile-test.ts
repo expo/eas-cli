@@ -1,3 +1,4 @@
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
@@ -50,7 +51,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -88,7 +89,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -133,7 +134,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -171,7 +172,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -211,7 +212,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -249,7 +250,7 @@ describe(SetUpInternalProvisioningProfile, () => {
             account: {
               id: 'account-id',
               name: 'account-name',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
@@ -286,7 +287,7 @@ describe(SetUpInternalProvisioningProfile, () => {
           account: {
             id: 'account-id',
             name: 'account-name',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -311,7 +312,7 @@ describe(SetUpInternalProvisioningProfile, () => {
           account: {
             id: 'account-id',
             name: 'account-name',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -334,7 +335,7 @@ describe(SetUpInternalProvisioningProfile, () => {
           account: {
             id: 'account-id',
             name: 'account-name',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
@@ -363,7 +364,7 @@ describe(SetUpInternalProvisioningProfile, () => {
           account: {
             id: 'account-id',
             name: 'account-name',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',

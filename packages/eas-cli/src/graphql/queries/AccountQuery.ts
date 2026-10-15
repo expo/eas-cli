@@ -39,9 +39,10 @@ export const AccountQuery = {
                 byName(accountName: $accountName) {
                   id
                   name
-                  viewerUserPermission {
+                  viewerUserPermission2 {
                     id
                     permissions
+                    effectivePermissions
                   }
                 }
               }
