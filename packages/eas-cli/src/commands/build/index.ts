@@ -152,7 +152,7 @@ export default class Build extends EasCommand {
     const flags = this.sanitizeFlags(rawFlags);
 
     const {
-      loggedIn: { actor, graphqlClient },
+      loggedIn: { actor, graphqlClient, authenticationInfo },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
@@ -185,6 +185,7 @@ export default class Build extends EasCommand {
       actor,
       getDynamicPrivateProjectConfigAsync,
       experimentation,
+      authenticationInfo,
     });
 
     this.maybeSuggestUsingEasBuildDev({
