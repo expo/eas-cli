@@ -15,15 +15,15 @@ export type HostActionResult = {
   exitCode: number;
 };
 
-type HostActionOptions = {
-  bundleId?: string;
-};
-
 type HostActionSpec = {
   args: string;
   jsonOutput?: boolean;
-  toRequest: (values: string[], options: HostActionOptions) => HostActionRequest | null;
+  toRequest: (values: string[]) => HostActionRequest | null;
 };
+
+function toNumberIfNumeric(value: string): number | string {
+  return /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : value;
+}
 
 function setting(prefix: string): HostActionSpec {
   return {
@@ -73,17 +73,51 @@ const HOST_ACTIONS: Record<string, HostActionSpec> = {
       value !== undefined && rest.length === 0
         ? {
             action: 'hinge.set',
-            params: { value: /^\d+(\.\d+)?$/.test(value) ? Number(value) : value },
+            params: { value: toNumberIfNumeric(value) },
           }
         : null,
   },
   permissions: {
-    args: '[--bundle-id <id>]',
+    args: '[list [bundle-id] | grant|revoke|reset <permission> <bundle-id> | reset all <bundle-id>]',
     jsonOutput: true,
-    toRequest: (values, { bundleId }) =>
-      values.length === 0
-        ? { action: 'permissions.list', params: bundleId ? { bundleId } : {} }
-        : null,
+    toRequest: values => {
+      const [verb = 'list', ...rest] = values;
+      if (verb === 'list' && rest.length <= 1) {
+        return { action: 'permissions.list', params: rest[0] ? { bundleId: rest[0] } : {} };
+      }
+      if (rest.length !== 2) {
+        return null;
+      }
+      const [permission, bundleId] = rest;
+      if (verb === 'reset' && permission === 'all') {
+        return { action: 'permissions.resetAll', params: { bundleId } };
+      }
+      return { action: 'permissions.set', params: { action: verb, service: permission, bundleId } };
+    },
+  },
+  appearance: setting('appearance'),
+  location: {
+    args: '<latitude> <longitude> | clear',
+    toRequest: values => {
+      if (values.length === 1 && values[0] === 'clear') {
+        return { action: 'location.clear', params: {} };
+      }
+      if (values.length !== 2) {
+        return null;
+      }
+      const [lat, lng] = values.map(toNumberIfNumeric);
+      return { action: 'location.set', params: { lat, lng } };
+    },
+  },
+  rotate: {
+    args: '<portrait|portrait_upside_down|landscape_left|landscape_right>',
+    toRequest: values =>
+      values.length === 1 ? { action: 'rotate', params: { value: values[0] } } : null,
+  },
+  button: {
+    args: '<home|swipe_home|app_switcher|lock|siri|side_button>',
+    toRequest: values =>
+      values.length === 1 ? { action: 'button', params: { value: values[0] } } : null,
   },
 };
 
@@ -115,24 +149,17 @@ export function hostActionPrintsJson(name: string): boolean {
   return Object.hasOwn(HOST_ACTIONS, name) && HOST_ACTIONS[name].jsonOutput === true;
 }
 
-export function resolveHostActionRequest(
-  name: string,
-  values: string[],
-  options: HostActionOptions = {}
-): HostActionRequest {
+export function resolveHostActionRequest(name: string, values: string[]): HostActionRequest {
   if (!Object.hasOwn(HOST_ACTIONS, name)) {
     throw new Error(
       `Unknown simulator action "${name}". Use one of: ${Object.keys(HOST_ACTIONS).join(', ')}.`
     );
   }
-  if (options.bundleId !== undefined && name !== 'permissions') {
-    throw new Error('The --bundle-id flag works only with the permissions action.');
-  }
   const spec = HOST_ACTIONS[name];
-  const request = spec.toRequest(values, options);
+  const request = spec.toRequest(values);
   if (!request) {
     throw new Error(
-      `Wrong arguments for "${name}". Usage: eas simulator:action ${`${name} ${spec.args}`.trim()}`
+      `Wrong arguments for "${name}". Usage: eas simulator:control ${`${name} ${spec.args}`.trim()}`
     );
   }
   return request;

@@ -45,8 +45,48 @@ describe(resolveHostActionRequest, () => {
       action: 'hinge.set',
       params: { value: 135 },
     });
-    expect(resolveHostActionRequest('permissions', [], { bundleId: 'com.example.app' })).toEqual({
+  });
+
+  it('builds the appearance, location, rotate and button actions', () => {
+    expect(resolveHostActionRequest('appearance', ['dark'])).toEqual({
+      action: 'appearance.set',
+      params: { value: 'dark' },
+    });
+    expect(resolveHostActionRequest('location', ['37.3349', '-122.009'])).toEqual({
+      action: 'location.set',
+      params: { lat: 37.3349, lng: -122.009 },
+    });
+    expect(resolveHostActionRequest('location', ['clear'])).toEqual({
+      action: 'location.clear',
+      params: {},
+    });
+    expect(resolveHostActionRequest('rotate', ['landscape_left'])).toEqual({
+      action: 'rotate',
+      params: { value: 'landscape_left' },
+    });
+    expect(resolveHostActionRequest('button', ['lock'])).toEqual({
+      action: 'button',
+      params: { value: 'lock' },
+    });
+  });
+
+  it('lists, grants and resets permissions', () => {
+    expect(resolveHostActionRequest('permissions', [])).toEqual({
       action: 'permissions.list',
+      params: {},
+    });
+    expect(resolveHostActionRequest('permissions', ['list', 'com.example.app'])).toEqual({
+      action: 'permissions.list',
+      params: { bundleId: 'com.example.app' },
+    });
+    expect(resolveHostActionRequest('permissions', ['grant', 'camera', 'com.example.app'])).toEqual(
+      {
+        action: 'permissions.set',
+        params: { action: 'grant', service: 'camera', bundleId: 'com.example.app' },
+      }
+    );
+    expect(resolveHostActionRequest('permissions', ['reset', 'all', 'com.example.app'])).toEqual({
+      action: 'permissions.resetAll',
       params: { bundleId: 'com.example.app' },
     });
   });
@@ -56,19 +96,22 @@ describe(resolveHostActionRequest, () => {
       'Unknown simulator action "server-kill"'
     );
     expect(() => resolveHostActionRequest('voiceover', ['on', 'off'])).toThrow(
-      'Usage: eas simulator:action voiceover [value]'
+      'Usage: eas simulator:control voiceover [value]'
     );
     expect(() => resolveHostActionRequest('ca-debug', ['blended'])).toThrow(
-      'Usage: eas simulator:action ca-debug'
+      'Usage: eas simulator:control ca-debug'
     );
     expect(() => resolveHostActionRequest('memory-warning', ['now'])).toThrow(
-      'Usage: eas simulator:action memory-warning'
+      'Usage: eas simulator:control memory-warning'
     );
   });
 
-  it('refuses a flag that the action does not use', () => {
-    expect(() => resolveHostActionRequest('settings', [], { bundleId: 'com.example.app' })).toThrow(
-      'The --bundle-id flag works only with the permissions action.'
+  it('refuses incomplete location and permission values', () => {
+    expect(() => resolveHostActionRequest('location', ['37.3349'])).toThrow(
+      'Usage: eas simulator:control location'
+    );
+    expect(() => resolveHostActionRequest('permissions', ['grant', 'camera'])).toThrow(
+      'Usage: eas simulator:control permissions'
     );
   });
 

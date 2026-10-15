@@ -13,7 +13,7 @@ import Log from '../../../log';
 import { loadSimulatorEnvAsync } from '../../../simulator/env';
 import { runHostActionAsync } from '../../../simulator/hostActions';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
-import SimulatorAction from '../action';
+import SimulatorControl from '../control';
 
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log');
@@ -83,7 +83,7 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-describe(SimulatorAction, () => {
+describe(SimulatorControl, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
   const projectDir = '/test/project';
@@ -95,8 +95,8 @@ describe(SimulatorAction, () => {
     mockRunHostActionAsync.mockResolvedValue({ stdout: 'off\n', stderr: '', exitCode: 0 });
   });
 
-  function createCommand(argv: string[]): SimulatorAction {
-    const command = new SimulatorAction(argv, mockConfig);
+  function createCommand(argv: string[]): SimulatorControl {
+    const command = new SimulatorControl(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       loggedIn: { graphqlClient },
@@ -136,7 +136,7 @@ describe(SimulatorAction, () => {
   it('passes the bundle identifier through', async () => {
     await createCommand([
       'permissions',
-      '--bundle-id',
+      'list',
       'com.example.app',
       '--id',
       'session-123',

@@ -23,19 +23,20 @@ import {
 import { getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export default class SimulatorAction extends EasCommand {
-  static override aliases = ['sim:action'];
-  static override description = `[EXPERIMENTAL] run an action on a remote iOS simulator session on EAS, such as a settings change
+export default class SimulatorControl extends EasCommand {
+  static override aliases = ['sim:control'];
+  static override description = `[EXPERIMENTAL] change settings and trigger device actions on a remote iOS simulator session on EAS
 
 Actions:
 ${formatHostActionUsage()}`;
   static override strict = false;
 
   static override examples = [
-    '$ eas simulator:action hardware-keyboard off',
-    '$ eas simulator:action text-size',
-    '$ eas simulator:action hinge half',
-    '$ eas simulator:action settings --json',
+    '$ eas simulator:control hardware-keyboard off',
+    '$ eas simulator:control appearance dark',
+    '$ eas simulator:control location 37.3349 -122.009',
+    '$ eas simulator:control permissions grant camera com.example.app',
+    '$ eas simulator:control settings --json',
   ];
 
   static override args = {
@@ -49,9 +50,6 @@ ${formatHostActionUsage()}`;
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
-    'bundle-id': Flags.string({
-      description: 'Bundle identifier to list permissions for. Only for the permissions action.',
-    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -61,21 +59,19 @@ ${formatHostActionUsage()}`;
   };
 
   async runAsync(): Promise<void> {
-    const { args, argv, flags } = await this.parse(SimulatorAction);
+    const { args, argv, flags } = await this.parse(SimulatorControl);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
       enableJsonOutput();
     }
 
-    const request = resolveHostActionRequest(args.name, argv.slice(1).map(String), {
-      bundleId: flags['bundle-id'],
-    });
+    const request = resolveHostActionRequest(args.name, argv.slice(1).map(String));
 
     const {
       projectDir,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(SimulatorAction, {
+    } = await this.getContextAsync(SimulatorControl, {
       nonInteractive,
     });
 
