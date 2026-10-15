@@ -7,10 +7,11 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -31,7 +32,7 @@ import {
   resolveConfiguredPackageManager,
   resolvePackageExec,
 } from '../../utils/packageManager';
-import { isProcessDescendantOfAsync } from '../../utils/processes';
+import { isProcessDescendantOfAsync, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
@@ -172,12 +173,14 @@ export function createStartArgentRemoteSessionBuildFunction(
       const startupSignal = signal
         ? AbortSignal.any([signal, startupAbortController.signal])
         : startupAbortController.signal;
+      const setupSignal = iosStartup ? startupSignal : undefined;
       const artifactPollAbortController = new AbortController();
       let artifactPollingPromise: Promise<void> | undefined;
       let eventCollection: Awaited<ReturnType<typeof startArgentEventCollectionAsync>> | undefined;
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let argentServer: ReturnType<typeof spawnDetached> | undefined;
       let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       let sessionFailed = false;
       const startHost = () =>
         startDeviceSessionHostAsync(ctx, {
@@ -192,9 +195,15 @@ export function createStartArgentRemoteSessionBuildFunction(
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           timeoutMs: STARTUP_TIMEOUT_MS,
           signal: startupSignal,
+          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
           ...launch,
           networkCapture,
           networkCaptureFields,
+        }).catch(error => {
+          if (iosStartup) {
+            startupAbortController.abort(error);
+          }
+          throw error;
         });
       try {
         if (iosStartup) {
@@ -206,7 +215,12 @@ export function createStartArgentRemoteSessionBuildFunction(
           'enable',
           ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
         ]);
-        await spawn(enableArtifacts.command, enableArtifacts.args, { env, logger });
+        await runArgentSetupCommandAsync(
+          enableArtifacts.command,
+          enableArtifacts.args,
+          { env, logger },
+          setupSignal
+        );
 
         logger.info('Enabling the Argent tool-server event log flag.');
         const enableEventLog = argentExec([
@@ -214,7 +228,12 @@ export function createStartArgentRemoteSessionBuildFunction(
           'enable',
           ARGENT_EVENT_LOG_FLAG,
         ]);
-        await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
+        await runArgentSetupCommandAsync(
+          enableEventLog.command,
+          enableEventLog.args,
+          { env, logger },
+          setupSignal
+        );
 
         logger.info('Disabling the Argent video watermark flag.');
         const disableVideoWatermark = argentExec([
@@ -224,14 +243,21 @@ export function createStartArgentRemoteSessionBuildFunction(
         ]);
         // The watermark is cosmetic, so a failure here must not fail the session.
         try {
-          await spawn(disableVideoWatermark.command, disableVideoWatermark.args, { env, logger });
+          await runArgentSetupCommandAsync(
+            disableVideoWatermark.command,
+            disableVideoWatermark.args,
+            { env, logger },
+            setupSignal
+          );
         } catch (err) {
+          setupSignal?.throwIfAborted();
           logger.warn(
             { err },
             'Could not disable the Argent video watermark, so recorded videos may include it. Continuing the session.'
           );
         }
 
+        setupSignal?.throwIfAborted();
         const startServer = argentExec([
           `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
           'server',
@@ -270,6 +296,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             ancestorPid: argentServer.pid,
             timeoutMs: STARTUP_TIMEOUT_MS,
             getExitError: argentServer.getExitError,
+            signal: setupSignal,
           });
           toolServerPort = toolServerState.port;
           toolServerToken = toolServerState.token;
@@ -284,6 +311,10 @@ export function createStartArgentRemoteSessionBuildFunction(
             }${output ? `\nArgent tool-server output:\n${output}` : ''}`
           );
         }
+        if (hostStartup) {
+          sessionHost = (await hostStartup).enforceValue();
+        }
+        setupSignal?.throwIfAborted();
         logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
         const artifactPollSignal = signal
           ? AbortSignal.any([signal, artifactPollAbortController.signal])
@@ -318,7 +349,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        const sessionHost = (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+        sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
         const webPreview = await sessionHost.openPreviewAsync({
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
@@ -360,7 +391,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         });
       } catch (error) {
         sessionFailed = true;
-        throw error;
+        throw setupSignal?.aborted ? setupSignal.reason : error;
       } finally {
         startupAbortController.abort(new Error('Argent session ended.'));
         await finishRemoteSessionAsync({
@@ -458,6 +489,31 @@ export function warnIfArgentPackageVersionCannotBeVerified({
   }
 }
 
+async function runArgentSetupCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  if (!signal) {
+    await spawn(command, args, options);
+    return;
+  }
+  signal.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal.addEventListener('abort', abort, { once: true });
+  if (signal.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal.throwIfAborted();
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
+}
+
 function parseArgentToolServerState(raw: string): ArgentToolServerState {
   let json: unknown;
   try {
@@ -480,13 +536,16 @@ export async function waitForArgentToolServerStateAsync({
   timeoutMs,
   pollIntervalMs = 1_000,
   getExitError,
+  signal,
 }: {
   stateDir: string;
   ancestorPid: number;
   timeoutMs: number;
   pollIntervalMs?: number;
   getExitError?: () => Error | undefined;
+  signal?: AbortSignal;
 }): Promise<ArgentToolServerState> {
+  signal?.throwIfAborted();
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   const throwIfExited = (): void => {
@@ -497,6 +556,7 @@ export async function waitForArgentToolServerStateAsync({
   };
 
   while (Date.now() < deadline) {
+    signal?.throwIfAborted();
     throwIfExited();
     let matchingState: ArgentToolServerState | undefined;
     try {
@@ -522,13 +582,19 @@ export async function waitForArgentToolServerStateAsync({
       lastError = err;
     }
     // Keep process failures outside the retryable state-file read errors.
+    signal?.throwIfAborted();
     throwIfExited();
     if (matchingState) {
       return matchingState;
     }
-    await sleepAsync(pollIntervalMs);
+    if (signal) {
+      await setTimeoutAsync(pollIntervalMs, undefined, { signal });
+    } else {
+      await sleepAsync(pollIntervalMs);
+    }
   }
 
+  signal?.throwIfAborted();
   throw new SystemError(
     `Timed out waiting for an argent tool-server state file belonging to process ${ancestorPid} in ${stateDir}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
