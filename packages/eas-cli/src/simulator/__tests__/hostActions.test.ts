@@ -79,7 +79,7 @@ describe(resolveHostActionRequest, () => {
     ).toThrow('The --bundle-id flag works only with the permissions action.');
   });
 
-  it('sends a hinge value that is not a plain number as text', () => {
+  it('sends a plain number as a number and anything else as text', () => {
     expect(resolveHostActionRequest('hinge', ['12.5'])).toEqual({
       action: 'hinge.set',
       params: { value: 12.5 },
@@ -101,19 +101,21 @@ describe(runHostActionAsync, () => {
   let apiUrl: string;
   let received: unknown[];
   let requests: (string | undefined)[];
+  let apiBody: string;
   let protocols: string[];
   let reply: (message: { id: number }) => Record<string, unknown> | null;
 
   beforeEach(async () => {
     received = [];
     requests = [];
+    apiBody = JSON.stringify({ device: UDID });
     protocols = [];
     reply = message => ({ id: message.id, stdout: 'on\n', stderr: '', exitCode: 0 });
     server = http.createServer((req, res) => {
       requests.push(req.url);
       if (req.url === '/api' && req.headers.authorization === `Bearer ${TOKEN}`) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ device: UDID }));
+        res.end(apiBody);
         return;
       }
       res.writeHead(401);
@@ -216,6 +218,15 @@ describe(runHostActionAsync, () => {
         { timeoutMs: 100 }
       )
     ).rejects.toThrow('The simulator did not answer within');
+  });
+
+  it('explains a preview server that does not report its simulator', async () => {
+    apiBody = '<html>starting</html>';
+
+    await expect(
+      runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'memoryWarning', params: {} })
+    ).rejects.toThrow('did not report which simulator it streams');
+    expect(received).toEqual([]);
   });
 
   it('fails at once on a reply it cannot read', async () => {

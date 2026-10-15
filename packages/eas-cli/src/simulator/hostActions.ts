@@ -41,10 +41,10 @@ function setting(prefix: string): HostActionSpec {
   };
 }
 
-function withoutValues(action: string, params: Record<string, unknown> = {}): HostActionSpec {
+function withoutValues(action: string): HostActionSpec {
   return {
     args: '',
-    toRequest: values => (values.length === 0 ? { action, params } : null),
+    toRequest: values => (values.length === 0 ? { action, params: {} } : null),
   };
 }
 
@@ -96,9 +96,8 @@ const HOST_ACTIONS: Record<string, HostActionSpec> = {
   },
 };
 
-export const HOST_ACTION_NAMES = Object.keys(HOST_ACTIONS);
-
 const HOST_ACTION_TIMEOUT_MS = 130_000;
+const PREVIEW_API_TIMEOUT_MS = 30_000;
 
 const PreviewConfig = z.object({ device: z.string().min(1) });
 
@@ -132,7 +131,7 @@ export function resolveHostActionRequest(
 ): HostActionRequest {
   if (!Object.hasOwn(HOST_ACTIONS, name)) {
     throw new Error(
-      `Unknown simulator action "${name}". Use one of: ${HOST_ACTION_NAMES.join(', ')}.`
+      `Unknown simulator action "${name}". Use one of: ${Object.keys(HOST_ACTIONS).join(', ')}.`
     );
   }
   if (options.bundleId !== undefined && name !== 'permissions') {
@@ -161,22 +160,14 @@ function previewEndpoint(apiUrl: string, path: string): URL {
   return new URL(path, base);
 }
 
-function timeoutError(timeoutMs: number): Error {
-  return new Error(
-    `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
-  );
-}
-
-async function fetchSimulatorUdidAsync(
-  { apiUrl, token }: PreviewApiAccess,
-  timeoutMs: number
-): Promise<string> {
-  let response;
+async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Promise<string> {
+  let text: string;
   try {
-    response = await fetch(previewEndpoint(apiUrl, 'api').toString(), {
+    const response = await fetch(previewEndpoint(apiUrl, 'api').toString(), {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
     });
+    text = await response.text();
   } catch (error) {
     if (error instanceof RequestError && [401, 403].includes(error.response.status)) {
       throw new Error(
@@ -184,11 +175,17 @@ async function fetchSimulatorUdidAsync(
       );
     }
     if (error instanceof Error && error.name === 'AbortError') {
-      throw timeoutError(timeoutMs);
+      throw new Error(
+        `The simulator preview server did not answer within ${PREVIEW_API_TIMEOUT_MS / 1000} seconds. Run \`eas simulator:get\` to check that the session still runs, then try again.`
+      );
     }
     throw error;
   }
-  const config = PreviewConfig.safeParse(await response.json());
+  let body: unknown = null;
+  try {
+    body = JSON.parse(text);
+  } catch {}
+  const config = PreviewConfig.safeParse(body);
   if (!config.success) {
     throw new Error(
       'The simulator preview server did not report which simulator it streams. The session may still be starting. Wait a few seconds and run the command again.'
@@ -202,7 +199,7 @@ export async function runHostActionAsync(
   request: HostActionRequest,
   { timeoutMs = HOST_ACTION_TIMEOUT_MS }: { timeoutMs?: number } = {}
 ): Promise<HostActionResult> {
-  const udid = await fetchSimulatorUdidAsync(access, timeoutMs);
+  const udid = await fetchSimulatorUdidAsync(access);
   const socketUrl = previewEndpoint(access.apiUrl, 'exec-ws');
   socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
 
@@ -228,7 +225,11 @@ export async function runHostActionAsync(
       }
     }
     const timer = setTimeout(() => {
-      fail(timeoutError(timeoutMs));
+      fail(
+        new Error(
+          `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
+        )
+      );
     }, timeoutMs);
 
     ws.on('message', data => {
