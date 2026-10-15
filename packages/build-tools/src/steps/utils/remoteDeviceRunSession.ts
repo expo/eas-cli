@@ -25,7 +25,7 @@ import {
   parseOpenUrlInput,
 } from '../functions/launchApplication';
 import { Sentry } from '../../sentry';
-import { isProcessGroupRunning } from '../../utils/processes';
+import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
@@ -317,14 +317,28 @@ function warmUpFfmpeg(env: BuildStepEnv): void {
 async function installFfmpegWithHomebrewAsync({
   env,
   logger,
+  signal,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
-  await spawn('brew', ['install', 'ffmpeg'], {
+  signal?.throwIfAborted();
+  const install = spawn('brew', ['install', 'ffmpeg'], {
     env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
     logger,
+    ...(signal ? { detached: true } : {}),
   });
+  const abort = (): void => killProcessGroup(install.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await install;
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 async function installFfmpegWithAptAsync({
@@ -362,13 +376,16 @@ async function ensureFfmpegInstalledAsync({
   runtimePlatform,
   env,
   logger,
+  signal,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
   try {
     const ffmpegPath = await findFfmpegOnPathAsync(env);
+    signal?.throwIfAborted();
     if (ffmpegPath) {
       logger.info(`ffmpeg is already installed at ${ffmpegPath}.`);
       warmUpFfmpeg(env);
@@ -382,13 +399,17 @@ async function ensureFfmpegInstalledAsync({
       } for the device session.`
     );
     if (isDarwin) {
-      await installFfmpegWithHomebrewAsync({ env, logger });
+      await installFfmpegWithHomebrewAsync({ env, logger, signal });
     } else {
       await installFfmpegWithAptAsync({ env, logger });
     }
+    signal?.throwIfAborted();
     logger.info('Installed ffmpeg.');
     warmUpFfmpeg(env);
   } catch (err) {
+    if (signal?.aborted) {
+      return;
+    }
     const error = err instanceof Error ? err : new Error(String(err));
     Sentry.capture('Could not install ffmpeg for the device session', error, {
       level: 'warning',
@@ -404,20 +425,39 @@ export async function ensureFfmpegInstalledOnceAsync({
   runtimePlatform,
   env,
   logger,
+  signal,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
+  signal?.throwIfAborted();
   if (ffmpegSetupPromise) {
-    await ffmpegSetupPromise;
+    if (signal) {
+      const sharedSetup = ffmpegSetupPromise;
+      await new Promise<void>((resolve, reject) => {
+        const abort = (): void => reject(signal.reason);
+        signal.addEventListener('abort', abort, { once: true });
+        void sharedSetup.then(() => {
+          signal.removeEventListener('abort', abort);
+          resolve();
+        });
+        if (signal.aborted) {
+          abort();
+        }
+      });
+    } else {
+      await ffmpegSetupPromise;
+    }
     return;
   }
 
-  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger, signal });
   ffmpegSetupPromise = setupPromise;
   try {
     await setupPromise;
+    signal?.throwIfAborted();
   } finally {
     if (ffmpegSetupPromise === setupPromise) {
       ffmpegSetupPromise = undefined;

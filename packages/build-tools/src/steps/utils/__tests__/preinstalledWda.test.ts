@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import * as processes from '../../../utils/processes';
 import { preparePreinstalledWdaAsync } from '../preinstalledWda';
 
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
@@ -77,4 +78,38 @@ it('falls back after a failed download and removes only its own incomplete artif
 it('does not enable preinstalled startup when the download produces no runner', async () => {
   jest.mocked(spawn).mockResolvedValue({ stdout: '' } as never);
   await expect(preparePreinstalledWdaAsync(options)).resolves.toEqual({});
+});
+
+it('drains an aborted WDA downloader before removing its partial artifact', async () => {
+  await fs.promises.mkdir(outdir, { recursive: true });
+  const controller = new AbortController();
+  const error = new Error('Simulator startup failed');
+  const child = { pid: 12345, kill: jest.fn() };
+  let closeDownloader!: (error: Error) => void;
+  jest.mocked(spawn).mockReturnValueOnce(
+    Object.assign(
+      new Promise((_resolve, reject) => {
+        closeDownloader = reject;
+      }),
+      { child }
+    ) as never
+  );
+  const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+  const running = preparePreinstalledWdaAsync({ ...options, signal: controller.signal });
+  const settled = jest.fn();
+  const observed = running.then(settled, settled);
+  try {
+    controller.abort(error);
+    expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+    expect(settled).not.toHaveBeenCalled();
+    expect(fs.existsSync(outdir)).toBe(true);
+    closeDownloader(new Error('download interrupted'));
+    await expect(running).rejects.toBe(error);
+    expect(fs.existsSync(outdir)).toBe(false);
+    expect(logger.warn).not.toHaveBeenCalled();
+  } finally {
+    closeDownloader(error);
+    await observed;
+    killGroup.mockRestore();
+  }
 });

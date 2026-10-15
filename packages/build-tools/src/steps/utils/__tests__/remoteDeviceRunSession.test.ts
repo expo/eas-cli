@@ -18,6 +18,7 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import * as processes from '../../../utils/processes';
 import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
@@ -2174,6 +2175,86 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     finishInstall?.();
     await Promise.all([firstSetup, secondSetup]);
     expect(spawnMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('drains an owned FFmpeg installer on abort without rejecting shared callers', async () => {
+    const controller = new AbortController();
+    const error = new Error('Simulator startup failed');
+    const child = { pid: 12345, kill: jest.fn() };
+    let closeInstaller!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      Object.assign(
+        new Promise((_resolve, reject) => {
+          closeInstaller = reject;
+        }),
+        { child }
+      ) as never
+    );
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const settled = jest.fn();
+    const observed = owner.then(settled, settled);
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      const shared = ensureFfmpegInstalledOnceAsync(options);
+      controller.abort(error);
+      expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+      expect(settled).not.toHaveBeenCalled();
+      closeInstaller(new Error('brew interrupted'));
+      await expect(owner).rejects.toBe(error);
+      await expect(shared).resolves.toBeUndefined();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      expect(options.logger.warn).not.toHaveBeenCalled();
+    } finally {
+      closeInstaller?.(error);
+      await observed;
+      killGroup.mockRestore();
+    }
+  });
+
+  it('stops an aborted shared waiter without cancelling the installer owner', async () => {
+    let finishInstall!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishInstall = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const controller = new AbortController();
+    const error = new Error('Appium startup failed');
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync(options);
+    let ownerFinished = false;
+    const observedOwner = owner.then(() => {
+      ownerFinished = true;
+    });
+    const waiter = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const observedWaiter = waiter.catch(() => {});
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(error);
+      await expect(waiter).rejects.toBe(error);
+      expect(ownerFinished).toBe(false);
+      expect(killGroup).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      finishInstall();
+      await expect(owner).resolves.toBeUndefined();
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
+    } finally {
+      finishInstall();
+      await Promise.all([observedOwner, observedWaiter]);
+      killGroup.mockRestore();
+    }
   });
 
   it('still installs on linux when the apt index refresh fails', async () => {
