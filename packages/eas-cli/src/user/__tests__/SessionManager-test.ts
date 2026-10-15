@@ -254,6 +254,15 @@ describe(SessionManager, () => {
   });
 
   describe('showLoginPromptAsync', () => {
+    it('fails with the EAS_LOGIN_REQUIRED code in non-interactive mode', async () => {
+      const sessionManager = new SessionManager(analytics);
+
+      await expect(
+        sessionManager.showLoginPromptAsync({ nonInteractive: true })
+      ).rejects.toMatchObject({ code: 'EAS_LOGIN_REQUIRED' });
+      expect(promptAsync).not.toHaveBeenCalled();
+    });
+
     it('prompts for OTP when 2FA is enabled', async () => {
       jest
         .mocked(promptAsync)

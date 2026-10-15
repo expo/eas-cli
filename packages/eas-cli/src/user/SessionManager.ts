@@ -156,7 +156,8 @@ export default class SessionManager {
         )} environment variable if you're using EAS CLI on CI (${learnMore(
           'https://docs.expo.dev/accounts/programmatic-access/',
           { dim: false }
-        )})`
+        )})`,
+        { code: 'EAS_LOGIN_REQUIRED' }
       );
     }
     if (printNewLine) {
