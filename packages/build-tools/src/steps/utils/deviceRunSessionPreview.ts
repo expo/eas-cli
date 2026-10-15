@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { killProcessGroup } from '../../utils/processes';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
@@ -83,31 +84,7 @@ export function startDeviceRunSessionPreview({
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
       if (!uploadSession) {
-        const result = await ctx.graphqlClient
-          .mutation(
-            CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
-            { deviceRunSessionId },
-            {
-              // Keep the client's auth headers and combine cancellation after URQL sets its signal.
-              fetch: (url, options) =>
-                globalThis.fetch(url, {
-                  ...options,
-                  signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
-                }),
-            }
-          )
-          .toPromise();
-        if (result.error) {
-          throw result.error;
-        }
-        const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
-        if (!session) {
-          throw new Error('No session preview upload URL was returned.');
-        }
-        uploadSession = {
-          url: session.url,
-          headers: session.headers as Record<string, string>,
-        };
+        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
       }
       if (controller.signal.aborted) {
         return;
@@ -137,6 +114,42 @@ export function startDeviceRunSessionPreview({
       clearTimeout(timer);
       await pending;
     },
+  };
+}
+
+async function createPreviewUploadSessionAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<{ url: string; headers: Record<string, string> }> {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    return await workerApi.createPreviewUploadSessionAsync({ signal });
+  }
+  const result = await ctx.graphqlClient
+    .mutation(
+      CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
+      { deviceRunSessionId },
+      {
+        // Keep the client's auth headers and combine cancellation after URQL sets its signal.
+        fetch: (url, options) =>
+          globalThis.fetch(url, {
+            ...options,
+            signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
+          }),
+      }
+    )
+    .toPromise();
+  if (result.error) {
+    throw result.error;
+  }
+  const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
+  if (!session) {
+    throw new Error('No session preview upload URL was returned.');
+  }
+  return {
+    url: session.url,
+    headers: session.headers as Record<string, string>,
   };
 }
 

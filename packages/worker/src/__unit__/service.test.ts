@@ -165,6 +165,82 @@ describe('BuildService Datadog setup', () => {
     expect(createBuildContextMock).toHaveBeenCalled();
   });
 
+  it('configures the device run session target when the job has a device run session token', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+
+    await (service as any).startBuildInternal({
+      job: {
+        secrets: {
+          robotAccessToken: 'token-abc',
+          environmentSecrets: [
+            { name: 'EAS_DEVICE_RUN_SESSION_TOKEN', type: 'string', value: 'session-token' },
+          ],
+        },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: expect.any(String),
+      deviceRunSessionToken: 'session-token',
+      target: { kind: 'deviceRunSession' },
+    });
+  });
+
+  it('configures the device run session target without a robot access token', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+
+    await (service as any).startBuildInternal({
+      job: {
+        secrets: {
+          environmentSecrets: [
+            { name: 'EAS_DEVICE_RUN_SESSION_TOKEN', type: 'string', value: 'session-token' },
+          ],
+        },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: expect.any(String),
+      deviceRunSessionToken: 'session-token',
+      target: { kind: 'deviceRunSession' },
+    });
+  });
+
+  it('uses the last duplicate session token secret, like the build env', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+
+    await (service as any).startBuildInternal({
+      job: {
+        secrets: {
+          robotAccessToken: 'token-abc',
+          environmentSecrets: [
+            { name: 'EAS_DEVICE_RUN_SESSION_TOKEN', type: 'string', value: 'first-session-token' },
+            { name: 'NGROK_AUTHTOKEN', type: 'string', value: 'ngrok' },
+            { name: 'EAS_DEVICE_RUN_SESSION_TOKEN', type: 'string', value: 'last-session-token' },
+          ],
+        },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: expect.any(String),
+      deviceRunSessionToken: 'last-session-token',
+      target: { kind: 'deviceRunSession' },
+    });
+  });
+
   it('leaves Datadog unconfigured when the robot access token is unavailable', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});

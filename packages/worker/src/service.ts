@@ -4,6 +4,7 @@ import {
   Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
+  getDeviceRunSessionTokenFromEnvironmentSecrets,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
@@ -281,7 +282,19 @@ export default class BuildService {
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
       const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken) {
+      // Resolves duplicate secrets like the build env does, so metrics and steps use one token.
+      const deviceRunSessionToken = getDeviceRunSessionTokenFromEnvironmentSecrets(
+        job.secrets?.environmentSecrets
+      );
+      if (!job.platform && deviceRunSessionToken) {
+        // A device run session job reports metrics with its session token, which names the
+        // session and its job run, so it does not need the account-wide robot access token.
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          deviceRunSessionToken,
+          target: { kind: 'deviceRunSession' },
+        });
+      } else if (robotAccessToken) {
         Datadog.setup({
           expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
           robotAccessToken,

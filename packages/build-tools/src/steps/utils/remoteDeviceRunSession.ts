@@ -32,6 +32,7 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
@@ -72,6 +73,8 @@ const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
 `);
 
 const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
+// A request to the device run session worker API that hangs counts as a failed poll or stop.
+const DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS = 30_000;
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
@@ -226,14 +229,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }
       }
       try {
-        const result = await ctx.graphqlClient
-          .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
-          .toPromise();
-        if (result.error) {
-          throw result.error;
-        }
-
-        const status = result.data?.deviceRunSessions?.byId?.status;
+        const status = await fetchDeviceRunSessionStatusAsync(ctx, deviceRunSessionId, signal);
         if (!status) {
           throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
         }
@@ -269,6 +265,30 @@ export async function waitForDeviceRunSessionStoppedAsync({
   }
 }
 
+async function fetchDeviceRunSessionStatusAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<string | undefined> {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    // One request per poll; the polling loop retries on its own schedule.
+    return (
+      await workerApi.getSessionAsync({
+        signal,
+        timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+      })
+    ).status;
+  }
+  const result = await ctx.graphqlClient
+    .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+    .toPromise();
+  if (result.error) {
+    throw result.error;
+  }
+  return result.data?.deviceRunSessions?.byId?.status;
+}
+
 // Best effort: when this fails, the caller still tears the session down and the
 // job run finishes, which clients also treat as the session ending.
 async function ensureDeviceRunSessionStoppedSafelyAsync({
@@ -281,11 +301,16 @@ async function ensureDeviceRunSessionStoppedSafelyAsync({
   logger: bunyan;
 }): Promise<void> {
   try {
-    const result = await ctx.graphqlClient
-      .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })
-      .toPromise();
-    if (result.error) {
-      throw result.error;
+    const workerApi = getDeviceRunSessionWorkerApi(ctx);
+    if (workerApi) {
+      await workerApi.stopAsync({ timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS });
+    } else {
+      const result = await ctx.graphqlClient
+        .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })
+        .toPromise();
+      if (result.error) {
+        throw result.error;
+      }
     }
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -501,31 +526,8 @@ export async function fetchWebPreviewTurnArgsAsync(
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<string[]> {
   try {
-    const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-    const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
-    const robotAccessToken = nullthrows(
-      ctx.job.secrets?.robotAccessToken,
-      'robot access token is not set'
-    );
-
-    const response = await turtleFetch(
-      new URL(
-        `/v2/device-run-sessions/${deviceRunSessionId}/turn-ice-servers`,
-        expoApiServerUrl
-      ).toString(),
-      'POST',
-      {
-        headers: {
-          Authorization: `Bearer ${robotAccessToken}`,
-        },
-        timeout: 5000,
-        retries: 1,
-        logger,
-      }
-    );
-
-    const { data } = TurnIceServersResponseSchema.parse(await response.json());
-    const args = turnIceServersToWebPreviewArgs(data.iceServers);
+    const iceServers = await fetchTurnIceServersAsync(ctx, { env, logger });
+    const args = turnIceServersToWebPreviewArgs(iceServers);
     if (args.length > 0) {
       logger.info('Configured the web preview with Cloudflare TURN ICE servers.');
     }
@@ -539,6 +541,42 @@ export async function fetchWebPreviewTurnArgsAsync(
     );
     return [];
   }
+}
+
+async function fetchTurnIceServersAsync(
+  ctx: CustomBuildContext,
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<TurnIceServers> {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    return await workerApi.fetchTurnIceServersAsync({ timeoutMs: 5000, retries: 1, logger });
+  }
+
+  const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+  const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+  const robotAccessToken = nullthrows(
+    ctx.job.secrets?.robotAccessToken,
+    'robot access token is not set'
+  );
+
+  const response = await turtleFetch(
+    new URL(
+      `/v2/device-run-sessions/${deviceRunSessionId}/turn-ice-servers`,
+      expoApiServerUrl
+    ).toString(),
+    'POST',
+    {
+      headers: {
+        Authorization: `Bearer ${robotAccessToken}`,
+      },
+      timeout: 5000,
+      retries: 1,
+      logger,
+    }
+  );
+
+  const { data } = TurnIceServersResponseSchema.parse(await response.json());
+  return data.iceServers;
 }
 
 export async function uploadRemoteSessionConfigAsync({
@@ -555,6 +593,20 @@ export async function uploadRemoteSessionConfigAsync({
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    try {
+      await workerApi.startAsync({ remoteConfig });
+    } catch (err) {
+      throw new SystemError(
+        `Failed to start device run session ${deviceRunSessionId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        { cause: err }
+      );
+    }
+    return;
+  }
   const result = await ctx.graphqlClient
     .mutation(START_DEVICE_RUN_SESSION_MUTATION, { deviceRunSessionId, remoteConfig })
     .toPromise();
