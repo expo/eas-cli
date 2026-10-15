@@ -426,6 +426,9 @@ async function startDeviceSessionHostInternalAsync(
         ...env,
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
+        // The Hub would resolve its state directory from the step's env, which may set its own
+        // TMPDIR or state directory, so it writes its token where the host reads it below.
+        ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
       },
       // Only an Android host records through expo-device-hub; serve-sim records on iOS.
       stopGracePeriodMs: recording
@@ -538,7 +541,7 @@ async function startDeviceSessionHostInternalAsync(
     hostReady = true;
     // Both servers record their session token in a state file once they are ready.
     previewToken = isAndroid
-      ? await readExpoDeviceHubPreviewTokenAsync(port)
+      ? await readExpoDeviceHubPreviewTokenAsync(port, EXPO_DEVICE_HUB_STATE_DIR)
       : await readServeSimPreviewTokenAsync(device);
     if (!previewToken) {
       throw new SystemError(

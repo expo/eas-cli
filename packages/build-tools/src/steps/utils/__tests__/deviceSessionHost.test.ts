@@ -3,7 +3,8 @@ import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
@@ -78,11 +79,20 @@ const directories: string[] = [];
 const hubStateFiles: string[] = [];
 const baseDomain = 'preview.example.test';
 
-// expo-device-hub records its session token in `server-<port>.json` before it answers /readyz.
-function writeHubState(args: readonly string[]): void {
+// expo-device-hub records its session token in `server-<port>.json` before it answers /readyz,
+// in the state directory it resolves from its env.
+function writeHubState({
+  args,
+  env: hubEnv,
+}: {
+  args: readonly string[];
+  env: BuildStepEnv;
+}): void {
   const port = args[args.indexOf('--port') + 1];
-  const file = path.join(EXPO_DEVICE_HUB_STATE_DIR, `server-${port}.json`);
-  mkdirSync(EXPO_DEVICE_HUB_STATE_DIR, { recursive: true });
+  const stateDir =
+    hubEnv.EXPO_DEVICE_HUB_STATE_DIR || path.join(hubEnv.TMPDIR ?? os.tmpdir(), 'expo-device-hub');
+  const file = path.join(stateDir, `server-${port}.json`);
+  mkdirSync(stateDir, { recursive: true });
   writeFileSync(file, JSON.stringify({ pid: 1, port: Number(port), token: 'hub-preview-token' }));
   hubStateFiles.push(file);
 }
@@ -115,7 +125,7 @@ beforeEach(() => {
       directories.push(options.args[flag + 1]);
     }
     if (options.args.includes('--platform')) {
-      writeHubState(options.args);
+      writeHubState(options);
     }
     return {
       pid: undefined,
@@ -259,7 +269,7 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
-    writeHubState(options.args);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255',
@@ -301,7 +311,7 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
 it('logs the reason and skips upload and output dump when the Hub never recorded', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
-    writeHubState(options.args);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] Android recording skipped',
@@ -505,6 +515,25 @@ it('starts expo-device-hub with a session token and the website origins', async 
   await host.finishAsync();
 });
 
+it.each([
+  ['its own state directory', 'EXPO_DEVICE_HUB_STATE_DIR'],
+  ['its own TMPDIR', 'TMPDIR'],
+])('reads the Hub token when the step env sets %s', async (_description, variable) => {
+  const override = await mkdtemp(path.join(os.tmpdir(), 'hub-state-override-'));
+  directories.push(override);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env: { ...env, [variable]: override },
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env.EXPO_DEVICE_HUB_STATE_DIR).toBe(EXPO_DEVICE_HUB_STATE_DIR);
+  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('hub-preview-token');
+  await host.finishAsync();
+});
+
 it('stops when expo-device-hub records no session token', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     const flag = options.args.indexOf('--android-recording-directory');
@@ -698,7 +727,7 @@ it.each([
   let exitError: Error | undefined;
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
-    writeHubState(options.args);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '',
