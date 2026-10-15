@@ -62,43 +62,108 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
     ...secretValues,
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
   ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+  const maskSecrets = (value: string): string =>
+    secretList.reduce((acc: string, pattern: string): string => {
+      return acc.replaceAll(pattern, '*'.repeat(pattern.length));
+    }, value);
 
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
-    transform(_chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
-      let chunk = _chunk;
-      if (chunk && typeof chunk === 'object') {
-        // Remove hostname from logs since we don't need it.
-        const { hostname: _hostname, ...rest } = chunk;
-        chunk = {
-          ...rest,
-          // Add logId to each log.
-          logId: uuidv7(),
-        };
-      }
-
-      if (chunk && typeof chunk === 'object' && chunk.msg) {
-        const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
-          return acc.replaceAll(pattern, '*'.repeat(pattern.length));
-        }, chunk.msg as string);
-
-        callback(null, {
-          ...chunk,
-          msg: msgWithoutSecrets,
-        });
-      } else {
+    transform(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+      if (!chunk || typeof chunk !== 'object') {
         callback(null, chunk);
+        return;
       }
+      // Remove hostname from logs since we don't need it.
+      const { hostname: _hostname, ...rest } = chunk;
+      callback(
+        null,
+        toMaskedJsonRecord(
+          {
+            ...rest,
+            // Add logId to each log.
+            logId: uuidv7(),
+          },
+          maskSecrets
+        )
+      );
     },
   });
 }
 
-function createDiscardStream(): Writable {
+// Set by the logger and build tooling rather than by build output. Masking them could
+// break grouping and filtering, e.g. a secret equal to "stdout" or part of a timestamp.
+const UNMASKED_RECORD_FIELDS = new Set([
+  'name',
+  'pid',
+  'level',
+  'time',
+  'v',
+  'logId',
+  'phase',
+  'source',
+  'buildStepId',
+  'buildStepInternalId',
+  'marker',
+  'result',
+]);
+
+// Every destination writes records as JSON, so return a plain JSON value with secrets
+// masked in every string, not only in `msg`. Like bunyan's own stdout stream, tolerate
+// values JSON.stringify rejects instead of throwing into the code that logged.
+function toMaskedJsonRecord(
+  record: Record<string, unknown>,
+  maskSecrets: (value: string) => string
+): Record<string, unknown> {
+  const createReplacer = (seen?: WeakSet<object>) =>
+    function (this: unknown, key: string, value: unknown): unknown {
+      if (typeof value === 'bigint') {
+        value = value.toString();
+      }
+      if (this === record && UNMASKED_RECORD_FIELDS.has(key)) {
+        return value;
+      }
+      if (typeof value === 'string') {
+        return maskSecrets(value);
+      }
+      if (seen && value && typeof value === 'object') {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
+      return value;
+    };
+
+  try {
+    return JSON.parse(JSON.stringify(record, createReplacer()));
+  } catch {}
+  try {
+    return JSON.parse(JSON.stringify(record, createReplacer(new WeakSet())));
+  } catch {}
+  // Something like a throwing toJSON(); keep the top-level values that are safe to log.
+  const fallback: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === 'string') {
+      fallback[key] = UNMASKED_RECORD_FIELDS.has(key) ? value : maskSecrets(value);
+    } else if (typeof value === 'number' || typeof value === 'boolean' || value === null) {
+      fallback[key] = value;
+    } else if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      fallback[key] = value.toISOString();
+    }
+  }
+  return fallback;
+}
+
+function createStdoutStream(): Writable {
   return new Writable({
     objectMode: true,
-    write(_chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
-      callback(null);
+    write(chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      // Like bunyan's stdout stream, do not wait for stdout to flush. The other
+      // destinations are piped from the same source and would wait with it.
+      process.stdout.write(`${JSON.stringify(chunk)}\n`);
+      callback();
     },
   });
 }
@@ -109,17 +174,16 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
 }> {
-  const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
-
   const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
-  const discardStream = createDiscardStream();
-  transformStream.pipe(discardStream);
+  transformStream.pipe(createStdoutStream());
 
-  buildLogger.addStream({
-    type: 'raw',
-    stream: transformStream,
-    reemitErrorEvents: true,
-    level: buildLogger.level(),
+  // Do not inherit defaultLogger's stdout stream: every build-log destination must
+  // receive the filtered record.
+  const buildLogger = createLogger({
+    name: config.loggers.base.name,
+    phase: BuildPhase.UNKNOWN,
+    level: defaultLogger.level(),
+    streams: [{ type: 'raw', stream: transformStream, reemitErrorEvents: true }],
   });
 
   let remoteLoggerStream: RemoteLoggerStream | null = null;
@@ -137,12 +201,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   }
 
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
-  buildLogger.addStream({
-    type: 'raw',
-    stream: logBuffer,
-    reemitErrorEvents: true,
-    level: buildLogger.level(),
-  });
+  transformStream.pipe(logBuffer);
 
   let httpLogStream: HttpLogStream | null = null;
   if (config.loggers.http.baseUrl && secrets?.robotAccessToken) {

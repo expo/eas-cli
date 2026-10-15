@@ -71,6 +71,16 @@ async function waitForStreamFlush(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
 }
 
+function captureStdout(): { output: string[]; write: jest.SpyInstance } {
+  const output: string[] = [];
+  // Never call the write callback, like a stdout that has not flushed yet.
+  const write = jest.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+    output.push(String(chunk));
+    return true;
+  });
+  return { output, write };
+}
+
 const { HttpLogStream, RemoteLoggerStream } = jest.requireMock('@expo/build-tools') as {
   HttpLogStream: {
     instances: Array<{
@@ -133,6 +143,107 @@ describe('logger', () => {
     expect(logs.length).toBe(2);
     expect(logs[0].msg).toBe('this is a ******');
     expect(logs[1].msg).toBe('another ****** in base64 is ********************');
+  });
+
+  it('masks stdout and stderr messages before writing process output and the log buffer', async () => {
+    const { logger, logBuffer } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'TOKEN', value: 'fake-provider-token', type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const { output, write } = captureStdout();
+    try {
+      logger.child({ source: 'stdout' }).info('stdout: fake-provider-token');
+      logger.child({ source: 'stderr' }).error('stderr: fake-provider-token');
+      await waitForStreamFlush();
+
+      expect(output.map(line => JSON.parse(line).msg)).toEqual([
+        'stdout: *******************',
+        'stderr: *******************',
+      ]);
+      expect(logBuffer.getLogs()).toEqual([
+        'stdout: *******************',
+        'stderr: *******************',
+      ]);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it('masks secrets in every field except logger metadata', async () => {
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'TOKEN', value: 'fake-provider-token', type: EnvironmentSecretType.STRING },
+        { name: 'SOURCE', value: 'stdout', type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const logs: any[] = [];
+    outputStream.on('data', log => logs.push(log));
+
+    const err = new Error('request with fake-provider-token failed');
+    logger
+      .child({ source: 'stdout', buildStepDisplayName: 'Use fake-provider-token' })
+      .error({ err, request: { headers: ['Bearer fake-provider-token'] } }, 'failed');
+    await waitForStreamFlush();
+
+    expect(logs).toHaveLength(1);
+    expect(JSON.stringify(logs[0])).not.toContain('fake-provider-token');
+    expect(logs[0].err.message).toBe('request with ******************* failed');
+    expect(logs[0].err.stack).toContain('request with ******************* failed');
+    expect(logs[0].request.headers).toEqual(['Bearer *******************']);
+    expect(logs[0].buildStepDisplayName).toBe('Use *******************');
+    expect(logs[0].source).toBe('stdout');
+    expect(typeof logs[0].time).toBe('string');
+  });
+
+  it('writes records JSON.stringify would reject instead of throwing', async () => {
+    const { logger, logBuffer } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'TOKEN', value: 'fake-provider-token', type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const { output, write } = captureStdout();
+    try {
+      const circular: Record<string, unknown> = { token: 'fake-provider-token' };
+      circular.self = circular;
+      const throwing = {
+        toJSON() {
+          throw new Error('nope');
+        },
+      };
+
+      expect(() => {
+        logger.child({ source: 'stdout' }).info({ circular, count: 1n }, 'circular');
+        logger.child({ source: 'stdout' }).info({ throwing }, 'throwing fake-provider-token');
+      }).not.toThrow();
+      await waitForStreamFlush();
+
+      const records = output.map(line => JSON.parse(line));
+      expect(records).toHaveLength(2);
+      expect(records[0].circular).toEqual({ token: '*******************', self: '[Circular]' });
+      expect(records[0].count).toBe('1');
+      expect(records[1].msg).toBe('throwing *******************');
+      expect(records[1].throwing).toBeUndefined();
+      expect(logBuffer.getLogs()).toEqual(['circular', 'throwing *******************']);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it('does not hold other destinations back while stdout flushes', async () => {
+    const { logger, logBuffer } = await createBuildLoggerWithSecretsFilter({});
+    const write = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      await waitForStreamFlush();
+      const stdoutLogger = logger.child({ source: 'stdout' });
+      for (let i = 0; i < 100; i++) {
+        stdoutLogger.info(`line ${i}`);
+      }
+
+      expect(logBuffer.getLogs()).toHaveLength(100);
+    } finally {
+      write.mockRestore();
+    }
   });
 
   it('adds logId to each log', async () => {
