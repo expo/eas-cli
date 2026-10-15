@@ -548,13 +548,21 @@ const turnArgs = [
   'turn-secret',
 ];
 
-it('passes the TURN credential and the Android control token to the host as secrets', async () => {
+it('passes the TURN credential and the Android control token to the host as secrets, and adds the session token once the Hub is ready', async () => {
   jest.mocked(fetchWebPreviewTurnArgsAsync).mockResolvedValueOnce(turnArgs);
+  const spawn = jest.mocked(spawnDetached).getMockImplementation()!;
+  let secretsAtSpawn: string[] | undefined;
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    secretsAtSpawn = [...(options.secrets ?? [])];
+    return spawn(options);
+  });
   const host = await startHostAsync();
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   const controlToken = options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN;
   expect(controlToken).toMatch(/^[a-f0-9]{64}$/);
-  expect(options.secrets).toEqual(['turn-secret', controlToken]);
+  expect(secretsAtSpawn).toEqual(['turn-secret', controlToken]);
+  // Host output is redacted against this array, so the token must land in the one passed at spawn.
+  expect(options.secrets).toEqual(['turn-secret', controlToken, 'hub-preview-token']);
   await host.finishAsync();
 });
 
@@ -690,6 +698,7 @@ it.each([
   let exitError: Error | undefined;
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    writeHubState(options.args);
     return {
       pid: undefined,
       getOutput: () => '',
