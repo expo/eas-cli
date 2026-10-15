@@ -35,6 +35,7 @@ import {
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
+import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
@@ -43,6 +44,7 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  omitNgrokAuthtoken,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -82,10 +84,11 @@ export function createStartAppiumRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env: stepEnv, signal }) => {
+      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(stepEnv);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
       const packageVersion = inputs.package_version.value as string | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
@@ -121,6 +124,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
         ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger }),
       ]);
       const { appiumHome, appiumBinPath, appiumEnv } = appiumInstall.enforceValue();
+      const wdaCapabilities = await preparePreinstalledWdaAsync({
+        runtimeIdentifier: device.runtimeIdentifier,
+        appiumHome,
+        appiumBinPath,
+        appiumEnv,
+        logger,
+      });
 
       const appiumProcess = spawnDetached({
         command: appiumBinPath,
@@ -139,28 +149,23 @@ export function createStartAppiumRemoteSessionBuildFunction(
           '--allow-insecure',
           '*:session_discovery',
           '--default-capabilities',
-          JSON.stringify({ 'appium:eventTimings': true }),
+          JSON.stringify({ 'appium:eventTimings': true, ...wdaCapabilities }),
         ],
         env: appiumEnv,
-      });
-      try {
-        await waitForAppiumReadyAsync({ appiumProcess, logger });
-      } catch (error) {
-        await appiumProcess.stopAsync();
-        await fs.promises.rm(appiumHome, { recursive: true, force: true });
-        throw error;
-      }
-
-      const eventCollection = await startAppiumEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
         logger,
       });
+      let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let sessionFailed = false;
       try {
+        await waitForAppiumReadyAsync({ appiumProcess, logger });
+        eventCollection = await startAppiumEventCollectionAsync({
+          ctx,
+          deviceRunSessionId,
+          appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
+          logger,
+        });
         appiumTunnel = await startNgrokTunnelAsync({
           port: APPIUM_PORT,
           subdomainPrefix: 'appium',
@@ -176,6 +181,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost = await startDeviceSessionHostAsync(ctx, {
+          separateLogPhase: true,
           runtimePlatform,
           env,
           logger,
@@ -186,7 +192,10 @@ export function createStartAppiumRemoteSessionBuildFunction(
           networkCapture,
           networkCaptureFields,
         });
-        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+        const webPreview = await sessionHost.openPreviewAsync({
+          baseDomain: ngrokTunnelDomain,
+          authtoken: ngrokAuthtoken,
+        });
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
@@ -233,10 +242,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
               'Appium server',
               (async () => {
                 try {
-                  await eventCollection.stopAsync();
+                  await eventCollection?.stopAsync();
                 } finally {
-                  await appiumProcess.stopAsync();
-                  await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                  try {
+                    await appiumProcess.stopAsync();
+                  } finally {
+                    await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                  }
                 }
               })(),
             ],
@@ -264,6 +276,7 @@ export type AppiumDevice = {
   automationName: 'XCUITest' | 'UiAutomator2';
   driverName: 'xcuitest' | 'uiautomator2';
   udid: string;
+  runtimeIdentifier?: string;
 };
 
 export async function resolveAppiumDeviceAsync({
@@ -290,6 +303,7 @@ export async function resolveAppiumDeviceAsync({
         automationName: 'XCUITest',
         driverName: 'xcuitest',
         udid: bootedDevice.udid,
+        runtimeIdentifier: bootedDevice.runtime,
       };
     }
     case BuildRuntimePlatform.LINUX: {

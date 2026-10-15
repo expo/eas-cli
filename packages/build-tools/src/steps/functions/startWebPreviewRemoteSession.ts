@@ -7,6 +7,7 @@ import {
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
@@ -16,11 +17,13 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import {
+  createIosSessionStartupInputProviders,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
+  getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
-  parseServeSimLaunchInputs,
+  omitNgrokAuthtoken,
   selectXcodeDeveloperDirectoryAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -37,6 +40,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
     __metricsId: 'eas/start_serve_sim_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
       BuildStepInput.createProvider({
         id: 'package_version',
@@ -49,20 +53,29 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env: stepEnv, signal }) => {
+      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(stepEnv);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
-      const launch = parseServeSimLaunchInputs(
-        {
-          launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
-          launchArgs: inputs.launch_args?.value,
-          openUrl: inputs.open_url?.value as string | undefined,
-        },
-        { runtimePlatform }
-      );
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
+      }
+      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+        runtimePlatform,
+        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+        installAppPath: inputs.install_app_path?.value as string | undefined,
+        launchAppIdentifier: inputs.launch_app_identifier?.value,
+        launchArgs: inputs.launch_args?.value,
+        openUrl: inputs.open_url?.value,
+        env,
+        logger,
+        signal,
+      });
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
@@ -77,15 +90,13 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         logger.info(launchDescription);
       }
 
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-
       const sessionHost = await startDeviceSessionHostAsync(ctx, {
+        ...iosStartup,
         runtimePlatform,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
+        signal,
         packageVersion,
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
@@ -95,7 +106,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       });
 
       try {
-        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+        const webPreview = await sessionHost.openPreviewAsync({
+          baseDomain: ngrokTunnelDomain,
+          authtoken: ngrokAuthtoken,
+        });
         logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
