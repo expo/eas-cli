@@ -134,6 +134,7 @@ export async function connectHostActionsAsync(
   const pending = new Map<number, Pending>();
   let nextId = 1;
   let lost: Error | null = null;
+  let ready = false;
 
   function settle(id: number): Pending | undefined {
     const request = pending.get(id);
@@ -187,6 +188,7 @@ export async function connectHostActionsAsync(
       }
       const reply = parsed.data;
       if ('ready' in reply) {
+        ready = true;
         clearTimeout(timer);
         resolve();
       } else if ('error' in reply) {
@@ -216,7 +218,9 @@ export async function connectHostActionsAsync(
     ws.on('close', () => {
       fail(
         new Error(
-          'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
+          ready
+            ? 'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
+            : 'The simulator preview server closed the connection during setup. The session may run an older serve-sim version. Start a new session with `eas simulator:start`.'
         )
       );
     });
@@ -373,16 +377,31 @@ export function buildHostActionParams(
   return params;
 }
 
-export function assertHostActionOutput(
+export async function assertHostActionOutputAsync(
   name: string,
   entry: HostActionCatalogEntry,
   outputPath: string | undefined
-): void {
-  if (outputPath && !entry.output) {
+): Promise<void> {
+  if (!outputPath) {
+    if (entry.output === 'base64') {
+      throw new Error(`${name} returns a file. Pass --output with the path to save it to.`);
+    }
+    return;
+  }
+  if (!entry.output) {
     throw new Error(`${name} does not return a file, so --output does not apply.`);
   }
-  if (entry.output === 'base64' && !outputPath) {
-    throw new Error(`${name} returns a file. Pass --output with the path to save it to.`);
+  if ((await fs.stat(outputPath).catch(() => null))?.isDirectory()) {
+    if (entry.output === 'base64') {
+      throw new Error(`${outputPath} is a folder. Pass --output with a file path for ${name}.`);
+    }
+    return;
+  }
+  const folder = await fs.stat(path.dirname(outputPath)).catch(() => null);
+  if (outputPath.endsWith(path.sep) || !folder?.isDirectory()) {
+    throw new Error(
+      `The folder for ${outputPath} does not exist. Create it, or pass --output with a path in a folder that exists.`
+    );
   }
 }
 
@@ -440,12 +459,10 @@ export async function saveHostActionOutputAsync(
   const outputIsFolder = outputPath
     ? (await fs.stat(outputPath).catch(() => null))?.isDirectory()
     : false;
-  const target =
-    outputPath && !outputIsFolder
-      ? outputPath
-      : defaultName && path.join(outputPath ?? '.', defaultName);
+  const generatedName = outputIsFolder || !outputPath ? defaultName : undefined;
+  const target = generatedName ? path.join(outputPath ?? '.', generatedName) : outputPath;
   if (!target) {
-    throw new Error('This action returns a file. Pass --output with the path to save it to.');
+    throw new Error('Pass --output with a file path to save the file.');
   }
   try {
     await fs.writeFile(target, Buffer.from(base64, 'base64'), {

@@ -217,6 +217,28 @@ describe(SimulatorControl, () => {
     });
   });
 
+  it('removes a kept upload when the action fails', async () => {
+    const localFile = path.join(tmpDir, 'feed.mp4');
+    await fs.writeFile(localFile, 'video bytes');
+    actionResult = { stdout: '', stderr: 'No such app.\n', exitCode: 1 };
+
+    await expect(
+      createCommand(['camera.switch', 'file', localFile, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('The simulator could not run camera.switch: No such app.');
+    expect(actionRequests().map(([action]) => action)).toEqual([
+      'upload.append',
+      'camera.switch',
+      'upload.remove',
+    ]);
+  });
+
+  it('refuses a relative file that does not exist on this computer', async () => {
+    await expect(
+      createCommand(['app.install', './MyAp.ipa', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('./MyAp.ipa does not exist on this computer.');
+    expect(actionRequests()).toEqual([]);
+  });
+
   it('refuses --output for an action that returns no file before it runs', async () => {
     await expect(
       createCommand([

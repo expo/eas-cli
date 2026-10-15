@@ -9,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import {
   HostActionCatalog,
   HostActionConnection,
-  assertHostActionOutput,
+  assertHostActionOutputAsync,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
@@ -130,23 +130,6 @@ describe(formatHostActionUsage, () => {
   });
 });
 
-describe(assertHostActionOutput, () => {
-  it('allows --output only for actions that return a file', () => {
-    expect(() => {
-      assertHostActionOutput('app.container', entry('app.container'), './out');
-    }).toThrow('app.container does not return a file, so --output does not apply.');
-    expect(() => {
-      assertHostActionOutput('screenshot.capture', entry('screenshot.capture'), undefined);
-    }).not.toThrow();
-  });
-
-  it('needs --output for an action that returns file contents', () => {
-    expect(() => {
-      assertHostActionOutput('file.readBase64', entry('file.readBase64'), undefined);
-    }).toThrow('file.readBase64 returns a file. Pass --output with the path to save it to.');
-  });
-});
-
 describe('host action connection', () => {
   let server: http.Server;
   let wss: WebSocketServer;
@@ -162,6 +145,7 @@ describe('host action connection', () => {
   }) => Record<string, unknown> | null;
   let tmpDir: string;
   let connection: HostActionConnection | undefined;
+  let closeBeforeReady: boolean;
 
   function serveSim(message: {
     id: number;
@@ -197,6 +181,7 @@ describe('host action connection', () => {
     uploads = new Map();
     apiBody = JSON.stringify({ device: UDID });
     reply = serveSim;
+    closeBeforeReady = false;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'host-actions-'));
     server = http.createServer((req, res) => {
       requests.push(req.url);
@@ -215,6 +200,10 @@ describe('host action connection', () => {
         offered.has(`serve-sim.token.${TOKEN}`) ? `serve-sim.token.${TOKEN}` : false,
     });
     wss.on('connection', ws => {
+      if (closeBeforeReady) {
+        ws.close();
+        return;
+      }
       ws.send(JSON.stringify({ ready: true }));
       ws.on('message', data => {
         const message = JSON.parse(data.toString());
@@ -324,6 +313,14 @@ describe('host action connection', () => {
       'refused the session token (HTTP 401)'
     );
     expect(wss.clients.size).toBe(0);
+  });
+
+  it('explains a connection that closes during setup', async () => {
+    closeBeforeReady = true;
+
+    await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'closed the connection during setup'
+    );
   });
 
   it('explains a preview server that does not report its simulator', async () => {
@@ -444,5 +441,53 @@ describe('host action connection', () => {
     await expect(
       saveHostActionOutputAsync(hostActions, entry('hardwareKeyboard.set'), 'on', undefined)
     ).resolves.toBeNull();
+  });
+});
+
+describe(assertHostActionOutputAsync, () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'host-action-output-'));
+  });
+
+  afterEach(async () => {
+    await fs.remove(tmpDir);
+  });
+
+  it('allows --output only for actions that return a file', async () => {
+    await expect(
+      assertHostActionOutputAsync('app.container', entry('app.container'), './out')
+    ).rejects.toThrow('app.container does not return a file, so --output does not apply.');
+    await expect(
+      assertHostActionOutputAsync('screenshot.capture', entry('screenshot.capture'), undefined)
+    ).resolves.toBeUndefined();
+    await expect(
+      assertHostActionOutputAsync('screenshot.capture', entry('screenshot.capture'), tmpDir)
+    ).resolves.toBeUndefined();
+  });
+
+  it('needs a file path for an action that returns file contents', async () => {
+    await expect(
+      assertHostActionOutputAsync('file.readBase64', entry('file.readBase64'), undefined)
+    ).rejects.toThrow('file.readBase64 returns a file. Pass --output with the path to save it to.');
+    await expect(
+      assertHostActionOutputAsync('file.readBase64', entry('file.readBase64'), tmpDir)
+    ).rejects.toThrow(`${tmpDir} is a folder. Pass --output with a file path for file.readBase64.`);
+  });
+
+  it('refuses a path in a folder that does not exist', async () => {
+    const missing = path.join(tmpDir, 'missing', 'shot.png');
+
+    await expect(
+      assertHostActionOutputAsync('screenshot.capture', entry('screenshot.capture'), missing)
+    ).rejects.toThrow(`The folder for ${missing} does not exist.`);
+    await expect(
+      assertHostActionOutputAsync(
+        'screenshot.capture',
+        entry('screenshot.capture'),
+        path.join(tmpDir, 'missing') + path.sep
+      )
+    ).rejects.toThrow('does not exist');
   });
 });

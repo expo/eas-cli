@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import * as fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -18,7 +19,7 @@ import {
 import {
   HostActionCatalog,
   HostActionConnection,
-  assertHostActionOutput,
+  assertHostActionOutputAsync,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
@@ -164,25 +165,20 @@ export default class SimulatorControl extends EasCommand {
       );
     }
     const params = buildHostActionParams(action, entry, values);
-    assertHostActionOutput(action, entry, outputPath);
-    const uploadParam = entry.upload;
-    const localFile = uploadParam ? params[uploadParam] : undefined;
-    const localStat =
-      typeof localFile === 'string' ? await fs.stat(localFile).catch(() => null) : null;
-    if (localStat?.isDirectory()) {
-      throw new Error(`${localFile} is a folder. Pass a file, for example an .ipa.`);
-    }
+    await assertHostActionOutputAsync(action, entry, outputPath);
+    const localFile = await findLocalUploadAsync(entry.upload, params);
 
     const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
     let uploadId: string | undefined;
+    let succeeded = false;
     let output: string;
     let savedFile: string | null;
     try {
-      if (uploadParam && localStat && typeof localFile === 'string') {
-        spinner.text = `Uploading ${localFile}`;
-        const upload = await uploadFileAsync(connection, localFile);
+      if (localFile) {
+        spinner.text = `Uploading ${localFile.path}`;
+        const upload = await uploadFileAsync(connection, localFile.path);
         uploadId = upload.uploadId;
-        params[uploadParam] = upload.path;
+        params[localFile.param] = upload.path;
         spinner.text = `Running ${action} on simulator session ${sessionId}`;
       }
       const result = await connection.requestAsync(action, params);
@@ -190,6 +186,7 @@ export default class SimulatorControl extends EasCommand {
         const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
         throw new Error(`The simulator could not run ${action}: ${detail}`);
       }
+      succeeded = true;
       savedFile = await saveHostActionOutputAsync(connection, entry, result.stdout, outputPath);
       output = savedFile ? '' : result.stdout.trim();
       spinner.succeed(`Ran ${action} on simulator session ${sessionId}`);
@@ -197,7 +194,7 @@ export default class SimulatorControl extends EasCommand {
       spinner.fail(`Failed to run ${action} on simulator session ${sessionId}`);
       throw err;
     } finally {
-      if (uploadId && !entry.keepUpload) {
+      if (uploadId && (!entry.keepUpload || !succeeded)) {
         await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
       }
     }
@@ -217,6 +214,26 @@ export default class SimulatorControl extends EasCommand {
       Log.log(output);
     }
   }
+}
+
+async function findLocalUploadAsync(
+  param: string | undefined,
+  params: Record<string, unknown>
+): Promise<{ param: string; path: string } | null> {
+  const value = param ? params[param] : undefined;
+  if (!param || typeof value !== 'string') {
+    return null;
+  }
+  const stat = await fs.stat(value).catch(() => null);
+  if (stat?.isDirectory()) {
+    throw new Error(`${value} is a folder. Pass a file, for example an .ipa.`);
+  }
+  if (!stat && !path.isAbsolute(value)) {
+    throw new Error(
+      `${value} does not exist on this computer. Pass the path of a local file, or an absolute path on the simulator host.`
+    );
+  }
+  return stat ? { param, path: value } : null;
 }
 
 function assertControllableSession(
