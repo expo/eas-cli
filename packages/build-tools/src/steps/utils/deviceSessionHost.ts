@@ -115,6 +115,7 @@ export function createServeSimArgs({
   turnArgs = [],
   websiteArgs = [],
   shareUrl,
+  disableShare = false,
   packageVersion,
   iosSimulatorUdid,
   installAppPath,
@@ -128,6 +129,7 @@ export function createServeSimArgs({
   turnArgs?: string[];
   websiteArgs?: string[];
   shareUrl?: string;
+  disableShare?: boolean;
   packageVersion?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
@@ -157,6 +159,7 @@ export function createServeSimArgs({
     ...turnArgs,
     ...websiteArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
+    ...(disableShare ? ['--disable-share'] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...(installAppPath ? ['--install-app-path', installAppPath] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
@@ -219,6 +222,13 @@ const WebPreviewReadyResponseSchema = z.object({
   device: z.string(),
 });
 
+// Startup output includes bearer URLs (or a token field with --quiet).
+function redactPreviewTokens(output: string): string {
+  return output
+    .replace(/([?&#]token=)[^\s&"'<>]+/g, '$1[redacted]')
+    .replace(/("token"\s*:\s*")[^"]*/g, '$1[redacted]');
+}
+
 export async function waitForWebPreviewReadyAsync({
   previewServer,
   serverName,
@@ -244,7 +254,7 @@ export async function waitForWebPreviewReadyAsync({
     if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
       throw new SystemError(
         `${serverName} exited before becoming ready. Last output:\n${
-          previewServer.getOutput() || '<empty>'
+          redactPreviewTokens(previewServer.getOutput()) || '<empty>'
         }`
       );
     }
@@ -280,7 +290,7 @@ export async function waitForWebPreviewReadyAsync({
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
+    }. Last output:\n${redactPreviewTokens(previewServer.getOutput()) || '<empty>'}`
   );
 }
 
@@ -308,6 +318,8 @@ export async function readServeSimPreviewTokenAsync(
 
 export type DeviceWebPreview = {
   previewPageUrl: string;
+  /** Human-facing link, absent when a private job has no authenticated URL. */
+  sharePageUrl?: string;
   apiUrl: string;
   previewToken?: string;
   /** Closes this tunnel only. The session host and recording remain running. */
@@ -339,6 +351,8 @@ type DeviceSessionHostOptions = {
   startupTimeoutMs?: number;
   signal?: AbortSignal;
   packageVersion?: string;
+  disableShare?: boolean;
+  privatePreviewUrl?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
@@ -387,6 +401,8 @@ async function startDeviceSessionHostInternalAsync(
     installAppPath,
     application,
     onStartupError,
+    disableShare = false,
+    privatePreviewUrl,
     launchAppIdentifier,
     launchArgs,
     openUrl,
@@ -442,6 +458,7 @@ async function startDeviceSessionHostInternalAsync(
   const serveSimStateDir = env.SERVE_SIM_STATE_DIR ?? SERVE_SIM_STATE_DIR;
   const subdomainId = randomBytes(16).toString('hex');
   const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
+  const sharePageUrl = disableShare ? privatePreviewUrl : previewPageUrl;
   const port = await findAvailablePortAsync();
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
@@ -464,7 +481,9 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
-          shareUrl: previewPageUrl,
+          // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
+          shareUrl: disableShare ? undefined : previewPageUrl,
+          disableShare,
           installAppPath: iosSimulatorUdid ? undefined : installAppPath,
           launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
           launchArgs: iosSimulatorUdid ? [] : launchArgs,
@@ -557,6 +576,7 @@ async function startDeviceSessionHostInternalAsync(
         previewFailed = false;
         return {
           previewPageUrl,
+          sharePageUrl,
           apiUrl: tunnel.url,
           previewToken,
           closeAsync() {
@@ -876,7 +896,11 @@ async function finishDeviceSessionHostAsync(
   if (recording && captured && (finalization === 'failed' || !uploaded)) {
     // The Hub reports capture failures on stderr; the stop route answers with only a summary.
     artifactLogger.warn(
-      { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
+      {
+        hostOutput:
+          redactPreviewTokens(previewServer.getOutput()).slice(-HOST_OUTPUT_TAIL_CHARS) ||
+          '<empty>',
+      },
       'Session host output around the recording failure.'
     );
   }

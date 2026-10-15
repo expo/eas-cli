@@ -108,7 +108,7 @@ describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
   ['Agent Device', createStartAgentDeviceSessionBuildFunction],
 ] as const)('%s host ownership', (name, createFunction) => {
-  async function runAsync() {
+  async function runAsync(publicPreview?: boolean) {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
@@ -117,9 +117,12 @@ describe.each([
       } as unknown as BuildStepContext,
       {
         // Inputs a step does not get default to undefined, like in a real step call.
-        inputs: new Proxy({} as Record<string, { value: unknown }>, {
-          get: (target, id: string) => target[id] ?? { value: undefined },
-        }),
+        inputs: new Proxy(
+          { public_preview: { value: publicPreview } } as Record<string, { value: unknown }>,
+          {
+            get: (target, id: string) => target[id] ?? { value: undefined },
+          }
+        ),
         outputs: {},
         env: {
           DEVICE_RUN_SESSION_ID: 'session-id',
@@ -166,6 +169,14 @@ describe.each([
       expect(env).toEqual(expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session-id' }));
       expect(env).not.toHaveProperty('NGROK_AUTHTOKEN');
     }
+  });
+
+  it.each([undefined, true, false])('maps public_preview=%s to the host', async publicPreview => {
+    await runAsync(publicPreview);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ disableShare: publicPreview === false })
+    );
   });
 
   it('stops automation while recording finalization or upload is pending', async () => {

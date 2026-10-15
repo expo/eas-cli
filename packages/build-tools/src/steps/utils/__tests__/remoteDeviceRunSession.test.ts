@@ -28,6 +28,8 @@ import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
   createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -297,6 +299,28 @@ describe(createServeSimLaunchInputProviders, () => {
   });
 });
 
+describe(createPublicPreviewInputProvider, () => {
+  it('preserves the native Share button for legacy jobs without the input', () => {
+    const input = createPublicPreviewInputProvider()(createGlobalContextMock(), 'Test step');
+    expect(input).toMatchObject({
+      id: 'public_preview',
+      required: false,
+      defaultValue: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    });
+  });
+});
+
+describe(createPrivatePreviewUrlInputProvider, () => {
+  it('accepts an optional authenticated preview URL from the session job', () => {
+    const provider = createPrivatePreviewUrlInputProvider();
+    const input = provider(createGlobalContextMock(), 'step-id');
+    expect(input.id).toBe('private_preview_url');
+    expect(input.required).toBe(false);
+    expect(input.allowedValueTypeName).toBe(BuildStepInputValueTypeName.STRING);
+  });
+});
+
 describe(parseServeSimLaunchInputs, () => {
   const darwin = { runtimePlatform: BuildRuntimePlatform.DARWIN };
 
@@ -488,6 +512,14 @@ describe(createServeSimArgs, () => {
       '--share-url',
       'https://expo.dev/simulator-preview/abc',
     ]);
+  });
+
+  it('disables the native Share button only when requested', () => {
+    expect(createServeSimArgs({ port: 4321, disableShare: true })).toContain('--disable-share');
+    expect(createServeSimArgs({ port: 4321, disableShare: false })).not.toContain(
+      '--disable-share'
+    );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--disable-share');
   });
 
   it('appends the launch flags after the streaming policy', () => {
@@ -983,6 +1015,84 @@ describe(startDeviceSessionHostAsync, () => {
     await host.finishAsync();
   });
 
+  it.each([undefined, 'latest', '1.2.3'])(
+    'passes private sharing flags directly to serve-sim version %s',
+    async packageVersion => {
+      const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        packageVersion,
+        disableShare: true,
+      });
+
+      const serveSimCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([, args]) =>
+          args.includes(`@expo/serve-sim@${packageVersion ?? 'latest'}`)
+        );
+      expect(serveSimCalls).toHaveLength(1);
+      expect(serveSimCalls[0][1]).toContain('--disable-share');
+      expect(serveSimCalls[0][1]).not.toContain('--share-url');
+      await host.finishAsync();
+    }
+  );
+
+  it('keeps the authenticated link out of serve-sim while retaining the public frame URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const privatePreviewUrl =
+      'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+      privatePreviewUrl,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(serveSimArgs).toContain('--disable-share');
+    expect(preview.sharePageUrl).toBe(privatePreviewUrl);
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    await host.finishAsync();
+  });
+
+  it('does not expose a public share URL when a private job omits its authenticated URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(preview.sharePageUrl).toBeUndefined();
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    await host.finishAsync();
+  });
+
   it('installs ffmpeg before starting expo-device-hub for Linux', async () => {
     const packageVersion = '1.2.3';
     const close = jest.fn().mockResolvedValue(undefined);
@@ -1066,6 +1176,12 @@ describe(startDeviceSessionHostAsync, () => {
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
+    expect(preview.sharePageUrl).toBe(preview.previewPageUrl);
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs[serveSimArgs.indexOf('--share-url') + 1]).toBe(preview.previewPageUrl);
+    expect(serveSimArgs).not.toContain('--disable-share');
   });
 
   it.each([

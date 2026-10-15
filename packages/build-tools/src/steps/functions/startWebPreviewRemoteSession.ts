@@ -18,6 +18,8 @@ import {
 } from '../utils/localEgressSession';
 import {
   createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
@@ -42,6 +44,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       ...createServeSimLaunchInputProviders(),
       ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createPublicPreviewInputProvider(),
+      createPrivatePreviewUrlInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -98,6 +102,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         timeoutMs: STARTUP_TIMEOUT_MS,
         signal,
         packageVersion,
+        disableShare: inputs.public_preview?.value === false,
+        privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,
@@ -110,7 +116,11 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
         });
-        logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
+        logger.info(
+          webPreview.sharePageUrl
+            ? `Preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+            : 'Private preview URL unavailable for this session.'
+        );
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,

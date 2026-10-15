@@ -86,6 +86,8 @@ function runStep(
       'open_url',
       'network_capture',
       'network_capture_fields',
+      'public_preview',
+      'private_preview_url',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -413,11 +415,30 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'open_url',
       'network_capture',
       'network_capture_fields',
+      'public_preview',
+      'private_preview_url',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
     ]);
   });
+
+  it.each([undefined, true, false])(
+    'passes public_preview=%s to the iOS session host',
+    async publicPreview => {
+      await runStep(BuildRuntimePlatform.DARWIN, {
+        public_preview: publicPreview,
+        private_preview_url: 'https://expo.dev/private-preview',
+      });
+      expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          disableShare: publicPreview === false,
+          privatePreviewUrl: 'https://expo.dev/private-preview',
+        })
+      );
+    }
+  );
 
   it('passes network capture to the session', async () => {
     await runStep(BuildRuntimePlatform.DARWIN, {
