@@ -3,9 +3,9 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
-import { isTransientHttpStatus } from '../../../utils/networkErrors';
+import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
+import { GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -162,7 +162,10 @@ export namespace GooglePlayUtils {
         if (error instanceof GooglePlayAuthRequestError) {
           throw error;
         }
-        if (!(error instanceof GooglePlayApiError) || isTransientHttpStatus(error.status)) {
+        if (
+          !(error instanceof GooglePlayApiError) ||
+          GooglePlayApiError.isRetryableStatus(error.status)
+        ) {
           throw new GooglePlayCommitOutcomeUnknownError(
             `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
             { cause: error }
@@ -213,7 +216,7 @@ export namespace GooglePlayUtils {
     }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
-      isTransientHttpStatus(error.status)
+      GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new SystemError(
         `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
@@ -224,7 +227,7 @@ export namespace GooglePlayUtils {
       error instanceof GooglePlayAuthRequestError &&
       error.status >= 400 &&
       error.status < 500 &&
-      !isTransientHttpStatus(error.status)
+      !GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',

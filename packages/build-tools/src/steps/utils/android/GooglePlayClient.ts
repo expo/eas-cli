@@ -4,44 +4,9 @@ import { bunyan } from '@expo/logger';
 import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 import { z } from 'zod';
 
-import { isNetworkRetryable, isTransientHttpStatus } from '../../../utils/networkErrors';
+import { isConnectFailure, isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
-
-export class GooglePlayApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly apiMessage: string,
-    readonly reasons: string[]
-  ) {
-    super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
-  }
-
-  static async fromResponseAsync(
-    response: Response,
-    signal?: AbortSignal
-  ): Promise<GooglePlayApiError> {
-    let data: unknown;
-    try {
-      data = await response.json();
-    } catch {
-      signal?.throwIfAborted();
-      // Raw text or HTML can contain the request URL, including an upload secret.
-    }
-    const parsed = z
-      .object({
-        error: z.object({
-          message: z.string().optional(),
-          errors: z.array(z.object({ reason: z.string().optional() })).optional(),
-        }),
-      })
-      .safeParse(data);
-    return new GooglePlayApiError(
-      response.status,
-      parsed.data?.error.message ?? '',
-      parsed.data?.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? []
-    );
-  }
-}
 
 export const ReleaseStatusZ = z.enum(['draft', 'inProgress', 'halted', 'completed']);
 export type ReleaseStatus = z.output<typeof ReleaseStatusZ>;
@@ -309,8 +274,8 @@ export class GooglePlayClient {
         error =>
           !signal?.aborted &&
           (error instanceof GooglePlayApiError
-            ? isTransientHttpStatus(error.status)
-            : isNetworkRetryable(error)),
+            ? GooglePlayApiError.isRetryableStatus(error.status)
+            : isConnectFailure(error) || isConnectionInterruptedError(error)),
         { retries: 5, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true },
         ({ attemptNumber, maxAttemptsCount, error }) => {
           const reason =

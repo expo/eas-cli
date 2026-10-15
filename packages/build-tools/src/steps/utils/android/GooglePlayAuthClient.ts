@@ -3,9 +3,9 @@ import { asyncResult } from '@expo/results';
 import fetch, { Response } from 'node-fetch';
 import { z } from 'zod';
 
-import { isTransientHttpStatus } from '../../../utils/networkErrors';
 import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 
+import { GooglePlayApiError } from './GooglePlayApiError';
 const PostApi = {
   '/token': {
     request: z.object({
@@ -62,7 +62,7 @@ export class GooglePlayAuthClient {
       error =>
         !signal?.aborted &&
         error instanceof GooglePlayAuthRequestError &&
-        isTransientHttpStatus(error.status),
+        GooglePlayApiError.isRetryableStatus(error.status),
       { retries: 3, factor: 2, minTimeout: 1000, maxTimeout: 4000 }
     )();
   }

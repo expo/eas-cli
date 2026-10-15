@@ -4,7 +4,8 @@ import nock from 'nock';
 import { api, editPath, mockToken, packageName, serviceAccount } from './googlePlayTestUtils';
 import { createMockLogger } from '../../../../__tests__/utils/logger';
 import { GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient } from '../GooglePlayClient';
+import { GooglePlayApiError } from '../GooglePlayApiError';
+import { GooglePlayClient } from '../GooglePlayClient';
 import { GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');

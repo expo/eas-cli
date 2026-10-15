@@ -84,7 +84,7 @@ it('keeps the outcome unknown when a lost commit response is followed by an inva
   api()
     .post(`${editPath}:commit`, {})
     .query({ changesNotSentForReview: false })
-    .replyWithError('Lost response');
+    .replyWithError(Object.assign(new Error('Lost response'), { code: 'ECONNRESET' }));
   api().post(`${editPath}:commit`, {}).query({ changesNotSentForReview: false }).reply(404);
   await expect(
     client.postAsync(
@@ -177,7 +177,9 @@ it('reports a retry even when the next request succeeds', async () => {
 });
 
 it('accepts a missing edit after a lost delete response', async () => {
-  api().delete(editPath).replyWithError('Lost response');
+  api()
+    .delete(editPath)
+    .replyWithError(Object.assign(new Error('Lost response'), { code: 'ECONNRESET' }));
   api().delete(editPath).reply(404);
   await expect(
     client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
@@ -220,6 +222,42 @@ it('retains structured API errors', async () => {
     })
   ).rejects.toMatchObject({ status: 403, apiMessage: 'Denied', reasons: ['forbidden'] });
 });
+
+it.each(['CERT_HAS_EXPIRED', 'EPROTO', 'EACCES', undefined])(
+  'does not retry a system error with code %s',
+  async code => {
+    const logger = createMockLogger();
+    client = new GooglePlayClient(serviceAccount, logger);
+    api()
+      .get(editPath)
+      .replyWithError(Object.assign(new Error('Request failed'), { code }));
+    await expect(
+      client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+        packageName,
+        editId: 'edit',
+      })
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({ type: 'system' }),
+    });
+    expect(logger.warn).not.toHaveBeenCalled();
+  }
+);
+
+it.each(['EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'UND_ERR_SOCKET'])(
+  'retries a recognised network error %s',
+  async code => {
+    api()
+      .get(editPath)
+      .replyWithError(Object.assign(new Error('Request failed'), { code }));
+    api().get(editPath).reply(200, { id: 'edit' });
+    await expect(
+      client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+        packageName,
+        editId: 'edit',
+      })
+    ).resolves.toEqual({ id: 'edit' });
+  }
+);
 
 it.each(['body', 'query'])('accepts extra fields in an empty %s object', async field => {
   api()
