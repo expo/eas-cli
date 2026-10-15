@@ -356,7 +356,7 @@ async function installFfmpegWithAptAsync({
   await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
 }
 
-let ffmpegSetupPromise: Promise<void> | undefined;
+let ffmpegSetupPromise: Promise<'aborted' | void> | undefined;
 
 /**
  * Install ffmpeg when the runtime does not already provide it. Device-session
@@ -382,7 +382,7 @@ async function ensureFfmpegInstalledAsync({
   env: BuildStepEnv;
   logger: bunyan;
   signal?: AbortSignal;
-}): Promise<void> {
+}): Promise<'aborted' | void> {
   try {
     const ffmpegPath = await findFfmpegOnPathAsync(env);
     signal?.throwIfAborted();
@@ -408,7 +408,7 @@ async function ensureFfmpegInstalledAsync({
     warmUpFfmpeg(env);
   } catch (err) {
     if (signal?.aborted) {
-      return;
+      return 'aborted';
     }
     const error = err instanceof Error ? err : new Error(String(err));
     Sentry.capture('Could not install ffmpeg for the device session', error, {
@@ -434,21 +434,28 @@ export async function ensureFfmpegInstalledOnceAsync({
 }): Promise<void> {
   signal?.throwIfAborted();
   if (ffmpegSetupPromise) {
+    const sharedSetup = ffmpegSetupPromise;
+    let outcome: 'aborted' | void;
     if (signal) {
-      const sharedSetup = ffmpegSetupPromise;
-      await new Promise<void>((resolve, reject) => {
+      outcome = await new Promise<'aborted' | void>((resolve, reject) => {
         const abort = (): void => reject(signal.reason);
         signal.addEventListener('abort', abort, { once: true });
-        void sharedSetup.then(() => {
+        void sharedSetup.then(result => {
           signal.removeEventListener('abort', abort);
-          resolve();
+          resolve(result);
         });
         if (signal.aborted) {
           abort();
         }
       });
     } else {
-      await ffmpegSetupPromise;
+      outcome = await sharedSetup;
+    }
+    if (outcome === 'aborted') {
+      if (ffmpegSetupPromise === sharedSetup) {
+        ffmpegSetupPromise = undefined;
+      }
+      await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal });
     }
     return;
   }
