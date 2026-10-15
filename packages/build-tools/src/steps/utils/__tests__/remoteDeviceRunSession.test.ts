@@ -1054,7 +1054,7 @@ describe(startDeviceSessionHostAsync, () => {
       disableShare: true,
       privatePreviewUrl,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const serveSimArgs = jest
       .mocked(spawn)
@@ -1080,7 +1080,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       disableShare: true,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const serveSimArgs = jest
       .mocked(spawn)

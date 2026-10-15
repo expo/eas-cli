@@ -19,9 +19,9 @@ import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtil
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
-  omitNgrokAuthtoken,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
+  omitNgrokAuthtoken,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
 import {

@@ -1766,3 +1766,24 @@ it('cancels an in-flight install while Simulator setup is pending', async () => 
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
+
+it('redacts bearer tokens from preview readiness diagnostics while preserving the failure', async () => {
+  const output = [
+    'Native addon failed to initialize',
+    'Local: http://localhost:1234/?token=private-token&mode=preview',
+    'Share: https://expo.dev/simulator-preview/abc#token=fragment-secret',
+    '{"url":"http://localhost:1234/","token":"quiet-secret"}',
+  ].join('\n');
+  const readiness = waitForWebPreviewReadyAsync({
+    previewServer: { pid: undefined, getOutput: () => output },
+    serverName: 'serve-sim',
+    port: 1234,
+    timeoutMs: 0,
+  });
+  await expect(readiness).rejects.toThrow('Timed out waiting for serve-sim readiness');
+  await expect(readiness).rejects.toThrow('Native addon failed to initialize');
+  await expect(readiness).rejects.toThrow('?token=[redacted]&mode=preview');
+  for (const secret of ['private-token', 'fragment-secret', 'quiet-secret']) {
+    await expect(readiness).rejects.not.toThrow(secret);
+  }
+});

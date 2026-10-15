@@ -222,6 +222,13 @@ const WebPreviewReadyResponseSchema = z.object({
   device: z.string(),
 });
 
+// Startup output includes bearer URLs (or a token field with --quiet).
+function redactPreviewTokens(output: string): string {
+  return output
+    .replace(/([?&#]token=)[^\s&"'<>]+/g, '$1[redacted]')
+    .replace(/("token"\s*:\s*")[^"]*/g, '$1[redacted]');
+}
+
 export async function waitForWebPreviewReadyAsync({
   previewServer,
   serverName,
@@ -247,7 +254,7 @@ export async function waitForWebPreviewReadyAsync({
     if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
       throw new SystemError(
         `${serverName} exited before becoming ready. Last output:\n${
-          previewServer.getOutput() || '<empty>'
+          redactPreviewTokens(previewServer.getOutput()) || '<empty>'
         }`
       );
     }
@@ -283,7 +290,7 @@ export async function waitForWebPreviewReadyAsync({
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
+    }. Last output:\n${redactPreviewTokens(previewServer.getOutput()) || '<empty>'}`
   );
 }
 
@@ -889,7 +896,11 @@ async function finishDeviceSessionHostAsync(
   if (recording && captured && (finalization === 'failed' || !uploaded)) {
     // The Hub reports capture failures on stderr; the stop route answers with only a summary.
     artifactLogger.warn(
-      { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
+      {
+        hostOutput:
+          redactPreviewTokens(previewServer.getOutput()).slice(-HOST_OUTPUT_TAIL_CHARS) ||
+          '<empty>',
+      },
       'Session host output around the recording failure.'
     );
   }
