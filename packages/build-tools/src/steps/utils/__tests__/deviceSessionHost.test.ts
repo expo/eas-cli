@@ -129,6 +129,7 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   stopSessionPreview.mockResolvedValue(undefined);
