@@ -35,7 +35,7 @@ function isRunning(pid: number): boolean {
   }
 }
 
-it('aborts the installer group and drains inherited output before setup settles', async () => {
+it('stops the installer and its children before finishing encoder setup', async () => {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'preview-encoder-abort-'));
   const controller = new AbortController();
   const logger = { child: () => logger, info: jest.fn() };
@@ -44,33 +44,15 @@ it('aborts the installer group and drains inherited output before setup settles'
   let preparation: Promise<unknown> | undefined;
   let deadline: NodeJS.Timeout | undefined;
   try {
-    await fs.promises.writeFile(
-      path.join(root, 'cwebp'),
-      `#!${process.execPath}
-process.exit(1);
-`,
-      {
-        mode: 0o700,
-      }
-    );
-    await fs.promises.writeFile(
-      path.join(root, 'brew'),
-      `#!${process.execPath}
-const fs = require('node:fs');
-const path = require('node:path');
-const {spawn} = require('node:child_process');
-const role = process.argv[2] === 'install' ? 'parent' : process.argv[2];
-const pidFile = path.join(__dirname, role + '.pid');
-fs.writeFileSync(pidFile + '.tmp', String(process.pid));
-fs.renameSync(pidFile + '.tmp', pidFile);
-if (role !== 'grandchild') {
-  spawn(process.execPath, [__filename, role === 'parent' ? 'child' : 'grandchild'], {stdio: 'inherit'});
-}
-process.stdout.write(role + '-ready\\n');
-setInterval(() => {}, 1000);
-`,
-      { mode: 0o700 }
-    );
+    await fs.promises.symlink(process.execPath, path.join(root, 'node'));
+    for (const command of ['cwebp', 'brew']) {
+      const target = path.join(root, command);
+      await fs.promises.copyFile(
+        path.join(__dirname, 'fixtures', 'preview-encoder', `${command}.cjs`),
+        target
+      );
+      await fs.promises.chmod(target, 0o700);
+    }
     preparation = ensureMacosPreviewEncoderInstalledAsync({
       env: { PATH: root },
       logger: logger as never,
