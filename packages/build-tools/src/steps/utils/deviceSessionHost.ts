@@ -492,7 +492,7 @@ async function startDeviceSessionHostInternalAsync(
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
-  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid

@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -26,6 +26,7 @@ import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
@@ -154,73 +155,70 @@ describe(spawnDetached, () => {
   );
 });
 
-function createCtxMock(): CustomBuildContext {
+const DEVICE_RUN_SESSION_TOKEN = 'device-run-session-token';
+const DEVICE_RUN_SESSION_WORKER_URL = 'https://api.expo.test/v2/device-run-session-worker/';
+
+function createCtxMock({ withToken = true }: { withToken?: boolean } = {}): CustomBuildContext {
   return {
     env: {
       __API_SERVER_URL: 'https://api.expo.test',
+      ...(withToken ? { EAS_DEVICE_RUN_SESSION_TOKEN: DEVICE_RUN_SESSION_TOKEN } : {}),
     },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
     job: {
       secrets: { robotAccessToken: 'robot-token' },
     },
   } as unknown as CustomBuildContext;
 }
 
+/** A successful device run session worker API response with the `{ data }` body. */
+function workerApiResponse(data: unknown): Awaited<ReturnType<typeof turtleFetch>> {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ data }),
+  } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+}
+
+/** The number of device run session worker API requests to the route. */
+function workerApiCallCount(route: string): number {
+  return jest
+    .mocked(turtleFetch)
+    .mock.calls.filter(([url]) => url === `${DEVICE_RUN_SESSION_WORKER_URL}${route}`).length;
+}
+
+/**
+ * Serves session status polls from `results` in order, and idle stops, through the device run
+ * session worker API.
+ */
 function createStatusCtxMock(
   results: (
-    | { status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' }
+    | { status: 'new' | 'in-progress' | 'stopped' | 'errored' }
     | { error: Error }
     | { data: unknown }
   )[],
-  { ensureStoppedError }: { ensureStoppedError?: Error } = {}
+  { stopError }: { stopError?: Error } = {}
 ): CustomBuildContext {
-  const query = jest.fn(() => {
+  jest.mocked(turtleFetch).mockImplementation(async url => {
+    if (url === `${DEVICE_RUN_SESSION_WORKER_URL}stop`) {
+      if (stopError) {
+        throw stopError;
+      }
+      return workerApiResponse({ id: 'drs-id', status: 'stopped' });
+    }
     const result = results.shift();
     if (!result) {
       throw new Error('No mocked status result available');
     }
-    return {
-      toPromise: async () => {
-        if ('error' in result) {
-          throw result.error;
-        }
-        if ('data' in result) {
-          return { data: result.data };
-        }
-        return {
-          data: {
-            deviceRunSessions: {
-              byId: {
-                id: 'drs-id',
-                status: result.status,
-              },
-            },
-          },
-        };
-      },
-    };
+    if ('error' in result) {
+      throw result.error;
+    }
+    if ('data' in result) {
+      return workerApiResponse(result.data);
+    }
+    return workerApiResponse({ id: 'drs-id', status: result.status });
   });
-
-  const mutation = jest.fn(() => ({
-    toPromise: async () => {
-      if (ensureStoppedError) {
-        return { error: ensureStoppedError };
-      }
-      return {
-        data: {
-          deviceRunSession: {
-            ensureDeviceRunSessionStopped: { id: 'drs-id', status: 'STOPPED' },
-          },
-        },
-      };
-    },
-  }));
-
-  return {
-    graphqlClient: {
-      query,
-      mutation,
-    },
-  } as unknown as CustomBuildContext;
+  return createCtxMock();
 }
 
 function createEnvMock(): BuildStepEnv {
@@ -1098,6 +1096,8 @@ describe(startDeviceSessionHostAsync, () => {
     jest.mocked(turtleFetch).mockImplementation(async url => {
       if (url.endsWith('/turn-ice-servers')) {
         return {
+          ok: true,
+          status: 200,
           json: async () => ({
             data: {
               iceServers: [
@@ -1595,24 +1595,21 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
-    jest.mocked(turtleFetch).mockResolvedValue({
-      json: async () => ({
-        data: {
-          iceServers: [
-            { urls: ['stun:stun.cloudflare.com:3478'] },
-            {
-              urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
-              username: 'u',
-              credential: 'c',
-            },
-          ],
-        },
-      }),
-    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+  it('requests TURN ICE servers from the device run session worker API and returns web preview args', async () => {
+    jest.mocked(turtleFetch).mockResolvedValue(
+      workerApiResponse({
+        iceServers: [
+          { urls: ['stun:stun.cloudflare.com:3478'] },
+          {
+            urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
+            username: 'u',
+            credential: 'c',
+          },
+        ],
+      })
+    );
 
     const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
       logger: createLoggerMock(),
     });
 
@@ -1627,10 +1624,10 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
       'c',
     ]);
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      'https://api.expo.test/v2/device-run-sessions/drs-id/turn-ice-servers',
+      `${DEVICE_RUN_SESSION_WORKER_URL}turn-ice-servers`,
       'POST',
       expect.objectContaining({
-        headers: { Authorization: 'Bearer robot-token' },
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
       })
     );
   });
@@ -1639,14 +1636,32 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
-      logger,
-    });
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), { logger });
 
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('returns [] and warns when the job has no device run session token', async () => {
+    const logger = createLoggerMock();
+
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock({ withToken: false }), {
+      logger,
+    });
+
+    expect(args).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      {
+        err: expect.objectContaining({
+          message: expect.stringMatching(
+            /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+          ),
+        }),
+      },
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
   });
 });
 
@@ -1663,7 +1678,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('continues polling until the device run session is stopped', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1672,13 +1687,59 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
+  it('polls the session status through the worker API with the abort signal', async () => {
+    const ctx = createStatusCtxMock([{ status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
+      `${DEVICE_RUN_SESSION_WORKER_URL}session`,
+      'GET',
+      expect.objectContaining({
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
+        signal: expect.any(AbortSignal),
+        timeout: 30_000,
+      })
+    );
+  });
+
+  it('keeps polling while the session status is new', async () => {
+    const ctx = createStatusCtxMock([{ status: 'new' }, { status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(workerApiCallCount('session')).toBe(2);
+  });
+
+  it('fails with a system error when the job has no device run session token', async () => {
+    const error = await waitForDeviceRunSessionStoppedAsync({
+      ctx: createCtxMock({ withToken: false }),
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toMatch(
+      /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+  });
+
   it('returns normally when the maximum duration elapses', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const logger = createLoggerMock();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1692,7 +1753,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     durationTimeoutCallback();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(logger.info).toHaveBeenCalledWith(
       'Device run session drs-id reached its maximum duration.'
     );
@@ -1701,7 +1762,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
   it('clears the duration timeout when the session stops first', async () => {
     await waitForDeviceRunSessionStoppedAsync({
-      ctx: createStatusCtxMock([{ status: 'STOPPED' }]),
+      ctx: createStatusCtxMock([{ status: 'stopped' }]),
       deviceRunSessionId: 'drs-id',
       logger: createLoggerMock(),
       maxDurationSeconds: 30,
@@ -1723,12 +1784,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       signal: abortController.signal,
     });
 
-    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
+    expect(workerApiCallCount('session')).toBe(0);
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
   it('throws when the device run session errors', async () => {
-    const ctx = createStatusCtxMock([{ status: 'ERRORED' }]);
+    const ctx = createStatusCtxMock([{ status: 'errored' }]);
 
     await expect(
       waitForDeviceRunSessionStoppedAsync({
@@ -1742,7 +1803,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('clears the duration timeout when the build step is aborted', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const abortController = new AbortController();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1755,12 +1816,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     abortController.abort();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
   it('logs and retries transient polling errors', async () => {
-    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1769,7 +1830,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1781,11 +1842,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     );
   });
 
-  it('logs and retries when the status response is missing', async () => {
-    const ctx = createStatusCtxMock([
-      { data: { deviceRunSessions: { byId: null } } },
-      { status: 'STOPPED' },
-    ]);
+  it('logs and retries when the status response does not match the route contract', async () => {
+    const ctx = createStatusCtxMock([{ data: { id: 'drs-id' } }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1794,7 +1852,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1802,7 +1860,9 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
       'Could not poll device run session status',
       expect.objectContaining({
-        message: 'Device run session drs-id status response was missing.',
+        message: expect.stringContaining(
+          'GET /v2/device-run-session-worker/session returned an unexpected response'
+        ),
       }),
       { level: 'warning' }
     );
@@ -1823,8 +1883,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       jest.useRealTimers();
     });
 
-    function manyInProgressStatuses(): { status: 'IN_PROGRESS' }[] {
-      return Array.from({ length: 20 }, () => ({ status: 'IN_PROGRESS' as const }));
+    function manyInProgressStatuses(): { status: 'in-progress' }[] {
+      return Array.from({ length: 20 }, () => ({ status: 'in-progress' as const }));
     }
 
     it('stops the session when no activity is observed within the max idle time', async () => {
@@ -1842,15 +1902,15 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       });
 
       // One minute at the 5-second poll interval is 12 status polls.
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(12);
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('session')).toBe(12);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.info).toHaveBeenCalledWith(
         'Device run session drs-id had no activity for 1 minute(s) (max idle time). Stopping the session.'
       );
     });
 
     it('keeps the session alive while events keep arriving', async () => {
-      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'STOPPED' }]);
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
       const logger = createLoggerMock();
 
       await waitForDeviceRunSessionStoppedAsync({
@@ -1865,14 +1925,14 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(21);
-      expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
       expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     });
 
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
-        ensureStoppedError: new Error('forbidden'),
+        stopError: new Error('forbidden'),
       });
       const logger = createLoggerMock();
 
@@ -1886,7 +1946,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.warn).toHaveBeenCalledWith(
         { err: expect.any(Error) },
         'Could not mark device run session drs-id as stopped. The session job ends anyway.'
