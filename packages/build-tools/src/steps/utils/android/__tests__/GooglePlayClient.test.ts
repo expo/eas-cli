@@ -3,6 +3,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { ZodError } from 'zod';
 
 import { GooglePlayClient } from '../GooglePlayClient';
+import { createMockLogger } from '../../../../__tests__/utils/logger';
 
 const packageName = 'dev.expo.submitfixture';
 const editPath = `/androidpublisher/v3/applications/${packageName}/edits/edit`;
@@ -161,16 +162,18 @@ it('deletes an edit with an empty response', async () => {
 });
 
 it('reports a retry even when the next request succeeds', async () => {
-  const onRetry = jest.fn();
-  client = new GooglePlayClient(serviceAccount, onRetry);
+  const logger = createMockLogger();
+  client = new GooglePlayClient(serviceAccount, logger);
   api().get(editPath).reply(503);
   api().get(editPath).reply(200, { id: 'edit' });
   await client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
     packageName,
     editId: 'edit',
   });
-  expect(onRetry).toHaveBeenCalledTimes(1);
-  expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ status: 503 }), 2);
+  expect(logger.warn).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'Retrying Google Play request (HTTP 503, attempt 2/6)...'
+  );
 });
 
 it('accepts a missing edit after a lost delete response', async () => {

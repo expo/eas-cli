@@ -4,7 +4,7 @@ import promiseRetry from 'promise-retry';
 import { FileHandle } from 'node:fs/promises';
 import { z } from 'zod';
 
-import { isNetworkRetryable, isTransientGooglePlayStatus } from './GooglePlayRetry';
+import { isNetworkRetryable, isTransientHttpStatus } from '../../../utils/networkErrors';
 import { GooglePlayApiError, GooglePlayClient } from './GooglePlayClient';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -55,7 +55,7 @@ export namespace GooglePlayResumableUpload {
           if (
             timeout.aborted ||
             isNetworkRetryable(error) ||
-            (error instanceof GooglePlayApiError && isTransientGooglePlayStatus(error.status))
+            (error instanceof GooglePlayApiError && isTransientHttpStatus(error.status))
           ) {
             retry(
               timeout.aborted
@@ -201,7 +201,7 @@ export namespace GooglePlayResumableUpload {
               checkServerOffset = true;
               return retry(new SystemError('Google Play upload response timed out.'));
             }
-            if (isTransientGooglePlayStatus(response.status)) {
+            if (isTransientHttpStatus(response.status)) {
               checkServerOffset = true;
               retry(error);
             }

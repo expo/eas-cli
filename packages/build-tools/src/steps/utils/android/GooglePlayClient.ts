@@ -1,9 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
 import fetch, { RequestInit, Response } from 'node-fetch';
-import promiseRetry from 'promise-retry';
+import { bunyan } from '@expo/logger';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 import { z } from 'zod';
 
-import { isNetworkRetryable, isTransientGooglePlayStatus } from './GooglePlayRetry';
+import { isNetworkRetryable, isTransientHttpStatus } from '../../../utils/networkErrors';
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
 
 export class GooglePlayApiError extends Error {
@@ -134,7 +135,7 @@ export class GooglePlayClient {
 
   constructor(
     private readonly serviceAccount: GoogleServiceAccount,
-    private readonly onRetry?: (error: unknown, attempt: number) => void
+    private readonly logger?: bunyan
   ) {}
 
   private async getTokenAsync(signal?: AbortSignal): Promise<string> {
@@ -295,28 +296,30 @@ export class GooglePlayClient {
   ): Promise<T> {
     const errors: unknown[] = [];
     try {
-      return await promiseRetry(
-        async (retry, attempt) => {
+      return await promiseRetryWithCondition(
+        async () => {
           try {
             signal?.throwIfAborted();
             return await request();
           } catch (error) {
             errors.push(error);
-            const retryable =
-              error instanceof GooglePlayApiError
-                ? isTransientGooglePlayStatus(error.status)
-                : isNetworkRetryable(error);
-            if (retryable && !signal?.aborted) {
-              if (attempt <= 5) {
-                this.onRetry?.(error, attempt + 1);
-              }
-              retry(error);
-            }
             throw error;
           }
         },
-        { retries: 5, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true }
-      );
+        error =>
+          !signal?.aborted &&
+          (error instanceof GooglePlayApiError
+            ? isTransientHttpStatus(error.status)
+            : isNetworkRetryable(error)),
+        { retries: 5, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true },
+        ({ attemptNumber, maxAttemptsCount, error }) => {
+          const reason =
+            error instanceof GooglePlayApiError ? `HTTP ${error.status}` : 'network error';
+          this.logger?.warn(
+            `Retrying Google Play request (${reason}, attempt ${attemptNumber}/${maxAttemptsCount})...`
+          );
+        }
+      )();
     } catch (error) {
       // Keep earlier failures: a later rejection does not prove that every attempt failed.
       if (errors.length > 1) {

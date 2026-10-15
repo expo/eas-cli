@@ -10,12 +10,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils } from '../utils/android/GooglePlayAuthUtils';
-import {
-  GooglePlayApiError,
-  GooglePlayClient,
-  ReleaseStatus,
-  ReleaseStatusZ,
-} from '../utils/android/GooglePlayClient';
+import { GooglePlayClient, ReleaseStatus, ReleaseStatusZ } from '../utils/android/GooglePlayClient';
 import {
   GooglePlayCommitOutcomeUnknownError,
   GooglePlayUtils,
@@ -136,13 +131,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
         keyPath: path.resolve(ctx.workingDirectory, submission.service_account_key_path),
       });
       const artifactPath = path.resolve(ctx.workingDirectory, submission.artifact_path);
-      const client = new GooglePlayClient(credentials, (error, attempt) => {
-        const reason =
-          error instanceof GooglePlayApiError ? `HTTP ${error.status}` : 'network error';
-        ctx.logger.warn(
-          `Google Play request failed (${reason}). Retrying with backoff (attempt ${attempt}/6)...`
-        );
-      });
+      const client = new GooglePlayClient(credentials, ctx.logger);
       const versionCode = await submitToGooglePlayAsync({
         artifactType: submission.artifact_type,
         client,
