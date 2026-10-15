@@ -1,7 +1,6 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
-import { setTimeout } from 'node:timers/promises';
 import promiseRetry from 'promise-retry';
 
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
@@ -168,49 +167,12 @@ export namespace GooglePlayUtils {
           error.status === 408 ||
           error.status === 429
         ) {
-          try {
-            logger.warn(
-              'Google Play did not confirm the commit. Checking the same edit before one recovery attempt.'
-            );
-            await setTimeout(1000, undefined, { signal });
-            // Never create a new edit to inspect the result: it invalidates the original.
-            // An invalid edit can mean committed, expired, or changed in Console, not success.
-            const edit = await client.getAsync(
-              '/androidpublisher/v3/applications/:packageName/edits/:editId',
-              { packageName, editId },
-              signal
-            );
-            if (edit?.id !== editId) {
-              throw new SystemError('Google did not confirm the original edit is valid.');
-            }
-            // Replay only the original edit. Google rejects invalidated edits without effects.
-            // Do not cancel an existing review during recovery.
-            const committed = await client.postAsync(
-              '/androidpublisher/v3/applications/:packageName/edits/:editId:commit',
-              {},
-              { packageName, editId },
-              {
-                query: { changesNotSentForReview, changesInReviewBehavior: 'ERROR_IF_IN_REVIEW' },
-                signal,
-              }
-            );
-            if (committed?.id !== editId) {
-              throw new SystemError('Google did not confirm the committed edit.');
-            }
-          } catch (recoveryError) {
-            throw new GooglePlayCommitOutcomeUnknownError(
-              `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again. Recovery could not obtain a valid commit confirmation.`,
-              {
-                cause: new AggregateError(
-                  [error, recoveryError],
-                  'The commit and its recovery could not be confirmed.'
-                ),
-              }
-            );
-          }
-        } else {
-          throw error;
+          throw new GooglePlayCommitOutcomeUnknownError(
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
+            { cause: error }
+          );
         }
+        throw error;
       }
       logger.info(
         changesNotSentForReview

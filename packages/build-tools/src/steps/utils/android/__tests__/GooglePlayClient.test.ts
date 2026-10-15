@@ -13,6 +13,7 @@ const api = (): nock.Scope =>
   });
 
 jest.unmock('node-fetch');
+jest.mock('node:timers/promises', () => ({ setTimeout: jest.fn().mockResolvedValue(undefined) }));
 
 const serviceAccount = {
   client_email: 'test@example.iam.gserviceaccount.com',
@@ -75,11 +76,12 @@ it('rejects invalid rollout requests before sending them', async () => {
   ).rejects.toBeInstanceOf(ZodError);
 });
 
-it('does not retry an ambiguous edit commit', async () => {
+it('keeps the outcome unknown when a lost commit response is followed by an invalid edit', async () => {
   api()
     .post(`${editPath}:commit`, {})
     .query({ changesNotSentForReview: false })
     .replyWithError('Lost response');
+  api().post(`${editPath}:commit`, {}).query({ changesNotSentForReview: false }).reply(404);
   await expect(
     client.postAsync(
       '/androidpublisher/v3/applications/:packageName/edits/:editId:commit',
@@ -88,6 +90,56 @@ it('does not retry an ambiguous edit commit', async () => {
       { query: { changesNotSentForReview: false } }
     )
   ).rejects.toBeInstanceOf(SystemError);
+});
+
+it.each([408, 429, 500, 503])('stops after five retries for HTTP %s', async status => {
+  api().get(editPath).times(6).reply(status);
+  await expect(
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toMatchObject({ status });
+});
+
+it('retries the same track update body after a temporary error', async () => {
+  const body = {
+    track: 'internal',
+    releases: [{ versionCodes: ['123'], status: 'draft' as const }],
+  };
+  api().put(`${editPath}/tracks/internal`, body).reply(503);
+  api().put(`${editPath}/tracks/internal`, body).reply(200, { track: 'internal' });
+  await expect(
+    client.putAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
+      body,
+      { packageName, editId: 'edit', track: 'internal' }
+    )
+  ).resolves.toEqual({ track: 'internal' });
+});
+
+it('does not add retries to upload-session requests', async () => {
+  api().post('/upload/session').reply(503);
+  await expect(client.requestAsync('POST', '/upload/session')).rejects.toMatchObject({
+    status: 503,
+  });
+});
+
+it('stops retrying when cancelled after a transient response', async () => {
+  const controller = new AbortController();
+  api()
+    .get(editPath)
+    .reply(() => {
+      controller.abort();
+      return [503];
+    });
+  await expect(
+    client.getAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId',
+      { packageName, editId: 'edit' },
+      controller.signal
+    )
+  ).rejects.toBeDefined();
 });
 
 it('deletes an edit with an empty response', async () => {

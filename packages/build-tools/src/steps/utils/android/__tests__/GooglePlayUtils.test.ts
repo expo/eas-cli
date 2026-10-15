@@ -89,7 +89,7 @@ it('uploads aligned chunks and reports server-confirmed progress', async () => {
   ]);
 });
 
-it.each(['network', 429, 503])(
+it.each(['network', 408, 429, 503])(
   'recovers the accepted offset after a %s interruption',
   async failure => {
     mockToken();

@@ -54,7 +54,8 @@ export namespace GooglePlayResumableUpload {
           if (
             timeout.aborted ||
             isNetworkRetryable(error) ||
-            (error instanceof GooglePlayApiError && (error.status === 429 || error.status >= 500))
+            (error instanceof GooglePlayApiError &&
+              (error.status === 408 || error.status === 429 || error.status >= 500))
           ) {
             retry(
               timeout.aborted
@@ -200,7 +201,7 @@ export namespace GooglePlayResumableUpload {
               checkServerOffset = true;
               return retry(new SystemError('Google Play upload response timed out.'));
             }
-            if (response.status === 429 || response.status >= 500) {
+            if (response.status === 408 || response.status === 429 || response.status >= 500) {
               checkServerOffset = true;
               retry(error);
             }
