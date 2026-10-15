@@ -1,0 +1,315 @@
+{
+  "hardwareKeyboard.set": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "value": {
+        "type": "string",
+        "enum": [
+          "on",
+          "off"
+        ]
+      }
+    },
+    "required": [
+      "udid",
+      "value"
+    ],
+    "description": "Connect or disconnect the hardware keyboard."
+  },
+  "caDebug.set": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "option": {
+        "type": "string",
+        "enum": [
+          "blended",
+          "copies",
+          "misaligned",
+          "offscreen",
+          "slow-animations"
+        ]
+      },
+      "value": {
+        "type": "string",
+        "enum": [
+          "on",
+          "off"
+        ]
+      }
+    },
+    "required": [
+      "udid",
+      "option",
+      "value"
+    ],
+    "description": "Turn a Core Animation debug option on or off."
+  },
+  "hinge.set": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "value": {
+        "anyOf": [
+          {
+            "type": "string",
+            "enum": [
+              "fold",
+              "half",
+              "unfold"
+            ]
+          },
+          {
+            "type": "number"
+          }
+        ]
+      }
+    },
+    "required": [
+      "udid",
+      "value"
+    ],
+    "description": "Fold or unfold a foldable simulator."
+  },
+  "location.set": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "lat": {
+        "type": "number"
+      },
+      "lng": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "udid",
+      "lat",
+      "lng"
+    ],
+    "description": "Set the simulated location."
+  },
+  "permissions.list": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "bundleId": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      }
+    },
+    "required": [
+      "udid"
+    ],
+    "description": "List permissions for one app or for every app."
+  },
+  "permissions.set": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "grant",
+          "revoke",
+          "reset"
+        ]
+      },
+      "service": {
+        "type": "string",
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      },
+      "bundleId": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+      }
+    },
+    "required": [
+      "udid",
+      "action",
+      "service",
+      "bundleId"
+    ],
+    "description": "Grant, revoke or reset one permission for an app."
+  },
+  "app.install": {
+    "description": "Install an app from an .ipa file.",
+    "upload": "path",
+    "anyOf": [
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "uploadId": {
+            "type": "string",
+            "pattern": "^(?!\\.)[A-Za-z0-9._-]{1,128}$"
+          }
+        },
+        "required": [
+          "udid",
+          "uploadId"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "path"
+        ]
+      }
+    ]
+  },
+  "camera.switch": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "source": {
+            "type": "string",
+            "const": "file"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "source",
+          "target"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "source": {
+            "type": "string",
+            "const": "webcam"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^[^\\p{C}]+$"
+          }
+        },
+        "required": [
+          "udid",
+          "source"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "udid": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+          },
+          "source": {
+            "type": "string",
+            "const": "placeholder"
+          }
+        },
+        "required": [
+          "udid",
+          "source"
+        ]
+      }
+    ],
+    "description": "Change the camera feed of an app with a simulated camera.",
+    "upload": "target"
+  },
+  "screenshot.capture": {
+    "type": "object",
+    "properties": {
+      "udid": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()-]*$"
+      },
+      "fileName": {
+        "type": "string",
+        "pattern": "^serve-sim-screenshot-[A-Za-z0-9._-]{1,100}\\.png$"
+      }
+    },
+    "required": [
+      "udid"
+    ],
+    "description": "Take a screenshot.",
+    "output": "path"
+  },
+  "file.readBase64": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^[^\\p{C}]+$"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "description": "Download a file from the simulator host.",
+    "output": "base64"
+  }
+}

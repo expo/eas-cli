@@ -1,13 +1,11 @@
+import { randomUUID } from 'crypto';
+import * as fs from 'fs-extra';
+import path from 'path';
 import WebSocket from 'ws';
 import { z } from 'zod';
 
 import { PreviewApiAccess } from './utils';
 import fetch, { RequestError, httpsProxyAgent } from '../fetch';
-
-export type HostActionRequest = {
-  action: string;
-  params: Record<string, unknown>;
-};
 
 export type HostActionResult = {
   stdout: string;
@@ -15,164 +13,60 @@ export type HostActionResult = {
   exitCode: number;
 };
 
-type HostActionSpec = {
-  args: string;
-  jsonOutput?: boolean;
-  toRequest: (values: string[]) => HostActionRequest | null;
+export type HostActionConnection = {
+  requestAsync(action: string, params?: Record<string, unknown>): Promise<HostActionResult>;
+  close(): void;
 };
 
-function toNumberIfNumeric(value: string): number | string {
-  return /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : value;
-}
+const SchemaNode = z.looseObject({
+  type: z.union([z.string(), z.array(z.string())]).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  required: z.array(z.string()).optional(),
+  allOf: z.array(z.unknown()).optional(),
+  anyOf: z.array(z.unknown()).optional(),
+  oneOf: z.array(z.unknown()).optional(),
+});
 
-function setting(prefix: string): HostActionSpec {
-  return {
-    args: '[value]',
-    toRequest: values => {
-      if (values.length === 0) {
-        return { action: `${prefix}.get`, params: {} };
-      }
-      if (values.length === 1) {
-        return { action: `${prefix}.set`, params: { value: values[0] } };
-      }
-      return null;
-    },
-  };
-}
+const CatalogEntry = SchemaNode.extend({
+  description: z.string().optional(),
+  upload: z.string().optional(),
+  output: z.enum(['path', 'base64']).optional(),
+});
 
-function withoutValues(action: string): HostActionSpec {
-  return {
-    args: '',
-    toRequest: values => (values.length === 0 ? { action, params: {} } : null),
-  };
-}
+const Catalog = z.record(z.string(), CatalogEntry);
 
-const HOST_ACTIONS: Record<string, HostActionSpec> = {
-  'hardware-keyboard': setting('hardwareKeyboard'),
-  'reduce-motion': setting('reduceMotion'),
-  'increase-contrast': setting('increaseContrast'),
-  'reduce-transparency': setting('reduceTransparency'),
-  voiceover: setting('voiceover'),
-  'liquid-glass': setting('liquidGlass'),
-  'color-filter': setting('colorFilter'),
-  'text-size': setting('textSize'),
-  'show-borders': setting('showBorders'),
-  settings: { ...withoutValues('settings.status'), jsonOutput: true },
-  'software-keyboard': withoutValues('softwareKeyboard.toggle'),
-  'memory-warning': withoutValues('memoryWarning'),
-  'ca-debug': {
-    args: '<blended|copies|misaligned|offscreen|slow-animations> <on|off>',
-    toRequest: values =>
-      values.length === 2
-        ? { action: 'caDebug.set', params: { option: values[0], value: values[1] } }
-        : null,
-  },
-  hinge: {
-    args: '<fold|half|unfold|0-180>',
-    toRequest: ([value, ...rest]) =>
-      value !== undefined && rest.length === 0
-        ? {
-            action: 'hinge.set',
-            params: { value: toNumberIfNumeric(value) },
-          }
-        : null,
-  },
-  permissions: {
-    args: '[list [bundle-id] | grant|revoke|reset <permission> <bundle-id> | reset all <bundle-id>]',
-    jsonOutput: true,
-    toRequest: values => {
-      const [verb = 'list', ...rest] = values;
-      if (verb === 'list' && rest.length <= 1) {
-        return { action: 'permissions.list', params: rest[0] ? { bundleId: rest[0] } : {} };
-      }
-      if (rest.length !== 2) {
-        return null;
-      }
-      const [permission, bundleId] = rest;
-      if (verb === 'reset' && permission === 'all') {
-        return { action: 'permissions.resetAll', params: { bundleId } };
-      }
-      return { action: 'permissions.set', params: { action: verb, service: permission, bundleId } };
-    },
-  },
-  appearance: setting('appearance'),
-  location: {
-    args: '<latitude> <longitude> | clear',
-    toRequest: values => {
-      if (values.length === 1 && values[0] === 'clear') {
-        return { action: 'location.clear', params: {} };
-      }
-      if (values.length !== 2) {
-        return null;
-      }
-      const [lat, lng] = values.map(toNumberIfNumeric);
-      return { action: 'location.set', params: { lat, lng } };
-    },
-  },
-  rotate: {
-    args: '<portrait|portrait_upside_down|landscape_left|landscape_right>',
-    toRequest: values =>
-      values.length === 1 ? { action: 'rotate', params: { value: values[0] } } : null,
-  },
-  button: {
-    args: '<home|swipe_home|app_switcher|lock|siri|side_button>',
-    toRequest: values =>
-      values.length === 1 ? { action: 'button', params: { value: values[0] } } : null,
-  },
-};
-
-const HOST_ACTION_TIMEOUT_MS = 130_000;
-const PREVIEW_API_TIMEOUT_MS = 30_000;
+export type HostActionCatalog = z.infer<typeof Catalog>;
+export type HostActionCatalogEntry = z.infer<typeof CatalogEntry>;
 
 const PreviewConfig = z.object({ device: z.string().min(1) });
 
-const ReplyToRequest = z.object({ id: z.literal(1) });
+const ReplyId = z.object({ id: z.number() });
 
 const SocketMessage = z.union([
   z.object({ ready: z.literal(true) }),
-  z.object({ id: z.literal(1), error: z.string() }),
+  z.object({ id: z.number(), error: z.string() }),
   z.object({
-    id: z.literal(1),
+    id: z.number(),
     stdout: z.string(),
     stderr: z.string(),
     exitCode: z.number(),
   }),
 ]);
 
-export function formatHostActionUsage(): string {
-  return Object.entries(HOST_ACTIONS)
-    .map(([name, spec]) => `${name} ${spec.args}`.trim())
-    .join('\n');
-}
+const HOST_ACTION_TIMEOUT_MS = 130_000;
+const PREVIEW_API_TIMEOUT_MS = 30_000;
+const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
+const NAMED_VALUE = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/s;
+const NUMBER = /^-?\d+(\.\d+)?$/;
 
-export function hostActionPrintsJson(name: string): boolean {
-  return Object.hasOwn(HOST_ACTIONS, name) && HOST_ACTIONS[name].jsonOutput === true;
-}
-
-export function resolveHostActionRequest(name: string, values: string[]): HostActionRequest {
-  if (!Object.hasOwn(HOST_ACTIONS, name)) {
-    throw new Error(
-      `Unknown simulator action "${name}". Use one of: ${Object.keys(HOST_ACTIONS).join(', ')}.`
-    );
-  }
-  const spec = HOST_ACTIONS[name];
-  const request = spec.toRequest(values);
-  if (!request) {
-    throw new Error(
-      `Wrong arguments for "${name}". Usage: eas simulator:control ${`${name} ${spec.args}`.trim()}`
-    );
-  }
-  return request;
-}
-
-function previewEndpoint(apiUrl: string, path: string): URL {
+function previewEndpoint(apiUrl: string, endpoint: string): URL {
   const base = new URL(apiUrl);
   base.search = '';
   base.hash = '';
   if (!base.pathname.endsWith('/')) {
     base.pathname += '/';
   }
-  return new URL(path, base);
+  return new URL(endpoint, base);
 }
 
 async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Promise<string> {
@@ -209,43 +103,66 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
   return config.data.device;
 }
 
-export async function runHostActionAsync(
+function refusedError(error: string): Error {
+  return error.startsWith('unknown action')
+    ? new Error(
+        'This simulator session runs a serve-sim version that does not support this action. Start a new session with `eas simulator:start` to get a newer version.'
+      )
+    : new Error(`The simulator refused the request: ${error}`);
+}
+
+export async function connectHostActionsAsync(
   access: PreviewApiAccess,
-  request: HostActionRequest,
   { timeoutMs = HOST_ACTION_TIMEOUT_MS }: { timeoutMs?: number } = {}
-): Promise<HostActionResult> {
+): Promise<HostActionConnection> {
   const udid = await fetchSimulatorUdidAsync(access);
   const socketUrl = previewEndpoint(access.apiUrl, 'exec-ws');
   socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(
+    socketUrl.toString(),
+    [`serve-sim.token.${access.token}`],
+    httpsProxyAgent ? { agent: httpsProxyAgent } : {}
+  );
 
-  return await new Promise<HostActionResult>((resolve, reject) => {
-    const ws = new WebSocket(
-      socketUrl.toString(),
-      [`serve-sim.token.${access.token}`],
-      httpsProxyAgent ? { agent: httpsProxyAgent } : {}
-    );
-    let settled = false;
-    function settle(): boolean {
-      if (settled) {
-        return false;
-      }
-      settled = true;
-      clearTimeout(timer);
-      ws.close();
-      return true;
+  type Pending = {
+    resolve: (result: HostActionResult) => void;
+    reject: (error: Error) => void;
+    timer: NodeJS.Timeout;
+  };
+  const pending = new Map<number, Pending>();
+  let nextId = 1;
+  let lost: Error | null = null;
+
+  function settle(id: number): Pending | undefined {
+    const request = pending.get(id);
+    if (request) {
+      pending.delete(id);
+      clearTimeout(request.timer);
     }
-    function fail(error: Error): void {
-      if (settle()) {
-        reject(error);
-      }
+    return request;
+  }
+
+  function loseConnection(error: Error): void {
+    lost ??= error;
+    for (const id of [...pending.keys()]) {
+      settle(id)?.reject(error);
     }
+  }
+
+  await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
-      fail(
+      reject(
         new Error(
-          `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
+          `The simulator preview server did not accept the connection within ${Math.round(timeoutMs / 1000)} seconds. Check that the session still runs with \`eas simulator:get\`, then try again.`
         )
       );
+      ws.terminate();
     }, timeoutMs);
+    const failToConnect = (error: Error): void => {
+      clearTimeout(timer);
+      reject(error);
+      loseConnection(error);
+    };
 
     ws.on('message', data => {
       let message: unknown;
@@ -256,8 +173,9 @@ export async function runHostActionAsync(
       }
       const parsed = SocketMessage.safeParse(message);
       if (!parsed.success) {
-        if (ReplyToRequest.safeParse(message).success) {
-          fail(
+        const id = ReplyId.safeParse(message);
+        if (id.success) {
+          settle(id.data.id)?.reject(
             new Error(
               'The simulator preview server sent a reply that this version of eas-cli cannot read. Update eas-cli and try again.'
             )
@@ -267,41 +185,222 @@ export async function runHostActionAsync(
       }
       const reply = parsed.data;
       if ('ready' in reply) {
-        ws.send(
-          JSON.stringify({ id: 1, action: request.action, params: { ...request.params, udid } })
-        );
+        clearTimeout(timer);
+        resolve();
       } else if ('error' in reply) {
-        fail(
-          reply.error.startsWith('unknown action')
-            ? new Error(
-                'This simulator session runs a serve-sim version that does not support this action. Start a new session with `eas simulator:start` to get a newer version.'
-              )
-            : new Error(`The simulator refused the request: ${reply.error}`)
-        );
-      } else if (settle()) {
-        resolve({ stdout: reply.stdout, stderr: reply.stderr, exitCode: reply.exitCode });
+        settle(reply.id)?.reject(refusedError(reply.error));
+      } else {
+        settle(reply.id)?.resolve({
+          stdout: reply.stdout,
+          stderr: reply.stderr,
+          exitCode: reply.exitCode,
+        });
       }
     });
     ws.on('unexpected-response', (_req, res) => {
-      fail(
+      failToConnect(
         new Error(
           `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
         )
       );
     });
     ws.on('error', error => {
-      fail(
+      failToConnect(
         new Error(
           `Could not connect to the simulator preview server: ${error.message}. Check your network connection and that the session still runs.`
         )
       );
     });
     ws.on('close', () => {
-      fail(
+      failToConnect(
         new Error(
           'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
         )
       );
     });
   });
+
+  return {
+    async requestAsync(action, params = {}) {
+      if (lost) {
+        throw lost;
+      }
+      const id = nextId++;
+      return await new Promise<HostActionResult>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          settle(id)?.reject(
+            new Error(
+              `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
+            )
+          );
+        }, timeoutMs);
+        pending.set(id, { resolve, reject, timer });
+        ws.send(JSON.stringify({ id, action, params: { ...params, udid } }));
+      });
+    },
+    close() {
+      ws.close();
+    },
+  };
+}
+
+export async function fetchHostActionCatalogAsync(
+  connection: HostActionConnection
+): Promise<HostActionCatalog> {
+  const result = await connection.requestAsync('actions.describe');
+  let body: unknown = null;
+  try {
+    body = JSON.parse(result.stdout);
+  } catch {}
+  const catalog = Catalog.safeParse(body);
+  if (result.exitCode !== 0 || !catalog.success) {
+    throw new Error(
+      'The simulator did not return its list of actions. Start a new session with `eas simulator:start` to get a newer serve-sim version.'
+    );
+  }
+  return catalog.data;
+}
+
+function collectProperties(node: unknown, into: Map<string, unknown[]>): void {
+  const parsed = SchemaNode.safeParse(node);
+  if (!parsed.success) {
+    return;
+  }
+  for (const [name, schema] of Object.entries(parsed.data.properties ?? {})) {
+    into.set(name, [...(into.get(name) ?? []), schema]);
+  }
+  const { allOf = [], anyOf = [], oneOf = [] } = parsed.data;
+  for (const child of [...allOf, ...anyOf, ...oneOf]) {
+    collectProperties(child, into);
+  }
+}
+
+function hostActionProperties(entry: HostActionCatalogEntry): Map<string, unknown[]> {
+  const properties = new Map<string, unknown[]>();
+  collectProperties(entry, properties);
+  properties.delete('udid');
+  return properties;
+}
+
+function positionalNames(entry: HostActionCatalogEntry): string[] {
+  if (entry.properties) {
+    return Object.keys(entry.properties).filter(name => name !== 'udid');
+  }
+  return entry.upload ? [entry.upload] : [];
+}
+
+function acceptsType(schema: unknown, types: string[]): boolean {
+  const node = SchemaNode.safeParse(schema);
+  if (!node.success) {
+    return false;
+  }
+  const own = [node.data.type ?? []].flat();
+  return (
+    own.some(type => types.includes(type)) ||
+    [...(node.data.anyOf ?? []), ...(node.data.oneOf ?? [])].some(child =>
+      acceptsType(child, types)
+    )
+  );
+}
+
+function coerce(value: string, schemas: unknown[]): unknown {
+  if (NUMBER.test(value) && schemas.some(schema => acceptsType(schema, ['number', 'integer']))) {
+    return Number(value);
+  }
+  if (
+    (value === 'true' || value === 'false') &&
+    schemas.some(schema => acceptsType(schema, ['boolean']))
+  ) {
+    return value === 'true';
+  }
+  return value;
+}
+
+export function formatHostActionUsage(name: string, entry: HostActionCatalogEntry): string {
+  const required = new Set(entry.required ?? []);
+  const names = [...hostActionProperties(entry).keys()].map(property =>
+    required.has(property) ? `<${property}>` : `[${property}]`
+  );
+  return [name, ...names].join(' ');
+}
+
+export function buildHostActionParams(
+  name: string,
+  entry: HostActionCatalogEntry,
+  values: string[]
+): Record<string, unknown> {
+  const properties = hostActionProperties(entry);
+  const positions = positionalNames(entry);
+  const params: Record<string, unknown> = {};
+  let position = 0;
+  for (const value of values) {
+    const named = NAMED_VALUE.exec(value);
+    const property = named && properties.has(named[1]) ? named[1] : positions[position++];
+    if (property === undefined) {
+      throw new Error(
+        `Too many values for ${name}. Usage: eas simulator:control ${formatHostActionUsage(name, entry)}. Name a value with name=value.`
+      );
+    }
+    if (Object.hasOwn(params, property)) {
+      throw new Error(`${property} is given twice for ${name}.`);
+    }
+    const raw = named && property === named[1] ? named[2] : value;
+    params[property] = coerce(raw, properties.get(property) ?? []);
+  }
+  return params;
+}
+
+export async function uploadFileAsync(
+  connection: HostActionConnection,
+  localPath: string,
+  { chunkBytes = UPLOAD_CHUNK_BYTES }: { chunkBytes?: number } = {}
+): Promise<{ uploadId: string; path: string }> {
+  const uploadId = `eas-cli-${randomUUID()}${path.extname(localPath).replace(/[^A-Za-z0-9.]/g, '')}`;
+  let remotePath = '';
+  let first = true;
+  for await (const chunk of fs.createReadStream(localPath, { highWaterMark: chunkBytes })) {
+    const result = await connection.requestAsync('upload.append', {
+      uploadId,
+      data: Buffer.from(chunk).toString('base64'),
+      first,
+    });
+    if (result.exitCode !== 0) {
+      throw new Error(`Could not upload ${localPath}: ${result.stderr.trim()}`);
+    }
+    remotePath = result.stdout.trim();
+    first = false;
+  }
+  if (first) {
+    throw new Error(`${localPath} is empty. Pass a file with content.`);
+  }
+  return { uploadId, path: remotePath };
+}
+
+export async function saveHostActionOutputAsync(
+  connection: HostActionConnection,
+  entry: HostActionCatalogEntry,
+  params: Record<string, unknown>,
+  stdout: string,
+  outputPath: string | undefined
+): Promise<string | null> {
+  if (!entry.output) {
+    return null;
+  }
+  let base64 = stdout;
+  let defaultName = typeof params.path === 'string' ? path.basename(params.path) : undefined;
+  if (entry.output === 'path') {
+    const remotePath = stdout.trim();
+    const file = await connection.requestAsync('file.readBase64', { path: remotePath });
+    if (file.exitCode !== 0) {
+      throw new Error(`Could not download ${remotePath}: ${file.stderr.trim()}`);
+    }
+    base64 = file.stdout;
+    defaultName = path.basename(remotePath);
+  }
+  const target = outputPath ?? defaultName;
+  if (!target) {
+    throw new Error('This action returns a file. Pass --output with the path to save it to.');
+  }
+  await fs.writeFile(target, Buffer.from(base64, 'base64'));
+  return path.resolve(target);
 }

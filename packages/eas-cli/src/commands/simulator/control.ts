@@ -1,4 +1,5 @@
 import { Args, Flags } from '@oclif/core';
+import * as fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -15,40 +16,48 @@ import {
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
 import {
+  HostActionCatalog,
+  HostActionConnection,
+  buildHostActionParams,
+  connectHostActionsAsync,
+  fetchHostActionCatalogAsync,
   formatHostActionUsage,
-  hostActionPrintsJson,
-  resolveHostActionRequest,
-  runHostActionAsync,
+  saveHostActionOutputAsync,
+  uploadFileAsync,
 } from '../../simulator/hostActions';
-import { getPreviewApiAccess } from '../../simulator/utils';
+import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
-  static override description = `[EXPERIMENTAL] change settings and trigger device actions on a remote iOS simulator session on EAS
-
-Actions:
-${formatHostActionUsage()}`;
+  static override description =
+    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run with --list to see the actions the session supports.';
   static override strict = false;
 
   static override examples = [
-    '$ eas simulator:control hardware-keyboard off',
-    '$ eas simulator:control appearance dark',
-    '$ eas simulator:control location 37.3349 -122.009',
-    '$ eas simulator:control permissions grant camera com.example.app',
-    '$ eas simulator:control settings --json',
+    '$ eas simulator:control --list',
+    '$ eas simulator:control hardwareKeyboard.set off',
+    '$ eas simulator:control permissions.set grant camera com.example.app',
+    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control screenshot.capture --output ./screenshot.png',
   ];
 
   static override args = {
-    name: Args.string({
-      description: 'Action to run, followed by its values. See the list of actions above.',
-      required: true,
+    action: Args.string({
+      description:
+        'Action to run, followed by its values in order or as name=value. Run with --list to see the actions.',
     }),
   };
 
   static override flags = {
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
+    }),
+    list: Flags.boolean({
+      description: 'List the actions the session supports.',
+    }),
+    output: Flags.string({
+      description: 'Where to save the file that an action returns, such as a screenshot.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -65,8 +74,11 @@ ${formatHostActionUsage()}`;
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const request = resolveHostActionRequest(args.name, argv.slice(1).map(String));
+    if (!flags.list && !args.action) {
+      throw new Error(
+        'No action provided. Run `eas simulator:control --list` to see the actions, then `eas simulator:control <action> [values...]`.'
+      );
+    }
 
     const {
       projectDir,
@@ -83,50 +95,146 @@ ${formatHostActionUsage()}`;
       );
     }
 
-    const spinner = ora(`Running ${args.name} on simulator session ${sessionId}`).start();
-    let output: string;
+    const spinner = ora(`Connecting to simulator session ${sessionId}`).start();
+    let connection: HostActionConnection;
+    let catalog: HostActionCatalog;
     try {
       const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
-      if (session.status !== DeviceRunSessionStatus.InProgress) {
-        throw new Error(
-          `Simulator session ${session.id} is ${session.status.toLowerCase()}. Simulator actions need a running session. Start one with \`eas simulator:start\`.`
-        );
+      connection = await connectHostActionsAsync(assertControllableSession(session));
+      catalog = await fetchHostActionCatalogAsync(connection);
+      spinner.succeed(`Connected to simulator session ${sessionId}`);
+    } catch (err) {
+      spinner.fail(`Failed to connect to simulator session ${sessionId}`);
+      throw err;
+    }
+
+    try {
+      if (flags.list || !args.action) {
+        this.printCatalog(catalog, jsonFlag);
+        return;
       }
-      if (session.platform !== AppPlatform.Ios) {
-        throw new Error(
-          `Simulator session ${session.id} runs on ${session.platform.toLowerCase()}. Simulator actions are available only for iOS sessions.`
-        );
+      await this.runActionAsync(connection, catalog, {
+        sessionId,
+        action: args.action,
+        values: argv.slice(1).map(String),
+        outputPath: flags.output,
+        jsonFlag,
+      });
+    } finally {
+      connection.close();
+    }
+  }
+
+  private printCatalog(catalog: HostActionCatalog, jsonFlag: boolean): void {
+    if (jsonFlag) {
+      printJsonOnlyOutput(catalog);
+      return;
+    }
+    for (const [name, entry] of Object.entries(catalog)) {
+      Log.log(`${formatHostActionUsage(name, entry)}\n    ${entry.description ?? ''}`);
+    }
+  }
+
+  private async runActionAsync(
+    connection: HostActionConnection,
+    catalog: HostActionCatalog,
+    {
+      sessionId,
+      action,
+      values,
+      outputPath,
+      jsonFlag,
+    }: {
+      sessionId: string;
+      action: string;
+      values: string[];
+      outputPath: string | undefined;
+      jsonFlag: boolean;
+    }
+  ): Promise<void> {
+    const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
+    if (!entry) {
+      throw new Error(
+        `Unknown simulator action "${action}". Run \`eas simulator:control --list\` to see the actions.`
+      );
+    }
+    const params = buildHostActionParams(action, entry, values);
+    const uploadParam = entry.upload;
+    const localFile = uploadParam ? params[uploadParam] : undefined;
+    let uploadId: string | undefined;
+    if (uploadParam && typeof localFile === 'string' && (await fs.pathExists(localFile))) {
+      if ((await fs.stat(localFile)).isDirectory()) {
+        throw new Error(`${localFile} is a folder. Pass a file, for example an .ipa.`);
       }
-      const access = session.remoteConfig ? getPreviewApiAccess(session.remoteConfig) : null;
-      if (!access) {
-        throw new Error(
-          `Simulator session ${session.id} does not expose a preview server with a token. Simulator actions use that server. Start a new session with \`eas simulator:start\`.`
-        );
-      }
-      const result = await runHostActionAsync(access, request);
+      const upload = await uploadFileAsync(connection, localFile);
+      uploadId = upload.uploadId;
+      params[uploadParam] = upload.path;
+    }
+
+    const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
+    let output: string;
+    let savedFile: string | null;
+    try {
+      const result = await connection.requestAsync(action, params);
       if (result.exitCode !== 0) {
         const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
-        throw new Error(`The simulator could not run ${args.name}: ${detail}`);
+        throw new Error(`The simulator could not run ${action}: ${detail}`);
       }
-      output = result.stdout.trim();
-      spinner.succeed(`Ran ${args.name} on simulator session ${session.id}`);
+      savedFile = await saveHostActionOutputAsync(
+        connection,
+        entry,
+        params,
+        result.stdout,
+        outputPath
+      );
+      output = savedFile ? '' : result.stdout.trim();
+      spinner.succeed(`Ran ${action} on simulator session ${sessionId}`);
     } catch (err) {
-      spinner.fail(`Failed to run ${args.name} on simulator session ${sessionId}`);
+      spinner.fail(`Failed to run ${action} on simulator session ${sessionId}`);
       throw err;
+    } finally {
+      if (uploadId) {
+        await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
+      }
     }
 
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: sessionId,
-        action: args.name,
-        output: hostActionPrintsJson(args.name) ? parseJsonOutput(output) : output,
+        action,
+        output: parseJsonOutput(output),
+        file: savedFile,
       });
       return;
     }
-    if (output) {
+    if (savedFile) {
+      Log.log(`Saved ${savedFile}`);
+    } else if (output) {
       Log.log(output);
     }
   }
+}
+
+function assertControllableSession(
+  session: Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>
+): PreviewApiAccess {
+  if (session.status !== DeviceRunSessionStatus.InProgress) {
+    throw new Error(
+      `Simulator session ${session.id} is ${session.status.toLowerCase()}. Simulator actions need a running session. Start one with \`eas simulator:start\`.`
+    );
+  }
+  if (session.platform !== AppPlatform.Ios) {
+    throw new Error(
+      `Simulator session ${session.id} runs on ${session.platform.toLowerCase()}. Simulator actions are available only for iOS sessions.`
+    );
+  }
+  const access = session.remoteConfig ? getPreviewApiAccess(session.remoteConfig) : null;
+  if (!access) {
+    throw new Error(
+      `Simulator session ${session.id} does not expose a preview server with a token. Simulator actions use that server. Start a new session with \`eas simulator:start\`.`
+    );
+  }
+  return access;
 }
 
 function parseJsonOutput(output: string): unknown {

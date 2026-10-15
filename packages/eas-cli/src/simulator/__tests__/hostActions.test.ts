@@ -1,152 +1,157 @@
+import * as fs from 'fs-extra';
 import { once } from 'node:events';
 import http from 'node:http';
 import { AddressInfo } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
-import { resolveHostActionRequest, runHostActionAsync } from '../hostActions';
+import {
+  HostActionCatalog,
+  HostActionConnection,
+  buildHostActionParams,
+  connectHostActionsAsync,
+  fetchHostActionCatalogAsync,
+  formatHostActionUsage,
+  saveHostActionOutputAsync,
+  uploadFileAsync,
+} from '../hostActions';
 
 const UDID = '90858C9D-BC34-4A0A-93D4-E4939A681A72';
 const TOKEN = 'preview-token_123';
+const catalog: HostActionCatalog = require('./fixtures/hostActionCatalog.json');
 
-describe(resolveHostActionRequest, () => {
-  it('reads a setting without a value and sets it with one', () => {
-    expect(resolveHostActionRequest('hardware-keyboard', [])).toEqual({
-      action: 'hardwareKeyboard.get',
-      params: {},
-    });
-    expect(resolveHostActionRequest('text-size', ['extra-large'])).toEqual({
-      action: 'textSize.set',
-      params: { value: 'extra-large' },
-    });
+function entry(name: string): HostActionCatalog[string] {
+  return catalog[name];
+}
+
+describe(buildHostActionParams, () => {
+  it('fills parameters in schema order', () => {
+    expect(
+      buildHostActionParams('permissions.set', entry('permissions.set'), [
+        'grant',
+        'camera',
+        'com.example.app',
+      ])
+    ).toEqual({ action: 'grant', service: 'camera', bundleId: 'com.example.app' });
   });
 
-  it('builds the device, debug and listing actions', () => {
-    expect(resolveHostActionRequest('settings', [])).toEqual({
-      action: 'settings.status',
-      params: {},
+  it('converts values to the types the schema accepts', () => {
+    expect(
+      buildHostActionParams('location.set', entry('location.set'), ['37.3349', '-122.009'])
+    ).toEqual({ lat: 37.3349, lng: -122.009 });
+    expect(buildHostActionParams('hinge.set', entry('hinge.set'), ['90'])).toEqual({ value: 90 });
+    expect(buildHostActionParams('hinge.set', entry('hinge.set'), ['half'])).toEqual({
+      value: 'half',
     });
-    expect(resolveHostActionRequest('software-keyboard', [])).toEqual({
-      action: 'softwareKeyboard.toggle',
-      params: {},
-    });
-    expect(resolveHostActionRequest('memory-warning', [])).toEqual({
-      action: 'memoryWarning',
-      params: {},
-    });
-    expect(resolveHostActionRequest('ca-debug', ['blended', 'on'])).toEqual({
-      action: 'caDebug.set',
-      params: { option: 'blended', value: 'on' },
-    });
-    expect(resolveHostActionRequest('hinge', ['half'])).toEqual({
-      action: 'hinge.set',
-      params: { value: 'half' },
-    });
-    expect(resolveHostActionRequest('hinge', ['135'])).toEqual({
-      action: 'hinge.set',
-      params: { value: 135 },
-    });
+    expect(
+      buildHostActionParams('hardwareKeyboard.set', entry('hardwareKeyboard.set'), ['1'])
+    ).toEqual({ value: '1' });
   });
 
-  it('builds the appearance, location, rotate and button actions', () => {
-    expect(resolveHostActionRequest('appearance', ['dark'])).toEqual({
-      action: 'appearance.set',
-      params: { value: 'dark' },
-    });
-    expect(resolveHostActionRequest('location', ['37.3349', '-122.009'])).toEqual({
-      action: 'location.set',
-      params: { lat: 37.3349, lng: -122.009 },
-    });
-    expect(resolveHostActionRequest('location', ['clear'])).toEqual({
-      action: 'location.clear',
-      params: {},
-    });
-    expect(resolveHostActionRequest('rotate', ['landscape_left'])).toEqual({
-      action: 'rotate',
-      params: { value: 'landscape_left' },
-    });
-    expect(resolveHostActionRequest('button', ['lock'])).toEqual({
-      action: 'button',
-      params: { value: 'lock' },
-    });
+  it('accepts named values in any order', () => {
+    expect(
+      buildHostActionParams('permissions.list', entry('permissions.list'), [
+        'bundleId=com.example.app',
+      ])
+    ).toEqual({ bundleId: 'com.example.app' });
+    expect(
+      buildHostActionParams('camera.switch', entry('camera.switch'), [
+        'target=./photo.jpg',
+        'source=file',
+      ])
+    ).toEqual({ source: 'file', target: './photo.jpg' });
   });
 
-  it('lists, grants and resets permissions', () => {
-    expect(resolveHostActionRequest('permissions', [])).toEqual({
-      action: 'permissions.list',
-      params: {},
+  it('fills the file parameter of an action whose schema has several shapes', () => {
+    expect(buildHostActionParams('app.install', entry('app.install'), ['./MyApp.ipa'])).toEqual({
+      path: './MyApp.ipa',
     });
-    expect(resolveHostActionRequest('permissions', ['list', 'com.example.app'])).toEqual({
-      action: 'permissions.list',
-      params: { bundleId: 'com.example.app' },
-    });
-    expect(resolveHostActionRequest('permissions', ['grant', 'camera', 'com.example.app'])).toEqual(
-      {
-        action: 'permissions.set',
-        params: { action: 'grant', service: 'camera', bundleId: 'com.example.app' },
-      }
-    );
-    expect(resolveHostActionRequest('permissions', ['reset', 'all', 'com.example.app'])).toEqual({
-      action: 'permissions.resetAll',
-      params: { bundleId: 'com.example.app' },
-    });
+    expect(
+      buildHostActionParams('camera.switch', entry('camera.switch'), ['source=file', './photo.jpg'])
+    ).toEqual({ source: 'file', target: './photo.jpg' });
   });
 
-  it('refuses an unknown name and the wrong number of values', () => {
-    expect(() => resolveHostActionRequest('server-kill', [])).toThrow(
-      'Unknown simulator action "server-kill"'
+  it('refuses extra values and a value given twice', () => {
+    expect(() =>
+      buildHostActionParams('hardwareKeyboard.set', entry('hardwareKeyboard.set'), ['on', 'off'])
+    ).toThrow(
+      'Too many values for hardwareKeyboard.set. Usage: eas simulator:control hardwareKeyboard.set <value>.'
     );
-    expect(() => resolveHostActionRequest('voiceover', ['on', 'off'])).toThrow(
-      'Usage: eas simulator:control voiceover [value]'
-    );
-    expect(() => resolveHostActionRequest('ca-debug', ['blended'])).toThrow(
-      'Usage: eas simulator:control ca-debug'
-    );
-    expect(() => resolveHostActionRequest('memory-warning', ['now'])).toThrow(
-      'Usage: eas simulator:control memory-warning'
-    );
-  });
-
-  it('refuses incomplete location and permission values', () => {
-    expect(() => resolveHostActionRequest('location', ['37.3349'])).toThrow(
-      'Usage: eas simulator:control location'
-    );
-    expect(() => resolveHostActionRequest('permissions', ['grant', 'camera'])).toThrow(
-      'Usage: eas simulator:control permissions'
-    );
-  });
-
-  it('sends a plain number as a number and anything else as text', () => {
-    expect(resolveHostActionRequest('hinge', ['12.5'])).toEqual({
-      action: 'hinge.set',
-      params: { value: 12.5 },
-    });
-    expect(resolveHostActionRequest('hinge', [' '])).toEqual({
-      action: 'hinge.set',
-      params: { value: ' ' },
-    });
-    expect(resolveHostActionRequest('hinge', ['0x10'])).toEqual({
-      action: 'hinge.set',
-      params: { value: '0x10' },
-    });
+    expect(() =>
+      buildHostActionParams('camera.switch', entry('camera.switch'), ['file', './photo.jpg'])
+    ).toThrow('Too many values for camera.switch.');
+    expect(() =>
+      buildHostActionParams('hardwareKeyboard.set', entry('hardwareKeyboard.set'), [
+        'on',
+        'value=off',
+      ])
+    ).toThrow('value is given twice for hardwareKeyboard.set.');
   });
 });
 
-describe(runHostActionAsync, () => {
+describe(formatHostActionUsage, () => {
+  it('marks required and optional parameters', () => {
+    expect(formatHostActionUsage('permissions.set', entry('permissions.set'))).toBe(
+      'permissions.set <action> <service> <bundleId>'
+    );
+    expect(formatHostActionUsage('screenshot.capture', entry('screenshot.capture'))).toBe(
+      'screenshot.capture [fileName]'
+    );
+  });
+});
+
+describe('host action connection', () => {
   let server: http.Server;
   let wss: WebSocketServer;
   let apiUrl: string;
-  let received: unknown[];
+  let received: { id: number; action: string; params: Record<string, unknown> }[];
   let requests: (string | undefined)[];
   let apiBody: string;
-  let protocols: string[];
-  let reply: (message: { id: number }) => Record<string, unknown> | null;
+  let uploads: Map<string, Buffer>;
+  let reply: (message: {
+    id: number;
+    action: string;
+    params: Record<string, unknown>;
+  }) => Record<string, unknown> | null;
+  let tmpDir: string;
+  let connection: HostActionConnection | undefined;
+
+  function serveSim(message: {
+    id: number;
+    action: string;
+    params: Record<string, unknown>;
+  }): Record<string, unknown> {
+    const ok = (stdout: string): Record<string, unknown> => ({
+      id: message.id,
+      stdout,
+      stderr: '',
+      exitCode: 0,
+    });
+    switch (message.action) {
+      case 'actions.describe':
+        return ok(JSON.stringify(catalog));
+      case 'upload.append': {
+        const uploadId = String(message.params.uploadId);
+        const chunk = Buffer.from(String(message.params.data), 'base64');
+        const earlier = message.params.first ? [] : [uploads.get(uploadId) ?? Buffer.alloc(0)];
+        uploads.set(uploadId, Buffer.concat([...earlier, chunk]));
+        return ok(`/tmp/serve-sim-uploads/${uploadId}\n`);
+      }
+      case 'file.readBase64':
+        return ok(Buffer.from('png bytes').toString('base64'));
+      default:
+        return ok('on\n');
+    }
+  }
 
   beforeEach(async () => {
     received = [];
     requests = [];
+    uploads = new Map();
     apiBody = JSON.stringify({ device: UDID });
-    protocols = [];
-    reply = message => ({ id: message.id, stdout: 'on\n', stderr: '', exitCode: 0 });
+    reply = serveSim;
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'host-actions-'));
     server = http.createServer((req, res) => {
       requests.push(req.url);
       if (req.url === '/api' && req.headers.authorization === `Bearer ${TOKEN}`) {
@@ -160,10 +165,8 @@ describe(runHostActionAsync, () => {
     wss = new WebSocketServer({
       server,
       path: '/exec-ws',
-      handleProtocols: offered => {
-        protocols = [...offered];
-        return offered.has(`serve-sim.token.${TOKEN}`) ? `serve-sim.token.${TOKEN}` : false;
-      },
+      handleProtocols: offered =>
+        offered.has(`serve-sim.token.${TOKEN}`) ? `serve-sim.token.${TOKEN}` : false,
     });
     wss.on('connection', ws => {
       ws.send(JSON.stringify({ ready: true }));
@@ -182,43 +185,53 @@ describe(runHostActionAsync, () => {
   });
 
   afterEach(async () => {
+    connection?.close();
+    connection = undefined;
     for (const client of wss.clients) {
       client.terminate();
     }
     wss.close();
     server.close();
     await once(server, 'close');
+    await fs.remove(tmpDir);
   });
 
-  it('sends the action with the simulator udid and returns the reply', async () => {
-    const result = await runHostActionAsync(
-      { apiUrl, token: TOKEN },
-      { action: 'hardwareKeyboard.set', params: { value: 'off' } }
-    );
+  async function connectAsync(timeoutMs?: number): Promise<HostActionConnection> {
+    connection = await connectHostActionsAsync({ apiUrl, token: TOKEN }, { timeoutMs });
+    return connection;
+  }
 
-    expect(protocols).toEqual([`serve-sim.token.${TOKEN}`]);
-    expect(received).toEqual([
-      { id: 1, action: 'hardwareKeyboard.set', params: { value: 'off', udid: UDID } },
+  it('sends several requests over one connection with the simulator udid', async () => {
+    const hostActions = await connectAsync();
+
+    const results = await Promise.all([
+      hostActions.requestAsync('hardwareKeyboard.get'),
+      hostActions.requestAsync('hardwareKeyboard.set', { value: 'off' }),
     ]);
-    expect(result).toEqual({ stdout: 'on\n', stderr: '', exitCode: 0 });
+
+    expect(received).toEqual([
+      { id: 1, action: 'hardwareKeyboard.get', params: { udid: UDID } },
+      { id: 2, action: 'hardwareKeyboard.set', params: { value: 'off', udid: UDID } },
+    ]);
+    expect(results).toEqual([
+      { stdout: 'on\n', stderr: '', exitCode: 0 },
+      { stdout: 'on\n', stderr: '', exitCode: 0 },
+    ]);
   });
 
-  it('keeps a path on the API URL and drops its query', async () => {
-    await expect(
-      runHostActionAsync(
-        { apiUrl: `${apiUrl}/preview?token=${TOKEN}`, token: TOKEN },
-        { action: 'memoryWarning', params: {} }
-      )
-    ).rejects.toThrow('refused the session token (HTTP 401)');
-    expect(requests).toEqual(['/preview/api']);
+  it('reads the catalog of actions', async () => {
+    const hostActions = await connectAsync();
+
+    await expect(fetchHostActionCatalogAsync(hostActions)).resolves.toEqual(catalog);
   });
 
-  it('explains that an old serve-sim does not know the action', async () => {
-    reply = message => ({ id: message.id, error: 'unknown action caDebug.set' });
+  it('explains that an old serve-sim does not have the catalog', async () => {
+    reply = message => ({ id: message.id, error: 'unknown action actions.describe' });
+    const hostActions = await connectAsync();
 
-    await expect(
-      runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'caDebug.set', params: {} })
-    ).rejects.toThrow('does not support this action');
+    await expect(fetchHostActionCatalogAsync(hostActions)).rejects.toThrow(
+      'does not support this action'
+    );
   });
 
   it('passes a validation error from the simulator through', async () => {
@@ -226,50 +239,119 @@ describe(runHostActionAsync, () => {
       id: message.id,
       error: 'hardwareKeyboard.set: value must be one of on, off',
     });
+    const hostActions = await connectAsync();
 
     await expect(
-      runHostActionAsync(
-        { apiUrl, token: TOKEN },
-        { action: 'hardwareKeyboard.set', params: { value: 'maybe' } }
-      )
+      hostActions.requestAsync('hardwareKeyboard.set', { value: 'maybe' })
     ).rejects.toThrow(
       'The simulator refused the request: hardwareKeyboard.set: value must be one of on, off'
     );
   });
 
-  it('refuses a wrong token before it opens the socket', async () => {
-    await expect(
-      runHostActionAsync({ apiUrl, token: 'wrong' }, { action: 'memoryWarning', params: {} })
-    ).rejects.toThrow('refused the session token (HTTP 401)');
-    expect(received).toEqual([]);
+  it('fails a request at once on a reply it cannot read', async () => {
+    reply = message => ({ id: message.id, output: 'on' });
+    const hostActions = await connectAsync();
+
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toThrow(
+      'sent a reply that this version of eas-cli cannot read'
+    );
   });
 
-  it('gives up when the simulator does not answer', async () => {
+  it('gives up on a request the simulator does not answer', async () => {
     reply = () => null;
+    const hostActions = await connectAsync(100);
 
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toThrow(
+      'The simulator did not answer within'
+    );
+  });
+
+  it('keeps a path on the API URL and drops its query', async () => {
     await expect(
-      runHostActionAsync(
-        { apiUrl, token: TOKEN },
-        { action: 'memoryWarning', params: {} },
-        { timeoutMs: 100 }
-      )
-    ).rejects.toThrow('The simulator did not answer within');
+      connectHostActionsAsync({ apiUrl: `${apiUrl}/preview?token=${TOKEN}`, token: TOKEN })
+    ).rejects.toThrow('refused the session token (HTTP 401)');
+    expect(requests).toEqual(['/preview/api']);
+  });
+
+  it('refuses a wrong token before it opens the socket', async () => {
+    await expect(connectHostActionsAsync({ apiUrl, token: 'wrong' })).rejects.toThrow(
+      'refused the session token (HTTP 401)'
+    );
+    expect(received).toEqual([]);
   });
 
   it('explains a preview server that does not report its simulator', async () => {
     apiBody = '<html>starting</html>';
 
-    await expect(
-      runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'memoryWarning', params: {} })
-    ).rejects.toThrow('did not report which simulator it streams');
-    expect(received).toEqual([]);
+    await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'did not report which simulator it streams'
+    );
   });
 
-  it('fails at once on a reply it cannot read', async () => {
-    reply = message => ({ id: message.id, output: 'on' });
+  it('uploads a file in order and returns where the simulator host stored it', async () => {
+    const localFile = path.join(tmpDir, 'MyApp.ipa');
+    await fs.writeFile(localFile, 'hello simulator');
+    const hostActions = await connectAsync();
+
+    const upload = await uploadFileAsync(hostActions, localFile, { chunkBytes: 4 });
+
+    expect(upload.uploadId).toMatch(/^eas-cli-[0-9a-f-]{36}\.ipa$/);
+    expect(upload.path).toBe(`/tmp/serve-sim-uploads/${upload.uploadId}`);
+    expect(uploads.get(upload.uploadId)?.toString()).toBe('hello simulator');
+    expect(received.map(message => message.params.first)).toEqual([true, false, false, false]);
+  });
+
+  it('refuses to upload an empty file', async () => {
+    const localFile = path.join(tmpDir, 'empty.png');
+    await fs.writeFile(localFile, '');
+    const hostActions = await connectAsync();
+
+    await expect(uploadFileAsync(hostActions, localFile)).rejects.toThrow(`${localFile} is empty.`);
+  });
+
+  it('downloads a file the action left on the simulator host', async () => {
+    const hostActions = await connectAsync();
+    const outputPath = path.join(tmpDir, 'shot.png');
+
+    const saved = await saveHostActionOutputAsync(
+      hostActions,
+      entry('screenshot.capture'),
+      {},
+      '/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png\n',
+      outputPath
+    );
+
+    expect(saved).toBe(outputPath);
+    expect(received.at(-1)).toMatchObject({
+      action: 'file.readBase64',
+      params: { path: '/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png' },
+    });
+    expect(await fs.readFile(outputPath, 'utf8')).toBe('png bytes');
+  });
+
+  it('saves a file the action returned and needs a name for it', async () => {
+    const hostActions = await connectAsync();
+    const outputPath = path.join(tmpDir, 'Info.plist');
+
+    await saveHostActionOutputAsync(
+      hostActions,
+      entry('file.readBase64'),
+      {},
+      Buffer.from('plist').toString('base64'),
+      outputPath
+    );
+
+    expect(await fs.readFile(outputPath, 'utf8')).toBe('plist');
+    await expect(
+      saveHostActionOutputAsync(hostActions, { output: 'base64' }, {}, '', undefined)
+    ).rejects.toThrow('Pass --output with the path to save it to.');
+  });
+
+  it('saves nothing for an action that returns no file', async () => {
+    const hostActions = await connectAsync();
 
     await expect(
-      runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'memoryWarning', params: {} })
-    ).rejects.toThrow('sent a reply that this version of eas-cli cannot read');
+      saveHostActionOutputAsync(hostActions, entry('hardwareKeyboard.set'), {}, 'on', undefined)
+    ).resolves.toBeNull();
   });
 });
