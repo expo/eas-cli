@@ -167,7 +167,10 @@ export async function runAgentDeviceRemoteSessionAsync(
       networkCaptureFields: capture.networkCaptureFields,
     });
     tasks.signal.throwIfAborted();
-    const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+    const webPreview = await sessionHost.openPreviewAsync({
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+    });
     taskLogger.info(
       `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
     );

@@ -25,6 +25,7 @@ import {
   findAvailablePortAsync,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  omitNgrokAuthtoken,
   startNgrokTunnelAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -91,9 +92,10 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
     name: 'Start local egress',
     __metricsId: 'eas/start_local_egress',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX],
-    fn: async ({ logger, global }, { env, signal }) => {
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+    fn: async ({ logger, global }, { env: stepEnv, signal }) => {
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
       const isAndroid = global?.runtimePlatform === BuildRuntimePlatform.LINUX;
       let workDir: string | undefined;
       let server: DetachedProcessHandle | undefined;

@@ -41,7 +41,8 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
 }));
 
 const ctx = {} as CustomBuildContext;
-const env = {} as BuildStepEnv;
+const env = { NGROK_AUTHTOKEN: 'ngrok-token', PATH: '/usr/bin' } as BuildStepEnv;
+const childEnv = { PATH: '/usr/bin' } as BuildStepEnv;
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const stopAsync = jest.fn();
 
@@ -137,7 +138,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(selectsXcode ? 1 : 0);
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, {
       runtimePlatform,
-      env,
+      env: childEnv,
       logger,
       timeoutMs: 60_000,
       signal: undefined,
@@ -154,6 +155,11 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       openUrl: undefined,
       networkCapture: false,
       networkCaptureFields: [],
+    });
+    const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
+    expect(host.openPreviewAsync).toHaveBeenCalledWith({
+      baseDomain: 'tunnel.example.com',
+      authtoken: 'ngrok-token',
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,

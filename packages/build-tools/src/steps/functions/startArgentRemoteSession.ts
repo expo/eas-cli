@@ -41,6 +41,7 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  omitNgrokAuthtoken,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -100,14 +101,15 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env: stepEnv, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
       // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(stepEnv);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       // A missing or non-positive value disables the idle timeout (opt-in feature).
@@ -287,7 +289,10 @@ export function createStartArgentRemoteSessionBuildFunction(
           networkCapture,
           networkCaptureFields,
         });
-        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+        const webPreview = await sessionHost.openPreviewAsync({
+          baseDomain: ngrokTunnelDomain,
+          authtoken: ngrokAuthtoken,
+        });
         logger.info(
           `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
         );
