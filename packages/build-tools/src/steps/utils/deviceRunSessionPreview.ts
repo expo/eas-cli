@@ -1,7 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
 import { createWriteStream } from 'node:fs';
@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { killProcessGroup } from '../../utils/processes';
 
 const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
@@ -146,18 +147,47 @@ export function startDeviceRunSessionPreview({
 export async function ensureMacosPreviewEncoderInstalledAsync({
   env,
   logger,
+  signal,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
-  if ((await asyncResult(spawn('cwebp', ['-version'], { env, stdio: 'pipe' }))).ok) {
+  const probe = await asyncResult(
+    runEncoderCommandAsync('cwebp', ['-version'], { env, stdio: 'pipe' }, signal)
+  );
+  if (probe.ok) {
     return;
   }
+  signal?.throwIfAborted();
   logger.info('Installing webp with Homebrew for the session preview.');
-  await spawn('brew', ['install', 'webp'], {
-    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-    logger,
-  });
+  await runEncoderCommandAsync(
+    'brew',
+    ['install', 'webp'],
+    { env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+    signal
+  );
+}
+
+async function runEncoderCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal?.throwIfAborted();
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 export async function captureDeviceRunSessionPreviewAsync({

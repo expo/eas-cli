@@ -53,10 +53,12 @@ jest.mock('../deviceRunSessionScreenRecordings', () => ({
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>(r => {
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((r, j) => {
     resolve = r;
+    reject = j;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 const env = {
@@ -787,22 +789,54 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
-it('does not delay macOS readiness on encoder setup or start the preview after finish', async () => {
-  const install = deferred<void>();
-  jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockReturnValueOnce(install.promise);
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    separateLogPhase: true,
-    timeoutMs: 10_000,
-  });
-  await host.finishAsync();
-  install.resolve();
-  await new Promise(resolve => setImmediate(resolve));
-  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
-  expect(stopServer).toHaveBeenCalledTimes(1);
-});
+it.each(['success', 'failure'])(
+  'keeps macOS readiness nonblocking and drains encoder setup %s before ending the phase',
+  async result => {
+    const install = deferred<void>();
+    jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockReturnValueOnce(install.promise);
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    });
+    const setupLogger = jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mock.calls[0][0]
+      .logger;
+    const finishing = host.finishAsync();
+    expect(host.finishAsync()).toBe(finishing);
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      expect(logger.info).not.toHaveBeenCalledWith(
+        expect.objectContaining({ marker: LogMarker.END_PHASE }),
+        expect.any(String)
+      );
+      expect(
+        jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mock.calls[0][0].signal?.aborted
+      ).toBe(true);
+      setupLogger.info('last encoder output');
+      if (result === 'failure') {
+        install.reject(new Error('encoder stopped'));
+      } else {
+        install.resolve();
+      }
+      await finishing;
+      const calls = jest.mocked(logger.info).mock.calls;
+      expect(calls.findIndex(([message]) => message === 'last encoder output')).toBeLessThan(
+        calls.findIndex(([record]) => record?.marker === LogMarker.END_PHASE)
+      );
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'Could not start refreshing the session preview.'
+      );
+      expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+      expect(stopServer).toHaveBeenCalledTimes(1);
+    } finally {
+      install.resolve();
+      await finishing;
+    }
+  }
+);
 
 it('keeps the session running when encoder setup for the preview fails', async () => {
   jest

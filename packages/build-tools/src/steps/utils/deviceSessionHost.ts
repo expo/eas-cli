@@ -423,6 +423,8 @@ async function startDeviceSessionHostInternalAsync(
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
+  const previewSetupController = new AbortController();
+  let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
 
   const host: DeviceSessionHost = {
@@ -483,7 +485,11 @@ async function startDeviceSessionHostInternalAsync(
     finishAsync() {
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
         previewTask,
-        stopSessionPreviewAsync: async () => await sessionPreview?.stopAsync(),
+        stopSessionPreviewAsync: async () => {
+          previewSetupController.abort();
+          await previewSetupTask;
+          await sessionPreview?.stopAsync();
+        },
         previewServer,
         screenshots,
         serverName,
@@ -523,9 +529,13 @@ async function startDeviceSessionHostInternalAsync(
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.
-    void (async () => {
+    previewSetupTask = (async () => {
       if (!isAndroid) {
-        await ensureMacosPreviewEncoderInstalledAsync({ env, logger });
+        await ensureMacosPreviewEncoderInstalledAsync({
+          env,
+          logger,
+          signal: previewSetupController.signal,
+        });
       }
       if (!finishTask) {
         sessionPreview = startDeviceRunSessionPreview({
@@ -542,7 +552,9 @@ async function startDeviceSessionHostInternalAsync(
         });
       }
     })().catch(err => {
-      logger.warn({ err }, 'Could not start refreshing the session preview.');
+      if (!previewSetupController.signal.aborted) {
+        logger.warn({ err }, 'Could not start refreshing the session preview.');
+      }
     });
     return host;
   } catch (error) {
