@@ -54,6 +54,25 @@ describe(buildHostActionParams, () => {
     });
   });
 
+  it('reads JSON for a parameter that takes a list', () => {
+    const launch = {
+      type: 'object',
+      properties: {
+        udid: { type: 'string' },
+        bundleId: { type: 'string' },
+        launchArgs: { type: 'array', items: { type: 'string' } },
+      },
+    };
+
+    expect(
+      buildHostActionParams('app.launch', launch, ['com.example.app', '["-FIRDebugEnabled"]'])
+    ).toEqual({ bundleId: 'com.example.app', launchArgs: ['-FIRDebugEnabled'] });
+    expect(buildHostActionParams('app.launch', launch, ['com.example.app', '[oops'])).toEqual({
+      bundleId: 'com.example.app',
+      launchArgs: '[oops',
+    });
+  });
+
   it('fills the values in order around the named ones', () => {
     expect(buildHostActionParams('location.set', entry('location.set'), ['lat=1', '2'])).toEqual({
       lat: 1,

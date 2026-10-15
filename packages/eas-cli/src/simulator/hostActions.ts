@@ -31,6 +31,7 @@ const CatalogEntry = SchemaNode.extend({
   description: z.string().optional(),
   args: z.array(z.string()).optional(),
   upload: z.string().optional(),
+  uploadAs: z.enum(['path', 'id']).optional(),
   uploadWhen: z.record(z.string(), z.unknown()).optional(),
   keepUpload: z.boolean().optional(),
   output: z.enum(['path', 'base64']).optional(),
@@ -328,6 +329,13 @@ function acceptsType(schema: unknown, types: string[]): boolean {
 }
 
 function coerce(value: string, schemas: unknown[]): unknown {
+  if (/^[[{]/.test(value) && schemas.some(schema => acceptsType(schema, ['array', 'object']))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
   if (NUMBER.test(value) && schemas.some(schema => acceptsType(schema, ['number', 'integer']))) {
     return Number(value);
   }

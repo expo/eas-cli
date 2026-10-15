@@ -179,7 +179,7 @@ export default class SimulatorControl extends EasCommand {
         spinner.text = `Uploading ${localFile.path}`;
         const upload = await uploadFileAsync(connection, localFile.path);
         uploadId = upload.uploadId;
-        params[localFile.param] = upload.path;
+        params[localFile.param] = entry.uploadAs === 'id' ? upload.uploadId : upload.path;
         spinner.text = `Running ${action} on simulator session ${sessionId}`;
       }
       const result = await connection.requestAsync(action, params);

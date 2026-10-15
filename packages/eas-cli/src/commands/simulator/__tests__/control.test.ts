@@ -98,12 +98,13 @@ describe(SimulatorControl, () => {
   const projectDir = '/test/project';
   const ok = (stdout: string): HostActionResult => ({ stdout, stderr: '', exitCode: 0 });
   let actionResult: HostActionResult;
+  let served: HostActionCatalog;
   let tmpDir: string;
   const requestAsync = jest.fn(
     async (action: string, params: Record<string, unknown> = {}): Promise<HostActionResult> => {
       switch (action) {
         case 'actions.describe':
-          return ok(JSON.stringify(catalog));
+          return ok(JSON.stringify(served));
         case 'upload.append':
           return ok(`/tmp/serve-sim-uploads/${params.uploadId}\n`);
         case 'upload.remove':
@@ -123,6 +124,7 @@ describe(SimulatorControl, () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockConnectHostActionsAsync.mockResolvedValue({ requestAsync, close });
     actionResult = ok('off\n');
+    served = catalog;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'simulator-control-'));
   });
 
@@ -198,6 +200,46 @@ describe(SimulatorControl, () => {
         { uploadId, data: Buffer.from('app bytes').toString('base64'), first: true },
       ],
       ['app.install', { path: `/tmp/serve-sim-uploads/${uploadId}` }],
+      ['upload.remove', { uploadId }],
+    ]);
+  });
+
+  it('sends the upload ID to an action that asks for it', async () => {
+    const localFile = path.join(tmpDir, 'session.json');
+    await fs.writeFile(localFile, '{}');
+    actionResult = ok('');
+    served = {
+      ...catalog,
+      'app.file.upload': {
+        type: 'object',
+        properties: {
+          udid: { type: 'string' },
+          bundleId: { type: 'string' },
+          relativePath: { type: 'string' },
+          uploadId: { type: 'string' },
+        },
+        upload: 'uploadId',
+        uploadAs: 'id',
+      },
+    };
+
+    await createCommand([
+      'app.file.upload',
+      'com.example.app',
+      'Documents/session.json',
+      localFile,
+      '--id',
+      'session-123',
+    ]).runAsync();
+
+    const requests = actionRequests();
+    const uploadId = requests[0][1]?.uploadId;
+    expect(requests).toEqual([
+      ['upload.append', { uploadId, data: Buffer.from('{}').toString('base64'), first: true }],
+      [
+        'app.file.upload',
+        { bundleId: 'com.example.app', relativePath: 'Documents/session.json', uploadId },
+      ],
       ['upload.remove', { uploadId }],
     ]);
   });
