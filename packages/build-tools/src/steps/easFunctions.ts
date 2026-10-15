@@ -61,8 +61,12 @@ import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/sta
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
+import { createRecordServeSimNetworkCaptureBuildFunction } from './functions/recordServeSimNetworkCapture';
+import { createStartServeSimCrashesBuildFunction } from './functions/startServeSimCrashes';
+import { createCollectServeSimCrashesBuildFunction } from './functions/collectServeSimCrashes';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
+import { createCollectServeSimNetworkCaptureBuildFunction } from './functions/collectServeSimNetworkCapture';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbeddedBundle';
@@ -123,10 +127,14 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
+    createStartServeSimCrashesBuildFunction(),
+    createCollectServeSimCrashesBuildFunction(ctx),
     createCollectServeSimLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
+    createRecordServeSimNetworkCaptureBuildFunction(),
+    createCollectServeSimNetworkCaptureBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
     createInstallMitmproxyBuildFunction(),
 

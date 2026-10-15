@@ -18,8 +18,10 @@ import {
 } from '../deviceRunSessionPreview';
 import { startDeviceSessionHostAsync } from '../deviceSessionHost';
 import { ensureFfmpegInstalledOnceAsync, spawnDetached } from '../remoteDeviceRunSession';
+import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../serveSimCrashesRecorder');
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
@@ -82,6 +84,7 @@ beforeEach(() => {
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
   jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockResolvedValue(undefined);
   stopServer.mockResolvedValue(undefined);
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockReset().mockResolvedValue(undefined);
   closeTunnel.mockResolvedValue(undefined);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset().mockResolvedValue(false);
   jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
@@ -573,4 +576,19 @@ it('keeps the session running when encoder setup for the preview fails', async (
     'Could not start refreshing the session preview.'
   );
   await host.finishAsync();
+});
+it('finishes in-flight crash collection before stopping the host', async () => {
+  const host = await startHostAsync();
+  const collecting = deferred<void>();
+  const entered = deferred<void>();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockImplementationOnce(async () => {
+    entered.resolve();
+    await collecting.promise;
+  });
+  const finishing = host.finishAsync();
+  await entered.promise;
+  expect(stopServer).not.toHaveBeenCalled();
+  collecting.resolve();
+  await finishing;
+  expect(stopServer).toHaveBeenCalledTimes(1);
 });
