@@ -717,6 +717,53 @@ export function spawnDetached({
   };
 }
 
+export function createIosSessionStartupInputProviders(): ReturnType<
+  typeof BuildStepInput.createProvider
+>[] {
+  return [
+    BuildStepInput.createProvider({
+      id: 'boot_simulator',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    }),
+    ...['device_identifier', 'install_app_path'].map(id =>
+      BuildStepInput.createProvider({
+        id,
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      })
+    ),
+  ];
+}
+
+export type ServeSimApplicationOptions = ServeSimLaunchOptions & {
+  installAppPath: string;
+  launchAppIdentifier: string;
+};
+
+export function validateServeSimLaunchOptions({
+  launchArgs = [],
+  openUrl,
+}: Pick<ServeSimLaunchOptions, 'launchArgs' | 'openUrl'>): void {
+  // Reject oversized iOS command arguments before starting the host.
+  if (
+    launchArgs.length > 256 ||
+    launchArgs.some(arg => arg.length > 8192 || arg.includes('\0')) ||
+    launchArgs.reduce((bytes, arg) => bytes + Buffer.byteLength(arg) + 1, 0) > 128 * 1024
+  ) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'iOS launch_args supports up to 256 arguments of 8192 characters each, without NUL, and at most 128 KiB total UTF-8 bytes including terminators.'
+    );
+  }
+  if (openUrl && (openUrl.length > 8192 || openUrl.includes('\0'))) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'iOS open_url supports at most 8192 characters, without NUL.'
+    );
+  }
+}
+
 export interface ServeSimLaunchOptions {
   launchAppIdentifier?: string;
   launchArgs?: string[];
