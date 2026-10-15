@@ -20,6 +20,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ## [24.13.0](https://github.com/expo/eas-cli/releases/tag/v24.13.0) - 2026-10-12
 
+- [eas-cli] Write the reason a command failed to stderr, next to the `command failed.` line, instead of to stdout. A program that reads the reason from stdout must read stderr instead. ([#4592](https://github.com/expo/eas-cli/pull/4592) by [@vonovak](https://github.com/vonovak))
+
 ### 🎉 New features
 
 - [build-tools] Let the MCP server read text and image files from sandboxes. ([#4555](https://github.com/expo/eas-cli/pull/4555) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
@@ -35,6 +37,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Print the notice about eas-cli in project dependencies only when stderr is a terminal, so programs that read stderr get the command's error. ([#4591](https://github.com/expo/eas-cli/pull/4591) by [@vonovak](https://github.com/vonovak))
 - [build-tools] Look up ffmpeg on PATH instead of running it. ([#4582](https://github.com/expo/eas-cli/pull/4582) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Stop reporting individual App Store Connect API keys as not valid on Apple's servers when adding them in `eas credentials`. ([#4588](https://github.com/expo/eas-cli/pull/4588) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Install ffmpeg for Appium simulator sessions. ([#4577](https://github.com/expo/eas-cli/pull/4577) by [@gwdp](https://github.com/gwdp))
