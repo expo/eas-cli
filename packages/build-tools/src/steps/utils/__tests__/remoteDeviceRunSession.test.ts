@@ -71,6 +71,7 @@ function createLoggerMock(): bunyan {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
   } as unknown as bunyan;
 }
 
@@ -677,6 +678,43 @@ describe(waitForWebPreviewReadyAsync, () => {
 });
 
 describe(startNgrokTunnelAsync, () => {
+  it.each(['rejected', 'stalled'] as const)(
+    'retains a %s close failure on repeated stops',
+    async mode => {
+      jest.useFakeTimers();
+      try {
+        const failure = new Error('close failed');
+        const close = jest
+          .fn()
+          .mockImplementation(() =>
+            mode === 'rejected' ? Promise.reject(failure) : new Promise<void>(() => {})
+          );
+        jest.mocked(ngrok.forward).mockResolvedValue({
+          url: () => 'https://web-preview.example.test',
+          close,
+        } as never);
+        const tunnel = await startNgrokTunnelAsync({
+          port: 4321,
+          subdomainPrefix: 'web-preview',
+          baseDomain: 'eas-simulator.ngrok.dev',
+          authtoken: 'token',
+          logger: createLoggerMock(),
+        });
+        const stopping = tunnel.stopAsync();
+        const assertion = expect(stopping).rejects.toThrow(
+          mode === 'rejected' ? 'close failed' : 'Ngrok tunnel stop timed out after 4000ms.'
+        );
+        expect(tunnel.stopAsync()).toBe(stopping);
+        await jest.advanceTimersByTimeAsync(4_000);
+        await assertion;
+        await expect(tunnel.stopAsync()).rejects.toThrow();
+        expect(close).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+  );
+
   it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
@@ -716,7 +754,15 @@ describe('spawnDetached process group shutdown', () => {
 
   beforeEach(() => {
     const spawned = Object.assign(Promise.resolve(undefined), {
-      child: { pid: 4321, unref: jest.fn(), once: jest.fn() },
+      child: {
+        pid: 4321,
+        unref: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
+      },
     });
     jest.mocked(spawn).mockReturnValue(spawned as never);
   });
@@ -751,7 +797,16 @@ describe('spawnDetached process group shutdown', () => {
   });
 
   it('kills a detached child that outlives the shutdown deadline', async () => {
-    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+    let killed = false;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -4321 && signal === 'SIGKILL') {
+        killed = true;
+      }
+      if (killed && signal === 0) {
+        throw Object.assign(new Error('Process group exited'), { code: 'ESRCH' });
+      }
+      return true;
+    });
 
     const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 0 });
     await detached.stopAsync();
@@ -790,7 +845,11 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
       },
     });
     jest.mocked(spawn).mockReturnValue(spawnPromise as never);
