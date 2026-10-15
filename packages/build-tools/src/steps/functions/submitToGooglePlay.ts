@@ -185,7 +185,7 @@ async function submitToGooglePlayAsync({
       `Submitting ${packageName} (${artifactType}) to track ${JSON.stringify(submission.track)}.`
     );
     logger.info(
-      `Release status: ${release.status}. Rollout: ${release.userFraction === undefined ? 'none' : `${release.userFraction * 100}%`}.`
+      `Release status: ${release.status}. Rollout: ${release.userFraction === undefined ? 'none' : new Intl.NumberFormat('en-US', { style: 'percent', maximumSignificantDigits: 15 }).format(release.userFraction)}.`
     );
     if (submission.release_status !== release.status) {
       logger.info(
@@ -228,7 +228,8 @@ async function submitToGooglePlayAsync({
       changelog: submission.changelog ? { locale: 'en-US', text: submission.changelog } : undefined,
       signal,
     });
-    logger.info(`Saving the release to Google Play track ${JSON.stringify(submission.track)}...`);
+    logger.info(`Updated Google Play track ${JSON.stringify(submission.track)} in the edit.`);
+    logger.info('Committing the Google Play edit...');
     // Commit also validates the edit.
     await GooglePlayUtils.commitEditAsync(client, {
       packageName,
