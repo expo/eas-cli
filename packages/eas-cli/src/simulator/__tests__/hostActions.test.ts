@@ -3,7 +3,7 @@ import http from 'node:http';
 import { AddressInfo } from 'node:net';
 import { WebSocketServer } from 'ws';
 
-import { getPreviewApiAccess, resolveHostActionRequest, runHostActionAsync } from '../hostActions';
+import { resolveHostActionRequest, runHostActionAsync } from '../hostActions';
 
 const UDID = '90858C9D-BC34-4A0A-93D4-E4939A681A72';
 const TOKEN = 'preview-token_123';
@@ -65,45 +65,33 @@ describe(resolveHostActionRequest, () => {
     expect(() => resolveHostActionRequest('ca-debug', ['blended'])).toThrow(
       'Usage: eas simulator:action ca-debug'
     );
-  });
-});
-
-describe(getPreviewApiAccess, () => {
-  it('reads the preview token for each remote config type', () => {
-    expect(
-      getPreviewApiAccess({
-        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
-        previewUrl: 'https://expo.dev/preview',
-        previewToken: TOKEN,
-        previewApiUrl: 'https://sim.example.test',
-      })
-    ).toEqual({ apiUrl: 'https://sim.example.test', token: TOKEN });
-    expect(
-      getPreviewApiAccess({
-        __typename: 'AgentDeviceRunSessionRemoteConfig',
-        agentDeviceRemoteSessionUrl: 'https://agent.example.test',
-        agentDeviceRemoteSessionToken: 'agent-token',
-        webPreviewToken: TOKEN,
-        previewApiUrl: 'https://sim.example.test',
-      })
-    ).toEqual({ apiUrl: 'https://sim.example.test', token: TOKEN });
+    expect(() => resolveHostActionRequest('memory-warning', ['now'])).toThrow(
+      'Usage: eas simulator:action memory-warning'
+    );
   });
 
-  it('returns null without an API URL or a token', () => {
-    expect(
-      getPreviewApiAccess({
-        __typename: 'ServeSimRunSessionRemoteConfig',
-        previewUrl: 'https://sim.example.test',
-        previewToken: TOKEN,
-      })
-    ).toBeNull();
-    expect(
-      getPreviewApiAccess({
-        __typename: 'ServeSimRunSessionRemoteConfig',
-        previewUrl: 'https://sim.example.test',
-        previewApiUrl: 'https://sim.example.test',
-      })
-    ).toBeNull();
+  it('refuses a flag that the action does not use', () => {
+    expect(() => resolveHostActionRequest('settings', [], { limit: 5 })).toThrow(
+      'The --limit flag works only with the event-log action.'
+    );
+    expect(() =>
+      resolveHostActionRequest('event-log', [], { bundleId: 'com.example.app' })
+    ).toThrow('The --bundle-id flag works only with the permissions action.');
+  });
+
+  it('sends a hinge value that is not a plain number as text', () => {
+    expect(resolveHostActionRequest('hinge', ['12.5'])).toEqual({
+      action: 'hinge.set',
+      params: { value: 12.5 },
+    });
+    expect(resolveHostActionRequest('hinge', [' '])).toEqual({
+      action: 'hinge.set',
+      params: { value: ' ' },
+    });
+    expect(resolveHostActionRequest('hinge', ['0x10'])).toEqual({
+      action: 'hinge.set',
+      params: { value: '0x10' },
+    });
   });
 });
 
@@ -192,7 +180,7 @@ describe(runHostActionAsync, () => {
 
     await expect(
       runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'caDebug.set', params: {} })
-    ).rejects.toThrow('does not support "caDebug.set"');
+    ).rejects.toThrow('does not support this action');
   });
 
   it('passes a validation error from the simulator through', async () => {
@@ -206,7 +194,9 @@ describe(runHostActionAsync, () => {
         { apiUrl, token: TOKEN },
         { action: 'hardwareKeyboard.set', params: { value: 'maybe' } }
       )
-    ).rejects.toThrow('value must be one of on, off');
+    ).rejects.toThrow(
+      'The simulator refused the request: hardwareKeyboard.set: value must be one of on, off'
+    );
   });
 
   it('refuses a wrong token before it opens the socket', async () => {
@@ -225,6 +215,14 @@ describe(runHostActionAsync, () => {
         { action: 'memoryWarning', params: {} },
         { timeoutMs: 100 }
       )
-    ).rejects.toThrow('did not answer "memoryWarning"');
+    ).rejects.toThrow('The simulator did not answer within');
+  });
+
+  it('fails at once on a reply it cannot read', async () => {
+    reply = message => ({ id: message.id, output: 'on' });
+
+    await expect(
+      runHostActionAsync({ apiUrl, token: TOKEN }, { action: 'memoryWarning', params: {} })
+    ).rejects.toThrow('sent a reply that this version of eas-cli cannot read');
   });
 });

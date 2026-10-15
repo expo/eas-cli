@@ -1,61 +1,108 @@
 import WebSocket from 'ws';
 import { z } from 'zod';
 
+import { PreviewApiAccess } from './utils';
 import fetch, { RequestError, httpsProxyAgent } from '../fetch';
-import { DeviceRunSessionByIdQuery } from '../graphql/generated';
 
-type DeviceRunSessionRemoteConfig = NonNullable<
-  DeviceRunSessionByIdQuery['deviceRunSessions']['byId']['remoteConfig']
->;
-
-export interface PreviewApiAccess {
-  apiUrl: string;
-  token: string;
-}
-
-export interface HostActionRequest {
+export type HostActionRequest = {
   action: string;
   params: Record<string, unknown>;
-}
+};
 
-export interface HostActionResult {
+export type HostActionResult = {
   stdout: string;
   stderr: string;
   exitCode: number;
+};
+
+type HostActionOptions = {
+  bundleId?: string;
+  limit?: number;
+};
+
+type HostActionSpec = {
+  args: string;
+  jsonOutput?: boolean;
+  toRequest: (values: string[], options: HostActionOptions) => HostActionRequest | null;
+};
+
+function setting(prefix: string): HostActionSpec {
+  return {
+    args: '[value]',
+    toRequest: values => {
+      if (values.length === 0) {
+        return { action: `${prefix}.get`, params: {} };
+      }
+      if (values.length === 1) {
+        return { action: `${prefix}.set`, params: { value: values[0] } };
+      }
+      return null;
+    },
+  };
 }
 
-const SETTINGS = {
-  'hardware-keyboard': 'hardwareKeyboard',
-  'reduce-motion': 'reduceMotion',
-  'increase-contrast': 'increaseContrast',
-  'reduce-transparency': 'reduceTransparency',
-  voiceover: 'voiceover',
-  'liquid-glass': 'liquidGlass',
-  'color-filter': 'colorFilter',
-  'text-size': 'textSize',
-  'show-borders': 'showBorders',
-} as const;
+function withoutValues(action: string, params: Record<string, unknown> = {}): HostActionSpec {
+  return {
+    args: '',
+    toRequest: values => (values.length === 0 ? { action, params } : null),
+  };
+}
 
-const COMMANDS = {
-  settings: { action: 'settings.status', usage: 'settings' },
-  'software-keyboard': { action: 'softwareKeyboard.toggle', usage: 'software-keyboard' },
-  'memory-warning': { action: 'memoryWarning', usage: 'memory-warning' },
+const HOST_ACTIONS: Record<string, HostActionSpec> = {
+  'hardware-keyboard': setting('hardwareKeyboard'),
+  'reduce-motion': setting('reduceMotion'),
+  'increase-contrast': setting('increaseContrast'),
+  'reduce-transparency': setting('reduceTransparency'),
+  voiceover: setting('voiceover'),
+  'liquid-glass': setting('liquidGlass'),
+  'color-filter': setting('colorFilter'),
+  'text-size': setting('textSize'),
+  'show-borders': setting('showBorders'),
+  settings: { ...withoutValues('settings.status'), jsonOutput: true },
+  'software-keyboard': withoutValues('softwareKeyboard.toggle'),
+  'memory-warning': withoutValues('memoryWarning'),
   'ca-debug': {
-    action: 'caDebug.set',
-    usage: 'ca-debug <blended|copies|misaligned|offscreen|slow-animations> <on|off>',
+    args: '<blended|copies|misaligned|offscreen|slow-animations> <on|off>',
+    toRequest: values =>
+      values.length === 2
+        ? { action: 'caDebug.set', params: { option: values[0], value: values[1] } }
+        : null,
   },
-  hinge: { action: 'hinge.set', usage: 'hinge <fold|half|unfold|0-180>' },
-  permissions: { action: 'permissions.list', usage: 'permissions [--bundle-id <id>]' },
-  'event-log': { action: 'eventLog.list', usage: 'event-log [--limit <count>]' },
-} as const;
+  hinge: {
+    args: '<fold|half|unfold|0-180>',
+    toRequest: ([value, ...rest]) =>
+      value !== undefined && rest.length === 0
+        ? {
+            action: 'hinge.set',
+            params: { value: /^\d+(\.\d+)?$/.test(value) ? Number(value) : value },
+          }
+        : null,
+  },
+  permissions: {
+    args: '[--bundle-id <id>]',
+    jsonOutput: true,
+    toRequest: (values, { bundleId }) =>
+      values.length === 0
+        ? { action: 'permissions.list', params: bundleId ? { bundleId } : {} }
+        : null,
+  },
+  'event-log': {
+    args: '[--limit <count>]',
+    jsonOutput: true,
+    toRequest: (values, { limit }) =>
+      values.length === 0
+        ? { action: 'eventLog.list', params: limit !== undefined ? { limit } : {} }
+        : null,
+  },
+};
 
-export const HOST_ACTION_NAMES = [...Object.keys(SETTINGS), ...Object.keys(COMMANDS)];
+export const HOST_ACTION_NAMES = Object.keys(HOST_ACTIONS);
 
-export const JSON_OUTPUT_ACTIONS = new Set(['settings', 'permissions', 'event-log']);
-
-const HOST_ACTION_TIMEOUT_MS = 30_000;
+const HOST_ACTION_TIMEOUT_MS = 130_000;
 
 const PreviewConfig = z.object({ device: z.string().min(1) });
+
+const ReplyToRequest = z.object({ id: z.literal(1) });
 
 const SocketMessage = z.union([
   z.object({ ready: z.literal(true) }),
@@ -68,101 +115,40 @@ const SocketMessage = z.union([
   }),
 ]);
 
-function isSetting(name: string): name is keyof typeof SETTINGS {
-  return Object.hasOwn(SETTINGS, name);
+export function formatHostActionUsage(): string {
+  return Object.entries(HOST_ACTIONS)
+    .map(([name, spec]) => `${name} ${spec.args}`.trim())
+    .join('\n');
 }
 
-export function formatHostActionUsage(): string {
-  return [
-    ...Object.keys(SETTINGS).map(name => `${name} [value]`),
-    ...Object.values(COMMANDS).map(command => command.usage),
-  ].join('\n');
+export function hostActionPrintsJson(name: string): boolean {
+  return Object.hasOwn(HOST_ACTIONS, name) && HOST_ACTIONS[name].jsonOutput === true;
 }
 
 export function resolveHostActionRequest(
   name: string,
   values: string[],
-  options: { bundleId?: string; limit?: number } = {}
+  options: HostActionOptions = {}
 ): HostActionRequest {
-  if (isSetting(name)) {
-    const setting = SETTINGS[name];
-    if (values.length === 0) {
-      return { action: `${setting}.get`, params: {} };
-    }
-    if (values.length === 1) {
-      return { action: `${setting}.set`, params: { value: values[0] } };
-    }
-    throw invalidArgumentsError(name, `${name} [value]`);
+  if (!Object.hasOwn(HOST_ACTIONS, name)) {
+    throw new Error(
+      `Unknown simulator action "${name}". Use one of: ${HOST_ACTION_NAMES.join(', ')}.`
+    );
   }
-  switch (name) {
-    case 'settings':
-    case 'software-keyboard':
-    case 'memory-warning':
-      if (values.length > 0) {
-        throw invalidArgumentsError(name, COMMANDS[name].usage);
-      }
-      return { action: COMMANDS[name].action, params: {} };
-    case 'ca-debug':
-      if (values.length !== 2) {
-        throw invalidArgumentsError(name, COMMANDS[name].usage);
-      }
-      return { action: COMMANDS[name].action, params: { option: values[0], value: values[1] } };
-    case 'hinge': {
-      if (values.length !== 1) {
-        throw invalidArgumentsError(name, COMMANDS[name].usage);
-      }
-      const angle = Number(values[0]);
-      return {
-        action: COMMANDS[name].action,
-        params: { value: values[0] !== '' && Number.isFinite(angle) ? angle : values[0] },
-      };
-    }
-    case 'permissions':
-      if (values.length > 0) {
-        throw invalidArgumentsError(name, COMMANDS[name].usage);
-      }
-      return {
-        action: COMMANDS[name].action,
-        params: options.bundleId ? { bundleId: options.bundleId } : {},
-      };
-    case 'event-log':
-      if (values.length > 0) {
-        throw invalidArgumentsError(name, COMMANDS[name].usage);
-      }
-      return {
-        action: COMMANDS[name].action,
-        params: options.limit !== undefined ? { limit: options.limit } : {},
-      };
-    default:
-      throw new Error(
-        `Unknown simulator action "${name}". Use one of: ${HOST_ACTION_NAMES.join(', ')}.`
-      );
+  if (options.bundleId !== undefined && name !== 'permissions') {
+    throw new Error('The --bundle-id flag works only with the permissions action.');
   }
-}
-
-function invalidArgumentsError(name: string, usage: string): Error {
-  return new Error(`Wrong arguments for "${name}". Usage: eas simulator:action ${usage}`);
-}
-
-export function getPreviewApiAccess(
-  remoteConfig: DeviceRunSessionRemoteConfig
-): PreviewApiAccess | null {
-  let token: string | null | undefined;
-  switch (remoteConfig.__typename) {
-    case 'ServeSimRunSessionRemoteConfig':
-    case 'WebPreviewOnlyRunSessionRemoteConfig':
-      token = remoteConfig.previewToken;
-      break;
-    case 'AgentDeviceRunSessionRemoteConfig':
-    case 'ArgentRunSessionRemoteConfig':
-    case 'AppiumRunSessionRemoteConfig':
-      token = remoteConfig.webPreviewToken;
-      break;
+  if (options.limit !== undefined && name !== 'event-log') {
+    throw new Error('The --limit flag works only with the event-log action.');
   }
-  if (!remoteConfig.previewApiUrl || !token) {
-    return null;
+  const spec = HOST_ACTIONS[name];
+  const request = spec.toRequest(values, options);
+  if (!request) {
+    throw new Error(
+      `Wrong arguments for "${name}". Usage: eas simulator:action ${`${name} ${spec.args}`.trim()}`
+    );
   }
-  return { apiUrl: remoteConfig.previewApiUrl, token };
+  return request;
 }
 
 function previewEndpoint(apiUrl: string, path: string): URL {
@@ -175,11 +161,21 @@ function previewEndpoint(apiUrl: string, path: string): URL {
   return new URL(path, base);
 }
 
-async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Promise<string> {
+function timeoutError(timeoutMs: number): Error {
+  return new Error(
+    `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
+  );
+}
+
+async function fetchSimulatorUdidAsync(
+  { apiUrl, token }: PreviewApiAccess,
+  timeoutMs: number
+): Promise<string> {
   let response;
   try {
     response = await fetch(previewEndpoint(apiUrl, 'api').toString(), {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     if (error instanceof RequestError && [401, 403].includes(error.response.status)) {
@@ -187,12 +183,15 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
         `The simulator preview server refused the session token (HTTP ${error.response.status}). Run \`eas simulator:get\` to check that the session still runs, then try again.`
       );
     }
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw timeoutError(timeoutMs);
+    }
     throw error;
   }
   const config = PreviewConfig.safeParse(await response.json());
   if (!config.success) {
     throw new Error(
-      'The simulator preview server did not report which simulator it streams. The session can still be starting. Wait a few seconds and run the command again.'
+      'The simulator preview server did not report which simulator it streams. The session may still be starting. Wait a few seconds and run the command again.'
     );
   }
   return config.data.device;
@@ -203,7 +202,7 @@ export async function runHostActionAsync(
   request: HostActionRequest,
   { timeoutMs = HOST_ACTION_TIMEOUT_MS }: { timeoutMs?: number } = {}
 ): Promise<HostActionResult> {
-  const udid = await fetchSimulatorUdidAsync(access);
+  const udid = await fetchSimulatorUdidAsync(access, timeoutMs);
   const socketUrl = previewEndpoint(access.apiUrl, 'exec-ws');
   socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
 
@@ -229,40 +228,48 @@ export async function runHostActionAsync(
       }
     }
     const timer = setTimeout(() => {
-      fail(
-        new Error(
-          `The simulator did not answer "${request.action}" within ${Math.round(timeoutMs / 1000)} seconds. Check that the session still runs with \`eas simulator:get\`, then try again.`
-        )
-      );
+      fail(timeoutError(timeoutMs));
     }, timeoutMs);
 
     ws.on('message', data => {
-      let parsed: z.infer<typeof SocketMessage>;
+      let message: unknown;
       try {
-        parsed = SocketMessage.parse(JSON.parse(data.toString()));
+        message = JSON.parse(data.toString());
       } catch {
         return;
       }
-      if ('ready' in parsed) {
+      const parsed = SocketMessage.safeParse(message);
+      if (!parsed.success) {
+        if (ReplyToRequest.safeParse(message).success) {
+          fail(
+            new Error(
+              'The simulator preview server sent a reply that this version of eas-cli cannot read. Update eas-cli and try again.'
+            )
+          );
+        }
+        return;
+      }
+      const reply = parsed.data;
+      if ('ready' in reply) {
         ws.send(
           JSON.stringify({ id: 1, action: request.action, params: { ...request.params, udid } })
         );
-      } else if ('error' in parsed) {
+      } else if ('error' in reply) {
         fail(
-          parsed.error.startsWith('unknown action')
+          reply.error.startsWith('unknown action')
             ? new Error(
-                `This simulator session runs a serve-sim version that does not support "${request.action}". Start a new session with \`eas simulator:start\` to get a newer version.`
+                'This simulator session runs a serve-sim version that does not support this action. Start a new session with `eas simulator:start` to get a newer version.'
               )
-            : new Error(`The simulator refused "${request.action}": ${parsed.error}`)
+            : new Error(`The simulator refused the request: ${reply.error}`)
         );
       } else if (settle()) {
-        resolve({ stdout: parsed.stdout, stderr: parsed.stderr, exitCode: parsed.exitCode });
+        resolve({ stdout: reply.stdout, stderr: reply.stderr, exitCode: reply.exitCode });
       }
     });
     ws.on('unexpected-response', (_req, res) => {
       fail(
         new Error(
-          `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token can be out of date. Run \`eas simulator:get\` to check the session, then try again.`
+          `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
         )
       );
     });
@@ -276,7 +283,7 @@ export async function runHostActionAsync(
     ws.on('close', () => {
       fail(
         new Error(
-          `The simulator preview server closed the connection before it answered "${request.action}". Try again.`
+          'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
         )
       );
     });

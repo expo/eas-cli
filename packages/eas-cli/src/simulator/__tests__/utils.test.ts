@@ -18,6 +18,7 @@ import {
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
   getLoopbackForwardPlan,
+  getPreviewApiAccess,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../utils';
@@ -614,5 +615,44 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
     expect(formatRemoteSessionInstructions(remoteConfig, 'dotenv')).not.toContain(
       'eas simulator:egress'
     );
+  });
+});
+
+describe(getPreviewApiAccess, () => {
+  it('reads the preview token for each remote config type', () => {
+    expect(
+      getPreviewApiAccess({
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+        previewUrl: 'https://expo.dev/preview',
+        previewToken: 'preview-token',
+        previewApiUrl: 'https://sim.example.test',
+      })
+    ).toEqual({ apiUrl: 'https://sim.example.test', token: 'preview-token' });
+    expect(
+      getPreviewApiAccess({
+        __typename: 'AgentDeviceRunSessionRemoteConfig',
+        agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+        agentDeviceRemoteSessionToken: 'agent-token',
+        webPreviewToken: 'preview-token',
+        previewApiUrl: 'https://sim.example.test',
+      })
+    ).toEqual({ apiUrl: 'https://sim.example.test', token: 'preview-token' });
+  });
+
+  it('returns null without an API URL or a token', () => {
+    expect(
+      getPreviewApiAccess({
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://sim.example.test',
+        previewToken: 'preview-token',
+      })
+    ).toBeNull();
+    expect(
+      getPreviewApiAccess({
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://sim.example.test',
+        previewApiUrl: 'https://sim.example.test',
+      })
+    ).toBeNull();
   });
 });

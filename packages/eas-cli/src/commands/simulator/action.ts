@@ -15,13 +15,12 @@ import {
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
 import {
-  HOST_ACTION_NAMES,
-  JSON_OUTPUT_ACTIONS,
   formatHostActionUsage,
-  getPreviewApiAccess,
+  hostActionPrintsJson,
   resolveHostActionRequest,
   runHostActionAsync,
 } from '../../simulator/hostActions';
+import { getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorAction extends EasCommand {
@@ -41,7 +40,7 @@ ${formatHostActionUsage()}`;
 
   static override args = {
     name: Args.string({
-      description: `Action to run. One of: ${HOST_ACTION_NAMES.join(', ')}. Values follow the name.`,
+      description: 'Action to run, followed by its values. See the list of actions above.',
       required: true,
     }),
   };
@@ -130,7 +129,7 @@ ${formatHostActionUsage()}`;
       printJsonOnlyOutput({
         id: sessionId,
         action: args.name,
-        output: JSON_OUTPUT_ACTIONS.has(args.name) ? parseJsonOutput(output) : output,
+        output: hostActionPrintsJson(args.name) ? parseJsonOutput(output) : output,
       });
       return;
     }
