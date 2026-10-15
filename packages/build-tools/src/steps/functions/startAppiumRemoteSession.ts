@@ -8,10 +8,11 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { type SpawnOptions, type SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -33,6 +34,7 @@ import {
   resolveConfiguredPackageManager,
   resolvePackageAdd,
 } from '../../utils/packageManager';
+import { killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
@@ -133,7 +135,9 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const startupSignal = signal
         ? AbortSignal.any([signal, startupAbortController.signal])
         : startupAbortController.signal;
+      const setupSignal = iosStartup ? startupSignal : undefined;
       let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
+      let sessionHost: DeviceSessionHost | undefined;
       let appiumProcess: ReturnType<typeof spawnDetached> | undefined;
       let appiumHome: string | undefined;
       let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
@@ -148,9 +152,15 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
           signal: startupSignal,
+          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
           ...launch,
           networkCapture,
           networkCaptureFields,
+        }).catch(error => {
+          if (iosStartup) {
+            startupAbortController.abort(error);
+          }
+          throw error;
         });
       try {
         if (iosStartup) {
@@ -159,15 +169,30 @@ export function createStartAppiumRemoteSessionBuildFunction(
         // Appium's startRecordingScreen runs ffmpeg on this host: XCUITest encodes the
         // simulator stream with it, and UiAutomator2 merges long recordings with it. The
         // macOS session image does not ship ffmpeg, so install it concurrently with Appium.
-        // Both installs settle before the step continues or fails, so no install outlives it.
+        // Both owned installs settle before proceeding; a shared FFmpeg install keeps its owner.
         const [appiumInstall] = await Promise.all([
           asyncResult(
-            installAppiumAsync({ versionSpec, driverName: device.driverName, env, logger })
+            installAppiumAsync({
+              versionSpec,
+              driverName: device.driverName,
+              env,
+              logger,
+              signal: setupSignal,
+              onError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+            }).catch(error => {
+              if (iosStartup) {
+                startupAbortController.abort(error);
+              }
+              throw error;
+            })
           ),
-          ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger }),
+          asyncResult(
+            ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal: setupSignal })
+          ),
         ]);
         const installation = appiumInstall.enforceValue();
         appiumHome = installation.appiumHome;
+        setupSignal?.throwIfAborted();
         const { appiumBinPath, appiumEnv } = installation;
         const wdaCapabilities = await preparePreinstalledWdaAsync({
           runtimeIdentifier: iosStartup
@@ -182,8 +207,10 @@ export function createStartAppiumRemoteSessionBuildFunction(
           appiumBinPath,
           appiumEnv,
           logger,
+          signal: setupSignal,
         });
 
+        setupSignal?.throwIfAborted();
         appiumProcess = spawnDetached({
           command: appiumBinPath,
           args: [
@@ -206,7 +233,11 @@ export function createStartAppiumRemoteSessionBuildFunction(
           env: appiumEnv,
           logger,
         });
-        await waitForAppiumReadyAsync({ appiumProcess, logger });
+        await waitForAppiumReadyAsync({ appiumProcess, logger, signal: setupSignal });
+        if (hostStartup) {
+          sessionHost = (await hostStartup).enforceValue();
+        }
+        setupSignal?.throwIfAborted();
         eventCollection = await startAppiumEventCollectionAsync({
           ctx,
           deviceRunSessionId,
@@ -227,7 +258,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        const sessionHost = (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+        sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
         const webPreview = await sessionHost.openPreviewAsync({
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
@@ -267,7 +298,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         });
       } catch (error) {
         sessionFailed = true;
-        throw error;
+        throw setupSignal?.aborted ? setupSignal.reason : error;
       } finally {
         startupAbortController.abort(new Error('Appium session ended.'));
         await finishRemoteSessionAsync({
@@ -363,65 +394,135 @@ export async function installAppiumAsync({
   driverName,
   env,
   logger,
+  signal,
+  onError,
 }: {
   versionSpec: string;
   driverName: AppiumDevice['driverName'];
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
+  onError?: (error: unknown) => void;
 }): Promise<{ appiumHome: string; appiumBinPath: string; appiumEnv: BuildStepEnv }> {
+  signal?.throwIfAborted();
   const appiumHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-appium-home-'));
-  await fs.promises.writeFile(
-    path.join(appiumHome, 'package.json'),
-    `${JSON.stringify({ name: 'eas-appium-home', private: true })}\n`
-  );
-  const appiumEnv: BuildStepEnv = { ...env, APPIUM_HOME: appiumHome };
-  const appiumBinPath = path.join(appiumHome, 'node_modules', '.bin', 'appium');
-  const add = resolvePackageAdd(
-    resolveConfiguredPackageManager(env, PackageManager.NPM),
-    `appium@${versionSpec}`
-  );
+  try {
+    signal?.throwIfAborted();
+    await fs.promises.writeFile(
+      path.join(appiumHome, 'package.json'),
+      `${JSON.stringify({ name: 'eas-appium-home', private: true })}\n`
+    );
+    const appiumEnv: BuildStepEnv = { ...env, APPIUM_HOME: appiumHome };
+    const appiumBinPath = path.join(appiumHome, 'node_modules', '.bin', 'appium');
+    const add = resolvePackageAdd(
+      resolveConfiguredPackageManager(env, PackageManager.NPM),
+      `appium@${versionSpec}`
+    );
 
-  logger.info(`Installing appium@${versionSpec} with ${add.command}.`);
-  await spawn(add.command, add.args, {
-    cwd: appiumHome,
-    env: appiumEnv,
-    logger,
-  });
-  const { stdout } = await spawn(appiumBinPath, ['driver', 'list', '--installed', '--json'], {
-    env: appiumEnv,
-    stdio: 'pipe',
-  });
-  const installedDrivers = AppiumInstalledDriversSchema.parse(JSON.parse(stdout));
-  if (installedDrivers[driverName]?.installed) {
-    logger.info(`Updating the installed Appium ${driverName} driver.`);
-    await spawn(appiumBinPath, ['driver', 'update', driverName], { env: appiumEnv, logger });
-  } else {
-    logger.info(`Installing the Appium ${driverName} driver.`);
-    await spawn(appiumBinPath, ['driver', 'install', driverName], { env: appiumEnv, logger });
+    logger.info(`Installing appium@${versionSpec} with ${add.command}.`);
+    await runAppiumSetupCommandAsync(
+      add.command,
+      add.args,
+      {
+        cwd: appiumHome,
+        env: appiumEnv,
+        logger,
+      },
+      signal
+    );
+    const { stdout } = await runAppiumSetupCommandAsync(
+      appiumBinPath,
+      ['driver', 'list', '--installed', '--json'],
+      {
+        env: appiumEnv,
+        stdio: 'pipe',
+      },
+      signal
+    );
+    const installedDrivers = AppiumInstalledDriversSchema.parse(JSON.parse(stdout));
+    if (installedDrivers[driverName]?.installed) {
+      logger.info(`Updating the installed Appium ${driverName} driver.`);
+      await runAppiumSetupCommandAsync(
+        appiumBinPath,
+        ['driver', 'update', driverName],
+        { env: appiumEnv, logger },
+        signal
+      );
+    } else {
+      logger.info(`Installing the Appium ${driverName} driver.`);
+      await runAppiumSetupCommandAsync(
+        appiumBinPath,
+        ['driver', 'install', driverName],
+        { env: appiumEnv, logger },
+        signal
+      );
+    }
+    return { appiumHome, appiumBinPath, appiumEnv };
+  } catch (error) {
+    onError?.(error);
+    if (signal) {
+      await fs.promises.rm(appiumHome, { recursive: true, force: true });
+      signal.throwIfAborted();
+    }
+    throw error;
   }
-  return { appiumHome, appiumBinPath, appiumEnv };
+}
+
+async function runAppiumSetupCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<SpawnResult> {
+  if (!signal) {
+    return await spawn(command, args, options);
+  }
+  signal.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal.addEventListener('abort', abort, { once: true });
+  if (signal.aborted) {
+    abort();
+  }
+  try {
+    const result = await task;
+    signal.throwIfAborted();
+    return result;
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
 }
 
 async function waitForAppiumReadyAsync({
   appiumProcess,
   logger,
+  signal,
 }: {
   appiumProcess: { getOutput: () => string };
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
   const deadline = Date.now() + APPIUM_STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    signal?.throwIfAborted();
     try {
       const response = await turtleFetch(`http://${APPIUM_HOST}:${APPIUM_PORT}/status`, 'GET', {
         timeout: 2_000,
         retries: 0,
         logger,
+        signal,
       });
+      signal?.throwIfAborted();
       if (response.ok) {
         return;
       }
     } catch {}
-    await sleepAsync(1_000);
+    signal?.throwIfAborted();
+    if (signal) {
+      await setTimeoutAsync(1_000, undefined, { signal });
+    } else {
+      await sleepAsync(1_000);
+    }
   }
   const output = appiumProcess.getOutput();
   throw new SystemError(
