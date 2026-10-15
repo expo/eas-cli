@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import fetch, { FetchError, RequestInit, Response } from 'node-fetch';
-import { setTimeout } from 'node:timers/promises';
+import promiseRetry from 'promise-retry';
 import { z } from 'zod';
 
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
@@ -207,7 +207,10 @@ export class GooglePlayClient {
     for (const [key, value] of Object.entries(DeleteApi[path].path.parse(params))) {
       url = url.replace(`:${key}`, encodeURIComponent(value));
     }
-    await this.requestAsync('DELETE', url, undefined, signal, undefined, /* retryRequests */ true);
+    await this.requestWithRetriesAsync(
+      () => this.requestAsync('DELETE', url, undefined, signal),
+      signal
+    );
   }
 
   private async sendJsonRequestAsync(
@@ -239,13 +242,16 @@ export class GooglePlayClient {
       }
     }
 
-    const response = await this.requestAsync(
-      method,
-      search.size ? `${path}?${search}` : path,
-      method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal,
-      { 'Content-Type': 'application/json' },
-      /* retryRequests */ true
+    const response = await this.requestWithRetriesAsync(
+      () =>
+        this.requestAsync(
+          method,
+          search.size ? `${path}?${search}` : path,
+          method === 'GET' ? undefined : JSON.stringify(parsedBody),
+          signal,
+          { 'Content-Type': 'application/json' }
+        ),
+      signal
     );
 
     let data: unknown;
@@ -268,71 +274,74 @@ export class GooglePlayClient {
     return parsed.data;
   }
 
+  private async requestWithRetriesAsync<T>(
+    request: () => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
+    const errors: unknown[] = [];
+    try {
+      return await promiseRetry(
+        async retry => {
+          try {
+            signal?.throwIfAborted();
+            return await request();
+          } catch (error) {
+            errors.push(error);
+            const retryable =
+              error instanceof GooglePlayApiError
+                ? error.status === 408 || error.status === 429 || error.status >= 500
+                : error instanceof SystemError &&
+                  error.cause instanceof FetchError &&
+                  error.cause.type === 'system';
+            if (retryable && !signal?.aborted) {
+              retry(error);
+            }
+            throw error;
+          }
+        },
+        { retries: 5, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true }
+      );
+    } catch (error) {
+      // Keep earlier failures: a later rejection does not prove that every attempt failed.
+      if (errors.length > 1) {
+        throw new AggregateError(errors, 'Google Play request failed after retries.', {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+  }
+
   async requestAsync(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     body?: string,
     signal?: AbortSignal,
-    headers?: RequestInit['headers'],
-    retryRequests = false
+    headers?: RequestInit['headers']
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     const token = await this.getTokenAsync(signal);
-    const isCommit = url.pathname.endsWith(':commit');
-    let hadUncertainResponse = false;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        signal?.throwIfAborted();
-        let response: Response;
-        try {
-          response = await fetch(url.toString(), {
-            method,
-            body,
-            signal,
-            headers: { ...headers, Authorization: `Bearer ${token}` },
-            redirect: 'manual',
-          });
-        } catch (error) {
-          signal?.throwIfAborted();
-          throw new SystemError('Google Play request failed before a response was received.', {
-            cause: error,
-          });
-        }
-
-        if (!response.ok) {
-          throw await GooglePlayApiError.fromResponseAsync(response, signal);
-        }
-
-        return response;
-      } catch (error) {
-        const retryable =
-          error instanceof GooglePlayApiError
-            ? error.status === 408 || error.status === 429 || error.status >= 500
-            : error instanceof SystemError &&
-              error.cause instanceof FetchError &&
-              error.cause.type === 'system';
-        hadUncertainResponse ||= retryable;
-        if (!retryRequests || !retryable || attempt >= 5 || signal?.aborted) {
-          if (isCommit && hadUncertainResponse) {
-            throw new SystemError('Google Play commit outcome is unknown after request failures.', {
-              cause: error,
-            });
-          }
-          throw error;
-        }
-        try {
-          await setTimeout(Math.min(1000 * 2 ** attempt, 32_000) * (1 + Math.random()), undefined, {
-            signal,
-          });
-        } catch (error) {
-          if (isCommit) {
-            throw new SystemError('Google Play commit outcome is unknown after cancellation.', {
-              cause: error,
-            });
-          }
-          throw error;
-        }
-      }
+    let response: Response;
+    signal?.throwIfAborted();
+    try {
+      response = await fetch(url.toString(), {
+        method,
+        body,
+        signal,
+        headers: { ...headers, Authorization: `Bearer ${token}` },
+        redirect: 'manual',
+      });
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw new SystemError('Google Play request failed before a response was received.', {
+        cause: error,
+      });
     }
+
+    if (!response.ok) {
+      throw await GooglePlayApiError.fromResponseAsync(response, signal);
+    }
+
+    return response;
   }
 }

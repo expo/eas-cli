@@ -1,6 +1,5 @@
 import nock from 'nock';
 import { generateKeyPairSync } from 'node:crypto';
-import { SystemError } from '@expo/eas-build-job';
 import { ZodError } from 'zod';
 
 import { GooglePlayClient } from '../GooglePlayClient';
@@ -13,7 +12,11 @@ const api = (): nock.Scope =>
   });
 
 jest.unmock('node-fetch');
-jest.mock('node:timers/promises', () => ({ setTimeout: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
 
 const serviceAccount = {
   client_email: 'test@example.iam.gserviceaccount.com',
@@ -89,7 +92,9 @@ it('keeps the outcome unknown when a lost commit response is followed by an inva
       { packageName, editId: 'edit' },
       { query: { changesNotSentForReview: false } }
     )
-  ).rejects.toBeInstanceOf(SystemError);
+  ).rejects.toMatchObject({
+    errors: [expect.any(Error), expect.objectContaining({ status: 404 })],
+  });
 });
 
 it.each([408, 429, 500, 503])('stops after five retries for HTTP %s', async status => {
@@ -99,7 +104,10 @@ it.each([408, 429, 500, 503])('stops after five retries for HTTP %s', async stat
       packageName,
       editId: 'edit',
     })
-  ).rejects.toMatchObject({ status });
+  ).rejects.toMatchObject({
+    cause: expect.objectContaining({ status }),
+    errors: expect.arrayContaining([expect.objectContaining({ status })]),
+  });
 });
 
 it('retries the same track update body after a temporary error', async () => {

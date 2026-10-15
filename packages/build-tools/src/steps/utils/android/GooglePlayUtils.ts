@@ -212,6 +212,9 @@ export namespace GooglePlayUtils {
   }
 
   export function mapGooglePlayError(error: unknown, packageName: string): unknown {
+    if (error instanceof AggregateError) {
+      return mapGooglePlayError(error.cause, packageName);
+    }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
       (error.status === 408 || error.status === 429 || error.status >= 500)

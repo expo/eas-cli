@@ -8,7 +8,11 @@ import { GooglePlayApiError, GooglePlayClient } from '../GooglePlayClient';
 import { GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');
-jest.mock('node:timers/promises', () => ({ setTimeout: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
 beforeEach(() => nock.disableNetConnect());
 afterEach(() => {
   const pending = nock.pendingMocks();
