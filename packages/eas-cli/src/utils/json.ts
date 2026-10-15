@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { stripVTControlCharacters } from 'util';
 
 import Log from '../log';
 
@@ -20,6 +21,29 @@ export function printJsonOnlyOutput(value: object): void {
   } finally {
     process.stdout.write = process.stderr.write.bind(process.stderr);
   }
+}
+
+export interface JsonErrorOutput {
+  message: string;
+  requestId?: string;
+}
+
+let jsonErrorPrinted = false;
+
+/**
+ * Print `{ "error": { message, requestId? } }` on stdout for a command that failed with --json.
+ *
+ * Once per process: `update:rollback` runs other commands in-process, and the innermost error is the one
+ * that says what went wrong.
+ */
+export function printJsonErrorOutput(error: JsonErrorOutput): void {
+  if (jsonErrorPrinted) {
+    return;
+  }
+  jsonErrorPrinted = true;
+  // The command may have failed before it could enable JSON output.
+  enableJsonOutput();
+  printJsonOnlyOutput({ error: { ...error, message: stripVTControlCharacters(error.message) } });
 }
 
 function sanitizeValue(value: any): unknown {
