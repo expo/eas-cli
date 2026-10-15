@@ -191,12 +191,14 @@ export async function startChiselServerAsync({
   controlPort,
   authfilePath,
   env,
+  logger,
   signal,
 }: {
   chiselPath: string;
   controlPort: number;
   authfilePath: string;
   env: BuildStepEnv;
+  logger: bunyan;
   signal?: AbortSignal;
 }): Promise<{ process: DetachedProcessHandle; fingerprint: string }> {
   const server = spawnDetached({
@@ -244,7 +246,11 @@ export async function startChiselServerAsync({
       }`
     );
   } catch (error) {
-    await server.stopAsync();
+    await server
+      .stopAsync()
+      .catch(err =>
+        logger.warn({ err }, 'Could not stop the reverse tunnel server after it failed to start.')
+      );
     throw error;
   }
 }

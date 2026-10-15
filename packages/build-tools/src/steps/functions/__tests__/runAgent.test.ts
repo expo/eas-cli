@@ -25,6 +25,7 @@ const leaseMock = jest.mocked(leaseAgentRunProviderCredentialsAsync);
 const ctx = {
   expoApiV2BaseUrl: 'https://staging-api.expo.test/v2/',
   mcpServerUrl: 'wss://staging-mcp.expo.test',
+  runtimeApi: { addBuildLogMask: jest.fn() },
 } as any;
 const inputs = {
   agent_kind: { value: 'claude-code' },
@@ -115,6 +116,19 @@ describe(createRunAgentBuildFunction, () => {
     expect(agentEnv.HOME).not.toBe('/home/expo');
   });
 
+  it('hands the build log secrets filter to the agent run', async () => {
+    const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
+    try {
+      await runAsync();
+
+      expect(runAgentSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ addBuildLogMask: ctx.runtimeApi.addBuildLogMask })
+      );
+    } finally {
+      runAgentSpy.mockRestore();
+    }
+  });
+
   it.each([
     ['wss://staging-mcp.expo.test', 'https://staging-mcp.expo.test/mcp'],
     ['ws://localhost:8787', 'http://localhost:8787/mcp'],
@@ -162,6 +176,7 @@ describe(createRunAgentBuildFunction, () => {
     ['no PATH', { env: { ...env, PATH: '' } }],
     ['no Expo API URL', { ctx: { ...ctx, expoApiV2BaseUrl: undefined } }],
     ['no MCP server URL', { ctx: { ...ctx, mcpServerUrl: undefined } }],
+    ['no build log secrets filter', { ctx: { ...ctx, runtimeApi: {} } }],
   ])('throws a system error for %s', async (_name, overrides) => {
     await expect(runAsync(overrides)).rejects.toBeInstanceOf(SystemError);
 

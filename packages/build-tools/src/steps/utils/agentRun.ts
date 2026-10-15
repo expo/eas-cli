@@ -35,6 +35,7 @@ export async function runAgentAsync({
   pathEnv,
   npmCacheUrl,
   logger,
+  addBuildLogMask,
   signal,
 }: {
   agentKind: AgentKind;
@@ -47,11 +48,11 @@ export async function runAgentAsync({
   pathEnv: string;
   npmCacheUrl?: string;
   logger: bunyan;
+  addBuildLogMask: (secret: string) => void;
   signal: AbortSignal;
 }): Promise<void> {
   const leaseOptions = { expoApiV2BaseUrl, expoToken, agentRunId, signal };
   let credentials = await leaseAgentRunProviderCredentialsAsync(leaseOptions);
-  const secrets = new Set<string>();
 
   const runDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-agent-run-'));
   try {
@@ -126,14 +127,13 @@ export async function runAgentAsync({
       }
 
       for (const secret of invocation.secrets) {
-        secrets.add(secret);
+        addBuildLogMask(secret);
       }
       const { exitCode, exitSignal } = await runAgentProcessAsync({
         command: path.join(cliDirectory, 'node_modules', '.bin', bin),
         ...invocation,
         cwd: workingDirectory,
         formatOutputLine,
-        secrets: [...secrets],
         logger,
         signal,
       });
@@ -170,7 +170,6 @@ async function runAgentProcessAsync({
   cwd,
   stdin,
   formatOutputLine,
-  secrets,
   logger,
   signal,
 }: {
@@ -180,7 +179,6 @@ async function runAgentProcessAsync({
   cwd: string;
   stdin: string;
   formatOutputLine: AgentCli['formatOutputLine'];
-  secrets: string[];
   logger: bunyan;
   signal: AbortSignal;
 }): Promise<{ exitCode: number | null; exitSignal: NodeJS.Signals | null }> {
@@ -188,8 +186,6 @@ async function runAgentProcessAsync({
   // Detached, so the agent leads a process group that can be signaled as a whole.
   const child = spawn(command, args, { cwd, env, detached: true });
   const outputClosed = new Promise<void>(resolve => child.once('close', () => resolve()));
-  const redact = (text: string): string =>
-    secrets.reduce((masked, secret) => masked.replaceAll(secret, '[redacted]'), text);
   const stdoutLogger = logger.child({ source: 'stdout' });
   readline.createInterface({ input: child.stdout }).on('line', line => {
     let messages: AgentLogMessage[];
@@ -201,12 +197,12 @@ async function runAgentProcessAsync({
       return;
     }
     for (const { level, message } of messages) {
-      stdoutLogger[level](redact(message).trimEnd());
+      stdoutLogger[level](message.trimEnd());
     }
   });
   const stderrLogger = logger.child({ source: 'stderr' });
   readline.createInterface({ input: child.stderr }).on('line', line => {
-    stderrLogger.info(redact(line));
+    stderrLogger.info(line);
   });
   // The agent may exit before it reads the prompt; its exit status reports that.
   child.stdin.on('error', () => {});

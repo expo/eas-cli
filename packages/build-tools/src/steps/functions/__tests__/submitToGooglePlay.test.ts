@@ -220,3 +220,32 @@ it('preserves the cause when the service-account file cannot be read', async () 
     read.mockRestore();
   }
 });
+
+it('logs a formatted rollout and confirms the track update before committing', async () => {
+  upload();
+  const task = submission({ rollout: 0.29 });
+  const info = jest.spyOn(task.step.ctx.logger, 'info');
+  const updatedMessage = 'Updated Google Play track "internal" in the edit.';
+  let loggedBeforeUpdate = false;
+  let messagesBeforeCommit: unknown[] = [];
+  api()
+    .put(`${editPath}/tracks/internal`)
+    .reply(() => {
+      loggedBeforeUpdate = info.mock.calls.some(([message]) => message === updatedMessage);
+      return [200, { track: 'internal' }];
+    });
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(() => {
+      messagesBeforeCommit = info.mock.calls.map(([message]) => message);
+      return [200, { id: 'edit' }];
+    });
+  await task.run();
+  expect(info).toHaveBeenCalledWith('Release status: inProgress. Rollout: 29%.');
+  expect(loggedBeforeUpdate).toBe(false);
+  expect(messagesBeforeCommit.slice(-2)).toEqual([
+    updatedMessage,
+    'Committing the Google Play edit...',
+  ]);
+});
