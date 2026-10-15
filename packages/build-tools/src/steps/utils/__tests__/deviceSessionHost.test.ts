@@ -2,7 +2,9 @@ import { BuildPhase, BuildPhaseResult, LogMarker } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
-import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
@@ -17,7 +19,7 @@ import {
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
-import { startDeviceSessionHostAsync } from '../deviceSessionHost';
+import { EXPO_DEVICE_HUB_STATE_DIR, startDeviceSessionHostAsync } from '../deviceSessionHost';
 import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
@@ -74,7 +76,26 @@ const logger = {
 const stopServer = jest.fn();
 const closeTunnel = jest.fn();
 const directories: string[] = [];
+const hubStateFiles: string[] = [];
 const baseDomain = 'preview.example.test';
+
+// expo-device-hub records its session token in `server-<port>.json` before it answers /readyz,
+// in the state directory it resolves from its env.
+function writeHubState({
+  args,
+  env: hubEnv,
+}: {
+  args: readonly string[];
+  env: BuildStepEnv;
+}): void {
+  const port = args[args.indexOf('--port') + 1];
+  const stateDir =
+    hubEnv.EXPO_DEVICE_HUB_STATE_DIR || path.join(hubEnv.TMPDIR ?? os.tmpdir(), 'expo-device-hub');
+  const file = path.join(stateDir, `server-${port}.json`);
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(file, JSON.stringify({ pid: 1, port: Number(port), token: 'hub-preview-token' }));
+  hubStateFiles.push(file);
+}
 
 async function startHostAsync(separateLogPhase = true) {
   return await startDeviceSessionHostAsync(ctx, {
@@ -103,6 +124,9 @@ beforeEach(() => {
     if (flag >= 0) {
       directories.push(options.args[flag + 1]);
     }
+    if (options.args.includes('--platform')) {
+      writeHubState(options);
+    }
     return {
       pid: undefined,
       getOutput: () => '',
@@ -126,7 +150,9 @@ beforeEach(() => {
 afterEach(async () => {
   jest.useRealTimers();
   await Promise.all(
-    directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))
+    [...directories.splice(0), ...hubStateFiles.splice(0)].map(entry =>
+      rm(entry, { recursive: true, force: true })
+    )
   );
 });
 
@@ -243,6 +269,7 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] emulator-5554 capture error: scrcpy exited with code 255',
@@ -284,6 +311,7 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
 it('logs the reason and skips upload and output dump when the Hub never recorded', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '[serve-emu] Android recording skipped',
@@ -474,6 +502,55 @@ it('closes a listener that arrives after finish has already timed out waiting fo
   expect(closeTunnel).toHaveBeenCalledTimes(1);
 });
 
+// The same session token and website origins as the serve-sim host on iOS.
+it('starts expo-device-hub with a session token and the website origins', async () => {
+  const host = await startHostAsync();
+  const { args } = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(args).toContain('--require-token');
+  expect(args.join(' ')).toContain(
+    '--cors-origin https://expo.dev --frame-ancestor https://expo.dev'
+  );
+  const preview = await host.openPreviewAsync({ baseDomain });
+  expect(preview.previewToken).toBe('hub-preview-token');
+  await host.finishAsync();
+});
+
+it.each([
+  ['its own state directory', 'EXPO_DEVICE_HUB_STATE_DIR'],
+  ['its own TMPDIR', 'TMPDIR'],
+])('reads the Hub token when the step env sets %s', async (_description, variable) => {
+  const override = await mkdtemp(path.join(os.tmpdir(), 'hub-state-override-'));
+  directories.push(override);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env: { ...env, [variable]: override },
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env.EXPO_DEVICE_HUB_STATE_DIR).toBe(EXPO_DEVICE_HUB_STATE_DIR);
+  expect((await host.openPreviewAsync({ baseDomain })).previewToken).toBe('hub-preview-token');
+  await host.finishAsync();
+});
+
+it('stops when expo-device-hub records no session token', async () => {
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    const flag = options.args.indexOf('--android-recording-directory');
+    directories.push(options.args[flag + 1]);
+    return {
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    };
+  });
+  await expect(startHostAsync()).rejects.toThrow(
+    'expo-device-hub became ready but wrote no session token'
+  );
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
 it('leaves iOS recording to its existing build steps', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -500,13 +577,21 @@ const turnArgs = [
   'turn-secret',
 ];
 
-it('passes the TURN credential and the Android control token to the host as secrets', async () => {
+it('passes the TURN credential and the Android control token to the host as secrets, and adds the session token once the Hub is ready', async () => {
   jest.mocked(fetchWebPreviewTurnArgsAsync).mockResolvedValueOnce(turnArgs);
+  const spawn = jest.mocked(spawnDetached).getMockImplementation()!;
+  let secretsAtSpawn: string[] | undefined;
+  jest.mocked(spawnDetached).mockImplementationOnce(options => {
+    secretsAtSpawn = [...(options.secrets ?? [])];
+    return spawn(options);
+  });
   const host = await startHostAsync();
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   const controlToken = options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN;
   expect(controlToken).toMatch(/^[a-f0-9]{64}$/);
-  expect(options.secrets).toEqual(['turn-secret', controlToken]);
+  expect(secretsAtSpawn).toEqual(['turn-secret', controlToken]);
+  // Host output is redacted against this array, so the token must land in the one passed at spawn.
+  expect(options.secrets).toEqual(['turn-secret', controlToken, 'hub-preview-token']);
   await host.finishAsync();
 });
 
@@ -642,6 +727,7 @@ it.each([
   let exitError: Error | undefined;
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
+    writeHubState(options);
     return {
       pid: undefined,
       getOutput: () => '',
