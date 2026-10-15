@@ -1835,7 +1835,7 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     expect(spawnMock).toHaveBeenCalledTimes(3);
   });
 
-  it('drains an owned FFmpeg installer on abort without rejecting shared callers', async () => {
+  it('retries one aborted FFmpeg install for two surviving shared callers after it drains', async () => {
     const controller = new AbortController();
     const error = new Error('Simulator startup failed');
     const child = { pid: 12345, kill: jest.fn() };
@@ -1848,6 +1848,13 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
         { child }
       ) as never
     );
+    let finishReplacement!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishReplacement = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
     const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
     const options = {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -1855,22 +1862,34 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
       logger: createLoggerMock(),
     };
     const owner = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const surviving = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
     const settled = jest.fn();
     const observed = owner.then(settled, settled);
+    const borrowersSettled = jest.fn();
+    const observedBorrowers = Promise.all(surviving).then(borrowersSettled, borrowersSettled);
     try {
       await new Promise<void>(resolve => setImmediate(resolve));
-      const shared = ensureFfmpegInstalledOnceAsync(options);
       controller.abort(error);
       expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
       expect(settled).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
       closeInstaller(new Error('brew interrupted'));
       await expect(owner).rejects.toBe(error);
-      await expect(shared).resolves.toBeUndefined();
-      expect(spawnMock).toHaveBeenCalledTimes(1);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+      expect(borrowersSettled).not.toHaveBeenCalled();
+      finishReplacement();
+      await expect(Promise.all(surviving)).resolves.toEqual([undefined, undefined]);
+      expect(spawnMock).toHaveBeenCalledTimes(3);
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
       expect(options.logger.warn).not.toHaveBeenCalled();
     } finally {
       closeInstaller?.(error);
-      await observed;
+      finishReplacement();
+      await Promise.all([observed, observedBorrowers]);
       killGroup.mockRestore();
     }
   });
@@ -1950,6 +1969,30 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     expect(spawnMock).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('does not retry an ordinary shared FFmpeg install failure', async () => {
+    let failInstall!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failInstall = reject;
+      }) as never
+    );
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const callers = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
+    await new Promise<void>(resolve => setImmediate(resolve));
+    failInstall(new Error('Homebrew unavailable'));
+    await expect(Promise.all(callers)).resolves.toEqual([undefined, undefined, undefined]);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(options.logger.warn).toHaveBeenCalledTimes(1);
   });
 
   // The caller runs this with `void` and the worker installs no unhandledRejection
