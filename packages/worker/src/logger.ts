@@ -94,11 +94,11 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
   });
 }
 
-function createDiscardStream(): Writable {
+function createStdoutStream(): Writable {
   return new Writable({
     objectMode: true,
-    write(_chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
-      callback(null);
+    write(chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      process.stdout.write(`${JSON.stringify(chunk)}\n`, callback);
     },
   });
 }
@@ -109,17 +109,16 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
 }> {
-  const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
-
   const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
-  const discardStream = createDiscardStream();
-  transformStream.pipe(discardStream);
+  transformStream.pipe(createStdoutStream());
 
-  buildLogger.addStream({
-    type: 'raw',
-    stream: transformStream,
-    reemitErrorEvents: true,
-    level: buildLogger.level(),
+  // Do not inherit defaultLogger's stdout stream: every build-log destination must
+  // receive the filtered record.
+  const buildLogger = createLogger({
+    name: config.loggers.base.name,
+    phase: BuildPhase.UNKNOWN,
+    level: defaultLogger.level(),
+    streams: [{ type: 'raw', stream: transformStream, reemitErrorEvents: true }],
   });
 
   let remoteLoggerStream: RemoteLoggerStream | null = null;
@@ -137,12 +136,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   }
 
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
-  buildLogger.addStream({
-    type: 'raw',
-    stream: logBuffer,
-    reemitErrorEvents: true,
-    level: buildLogger.level(),
-  });
+  transformStream.pipe(logBuffer);
 
   let httpLogStream: HttpLogStream | null = null;
   if (config.loggers.http.baseUrl && secrets?.robotAccessToken) {

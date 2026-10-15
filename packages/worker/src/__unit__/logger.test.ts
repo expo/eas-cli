@@ -135,6 +135,44 @@ describe('logger', () => {
     expect(logs[1].msg).toBe('another ****** in base64 is ********************');
   });
 
+  it('masks stdout and stderr messages before writing process output and the log buffer', async () => {
+    const { logger, logBuffer } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'TOKEN', value: 'fake-provider-token', type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const output: string[] = [];
+    const write = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(
+        (chunk, encoding: BufferEncoding | (() => void) | undefined, callback) => {
+          output.push(String(chunk));
+          if (typeof encoding === 'function') {
+            encoding();
+          } else {
+            callback?.();
+          }
+          return true;
+        }
+      );
+    try {
+      logger.child({ source: 'stdout' }).info('stdout: fake-provider-token');
+      logger.child({ source: 'stderr' }).error('stderr: fake-provider-token');
+      await waitForStreamFlush();
+
+      expect(output.map(line => JSON.parse(line).msg)).toEqual([
+        'stdout: *******************',
+        'stderr: *******************',
+      ]);
+      expect(logBuffer.getLogs()).toEqual([
+        'stdout: *******************',
+        'stderr: *******************',
+      ]);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   it('adds logId to each log', async () => {
     const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 
