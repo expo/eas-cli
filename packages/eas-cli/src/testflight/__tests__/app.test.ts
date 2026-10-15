@@ -1,10 +1,11 @@
-import { App } from '@expo/apple-utils';
+import { App, Token } from '@expo/apple-utils';
 import { EasJsonUtils } from '@expo/eas-json';
 
 import { resolveTestFlightAppAsync } from '../app';
 import { CredentialsContext } from '../../credentials/context';
 import { AppStoreConnectApiKeyQuery as AccountAppStoreConnectApiKeyQuery } from '../../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery';
 import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
+import { AppStoreConnectApiKeyQuery } from '../../graphql/queries/AppStoreConnectApiKeyQuery';
 import { getAppStoreAuthAsync } from '../../metadata/auth';
 
 jest.mock('@expo/apple-utils', () => ({
@@ -19,6 +20,7 @@ jest.mock('../../credentials/context', () => ({
   CredentialsContext: jest.fn(),
 }));
 jest.mock('../../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery');
+jest.mock('../../graphql/queries/AppStoreConnectApiKeyQuery');
 jest.mock('../../credentials/ios/appstore/authenticate', () => ({
   getRequestContext: jest.fn(),
 }));
@@ -74,5 +76,32 @@ describe(resolveTestFlightAppAsync, () => {
       bundleId: 'com.example.app',
     });
     expect(result).toBe(app);
+  });
+
+  it('signs account API key tokens that expire before Apple’s 20 minute limit', async () => {
+    const app = { attributes: { bundleId: 'com.example.app' } };
+    jest
+      .mocked(AccountAppStoreConnectApiKeyQuery.getAllForAccountAsync)
+      .mockResolvedValue([{ id: 'key-id', keyIdentifier: 'KEY123' }] as any);
+    jest.mocked(AppStoreConnectApiKeyQuery.getByIdAsync).mockResolvedValue({
+      keyP8: 'p8-content',
+      keyIdentifier: 'KEY123',
+      issuerIdentifier: 'issuer-id',
+    } as any);
+    jest.mocked(App.findAsync).mockResolvedValue(app as any);
+
+    await resolveTestFlightAppAsync({
+      actor: {} as any,
+      analytics: {} as any,
+      exp: { slug: 'example' } as any,
+      graphqlClient: {} as any,
+      nonInteractive: true,
+      projectDir: '/app',
+      projectId: 'project-id',
+      vcsClient: {} as any,
+    });
+
+    expect(Token).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(Token).mock.calls[0][0].duration).toBeLessThan(1200);
   });
 });
