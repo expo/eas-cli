@@ -52,11 +52,6 @@ ${formatHostActionUsage()}`;
     'bundle-id': Flags.string({
       description: 'Bundle identifier to list permissions for. Only for the permissions action.',
     }),
-    limit: Flags.integer({
-      description: 'Maximum number of events. Only for the event-log action.',
-      min: 1,
-      max: 500,
-    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -75,7 +70,6 @@ ${formatHostActionUsage()}`;
 
     const request = resolveHostActionRequest(args.name, argv.slice(1).map(String), {
       bundleId: flags['bundle-id'],
-      limit: flags.limit,
     });
 
     const {

@@ -17,7 +17,6 @@ export type HostActionResult = {
 
 type HostActionOptions = {
   bundleId?: string;
-  limit?: number;
 };
 
 type HostActionSpec = {
@@ -86,14 +85,6 @@ const HOST_ACTIONS: Record<string, HostActionSpec> = {
         ? { action: 'permissions.list', params: bundleId ? { bundleId } : {} }
         : null,
   },
-  'event-log': {
-    args: '[--limit <count>]',
-    jsonOutput: true,
-    toRequest: (values, { limit }) =>
-      values.length === 0
-        ? { action: 'eventLog.list', params: limit !== undefined ? { limit } : {} }
-        : null,
-  },
 };
 
 const HOST_ACTION_TIMEOUT_MS = 130_000;
@@ -136,9 +127,6 @@ export function resolveHostActionRequest(
   }
   if (options.bundleId !== undefined && name !== 'permissions') {
     throw new Error('The --bundle-id flag works only with the permissions action.');
-  }
-  if (options.limit !== undefined && name !== 'event-log') {
-    throw new Error('The --limit flag works only with the event-log action.');
   }
   const spec = HOST_ACTIONS[name];
   const request = spec.toRequest(values, options);

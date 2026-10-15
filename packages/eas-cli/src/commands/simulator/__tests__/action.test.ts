@@ -133,12 +133,18 @@ describe(SimulatorAction, () => {
     });
   });
 
-  it('passes the listing flags through', async () => {
-    await createCommand(['event-log', '--limit', '5', '--id', 'session-123']).runAsync();
+  it('passes the bundle identifier through', async () => {
+    await createCommand([
+      'permissions',
+      '--bundle-id',
+      'com.example.app',
+      '--id',
+      'session-123',
+    ]).runAsync();
 
     expect(mockRunHostActionAsync).toHaveBeenCalledWith(expect.anything(), {
-      action: 'eventLog.list',
-      params: { limit: 5 },
+      action: 'permissions.list',
+      params: { bundleId: 'com.example.app' },
     });
   });
 
@@ -192,8 +198,8 @@ describe(SimulatorAction, () => {
       exitCode: 1,
     });
 
-    await expect(createCommand(['event-log', '--id', 'session-123']).runAsync()).rejects.toThrow(
-      'The simulator could not run event-log: No serve-sim server running.'
+    await expect(createCommand(['permissions', '--id', 'session-123']).runAsync()).rejects.toThrow(
+      'The simulator could not run permissions: No serve-sim server running.'
     );
   });
 });

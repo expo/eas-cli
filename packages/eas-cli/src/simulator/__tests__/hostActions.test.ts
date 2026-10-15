@@ -49,10 +49,6 @@ describe(resolveHostActionRequest, () => {
       action: 'permissions.list',
       params: { bundleId: 'com.example.app' },
     });
-    expect(resolveHostActionRequest('event-log', [], { limit: 20 })).toEqual({
-      action: 'eventLog.list',
-      params: { limit: 20 },
-    });
   });
 
   it('refuses an unknown name and the wrong number of values', () => {
@@ -71,12 +67,9 @@ describe(resolveHostActionRequest, () => {
   });
 
   it('refuses a flag that the action does not use', () => {
-    expect(() => resolveHostActionRequest('settings', [], { limit: 5 })).toThrow(
-      'The --limit flag works only with the event-log action.'
+    expect(() => resolveHostActionRequest('settings', [], { bundleId: 'com.example.app' })).toThrow(
+      'The --bundle-id flag works only with the permissions action.'
     );
-    expect(() =>
-      resolveHostActionRequest('event-log', [], { bundleId: 'com.example.app' })
-    ).toThrow('The --bundle-id flag works only with the permissions action.');
   });
 
   it('sends a plain number as a number and anything else as text', () => {
