@@ -261,6 +261,8 @@ type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 type PreviewLinkOptions = {
   privatePreviewUrl?: string;
   publicLink?: boolean;
+  /** Origins the session allows to embed the preview host; the embed URL is printed for them. */
+  frameAncestors?: readonly string[];
 };
 
 function previewUrlIsWebsitePage(remoteConfig: DeviceRunSessionRemoteConfig): boolean {
@@ -334,12 +336,16 @@ function formatBrowserPreviewInstructions(
 /**
  * Remote config for `--json`. Private sessions omit the direct preview API address and preview
  * tokens. Public sessions include bearer preview links while preserving controller credentials.
+ * A session with frame ancestors also includes the preview API address, since an embedding page
+ * needs it.
  */
 export function sanitizeRemoteConfigForJson(
   remoteConfig: DeviceRunSessionRemoteConfig,
   privatePreviewUrl: string,
-  publicLink = false
+  publicLink = false,
+  frameAncestors: readonly string[] = []
 ): DeviceRunSessionRemoteConfig {
+  const includePreviewApiUrl = publicLink || frameAncestors.length > 0;
   switch (remoteConfig.__typename) {
     case 'ServeSimRunSessionRemoteConfig':
     case 'WebPreviewOnlyRunSessionRemoteConfig': {
@@ -350,7 +356,7 @@ export function sanitizeRemoteConfigForJson(
           privatePreviewUrl,
           publicLink,
         }),
-        previewApiUrl: publicLink
+        previewApiUrl: includePreviewApiUrl
           ? remoteConfig.previewApiUrl &&
             formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
           : null,
@@ -368,13 +374,52 @@ export function sanitizeRemoteConfigForJson(
               publicLink,
             })
           : remoteConfig.webPreviewUrl,
-        previewApiUrl: publicLink
+        previewApiUrl: includePreviewApiUrl
           ? remoteConfig.previewApiUrl &&
             formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
           : null,
       };
     }
   }
+}
+
+/**
+ * The preview host address with the session token, which an embedding page loads directly. The
+ * expo.dev preview page cannot be framed by other sites. Null until the worker reports the host.
+ */
+export function formatEmbedPreviewUrl(remoteConfig: DeviceRunSessionRemoteConfig): string | null {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.previewToken)
+        : null;
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.webPreviewToken)
+        : null;
+  }
+}
+
+function formatEmbedInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  frameAncestors: readonly string[]
+): string[] {
+  if (frameAncestors.length === 0) {
+    return [];
+  }
+  const embedUrl = formatEmbedPreviewUrl(remoteConfig);
+  return [
+    '',
+    `🖼  Pages on ${frameAncestors.join(', ')} may embed the preview in a frame. Load this URL in the frame:`,
+    '',
+    embedUrl ?? 'The preview host has not reported its address yet.',
+    chalk.yellow(
+      'Warning: Anyone who can read this URL can view and control the simulator, including your app and logs that may contain sensitive data.'
+    ),
+  ];
 }
 
 export function formatRemoteSessionInstructions(
@@ -387,12 +432,16 @@ export function formatRemoteSessionInstructions(
     platform,
     privatePreviewUrl,
     publicLink,
+    frameAncestors = [],
   }: LocalEgressOptions & PreviewLinkOptions = {}
 ): string {
-  const instructions = formatControllerInstructions(remoteConfig, configType, {
-    privatePreviewUrl,
-    publicLink,
-  });
+  const instructions = [
+    formatControllerInstructions(remoteConfig, configType, {
+      privatePreviewUrl,
+      publicLink,
+    }),
+    ...formatEmbedInstructions(remoteConfig, frameAncestors),
+  ].join('\n');
   const egress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
   if (!egress) {
     return instructions;

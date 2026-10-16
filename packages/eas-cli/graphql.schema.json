@@ -45732,6 +45732,26 @@
             "deprecationReason": null
           },
           {
+            "name": "frameAncestors",
+            "description": "Origins of pages that may embed the session's preview host in a frame, next to expo.dev.\nEach value is an https origin such as https://app.example.com or a subdomain wildcard such\nas https://*.example.com; plain http is accepted for localhost only. At most 10. The\nembedding page still needs the preview token from remoteConfig, and whoever embeds the\npreview can also control the device. If omitted, only expo.dev may embed the preview.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "ios",
             "description": "iOS Simulator options. Only supported when platform is IOS.",
             "type": {
