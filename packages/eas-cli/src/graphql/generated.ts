@@ -7320,8 +7320,9 @@ export type DiscordUserMutation_DeleteDiscordUserArgs = {
 
 export enum DistributionType {
   Internal = 'INTERNAL',
+  Development = "DEVELOPMENT",
   Simulator = 'SIMULATOR',
-  Store = 'STORE'
+  Store = 'STORE',
 }
 
 export enum EasBuildBillingResourceClass {

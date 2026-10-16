@@ -15,6 +15,7 @@ export enum BuildStatus {
 }
 
 export enum BuildDistributionType {
+  DEVELOPMENT = 'development',
   STORE = 'store',
   INTERNAL = 'internal',
   /** @deprecated Use simulator flag instead */

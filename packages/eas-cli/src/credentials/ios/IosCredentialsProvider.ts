@@ -40,10 +40,7 @@ enum PushNotificationSetupOption {
 export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
-  constructor(
-    private readonly ctx: CredentialsContext,
-    private readonly options: Options
-  ) {}
+  constructor(private readonly ctx: CredentialsContext, private readonly options: Options) {}
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
@@ -156,6 +153,18 @@ export default class IosCredentialsProvider {
     const isAdHoc = isAdHocProfile(provisioningProfile);
     const isDevelopment = isDevelopmentProfile(provisioningProfile);
     const isEnterprise = isEnterpriseUniversalProfile(provisioningProfile);
+    const isDevelopment = isDevelopmentProfile(provisioningProfile);
+
+    if (this.options.distribution === 'development') {
+      if (!isDevelopment) {
+        throw new Error(
+          `You must use a development provisioning profile${
+            targetName ? ` (target '${targetName})'` : ''
+          } for development distribution.`
+        );
+      }
+    }
+
     if (this.options.distribution === 'internal') {
       if (this.options.enterpriseProvisioning === 'universal' && !isEnterprise) {
         throw new Error(
