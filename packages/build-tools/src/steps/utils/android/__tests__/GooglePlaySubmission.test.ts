@@ -84,6 +84,23 @@ it.each([408, 429, 503])('retries a transient HTTP %s commit on the same edit', 
   api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
   await expect(commit()).resolves.toBeUndefined();
 });
+it('shows the final rejection after a transient commit failure without claiming the outcome is known', async () => {
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(503);
+  const message = 'You must let us know whether your app includes any health features.';
+  api().post(`${editPath}:commit`).query({}).reply(403, { error: { message } });
+  const error = await commit().catch(error => error);
+  const mapped = GooglePlayUtils.mapGooglePlayError(error, packageName);
+  expect(mapped).toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
+  expect((mapped as Error).message).toContain(`HTTP 403 for the last commit attempt: ${message}`);
+  expect((mapped as Error).message).toContain('may still have saved');
+  expect((mapped as Error).message).toContain('https://play.google.com/console/');
+  expect(mapped).toMatchObject({
+    metadata: { googlePlayErrorResponse: JSON.stringify({ error: { message } }) },
+    cause: expect.any(AggregateError),
+  });
+  expect(((mapped as Error).cause as AggregateError).errors).toHaveLength(2);
+});
 it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();
   const reason = new Error('cancelled before commit');
@@ -250,7 +267,9 @@ it('keeps the last Google Play error response when the commit outcome is unknown
     .query({})
     .times(6)
     .reply(503, { error: { message: 'Backend error' } });
-  await expect(commit()).rejects.toMatchObject({
+  const error = await commit().catch(error => error);
+  expect(error.message).not.toContain('last commit attempt');
+  expect(error).toMatchObject({
     metadata: {
       googlePlayRequestPath: `${editPath}:commit`,
       googlePlayErrorResponse: JSON.stringify({ error: { message: 'Backend error' } }),
