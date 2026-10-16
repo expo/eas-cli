@@ -31,6 +31,7 @@ import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
+import { parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -177,6 +178,11 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['egress'],
     }),
+    'frame-ancestor': Flags.string({
+      description:
+        'Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries the session token, so anyone who can read that page can also control the simulator.',
+      multiple: true,
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -286,6 +292,12 @@ export default class Simulator extends EasCommand {
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    let frameAncestors: string[] = [];
+    try {
+      frameAncestors = parseFrameAncestorList(flags['frame-ancestor'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
     if (flags['network-capture'] && platform !== AppPlatform.Ios) {
       throw new EasCommandError(
         'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
@@ -358,6 +370,7 @@ export default class Simulator extends EasCommand {
             ...(openUrl ? { openUrl } : {}),
             ...(resourceClass ? { resourceClass } : {}),
             ...(egress ? { egress } : {}),
+            ...(frameAncestors.length ? { frameAncestors } : {}),
             requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
             ...agentIdentity,
             maxRunTimeMinutes: flags['max-duration-minutes'],
@@ -510,7 +523,8 @@ export default class Simulator extends EasCommand {
         remoteConfig: sanitizeRemoteConfigForJson(
           remoteConfig,
           deviceRunSessionPreviewUrl,
-          flags['public-link']
+          flags['public-link'],
+          frameAncestors
         ),
       });
       return;
@@ -524,6 +538,7 @@ export default class Simulator extends EasCommand {
         sessionUrl: deviceRunSessionUrl,
         privatePreviewUrl: deviceRunSessionPreviewUrl,
         publicLink: flags['public-link'],
+        frameAncestors,
         platform,
       })
     );

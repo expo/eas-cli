@@ -2898,8 +2898,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
-    [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
+    env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -2942,6 +2942,11 @@ FLAGS
   --[no-]force
       [default: true] Create a new simulator session even when an existing simulator session is present in the
       environment.
+
+  --frame-ancestor=<value>...
+      Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or
+      https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries
+      the session token, so anyone who can read that page can also control the simulator.
 
   --json
       Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
@@ -3037,8 +3042,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
-    [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
+    env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3081,6 +3086,11 @@ FLAGS
   --[no-]force
       [default: true] Create a new simulator session even when an existing simulator session is present in the
       environment.
+
+  --frame-ancestor=<value>...
+      Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or
+      https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries
+      the session token, so anyone who can read that page can also control the simulator.
 
   --json
       Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
@@ -3300,8 +3310,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--force] [--out-config-type env|dotenv] [--public-link]
-    [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
+    env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3344,6 +3354,11 @@ FLAGS
   --[no-]force
       [default: true] Create a new simulator session even when an existing simulator session is present in the
       environment.
+
+  --frame-ancestor=<value>...
+      Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or
+      https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries
+      the session token, so anyone who can read that page can also control the simulator.
 
   --json
       Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.

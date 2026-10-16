@@ -6418,6 +6418,14 @@ export type CreateDeviceRunSessionInput = {
    * and applicationArchiveUrl.
    */
   expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Origins of pages that may embed the session's preview host in a frame, next to expo.dev.
+   * Each value is an https origin such as https://app.example.com or a subdomain wildcard such
+   * as https://*.example.com; plain http is accepted for localhost only. At most 10. The
+   * embedding page still needs the preview token from remoteConfig, and whoever embeds the
+   * preview can also control the device. If omitted, only expo.dev may embed the preview.
+   */
+  frameAncestors?: InputMaybe<Array<Scalars['String']['input']>>;
   /** iOS Simulator options. Only supported when platform is IOS. */
   ios?: InputMaybe<CreateIosDeviceRunSessionInput>;
   /**
