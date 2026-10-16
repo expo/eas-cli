@@ -224,7 +224,7 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = !envOverride
+    const { env, exp, projectId } = !envOverride
       ? await evaluateConfigWithEnvVarsAsync({
           buildProfile: buildProfile.profile,
           buildProfileName: buildProfile.profileName,
@@ -232,7 +232,10 @@ export async function runBuildAndSubmitAsync({
           getProjectConfig: getDynamicPrivateProjectConfigAsync,
           opts: { env: buildProfile.profile.env },
         })
-      : { env: envOverride };
+      : {
+          env: envOverride,
+          ...(await getDynamicPrivateProjectConfigAsync({ env: envOverride })),
+        };
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -244,7 +247,8 @@ export async function runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
-      getDynamicPrivateProjectConfigAsync,
+      exp,
+      projectId,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
@@ -384,7 +388,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
@@ -400,7 +405,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
@@ -423,7 +429,8 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     vcsClient,
-    getDynamicPrivateProjectConfigAsync,
+    exp,
+    projectId,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,

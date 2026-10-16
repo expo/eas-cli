@@ -4,7 +4,7 @@ import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 import ContextField, { ContextOptions } from './ContextField';
 import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
-import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { getProjectIdAsync, isProjectIdInAppConfig } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 
@@ -58,7 +58,10 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
       });
       serverSideEnvVars = serverSideEnvironmentVariables;
     }
-    const exp = await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars });
+    const exp =
+      serverSideEnvVars || !isProjectIdInAppConfig(expBefore, projectId)
+        ? await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars })
+        : expBefore;
     return {
       exp,
       projectDir,
