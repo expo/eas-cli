@@ -821,6 +821,13 @@ describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
 describe(formatEmbedPreviewUrl, () => {
   it('is null until the worker reports the preview host', () => {
     expect(formatEmbedPreviewUrl(agentDeviceConfig)).toBeNull();
+    expect(
+      formatEmbedPreviewUrl({
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: 'https://expo.dev/simulator-preview/abc',
+        previewToken: 'tok-2',
+      })
+    ).toBeNull();
   });
 
   it('adds the preview token to the preview host address', () => {
@@ -857,6 +864,22 @@ describe('embed instructions', () => {
       'Pages on https://embed.example.test, https://*.example.test may embed the preview'
     );
     expect(instructions).toContain('https://web-preview.example.test/?token=tok-1');
+  });
+
+  it('says the host is not reported yet when the preview address is missing', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv', {
+      frameAncestors: ['https://embed.example.test'],
+    });
+    expect(instructions).toContain('has not reported its address yet');
+  });
+
+  it('adds the embed URL before the local egress instructions', () => {
+    const instructions = formatRemoteSessionInstructions(
+      { ...config, ...agentDeviceConfigWithEgress, previewApiUrl: config.previewApiUrl },
+      'dotenv',
+      { frameAncestors: ['https://embed.example.test'] }
+    );
+    expect(instructions.indexOf('tok-1')).toBeLessThan(instructions.indexOf('eas simulator:egress'));
   });
 
   it('says nothing about embedding without frame ancestors', () => {
