@@ -29,8 +29,8 @@ jest.mock('../../../utils/processes');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceArtifacts');
-// The agent-device session step boots the Simulator itself; this test covers local egress.
 jest.mock('../startIosSimulator', () => ({
+  ...jest.requireActual('../startIosSimulator'),
   bootIosSimulatorAsync: jest
     .fn()
     .mockResolvedValue({ deviceIdentifier: 'sim', udid: 'sim', displayName: 'iPhone' }),

@@ -1,6 +1,7 @@
 import open from 'open';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
 import { BillingClient } from '../../../billing/billingClient';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../../../graphql/generated';
@@ -22,8 +23,12 @@ jest.mock('../../../ora');
 function billingAccount(
   id: string,
   name: string
-): { id: string; name: string; viewerUserPermission: { role: Role } } {
-  return { id, name, viewerUserPermission: { role: Role.Admin } };
+): {
+  id: string;
+  name: string;
+  viewerUserPermission2: ReturnType<typeof getMockViewerUserPermission>;
+} {
+  return { id, name, viewerUserPermission2: getMockViewerUserPermission(Role.Admin) };
 }
 
 const STARTER_SUBSCRIPTION = { id: 'sub_1', name: 'Starter', planId: 'price_paid' };

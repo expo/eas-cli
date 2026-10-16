@@ -1,3 +1,4 @@
+import { getMockViewerUserPermission } from '../../__tests__/viewerUserPermission';
 import {
   testKeystore2Base64,
   testKeystoreBase64,
@@ -60,7 +61,7 @@ export const testAppFragment: AppFragment = {
   ownerAccount: {
     id: 'test-account-id',
     name: 'testuser',
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
 };
 

@@ -2,6 +2,7 @@ import { getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 import { anything, instance, mock, when } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../../log';
@@ -49,12 +50,12 @@ describe(getProjectIdAsync, () => {
           {
             id: 'account_id_1',
             name: 'notnotbrent',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           {
             id: 'account_id_2',
             name: 'dominik',
-            viewerUserPermission: { role: Role.ViewOnly },
+            viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
           },
         ],
         isExpoAdmin: false,
@@ -193,12 +194,12 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
             },
             {
               id: 'account_id_2',
               name: 'dominik',
-              viewerUserPermission: { role: Role.ViewOnly },
+              viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
             },
           ],
           isExpoAdmin: false,
@@ -419,7 +420,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
           ],
           isExpoAdmin: false,
@@ -455,7 +456,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
             },
           ],
           isExpoAdmin: false,

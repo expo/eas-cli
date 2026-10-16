@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -30,7 +30,7 @@ type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 export default class SimulatorGet extends EasCommand {
   static override aliases = ['sim:get'];
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
+    "[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.";
 
   static override flags = {
     id: Flags.string({
@@ -82,6 +82,11 @@ export default class SimulatorGet extends EasCommand {
       session.app.slug,
       session.id
     );
+    const deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
+      session.app.ownerAccount.name,
+      session.app.slug,
+      session.id
+    );
 
     if (jsonFlag) {
       printJsonOnlyOutput({
@@ -97,7 +102,11 @@ export default class SimulatorGet extends EasCommand {
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
         remoteConfig: session.remoteConfig
-          ? sanitizeRemoteConfigForJson(session.remoteConfig)
+          ? sanitizeRemoteConfigForJson(
+              session.remoteConfig,
+              deviceRunSessionPreviewUrl,
+              session.publicPreview
+            )
           : session.remoteConfig,
         artifacts: session.artifacts,
       });
@@ -113,6 +122,8 @@ export default class SimulatorGet extends EasCommand {
         Log.log(
           formatRemoteSessionInstructions(session.remoteConfig, 'env', {
             sessionUrl: deviceRunSessionUrl,
+            privatePreviewUrl: deviceRunSessionPreviewUrl,
+            publicLink: session.publicPreview,
             platform: session.platform,
           })
         );

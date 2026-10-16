@@ -318,6 +318,49 @@ describe('Datadog singleton', () => {
     );
   });
 
+  it('POSTs distribution metrics to the device run session worker API with the session token', () => {
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      deviceRunSessionToken: 'session-token',
+      target: { kind: 'deviceRunSession' },
+    });
+
+    Datadog.distribution('eas.workflow.hook', 1, { hook: 'on_start' });
+
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/device-run-session-worker/metrics',
+      'POST',
+      {
+        json: {
+          metrics: [
+            {
+              name: 'eas.workflow.hook',
+              type: 'distribution',
+              value: 1,
+              tags: { hook: 'on_start', target: 'job_run' },
+            },
+          ],
+        },
+        headers: { 'expo-device-run-session-token': 'session-token' },
+        retries: 2,
+      }
+    );
+  });
+
+  it('does not report logs for device run session targets', () => {
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      deviceRunSessionToken: 'session-token',
+      target: { kind: 'deviceRunSession' },
+    });
+
+    Datadog.log('Custom build saw user-provided function');
+
+    expect(turtleFetchMock).not.toHaveBeenCalled();
+  });
+
   it('flushes pending metric uploads', async () => {
     let resolveUpload!: (response: Response) => void;
     turtleFetchMock.mockReturnValueOnce(
