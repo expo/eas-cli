@@ -9,6 +9,7 @@ import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../
 import { isExpoInstalled } from '../../../../project/projectUtils';
 import { promptAsync } from '../../../../prompts';
 import SessionManager from '../../../../user/SessionManager';
+import { ExpoGraphqlClient } from '../createGraphqlClient';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from '../getProjectIdAsync';
 
@@ -39,6 +40,8 @@ describe(getProjectIdAsync, () => {
       .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
 
     const sessionManagerMock = mock<SessionManager>();
+
+    when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
     when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
       actor: {
         __typename: 'User',
@@ -185,6 +188,7 @@ describe(getProjectIdAsync, () => {
 
     it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'Robot',
@@ -409,6 +413,7 @@ describe(getProjectIdAsync, () => {
 
     it('uses the only account without prompting when the user has a single account', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'User',
@@ -447,6 +452,7 @@ describe(getProjectIdAsync, () => {
 
     it('throws for a robot user when no owner is set', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'Robot',
@@ -508,6 +514,7 @@ describe(getProjectIdAsync, () => {
 
     it('defers to the project fetch in non-interactive mode when the account is already known', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'User',

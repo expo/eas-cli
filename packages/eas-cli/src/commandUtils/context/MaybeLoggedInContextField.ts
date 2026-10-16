@@ -1,5 +1,5 @@
 import ContextField, { ContextOptions } from './ContextField';
-import { ExpoGraphqlClient, createGraphqlClient } from './contextUtils/createGraphqlClient';
+import { ExpoGraphqlClient } from './contextUtils/createGraphqlClient';
 import { Actor } from '../../user/User';
 import FeatureGateEnvOverrides from '../gating/FeatureGateEnvOverrides';
 import FeatureGating from '../gating/FeatureGating';
@@ -21,7 +21,7 @@ export default class MaybeLoggedInContextField extends ContextField<MaybeLoggedI
       sessionSecret: sessionManager.getSessionSecret(),
     };
 
-    const graphqlClient = createGraphqlClient(authenticationInfo);
+    const graphqlClient = sessionManager.getGraphqlClient(authenticationInfo);
     const actor = await sessionManager.getUserAsync();
     const featureGateServerValues: { [key: string]: boolean } = actor?.featureGates ?? {};
 
