@@ -286,6 +286,24 @@ describe('simulator control configuration', () => {
     }
   );
 
+  it('rejects a new output in a write-only parent before running earlier actions', async () => {
+    const destination = path.join(folder, 'write-only');
+    await fs.mkdir(destination);
+    await fs.chmod(destination, 0o222);
+    try {
+      await writeConfig([
+        { action: 'echo' },
+        { action: 'screenshot', output: path.join(destination, 'screen.png') },
+      ]);
+      await expect(prepareControlConfigAsync(catalog, filePath, connection.udid)).rejects.toThrow(
+        /step 2.*(EACCES|permission)/i
+      );
+      expect(requestAsync).not.toHaveBeenCalled();
+    } finally {
+      await fs.chmod(destination, 0o755);
+    }
+  });
+
   it('accepts an explicit file as the only source of a union action', async () => {
     const realCatalog: HostActionCatalog = require('./fixtures/hostActionCatalog.json');
     await fs.writeFile(path.join(folder, 'new.ipa'), 'new bytes');
