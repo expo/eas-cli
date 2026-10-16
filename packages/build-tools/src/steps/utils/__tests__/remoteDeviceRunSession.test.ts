@@ -341,9 +341,9 @@ describe(parseFrameAncestorsInput, () => {
   });
 
   it('returns the origins as given', () => {
-    expect(parseFrameAncestorsInput(['https://embed.example.test', 'https://*.example.test'])).toEqual(
-      ['https://embed.example.test', 'https://*.example.test']
-    );
+    expect(
+      parseFrameAncestorsInput(['https://embed.example.test', 'https://*.example.test'])
+    ).toEqual(['https://embed.example.test', 'https://*.example.test']);
   });
 
   it.each([['https://embed.example.test'], [['https://embed.example.test', '']], [[1]]])(
