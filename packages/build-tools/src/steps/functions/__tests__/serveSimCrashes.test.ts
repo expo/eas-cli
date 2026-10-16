@@ -151,6 +151,9 @@ it('skips remaining reports for an exhausted device and continues with other dev
     expect(
       jest.mocked(uploadServeSimCrashesFileAsync).mock.calls.map(([, file]) => file.filePath)
     ).toEqual(['/tmp/A.ips', '/tmp/B.ips']);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Simulator crash upload reached its time limit for A; remaining reports will not be uploaded.'
+    );
   } finally {
     timeout.mockRestore();
   }

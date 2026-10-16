@@ -100,7 +100,7 @@ it('saves recurrences as separate private IPS files and uploads unchanged report
     const url = new URL(request.url!, baseUrl);
     expect(url.searchParams.get('device')).toBe('device-A');
     if (url.pathname === '/crashes') {
-      expect(url.searchParams.get('tail')).toBe('1');
+      expect(url.searchParams.has('tail')).toBe(false);
       expect(request.headers.accept).toBe('text/event-stream');
       connections += 1;
       response.writeHead(200, { 'Content-Type': 'text/event-stream' });
@@ -615,3 +615,49 @@ it('removes a partial file before retrying a failed write', async () => {
     writing.mockRestore();
   }
 });
+
+it.each([1_000, 1_001])(
+  'keeps the report allowance after %i missing reports and deduplicates their replay',
+  async missingCount => {
+    const requested: number[] = [];
+    let completed: (() => void) | undefined;
+    const processed = new Promise<void>(resolve => {
+      completed = resolve;
+    });
+    const occurrence = (key: number) => ({ ...summary, occurrenceTimes: [{ key }] });
+    server.on('request', (request, response) => {
+      if (request.url!.startsWith('/crashes?')) {
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        for (let key = 1; key <= missingCount; key++) {
+          response.write(
+            `data: ${JSON.stringify({ type: 'recurred', record: occurrence(key) })}\n\n`
+          );
+        }
+        response.write(
+          `data: ${JSON.stringify({ type: 'list', crashes: [occurrence(missingCount), occurrence(missingCount + 1)] })}\n\n`
+        );
+      } else {
+        const key = Number(new URL(request.url!, baseUrl).searchParams.get('key'));
+        requested.push(key);
+        response.end(
+          JSON.stringify({ ...detail(key), report: key <= missingCount ? null : report(key) })
+        );
+        if (key === missingCount + 1) {
+          completed?.();
+        }
+      }
+    });
+    await start();
+    await processed;
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    try {
+      expect(requested).toEqual(Array.from({ length: missingCount + 1 }, (_, index) => index + 1));
+      expect(collected.crashes).toHaveLength(1);
+      expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(missingCount + 1));
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('reached its limit'));
+    } finally {
+      await rm(collected.outputDirectory!, { recursive: true, force: true });
+    }
+  },
+  15_000
+);
