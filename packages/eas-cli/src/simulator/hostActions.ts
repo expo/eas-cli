@@ -184,9 +184,6 @@ export async function connectHostActionsAsync(
       clearTimeout(timer);
       reject(error);
       loseConnection(error);
-      if (!ready) {
-        ws.terminate();
-      }
     };
 
     ws.on('message', data => {
