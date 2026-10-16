@@ -207,7 +207,7 @@ export namespace GooglePlayUtils {
         if (isUploadStillProcessing(error)) {
           throw new SystemError(
             `Google Play did not finish processing the uploaded bundle for ${packageName} after six commit attempts. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
-            { cause: error }
+            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
         throw error;

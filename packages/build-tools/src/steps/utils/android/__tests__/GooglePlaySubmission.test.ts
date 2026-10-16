@@ -117,7 +117,14 @@ it('stops waiting for bundle processing after six attempts', async () => {
     .query({})
     .times(6)
     .reply(400, { error: { message: pendingUploadMessage } });
-  await expect(commit()).rejects.toThrow('Google Play did not finish processing');
+  const error = await commit().catch(error => error);
+  expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toMatchObject({
+    message: expect.stringContaining('Google Play did not finish processing'),
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify({ error: { message: pendingUploadMessage } }),
+    },
+  });
 });
 
 it('does not retry an unrelated commit precondition', async () => {
