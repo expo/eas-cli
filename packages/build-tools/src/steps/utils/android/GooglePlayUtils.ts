@@ -168,7 +168,7 @@ export namespace GooglePlayUtils {
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
             `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
-            { cause: error }
+            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
         throw error;
@@ -220,7 +220,7 @@ export namespace GooglePlayUtils {
     ) {
       return new SystemError(
         `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
-        { cause: error }
+        { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
       );
     }
     if (
@@ -283,9 +283,7 @@ export namespace GooglePlayUtils {
     return new UserError(
       code,
       `${detail}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
-      {
-        cause: error,
-      }
+      { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
     );
   }
 }
