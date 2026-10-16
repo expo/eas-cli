@@ -140,6 +140,25 @@ export function getLocalEgressConfig(
   };
 }
 
+export type PreviewApiAccess = {
+  apiUrl: string;
+  token: string;
+};
+
+export function getPreviewApiAccess(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): PreviewApiAccess | null {
+  const token =
+    remoteConfig.__typename === 'ServeSimRunSessionRemoteConfig' ||
+    remoteConfig.__typename === 'WebPreviewOnlyRunSessionRemoteConfig'
+      ? remoteConfig.previewToken
+      : remoteConfig.webPreviewToken;
+  if (!remoteConfig.previewApiUrl || !token) {
+    return null;
+  }
+  return { apiUrl: remoteConfig.previewApiUrl, token };
+}
+
 /** The worker relay that the Android emulator's proxy points at; see build-tools androidLocalEgress.ts. */
 export const ANDROID_EMULATOR_EGRESS_RELAY_PORT = 8898;
 
