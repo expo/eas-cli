@@ -43,7 +43,7 @@ function hasBillingPermission(permissions: readonly Permission[]): boolean {
  * Whether the viewer can manage billing on the account with the credential used for this command.
  * The scopes of a scoped credential cap `effectivePermissions`.
  */
-function canManageBilling(account: { viewerUserPermission2: ViewerPermissions }): boolean {
+export function canManageBilling(account: { viewerUserPermission2: ViewerPermissions }): boolean {
   return hasBillingPermission(account.viewerUserPermission2.effectivePermissions);
 }
 
