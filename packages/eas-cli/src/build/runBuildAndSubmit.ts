@@ -117,7 +117,7 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -127,7 +127,7 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -216,15 +216,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : { env: envOverride };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -236,7 +236,8 @@ export async function runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
-      getDynamicPrivateProjectConfigAsync,
+      exp,
+      projectId,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
@@ -374,7 +375,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
@@ -388,7 +390,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
@@ -409,7 +412,8 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     vcsClient,
-    getDynamicPrivateProjectConfigAsync,
+    exp,
+    projectId,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,

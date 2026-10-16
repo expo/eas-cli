@@ -98,6 +98,10 @@ export async function getProjectIdAsync(
   return projectId;
 }
 
+export function isProjectIdInAppConfig(exp: Pick<ExpoConfig, 'extra'>, projectId: string): boolean {
+  return exp.extra?.eas?.projectId === projectId;
+}
+
 export async function validateOrSetProjectIdAsync({
   exp,
   graphqlClient,
