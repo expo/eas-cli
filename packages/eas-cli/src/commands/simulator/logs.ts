@@ -179,7 +179,7 @@ export default class SimulatorLogs extends EasCommand {
       return;
     }
     for (const line of snapshot.lines) {
-      Log.log(formatLogLine(line.raw, flags.timestamp, line.at));
+      Log.log(formatLogLine(line.raw, flags.timestamp, { at: line.at }));
     }
   }
 }
@@ -190,6 +190,6 @@ function formatLogEnvelope(data: string): string {
     line = JSON.parse(data);
   } catch {}
   return typeof line?.raw === 'string' && isValidLogTime(line.at)
-    ? formatLogLine(line.raw, true, line.at)
+    ? formatLogLine(line.raw, true, { at: line.at })
     : formatLogLine(data);
 }
