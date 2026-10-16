@@ -223,6 +223,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas project:new [PATH]`](#eas-projectnew-path)
 * [`eas project:status`](#eas-projectstatus)
 * [`eas sim:availability`](#eas-simavailability)
+* [`eas sim:crashes`](#eas-simcrashes)
 * [`eas sim:egress`](#eas-simegress)
 * [`eas sim:events`](#eas-simevents)
 * [`eas sim:exec`](#eas-simexec)
@@ -232,6 +233,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas sim:stop`](#eas-simstop)
 * [`eas simulator`](#eas-simulator)
 * [`eas simulator:availability`](#eas-simulatoravailability)
+* [`eas simulator:crashes`](#eas-simulatorcrashes)
 * [`eas simulator:egress`](#eas-simulatoregress)
 * [`eas simulator:events`](#eas-simulatorevents)
 * [`eas simulator:exec`](#eas-simulatorexec)
@@ -2777,6 +2779,40 @@ ALIASES
   $ eas sim:availability
 ```
 
+## `eas sim:crashes`
+
+[EXPERIMENTAL] show crash reports from a remote iOS simulator session
+
+```
+USAGE
+  $ eas sim:crashes [--id <value>] [--artifact <value>] [-o <value>] [--report-id <value>] [--timestamp] [--json]
+    [--non-interactive]
+
+FLAGS
+  -o, --output=<value>     Save one stopped session IPS crash report to this path.
+      --artifact=<value>   Artifact index to download from a stopped session (1-based).
+      --id=<value>         Simulator session ID. Defaults to .env.eas-simulator.
+      --json               Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --non-interactive    Run the command in non-interactive mode.
+      --report-id=<value>  Show the newest occurrence of a crash. Use an ID from the crash list.
+      --timestamp          Show timestamps in live human-readable crash summaries.
+
+DESCRIPTION
+  [EXPERIMENTAL] show crash reports from a remote iOS simulator session
+
+  For logs during a crash reproduction, run `eas simulator:logs --follow --scope all` first.
+
+ALIASES
+  $ eas sim:crashes
+
+EXAMPLES
+  $ eas simulator:crashes --json
+
+  $ eas simulator:crashes --id <session-id> --artifact 1 --output crash.ips
+
+  $ eas simulator:crashes --report-id <report-id>
+```
+
 ## `eas sim:egress`
 
 [EXPERIMENTAL] run the local egress client for a simulator session to route proxied HTTP(S) requests through this machine
@@ -3157,6 +3193,42 @@ ALIASES
 ```
 
 _See code: [packages/eas-cli/src/commands/simulator/availability.ts](https://github.com/expo/eas-cli/blob/v24.14.0/packages/eas-cli/src/commands/simulator/availability.ts)_
+
+## `eas simulator:crashes`
+
+[EXPERIMENTAL] show crash reports from a remote iOS simulator session
+
+```
+USAGE
+  $ eas simulator:crashes [--id <value>] [--artifact <value>] [-o <value>] [--report-id <value>] [--timestamp] [--json]
+    [--non-interactive]
+
+FLAGS
+  -o, --output=<value>     Save one stopped session IPS crash report to this path.
+      --artifact=<value>   Artifact index to download from a stopped session (1-based).
+      --id=<value>         Simulator session ID. Defaults to .env.eas-simulator.
+      --json               Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --non-interactive    Run the command in non-interactive mode.
+      --report-id=<value>  Show the newest occurrence of a crash. Use an ID from the crash list.
+      --timestamp          Show timestamps in live human-readable crash summaries.
+
+DESCRIPTION
+  [EXPERIMENTAL] show crash reports from a remote iOS simulator session
+
+  For logs during a crash reproduction, run `eas simulator:logs --follow --scope all` first.
+
+ALIASES
+  $ eas sim:crashes
+
+EXAMPLES
+  $ eas simulator:crashes --json
+
+  $ eas simulator:crashes --id <session-id> --artifact 1 --output crash.ips
+
+  $ eas simulator:crashes --report-id <report-id>
+```
+
+_See code: [packages/eas-cli/src/commands/simulator/crashes.ts](https://github.com/expo/eas-cli/blob/v24.14.0/packages/eas-cli/src/commands/simulator/crashes.ts)_
 
 ## `eas simulator:egress`
 

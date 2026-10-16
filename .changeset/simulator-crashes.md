@@ -2,4 +2,4 @@
 'eas-cli': minor
 ---
 
-Add `simulator:crashes` to list crash reports, read their app log tails, and download saved crash artifacts.
+Add `simulator:crashes` to inspect live crashes and download individual saved IPS reports.
