@@ -9,7 +9,10 @@ import { fetchUserAsync } from './fetchUser';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
-import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
@@ -43,6 +46,7 @@ type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
 export default class SessionManager {
   private currentActor: Actor | undefined;
+  private graphqlClient: { credential: string | null; client: ExpoGraphqlClient } | undefined;
 
   constructor(private readonly analytics: AnalyticsWithOrchestration) {}
 
@@ -85,6 +89,21 @@ export default class SessionManager {
     }
     this.currentActor = undefined;
     await this.setSessionAsync(undefined);
+  }
+
+  /**
+   * Returns one GraphQL client per credential, so context fields of one command share
+   * the urql cache. For example, the project ID check and the command both query the app.
+   */
+  public getGraphqlClient(authenticationInfo: {
+    accessToken: string | null;
+    sessionSecret: string | null;
+  }): ExpoGraphqlClient {
+    const credential = authenticationInfo.accessToken ?? authenticationInfo.sessionSecret;
+    if (this.graphqlClient?.credential !== credential) {
+      this.graphqlClient = { credential, client: createGraphqlClient(authenticationInfo) };
+    }
+    return this.graphqlClient.client;
   }
 
   public async getUserAsync(): Promise<Actor | undefined> {
