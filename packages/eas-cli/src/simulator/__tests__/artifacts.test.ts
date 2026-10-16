@@ -233,3 +233,58 @@ it('closes an unfinished HTTP error response without exposing storage credential
     await fs.remove(directory);
   }
 });
+
+it('selects individual IPS artifacts and saves their original native contents', async () => {
+  const actualFetch = jest.requireActual<typeof import('../../fetch')>('../../fetch').default;
+  const actualDownload = jest.requireActual<typeof import('../download')>('../download');
+  jest.mocked(fetch).mockImplementation(actualFetch);
+  jest
+    .mocked(downloadSimulatorFileAsync)
+    .mockImplementation(actualDownload.downloadSimulatorFileAsync);
+  const reports = [
+    '{"app_name":"Fixture 서울 🌲","incident_id":"first"}\n{"incident":"first"}\n',
+    '{"app_name":"Fixture 서울 🌲","incident_id":"second"}\n{"incident":"second"}\n',
+  ];
+  const requested: string[] = [];
+  const server = createServer((request, response) => {
+    requested.push(request.url ?? '');
+    response.end(reports[request.url === '/second.ips' ? 1 : 0]);
+  });
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sim-artifact-ips-'));
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const crashes = ['first', 'second'].map(id => ({
+    ...artifact(id, 'simulator-crashes'),
+    name: 'Crash report (SIM-A)',
+    filename: `${id}.ips`,
+    downloadUrl: `${baseUrl}/${id}.ips`,
+    metadata: { __eas_type: 'simulator-crashes', udid: 'SIM-A' },
+  }));
+  try {
+    await expect(
+      downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crashes', options)
+    ).rejects.toThrow('Choose an artifact with --artifact');
+    expect(requested).toEqual([]);
+    for (const [index, crash] of crashes.entries()) {
+      const output = path.join(directory, crash.filename);
+      await downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crashes', {
+        output,
+        artifact: index + 1,
+        nonInteractive: true,
+        json: true,
+      });
+      expect(await fs.readFile(output, 'utf8')).toBe(reports[index]);
+      expect((await fs.stat(output)).mode & 0o777).toBe(0o600);
+    }
+    expect(requested).toEqual(['/first.ips', '/second.ips']);
+    expect(await fs.readdir(directory)).toEqual(['first.ips', 'second.ips']);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve =>
+      server.close(() => {
+        resolve();
+      })
+    );
+    await fs.remove(directory);
+  }
+});

@@ -51,7 +51,7 @@ export default class SimulatorCrashes extends EasCommand {
 
   static override examples = [
     '<%= config.bin %> simulator:crashes --json',
-    '<%= config.bin %> simulator:crashes --id <session-id> --output crashes.zip',
+    '<%= config.bin %> simulator:crashes --id <session-id> --artifact 1 --output crash.ips',
     '<%= config.bin %> simulator:crashes --report-id <report-id>',
   ];
 
@@ -65,7 +65,7 @@ export default class SimulatorCrashes extends EasCommand {
     }),
     output: Flags.string({
       char: 'o',
-      description: 'Save a stopped session crash artifact to this path.',
+      description: 'Save one stopped session IPS crash report to this path.',
     }),
     'report-id': Flags.string({
       description: 'Show the newest occurrence of a crash. Use an ID from the crash list.',
