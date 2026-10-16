@@ -100,19 +100,18 @@ export default class SimulatorControl extends EasCommand {
     }
 
     const spinner = ora(`Connecting to simulator session ${sessionId}`).start();
-    let connection: HostActionConnection;
-    let catalog: HostActionCatalog;
+    let connection: HostActionConnection | undefined;
     try {
-      const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
-      connection = await connectHostActionsAsync(assertControllableSession(session));
-      catalog = await fetchHostActionCatalogAsync(connection);
-      spinner.succeed(`Connected to simulator session ${sessionId}`);
-    } catch (err) {
-      spinner.fail(`Failed to connect to simulator session ${sessionId}`);
-      throw err;
-    }
-
-    try {
+      let catalog: HostActionCatalog;
+      try {
+        const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
+        connection = await connectHostActionsAsync(assertControllableSession(session));
+        catalog = await fetchHostActionCatalogAsync(connection);
+        spinner.succeed(`Connected to simulator session ${sessionId}`);
+      } catch (err) {
+        spinner.fail(`Failed to connect to simulator session ${sessionId}`);
+        throw err;
+      }
       if (!action) {
         this.printCatalog(catalog, jsonFlag);
         return;
@@ -125,7 +124,7 @@ export default class SimulatorControl extends EasCommand {
         jsonFlag,
       });
     } finally {
-      connection.close();
+      connection?.close();
     }
   }
 

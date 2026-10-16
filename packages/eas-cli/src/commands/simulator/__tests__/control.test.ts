@@ -351,6 +351,14 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalled();
   });
 
+  it('closes an established connection when catalog setup fails', async () => {
+    requestAsync.mockImplementationOnce(async () => ok('not a catalog'));
+    await expect(createCommand(['--list', '--id', 'session-123']).runAsync()).rejects.toThrow(
+      'did not return its list of actions'
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('asks for an action before it loads the session', async () => {
     await expect(createCommand(['--id', 'session-123']).runAsync()).rejects.toThrow(
       'No action provided.'
