@@ -119,7 +119,7 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
   experimentation,
   authenticationInfo,
 }: {
@@ -131,7 +131,7 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
   /** Enables the Free plan limit experiments on the build request error path. */
   experimentation?: LazyExperimentationClient;
   /** Lets the Free plan limit checkout experiment create a checkout session. */
@@ -224,18 +224,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env, exp, projectId } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : {
-          env: envOverride,
-          ...(await getDynamicPrivateProjectConfigAsync({ env: envOverride })),
-        };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
