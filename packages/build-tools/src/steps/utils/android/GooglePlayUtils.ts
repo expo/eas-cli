@@ -3,6 +3,8 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
 import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
 import { GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
@@ -142,7 +144,7 @@ export namespace GooglePlayUtils {
       signal?: AbortSignal;
     }
   ): Promise<void> {
-    const commitOnceAsync = async ({
+    const sendCommitAsync = async ({
       changesNotSentForReview,
     }: {
       changesNotSentForReview?: boolean;
@@ -179,10 +181,42 @@ export namespace GooglePlayUtils {
           : 'Google Play saved the release using its normal review process. Check its review and publishing status at https://play.google.com/console/.'
       );
     };
+    // Google can accept the bundle upload before the edit is ready to commit.
+    // Retry only this explicit rejection, not other HTTP 400 preconditions.
+    const isUploadStillProcessing = (error: unknown): boolean =>
+      error instanceof GooglePlayApiError &&
+      error.status === 400 &&
+      error.apiMessage === 'Some of the Android App Bundle uploads are not completed yet.';
+
+    const commitAsync = async (options: { changesNotSentForReview?: boolean }): Promise<void> => {
+      try {
+        await promiseRetryWithCondition(
+          sendCommitAsync,
+          error => {
+            signal?.throwIfAborted();
+            return isUploadStillProcessing(error);
+          },
+          { retries: 5, factor: 2, minTimeout: 2000, maxTimeout: 32_000 },
+          ({ attemptNumber, maxAttemptsCount }) => {
+            logger.warn(
+              `Google Play is still processing the uploaded bundle. Retrying the same edit commit (attempt ${attemptNumber}/${maxAttemptsCount}).`
+            );
+          }
+        )(options);
+      } catch (error) {
+        if (isUploadStillProcessing(error)) {
+          throw new SystemError(
+            `Google Play did not finish processing the uploaded bundle for ${packageName} after six commit attempts. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
+            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
+          );
+        }
+        throw error;
+      }
+    };
     try {
       // Omit the optional parameter for normal review submission. Some app states
       // reject its presence, even when false. True saves changes for review in Console.
-      await commitOnceAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
+      await commitAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
     } catch (error) {
       if (!(error instanceof GooglePlayApiError) || error.status !== 400) {
         throw error;
@@ -195,7 +229,7 @@ export namespace GooglePlayUtils {
         logger.warn(
           'Google does not allow changesNotSentForReview for this app right now. Retrying commit once without it. The changes will be sent for review.'
         );
-        await commitOnceAsync({});
+        await commitAsync({});
       } else if (
         !changesNotSentForReview &&
         error.apiMessage.includes('Please set the query parameter changesNotSentForReview to true')
@@ -203,7 +237,7 @@ export namespace GooglePlayUtils {
         logger.warn(
           'Google requires changesNotSentForReview=true. Retrying commit once. Send the saved changes for review from Play Console.'
         );
-        await commitOnceAsync({ changesNotSentForReview: true });
+        await commitAsync({ changesNotSentForReview: true });
       } else {
         throw error;
       }
