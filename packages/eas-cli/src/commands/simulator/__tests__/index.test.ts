@@ -2026,6 +2026,75 @@ describe(Simulator, () => {
     );
   });
 
+  it('sends CORS origins and prints the preview API URL', async () => {
+    const remoteConfig = {
+      __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+      agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+      agentDeviceRemoteSessionToken: 'daemon-token',
+      webPreviewUrl: 'https://expo.dev/simulator-preview/preview-123',
+      webPreviewToken: 'preview-secret',
+      previewApiUrl: 'https://preview-api.example.test',
+    };
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+
+    const { command: jsonCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--json',
+      '--cors-origin',
+      'https://App.example.test/',
+    ]);
+    await jsonCommand.runAsync();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ frameAncestors: expect.anything() })
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          previewApiUrl: 'https://preview-api.example.test/?token=preview-secret',
+        }),
+      })
+    );
+
+    jest.clearAllMocks();
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+    const { command: humanCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--cors-origin',
+      'https://app.example.test',
+    ]);
+    await humanCommand.runAsync();
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://preview-api.example.test/?token=preview-secret')
+    );
+  });
+
+  it('rejects a CORS origin with a path before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--cors-origin',
+      'https://app.example.test/app',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--cors-origin https://app.example.test/app must be an origin only'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('rejects a frame ancestor that is not an origin before creating a session', async () => {
     const { command } = createCommand([
       '--platform',

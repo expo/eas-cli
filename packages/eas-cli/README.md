@@ -2898,8 +2898,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
-    env|dotenv] [--public-link] [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -2915,6 +2915,12 @@ FLAGS
 
   --build-id=<value>
       EAS Build to install and launch before the simulator session is ready.
+
+  --cors-origin=<value>...
+      Origin of a page that may call the simulator preview API cross-origin, for example to render the device with
+      @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding
+      the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview
+      URL and its token.
 
   --device=<value>
       Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android,
@@ -3042,8 +3048,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
-    env|dotenv] [--public-link] [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3059,6 +3065,12 @@ FLAGS
 
   --build-id=<value>
       EAS Build to install and launch before the simulator session is ready.
+
+  --cors-origin=<value>...
+      Origin of a page that may call the simulator preview API cross-origin, for example to render the device with
+      @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding
+      the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview
+      URL and its token.
 
   --device=<value>
       Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android,
@@ -3310,8 +3322,8 @@ USAGE
     --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
     <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
     [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--frame-ancestor <value>...] [--force] [--out-config-type
-    env|dotenv] [--public-link] [--json] [--non-interactive]
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3327,6 +3339,12 @@ FLAGS
 
   --build-id=<value>
       EAS Build to install and launch before the simulator session is ready.
+
+  --cors-origin=<value>...
+      Origin of a page that may call the simulator preview API cross-origin, for example to render the device with
+      @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding
+      the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview
+      URL and its token.
 
   --device=<value>
       Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android,

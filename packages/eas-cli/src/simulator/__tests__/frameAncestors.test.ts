@@ -1,4 +1,4 @@
-import { parseFrameAncestorList } from '../frameAncestors';
+import { parseCorsOriginList, parseFrameAncestorList } from '../frameAncestors';
 
 describe(parseFrameAncestorList, () => {
   it('normalizes each value to its origin and drops duplicates', () => {
@@ -34,5 +34,24 @@ describe(parseFrameAncestorList, () => {
   it('rejects more than ten origins', () => {
     const origins = Array.from({ length: 11 }, (_, i) => `https://embed-${i}.example.test`);
     expect(() => parseFrameAncestorList(origins)).toThrow('at most 10 origins; received 11');
+  });
+});
+
+describe(parseCorsOriginList, () => {
+  it('normalizes each value to its origin and drops duplicates', () => {
+    expect(
+      parseCorsOriginList([
+        'https://App.example.test/',
+        'https://app.example.test',
+        'http://localhost:8081',
+      ])
+    ).toEqual(['https://app.example.test', 'http://localhost:8081']);
+  });
+
+  it('names the flag in its errors', () => {
+    expect(() => parseCorsOriginList(['https://app.example.test/path'])).toThrow(
+      '--cors-origin https://app.example.test/path must be an origin only'
+    );
+    expect(() => parseCorsOriginList(['http://app.example.test'])).toThrow('--cors-origin');
   });
 });
