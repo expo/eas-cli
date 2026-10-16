@@ -3,7 +3,7 @@ import { ExpoConfig } from '@expo/config';
 import ContextField, { ContextOptions } from './ContextField';
 import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
-import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { getProjectIdAsync, isProjectIdInAppConfig } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import {
   ExpoConfigOptions,
@@ -30,6 +30,13 @@ export class DynamicPublicProjectConfigContextField extends ContextField<Dynamic
         nonInteractive,
         env: options?.env,
       });
+      if (!withServerSideEnvironment && isProjectIdInAppConfig(expBefore, projectId)) {
+        return {
+          exp: expBefore,
+          projectDir,
+          projectId,
+        };
+      }
       if (withServerSideEnvironment) {
         const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
           nonInteractive,
@@ -71,6 +78,13 @@ export class DynamicPrivateProjectConfigContextField extends ContextField<Dynami
         nonInteractive,
         env: options?.env,
       });
+      if (!withServerSideEnvironment && isProjectIdInAppConfig(expBefore, projectId)) {
+        return {
+          exp: expBefore,
+          projectDir,
+          projectId,
+        };
+      }
       if (withServerSideEnvironment) {
         const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
           nonInteractive,

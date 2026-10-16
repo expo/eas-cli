@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config';
 import { Env, Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
@@ -13,7 +14,6 @@ import { createIosContextAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { resolveBuildResourceClass } from './utils/resourceClass';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
-import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
@@ -38,7 +38,8 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   buildLoggerLevel,
   freezeCredentials,
@@ -62,7 +63,8 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
@@ -71,9 +73,6 @@ export async function createBuildContextAsync<T extends Platform>({
   whatToTest?: string;
   env: Env;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
-    env,
-  });
   const projectName = exp.slug;
 
   const [account, workflow] = await Promise.all([

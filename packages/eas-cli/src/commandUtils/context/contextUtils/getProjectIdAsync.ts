@@ -98,6 +98,14 @@ export async function getProjectIdAsync(
   return projectId;
 }
 
+/**
+ * When this is false, getProjectIdAsync wrote the project ID to the app config,
+ * and the config must be read again.
+ */
+export function isProjectIdInAppConfig(exp: Pick<ExpoConfig, 'extra'>, projectId: string): boolean {
+  return exp.extra?.eas?.projectId === projectId;
+}
+
 export async function validateOrSetProjectIdAsync({
   exp,
   graphqlClient,
