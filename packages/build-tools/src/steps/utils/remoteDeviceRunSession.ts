@@ -880,6 +880,37 @@ export function createPrivatePreviewUrlInputProvider(): ReturnType<
   });
 }
 
+/**
+ * Origins that may embed the preview host in a frame, next to the website origins. The host
+ * drops values that are not an origin or a subdomain wildcard, so this parser only guards
+ * the input shape.
+ */
+export function createFrameAncestorsInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'frame_ancestors',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseFrameAncestorsInput(value: unknown): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every(origin => typeof origin === 'string' && origin.trim().length > 0)
+  ) {
+    throw new UserError(
+      'EAS_FRAME_ANCESTORS_INVALID_INPUT',
+      'Input "frame_ancestors" must be an array of non-empty strings, one origin each.'
+    );
+  }
+  return value;
+}
+
 export function parseServeSimLaunchInputs(
   {
     launchAppIdentifier: rawLaunchAppIdentifier,

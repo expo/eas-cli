@@ -98,6 +98,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     capture,
     disableShare = false,
     privatePreviewUrl,
+    frameAncestors,
     tasks,
     device,
   }: {
@@ -112,6 +113,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
     disableShare?: boolean;
     privatePreviewUrl?: string;
+    frameAncestors?: string[];
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -169,6 +171,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       timeoutMs: STARTUP_TIMEOUT_MS,
       disableShare,
       privatePreviewUrl,
+      frameAncestors,
       networkCapture: capture.networkCapture,
       networkCaptureFields: capture.networkCaptureFields,
     });

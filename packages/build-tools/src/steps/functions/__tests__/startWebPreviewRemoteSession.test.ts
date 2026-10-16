@@ -210,6 +210,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         : {}),
       packageVersion: '1.2.3',
       disableShare: false,
+      frameAncestors: [],
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
@@ -258,6 +259,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'network_capture_fields',
       'public_preview',
       'private_preview_url',
+      'frame_ancestors',
       'package_version',
       'max_duration_seconds',
     ]);

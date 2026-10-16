@@ -88,6 +88,7 @@ function runStep(
       'network_capture_fields',
       'public_preview',
       'private_preview_url',
+      'frame_ancestors',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -417,6 +418,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'network_capture_fields',
       'public_preview',
       'private_preview_url',
+      'frame_ancestors',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -439,6 +441,16 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       );
     }
   );
+
+  it('passes frame_ancestors to the session host', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, {
+      frame_ancestors: ['https://embed.example.test'],
+    });
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
 
   it('passes network capture to the session', async () => {
     await runStep(BuildRuntimePlatform.DARWIN, {

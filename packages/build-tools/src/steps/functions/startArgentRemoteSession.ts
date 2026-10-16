@@ -34,6 +34,7 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
@@ -44,6 +45,7 @@ import {
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   omitNgrokAuthtoken,
+  parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -89,6 +91,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       ...createNetworkCaptureInputProviders(),
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -289,6 +292,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           timeoutMs: STARTUP_TIMEOUT_MS,
           disableShare: inputs.public_preview?.value === false,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+          frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,

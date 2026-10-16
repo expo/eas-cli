@@ -19,9 +19,11 @@ import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtil
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
+  createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
   omitNgrokAuthtoken,
+  parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
 import {
@@ -122,6 +124,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       ...createNetworkCaptureInputProviders(),
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
+      createFrameAncestorsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -271,6 +274,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         capture,
         disableShare: inputs.public_preview?.value === false,
         privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+        frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
         tasks,
         device: { booted, ready },
       });
