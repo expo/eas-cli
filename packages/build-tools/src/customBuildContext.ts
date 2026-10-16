@@ -32,6 +32,7 @@ export interface BuilderRuntimeApi {
   uploadArtifact: (spec: { artifact: ArtifactToUpload; logger: bunyan }) => Promise<{
     artifactId: string | null;
   }>;
+  addBuildLogMask?: (secret: string) => void;
 }
 
 export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuildContextProvider {
@@ -84,6 +85,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.buildLogsDirectory = path.join(buildCtx.workingdir, 'logs');
     this.runtimeApi = {
       uploadArtifact: (...args) => buildCtx['uploadArtifact'](...args),
+      addBuildLogMask: buildCtx.addBuildLogMask,
     };
     this.mcpServerUrl = buildCtx.mcpServerUrl;
     this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;

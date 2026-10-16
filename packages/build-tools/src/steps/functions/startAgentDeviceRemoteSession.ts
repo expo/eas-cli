@@ -96,6 +96,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes,
     maxDurationSeconds,
     capture,
+    disableShare = false,
+    privatePreviewUrl,
     tasks,
     device,
   }: {
@@ -108,6 +110,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxIdleTimeMinutes: number | undefined;
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
+    disableShare?: boolean;
+    privatePreviewUrl?: string;
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -121,6 +125,7 @@ export async function runAgentDeviceRemoteSessionAsync(
   let sessionHost: DeviceSessionHost | undefined;
   let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
   let sessionFailed = false;
+  const daemonSecrets = [ngrokAuthtoken];
 
   // Each task stores what it started, so the teardown below can stop it even when
   // another task failed first.
@@ -131,12 +136,14 @@ export async function runAgentDeviceRemoteSessionAsync(
       env,
       logger: taskLogger,
       signal: tasks.signal,
+      secrets: daemonSecrets,
     });
 
     taskLogger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
     // The daemon is stored above, so the teardown stops it. The wait itself is bounded
     // (STARTUP_TIMEOUT_MS) and only reads a file, so it may finish in the background.
     const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
+    daemonSecrets.push(daemonInfo.token);
     taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
 
     tasks.signal.throwIfAborted();
@@ -155,17 +162,25 @@ export async function runAgentDeviceRemoteSessionAsync(
     await tasks.untilAborted(device.booted);
     tasks.signal.throwIfAborted();
     sessionHost = await startDeviceSessionHostAsync(ctx, {
+      separateLogPhase: true,
       runtimePlatform,
       env,
       logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
+      disableShare,
+      privatePreviewUrl,
       networkCapture: capture.networkCapture,
       networkCaptureFields: capture.networkCaptureFields,
     });
     tasks.signal.throwIfAborted();
-    const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
+    const webPreview = await sessionHost.openPreviewAsync({
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+    });
     taskLogger.info(
-      `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+      webPreview.sharePageUrl
+        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+        : 'Private preview URL unavailable for this session.'
     );
     return webPreview;
   });
@@ -267,12 +282,14 @@ export async function startAgentDeviceDaemonAsync({
   env,
   logger,
   signal,
+  secrets,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
   /** Kills the install and stops before the daemon starts, when aborted. No git fallback then. */
   signal?: AbortSignal;
+  secrets?: string[];
 }): Promise<DetachedProcessHandle> {
   const packageSpec = createAgentDevicePackageSpec(packageVersion);
   const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
@@ -298,12 +315,17 @@ export async function startAgentDeviceDaemonAsync({
       command: 'node',
       args: [daemonPath],
       env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+      logger,
+      secrets,
     });
     return {
       ...daemonProcess,
       stopAsync: async () => {
-        await daemonProcess.stopAsync();
-        await fs.promises.rm(installDir, { recursive: true, force: true });
+        try {
+          await daemonProcess.stopAsync();
+        } finally {
+          await fs.promises.rm(installDir, { recursive: true, force: true });
+        }
       },
     };
   } catch (err) {
@@ -334,7 +356,13 @@ export async function startAgentDeviceDaemonAsync({
     logger.warn(
       `Failed to start daemon from ${packageSpec} via ${packageManager}; falling back to git clone: ${error.message}`
     );
-    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger, signal });
+    return await startAgentDeviceDaemonFromGitAsync({
+      packageVersion,
+      env,
+      logger,
+      signal,
+      secrets,
+    });
   }
 }
 
@@ -365,11 +393,13 @@ async function startAgentDeviceDaemonFromGitAsync({
   env,
   logger,
   signal,
+  secrets,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
   signal?: AbortSignal;
+  secrets?: string[];
 }): Promise<DetachedProcessHandle> {
   logger.info(
     packageVersion
@@ -396,6 +426,8 @@ async function startAgentDeviceDaemonFromGitAsync({
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
     env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+    logger,
+    secrets,
   });
 }
 

@@ -1,15 +1,24 @@
 import { Sentry } from './sentry';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from './steps/utils/deviceRunSessionWorkerApi';
 import { turtleFetch } from './utils/turtleFetch';
 
 type MetricsTarget =
   | { kind: 'build'; turtleBuildId: string }
-  | { kind: 'jobRun'; turtleJobRunId: string };
+  | { kind: 'jobRun'; turtleJobRunId: string }
+  // A device run session job with a session token. The token names the session and its job run.
+  | { kind: 'deviceRunSession' };
 
-type DatadogSetupOptions = {
-  expoApiV2BaseUrl: string;
-  robotAccessToken: string;
-  target: MetricsTarget;
-};
+type DatadogSetupOptions =
+  | {
+      expoApiV2BaseUrl: string;
+      robotAccessToken: string;
+      target: Exclude<MetricsTarget, { kind: 'deviceRunSession' }>;
+    }
+  | {
+      expoApiV2BaseUrl: string;
+      deviceRunSessionToken: string;
+      target: Extract<MetricsTarget, { kind: 'deviceRunSession' }>;
+    };
 
 let setupOptions: DatadogSetupOptions | null = null;
 let pendingUploads: Promise<unknown>[] = [];
@@ -18,7 +27,28 @@ function withTargetTag(
   tags: Record<string, string>,
   target: MetricsTarget
 ): Record<string, string> {
+  // A device run session job is a job run, so its metrics keep the job run tag.
   return { ...tags, target: target.kind === 'build' ? 'build' : 'job_run' };
+}
+
+function getMetricsRequest(options: DatadogSetupOptions): {
+  path: string;
+  headers: Record<string, string>;
+} {
+  if ('deviceRunSessionToken' in options) {
+    return {
+      path: 'device-run-session-worker/metrics',
+      headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: options.deviceRunSessionToken },
+    };
+  }
+  const { target, robotAccessToken } = options;
+  return {
+    path:
+      target.kind === 'build'
+        ? `turtle-builds/${target.turtleBuildId}/metrics`
+        : `turtle-job-runs/${target.turtleJobRunId}/metrics`,
+    headers: { Authorization: `Bearer ${robotAccessToken}` },
+  };
 }
 
 export const Datadog = {
@@ -30,7 +60,7 @@ export const Datadog = {
     if (!setupOptions) {
       return;
     }
-    const { expoApiV2BaseUrl, robotAccessToken, target } = setupOptions;
+    const { expoApiV2BaseUrl, target } = setupOptions;
     const metrics = [
       {
         name,
@@ -40,16 +70,11 @@ export const Datadog = {
       },
     ];
 
-    const metricsPath =
-      target.kind === 'build'
-        ? `turtle-builds/${target.turtleBuildId}/metrics`
-        : `turtle-job-runs/${target.turtleJobRunId}/metrics`;
+    const { path: metricsPath, headers } = getMetricsRequest(setupOptions);
 
     const uploadPromise = turtleFetch(new URL(metricsPath, expoApiV2BaseUrl).toString(), 'POST', {
       json: { metrics },
-      headers: {
-        Authorization: `Bearer ${robotAccessToken}`,
-      },
+      headers,
       retries: 2,
     }).catch(err => {
       Sentry.capture(`Failed to report turtle ${target.kind} metric`, err, {
@@ -61,7 +86,9 @@ export const Datadog = {
   },
 
   log(message: string, tags: Record<string, string> = {}): void {
-    if (!setupOptions) {
+    // The device run session worker API has no logs route, and the session token is not a bearer
+    // credential, so a device run session job does not report these logs.
+    if (!setupOptions || !('robotAccessToken' in setupOptions)) {
       return;
     }
     const { expoApiV2BaseUrl, robotAccessToken, target } = setupOptions;

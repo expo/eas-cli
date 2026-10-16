@@ -3,13 +3,12 @@ import chalk from 'chalk';
 import { getUnconfiguredProjectError } from './projectNotConfiguredError';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { link } from '../log';
 import { ora } from '../ora';
 import { confirmAsync } from '../prompts';
-import { Actor } from '../user/User';
+import { Actor, getCannotCreateProjectsOnAccountReason } from '../user/User';
 
 /**
  * 1. Looks for an existing project on EAS servers. If found, ask the user whether this is the
@@ -32,9 +31,6 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   const projectFullName = `@${accountName}/${projectName}`;
 
   const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
-    allAccounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
-  );
 
   if (options.nonInteractive) {
     throw getUnconfiguredProjectError({ actor, accountName });
@@ -63,9 +59,10 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     return projectIdOnServer;
   }
 
-  if (!accountNamesWhereUserHasSufficientPublishPermissions.has(accountName)) {
+  const cannotCreateReason = getCannotCreateProjectsOnAccountReason(account);
+  if (cannotCreateReason) {
     throw new Error(
-      `You don't have permission to create a new project on the ${accountName} account and no matching project already exists on the account.`
+      `No matching project exists on the ${accountName} account, and you can't create one. ${cannotCreateReason}`
     );
   }
 
