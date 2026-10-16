@@ -36,6 +36,7 @@
     "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\"",
     "gql": "gql.tada generate-schema ${API_SERVER_URL:-https://api.expo.dev}/graphql --output ./schema.graphql && gql.tada generate-output",
     "gql:local": "API_SERVER_URL=http://api.expo.test yarn gql",
+    "verify-graphql-code": "./scripts/verify-graphql.sh",
     "test": "yarn jest-unit"
   },
   "dependencies": {
