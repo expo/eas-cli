@@ -879,7 +879,9 @@ describe('embed instructions', () => {
       'dotenv',
       { frameAncestors: ['https://embed.example.test'] }
     );
-    expect(instructions.indexOf('tok-1')).toBeLessThan(instructions.indexOf('eas simulator:egress'));
+    expect(instructions.indexOf('tok-1')).toBeLessThan(
+      instructions.indexOf('eas simulator:egress')
+    );
   });
 
   it('says nothing about embedding without frame ancestors', () => {
