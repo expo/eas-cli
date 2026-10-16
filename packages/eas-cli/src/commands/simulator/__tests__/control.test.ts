@@ -54,11 +54,14 @@ const mockConnectHostActionsAsync = jest.mocked(connectHostActionsAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
+function makeDeviceRunSession(
+  overrides: Partial<DeviceRunSessionById> = {}
+): DeviceRunSessionById & { publicPreview: boolean } {
   return {
     id: 'session-123',
     name: null,
     tags: [],
+    publicPreview: false,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.WebPreviewOnly,
     platform: AppPlatform.Ios,
