@@ -324,6 +324,16 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     }
   );
 
+  it('hands frame_ancestors to the session host', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      frame_ancestors: { value: ['https://embed.example.test'] },
+    });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
+
   it('hands network capture to the session host', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {
       network_capture: { value: true },
