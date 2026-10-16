@@ -46,7 +46,7 @@ type Device = {
   failures: number;
 };
 type Session = {
-  outputDirectory: string | null;
+  initialization: Promise<string>;
   controller: AbortController;
   timer: NodeJS.Timeout;
   polling: Promise<void>;
@@ -72,11 +72,12 @@ export namespace ServeSimCrashesRecorder {
     maxDurationMs?: number;
   }): Promise<void> {
     if (activeSession) {
+      await activeSession.initialization;
       return;
     }
     const controller = new AbortController();
     const session: Session = {
-      outputDirectory: null,
+      initialization: mkdtemp(path.join(os.tmpdir(), 'serve-sim-crashes-')),
       controller,
       timer: setTimeout(() => {
         logger.warn(
@@ -90,9 +91,18 @@ export namespace ServeSimCrashesRecorder {
     };
     session.timer.unref();
     activeSession = session;
+    let outputDirectory: string;
+    try {
+      outputDirectory = await session.initialization;
+    } catch (error) {
+      clearTimeout(session.timer);
+      controller.abort();
+      if (activeSession === session) {
+        activeSession = undefined;
+      }
+      throw error;
+    }
     session.polling = (async () => {
-      const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'serve-sim-crashes-'));
-      session.outputDirectory = outputDirectory;
       const devices = new Map<string, Device>();
       while (!controller.signal.aborted) {
         const servers = await readServeSimServersAsync(stateDir);
@@ -170,6 +180,7 @@ export namespace ServeSimCrashesRecorder {
     session.stopping ??= (async () => {
       clearTimeout(session.timer);
       session.controller.abort();
+      await session.initialization.catch(() => {});
       await session.polling;
       await Promise.all(session.streams.values());
     })();
@@ -184,12 +195,14 @@ export namespace ServeSimCrashesRecorder {
     }
     session.finishing = (async () => {
       await stopAsync();
-      return { outputDirectory: session.outputDirectory, crashes: session.files };
+      return { outputDirectory: await session.initialization, crashes: session.files };
     })();
     try {
       return await session.finishing;
     } finally {
-      activeSession = undefined;
+      if (activeSession === session) {
+        activeSession = undefined;
+      }
     }
   }
 }
