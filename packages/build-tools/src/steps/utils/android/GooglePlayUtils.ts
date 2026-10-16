@@ -168,8 +168,16 @@ export namespace GooglePlayUtils {
           !(error instanceof GooglePlayApiError) ||
           GooglePlayApiError.isRetryableStatus(error.status)
         ) {
+          const lastError = error instanceof AggregateError ? error.cause : error;
+          const rejection =
+            lastError instanceof GooglePlayApiError &&
+            lastError.status >= 400 &&
+            lastError.status < 500 &&
+            !GooglePlayApiError.isRetryableStatus(lastError.status)
+              ? `The last commit attempt was rejected (HTTP ${lastError.status}${lastError.apiMessage ? `: ${lastError.apiMessage}` : ''}). `
+              : '';
           throw new GooglePlayCommitOutcomeUnknownError(
-            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
+            `${rejection}Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
             { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
