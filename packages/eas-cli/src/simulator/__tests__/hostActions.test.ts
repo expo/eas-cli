@@ -4,8 +4,10 @@ import http from 'node:http';
 import { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { Duplex } from 'node:stream';
 import WebSocket, { WebSocketServer } from 'ws';
 
+import * as fetchModule from '../../fetch';
 import {
   HostActionCatalog,
   HostActionConnection,
@@ -145,6 +147,49 @@ describe(formatHostActionUsage, () => {
     );
     expect(formatHostActionUsage('camera.switch', entry('camera.switch'))).toBe(
       'camera.switch <source> [target]'
+    );
+  });
+});
+
+describe('host action transport policy', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    'http://sim.example.test',
+    'http://127.0.0.1.example.test',
+    'http://localhost.example.test',
+    'http://[::ffff:192.0.2.1]',
+    'ftp://127.0.0.1',
+    'ws://127.0.0.1',
+  ])('rejects %s before sending the session token', async apiUrl => {
+    const fetch = jest
+      .spyOn(fetchModule, 'default')
+      .mockRejectedValue(new Error('Unexpected fetch'));
+
+    await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'Simulator actions require HTTPS'
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['https://sim.example.test', 'https://sim.example.test/api'],
+    ['http://localhost:44370', 'http://localhost:44370/api'],
+    ['http://127.0.0.1:44370', 'http://127.0.0.1:44370/api'],
+    ['http://127.255.255.254:44370', 'http://127.255.255.254:44370/api'],
+    ['http://2130706433:44370', 'http://127.0.0.1:44370/api'],
+    ['http://[::1]:44370', 'http://[::1]:44370/api'],
+  ])('accepts %s without following authenticated redirects', async (apiUrl, endpoint) => {
+    const stopped = new Error('Fetch reached');
+    const fetch = jest.spyOn(fetchModule, 'default').mockRejectedValue(stopped);
+
+    await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toBe(stopped);
+    expect(fetch).toHaveBeenCalledWith(
+      endpoint,
+      expect.objectContaining({
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        redirect: 'error',
+      })
     );
   });
 });
@@ -420,6 +465,24 @@ describe('host action connection', () => {
     expect(requests).toEqual(['/api']);
   });
 
+  it('does not send the session token to an API redirect target', async () => {
+    server.removeAllListeners('request');
+    server.on('request', (req, res) => {
+      requests.push(req.url);
+      if (req.url === '/api') {
+        res.writeHead(302, { Location: '/redirected-api' });
+        res.end();
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(apiBody);
+      }
+    });
+
+    await expect(connectAsync()).rejects.toThrow(/redirect/i);
+    expect(requests).toEqual(['/api']);
+    expect(wss.clients.size).toBe(0);
+  });
+
   it('explains a connection that closes during setup', async () => {
     closeBeforeReady = true;
 
@@ -446,6 +509,42 @@ describe('host action connection', () => {
       jest.useRealTimers();
     }
   });
+
+  it.each([401, 403])(
+    'closes a refused HTTP %i upgrade without waiting for its body',
+    async status => {
+      let rejectedSocket: Duplex | undefined;
+      let timer: NodeJS.Timeout | undefined;
+      const closed = new Promise<void>(resolve => {
+        server.removeAllListeners('upgrade');
+        server.once('upgrade', (_req, socket) => {
+          rejectedSocket = socket;
+          socket.once('close', resolve);
+          socket.on('end', () => socket.end());
+          socket.write(
+            `HTTP/1.1 ${status} Refused\r\nConnection: keep-alive\r\nContent-Length: 1000000\r\n\r\nrefused`
+          );
+        });
+      });
+
+      try {
+        await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+          `refused the connection (HTTP ${status})`
+        );
+        await Promise.race([
+          closed,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              reject(new Error('Refused upgrade socket stayed open'));
+            }, 1000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+        rejectedSocket?.destroy();
+      }
+    }
+  );
 
   it('explains a preview server that does not report its simulator', async () => {
     apiBody = '<html>starting</html>';
