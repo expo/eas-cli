@@ -2,4 +2,4 @@
 '@expo/build-tools': minor
 ---
 
-Keep serve-sim crash reports and app log tails as session artifacts.
+Save each serve-sim crash occurrence as a native IPS session artifact.

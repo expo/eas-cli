@@ -1,6 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
-import { mkdtemp, open } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -23,18 +24,22 @@ const FrameSchema = z.discriminatedUnion('type', [
   z.object({ type: z.enum(['crash', 'recurred']), record: SummarySchema }),
 ]);
 const DetailSchema = z.object({
-  record: z.object({ id: z.string() }).passthrough(),
-  occurrence: z.object({ key: z.number().int().nonnegative() }).passthrough(),
+  record: z.object({ id: z.string() }),
+  occurrence: z.object({
+    key: z.number().int().nonnegative(),
+    incidentId: z.string().nullable().optional(),
+  }),
   report: z.string().nullable(),
-  reportError: z.string().nullable(),
 });
 
-type CollectedCrashes = { udid: string; filePath: string };
-type FinishedCrashes = { outputDirectory: string | null; crashes: CollectedCrashes[] };
+type CollectedCrash = { udid: string; filePath: string };
+type FinishedCrashes = { outputDirectory: string | null; crashes: CollectedCrash[] };
 type Device = {
   identity: string;
   seen: Set<string>;
+  incidents: Set<string>;
   bytesWritten: number;
+  reportsWritten: number;
   limitReached: boolean;
   failures: number;
 };
@@ -44,7 +49,7 @@ type Session = {
   timer: NodeJS.Timeout;
   polling: Promise<void>;
   streams: Map<string, Promise<void>>;
-  files: Map<string, CollectedCrashes>;
+  files: CollectedCrash[];
   stopping?: Promise<void>;
   finishing?: Promise<FinishedCrashes>;
 };
@@ -80,7 +85,7 @@ export namespace ServeSimCrashesRecorder {
       }, maxDurationMs),
       polling: Promise.resolve(),
       streams: new Map(),
-      files: new Map(),
+      files: [],
     };
     session.timer.unref();
     activeSession = session;
@@ -107,7 +112,9 @@ export namespace ServeSimCrashesRecorder {
             device = {
               identity,
               seen: new Set(),
+              incidents: new Set(),
               bytesWritten: 0,
+              reportsWritten: 0,
               limitReached: false,
               failures: 0,
             };
@@ -130,15 +137,14 @@ export namespace ServeSimCrashesRecorder {
             continue;
           }
           device.failures += 1;
-          const filePath = path.join(outputDirectory, `${encodeURIComponent(server.udid)}.ndjson`);
           const done = recordServeSimCrashesAsync({
             server,
-            filePath,
+            outputDirectory,
             device,
             signal: controller.signal,
             logger,
             maxBytes,
-            onRecorded: () => session.files.set(server.udid, { udid: server.udid, filePath }),
+            onRecorded: filePath => session.files.push({ udid: server.udid, filePath }),
           }).finally(() => session.streams.delete(server.udid));
           session.streams.set(server.udid, done);
         }
@@ -173,7 +179,7 @@ export namespace ServeSimCrashesRecorder {
     }
     session.finishing = (async () => {
       await stopAsync();
-      return { outputDirectory: session.outputDirectory, crashes: [...session.files.values()] };
+      return { outputDirectory: session.outputDirectory, crashes: session.files };
     })();
     try {
       return await session.finishing;
@@ -185,7 +191,7 @@ export namespace ServeSimCrashesRecorder {
 
 async function recordServeSimCrashesAsync({
   server,
-  filePath,
+  outputDirectory,
   device,
   signal,
   logger,
@@ -193,15 +199,14 @@ async function recordServeSimCrashesAsync({
   onRecorded,
 }: {
   server: { udid: string; url: string; token?: string };
-  filePath: string;
+  outputDirectory: string;
   device: Device;
   signal: AbortSignal;
   logger: bunyan;
   maxBytes: number;
-  onRecorded: () => void;
+  onRecorded: (filePath: string) => void;
 }): Promise<void> {
   const controller = new AbortController();
-  let file: Awaited<ReturnType<typeof open>> | undefined;
   try {
     const url = new URL('/crashes', server.url);
     url.searchParams.set('device', server.udid);
@@ -270,11 +275,16 @@ async function recordServeSimCrashesAsync({
             if (detail.record.id !== summary.id || detail.occurrence.key !== occurrence.key) {
               throw new Error('Crash detail does not match the requested occurrence');
             }
-            const record = JSON.stringify(detail) + '\n';
-            const size = Buffer.byteLength(record);
+            const { incidentId } = detail.occurrence;
+            if (incidentId && device.incidents.has(incidentId)) {
+              device.seen.add(key);
+              continue;
+            }
+            const size = Buffer.byteLength(detail.report ?? '');
             if (
               device.bytesWritten + size > maxBytes ||
-              device.seen.size >= MAX_OCCURRENCES_PER_DEVICE
+              device.seen.size >= MAX_OCCURRENCES_PER_DEVICE ||
+              device.reportsWritten >= MAX_OCCURRENCES_PER_DEVICE
             ) {
               device.limitReached = true;
               logger.warn(
@@ -282,12 +292,28 @@ async function recordServeSimCrashesAsync({
               );
               break stream;
             }
-            file ??= await open(filePath, 'a', 0o600);
-            await file.writeFile(record);
+            if (!detail.report) {
+              device.seen.add(key);
+              logger.warn(
+                `Crash occurrence ${occurrence.key} has no native report for ${server.udid}; skipping its artifact.`
+              );
+              continue;
+            }
+            const filePath = path.join(outputDirectory, `${randomUUID()}.ips`);
+            try {
+              await writeFile(filePath, detail.report, { mode: 0o600, flag: 'wx' });
+            } catch (error) {
+              await rm(filePath, { force: true }).catch(() => {});
+              throw error;
+            }
             device.bytesWritten += size;
+            device.reportsWritten += 1;
             device.seen.add(key);
+            if (incidentId) {
+              device.incidents.add(incidentId);
+            }
             device.failures = 0;
-            onRecorded();
+            onRecorded(filePath);
           }
         }
         device.failures = 0;
@@ -302,7 +328,6 @@ async function recordServeSimCrashesAsync({
     }
   } finally {
     controller.abort();
-    await file?.close().catch(() => logger.warn('Could not close the simulator crash artifact.'));
   }
 }
 

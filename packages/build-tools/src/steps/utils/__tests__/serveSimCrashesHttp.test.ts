@@ -1,5 +1,5 @@
 import { type bunyan } from '@expo/logger';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { type Server, createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -18,16 +18,22 @@ jest.unmock('fs/promises');
 jest.unmock('node:fs/promises');
 jest.unmock('node-fetch');
 
+const fs = jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises');
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 let directory: string;
 let server: Server;
 let baseUrl: string;
 const summary = { id: 'crash/a', occurrenceTimes: [{ key: 1 }, { key: 2 }] };
+const report = (key: number) =>
+  JSON.stringify({ app_name: 'Fixture 서울 🌲', incident_id: `INC-${key}` }) +
+  '\n' +
+  JSON.stringify({ exception: { type: 'EXC_CRASH', signal: 'SIGABRT' }, incident: `INC-${key}` }) +
+  '\n';
 const detail = (key: number) => ({
   record: { id: summary.id, bundleId: 'dev.expo.fixture' },
-  occurrence: { key, logTail: ['Hello 서울 🌲'], pid: 123 },
-  report: key === 1 ? 'original .ips bytes\n' : null,
-  reportError: key === 1 ? null : 'macOS has deleted this report',
+  occurrence: { key, incidentId: `INC-${key}`, logTail: ['PRIVATE APP LOG'], pid: 123 },
+  report: report(key),
+  reportError: null,
 });
 
 async function waitFor(read: () => boolean | Promise<boolean>): Promise<void> {
@@ -74,17 +80,17 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-it('reconnects without duplicating occurrences, retains reports and log tails, and uploads exact private bytes', async () => {
+it('saves recurrences as separate private IPS files and uploads unchanged reports without app logs', async () => {
   let connections = 0;
   let requests = 0;
-  let uploaded: Buffer | undefined;
+  const uploaded: Buffer[] = [];
   let uploadAttempts = 0;
   server.on('request', (request, response) => {
     if (request.method === 'PUT') {
       const chunks: Buffer[] = [];
       request.on('data', chunk => chunks.push(chunk));
       request.on('end', () => {
-        uploaded = Buffer.concat(chunks);
+        uploaded.push(Buffer.concat(chunks));
         uploadAttempts += 1;
         response.writeHead(uploadAttempts === 1 ? 503 : 200).end();
       });
@@ -117,13 +123,16 @@ it('reconnects without duplicating occurrences, retains reports and log tails, a
   await waitFor(() => requests === 2);
   await ServeSimCrashesRecorder.stopAsync();
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
-  expect(files).toHaveLength(1);
+  expect(files).toHaveLength(2);
   expect(requests).toBe(2);
-  const filePath = files[0].filePath;
-  const expected = Buffer.from(JSON.stringify(detail(1)) + '\n' + JSON.stringify(detail(2)) + '\n');
-  expect(await readFile(filePath)).toEqual(expected);
-  expect((await stat(filePath)).mode & 0o777).toBe(0o600);
-  expect((await stat(path.dirname(filePath))).mode & 0o777).toBe(0o700);
+  const expected = [Buffer.from(report(1)), Buffer.from(report(2))];
+  for (const [index, file] of files.entries()) {
+    expect(path.extname(file.filePath)).toBe('.ips');
+    expect(await readFile(file.filePath)).toEqual(expected[index]);
+    expect((await stat(file.filePath)).mode & 0o777).toBe(0o600);
+    expect((await stat(path.dirname(file.filePath))).mode & 0o777).toBe(0o700);
+  }
+  expect(files[0].filePath).not.toBe(files[1].filePath);
   const mutation = jest.fn().mockReturnValue({
     toPromise: async () => ({
       data: {
@@ -131,34 +140,34 @@ it('reconnects without duplicating occurrences, retains reports and log tails, a
           createArtifactUploadSession: {
             uploadSession: {
               url: baseUrl + '/upload',
-              headers: { 'Content-Length': String(expected.length) },
+              headers: {},
             },
           },
         },
       },
     }),
   });
-  await uploadServeSimCrashesFileAsync(
-    { graphqlClient: { mutation } } as unknown as CustomBuildContext,
-    {
-      deviceRunSessionId: 'session-id',
-      udid: 'device-A',
-      filePath,
-      logger,
-    }
+  for (const file of files) {
+    await uploadServeSimCrashesFileAsync(
+      { graphqlClient: { mutation } } as unknown as CustomBuildContext,
+      { deviceRunSessionId: 'session-id', ...file, logger }
+    );
+  }
+  expect(uploaded).toEqual([expected[0], expected[0], expected[1]]);
+  expect(uploadAttempts).toBe(3);
+  expect(mutation.mock.calls.map(([, { input }]) => input.filename)).toEqual(
+    files.map(file => path.basename(file.filePath))
   );
-  expect(uploaded).toEqual(expected);
-  expect(uploadAttempts).toBe(2);
   expect(mutation.mock.calls[0][1].input).toMatchObject({
-    filename: 'crashes.ndjson',
     kind: 'simulator-crashes',
     metadata: { __eas_type: 'simulator-crashes', udid: 'device-A', source: 'serve-sim/crashes' },
   });
+  expect(JSON.stringify(mutation.mock.calls)).not.toContain('PRIVATE APP LOG');
   expect(await ServeSimCrashesRecorder.finishAsync()).toEqual({
     outputDirectory: null,
     crashes: [],
   });
-  await rm(path.dirname(filePath), { recursive: true, force: true });
+  await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
 });
 
 it('keeps an in-flight report download alive during stop and waits for its write', async () => {
@@ -179,7 +188,7 @@ it('keeps an in-flight report download alive during stop and waits for its write
   finishReport();
   await stopped;
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
-  expect((await readFile(files[0].filePath, 'utf8')).trim()).toBe(JSON.stringify(detail(1)));
+  expect(await readFile(files[0].filePath, 'utf8')).toBe(report(1));
   await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
 });
 
@@ -221,12 +230,12 @@ it('stops at a complete-record byte limit and keeps earlier reports', async () =
     logger,
     stateDir: directory,
     pollIntervalMs: 10,
-    maxBytes: Buffer.byteLength(JSON.stringify(detail(1)) + '\n'),
+    maxBytes: Buffer.byteLength(report(1)),
   });
   await waitFor(() => requested === 2);
   await ServeSimCrashesRecorder.stopAsync();
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
-  expect(await readFile(files[0].filePath, 'utf8')).toBe(JSON.stringify(detail(1)) + '\n');
+  expect(await readFile(files[0].filePath, 'utf8')).toBe(report(1));
   expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('reached its limit'));
   await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
 });
@@ -252,7 +261,7 @@ it('retries a failed detail request by reconnecting and replaying the retained l
   await waitFor(() => requests === 2);
   await delay(10);
   const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
-  expect(await readFile(files[0].filePath, 'utf8')).toBe(JSON.stringify(detail(1)) + '\n');
+  expect(await readFile(files[0].filePath, 'utf8')).toBe(report(1));
   await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
 });
 
@@ -360,9 +369,9 @@ it.each([
   const collected = await ServeSimCrashesRecorder.finishAsync();
   const expectedKeys = Array.from({ length: productive ? 12 : 1 }, (_, index) => index + 1);
   expect(keys).toEqual(expectedKeys);
-  expect(collected.crashes).toHaveLength(1);
-  expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(
-    expectedKeys.map(key => JSON.stringify(detail(key)) + '\n').join('')
+  expect(collected.crashes).toHaveLength(expectedKeys.length);
+  expect(await Promise.all(collected.crashes.map(file => readFile(file.filePath, 'utf8')))).toEqual(
+    expectedKeys.map(report)
   );
   await rm(collected.outputDirectory!, { recursive: true, force: true });
 });
@@ -409,7 +418,7 @@ it('recovers the same server after registry absence without resetting dedupe or 
     }
   });
   try {
-    const expected = JSON.stringify(detail(1)) + '\n' + JSON.stringify(detail(2)) + '\n';
+    const expected = report(1) + report(2);
     await start(Buffer.byteLength(expected));
     await waitFor(() =>
       jest
@@ -435,8 +444,10 @@ it('recovers the same server after registry absence without resetting dedupe or 
     const collected = await ServeSimCrashesRecorder.finishAsync();
     expect(connections).toBe(12);
     expect(keys).toEqual([1, 2, 3]);
-    expect(collected.crashes).toHaveLength(1);
-    expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(expected);
+    expect(collected.crashes).toHaveLength(2);
+    expect(
+      (await Promise.all(collected.crashes.map(file => readFile(file.filePath, 'utf8')))).join('')
+    ).toBe(expected);
     await rm(collected.outputDirectory!, { recursive: true, force: true });
   } finally {
     registry.mockRestore();
@@ -444,10 +455,10 @@ it('recovers the same server after registry absence without resetting dedupe or 
 });
 
 it('closes a stalled upload within its budget and lets another device upload', async () => {
-  const firstFile = path.join(directory, 'A.ndjson');
-  const secondFile = path.join(directory, 'B.ndjson');
-  await writeFile(firstFile, JSON.stringify(detail(1)) + '\n');
-  const expected = Buffer.from(JSON.stringify(detail(2)) + '\n');
+  const firstFile = path.join(directory, 'A.ips');
+  const secondFile = path.join(directory, 'B.ips');
+  await writeFile(firstFile, report(1));
+  const expected = Buffer.from(report(2));
   await writeFile(secondFile, expected);
   let firstClosed = false;
   let firstRequests = 0;
@@ -506,4 +517,101 @@ it('closes a stalled upload within its budget and lets another device upload', a
   });
   expect(mutation).toHaveBeenCalledTimes(2);
   expect(uploaded).toEqual(expected);
+});
+
+it.each([null, ''])(
+  'does not create an artifact when the native report is %s',
+  async nativeReport => {
+    let requested = false;
+    server.on('request', (request, response) => {
+      if (request.url!.startsWith('/crashes?')) {
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        response.write(
+          `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
+        );
+      } else {
+        requested = true;
+        response.end(
+          JSON.stringify({ ...detail(1), report: nativeReport, reportError: 'Report unavailable' })
+        );
+      }
+    });
+    await start();
+    await waitFor(() => requested);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    expect(collected.crashes).toEqual([]);
+    expect(await readdir(collected.outputDirectory!)).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('has no native report'));
+    await rm(collected.outputDirectory!, { recursive: true, force: true });
+  }
+);
+
+it('does not duplicate a saved incident when the server identity changes', async () => {
+  let connections = 0;
+  let requested = 0;
+  server.on('request', (request, response) => {
+    if (request.url!.startsWith('/crashes?')) {
+      connections += 1;
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.end(
+        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
+      );
+    } else {
+      requested += 1;
+      response.end(JSON.stringify(detail(1)));
+    }
+  });
+  await start();
+  await waitFor(() => connections >= 2);
+  await writeFile(
+    path.join(directory, 'server-device-A.json'),
+    JSON.stringify({
+      device: 'device-A',
+      url: baseUrl,
+      token: 'new-token',
+    })
+  );
+  await waitFor(() => requested === 2);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(collected.crashes).toHaveLength(1);
+  expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
+
+it('removes a partial file before retrying a failed write', async () => {
+  const write = fs.writeFile;
+  let attempted = 0;
+  let partialFile: string | undefined;
+  const writing = jest.spyOn(fs, 'writeFile').mockImplementation(async (file, data, options) => {
+    if (String(file).endsWith('.ips') && attempted++ === 0) {
+      partialFile = String(file);
+      await write(file, 'partial report', options);
+      throw new Error('disk write failed');
+    }
+    await write(file, data, options);
+  });
+  server.on('request', (request, response) => {
+    if (request.url!.startsWith('/crashes?')) {
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.write(
+        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
+      );
+    } else {
+      response.end(JSON.stringify(detail(1)));
+    }
+  });
+  try {
+    await start();
+    await waitFor(() => attempted >= 2);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    expect(collected.crashes).toHaveLength(1);
+    expect(await readdir(collected.outputDirectory!)).toEqual([
+      path.basename(collected.crashes[0].filePath),
+    ]);
+    expect(collected.crashes[0].filePath).not.toBe(partialFile);
+    expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+    await rm(collected.outputDirectory!, { recursive: true, force: true });
+  } finally {
+    writing.mockRestore();
+  }
 });
