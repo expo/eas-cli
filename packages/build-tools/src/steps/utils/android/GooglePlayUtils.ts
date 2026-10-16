@@ -282,7 +282,7 @@ export namespace GooglePlayUtils {
     }
     return new UserError(
       code,
-      `${detail}\n\nOperation: ${error.operation}${error.diagnostics ? `\n${error.diagnostics}` : ''}\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
+      `${detail}${error.diagnostics ? `\n${error.diagnostics}` : ''}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
       {
         cause: error,
       }

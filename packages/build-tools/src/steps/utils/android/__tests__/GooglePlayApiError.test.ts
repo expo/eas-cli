@@ -61,12 +61,10 @@ it('keeps useful precondition details in the error message without retaining arb
       }),
       { status: 400 }
     ),
-    undefined,
-    'update track'
+    undefined
   );
   expect(error.message).toContain('FAILED_PRECONDITION');
   const mapped = GooglePlayUtils.mapGooglePlayError(error, 'com.example.app');
-  expect(mapped).toMatchObject({ message: expect.stringContaining('Operation: update track') });
   expect(mapped).toMatchObject({ message: expect.stringContaining('Complete app setup.') });
   expect(error.message).toContain('Complete app setup.');
   expect(error.message).toContain('APP_NOT_READY');

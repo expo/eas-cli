@@ -179,7 +179,7 @@ export class GooglePlayClient {
     }
     try {
       await this.requestWithRetriesAsync(
-        () => this.requestAsync('DELETE', url, undefined, signal, undefined, `DELETE ${path}`),
+        () => this.requestAsync('DELETE', url, undefined, signal),
         signal
       );
     } catch (error) {
@@ -209,7 +209,6 @@ export class GooglePlayClient {
     signal?: AbortSignal
   ): Promise<any> {
     const parsedBody = schema.request.parse(body);
-    const operation = `${method} ${path}`;
 
     for (const [key, value] of Object.entries(schema.path.parse(params))) {
       path = path.replace(`:${key}`, encodeURIComponent(value));
@@ -231,8 +230,7 @@ export class GooglePlayClient {
           search.size ? `${path}?${search}` : path,
           method === 'GET' ? undefined : JSON.stringify(parsedBody),
           signal,
-          { 'Content-Type': 'application/json' },
-          operation
+          { 'Content-Type': 'application/json' }
         ),
       signal
     );
@@ -303,8 +301,7 @@ export class GooglePlayClient {
     path: string,
     body?: string,
     signal?: AbortSignal,
-    headers?: RequestInit['headers'],
-    operation = 'request'
+    headers?: RequestInit['headers']
   ): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     const token = await this.getTokenAsync(signal);
@@ -320,13 +317,13 @@ export class GooglePlayClient {
       });
     } catch (error) {
       signal?.throwIfAborted();
-      throw new SystemError(`Google Play ${operation} failed before a response was received.`, {
+      throw new SystemError('Google Play request failed before a response was received.', {
         cause: error,
       });
     }
 
     if (!response.ok) {
-      throw await GooglePlayApiError.fromResponseAsync(response, signal, operation);
+      throw await GooglePlayApiError.fromResponseAsync(response, signal);
     }
 
     return response;

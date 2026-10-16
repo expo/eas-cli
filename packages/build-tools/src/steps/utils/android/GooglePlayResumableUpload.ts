@@ -49,8 +49,7 @@ export namespace GooglePlayResumableUpload {
               'Content-Length': '0',
               'X-Upload-Content-Length': String(size),
               'X-Upload-Content-Type': getContentTypeFromArtifactType(artifactType),
-            },
-            'start archive upload'
+            }
           );
         } catch (error) {
           signal?.throwIfAborted();
@@ -200,11 +199,7 @@ export namespace GooglePlayResumableUpload {
           }
 
           if (!response.ok && response.status !== 308) {
-            const error = await GooglePlayApiError.fromResponseAsync(
-              response,
-              signal,
-              checkServerOffset ? 'check archive upload offset' : 'upload archive chunk'
-            );
+            const error = await GooglePlayApiError.fromResponseAsync(response, signal);
             if (timeout.aborted) {
               checkServerOffset = true;
               return retry(new SystemError('Google Play upload response timed out.'));

@@ -224,25 +224,6 @@ it('retains structured API errors', async () => {
     status: 403,
     apiMessage: 'Denied',
     reasons: ['forbidden'],
-    operation: 'GET /androidpublisher/v3/applications/:packageName/edits/:editId',
-  });
-});
-
-it('identifies a failed track update without including path parameter values', async () => {
-  api()
-    .put(`${editPath}/tracks/production`)
-    .reply(400, {
-      error: { message: 'Precondition check failed.', status: 'FAILED_PRECONDITION' },
-    });
-  await expect(
-    client.putAsync(
-      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
-      { track: 'production' },
-      { packageName, editId: 'edit', track: 'production' }
-    )
-  ).rejects.toMatchObject({
-    operation: 'PUT /androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
-    diagnostics: 'FAILED_PRECONDITION',
   });
 });
 

@@ -170,7 +170,13 @@ it.each(['upload', 'track', 'abort'] as const)(
         .reply(400, { error: { message: 'unknown track' } });
     }
     api().delete(editPath).reply(204);
-    await expect(task.run()).rejects.toThrow();
+    await expect(task.run()).rejects.toThrow(
+      failure === 'abort'
+        ? 'step timed out'
+        : failure === 'upload'
+          ? 'Could not upload the AAB to Google Play.'
+          : 'Could not update the release on Google Play track "internal".'
+    );
     expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
   }
 );
@@ -181,9 +187,48 @@ it('preserves the original failure when cleanup fails', async () => {
     .reply(400, { error: { message: 'unknown track' } });
   api().delete(editPath).times(6).reply(500);
   await expect(submission().run()).rejects.toMatchObject({
-    cause: expect.objectContaining({ apiMessage: 'unknown track' }),
+    errorCode: 'EAS_GOOGLE_PLAY_INVALID_RELEASE',
+    cause: expect.objectContaining({
+      cause: expect.objectContaining({ apiMessage: 'unknown track' }),
+    }),
   });
 });
+it.each(['create', 'commit'] as const)(
+  'reports the %s phase and preserves Google details',
+  async phase => {
+    const response = {
+      error: { message: 'Precondition check failed.', status: 'FAILED_PRECONDITION' },
+    };
+    if (phase === 'create') {
+      mockToken();
+      api().post(createPath).reply(400, response);
+    } else {
+      upload();
+      api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
+      api().post(`${editPath}:commit`).query(true).reply(400, response);
+      api().delete(editPath).reply(204);
+    }
+    const error = await submission()
+      .run()
+      .catch(error => error);
+    expect(error).toBeInstanceOf(UserError);
+    if (!(error instanceof UserError)) {
+      throw error;
+    }
+    expect(error.toExternalExpoError()).toMatchObject({
+      errorCode: 'EAS_GOOGLE_PLAY_INVALID_RELEASE',
+      message: expect.stringContaining(
+        phase === 'create'
+          ? 'Could not create a Google Play edit.'
+          : 'Could not confirm the Google Play edit was committed.'
+      ),
+    });
+    expect(error.message).toContain('FAILED_PRECONDITION');
+    expect(error.cause).toMatchObject({
+      cause: expect.objectContaining({ status: 400, apiMessage: 'Precondition check failed.' }),
+    });
+  }
+);
 it('does not delete the edit or publish outputs when commit outcome is unknown', async () => {
   upload();
   api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });

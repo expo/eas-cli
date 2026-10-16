@@ -40,11 +40,10 @@ export class GooglePlayApiError extends Error {
     readonly status: number,
     readonly apiMessage: string,
     readonly reasons: string[],
-    readonly diagnostics = '',
-    readonly operation = 'request'
+    readonly diagnostics = ''
   ) {
     super(
-      `Google Play ${operation} failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}${diagnostics ? `\n${diagnostics}` : ''}`
+      `Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}${diagnostics ? `\n${diagnostics}` : ''}`
     );
   }
 
@@ -54,8 +53,7 @@ export class GooglePlayApiError extends Error {
 
   static async fromResponseAsync(
     response: Response,
-    signal?: AbortSignal,
-    operation = 'request'
+    signal?: AbortSignal
   ): Promise<GooglePlayApiError> {
     let data: unknown;
     try {
@@ -94,8 +92,7 @@ export class GooglePlayApiError extends Error {
       response.status,
       parsed.data?.error.message ?? '',
       errors.flatMap(error => (error.reason ? [error.reason] : [])),
-      diagnostics,
-      operation
+      diagnostics
     );
   }
 }
