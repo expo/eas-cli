@@ -617,9 +617,10 @@ it('removes a partial file before retrying a failed write', async () => {
 });
 
 it.each([1_000, 1_001])(
-  'keeps the report allowance after %i missing reports and deduplicates their replay',
+  'keeps the report allowance and deduplicates reconnects after %i missing reports',
   async missingCount => {
     const requested: number[] = [];
+    let connections = 0;
     let completed: (() => void) | undefined;
     const processed = new Promise<void>(resolve => {
       completed = resolve;
@@ -628,14 +629,29 @@ it.each([1_000, 1_001])(
     server.on('request', (request, response) => {
       if (request.url!.startsWith('/crashes?')) {
         response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-        for (let key = 1; key <= missingCount; key++) {
+        connections += 1;
+        if (connections === 1) {
+          for (let key = 1; key <= missingCount; key++) {
+            response.write(
+              `data: ${JSON.stringify({ type: 'recurred', record: occurrence(key) })}\n\n`
+            );
+          }
+        } else {
+          const retained = {
+            ...summary,
+            occurrenceTimes: Array.from({ length: 5 }, (_, index) => ({
+              key: missingCount - 4 + index,
+            })),
+          };
+          response.write(`data: ${JSON.stringify({ type: 'list', crashes: [retained] })}\n\n`);
+        }
+        if (connections < 3) {
+          response.end();
+        } else {
           response.write(
-            `data: ${JSON.stringify({ type: 'recurred', record: occurrence(key) })}\n\n`
+            `data: ${JSON.stringify({ type: 'recurred', record: occurrence(missingCount + 1) })}\n\n`
           );
         }
-        response.write(
-          `data: ${JSON.stringify({ type: 'list', crashes: [occurrence(missingCount), occurrence(missingCount + 1)] })}\n\n`
-        );
       } else {
         const key = Number(new URL(request.url!, baseUrl).searchParams.get('key'));
         requested.push(key);
@@ -651,6 +667,7 @@ it.each([1_000, 1_001])(
     await processed;
     const collected = await ServeSimCrashesRecorder.finishAsync();
     try {
+      expect(connections).toBe(3);
       expect(requested).toEqual(Array.from({ length: missingCount + 1 }, (_, index) => index + 1));
       expect(collected.crashes).toHaveLength(1);
       expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(missingCount + 1));
