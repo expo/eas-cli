@@ -108,7 +108,11 @@ describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
   ['Agent Device', createStartAgentDeviceSessionBuildFunction],
 ] as const)('%s host ownership', (name, createFunction) => {
-  async function runAsync(publicPreview?: boolean, frameAncestors?: string[]) {
+  async function runAsync(
+    publicPreview?: boolean,
+    frameAncestors?: string[],
+    corsOrigins?: string[]
+  ) {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
@@ -121,6 +125,7 @@ describe.each([
           {
             public_preview: { value: publicPreview },
             frame_ancestors: { value: frameAncestors },
+            cors_origins: { value: corsOrigins },
           } as Record<string, { value: unknown }>,
           {
             get: (target, id: string) => target[id] ?? { value: undefined },
@@ -193,6 +198,20 @@ describe.each([
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ frameAncestors: [] })
+    );
+  });
+
+  it('maps cors_origins to the host and defaults to none', async () => {
+    await runAsync(undefined, undefined, ['https://app.example.test']);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+    jest.mocked(startDeviceSessionHostAsync).mockClear();
+    await runAsync();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: [] })
     );
   });
 

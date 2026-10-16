@@ -99,6 +99,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     disableShare = false,
     privatePreviewUrl,
     frameAncestors,
+    corsOrigins,
     tasks,
     device,
   }: {
@@ -114,6 +115,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     disableShare?: boolean;
     privatePreviewUrl?: string;
     frameAncestors?: string[];
+    corsOrigins?: string[];
     tasks: StartupTasks;
     device: { booted: Promise<unknown>; ready: Promise<unknown> };
   }
@@ -172,6 +174,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       disableShare,
       privatePreviewUrl,
       frameAncestors,
+      corsOrigins,
       networkCapture: capture.networkCapture,
       networkCaptureFields: capture.networkCaptureFields,
     });

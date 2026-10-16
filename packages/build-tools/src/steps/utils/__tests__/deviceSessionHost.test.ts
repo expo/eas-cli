@@ -874,7 +874,7 @@ it.each([
   await host.finishAsync();
 });
 
-it('lets the session add frame ancestors after the website origins', async () => {
+it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     runtimePlatform: BuildRuntimePlatform.LINUX,
     env,
@@ -882,10 +882,11 @@ it('lets the session add frame ancestors after the website origins', async () =>
     separateLogPhase: true,
     timeoutMs: 10_000,
     frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
+    corsOrigins: ['https://app.example.test'],
   });
   const { args } = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(args.join(' ')).toContain(
-    '--frame-ancestor https://expo.dev --frame-ancestor https://embed.example.test --frame-ancestor https://*.example.test'
+    '--frame-ancestor https://expo.dev --frame-ancestor https://embed.example.test --frame-ancestor https://*.example.test --cors-origin https://app.example.test'
   );
   await host.finishAsync();
 });

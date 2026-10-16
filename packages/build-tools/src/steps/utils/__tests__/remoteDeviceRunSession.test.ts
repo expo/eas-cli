@@ -27,6 +27,7 @@ import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
+  createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
   createPrivatePreviewUrlInputProvider,
@@ -35,6 +36,7 @@ import {
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  parseCorsOriginsInput,
   parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   spawnDetached,
@@ -47,6 +49,7 @@ import {
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
   createExpoDeviceHubArgs,
+  corsOriginArgs,
   createServeSimArgs,
   frameAncestorArgs,
   simulatorPreviewPageUrl,
@@ -356,6 +359,44 @@ describe(parseFrameAncestorsInput, () => {
   );
 });
 
+describe(createCorsOriginsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createCorsOriginsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'cors_origins',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseCorsOriginsInput, () => {
+  it('defaults to no extra origins and returns the origins as given', () => {
+    expect(parseCorsOriginsInput(undefined)).toEqual([]);
+    expect(parseCorsOriginsInput(['https://app.example.test'])).toEqual([
+      'https://app.example.test',
+    ]);
+  });
+
+  it('rejects anything but a list of non-empty strings', () => {
+    expect(() => parseCorsOriginsInput(['https://app.example.test', ''])).toThrow(
+      'Input "cors_origins" must be an array of non-empty strings, one origin each.'
+    );
+  });
+});
+
+describe(corsOriginArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(corsOriginArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--cors-origin',
+      'https://a.example.test',
+      '--cors-origin',
+      'https://b.example.test',
+    ]);
+    expect(corsOriginArgs([])).toEqual([]);
+  });
+});
+
 describe(frameAncestorArgs, () => {
   it('repeats the flag once per origin', () => {
     expect(frameAncestorArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
@@ -540,13 +581,16 @@ describe(createServeSimArgs, () => {
       port: 4321,
       websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
       frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
       shareUrl: 'https://expo.dev/simulator-preview/preview-id',
     });
-    expect(args.slice(-6)).toEqual([
+    expect(args.slice(-8)).toEqual([
       '--frame-ancestor',
       'https://expo.dev',
       '--frame-ancestor',
       'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
       '--share-url',
       'https://expo.dev/simulator-preview/preview-id',
     ]);
@@ -754,12 +798,15 @@ describe(createExpoDeviceHubArgs, () => {
       port: 4321,
       websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
       frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
     });
-    expect(args.slice(-4)).toEqual([
+    expect(args.slice(-6)).toEqual([
       '--frame-ancestor',
       'https://expo.dev',
       '--frame-ancestor',
       'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
     ]);
   });
 

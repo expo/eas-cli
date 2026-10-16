@@ -17,6 +17,7 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import {
+  createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
   createPrivatePreviewUrlInputProvider,
@@ -27,6 +28,7 @@ import {
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   omitNgrokAuthtoken,
+  parseCorsOriginsInput,
   parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
   waitForDeviceRunSessionStoppedAsync,
@@ -49,6 +51,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
       createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -108,6 +111,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         disableShare: inputs.public_preview?.value === false,
         privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
         frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+        corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,

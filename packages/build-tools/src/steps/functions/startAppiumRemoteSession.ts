@@ -37,6 +37,7 @@ import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import {
+  createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
@@ -48,6 +49,7 @@ import {
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   omitNgrokAuthtoken,
+  parseCorsOriginsInput,
   parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
@@ -80,6 +82,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
       createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -196,6 +199,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           disableShare: inputs.public_preview?.value === false,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+          corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
