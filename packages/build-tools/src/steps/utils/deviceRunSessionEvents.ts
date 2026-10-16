@@ -10,6 +10,7 @@ import HttpLogStream from '../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../logging/RemoteLoggerStream';
 import { Sentry } from '../../sentry';
 import { type SignedUrl } from '../../storage/uploadWithSignedUrl';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const POLL_INTERVAL_MS = 1_000;
 const UPLOAD_INTERVAL_MS = 5_000;
@@ -349,6 +350,19 @@ async function createEventLogUploadSessionAsync(
   ctx: CustomBuildContext,
   deviceRunSessionId: string
 ): Promise<SignedUrl> {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (workerApi) {
+    try {
+      return await workerApi.createEventLogUploadSessionAsync();
+    } catch (err) {
+      throw new SystemError(
+        `Failed to create device run session event log upload session: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        { cause: err }
+      );
+    }
+  }
   const result = await ctx.graphqlClient
     .mutation(CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION, {
       deviceRunSessionId,

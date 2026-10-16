@@ -95,6 +95,14 @@ export function getDeviceRunSessionUrl(
   ).toString();
 }
 
+export function getDeviceRunSessionPreviewUrl(
+  accountName: string,
+  projectName: string,
+  deviceRunSessionId: string
+): string {
+  return `${getDeviceRunSessionUrl(accountName, projectName, deviceRunSessionId)}/preview`;
+}
+
 /**
  * @deprecated Links to the raw job-run page; prefer a higher-level URL (e.g. the workflow run
  * or the feature-specific dashboard) that gives users more context. Use this only for internal

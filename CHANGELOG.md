@@ -2,6 +2,35 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [25.0.0](https://github.com/expo/eas-cli/releases/tag/v25.0.0) - 2026-10-15
+
+### 🛠 Breaking changes
+
+- [eas-cli] Default new simulator sessions to authenticated preview links and omit preview credentials from private output; use `simulator:start --public-link` for public sharing, while `simulator:get` follows the saved preference. ([#4619](https://github.com/expo/eas-cli/pull/4619) by [@gwdp](https://github.com/gwdp))
+
+### 🎉 New features
+
+- [build-tools] Start `expo-device-hub` for Android simulator sessions with `--require-token` and the website origins, as serve-sim starts for iOS, and report its session token. ([#4578](https://github.com/expo/eas-cli/pull/4578) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [build-tools] Respect saved sharing preferences for iOS simulator preview sessions. ([#4620](https://github.com/expo/eas-cli/pull/4620) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give agent-device and its simulator preview separate session logs. ([#4585](https://github.com/expo/eas-cli/pull/4585) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give Appium and its simulator preview separate session logs. ([#4586](https://github.com/expo/eas-cli/pull/4586) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give Argent and its simulator preview separate session logs. ([#4587](https://github.com/expo/eas-cli/pull/4587) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Let serve-sim start the iOS Simulator for web-preview sessions. ([#4601](https://github.com/expo/eas-cli/pull/4601) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stream simulator preview output into its existing session step. ([#4525](https://github.com/expo/eas-cli/pull/4525) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Use effectivePermissions for logic about capabilities and account:view display. ([#4637](https://github.com/expo/eas-cli/pull/4637) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- [build-tools] Speed up cold iOS Appium sessions by launching preinstalled WebDriverAgent. ([#4618](https://github.com/expo/eas-cli/pull/4618) by [@gwdp](https://github.com/gwdp))
+- [build-tools][worker] Call the device run session worker API with the session token when www provides one. ([#4615](https://github.com/expo/eas-cli/pull/4615) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools][eas-json] Clarify Google Play submission messages and reject zero Android submission rollouts. ([#4625](https://github.com/expo/eas-cli/pull/4625) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Update error message for scoped VC in EAS CLI now that scoped can be used outside build. ([#4636](https://github.com/expo/eas-cli/pull/4636) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- [build-tools][worker] Mask the credentials `eas/run_agent` leases with the build log secrets filter instead of redacting them in the step. ([#4624](https://github.com/expo/eas-cli/pull/4624) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Add shared opt-in serve-sim Simulator startup support. ([#4605](https://github.com/expo/eas-cli/pull/4605) by [@gwdp](https://github.com/gwdp))
+
 ## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
 
 ### 🎉 New features

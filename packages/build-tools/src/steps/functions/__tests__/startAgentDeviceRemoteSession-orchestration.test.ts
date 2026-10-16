@@ -19,6 +19,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
+import { createProcessOutput } from '../../utils/processOutput';
 import { type StartupTasks, createStartupTasks } from '../../utils/startupTasks';
 import { runAgentDeviceRemoteSessionAsync } from '../startAgentDeviceRemoteSession';
 
@@ -73,7 +74,9 @@ const NO_CAPTURE: CaptureInputs = { networkCapture: false, networkCaptureFields:
 async function runAsync(
   logger: { info: jest.Mock; warn: jest.Mock; child: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
-  capture: CaptureInputs = NO_CAPTURE
+  capture: CaptureInputs = NO_CAPTURE,
+  disableShare = false,
+  privatePreviewUrl?: string
 ): Promise<void> {
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
@@ -88,6 +91,8 @@ async function runAsync(
     maxIdleTimeMinutes: undefined,
     maxDurationSeconds: undefined,
     capture,
+    disableShare,
+    privatePreviewUrl,
     tasks: createStartupTasks(logger as never),
     device: { booted: Promise.resolve(), ready: Promise.resolve() },
   });
@@ -163,6 +168,27 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('redacts learned daemon credentials in arbitrary output and retained diagnostics', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const token = 'daemon secret/+';
+    jest.mocked(waitForFileAsync).mockResolvedValue({ port: 5678, token });
+    jest.mocked(startNgrokTunnelAsync).mockImplementation(async () => {
+      const options = jest.mocked(spawnDetached).mock.calls[0][0];
+      expect(options.secrets).toContain(token);
+      const output = createProcessOutput(options.logger, options.secrets);
+      output.stdout.append('unrecognized value: daemon sec');
+      output.stdout.append('ret/+\n');
+      output.stderr.append(`escaped value: ${encodeURIComponent(token)}\n`);
+      expect(output.getOutput()).toBe(
+        'unrecognized value: [REDACTED]\nescaped value: [REDACTED]\n'
+      );
+      return { url: 'https://daemon.test', subdomainId: 'daemon', stopAsync: mockTunnelStopAsync };
+    });
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain(token);
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain(encodeURIComponent(token));
+  });
+
   it('hands network capture to serve-sim', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
@@ -174,6 +200,24 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ networkCapture: true, networkCaptureFields: ['header'] })
+    );
+  });
+
+  it('hands a private preview choice to the session host', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    await runAsync(
+      logger,
+      BuildRuntimePlatform.DARWIN,
+      NO_CAPTURE,
+      true,
+      'https://expo.dev/private-preview'
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        disableShare: true,
+        privatePreviewUrl: 'https://expo.dev/private-preview',
+      })
     );
   });
 

@@ -1,9 +1,11 @@
 import type { bunyan } from '@expo/logger';
+import { BuildRuntimePlatform } from '@expo/steps';
 import { graphql } from 'gql.tada';
 import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
+import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const SHORT_COMMIT_HASH_LENGTH = 7;
 const MAX_APP_SLUG_LENGTH = 80;
@@ -44,7 +46,15 @@ const ScreenshotSessionSchema = z.object({
     .nullable(),
 });
 
-export type ScreenshotSession = z.infer<typeof ScreenshotSessionSchema>;
+/**
+ * Session details used to name screenshots. `app` is null when the source does not report an app
+ * slug: the device run session worker API does not return one.
+ */
+export type ScreenshotSession = {
+  platform: 'IOS' | 'ANDROID';
+  app: { slug: string } | null;
+  build: { id: string; gitCommitHash: string | null; app: { slug: string } | null } | null;
+};
 
 export async function loadScreenshotSessionAsync(
   ctx: CustomBuildContext,
@@ -52,12 +62,26 @@ export async function loadScreenshotSessionAsync(
   logger: bunyan
 ): Promise<ScreenshotSession | null> {
   try {
+    const signal = AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS);
+    const workerApi = getDeviceRunSessionWorkerApi(ctx);
+    if (workerApi) {
+      const application = await workerApi.getApplicationAsync({ signal });
+      return {
+        // www runs iOS sessions only on macOS workers and Android sessions only on Linux workers,
+        // so the worker API does not return the platform.
+        platform: ctx.runtimePlatform === BuildRuntimePlatform.DARWIN ? 'IOS' : 'ANDROID',
+        app: null,
+        build: application.build
+          ? {
+              id: application.build.id,
+              gitCommitHash: application.build.gitCommitHash,
+              app: null,
+            }
+          : null,
+      };
+    }
     const result = await ctx.graphqlClient
-      .query(
-        SCREENSHOT_SESSION_QUERY,
-        { deviceRunSessionId },
-        graphqlAbortContext(AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS))
-      )
+      .query(SCREENSHOT_SESSION_QUERY, { deviceRunSessionId }, graphqlAbortContext(signal))
       .toPromise();
     if (result.error) {
       throw result.error;
@@ -86,18 +110,20 @@ export function screenshotArtifactDetails(
   }
 
   const app = session.build?.app ?? session.app;
-  const appSlug =
-    app.slug
-      .replace(FILENAME_UNSAFE_RUN, '-')
-      .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
-      .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
   const platform = session.platform.toLowerCase();
-  const filenameParts = [appSlug, platform];
-  const metadata: Record<string, string> = {
-    __eas_type: 'screenshot',
-    appSlug: app.slug,
-    platform,
-  };
+  const filenameParts = [platform];
+  const metadata: Record<string, string> = { __eas_type: 'screenshot' };
+  // Without an app slug, the filename starts with the platform.
+  if (app) {
+    const appSlug =
+      app.slug
+        .replace(FILENAME_UNSAFE_RUN, '-')
+        .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
+        .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
+    filenameParts.unshift(appSlug);
+    metadata.appSlug = app.slug;
+  }
+  metadata.platform = platform;
 
   if (session.build) {
     metadata.buildId = session.build.id;

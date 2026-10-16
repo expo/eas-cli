@@ -140,6 +140,7 @@ function createOptions(
     pathEnv: '/usr/local/bin:/usr/bin',
     npmCacheUrl: 'https://npm-cache.expo.test',
     logger: createMockLogger(),
+    addBuildLogMask: jest.fn(),
     signal: new AbortController().signal,
     ...overrides,
   };
@@ -220,23 +221,22 @@ describe(runAgentAsync, () => {
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
   });
 
-  it('writes the agent output as log lines with the leased credentials masked', async () => {
+  it('writes the agent output as log lines', async () => {
     leaseMock.mockResolvedValue(anthropicLease);
     const logger = createMockLogger();
     mockSpawn({
       onAgent: agent => {
-        // One JSON event split across two chunks, in the middle of the token.
+        const toolResultEvent =
+          '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"3 tests passed"}]}}\n';
+        agent.child.stdout.write(toolResultEvent.slice(0, 40));
+        agent.child.stdout.write(toolResultEvent.slice(40));
         agent.child.stdout.write(
-          '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"token: anthropic-acc'
-        );
-        agent.child.stdout.write('ess-token"}]}}\n');
-        agent.child.stdout.write(
-          '{"type":"assistant","message":{"content":[{"type":"text","text":"Done.\\nThe token was anthropic-access-token.\\n"}]}}\n'
+          '{"type":"assistant","message":{"content":[{"type":"text","text":"Done.\\nThe tests pass.\\n"}]}}\n'
         );
         agent.child.stdout.write(
           '{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["boom"]}\n'
         );
-        agent.child.stderr.write('warning: anthropic-access-token\n');
+        agent.child.stderr.write('warning: deprecated flag\n');
         agent.exit(0);
       },
     });
@@ -247,11 +247,54 @@ describe(runAgentAsync, () => {
     expect(child.mock.calls).toEqual([[{ source: 'stdout' }], [{ source: 'stderr' }]]);
     const [stdoutLogger, stderrLogger] = child.mock.results.map(result => result.value);
     expect(stdoutLogger.info.mock.calls).toEqual([
-      ['Tool result: token: [redacted]'],
-      ['Agent: Done.\nThe token was [redacted].'],
+      ['Tool result: 3 tests passed'],
+      ['Agent: Done.\nThe tests pass.'],
     ]);
     expect(stdoutLogger.error.mock.calls).toEqual([['Agent failed: boom']]);
-    expect(stderrLogger.info.mock.calls).toEqual([['warning: [redacted]']]);
+    expect(stderrLogger.info.mock.calls).toEqual([['warning: deprecated flag']]);
+  });
+
+  it.each([
+    ['claude-code', anthropicLease, ['anthropic-access-token']],
+    ['codex', openaiLease, ['openai-access-token', 'openai-id-token']],
+  ] as const)(
+    'registers the credentials leased for %s with the build log secrets filter before starting the agent',
+    async (agentKind, lease, secrets) => {
+      leaseMock.mockResolvedValue(lease);
+      const addBuildLogMask = jest.fn();
+      const invocations = mockSpawn({
+        onAgent: agent => {
+          expect(addBuildLogMask.mock.calls).toEqual(secrets.map(secret => [secret]));
+          agent.exit(0);
+        },
+      });
+
+      await runAgentAsync(createOptions({ agentKind, addBuildLogMask }));
+
+      expect(invocations).toHaveLength(1);
+    }
+  );
+
+  it('registers renewed credentials before resuming the agent', async () => {
+    leaseMock
+      .mockResolvedValueOnce(anthropicLease)
+      .mockResolvedValueOnce({ ...anthropicLease, accessToken: 'renewed-access-token' });
+    const addBuildLogMask = jest.fn();
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        if (invocations.length === 2) {
+          expect(addBuildLogMask.mock.calls).toEqual([
+            ['anthropic-access-token'],
+            ['renewed-access-token'],
+          ]);
+        }
+        agent.exit(invocations.length === 1 ? 1 : 0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ addBuildLogMask }));
+
+    expect(invocations).toHaveLength(2);
   });
 
   it('reports a line the formatter cannot handle instead of ending the run', async () => {
@@ -427,12 +470,7 @@ describe(runAgentAsync, () => {
     leaseMock.mockResolvedValueOnce(anthropicLease).mockResolvedValueOnce(renewedLease);
     const logger = createMockLogger();
     const invocations = mockSpawn({
-      onAgent: agent => {
-        if (invocations.length === 2) {
-          agent.child.stderr.write('tokens: anthropic-access-token renewed-access-token\n');
-        }
-        agent.exit(invocations.length === 1 ? 1 : 0);
-      },
+      onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
     });
 
     await runAgentAsync(createOptions({ logger }));
@@ -452,8 +490,6 @@ describe(runAgentAsync, () => {
       [{ source: 'stdout' }],
       [{ source: 'stderr' }],
     ]);
-    const [, , , resumedStderrLogger] = child.mock.results.map(result => result.value);
-    expect(resumedStderrLogger.info.mock.calls).toEqual([['tokens: [redacted] [redacted]']]);
   });
 
   it('resumes Codex with new credentials when the lease changed during the run', async () => {

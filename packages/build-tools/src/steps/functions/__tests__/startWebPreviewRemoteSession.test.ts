@@ -3,6 +3,7 @@ import { BuildRuntimePlatform, type BuildStepContext, type BuildStepEnv } from '
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -14,6 +15,22 @@ import {
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../../utils/IosSimulatorUtils', () => ({
+  IosSimulatorUtils: {
+    resolveUdidAsync: jest.fn().mockResolvedValue('selected-ios-udid'),
+    getAvailableDevicesAsync: jest
+      .fn()
+      .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
+  },
+}));
+jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
+  readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   getDeviceRunSessionIdOrThrow: jest.fn(),
@@ -24,7 +41,8 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
 }));
 
 const ctx = {} as CustomBuildContext;
-const env = {} as BuildStepEnv;
+const env = { NGROK_AUTHTOKEN: 'ngrok-token', PATH: '/usr/bin' } as BuildStepEnv;
+const childEnv = { PATH: '/usr/bin' } as BuildStepEnv;
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const stopAsync = jest.fn();
 
@@ -59,6 +77,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.example.test',
         closeAsync: jest.fn(),
       }),
@@ -73,6 +92,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: 'https://expo.dev/simulator-preview/preview-id',
         apiUrl: 'https://web-preview.example.test',
         previewToken: 'tok-1',
         closeAsync: jest.fn(),
@@ -92,6 +112,54 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
           previewToken: 'tok-1',
         },
       })
+    );
+  });
+
+  it('logs the authenticated link while publishing the public frame URL', async () => {
+    const privatePreviewUrl = 'https://expo.dev/private-preview';
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        sharePageUrl: privatePreviewUrl,
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
+    });
+
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      public_preview: { value: false },
+      private_preview_url: { value: privatePreviewUrl },
+    });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      `Preview URL: ${privatePreviewUrl} (server: https://web-preview.example.test).`
+    );
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+        }),
+      })
+    );
+  });
+
+  it('does not log the public link when a private job lacks its authenticated URL', async () => {
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.example.test',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: stopAsync,
+    });
+    await runAsync(BuildRuntimePlatform.DARWIN, { public_preview: { value: false } });
+
+    expect(logger.info).toHaveBeenCalledWith('Private preview URL unavailable for this session.');
+    expect(jest.mocked(logger.info).mock.calls).not.toEqual(
+      expect.arrayContaining([
+        expect.arrayContaining([expect.stringContaining('/simulator-preview/preview-id')]),
+      ])
     );
   });
 
@@ -115,20 +183,43 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     [BuildRuntimePlatform.DARWIN, true],
     [BuildRuntimePlatform.LINUX, false],
   ])('starts the web preview for %s', async (runtimePlatform, selectsXcode) => {
-    await runAsync(runtimePlatform);
+    await runAsync(runtimePlatform, selectsXcode ? { boot_simulator: { value: true } } : {});
 
+    expect(
+      jest
+        .mocked(logger.info)
+        .mock.calls.filter(
+          ([message]) =>
+            message ===
+            'Preview URL: https://expo.dev/simulator-preview/preview-id (server: https://web-preview.example.test).'
+        )
+    ).toHaveLength(1);
     expect(selectXcodeDeveloperDirectoryAsync).toHaveBeenCalledTimes(selectsXcode ? 1 : 0);
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, {
       runtimePlatform,
-      env,
+      env: childEnv,
       logger,
       timeoutMs: 60_000,
+      signal: undefined,
+      ...(selectsXcode
+        ? {
+            iosSimulatorUdid: 'SELECTED-IOS-UDID',
+            installAppPath: undefined,
+            bootEnv: undefined,
+          }
+        : {}),
       packageVersion: '1.2.3',
+      disableShare: false,
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
       networkCapture: false,
       networkCaptureFields: [],
+    });
+    const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
+    expect(host.openPreviewAsync).toHaveBeenCalledWith({
+      baseDomain: 'tunnel.example.com',
+      authtoken: 'ngrok-token',
     });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
@@ -160,8 +251,13 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'launch_app_identifier',
       'launch_args',
       'open_url',
+      'boot_simulator',
+      'device_identifier',
+      'install_app_path',
       'network_capture',
       'network_capture_fields',
+      'public_preview',
+      'private_preview_url',
       'package_version',
       'max_duration_seconds',
     ]);
@@ -187,6 +283,44 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
     );
   });
+
+  it('hands the downloaded app and selected device to serve-sim with initial launch options', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      device_identifier: { value: 'chosen-device' },
+      install_app_path: { value: '/tmp/App.app' },
+      launch_args: { value: ['--literal', 'value with spaces'] },
+      open_url: { value: 'example://home' },
+    });
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(IosSimulatorUtils.resolveUdidAsync).mock.invocationCallOrder[0]);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        iosSimulatorUdid: 'SELECTED-IOS-UDID',
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--literal', 'value with spaces'],
+        openUrl: 'example://home',
+      })
+    );
+  });
+  it.each([true, false])(
+    'maps public_preview=%s to the native Share option',
+    async publicPreview => {
+      await runAsync(BuildRuntimePlatform.DARWIN, {
+        public_preview: { value: publicPreview },
+        private_preview_url: { value: 'https://expo.dev/private-preview' },
+      });
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({
+          disableShare: !publicPreview,
+          privatePreviewUrl: 'https://expo.dev/private-preview',
+        })
+      );
+    }
+  );
 
   it('hands network capture to the session host', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {
