@@ -39,6 +39,12 @@ export type PreparedControlConfig = {
 
 export type ControlConfigResult = ControlActionResult & { action: string };
 
+export type ControlConfigProgress = {
+  step: number;
+  total: number;
+  action: string;
+} & ({ status: 'running' } | { status: 'completed'; result: ControlConfigResult });
+
 export class ControlConfigExecutionError extends Error {
   constructor(
     readonly step: number,
@@ -168,19 +174,25 @@ function assertUnambiguousFileSource(
 
 export async function executeControlConfigAsync(
   connection: HostActionConnection,
-  config: PreparedControlConfig
+  config: PreparedControlConfig,
+  { onProgress }: { onProgress?: (progress: ControlConfigProgress) => void } = {}
 ): Promise<ControlConfigResult[]> {
   if (config.udid !== connection.udid) {
     throw new Error('The simulator changed after this configuration was checked. Import it again.');
   }
   const completed: ControlConfigResult[] = [];
   for (const [index, { plan, validateParams }] of config.actions.entries()) {
+    const progress = { step: index + 1, total: config.actions.length, action: plan.action };
+    onProgress?.({ ...progress, status: 'running' });
+    let result: ControlActionResult;
     try {
-      const result = await executeControlActionAsync(connection, plan, { validateParams });
-      completed.push({ action: plan.action, ...result });
+      result = await executeControlActionAsync(connection, plan, { validateParams });
     } catch (error) {
       throw new ControlConfigExecutionError(index + 1, plan.action, completed, error);
     }
+    const entry = { action: plan.action, ...result };
+    completed.push(entry);
+    onProgress?.({ ...progress, status: 'completed', result: entry });
   }
   return completed;
 }

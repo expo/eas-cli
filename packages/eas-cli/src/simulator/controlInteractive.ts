@@ -260,12 +260,10 @@ export async function runControlMenuAsync({
   catalog,
   signal,
   runActionAsync,
-  importConfigAsync,
 }: {
   catalog: HostActionCatalog;
   signal: AbortSignal;
   runActionAsync: (action: ControlAction) => Promise<void>;
-  importConfigAsync?: (filePath: string) => Promise<void>;
 }): Promise<void> {
   while (true) {
     signal.throwIfAborted();
@@ -275,15 +273,6 @@ export async function runControlMenuAsync({
         message: 'Choose a simulator action',
         choices: [
           { title: 'Exit', value: { kind: 'exit' } },
-          ...(importConfigAsync
-            ? [
-                {
-                  title: 'Import configuration',
-                  description: 'Run actions from a version 1 JSON file.',
-                  value: { kind: 'import' },
-                },
-              ]
-            : []),
           ...Object.entries(catalog).map(([name, entry]) => ({
             title: name,
             description: entry.description,
@@ -292,7 +281,7 @@ export async function runControlMenuAsync({
         ],
       },
       signal
-    )) as { kind: 'exit' | 'import' } | { kind: 'action'; name: string };
+    )) as { kind: 'exit' } | { kind: 'action'; name: string };
     signal.throwIfAborted();
     if (!choice) {
       Log.error('Choose an action or Exit.');
@@ -302,19 +291,7 @@ export async function runControlMenuAsync({
       return;
     }
     try {
-      if (choice.kind === 'import' && importConfigAsync) {
-        const filePath = await promptControlValueAsync(
-          {
-            type: 'text',
-            message: 'Configuration file',
-            validate: (value: string) =>
-              value.trim().length > 0 || 'Enter a configuration file path.',
-          },
-          signal
-        );
-        signal.throwIfAborted();
-        await importConfigAsync(String(filePath));
-      } else if (choice.kind === 'action') {
+      if (choice.kind === 'action') {
         await runActionAsync(
           await promptControlActionAsync(choice.name, catalog[choice.name], signal)
         );

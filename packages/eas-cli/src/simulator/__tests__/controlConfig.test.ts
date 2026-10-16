@@ -366,7 +366,10 @@ describe('simulator control configuration', () => {
       stderr: 'device stopped',
       exitCode: 1,
     });
-    await expect(executeControlConfigAsync(connection, config)).rejects.toMatchObject({
+    const onProgress = jest.fn();
+    await expect(
+      executeControlConfigAsync(connection, config, { onProgress })
+    ).rejects.toMatchObject({
       step: 2,
       action: 'keyboard.set',
       completed: [{ action: 'echo', output: 'first', file: null }],
@@ -374,6 +377,17 @@ describe('simulator control configuration', () => {
     expect(requestAsync.mock.calls).toEqual([
       ['echo', { text: 'first' }],
       ['keyboard.set', { value: 'off' }],
+    ]);
+    expect(onProgress.mock.calls.map(([progress]) => progress)).toEqual([
+      { step: 1, total: 3, action: 'echo', status: 'running' },
+      {
+        step: 1,
+        total: 3,
+        action: 'echo',
+        status: 'completed',
+        result: { action: 'echo', output: 'first', file: null },
+      },
+      { step: 2, total: 3, action: 'keyboard.set', status: 'running' },
     ]);
   });
 
