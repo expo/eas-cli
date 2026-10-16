@@ -1,9 +1,11 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 
 import { executeControlConfigAsync, prepareControlConfigAsync } from '../controlConfig';
 import { HostActionCatalog, HostActionConnection, HostActionResult } from '../hostActions';
+
+const itWithChmod = process.platform === 'win32' || process.geteuid?.() === 0 ? it.skip : it;
 
 const catalog: HostActionCatalog = {
   'keyboard.set': {
@@ -244,7 +246,7 @@ describe('simulator control configuration', () => {
     expect(results[0].file).toBe(path.join(folder, 'screen.png'));
   });
 
-  it.each(['existing file', 'new file', 'download directory'])(
+  itWithChmod.each(['existing file', 'new file', 'download directory'])(
     'rejects an unwritable %s before running earlier actions',
     async kind => {
       const destination = path.join(folder, 'read-only');
@@ -286,21 +288,42 @@ describe('simulator control configuration', () => {
     }
   );
 
-  it('rejects a new output in a write-only parent before running earlier actions', async () => {
-    const destination = path.join(folder, 'write-only');
-    await fs.mkdir(destination);
-    await fs.chmod(destination, 0o222);
+  itWithChmod(
+    'rejects a new output in a write-only parent before running earlier actions',
+    async () => {
+      const destination = path.join(folder, 'write-only');
+      await fs.mkdir(destination);
+      await fs.chmod(destination, 0o222);
+      try {
+        await writeConfig([
+          { action: 'echo' },
+          { action: 'screenshot', output: path.join(destination, 'screen.png') },
+        ]);
+        await expect(prepareControlConfigAsync(catalog, filePath, connection.udid)).rejects.toThrow(
+          /step 2.*(EACCES|permission)/i
+        );
+        expect(requestAsync).not.toHaveBeenCalled();
+      } finally {
+        await fs.chmod(destination, 0o755);
+      }
+    }
+  );
+
+  it('rejects a denied output permission check before running earlier actions', async () => {
+    await writeConfig([
+      { action: 'echo' },
+      { action: 'screenshot', output: path.join(folder, 'screen.png') },
+    ]);
+    const access = jest.spyOn(fs, 'access').mockImplementationOnce(async () => {
+      throw Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    });
     try {
-      await writeConfig([
-        { action: 'echo' },
-        { action: 'screenshot', output: path.join(destination, 'screen.png') },
-      ]);
       await expect(prepareControlConfigAsync(catalog, filePath, connection.udid)).rejects.toThrow(
-        /step 2.*(EACCES|permission)/i
+        /step 2.*Permission denied/i
       );
       expect(requestAsync).not.toHaveBeenCalled();
     } finally {
-      await fs.chmod(destination, 0o755);
+      access.mockRestore();
     }
   });
 
