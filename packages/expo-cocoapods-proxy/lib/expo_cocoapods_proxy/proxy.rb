@@ -1,8 +1,60 @@
 # frozen_string_literal: true
 
+require 'expo_cocoapods_proxy/gem_version'
 require 'cocoapods'
 require 'cocoapods-downloader'
 require 'uri'
+
+module ExpoCocoaPodsProxy
+  # CDN source for the EAS CocoaPods cache that lets CocoaPods continue to the
+  # canonical trunk source when the cache returns an error.
+  class FallbackableCDNSource < Pod::CDNSource
+    def search(query)
+      super
+    rescue Pod::Informative, Errno::ENOENT => e
+      Pod::UI.warn "EAS CocoaPods cache source failed while resolving `#{query}`; falling back to trunk. #{e.message}"
+      nil
+    end
+  end
+
+  # Provides the existing CocoaPods trunk repo cache through a CDN source that
+  # routes cache misses through the configured EAS CocoaPods cache.
+  module SourceProvider
+    COCOAPODS_CDN_HOST = 'cdn.cocoapods.org'
+
+    module_function
+
+    def register_source(context)
+      return unless proxy
+
+      # EAS builds already prewarm CocoaPods' trunk repo. Reuse that directory
+      # so proxied cache misses can use the existing local metadata cache
+      # instead of creating and warming a second CDN repo.
+      repo_dir = Pod::Config.instance.repos_dir + Pod::TrunkSource::TRUNK_REPO_NAME
+      repo_dir.mkpath
+      File.write(repo_dir.join('.url'), proxied_cocoapods_cdn_url)
+      context.add_source(FallbackableCDNSource.new(repo_dir))
+      context.add_source(Pod::TrunkSource.new(repo_dir))
+    end
+
+    def proxied_cocoapods_cdn_url
+      "#{proxy.chomp('/')}/#{COCOAPODS_CDN_HOST}/"
+    end
+
+    def proxy
+      value = ENV['EAS_BUILD_COCOAPODS_CACHE_URL']
+      value unless value.nil? || value.empty?
+    end
+  end
+end
+
+Pod::HooksManager.register(ExpoCocoaPodsProxy::NAME, :source_provider) do |context|
+  ExpoCocoaPodsProxy::SourceProvider.register_source(context)
+end
+# CocoaPods only runs hooks for plugins listed in Installer#plugins. The gem is
+# loaded by the plugin loader on EAS builds, but user Podfiles do not declare it,
+# so register it as a default plugin to make the source_provider hook run.
+Pod::Installer::DEFAULT_PLUGINS[ExpoCocoaPodsProxy::NAME] = {}
 
 module Pod
   module Downloader
