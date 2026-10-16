@@ -97,10 +97,10 @@ describe(SimulatorCrashes, () => {
         ReturnType<typeof DeviceRunSessionQuery.byIdAsync>
       >;
       jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(session);
-      await createCommand(['--artifact', '2', '-o', 'crashes.zip', '--json']).runAsync();
+      await createCommand(['--artifact', '2', '-o', 'crash.ips', '--json']).runAsync();
       expect(downloadSimulatorArtifactAsync).toHaveBeenCalledWith(session, 'simulator-crashes', {
         artifact: 2,
-        output: 'crashes.zip',
+        output: 'crash.ips',
         nonInteractive: true,
         json: true,
       });
@@ -123,7 +123,7 @@ describe(SimulatorCrashes, () => {
 
   it.each([
     ['--artifact', '1'],
-    ['--output', 'crashes.zip'],
+    ['--output', 'crash.ips'],
   ])('rejects artifact flags on a running session %s', async (...args) => {
     await expect(createCommand(args).runAsync()).rejects.toThrow(
       'only available for stopped sessions'
