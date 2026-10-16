@@ -113,6 +113,24 @@ describe(SessionManager, () => {
     });
   });
 
+  describe('getGraphqlClient', () => {
+    it('returns the same client for the same credential', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: null });
+      expect(
+        sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: 'secret' })
+      ).toBe(client);
+    });
+
+    it('returns a new client when the credential changes', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'a' });
+      expect(sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'b' })).not.toBe(
+        client
+      );
+    });
+  });
+
   describe('getUserAsync', () => {
     it('skips fetching user without access token or session secret', async () => {
       const sessionManager = new SessionManager(analytics);
