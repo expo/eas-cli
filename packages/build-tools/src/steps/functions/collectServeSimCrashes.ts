@@ -26,14 +26,20 @@ export function createCollectServeSimCrashesBuildFunction(ctx: CustomBuildContex
           return;
         }
         const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-        for (const { udid, filePath } of collected.crashes) {
-          await uploadServeSimCrashesFileAsync(ctx, {
-            deviceRunSessionId,
-            udid,
-            filePath,
-            logger,
-            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
-          });
+        for (const udid of new Set(collected.crashes.map(crash => crash.udid))) {
+          const signal = AbortSignal.timeout(UPLOAD_TIMEOUT_MS);
+          for (const { filePath } of collected.crashes.filter(crash => crash.udid === udid)) {
+            if (signal.aborted) {
+              break;
+            }
+            await uploadServeSimCrashesFileAsync(ctx, {
+              deviceRunSessionId,
+              udid,
+              filePath,
+              logger,
+              signal,
+            });
+          }
         }
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));

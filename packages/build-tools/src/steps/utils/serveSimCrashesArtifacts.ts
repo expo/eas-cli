@@ -1,6 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
+import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
@@ -28,9 +29,9 @@ export async function uploadServeSimCrashesFileAsync(
     }
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
-      artifactId: `simulator-crashes-${udid}`,
-      name: `Crash reports (${udid.slice(0, 8)})`,
-      filename: 'crashes.ndjson',
+      artifactId: `simulator-crashes-${udid}-${path.basename(filePath, '.ips')}`,
+      name: `Crash report (${udid.slice(0, 8)})`,
+      filename: path.basename(filePath),
       kind: 'simulator-crashes',
       metadata: { __eas_type: 'simulator-crashes', udid, source: 'serve-sim/crashes' },
       size,

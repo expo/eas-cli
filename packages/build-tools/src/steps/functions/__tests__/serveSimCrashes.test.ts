@@ -37,15 +37,15 @@ it('starts collection and tolerates startup failures', async () => {
   );
 });
 
-it('uploads each device and removes the collection directory', async () => {
+it('uploads each report and removes the collection directory', async () => {
   const directory = '/tmp/crashes-collected';
   await mkdir(directory, { recursive: true });
-  await writeFile(`${directory}/A.ndjson`, 'private crash report');
+  await writeFile(`${directory}/A.ips`, 'private crash report');
   jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
     outputDirectory: directory,
     crashes: [
-      { udid: 'A', filePath: `${directory}/A.ndjson` },
-      { udid: 'B', filePath: `${directory}/B.ndjson` },
+      { udid: 'A', filePath: `${directory}/A.ips` },
+      { udid: 'B', filePath: `${directory}/B.ips` },
     ],
   });
   await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
@@ -55,7 +55,7 @@ it('uploads each device and removes the collection directory', async () => {
     expect.objectContaining({
       deviceRunSessionId: 'session-id',
       udid: 'A',
-      filePath: `${directory}/A.ndjson`,
+      filePath: `${directory}/A.ips`,
     })
   );
   await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
@@ -65,8 +65,9 @@ it('gives each device its own 30-second upload budget', async () => {
   jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
     outputDirectory: null,
     crashes: [
-      { udid: 'A', filePath: '/tmp/A.ndjson' },
-      { udid: 'B', filePath: '/tmp/B.ndjson' },
+      { udid: 'A', filePath: '/tmp/A.ips' },
+      { udid: 'A', filePath: '/tmp/A2.ips' },
+      { udid: 'B', filePath: '/tmp/B.ips' },
     ],
   });
   const timeout = jest.spyOn(AbortSignal, 'timeout');
@@ -76,8 +77,13 @@ it('gives each device its own 30-second upload budget', async () => {
     const signals = jest
       .mocked(uploadServeSimCrashesFileAsync)
       .mock.calls.map(([, file]) => file.signal);
-    expect(signals).toEqual([expect.any(AbortSignal), expect.any(AbortSignal)]);
-    expect(signals[0]).not.toBe(signals[1]);
+    expect(signals).toEqual([
+      expect.any(AbortSignal),
+      expect.any(AbortSignal),
+      expect.any(AbortSignal),
+    ]);
+    expect(signals[0]).toBe(signals[1]);
+    expect(signals[0]).not.toBe(signals[2]);
   } finally {
     timeout.mockRestore();
   }
@@ -114,7 +120,7 @@ it('removes the collection directory when session resolution fails', async () =>
   await mkdir(outputDirectory, { recursive: true });
   jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
     outputDirectory,
-    crashes: [{ udid: 'A', filePath: `${outputDirectory}/A.ndjson` }],
+    crashes: [{ udid: 'A', filePath: `${outputDirectory}/A.ips` }],
   });
   jest.mocked(getDeviceRunSessionIdOrThrow).mockImplementationOnce(() => {
     throw new Error('Missing session ID');
@@ -124,4 +130,28 @@ it('removes the collection directory when session resolution fails', async () =>
   ).resolves.toBeUndefined();
   await expect(access(outputDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(uploadServeSimCrashesFileAsync).not.toHaveBeenCalled();
+});
+
+it('skips remaining reports for an exhausted device and continues with other devices', async () => {
+  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
+    outputDirectory: null,
+    crashes: [
+      { udid: 'A', filePath: '/tmp/A.ips' },
+      { udid: 'A', filePath: '/tmp/A2.ips' },
+      { udid: 'B', filePath: '/tmp/B.ips' },
+    ],
+  });
+  const controller = new AbortController();
+  const timeout = jest.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(controller.signal);
+  jest.mocked(uploadServeSimCrashesFileAsync).mockImplementationOnce(async () => {
+    controller.abort(new Error('Upload budget exhausted'));
+  });
+  try {
+    await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
+    expect(
+      jest.mocked(uploadServeSimCrashesFileAsync).mock.calls.map(([, file]) => file.filePath)
+    ).toEqual(['/tmp/A.ips', '/tmp/B.ips']);
+  } finally {
+    timeout.mockRestore();
+  }
 });
