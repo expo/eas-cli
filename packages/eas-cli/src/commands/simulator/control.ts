@@ -14,6 +14,12 @@ import {
   executeControlActionAsync,
   prepareControlActionAsync,
 } from '../../simulator/controlActions';
+import {
+  ControlConfigExecutionError,
+  ControlConfigResult,
+  executeControlConfigAsync,
+  prepareControlConfigAsync,
+} from '../../simulator/controlConfig';
 import { runControlMenuAsync } from '../../simulator/controlInteractive';
 import { ControlPromptCancelledError } from '../../simulator/controlPrompts';
 import { ControlSessionEndedError, watchControlSession } from '../../simulator/controlSession';
@@ -42,6 +48,7 @@ export default class SimulatorControl extends EasCommand {
   static override examples = [
     '$ eas simulator:control',
     '$ eas simulator:control --list',
+    '$ eas simulator:control --import ./simulator-control.json',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -65,6 +72,10 @@ export default class SimulatorControl extends EasCommand {
     output: Flags.string({
       description: 'Where to save the file that an action returns, such as a screenshot.',
     }),
+    import: Flags.string({
+      description:
+        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. File/output paths are relative to the configuration file.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -81,7 +92,11 @@ export default class SimulatorControl extends EasCommand {
       enableJsonOutput();
     }
     const action = flags.list ? undefined : args.action;
-    const interactive = !flags.list && !action;
+    const importing = flags.import !== undefined;
+    if (importing && (args.action || flags.list || flags.output !== undefined)) {
+      throw new Error('--import cannot be combined with an action, --list, or --output.');
+    }
+    const interactive = !flags.list && !action && !importing;
     if (!action && flags.output) {
       throw new Error(
         '--output requires an action. Choose an output path when selecting a file action in the interactive menu.'
@@ -129,6 +144,9 @@ export default class SimulatorControl extends EasCommand {
       const runActionAsync = async (selection: ControlAction): Promise<void> => {
         await this.runActionAsync(activeConnection, catalog, selection, { sessionId, jsonFlag });
       };
+      const importConfigAsync = async (filePath: string): Promise<void> => {
+        await this.importConfigAsync(activeConnection, catalog, filePath, { sessionId, jsonFlag });
+      };
       if (interactive) {
         const controller = new AbortController();
         const onConnectionLost = (): void => {
@@ -150,7 +168,12 @@ export default class SimulatorControl extends EasCommand {
         };
         session.signal.addEventListener('abort', detach, { once: true });
         try {
-          await runControlMenuAsync({ catalog, signal: session.signal, runActionAsync });
+          await runControlMenuAsync({
+            catalog,
+            signal: session.signal,
+            runActionAsync,
+            importConfigAsync,
+          });
         } catch (error) {
           const reason: unknown = session.signal.aborted ? session.signal.reason : error;
           if (reason instanceof ControlPromptCancelledError) {
@@ -166,6 +189,8 @@ export default class SimulatorControl extends EasCommand {
           activeConnection.signal.removeEventListener('abort', onConnectionLost);
           process.removeListener('SIGINT', onInterrupt);
         }
+      } else if (importing) {
+        await importConfigAsync(flags.import!);
       } else {
         const entry = Object.hasOwn(catalog, action!) ? catalog[action!] : undefined;
         await runActionAsync({
@@ -176,6 +201,53 @@ export default class SimulatorControl extends EasCommand {
       }
     } finally {
       connection?.close();
+    }
+  }
+
+  private async importConfigAsync(
+    connection: HostActionConnection,
+    catalog: HostActionCatalog,
+    filePath: string,
+    { sessionId, jsonFlag }: { sessionId: string; jsonFlag: boolean }
+  ): Promise<void> {
+    const config = await prepareControlConfigAsync(catalog, filePath, connection.udid);
+    const spinner = ora(`Importing configuration on simulator session ${sessionId}`).start();
+    let results: ControlConfigResult[];
+    try {
+      results = await executeControlConfigAsync(connection, config);
+      spinner.succeed(`Ran ${results.length} actions on simulator session ${sessionId}`);
+    } catch (error) {
+      spinner.fail(`Failed to import configuration on simulator session ${sessionId}`);
+      if (error instanceof ControlConfigExecutionError) {
+        if (jsonFlag) {
+          printJsonOnlyOutput({
+            id: sessionId,
+            config: config.path,
+            results: configResultsJson(error.completed),
+            error: { step: error.step, action: error.action, message: error.message },
+          });
+          process.exitCode = 1;
+          return;
+        }
+        this.printConfigResults(error.completed);
+      }
+      throw error;
+    }
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        id: sessionId,
+        config: config.path,
+        results: configResultsJson(results),
+      });
+    } else {
+      this.printConfigResults(results);
+    }
+  }
+
+  private printConfigResults(results: readonly ControlConfigResult[]): void {
+    for (const [index, result] of results.entries()) {
+      const detail = result.file ? `saved ${result.file}` : result.output || 'done';
+      Log.log(`${index + 1}. ${result.action}: ${detail}`);
     }
   }
 
@@ -226,6 +298,12 @@ export default class SimulatorControl extends EasCommand {
       Log.log(output);
     }
   }
+}
+
+function configResultsJson(
+  results: readonly ControlConfigResult[]
+): { action: string; output: unknown; file: string | null }[] {
+  return results.map(result => ({ ...result, output: parseJsonOutput(result.output) }));
 }
 
 function assertControllableSession(
