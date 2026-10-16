@@ -151,6 +151,11 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['network-capture'],
     }),
+    'frame-ancestor': Flags.string({
+      description:
+        'Origin, besides expo.dev, that may embed the web preview in an iframe, such as https://example.com or https://*.example.com. Repeat for multiple origins. The site can show the preview, not drive the device from its own origin. Android previews do not restrict framing yet.',
+      multiple: true,
+    }),
     'max-duration-minutes': Flags.integer({
       description:
         "Maximum duration of the simulator session in minutes before it is automatically stopped. Defaults to, and cannot exceed, the maximum session duration of the account's plan.",
@@ -343,6 +348,9 @@ export default class Simulator extends EasCommand {
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
+            ...(flags['frame-ancestor']?.length
+              ? { frameAncestors: flags['frame-ancestor'] }
+              : {}),
             ...(deviceIdentifier
               ? platform === AppPlatform.Ios
                 ? { ios: { deviceIdentifier } }
