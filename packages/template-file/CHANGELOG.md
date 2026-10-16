@@ -1,5 +1,9 @@
 # @expo/template-file
 
+## 25.1.1
+
+No changes in this release.
+
 ## 25.1.0
 
 No changes in this release.

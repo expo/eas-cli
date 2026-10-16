@@ -1,5 +1,11 @@
 # @expo/build-tools
 
+## 25.1.1
+
+### Patch Changes
+
+- Call www only through the device run session worker API in device run session jobs, and remove their GraphQL fallbacks. ([#4638](https://github.com/expo/eas-cli/pull/4638) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## 25.1.0
 
 ### Minor Changes

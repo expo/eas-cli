@@ -1,5 +1,9 @@
 # eas-cli
 
+## 25.1.1
+
+No changes in this release.
+
 ## 25.1.0
 
 ### Minor Changes
