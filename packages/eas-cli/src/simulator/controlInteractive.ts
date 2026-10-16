@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import { ControlAction } from './controlActions';
 import { ControlPromptCancelledError, promptControlValueAsync } from './controlPrompts';
 import { HostActionCatalog, HostActionCatalogEntry } from './hostActions';
@@ -153,6 +155,9 @@ async function promptFieldAsync(name: string, raw: unknown, signal: AbortSignal)
   if (Object.hasOwn(schema, 'const')) {
     return schema.const;
   }
+  if (typeof schema.description === 'string') {
+    Log.gray(schema.description);
+  }
   if (Array.isArray(schema.enum)) {
     return await promptControlValueAsync(
       {
@@ -265,20 +270,43 @@ export async function runControlMenuAsync({
   signal: AbortSignal;
   runActionAsync: (action: ControlAction) => Promise<void>;
 }): Promise<void> {
+  const choices = [
+    { title: 'Exit', description: 'Close simulator controls', value: { kind: 'exit' as const } },
+    ...Object.keys(catalog)
+      .sort()
+      .map(name => ({
+        title: name.split('.').map(actionLabel).join(' › '),
+        description: name,
+        value: { kind: 'action' as const, name },
+      })),
+  ];
+  signal.throwIfAborted();
+  Log.newLine();
+  Log.log(chalk.bold('Simulator controls'));
+  Log.gray(
+    `${Object.keys(catalog).length} actions · Type to search · ↑/↓ to navigate · Enter to select · Ctrl-C to exit`
+  );
   while (true) {
     signal.throwIfAborted();
     const choice = (await promptControlValueAsync(
       {
         type: 'autocomplete',
         message: 'Choose a simulator action',
-        choices: [
-          { title: 'Exit', value: { kind: 'exit' } },
-          ...Object.entries(catalog).map(([name, entry]) => ({
-            title: name,
-            description: entry.description,
-            value: { kind: 'action', name },
-          })),
-        ],
+        choices,
+        limit: 8,
+        suggest: (input: string) => {
+          const words = input.toLowerCase().trim().split(/\s+/);
+          return Promise.resolve(
+            choices.filter(choice => {
+              const description =
+                choice.value.kind === 'action'
+                  ? (catalog[choice.value.name].description ?? '')
+                  : '';
+              const text = `${choice.title} ${choice.description} ${description}`.toLowerCase();
+              return words.every(word => text.includes(word));
+            })
+          );
+        },
       },
       signal
     )) as { kind: 'exit' } | { kind: 'action'; name: string };
@@ -288,9 +316,15 @@ export async function runControlMenuAsync({
       continue;
     }
     if (choice.kind === 'exit') {
+      Log.gray('Simulator controls closed.');
       return;
     }
     try {
+      Log.newLine();
+      Log.log(chalk.bold(choice.name));
+      if (catalog[choice.name].description) {
+        Log.gray(catalog[choice.name].description);
+      }
       await runActionAsync(
         await promptControlActionAsync(choice.name, catalog[choice.name], signal)
       );
@@ -301,5 +335,14 @@ export async function runControlMenuAsync({
       }
       Log.error(error instanceof Error ? error.message : String(error));
     }
+    Log.newLine();
   }
+}
+
+function actionLabel(value: string): string {
+  const words = value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]/g, ' ')
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }

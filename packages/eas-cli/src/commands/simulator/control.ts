@@ -32,6 +32,7 @@ import {
 } from '../../simulator/hostActions';
 import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { formatMilliseconds } from '../../utils/timer';
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
@@ -127,7 +128,11 @@ export default class SimulatorControl extends EasCommand {
       }
       const activeConnection = connection;
       const runActionAsync = async (selection: ControlAction): Promise<void> => {
-        await this.runActionAsync(activeConnection, catalog, selection, { sessionId, jsonFlag });
+        await this.runActionAsync(activeConnection, catalog, selection, {
+          sessionId,
+          jsonFlag,
+          interactive,
+        });
       };
       if (interactive) {
         const controller = new AbortController();
@@ -196,18 +201,33 @@ export default class SimulatorControl extends EasCommand {
     connection: HostActionConnection,
     catalog: HostActionCatalog,
     selection: ControlAction,
-    { sessionId, jsonFlag }: { sessionId: string; jsonFlag: boolean }
+    {
+      sessionId,
+      jsonFlag,
+      interactive,
+    }: { sessionId: string; jsonFlag: boolean; interactive: boolean }
   ): Promise<void> {
     const { action } = selection;
     const plan = await prepareControlActionAsync(catalog, selection);
-    const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
+    const startedAt = Date.now();
+    const spinner = ora(
+      interactive ? `Running ${action}` : `Running ${action} on simulator session ${sessionId}`
+    ).start();
     let output: string;
     let savedFile: string | null;
     try {
       ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
-      spinner.succeed(`Ran ${action} on simulator session ${sessionId}`);
+      spinner.succeed(
+        interactive
+          ? `${action} complete · ${formatMilliseconds(Date.now() - startedAt) || '<1s'}`
+          : `Ran ${action} on simulator session ${sessionId}`
+      );
     } catch (err) {
-      spinner.fail(`Failed to run ${action} on simulator session ${sessionId}`);
+      spinner.fail(
+        interactive
+          ? `${action} failed`
+          : `Failed to run ${action} on simulator session ${sessionId}`
+      );
       throw err;
     }
 
@@ -220,10 +240,14 @@ export default class SimulatorControl extends EasCommand {
       });
       return;
     }
+    if (interactive && plan.localFile?.path) {
+      Log.gray(`Source: ${plan.localFile.path}`);
+    }
     if (savedFile) {
       Log.log(`Saved ${savedFile}`);
     } else if (output) {
-      Log.log(output);
+      const parsed = parseJsonOutput(output);
+      Log.log(interactive && typeof parsed !== 'string' ? JSON.stringify(parsed, null, 2) : output);
     }
   }
 }
