@@ -4,10 +4,16 @@ import nock from 'nock';
 import { api, editPath, mockToken, packageName, serviceAccount } from './googlePlayTestUtils';
 import { createMockLogger } from '../../../../__tests__/utils/logger';
 import { GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient } from '../GooglePlayClient';
+import { GooglePlayApiError } from '../GooglePlayApiError';
+import { GooglePlayClient } from '../GooglePlayClient';
 import { GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
 beforeEach(() => nock.disableNetConnect());
 afterEach(() => {
   const pending = nock.pendingMocks();
@@ -71,10 +77,11 @@ it.each([
     );
   }
 );
-it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
+it.each([408, 429, 503])('retries a transient HTTP %s commit on the same edit', async status => {
   mockToken();
   api().post(`${editPath}:commit`).query(true).reply(status);
-  await expect(commit()).rejects.toMatchObject({ cause: expect.objectContaining({ status }) });
+  api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
+  await expect(commit()).resolves.toBeUndefined();
 });
 it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();

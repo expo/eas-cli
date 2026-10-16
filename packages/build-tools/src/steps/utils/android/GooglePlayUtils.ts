@@ -3,8 +3,9 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
+import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
+import { GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -163,12 +164,10 @@ export namespace GooglePlayUtils {
         }
         if (
           !(error instanceof GooglePlayApiError) ||
-          error.status >= 500 ||
-          error.status === 408 ||
-          error.status === 429
+          GooglePlayApiError.isRetryableStatus(error.status)
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
-            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again. The request was not retried because it may have succeeded.`,
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
             { cause: error }
           );
         }
@@ -212,9 +211,12 @@ export namespace GooglePlayUtils {
   }
 
   export function mapGooglePlayError(error: unknown, packageName: string): unknown {
+    if (error instanceof AggregateError) {
+      return mapGooglePlayError(error.cause, packageName);
+    }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
-      (error.status === 408 || error.status === 429 || error.status >= 500)
+      GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new SystemError(
         `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
@@ -225,8 +227,7 @@ export namespace GooglePlayUtils {
       error instanceof GooglePlayAuthRequestError &&
       error.status >= 400 &&
       error.status < 500 &&
-      error.status !== 408 &&
-      error.status !== 429
+      !GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',

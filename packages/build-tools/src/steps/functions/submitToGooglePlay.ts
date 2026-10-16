@@ -131,7 +131,7 @@ export function createSubmitToGooglePlayBuildFunction(): BuildFunction {
         keyPath: path.resolve(ctx.workingDirectory, submission.service_account_key_path),
       });
       const artifactPath = path.resolve(ctx.workingDirectory, submission.artifact_path);
-      const client = new GooglePlayClient(credentials);
+      const client = new GooglePlayClient(credentials, ctx.logger);
       const versionCode = await submitToGooglePlayAsync({
         artifactType: submission.artifact_type,
         client,
