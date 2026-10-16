@@ -60,6 +60,7 @@ const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
 const APPIUM_STARTUP_TIMEOUT_MS = 120_000;
 const DEFAULT_APPIUM_VERSION = '^3';
+const FDA_HELPER = '/usr/local/libexec/turtle-tcc-fda';
 
 const AppiumInstalledDriversSchema = z.record(
   z.string(),
@@ -139,9 +140,12 @@ export function createStartAppiumRemoteSessionBuildFunction(
         logger,
       });
 
+      const useFdaHelper =
+        runtimePlatform === BuildRuntimePlatform.DARWIN && fs.existsSync(FDA_HELPER);
       const appiumProcess = spawnDetached({
-        command: appiumBinPath,
+        command: useFdaHelper ? FDA_HELPER : appiumBinPath,
         args: [
+          ...(useFdaHelper ? [appiumBinPath] : []),
           '--address',
           APPIUM_HOST,
           '--port',

@@ -1,6 +1,7 @@
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
@@ -32,6 +33,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
+  ensureFfmpegInstalledOnceAsync: jest.fn(),
   spawnDetached: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
@@ -187,6 +189,76 @@ describe(installAppiumAsync, () => {
 });
 
 describe('createStartAppiumRemoteSessionBuildFunction', () => {
+  it.each([
+    [BuildRuntimePlatform.DARWIN, true],
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.LINUX, true],
+    [BuildRuntimePlatform.LINUX, false],
+  ])('starts Appium on %s with helper present=%s', async (runtimePlatform, helperPresent) => {
+    const helper = '/usr/local/libexec/turtle-tcc-fda';
+    if (helperPresent) {
+      fs.mkdirSync(path.dirname(helper), { recursive: true });
+      fs.writeFileSync(helper, 'prepared helper');
+    }
+    jest.mocked(spawn).mockResolvedValue({ stdout: '{}' } as never);
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ udid: 'simulator' }] as never);
+    jest
+      .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+      .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as never);
+    // Stop at the launch boundary; no readiness requests or remote session are needed.
+    const launched = new Error('launch captured');
+    jest.mocked(spawnDetached).mockImplementation(() => {
+      throw launched;
+    });
+    const env = {
+      DEVICE_RUN_SESSION_ID: 'session',
+      EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+      PATH: '/configured/node/bin:/usr/bin',
+      DEVELOPER_DIR: '/Applications/Xcode.app/Contents/Developer',
+    };
+    const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        { logger, global: { runtimePlatform } } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: { ...env, NGROK_AUTHTOKEN: 'token' },
+        } as never
+      )
+    ).rejects.toBe(launched);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    const launch = jest.mocked(spawnDetached).mock.calls[0][0];
+    const appiumBinPath = path.join(launch.env.APPIUM_HOME!, 'node_modules', '.bin', 'appium');
+    const useHelper = runtimePlatform === BuildRuntimePlatform.DARWIN && helperPresent;
+    expect(launch).toEqual({
+      command: useHelper ? helper : appiumBinPath,
+      args: [
+        ...(useHelper ? [appiumBinPath] : []),
+        '--address',
+        '127.0.0.1',
+        '--port',
+        '4723',
+        '--base-path',
+        '/',
+        '--log-level',
+        'error',
+        '--allow-insecure',
+        '*:session_discovery',
+        '--default-capabilities',
+        '{"appium:eventTimings":true}',
+      ],
+      env: { ...env, APPIUM_HOME: launch.env.APPIUM_HOME },
+      logger,
+    });
+  });
+
   it('declares the launch inputs so serve-sim can launch the app', () => {
     const ctx = {} as unknown as CustomBuildContext;
     const buildFunction = createStartAppiumRemoteSessionBuildFunction(ctx);
