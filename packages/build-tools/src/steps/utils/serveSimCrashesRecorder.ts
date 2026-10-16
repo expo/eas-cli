@@ -10,7 +10,8 @@ import { z } from 'zod';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const MAX_BYTES_PER_DEVICE = 20 * 1024 * 1024;
-const MAX_OCCURRENCES_PER_DEVICE = 1_000;
+const MAX_REPORTS_PER_DEVICE = 1_000;
+const MAX_SKIPPED_OCCURRENCES = 1_000;
 const MAX_CONSECUTIVE_FAILURES = 10;
 const MAX_FRAME_LENGTH = 1024 * 1024;
 
@@ -37,6 +38,7 @@ type FinishedCrashes = { outputDirectory: string | null; crashes: CollectedCrash
 type Device = {
   identity: string;
   seen: Set<string>;
+  skipped: Set<string>;
   incidents: Set<string>;
   bytesWritten: number;
   reportsWritten: number;
@@ -112,6 +114,7 @@ export namespace ServeSimCrashesRecorder {
             device = {
               identity,
               seen: new Set(),
+              skipped: new Set(),
               incidents: new Set(),
               bytesWritten: 0,
               reportsWritten: 0,
@@ -122,6 +125,7 @@ export namespace ServeSimCrashesRecorder {
           } else if (device.identity !== identity) {
             device.identity = identity;
             device.seen.clear();
+            device.skipped.clear();
             device.failures = 0;
           }
           if (device.limitReached) {
@@ -210,7 +214,6 @@ async function recordServeSimCrashesAsync({
   try {
     const url = new URL('/crashes', server.url);
     url.searchParams.set('device', server.udid);
-    url.searchParams.set('tail', '1');
     const response = await fetch(url.toString(), {
       redirect: 'error',
       signal: AbortSignal.any([signal, controller.signal]),
@@ -259,7 +262,7 @@ async function recordServeSimCrashesAsync({
               break stream;
             }
             const key = JSON.stringify([summary.id, occurrence.key]);
-            if (device.seen.has(key)) {
+            if (device.seen.has(key) || device.skipped.has(key)) {
               continue;
             }
             const detailUrl = new URL(`/crashes/${encodeURIComponent(summary.id)}`, server.url);
@@ -277,14 +280,13 @@ async function recordServeSimCrashesAsync({
             }
             const { incidentId } = detail.occurrence;
             if (incidentId && device.incidents.has(incidentId)) {
-              device.seen.add(key);
+              rememberSkippedOccurrence(device.skipped, key);
               continue;
             }
             const size = Buffer.byteLength(detail.report ?? '');
             if (
               device.bytesWritten + size > maxBytes ||
-              device.seen.size >= MAX_OCCURRENCES_PER_DEVICE ||
-              device.reportsWritten >= MAX_OCCURRENCES_PER_DEVICE
+              device.reportsWritten >= MAX_REPORTS_PER_DEVICE
             ) {
               device.limitReached = true;
               logger.warn(
@@ -293,7 +295,7 @@ async function recordServeSimCrashesAsync({
               break stream;
             }
             if (!detail.report) {
-              device.seen.add(key);
+              rememberSkippedOccurrence(device.skipped, key);
               logger.warn(
                 `Crash occurrence ${occurrence.key} has no native report for ${server.udid}; skipping its artifact.`
               );
@@ -328,6 +330,13 @@ async function recordServeSimCrashesAsync({
     }
   } finally {
     controller.abort();
+  }
+}
+
+function rememberSkippedOccurrence(skipped: Set<string>, key: string): void {
+  skipped.add(key);
+  if (skipped.size > MAX_SKIPPED_OCCURRENCES) {
+    skipped.delete(skipped.values().next().value!);
   }
 }
 
