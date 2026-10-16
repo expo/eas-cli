@@ -283,6 +283,34 @@ describe('catalog-driven control prompts', () => {
 describe('interactive control loop', () => {
   beforeEach(() => jest.resetAllMocks());
 
+  it('searches friendly labels, action names and descriptions without losing catalog entries', async () => {
+    prompt.mockResolvedValueOnce({ kind: 'exit' });
+    await runControlMenuAsync({
+      catalog: {
+        'hardwareKeyboard.set': { description: 'Connect the physical keyboard' },
+        'future.newAction': { description: 'A newly discovered capability' },
+      },
+      signal,
+      runActionAsync: jest.fn(),
+    });
+    const question = prompt.mock.calls[0][0];
+    const suggest = question.suggest as (
+      input: string,
+      choices: unknown[]
+    ) => Promise<{ value: unknown }[]>;
+    expect((await suggest('HARDWARE keyboard', [])).map(choice => choice.value)).toEqual([
+      { kind: 'action', name: 'hardwareKeyboard.set' },
+    ]);
+    expect((await suggest('future.newAction', [])).map(choice => choice.value)).toEqual([
+      { kind: 'action', name: 'future.newAction' },
+    ]);
+    expect((await suggest('newly discovered', [])).map(choice => choice.value)).toEqual([
+      { kind: 'action', name: 'future.newAction' },
+    ]);
+    expect(await suggest('no match', [])).toEqual([]);
+    expect(await suggest('', [])).toHaveLength(3);
+  });
+
   it('runs one selection at a time and returns to the picker until Exit', async () => {
     const runActionAsync = jest.fn().mockResolvedValue(undefined);
     prompt

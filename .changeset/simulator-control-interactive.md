@@ -2,4 +2,4 @@
 'eas-cli': minor
 ---
 
-Add interactive action selection to `eas simulator:control`.
+Add searchable interactive controls with guided parameters and action feedback to `eas simulator:control`.
