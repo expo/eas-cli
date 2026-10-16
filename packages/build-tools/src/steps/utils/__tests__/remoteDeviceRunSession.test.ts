@@ -48,8 +48,8 @@ import {
 
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
-  createExpoDeviceHubArgs,
   corsOriginArgs,
+  createExpoDeviceHubArgs,
   createServeSimArgs,
   frameAncestorArgs,
   simulatorPreviewPageUrl,
