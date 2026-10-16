@@ -4,7 +4,7 @@ import http from 'node:http';
 import { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 import {
   HostActionCatalog,
@@ -165,6 +165,8 @@ describe('host action connection', () => {
   let tmpDir: string;
   let connection: HostActionConnection | undefined;
   let closeBeforeReady: boolean;
+  let sendReady: boolean;
+  let refuseUpgrade: boolean;
 
   function serveSim(message: {
     id: number;
@@ -201,6 +203,8 @@ describe('host action connection', () => {
     apiBody = JSON.stringify({ device: UDID });
     reply = serveSim;
     closeBeforeReady = false;
+    sendReady = true;
+    refuseUpgrade = false;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'host-actions-'));
     server = http.createServer((req, res) => {
       requests.push(req.url);
@@ -215,6 +219,7 @@ describe('host action connection', () => {
     wss = new WebSocketServer({
       server,
       path: '/exec-ws',
+      verifyClient: () => !refuseUpgrade,
       handleProtocols: offered =>
         offered.has(`serve-sim.token.${TOKEN}`) ? `serve-sim.token.${TOKEN}` : false,
     });
@@ -223,7 +228,9 @@ describe('host action connection', () => {
         ws.close();
         return;
       }
-      ws.send(JSON.stringify({ ready: true }));
+      if (sendReady) {
+        ws.send(JSON.stringify({ ready: true }));
+      }
       ws.on('message', data => {
         const message = JSON.parse(data.toString());
         received.push(message);
@@ -257,6 +264,8 @@ describe('host action connection', () => {
 
   it('sends several requests over one connection with the simulator udid', async () => {
     const hostActions = await connectAsync();
+    expect(hostActions.udid).toBe(UDID);
+    expect(hostActions.signal.aborted).toBe(false);
 
     const results = await Promise.all([
       hostActions.requestAsync('hardwareKeyboard.get'),
@@ -320,6 +329,69 @@ describe('host action connection', () => {
     );
   });
 
+  it('makes a timeout terminal, rejects every pending request and never sends another', async () => {
+    reply = () => null;
+    const hostActions = await connectAsync(50);
+    const requests = [
+      hostActions.requestAsync('memoryWarning'),
+      hostActions.requestAsync('hardwareKeyboard.get'),
+    ];
+    const results = await Promise.allSettled(requests);
+
+    expect(hostActions.signal.aborted).toBe(true);
+    expect(results).toEqual([
+      { status: 'rejected', reason: hostActions.signal.reason },
+      { status: 'rejected', reason: hostActions.signal.reason },
+    ]);
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(hostActions.signal.reason);
+    expect(received).toHaveLength(2);
+    await new Promise(resolve => setImmediate(resolve));
+    expect([...wss.clients].every(client => client.readyState !== 1)).toBe(true);
+  });
+
+  it('aborts when the server closes an idle connection', async () => {
+    const hostActions = await connectAsync();
+    const aborted = once(hostActions.signal, 'abort');
+    for (const client of wss.clients) {
+      client.terminate();
+    }
+    await aborted;
+
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(hostActions.signal.reason);
+    expect(received).toEqual([]);
+  });
+
+  it('aborts and immediately rejects pending work when its owner closes it', async () => {
+    reply = () => null;
+    const hostActions = await connectAsync();
+    const request = hostActions.requestAsync('memoryWarning');
+    const rejected = expect(request).rejects.toThrow('closed');
+    hostActions.close();
+    expect(hostActions.signal.aborted).toBe(true);
+    await rejected;
+  });
+
+  it('makes a transport write failure terminal without retrying the request', async () => {
+    const hostActions = await connectAsync();
+    const failure = new Error('socket write failed');
+    const send = jest
+      .spyOn(WebSocket.prototype, 'send')
+      .mockImplementation((_data, callback: unknown) => {
+        if (typeof callback === 'function') {
+          callback(failure);
+        }
+      });
+    try {
+      await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(failure);
+      expect(hostActions.signal.aborted).toBe(true);
+      await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(failure);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(received).toEqual([]);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
   it('keeps a path on the API URL and drops its query', async () => {
     await expect(
       connectHostActionsAsync({ apiUrl: `${apiUrl}/preview?token=${TOKEN}`, token: TOKEN })
@@ -334,12 +406,45 @@ describe('host action connection', () => {
     expect(wss.clients.size).toBe(0);
   });
 
+  it('cleans up a WebSocket upgrade refused after the API accepted its token', async () => {
+    refuseUpgrade = true;
+    const upgraded = once(server, 'upgrade');
+    const rejected = expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'refused the connection (HTTP 401)'
+    );
+    const [, socket] = await upgraded;
+    const closed = once(socket, 'close');
+    await rejected;
+    await closed;
+    expect(wss.clients.size).toBe(0);
+    expect(requests).toEqual(['/api']);
+  });
+
   it('explains a connection that closes during setup', async () => {
     closeBeforeReady = true;
 
     await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
       'closed the connection during setup'
     );
+  });
+
+  it('terminates its owned socket when setup never becomes ready', async () => {
+    sendReady = false;
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      const connected = once(wss, 'connection');
+      const rejected = expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+        'did not accept the connection within 30 seconds'
+      );
+      const [client] = await connected;
+      const closed = once(client, 'close');
+      jest.advanceTimersByTime(30_000);
+      await rejected;
+      await closed;
+      expect(wss.clients.size).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('explains a preview server that does not report its simulator', async () => {
