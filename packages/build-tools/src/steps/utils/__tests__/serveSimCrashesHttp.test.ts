@@ -678,3 +678,28 @@ it.each([1_000, 1_001])(
   },
   15_000
 );
+
+it('reserves one collection directory when started concurrently', async () => {
+  const creation = jest.spyOn(fs, 'mkdtemp');
+  let directories: string[] = [];
+  try {
+    const options = { logger, stateDir: directory, pollIntervalMs: 10, maxDurationMs: 50 };
+    await Promise.all([
+      ServeSimCrashesRecorder.startAsync(options),
+      ServeSimCrashesRecorder.startAsync(options),
+    ]);
+    directories = await Promise.all(
+      creation.mock.results.map(async result => String(await result.value))
+    );
+    await delay(60);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    expect(directories).toHaveLength(1);
+    expect(collected.outputDirectory).toBe(directories[0]);
+  } finally {
+    await ServeSimCrashesRecorder.finishAsync();
+    await Promise.all(
+      directories.map(directory => rm(directory, { recursive: true, force: true }))
+    );
+    creation.mockRestore();
+  }
+});
