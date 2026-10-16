@@ -874,6 +874,22 @@ it.each([
   await host.finishAsync();
 });
 
+it('lets the session add frame ancestors after the website origins', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+    frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
+  });
+  const { args } = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(args.join(' ')).toContain(
+    '--frame-ancestor https://expo.dev --frame-ancestor https://embed.example.test --frame-ancestor https://*.example.test'
+  );
+  await host.finishAsync();
+});
+
 it('stops when expo-device-hub records no session token', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     const flag = options.args.indexOf('--android-recording-directory');

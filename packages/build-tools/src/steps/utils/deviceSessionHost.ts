@@ -102,6 +102,11 @@ export function websiteOriginArgs(env: BuildStepEnv): string[] {
   return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
+// Both hosts take the same flag; it only applies under --require-token, which both run with.
+export function frameAncestorArgs(frameAncestors: readonly string[]): string[] {
+  return frameAncestors.flatMap(origin => ['--frame-ancestor', origin]);
+}
+
 function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
@@ -114,6 +119,7 @@ export function createServeSimArgs({
   port,
   turnArgs = [],
   websiteArgs = [],
+  frameAncestorArgs: frameArgs = [],
   shareUrl,
   disableShare = false,
   packageVersion,
@@ -128,6 +134,7 @@ export function createServeSimArgs({
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
+  frameAncestorArgs?: string[];
   shareUrl?: string;
   disableShare?: boolean;
   packageVersion?: string;
@@ -158,6 +165,7 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...websiteArgs,
+    ...frameArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
     ...(disableShare ? ['--disable-share'] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
@@ -179,12 +187,14 @@ export function createExpoDeviceHubArgs({
   port,
   turnArgs = [],
   websiteArgs = [],
+  frameAncestorArgs: frameArgs = [],
   packageVersion,
   recordingDirectory,
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
+  frameAncestorArgs?: string[];
   packageVersion?: string;
   recordingDirectory?: string;
 }): string[] {
@@ -214,6 +224,7 @@ export function createExpoDeviceHubArgs({
     ...(recordingDirectory ? ['--android-recording-directory', recordingDirectory] : []),
     ...turnArgs,
     ...websiteArgs,
+    ...frameArgs,
   ];
 }
 
@@ -353,6 +364,8 @@ type DeviceSessionHostOptions = {
   packageVersion?: string;
   disableShare?: boolean;
   privatePreviewUrl?: string;
+  /** Origins allowed to embed the preview host, in addition to the website origins. */
+  frameAncestors?: string[];
   iosSimulatorUdid?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
@@ -403,6 +416,7 @@ async function startDeviceSessionHostInternalAsync(
     onStartupError,
     disableShare = false,
     privatePreviewUrl,
+    frameAncestors = [],
     launchAppIdentifier,
     launchArgs,
     openUrl,
@@ -474,6 +488,7 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           recordingDirectory: recording?.directory,
           websiteArgs: websiteOriginArgs(env),
+          frameAncestorArgs: frameAncestorArgs(frameAncestors),
         })
       : createServeSimArgs({
           port,
@@ -481,6 +496,7 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
+          frameAncestorArgs: frameAncestorArgs(frameAncestors),
           // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
           shareUrl: disableShare ? undefined : previewPageUrl,
           disableShare,

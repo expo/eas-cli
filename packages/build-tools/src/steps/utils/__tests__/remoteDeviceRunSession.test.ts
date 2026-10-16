@@ -27,6 +27,7 @@ import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
+  createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
@@ -34,6 +35,7 @@ import {
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -46,6 +48,7 @@ import {
   EXPO_DEVICE_HUB_STATE_DIR,
   createExpoDeviceHubArgs,
   createServeSimArgs,
+  frameAncestorArgs,
   simulatorPreviewPageUrl,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
@@ -321,6 +324,50 @@ describe(createPrivatePreviewUrlInputProvider, () => {
   });
 });
 
+describe(createFrameAncestorsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createFrameAncestorsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'frame_ancestors',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseFrameAncestorsInput, () => {
+  it('defaults to no extra origins when the step declares nothing', () => {
+    expect(parseFrameAncestorsInput(undefined)).toEqual([]);
+  });
+
+  it('returns the origins as given', () => {
+    expect(
+      parseFrameAncestorsInput(['https://embed.example.test', 'https://*.example.test'])
+    ).toEqual(['https://embed.example.test', 'https://*.example.test']);
+  });
+
+  it.each([['https://embed.example.test'], [['https://embed.example.test', '']], [[1]]])(
+    'rejects %j',
+    value => {
+      expect(() => parseFrameAncestorsInput(value)).toThrow(
+        'Input "frame_ancestors" must be an array of non-empty strings, one origin each.'
+      );
+    }
+  );
+});
+
+describe(frameAncestorArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(frameAncestorArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--frame-ancestor',
+      'https://a.example.test',
+      '--frame-ancestor',
+      'https://b.example.test',
+    ]);
+    expect(frameAncestorArgs([])).toEqual([]);
+  });
+});
+
 describe(parseServeSimLaunchInputs, () => {
   const darwin = { runtimePlatform: BuildRuntimePlatform.DARWIN };
 
@@ -485,6 +532,23 @@ describe(createServeSimArgs, () => {
       'turns:turn.example.test:443',
       '--cors-origin',
       'https://expo.dev',
+    ]);
+  });
+
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      shareUrl: 'https://expo.dev/simulator-preview/preview-id',
+    });
+    expect(args.slice(-6)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
+      '--share-url',
+      'https://expo.dev/simulator-preview/preview-id',
     ]);
   });
 
@@ -682,6 +746,20 @@ describe(createExpoDeviceHubArgs, () => {
       'https://expo.dev',
       '--frame-ancestor',
       'https://expo.dev',
+    ]);
+  });
+
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+    });
+    expect(args.slice(-4)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
     ]);
   });
 

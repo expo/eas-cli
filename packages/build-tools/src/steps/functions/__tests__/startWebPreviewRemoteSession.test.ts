@@ -210,6 +210,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         : {}),
       packageVersion: '1.2.3',
       disableShare: false,
+      frameAncestors: [],
       launchAppIdentifier: undefined,
       launchArgs: [],
       openUrl: undefined,
@@ -258,6 +259,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'network_capture_fields',
       'public_preview',
       'private_preview_url',
+      'frame_ancestors',
       'package_version',
       'max_duration_seconds',
     ]);
@@ -321,6 +323,16 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       );
     }
   );
+
+  it('hands frame_ancestors to the session host', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      frame_ancestors: { value: ['https://embed.example.test'] },
+    });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
 
   it('hands network capture to the session host', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {
