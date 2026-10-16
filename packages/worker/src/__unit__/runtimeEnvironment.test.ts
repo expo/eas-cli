@@ -148,6 +148,75 @@ describe('prepareRuntimeEnvironment', () => {
         );
       });
 
+      it('uses Corepack to install package managers after installing custom Node.js', async () => {
+        const testCtx = { ...ctx, env: { ...ctx.env } };
+        mockRuntimeEnvironmentVersions();
+
+        await prepareRuntimeEnvironment(
+          testCtx,
+          {
+            node: '22.20.0',
+            corepack: true,
+            pnpm: '9.15.5',
+            yarn: '1.22.22',
+          },
+          false
+        );
+
+        expect(spawn).toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+        expect(spawn).toHaveBeenCalledWith(
+          'corepack',
+          ['prepare', 'pnpm@9.15.5', '--activate'],
+          expect.anything()
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'corepack',
+          ['prepare', 'yarn@1.22.22', '--activate'],
+          expect.anything()
+        );
+        expect(spawn).not.toHaveBeenCalledWith(
+          'npm',
+          ['-g', 'install', 'pnpm@9.15.5'],
+          expect.anything()
+        );
+        expect(spawn).not.toHaveBeenCalledWith(
+          'npm',
+          ['-g', 'install', 'yarn@1.22.22'],
+          expect.anything()
+        );
+      });
+
+      it('uses npm to install package managers when Corepack is disabled', async () => {
+        const testCtx = { ...ctx, env: { ...ctx.env } };
+        mockRuntimeEnvironmentVersions();
+
+        await prepareRuntimeEnvironment(
+          testCtx,
+          {
+            node: '22.20.0',
+            pnpm: '9.15.5',
+            yarn: '1.22.22',
+          },
+          false
+        );
+
+        expect(spawn).toHaveBeenCalledWith(
+          'npm',
+          ['-g', 'install', 'pnpm@9.15.5'],
+          expect.anything()
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'npm',
+          ['-g', 'install', 'yarn@1.22.22'],
+          expect.anything()
+        );
+        expect(spawn).not.toHaveBeenCalledWith(
+          'corepack',
+          expect.arrayContaining(['prepare']),
+          expect.anything()
+        );
+      });
+
       it('installs Bun when a specified version is different from installed version', async () => {
         let isFirstTimeCheckingBunVersion = true;
         jest.mocked(spawn).mockImplementation((cmd, _args, _opts) => {
@@ -266,6 +335,26 @@ function mockProcessPlatform(platform: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', {
     configurable: true,
     value: platform,
+  });
+}
+
+function mockRuntimeEnvironmentVersions(): void {
+  jest.mocked(spawn).mockImplementation((cmd, args) => {
+    if (cmd === 'bash' && args[1]?.includes('nvm install')) {
+      return Promise.resolve({
+        ...spawnResult,
+        stdout: 'Now using node v22.20.0 (npm v10.9.3)\n',
+      });
+    } else if (cmd === 'pnpm') {
+      return Promise.resolve({ ...spawnResult, stdout: '9.15.5\n' });
+    } else if (cmd === 'yarn') {
+      return Promise.resolve({ ...spawnResult, stdout: '1.22.22\n' });
+    } else if (cmd === 'bun') {
+      return Promise.resolve({ ...spawnResult, stdout: '1.2.23\n' });
+    } else if (cmd === 'sharp') {
+      return Promise.resolve({ ...spawnResult, stdout: '5.2.0\n' });
+    }
+    return Promise.resolve(spawnResult);
   });
 }
 
