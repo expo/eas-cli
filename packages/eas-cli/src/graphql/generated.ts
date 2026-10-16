@@ -6564,6 +6564,13 @@ export type CreateGitHubRepositorySettingsInput = {
 };
 
 export type CreateIosDeviceRunSessionInput = {
+  /**
+   * Origins of pages that may call the session's preview host API cross-origin, for example to
+   * render the device with @expo/hub-client. Framing the preview does not need this. Same value
+   * rules as frameAncestors. At most 10. The page still needs the preview token from remoteConfig.
+   * If omitted, only expo.dev may call the preview API cross-origin.
+   */
+  corsOrigins?: InputMaybe<Array<Scalars['String']['input']>>;
   /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };

@@ -31,7 +31,7 @@ import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
-import { parseFrameAncestorList } from '../../simulator/frameAncestors';
+import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -178,6 +178,11 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['egress'],
     }),
+    'cors-origin': Flags.string({
+      description:
+        'Origin of a page that may call the simulator preview API cross-origin, for example to render the device with @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview URL and its token.',
+      multiple: true,
+    }),
     'frame-ancestor': Flags.string({
       description:
         'Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries the session token, so anyone who can read that page can also control the simulator.',
@@ -298,6 +303,12 @@ export default class Simulator extends EasCommand {
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    let corsOrigins: string[] = [];
+    try {
+      corsOrigins = parseCorsOriginList(flags['cors-origin'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
     if (flags['network-capture'] && platform !== AppPlatform.Ios) {
       throw new EasCommandError(
         'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
@@ -371,6 +382,7 @@ export default class Simulator extends EasCommand {
             ...(resourceClass ? { resourceClass } : {}),
             ...(egress ? { egress } : {}),
             ...(frameAncestors.length ? { frameAncestors } : {}),
+            ...(corsOrigins.length ? { corsOrigins } : {}),
             requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
             ...agentIdentity,
             maxRunTimeMinutes: flags['max-duration-minutes'],
@@ -524,7 +536,7 @@ export default class Simulator extends EasCommand {
           remoteConfig,
           deviceRunSessionPreviewUrl,
           flags['public-link'],
-          frameAncestors
+          { frameAncestors, corsOrigins }
         ),
       });
       return;
@@ -539,6 +551,7 @@ export default class Simulator extends EasCommand {
         privatePreviewUrl: deviceRunSessionPreviewUrl,
         publicLink: flags['public-link'],
         frameAncestors,
+        corsOrigins,
         platform,
       })
     );

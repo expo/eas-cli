@@ -488,11 +488,30 @@ describe(sanitizeRemoteConfigForJson, () => {
       },
       PRIVATE_URL,
       false,
-      ['https://embed.example.test']
+      { frameAncestors: ['https://embed.example.test'] }
     );
 
     expect(sanitized).toMatchObject({
       webPreviewUrl: PRIVATE_URL,
+      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+  });
+
+  it('includes the tokenized preview API address for a session with CORS origins', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE_URL,
+        previewToken: 'tok-1',
+        previewApiUrl: PREVIEW_URL,
+      },
+      PRIVATE_URL,
+      false,
+      { corsOrigins: ['https://app.example.test'] }
+    );
+
+    expect(sanitized).toMatchObject({
+      previewUrl: PRIVATE_URL,
       previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
     });
   });
@@ -882,6 +901,24 @@ describe('embed instructions', () => {
     expect(instructions.indexOf('tok-1')).toBeLessThan(
       instructions.indexOf('eas simulator:egress')
     );
+  });
+
+  it('prints the API URL and the CORS origins', () => {
+    const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+      corsOrigins: ['https://app.example.test'],
+    });
+    expect(instructions).toContain('Pages on https://app.example.test may call the preview API');
+    expect(instructions).not.toContain('embed the preview in a frame');
+    expect(instructions).toContain('https://web-preview.example.test/?token=tok-1');
+  });
+
+  it('lists both grants when frame ancestors and CORS origins are set', () => {
+    const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+      frameAncestors: ['https://embed.example.test'],
+      corsOrigins: ['https://app.example.test'],
+    });
+    expect(instructions).toContain('may embed the preview in a frame.');
+    expect(instructions).toContain('may call the preview API');
   });
 
   it('says nothing about embedding without frame ancestors', () => {
