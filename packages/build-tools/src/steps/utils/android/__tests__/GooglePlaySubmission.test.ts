@@ -1,5 +1,6 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import nock from 'nock';
+import { Response } from 'node-fetch';
 
 import { api, editPath, mockToken, packageName, serviceAccount } from './googlePlayTestUtils';
 import { createMockLogger } from '../../../../__tests__/utils/logger';
@@ -146,4 +147,57 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
 it('keeps non-Google errors unchanged', () => {
   const error = new SystemError('file failure');
   expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toBe(error);
+});
+it('keeps the Google Play error response in metadata, not in the message', async () => {
+  const response = {
+    error: {
+      code: 400,
+      message: 'Precondition check failed.',
+      status: 'FAILED_PRECONDITION',
+      details: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.PreconditionFailure',
+          violations: [{ type: 'APP_SETUP', description: 'Complete the app setup.' }],
+        },
+      ],
+    },
+  };
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(400, response);
+  const error = await commit().catch(error => error);
+  const mapped = GooglePlayUtils.mapGooglePlayError(error, packageName);
+  expect(mapped).toMatchObject({
+    errorCode: 'EAS_GOOGLE_PLAY_INVALID_RELEASE',
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify(response),
+    },
+  });
+  expect((mapped as Error).message).not.toContain('APP_SETUP');
+});
+it('keeps the last Google Play error response when the commit outcome is unknown', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .times(6)
+    .reply(503, { error: { message: 'Backend error' } });
+  await expect(commit()).rejects.toMatchObject({
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify({ error: { message: 'Backend error' } }),
+    },
+  });
+});
+it('does not keep the upload session query or a non-JSON response', async () => {
+  const error = await GooglePlayApiError.fromResponseAsync(
+    new Response('<html>upload_id=SECRET</html>', {
+      status: 400,
+      url: 'https://androidpublisher.googleapis.com/upload/session?upload_id=SECRET',
+    })
+  );
+  expect(GooglePlayApiError.getErrorMetadata(error)).toEqual({
+    googlePlayRequestPath: '/upload/session',
+    googlePlayErrorResponse: undefined,
+  });
 });
