@@ -1,5 +1,5 @@
 import ContextField, { ContextOptions } from './ContextField';
-import { ExpoGraphqlClient, createGraphqlClient } from './contextUtils/createGraphqlClient';
+import { ExpoGraphqlClient } from './contextUtils/createGraphqlClient';
 import { LoggedInAuthenticationInfo } from '../../user/SessionManager';
 import { Actor } from '../../user/User';
 import FeatureGateEnvOverrides from '../gating/FeatureGateEnvOverrides';
@@ -23,7 +23,7 @@ export default class DynamicLoggedInContextField extends ContextField<DynamicLog
       });
       const featureGateServerValues: { [key: string]: boolean } = actor?.featureGates ?? {};
 
-      const graphqlClient = createGraphqlClient(authenticationInfo);
+      const graphqlClient = sessionManager.getGraphqlClient(authenticationInfo);
 
       return {
         actor,

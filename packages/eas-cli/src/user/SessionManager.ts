@@ -112,7 +112,7 @@ export default class SessionManager {
         accessToken: this.getAccessToken(),
         sessionSecret: this.getSessionSecret(),
       };
-      const actor = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
+      const actor = await UserQuery.currentUserAsync(this.getGraphqlClient(authenticationInfo));
       this.currentActor = actor ?? undefined;
       if (actor) {
         this.analytics.setActor(actor);

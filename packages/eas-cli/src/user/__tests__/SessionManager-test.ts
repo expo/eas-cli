@@ -5,6 +5,7 @@ import path from 'path';
 import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
@@ -17,11 +18,11 @@ jest.mock('../../log');
 jest.mock('fs');
 jest.mock('../../graphql/queries/UserQuery', () => ({
   UserQuery: {
-    currentUserAsync: async () => ({
+    currentUserAsync: jest.fn(async () => ({
       __typename: 'User',
       username: 'USERNAME',
       id: 'USER_ID',
-    }),
+    })),
   },
 }));
 jest.mock('../fetchSessionSecretAndUser');
@@ -137,6 +138,15 @@ describe(SessionManager, () => {
       process.env.EXPO_TOKEN = 'accesstoken';
       const sessionManager = new SessionManager(analytics);
       expect(await sessionManager.getUserAsync()).toMatchObject({ __typename: 'User' });
+    });
+
+    it('fetches user with the shared GraphQL client', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync();
+      expect(jest.mocked(UserQuery.currentUserAsync).mock.calls[0][0]).toBe(
+        sessionManager.getGraphqlClient({ accessToken: 'accesstoken', sessionSecret: null })
+      );
     });
 
     it('fetches user when session secret is defined', async () => {
