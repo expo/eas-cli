@@ -40,7 +40,7 @@ export class PrivateProjectConfigContextField extends ContextField<{
       serverSideEnvVars = serverSideEnvironmentVariables;
     }
     const exp =
-      serverSideEnvVars || !isProjectIdInAppConfig(expBefore, projectId)
+      withServerSideEnvironment || !isProjectIdInAppConfig(expBefore, projectId)
         ? await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars })
         : expBefore;
 

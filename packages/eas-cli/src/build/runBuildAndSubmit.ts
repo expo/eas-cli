@@ -117,7 +117,7 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -127,7 +127,7 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -216,18 +216,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env, exp, projectId } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : {
-          env: envOverride,
-          ...(await getDynamicPrivateProjectConfigAsync({ env: envOverride })),
-        };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,

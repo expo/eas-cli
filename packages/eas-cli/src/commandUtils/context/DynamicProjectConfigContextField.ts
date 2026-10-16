@@ -18,97 +18,57 @@ export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
 }>;
 
 export class DynamicPublicProjectConfigContextField extends ContextField<DynamicConfigContextFn> {
-  async getValueAsync({
-    nonInteractive,
-    sessionManager,
-    withServerSideEnvironment,
-  }: ContextOptions): Promise<DynamicConfigContextFn> {
-    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
-    return async (options?: ExpoConfigOptions) => {
-      const expBefore = await getPublicExpoConfigAsync(projectDir, options);
-      const projectId = await getProjectIdAsync(sessionManager, expBefore, {
-        nonInteractive,
-        env: options?.env,
-      });
-      if (!withServerSideEnvironment && isProjectIdInAppConfig(expBefore, projectId)) {
-        return {
-          exp: expBefore,
-          projectDir,
-          projectId,
-        };
-      }
-      if (withServerSideEnvironment) {
-        const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
-          nonInteractive,
-        });
-        const graphqlClient = createGraphqlClient(authenticationInfo);
-        const serverSideEnvironmentVariables = await loadServerSideEnvironmentVariablesAsync({
-          environment: withServerSideEnvironment,
-          projectId,
-          graphqlClient,
-        });
-        options = {
-          ...options,
-          env: {
-            ...options?.env,
-            ...serverSideEnvironmentVariables,
-          },
-        };
-      }
-      const exp = await getPublicExpoConfigAsync(projectDir, options);
-      return {
-        exp,
-        projectDir,
-        projectId,
-      };
-    };
+  async getValueAsync(options: ContextOptions): Promise<DynamicConfigContextFn> {
+    return await createDynamicConfigFnAsync(getPublicExpoConfigAsync, options);
   }
 }
 
 export class DynamicPrivateProjectConfigContextField extends ContextField<DynamicConfigContextFn> {
-  async getValueAsync({
-    nonInteractive,
-    sessionManager,
-    withServerSideEnvironment,
-  }: ContextOptions): Promise<DynamicConfigContextFn> {
-    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
-    return async (options?: ExpoConfigOptions) => {
-      const expBefore = await getPrivateExpoConfigAsync(projectDir, options);
-      const projectId = await getProjectIdAsync(sessionManager, expBefore, {
+  async getValueAsync(options: ContextOptions): Promise<DynamicConfigContextFn> {
+    return await createDynamicConfigFnAsync(getPrivateExpoConfigAsync, options);
+  }
+}
+
+async function createDynamicConfigFnAsync(
+  getExpoConfigAsync: (projectDir: string, options?: ExpoConfigOptions) => Promise<ExpoConfig>,
+  { nonInteractive, sessionManager, withServerSideEnvironment }: ContextOptions
+): Promise<DynamicConfigContextFn> {
+  const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
+  return async (options?: ExpoConfigOptions) => {
+    const expBefore = await getExpoConfigAsync(projectDir, options);
+    const projectId = await getProjectIdAsync(sessionManager, expBefore, {
+      nonInteractive,
+      env: options?.env,
+    });
+    if (withServerSideEnvironment) {
+      const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
         nonInteractive,
-        env: options?.env,
       });
-      if (!withServerSideEnvironment && isProjectIdInAppConfig(expBefore, projectId)) {
-        return {
-          exp: expBefore,
-          projectDir,
-          projectId,
-        };
-      }
-      if (withServerSideEnvironment) {
-        const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
-          nonInteractive,
-        });
-        const graphqlClient = createGraphqlClient(authenticationInfo);
-        const serverSideEnvironmentVariables = await loadServerSideEnvironmentVariablesAsync({
-          environment: withServerSideEnvironment,
-          projectId,
-          graphqlClient,
-        });
-        options = {
-          ...options,
-          env: {
-            ...options?.env,
-            ...serverSideEnvironmentVariables,
-          },
-        };
-      }
-      const exp = await getPrivateExpoConfigAsync(projectDir, options);
+      const graphqlClient = createGraphqlClient(authenticationInfo);
+      const serverSideEnvironmentVariables = await loadServerSideEnvironmentVariablesAsync({
+        environment: withServerSideEnvironment,
+        projectId,
+        graphqlClient,
+      });
+      options = {
+        ...options,
+        env: {
+          ...options?.env,
+          ...serverSideEnvironmentVariables,
+        },
+      };
+    } else if (isProjectIdInAppConfig(expBefore, projectId)) {
       return {
-        exp,
+        exp: expBefore,
         projectDir,
         projectId,
       };
+    }
+    const exp = await getExpoConfigAsync(projectDir, options);
+    return {
+      exp,
+      projectDir,
+      projectId,
     };
-  }
+  };
 }
