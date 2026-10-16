@@ -1,50 +1,52 @@
 import { Response } from 'node-fetch';
 import { z } from 'zod';
 
-// Keep only diagnostic fields. Metadata, subjects, unknown details and raw response
-// bodies can contain request data or upload credentials.
-const diagnosticText = z.string().transform(value =>
-  value
-    .replace(/https?:\/\/\S+/gi, '[URL redacted]')
-    .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
-    .replace(/[\r\n\x00-\x1f]/g, ' ')
-    .slice(0, 300)
-);
-const legacyError = z.object({
-  reason: diagnosticText.optional(),
-  domain: diagnosticText.optional(),
-  message: diagnosticText.optional(),
-});
-const detailSchema = z.discriminatedUnion('@type', [
-  z.object({
-    '@type': z.literal('type.googleapis.com/google.rpc.ErrorInfo'),
-    reason: diagnosticText.optional(),
-    domain: diagnosticText.optional(),
-  }),
-  z.object({
-    '@type': z.literal('type.googleapis.com/google.rpc.PreconditionFailure'),
-    violations: z
-      .array(z.object({ type: diagnosticText.optional(), description: diagnosticText.optional() }))
-      .transform(items => items.slice(0, 3)),
-  }),
-  z.object({
-    '@type': z.literal('type.googleapis.com/google.rpc.BadRequest'),
-    fieldViolations: z
-      .array(z.object({ field: diagnosticText.optional(), description: diagnosticText.optional() }))
-      .transform(items => items.slice(0, 3)),
-  }),
-]);
+const MAX_DETAILS = 5;
+const MAX_DETAIL_LENGTH = 500;
+
+// Reads only the human-readable parts of known google.rpc details. Other types and
+// fields, such as ErrorInfo metadata, are skipped.
+const DetailZ = z
+  .union([
+    z
+      .object({
+        '@type': z.literal('type.googleapis.com/google.rpc.ErrorInfo'),
+        reason: z.string(),
+      })
+      .transform(detail => [detail.reason]),
+    z
+      .object({
+        '@type': z.literal('type.googleapis.com/google.rpc.PreconditionFailure'),
+        violations: z.array(z.object({ type: z.string().optional(), description: z.string() })),
+      })
+      .transform(detail =>
+        detail.violations.map(({ type, description }) =>
+          type ? `${type}: ${description}` : description
+        )
+      ),
+    z
+      .object({
+        '@type': z.literal('type.googleapis.com/google.rpc.BadRequest'),
+        fieldViolations: z.array(
+          z.object({ field: z.string().optional(), description: z.string() })
+        ),
+      })
+      .transform(detail =>
+        detail.fieldViolations.map(({ field, description }) =>
+          field ? `${field}: ${description}` : description
+        )
+      ),
+  ])
+  .catch([]);
 
 export class GooglePlayApiError extends Error {
   constructor(
     readonly status: number,
     readonly apiMessage: string,
     readonly reasons: string[],
-    readonly diagnostics = ''
+    readonly details: string[] = []
   ) {
-    super(
-      `Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}${diagnostics ? `\n${diagnostics}` : ''}`
-    );
+    super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
   }
 
   static isRetryableStatus(status: number): boolean {
@@ -65,34 +67,21 @@ export class GooglePlayApiError extends Error {
     const parsed = z
       .object({
         error: z.object({
-          message: diagnosticText.optional(),
-          status: diagnosticText.optional(),
-          errors: z.array(z.unknown()).optional(),
-          details: z.array(z.unknown()).optional(),
+          message: z.string().optional(),
+          errors: z.array(z.object({ reason: z.string().optional() })).optional(),
+          // A malformed detail must not hide the primary message.
+          details: z.array(DetailZ).catch([]),
         }),
       })
       .safeParse(data);
-    const errors = (parsed.data?.error.errors ?? []).flatMap(value => {
-      const result = legacyError.safeParse(value);
-      return result.success ? [result.data] : [];
-    });
-    const details = (parsed.data?.error.details ?? []).slice(0, 3).flatMap(value => {
-      const result = detailSchema.safeParse(value);
-      return result.success ? [result.data] : [];
-    });
-    const diagnostics = [
-      parsed.data?.error.status,
-      ...errors.slice(0, 3).map(value => JSON.stringify(value)),
-      ...details.map(value => JSON.stringify(value)),
-    ]
-      .filter(Boolean)
-      .join('\n')
-      .slice(0, 4000);
     return new GooglePlayApiError(
       response.status,
       parsed.data?.error.message ?? '',
-      errors.flatMap(error => (error.reason ? [error.reason] : [])),
-      diagnostics
+      parsed.data?.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? [],
+      (parsed.data?.error.details ?? [])
+        .flat()
+        .slice(0, MAX_DETAILS)
+        .map(detail => detail.slice(0, MAX_DETAIL_LENGTH))
     );
   }
 }

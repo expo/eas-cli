@@ -210,16 +210,21 @@ export namespace GooglePlayUtils {
     }
   }
 
-  export function mapGooglePlayError(error: unknown, packageName: string): unknown {
+  // `action` names the failed submission phase, e.g. "create a Google Play edit".
+  // Other errors already describe themselves and are returned unchanged.
+  export function mapGooglePlayError(
+    error: unknown,
+    { packageName, action }: { packageName: string; action: string }
+  ): unknown {
     if (error instanceof AggregateError) {
-      return mapGooglePlayError(error.cause, packageName);
+      return mapGooglePlayError(error.cause, { packageName, action });
     }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
       GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new SystemError(
-        `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
+        `Could not ${action}. Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
         { cause: error }
       );
     }
@@ -231,7 +236,7 @@ export namespace GooglePlayUtils {
     ) {
       return new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
-        `Google rejected the service-account key (${error.errorCode ?? `HTTP ${error.status}`}). Check that the key is valid and the service account is enabled.`,
+        `Could not ${action}. Google rejected the service-account key (${error.errorCode ?? `HTTP ${error.status}`}). Check that the key is valid and the service account is enabled.`,
         { cause: error }
       );
     }
@@ -280,9 +285,12 @@ export namespace GooglePlayUtils {
       code = 'EAS_GOOGLE_PLAY_INVALID_RELEASE';
       detail = `Google Play rejected the release or review settings${message ? `: ${message}` : '.'} Check the track, release status, rollout, and review settings in Play Console.`;
     }
+    const googleDetails = error.details.length
+      ? `\n\nGoogle Play details:\n${error.details.map(item => `- ${item}`).join('\n')}`
+      : '';
     return new UserError(
       code,
-      `${detail}${error.diagnostics ? `\n${error.diagnostics}` : ''}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
+      `Could not ${action}. ${detail}${googleDetails}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
       {
         cause: error,
       }

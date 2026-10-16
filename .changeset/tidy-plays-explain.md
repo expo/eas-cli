@@ -2,4 +2,4 @@
 '@expo/build-tools': patch
 ---
 
-Include the failed Google Play API operation and bounded error details in submission errors.
+Name the failed Google Play submission phase and include Google's error details in submission errors.

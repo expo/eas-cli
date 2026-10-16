@@ -220,11 +220,7 @@ it('retains structured API errors', async () => {
       packageName,
       editId: 'edit',
     })
-  ).rejects.toMatchObject({
-    status: 403,
-    apiMessage: 'Denied',
-    reasons: ['forbidden'],
-  });
+  ).rejects.toMatchObject({ status: 403, apiMessage: 'Denied', reasons: ['forbidden'] });
 });
 
 it.each(['CERT_HAS_EXPIRED', 'EPROTO', 'EACCES', undefined])(

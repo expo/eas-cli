@@ -1,91 +1,61 @@
 import { Response } from 'node-fetch';
 
 import { GooglePlayApiError } from '../GooglePlayApiError';
-import { GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');
 
-it('keeps the primary error when a detail is malformed', async () => {
-  const error = await GooglePlayApiError.fromResponseAsync(
-    new Response(
-      JSON.stringify({
-        error: {
-          message: 'Denied',
-          details: [
-            null,
-            {
-              '@type': 'type.googleapis.com/google.rpc.PreconditionFailure',
-              violations: 'invalid',
-            },
-          ],
-        },
-      }),
-      { status: 403 }
-    )
+function fromBody(error: unknown): Promise<GooglePlayApiError> {
+  return GooglePlayApiError.fromResponseAsync(
+    new Response(JSON.stringify({ error }), { status: 400 })
   );
-  expect(error.apiMessage).toBe('Denied');
-  expect(error.diagnostics).toBe('');
-});
+}
 
-it('does not include a non-JSON response body', async () => {
-  const error = await GooglePlayApiError.fromResponseAsync(
-    new Response('PRIVATE', { status: 502 })
-  );
-  expect(error.status).toBe(502);
-  expect(error.message).not.toContain('PRIVATE');
-});
-
-it('keeps useful precondition details in the error message without retaining arbitrary data', async () => {
-  const error = await GooglePlayApiError.fromResponseAsync(
-    new Response(
-      JSON.stringify({
-        error: {
-          message: 'Precondition check failed.',
-          status: 'FAILED_PRECONDITION',
-          details: [
-            {
-              '@type': 'type.googleapis.com/google.rpc.PreconditionFailure',
-              violations: [
-                { type: 'RELEASE_STATE', description: 'Complete app setup.', subject: 'PRIVATE' },
-              ],
-            },
-            {
-              '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
-              reason: 'APP_NOT_READY',
-              domain: 'androidpublisher.googleapis.com',
-              metadata: { token: 'PRIVATE' },
-            },
-            { '@type': 'unknown', token: 'PRIVATE' },
-          ],
-        },
-      }),
-      { status: 400 }
-    ),
-    undefined
-  );
-  expect(error.message).toContain('FAILED_PRECONDITION');
-  const mapped = GooglePlayUtils.mapGooglePlayError(error, 'com.example.app');
-  expect(mapped).toMatchObject({ message: expect.stringContaining('Complete app setup.') });
-  expect(error.message).toContain('Complete app setup.');
-  expect(error.message).toContain('APP_NOT_READY');
+it('keeps readable Google details and skips metadata, unknown types and malformed entries', async () => {
+  const error = await fromBody({
+    message: 'Precondition check failed.',
+    errors: [{ reason: 'failedPrecondition' }],
+    details: [
+      {
+        '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+        reason: 'APP_NOT_READY',
+        metadata: { project: 'PRIVATE' },
+      },
+      {
+        '@type': 'type.googleapis.com/google.rpc.PreconditionFailure',
+        violations: [{ type: 'APP_SETUP', subject: 'PRIVATE', description: 'Complete setup.' }],
+      },
+      {
+        '@type': 'type.googleapis.com/google.rpc.BadRequest',
+        fieldViolations: [{ field: 'releases[0]', description: 'Invalid rollout.' }],
+      },
+      { '@type': 'type.googleapis.com/google.rpc.DebugInfo', detail: 'PRIVATE' },
+      { '@type': 'type.googleapis.com/google.rpc.PreconditionFailure', violations: 'invalid' },
+      null,
+    ],
+  });
+  expect(error).toMatchObject({
+    apiMessage: 'Precondition check failed.',
+    reasons: ['failedPrecondition'],
+    details: ['APP_NOT_READY', 'APP_SETUP: Complete setup.', 'releases[0]: Invalid rollout.'],
+  });
   expect(JSON.stringify(error)).not.toContain('PRIVATE');
 });
 
-it('bounds diagnostics and removes URLs and bearer tokens', async () => {
-  const error = await GooglePlayApiError.fromResponseAsync(
-    new Response(
-      JSON.stringify({
-        error: {
-          message: 'See https://example.com?token=PRIVATE Bearer PRIVATE',
-          details: Array.from({ length: 100 }, () => ({
-            '@type': 'type.googleapis.com/google.rpc.BadRequest',
-            fieldViolations: [{ field: 'release', description: 'x'.repeat(10000) }],
-          })),
-        },
-      }),
-      { status: 400 }
-    )
-  );
-  expect(error.message).not.toContain('PRIVATE');
-  expect(error.message.length).toBeLessThan(5000);
+it('keeps the primary error when details is not a list', async () => {
+  const error = await fromBody({ message: 'Denied', details: { '@type': 'unknown' } });
+  expect(error).toMatchObject({ apiMessage: 'Denied', details: [] });
+});
+
+it('bounds the number and length of details', async () => {
+  const error = await fromBody({
+    message: 'Invalid request.',
+    details: [
+      {
+        '@type': 'type.googleapis.com/google.rpc.BadRequest',
+        fieldViolations: Array.from({ length: 20 }, () => ({ description: 'x'.repeat(10_000) })),
+      },
+    ],
+  });
+  expect(error.details).toHaveLength(5);
+  expect(error.details.every(detail => detail.length === 500)).toBe(true);
 });

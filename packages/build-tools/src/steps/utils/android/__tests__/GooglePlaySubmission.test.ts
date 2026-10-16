@@ -14,6 +14,7 @@ jest.mock('promise-retry', () => {
   return (fn: Parameters<typeof actual>[0], options: object) =>
     actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
 });
+const action = 'upload the AAB';
 beforeEach(() => nock.disableNetConnect());
 afterEach(() => {
   const pending = nock.pendingMocks();
@@ -105,13 +106,17 @@ it.each([
   [409, 'edit invalid', 'EAS_GOOGLE_PLAY_EDIT_INVALID'],
   [400, 'unknown track', 'EAS_GOOGLE_PLAY_INVALID_RELEASE'],
 ] as const)('keeps the Google error behind %s %s', (status, message, code) => {
-  const original = new GooglePlayApiError(status, message, []);
-  const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
+  const original = new GooglePlayApiError(status, message, [], ['APP_SETUP: Complete setup.']);
+  const mapped = GooglePlayUtils.mapGooglePlayError(original, { packageName, action });
   expect(mapped).toBeInstanceOf(UserError);
   expect(mapped).toMatchObject({
     errorCode: code,
     cause: original,
   });
+  expect((mapped as Error).message).toMatch(/^Could not upload the AAB\. /);
+  expect((mapped as Error).message).toContain(
+    'Google Play details:\n- APP_SETUP: Complete setup.\n\nApp:'
+  );
   if (code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE') {
     expect((mapped as Error).message).toContain(message);
   } else {
@@ -127,8 +132,9 @@ it.each([
 });
 it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');
-  expect(GooglePlayUtils.mapGooglePlayError(original, packageName)).toMatchObject({
+  expect(GooglePlayUtils.mapGooglePlayError(original, { packageName, action })).toMatchObject({
     errorCode: 'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
+    message: expect.stringMatching(/^Could not upload the AAB\. /),
     cause: original,
   });
 });
@@ -137,13 +143,16 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
     new GooglePlayApiError(status, 'temporary failure', []),
     new GooglePlayAuthRequestError(status, 'temporarily_unavailable'),
   ]) {
-    const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
+    const mapped = GooglePlayUtils.mapGooglePlayError(original, { packageName, action });
     expect(mapped).toBeInstanceOf(SystemError);
-    expect(mapped).toMatchObject({ cause: original });
+    expect(mapped).toMatchObject({
+      message: expect.stringMatching(/^Could not upload the AAB\. /),
+      cause: original,
+    });
     expect((mapped as Error).message).not.toContain('settings');
   }
 });
 it('keeps non-Google errors unchanged', () => {
   const error = new SystemError('file failure');
-  expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toBe(error);
+  expect(GooglePlayUtils.mapGooglePlayError(error, { packageName, action })).toBe(error);
 });

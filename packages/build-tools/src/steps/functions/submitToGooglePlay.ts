@@ -1,4 +1,4 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -179,15 +179,8 @@ async function submitToGooglePlayAsync({
   let editId: string | undefined;
   let committed = false;
   let commitOutcomeUnknown = false;
-  const rethrowWithContext = (error: unknown, message: string): never => {
-    signal?.throwIfAborted();
-    const mapped = GooglePlayUtils.mapGooglePlayError(error, submission.package_name);
-    const description = mapped instanceof Error ? `${message}\n${mapped.message}` : message;
-    if (mapped instanceof UserError) {
-      throw new UserError(mapped.errorCode, description, { cause: mapped });
-    }
-    throw new SystemError(description, { cause: mapped });
-  };
+  // The submission phase in progress, named in Google Play errors.
+  let action = 'create a Google Play edit';
   try {
     const packageName = submission.package_name;
     logger.info(
@@ -211,11 +204,8 @@ async function submitToGooglePlayAsync({
     if (submission.changelog) {
       logger.info(`Changelog (en-US): ${JSON.stringify(submission.changelog)}`);
     }
-    editId = (
-      await GooglePlayUtils.createEditAsync(client, { packageName, signal }).catch(error =>
-        rethrowWithContext(error, 'Could not create a Google Play edit.')
-      )
-    ).id;
+    editId = (await GooglePlayUtils.createEditAsync(client, { packageName, signal })).id;
+    action = `upload the ${artifactType.toUpperCase()}`;
     let lastPercent: number | undefined;
     const { versionCode } = await GooglePlayUtils.uploadApplicationAsync(client, {
       packageName,
@@ -230,13 +220,9 @@ async function submitToGooglePlayAsync({
           lastPercent = percent;
         }
       },
-    }).catch(error =>
-      rethrowWithContext(
-        error,
-        `Could not upload the ${artifactType.toUpperCase()} to Google Play.`
-      )
-    );
+    });
     logger.info(`Uploaded version code: ${versionCode}.`);
+    action = `update track ${JSON.stringify(submission.track)}`;
     await GooglePlayUtils.updateTrackAsync(client, {
       packageName,
       editId,
@@ -245,14 +231,10 @@ async function submitToGooglePlayAsync({
       versionCode,
       changelog: submission.changelog ? { locale: 'en-US', text: submission.changelog } : undefined,
       signal,
-    }).catch(error =>
-      rethrowWithContext(
-        error,
-        `Could not update the release on Google Play track ${JSON.stringify(submission.track)}.`
-      )
-    );
+    });
     logger.info(`Updated Google Play track ${JSON.stringify(submission.track)} in the edit.`);
     logger.info('Committing the Google Play edit...');
+    action = 'commit the Google Play edit';
     // Commit also validates the edit.
     await GooglePlayUtils.commitEditAsync(client, {
       packageName,
@@ -260,15 +242,18 @@ async function submitToGooglePlayAsync({
       changesNotSentForReview: submission.changes_not_sent_for_review,
       logger,
       signal,
-    }).catch(error => {
-      commitOutcomeUnknown = error instanceof GooglePlayCommitOutcomeUnknownError;
-      rethrowWithContext(error, 'Could not confirm the Google Play edit was committed.');
     });
     committed = true;
     logger.info(
       `Submitted ${packageName}, version ${versionCode}, to ${JSON.stringify(submission.track)}.`
     );
     return versionCode;
+  } catch (error) {
+    commitOutcomeUnknown = error instanceof GooglePlayCommitOutcomeUnknownError;
+    throw GooglePlayUtils.mapGooglePlayError(error, {
+      packageName: submission.package_name,
+      action,
+    });
   } finally {
     if (editId && !committed && !commitOutcomeUnknown) {
       try {
