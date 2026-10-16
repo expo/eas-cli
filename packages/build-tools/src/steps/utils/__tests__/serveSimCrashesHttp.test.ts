@@ -703,3 +703,98 @@ it('reserves one collection directory when started concurrently', async () => {
     creation.mockRestore();
   }
 });
+
+it('rejects concurrent initialization failures and lets a later start retry', async () => {
+  const error = new Error('temporary directory unavailable');
+  const creation = jest.spyOn(fs, 'mkdtemp').mockRejectedValueOnce(error);
+  let outputDirectory: string | null = null;
+  try {
+    const options = { logger, stateDir: directory, pollIntervalMs: 10 };
+    const results = await Promise.allSettled([
+      ServeSimCrashesRecorder.startAsync(options),
+      ServeSimCrashesRecorder.startAsync(options),
+    ]);
+    expect(results).toEqual([
+      { status: 'rejected', reason: error },
+      { status: 'rejected', reason: error },
+    ]);
+    expect(creation).toHaveBeenCalledTimes(1);
+    await ServeSimCrashesRecorder.startAsync(options);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    outputDirectory = collected.outputDirectory;
+    expect(creation).toHaveBeenCalledTimes(2);
+    expect(outputDirectory).not.toBeNull();
+    expect(await readdir(outputDirectory!)).toEqual([]);
+  } finally {
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    for (const directory of new Set([outputDirectory, collected.outputDirectory])) {
+      if (directory) {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+    creation.mockRestore();
+  }
+});
+
+it('waits for pending initialization before finalizing its directory', async () => {
+  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'crashes-startup-test-'));
+  let resolveDirectory: (directory: string) => void = () => {};
+  const initialization = new Promise<string>(resolve => {
+    resolveDirectory = resolve;
+  });
+  const creation = jest.spyOn(fs, 'mkdtemp').mockReturnValueOnce(initialization);
+  const starting = ServeSimCrashesRecorder.startAsync({ logger, stateDir: directory });
+  let finished = false;
+  const finishing = ServeSimCrashesRecorder.finishAsync().then(collected => {
+    finished = true;
+    return collected;
+  });
+  try {
+    await delay(10);
+    expect(finished).toBe(false);
+    resolveDirectory(outputDirectory);
+    await starting;
+    await expect(finishing).resolves.toEqual({ outputDirectory, crashes: [] });
+  } finally {
+    resolveDirectory(outputDirectory);
+    await Promise.allSettled([starting, finishing]);
+    await rm(outputDirectory, { recursive: true, force: true });
+    creation.mockRestore();
+  }
+});
+
+it('does not let a failed initialization finalizer clear its replacement', async () => {
+  const error = new Error('temporary directory unavailable');
+  let rejectDirectory: (error: Error) => void = () => {};
+  const initialization = new Promise<string>((_resolve, reject) => {
+    rejectDirectory = reject;
+  });
+  const creation = jest.spyOn(fs, 'mkdtemp').mockReturnValueOnce(initialization);
+  const options = { logger, stateDir: directory, pollIntervalMs: 10, maxDurationMs: 50 };
+  const starting = ServeSimCrashesRecorder.startAsync(options);
+  const finishing = ServeSimCrashesRecorder.finishAsync();
+  const retried = starting.catch(() => ServeSimCrashesRecorder.startAsync(options));
+  let outputDirectory: string | null = null;
+  try {
+    rejectDirectory(error);
+    expect(await Promise.allSettled([starting, finishing, retried])).toEqual([
+      { status: 'rejected', reason: error },
+      { status: 'rejected', reason: error },
+      { status: 'fulfilled', value: undefined },
+    ]);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    outputDirectory = collected.outputDirectory;
+    expect(outputDirectory).not.toBeNull();
+    expect(creation).toHaveBeenCalledTimes(2);
+  } finally {
+    await ServeSimCrashesRecorder.finishAsync();
+    await delay(60);
+    const directories = await Promise.allSettled(creation.mock.results.map(result => result.value));
+    for (const result of directories) {
+      if (result.status === 'fulfilled') {
+        await rm(String(result.value), { recursive: true, force: true });
+      }
+    }
+    creation.mockRestore();
+  }
+});
