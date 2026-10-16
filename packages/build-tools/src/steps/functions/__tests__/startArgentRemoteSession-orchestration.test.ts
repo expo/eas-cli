@@ -446,6 +446,30 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
   });
 
+  it('passes cors_origins to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          cors_origins: { value: ['https://app.example.test'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+  });
+
   it('continues the session when disabling the video watermark fails', async () => {
     const error = new Error('bun x failed');
     jest

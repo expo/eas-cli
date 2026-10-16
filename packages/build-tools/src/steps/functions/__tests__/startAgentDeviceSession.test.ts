@@ -89,6 +89,7 @@ function runStep(
       'public_preview',
       'private_preview_url',
       'frame_ancestors',
+      'cors_origins',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -419,6 +420,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'public_preview',
       'private_preview_url',
       'frame_ancestors',
+      'cors_origins',
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
@@ -449,6 +451,16 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
+
+  it('passes cors_origins to the session host', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, {
+      cors_origins: ['https://app.example.test'],
+    });
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
     );
   });
 

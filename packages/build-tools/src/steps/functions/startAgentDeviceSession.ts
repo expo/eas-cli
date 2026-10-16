@@ -19,10 +19,12 @@ import { IosSimulatorName, IosSimulatorUuid } from '../../utils/IosSimulatorUtil
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
+  createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
   omitNgrokAuthtoken,
+  parseCorsOriginsInput,
   parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -125,6 +127,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
       createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -275,6 +278,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         disableShare: inputs.public_preview?.value === false,
         privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
         frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+        corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
         tasks,
         device: { booted, ready },
       });

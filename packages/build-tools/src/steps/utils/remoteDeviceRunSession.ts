@@ -896,6 +896,27 @@ export function createFrameAncestorsInputProvider(): ReturnType<
 }
 
 export function parseFrameAncestorsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'frame_ancestors', 'EAS_FRAME_ANCESTORS_INVALID_INPUT');
+}
+
+/**
+ * Origins whose pages may call the preview host's API cross-origin, such as a page that renders
+ * the device with @expo/hub-client. Framing alone does not need it. The host refuses values that
+ * are not an origin or a subdomain wildcard, so this parser only guards the input shape.
+ */
+export function createCorsOriginsInputProvider(): ReturnType<typeof BuildStepInput.createProvider> {
+  return BuildStepInput.createProvider({
+    id: 'cors_origins',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseCorsOriginsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'cors_origins', 'EAS_CORS_ORIGINS_INVALID_INPUT');
+}
+
+function parseOriginListInput(value: unknown, inputId: string, errorCode: string): string[] {
   if (value === undefined) {
     return [];
   }
@@ -904,8 +925,8 @@ export function parseFrameAncestorsInput(value: unknown): string[] {
     !value.every(origin => typeof origin === 'string' && origin.trim().length > 0)
   ) {
     throw new UserError(
-      'EAS_FRAME_ANCESTORS_INVALID_INPUT',
-      'Input "frame_ancestors" must be an array of non-empty strings, one origin each.'
+      errorCode,
+      `Input "${inputId}" must be an array of non-empty strings, one origin each.`
     );
   }
   return value;
