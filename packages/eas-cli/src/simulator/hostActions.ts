@@ -65,6 +65,15 @@ const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 function previewEndpoint(apiUrl: string, endpoint: string): URL {
   const base = new URL(apiUrl);
+  const loopback =
+    base.hostname === 'localhost' ||
+    base.hostname === '[::1]' ||
+    /^127(?:\.\d{1,3}){3}$/.test(base.hostname);
+  if (base.protocol !== 'https:' && (base.protocol !== 'http:' || !loopback)) {
+    throw new Error(
+      'Simulator actions require HTTPS for remote preview servers. HTTP is supported only on localhost or a loopback address. Start a new session with `eas simulator:start`.'
+    );
+  }
   base.search = '';
   base.hash = '';
   if (!base.pathname.endsWith('/')) {
@@ -78,6 +87,7 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
   try {
     const response = await fetch(previewEndpoint(apiUrl, 'api').toString(), {
       headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
       signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
     });
     text = await response.text();
@@ -167,6 +177,9 @@ export async function connectHostActionsAsync(
       clearTimeout(timer);
       reject(error);
       loseConnection(error);
+      if (!ready) {
+        ws.terminate();
+      }
     };
 
     ws.on('message', data => {
@@ -204,6 +217,7 @@ export async function connectHostActionsAsync(
       }
     });
     ws.on('unexpected-response', (_req, res) => {
+      res.destroy();
       fail(
         new Error(
           `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
