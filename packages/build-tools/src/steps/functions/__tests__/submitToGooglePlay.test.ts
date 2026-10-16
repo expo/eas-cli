@@ -1,8 +1,10 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
+import { createLogger } from '@expo/logger';
 import nock from 'nock';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { Writable } from 'node:stream';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import {
@@ -15,6 +17,7 @@ import {
 import { createSubmitToGooglePlayBuildFunction } from '../submitToGooglePlay';
 
 jest.unmock('node-fetch');
+jest.unmock('@expo/logger');
 jest.mock('promise-retry', () => {
   const actual = jest.requireActual('promise-retry');
   return (fn: Parameters<typeof actual>[0], options: object) =>
@@ -201,11 +204,62 @@ it('preserves the original failure when cleanup fails', async () => {
     cause: expect.objectContaining({ apiMessage: 'unknown track' }),
   });
 });
+
+it('logs structured response diagnostics at warning level and includes them in Sentry metadata only', async () => {
+  upload();
+  const task = submission();
+  const records: Record<string, unknown>[] = [];
+  const logger = createLogger({
+    name: 'submission-test',
+    streams: [
+      {
+        level: 'info',
+        stream: new Writable({
+          write(chunk, _encoding, callback) {
+            records.push(JSON.parse(chunk.toString()));
+            callback();
+          },
+        }),
+      },
+    ],
+  });
+  jest.spyOn(task.step.ctx.logger, 'warn').mockImplementation(logger.warn.bind(logger));
+  api()
+    .put(`${editPath}/tracks/internal`)
+    .reply(400, {
+      error: {
+        message: 'Rejected',
+        status: 'FAILED_PRECONDITION',
+        details: [{ '@type': 'unknown', diagnostic: 'DIAGNOSTIC_ONLY', access_token: 'SECRET' }],
+      },
+    });
+  api().delete(editPath).reply(204);
+  const error = await task.run().catch(error => error);
+  expect(error).toBeInstanceOf(UserError);
+  if (!(error instanceof UserError)) {
+    throw error;
+  }
+  expect(records).toEqual([
+    expect.objectContaining({
+      level: 40,
+      msg: 'Google Play submission failed.',
+      googlePlayHttpStatus: 400,
+      googlePlayErrorResponse: expect.any(Object),
+    }),
+  ]);
+  expect(records[0].googlePlayErrorResponse).toEqual(error.metadata?.googlePlayErrorResponse);
+  expect(JSON.stringify(error.metadata)).toContain('DIAGNOSTIC_ONLY');
+  expect(JSON.stringify(error.metadata)).not.toContain('SECRET');
+  expect(JSON.stringify(error.toExternalExpoError())).not.toContain('DIAGNOSTIC_ONLY');
+});
 it('does not delete the edit or publish outputs when commit outcome is unknown', async () => {
   upload();
   api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
   api().post(`${editPath}:commit`).query(true).reply(503);
-  api().post(`${editPath}:commit`).query(true).reply(404);
+  api()
+    .post(`${editPath}:commit`)
+    .query(true)
+    .reply(404, { error: { message: 'Edit missing', status: 'NOT_FOUND' } });
   let deleted = false;
   api()
     .delete(editPath)
@@ -215,7 +269,14 @@ it('does not delete the edit or publish outputs when commit outcome is unknown',
       return [204];
     });
   const task = submission();
-  await expect(task.run()).rejects.toBeInstanceOf(SystemError);
+  const error = await task.run().catch(error => error);
+  expect(error).toBeInstanceOf(SystemError);
+  expect(error).toMatchObject({
+    metadata: {
+      googlePlayHttpStatus: 404,
+      googlePlayErrorResponse: { error: { message: 'Edit missing', status: 'NOT_FOUND' } },
+    },
+  });
   expect(deleted).toBe(false);
   expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
 });

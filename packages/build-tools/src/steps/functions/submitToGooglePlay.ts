@@ -250,6 +250,10 @@ async function submitToGooglePlayAsync({
     return versionCode;
   } catch (error) {
     commitOutcomeUnknown = error instanceof GooglePlayCommitOutcomeUnknownError;
+    const metadata = GooglePlayUtils.getGooglePlayErrorMetadata(error);
+    if (metadata) {
+      logger.warn(metadata, 'Google Play submission failed.');
+    }
     throw GooglePlayUtils.mapGooglePlayError(error, {
       packageName: submission.package_name,
       action,
@@ -262,8 +266,9 @@ async function submitToGooglePlayAsync({
           editId,
           signal: AbortSignal.timeout(30_000),
         });
-      } catch {
+      } catch (error) {
         logger.warn(
+          GooglePlayUtils.getGooglePlayErrorMetadata(error) ?? {},
           'Could not discard the pending Google Play changes. Check the release in Play Console before submitting again.'
         );
       }

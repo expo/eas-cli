@@ -38,7 +38,38 @@ it('keeps readable Google details and skips metadata, unknown types and malforme
     reasons: ['failedPrecondition'],
     details: ['APP_NOT_READY', 'APP_SETUP: Complete setup.', 'releases[0]: Invalid rollout.'],
   });
-  expect(JSON.stringify(error)).not.toContain('PRIVATE');
+  expect(JSON.stringify(error.details)).not.toContain('PRIVATE');
+});
+
+it('retains the JSON response with bounded and redacted diagnostic fields', async () => {
+  const error = await fromBody({
+    message: 'Denied',
+    status: 'FAILED_PRECONDITION',
+    details: [
+      {
+        '@type': 'unknown',
+        explanation: 'Useful extra detail',
+        metadata: {
+          access_token: 'SECRET',
+          password: 'SECRET',
+          url: 'https://example.com?token=SECRET',
+          description: 'Bearer SECRET',
+          private_key: 'SECRET',
+        },
+      },
+    ],
+    extra: 'x'.repeat(100000),
+  });
+  const body = JSON.stringify(error.responseBody);
+  expect(body).toContain('Useful extra detail');
+  expect(body).toContain('FAILED_PRECONDITION');
+  expect(body).not.toContain('SECRET');
+  expect(body.length).toBeLessThan(17000);
+});
+
+it('does not retain a non-JSON error response', async () => {
+  const error = await GooglePlayApiError.fromResponseAsync(new Response('SECRET', { status: 502 }));
+  expect(error.responseBody).toBeUndefined();
 });
 
 it('keeps the primary error when details is not a list', async () => {

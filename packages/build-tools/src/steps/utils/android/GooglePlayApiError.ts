@@ -44,7 +44,8 @@ export class GooglePlayApiError extends Error {
     readonly status: number,
     readonly apiMessage: string,
     readonly reasons: string[],
-    readonly details: string[] = []
+    readonly details: string[] = [],
+    readonly responseBody?: unknown
   ) {
     super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
   }
@@ -81,7 +82,48 @@ export class GooglePlayApiError extends Error {
       (parsed.data?.error.details ?? [])
         .flat()
         .slice(0, MAX_DETAILS)
-        .map(detail => detail.slice(0, MAX_DETAIL_LENGTH))
+        .map(detail => detail.slice(0, MAX_DETAIL_LENGTH)),
+      data === undefined ? undefined : sanitizeResponseBody(data)
     );
   }
+}
+
+// Structured log properties are not covered by the worker's message secret filter.
+// Never retain headers, request bodies, non-JSON responses or unbounded API data.
+function sanitizeResponseBody(data: unknown): unknown {
+  let remainingNodes = 200;
+  const sanitize = (value: unknown, depth: number): unknown => {
+    if (--remainingNodes < 0 || depth > 6) {
+      return '[truncated]';
+    }
+    if (typeof value === 'string') {
+      return value
+        .replace(
+          /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g,
+          '[redacted]'
+        )
+        .replace(/https?:\/\/\S+/gi, '[URL redacted]')
+        .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+        .slice(0, 2000);
+    }
+    if (Array.isArray(value)) {
+      return value.slice(0, 50).map(item => sanitize(item, depth + 1));
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value)
+          .slice(0, 50)
+          .map(([key, item]) => [
+            key.slice(0, 100),
+            /token|secret|password|authorization|cookie|credential|private.?key|email/i.test(key)
+              ? '[redacted]'
+              : sanitize(item, depth + 1),
+          ])
+      );
+    }
+    return value;
+  };
+  const sanitized = sanitize(data, 0);
+  const json = JSON.stringify(sanitized);
+  return json.length > 16000 ? { truncated: true, preview: json.slice(0, 16000) } : sanitized;
 }

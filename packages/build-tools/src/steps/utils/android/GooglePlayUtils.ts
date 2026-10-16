@@ -168,7 +168,7 @@ export namespace GooglePlayUtils {
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
             `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
-            { cause: error }
+            { cause: error, metadata: getGooglePlayErrorMetadata(error) }
           );
         }
         throw error;
@@ -225,7 +225,7 @@ export namespace GooglePlayUtils {
     ) {
       return new SystemError(
         `Could not ${action}. Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
-        { cause: error }
+        { cause: error, metadata: getGooglePlayErrorMetadata(error) }
       );
     }
     if (
@@ -293,7 +293,20 @@ export namespace GooglePlayUtils {
       `Could not ${action}. ${detail}${googleDetails}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
       {
         cause: error,
+        metadata: getGooglePlayErrorMetadata(error),
       }
     );
+  }
+
+  export function getGooglePlayErrorMetadata(error: unknown): Record<string, unknown> | undefined {
+    // Retries and uncertain commits wrap the last API error in cause.
+    const seen = new Set<Error>();
+    for (let cause = error; cause instanceof Error && !seen.has(cause); cause = cause.cause) {
+      seen.add(cause);
+      if (cause instanceof GooglePlayApiError && cause.responseBody !== undefined) {
+        return { googlePlayHttpStatus: cause.status, googlePlayErrorResponse: cause.responseBody };
+      }
+    }
+    return undefined;
   }
 }
