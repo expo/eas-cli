@@ -7,7 +7,7 @@ import { createMockLogger } from '../../../../__tests__/utils/logger';
 import { GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
 import { GooglePlayApiError } from '../GooglePlayApiError';
 import { GooglePlayClient } from '../GooglePlayClient';
-import { GooglePlayUtils } from '../GooglePlayUtils';
+import { GooglePlayCommitOutcomeUnknownError, GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');
 jest.mock('promise-retry', () => {
@@ -89,6 +89,67 @@ it('preserves cancellation before commit is sent', async () => {
   const reason = new Error('cancelled before commit');
   controller.abort(reason);
   await expect(commit({ signal: controller.signal })).rejects.toBe(reason);
+});
+const pendingUploadMessage = 'Some of the Android App Bundle uploads are not completed yet.';
+
+it.each([false, true])(
+  'waits for bundle processing without changing review settings (%s)',
+  async changesNotSentForReview => {
+    const logger = createMockLogger();
+    const query = changesNotSentForReview ? { changesNotSentForReview: 'true' } : {};
+    mockToken();
+    api()
+      .post(`${editPath}:commit`, {})
+      .query(query)
+      .reply(400, { error: { message: pendingUploadMessage } });
+    api().post(`${editPath}:commit`, {}).query(query).reply(200, { id: 'edit' });
+    await expect(commit({ changesNotSentForReview, logger })).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Google Play is still processing')
+    );
+  }
+);
+
+it('stops waiting for bundle processing after six attempts', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .times(6)
+    .reply(400, { error: { message: pendingUploadMessage } });
+  await expect(commit()).rejects.toThrow('Google Play did not finish processing');
+});
+
+it('does not retry an unrelated commit precondition', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: 'Precondition check failed.' } });
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayApiError);
+});
+
+it('checks cancellation before sending a processing retry', async () => {
+  const controller = new AbortController();
+  const reason = new Error('cancelled while waiting');
+  const logger = createMockLogger();
+  jest.spyOn(logger, 'warn').mockImplementation(() => controller.abort(reason));
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  await expect(commit({ signal: controller.signal, logger })).rejects.toBe(reason);
+});
+
+it('does not report success if a processing retry has no valid commit receipt', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  api().post(`${editPath}:commit`).query({}).reply(200, { id: 'different-edit' });
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
 });
 it('preserves OAuth rejection before commit is sent', async () => {
   nock('https://oauth2.googleapis.com').post('/token').reply(400, { error: 'invalid_grant' });
