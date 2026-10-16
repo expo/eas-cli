@@ -2,12 +2,14 @@ import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { Client, fetchExchange } from '@urql/core';
+import { getEventListeners } from 'node:events';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import os from 'node:os';
 import fetch from 'node-fetch';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import * as processes from '../../../utils/processes';
 import {
   captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
@@ -383,18 +385,106 @@ describe(ensureMacosPreviewEncoderInstalledAsync, () => {
           [
             'brew',
             ['install', 'webp'],
-            { env: { HOME: '/Users/expo', HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+            {
+              env: { HOME: '/Users/expo', HOMEBREW_NO_AUTO_UPDATE: '1' },
+              logger,
+              detached: true,
+            },
           ],
         ]);
       }
     }
   );
 
-  it('rejects when webp cannot be installed', async () => {
+  it('does not start a command when setup was already canceled', async () => {
     jest.mocked(spawn).mockReset();
-    jest.mocked(spawn).mockRejectedValue(new Error('brew failed'));
-    await expect(ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger })).rejects.toThrow(
-      'brew failed'
-    );
+    const controller = new AbortController();
+    const reason = new Error('session ended');
+    controller.abort(reason);
+    await expect(
+      ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger, signal: controller.signal })
+    ).rejects.toBe(reason);
+    expect(spawn).not.toHaveBeenCalled();
+    expect(getEventListeners(controller.signal, 'abort')).toEqual([]);
+  });
+
+  it.each(['cwebp', 'brew'])(
+    'waits for canceled %s to close and never starts another command',
+    async command => {
+      jest.mocked(spawn).mockReset();
+      const controller = new AbortController();
+      const child = { pid: 12345, kill: jest.fn() };
+      const killed = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+      const closeError = new Error(`${command} closed after cancellation`);
+      let entered!: () => void;
+      const commandEntered = new Promise<void>(resolve => {
+        entered = resolve;
+      });
+      let close!: (error: Error) => void;
+      jest.mocked(spawn).mockImplementation(current => {
+        if (current !== command) {
+          return Promise.reject(new Error('cwebp missing')) as ReturnType<typeof spawn>;
+        }
+        entered();
+        return Object.assign(
+          new Promise((_, reject) => {
+            close = reject;
+          }),
+          { child }
+        ) as unknown as ReturnType<typeof spawn>;
+      });
+      let settled = false;
+      const result = ensureMacosPreviewEncoderInstalledAsync({
+        env: {},
+        logger,
+        signal: controller.signal,
+      }).then(
+        () => {
+          settled = true;
+        },
+        error => {
+          settled = true;
+          return error;
+        }
+      );
+      try {
+        await commandEntered;
+        controller.abort(new Error('session ended'));
+        await Promise.resolve();
+        expect(killed).toHaveBeenCalledWith(child, 'SIGKILL');
+        expect(settled).toBe(false);
+        expect(jest.mocked(spawn).mock.calls.at(-1)).toEqual([
+          command,
+          command === 'cwebp' ? ['-version'] : ['install', 'webp'],
+          expect.objectContaining({ detached: true }),
+        ]);
+        expect(jest.mocked(spawn).mock.calls.every(([, , options]) => !options?.signal)).toBe(true);
+      } finally {
+        close(closeError);
+        await result;
+        killed.mockRestore();
+      }
+      expect(spawn).toHaveBeenCalledTimes(command === 'cwebp' ? 1 : 2);
+      expect(getEventListeners(controller.signal, 'abort')).toEqual([]);
+    }
+  );
+
+  it('rejects an installation failure and removes its abort listeners', async () => {
+    jest.mocked(spawn).mockReset();
+    const controller = new AbortController();
+    const failure = new Error('brew failed');
+    jest.mocked(spawn).mockRejectedValue(failure);
+    await expect(
+      ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger, signal: controller.signal })
+    ).rejects.toBe(failure);
+    expect(getEventListeners(controller.signal, 'abort')).toEqual([]);
+  });
+
+  it('removes its abort listener after a successful probe', async () => {
+    jest.mocked(spawn).mockReset();
+    jest.mocked(spawn).mockResolvedValue({ stdout: '', stderr: '' } as never);
+    const controller = new AbortController();
+    await ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger, signal: controller.signal });
+    expect(getEventListeners(controller.signal, 'abort')).toEqual([]);
   });
 });

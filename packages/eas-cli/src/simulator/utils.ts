@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -275,6 +277,11 @@ function getControllerEnvironmentVariables(
 
 type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
+type PreviewLinkOptions = {
+  privatePreviewUrl?: string;
+  publicLink?: boolean;
+};
+
 function previewUrlIsWebsitePage(remoteConfig: DeviceRunSessionRemoteConfig): boolean {
   return remoteConfig.previewApiUrl != null;
 }
@@ -306,13 +313,51 @@ function formatPreviewApiUrl(url: string, token: string | null | undefined): str
   return withToken.toString();
 }
 
+function withoutPreviewToken(url: string): string {
+  const parsed = new URL(url);
+  const hashParams = new URLSearchParams(parsed.hash.slice(1));
+  if (!parsed.searchParams.has('token') && !hashParams.has('token')) {
+    return url;
+  }
+  parsed.searchParams.delete('token');
+  if (hashParams.has('token')) {
+    hashParams.delete('token');
+    parsed.hash = hashParams.toString();
+  }
+  return parsed.toString();
+}
+
+function formatBrowserPreviewUrl(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined,
+  { privatePreviewUrl, publicLink }: PreviewLinkOptions
+): string {
+  return publicLink
+    ? formatPreviewUrl(remoteConfig, url, token)
+    : (privatePreviewUrl ?? withoutPreviewToken(url));
+}
+
+function formatBrowserPreviewInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined,
+  options: PreviewLinkOptions
+): string {
+  const previewUrl = formatBrowserPreviewUrl(remoteConfig, url, token, options);
+  return options.publicLink
+    ? `${chalk.yellow('Warning: Anyone with this link can view and control the simulator, including your app and logs that may contain sensitive data. Share this link only with trusted recipients.')}\n${previewUrl}`
+    : previewUrl;
+}
+
 /**
- * Remote config for `--json`. Both URLs carry the token and the standalone token field is dropped,
- * so a consumer gets URLs that work rather than bare URLs that 401 next to a secret it has to know
- * to combine.
+ * Remote config for `--json`. Private sessions omit the direct preview API address and preview
+ * tokens. Public sessions include bearer preview links while preserving controller credentials.
  */
 export function sanitizeRemoteConfigForJson(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  privatePreviewUrl: string,
+  publicLink = false
 ): DeviceRunSessionRemoteConfig {
   switch (remoteConfig.__typename) {
     case 'ServeSimRunSessionRemoteConfig':
@@ -320,10 +365,14 @@ export function sanitizeRemoteConfigForJson(
       const { previewToken, ...rest } = remoteConfig;
       return {
         ...rest,
-        previewUrl: formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, previewToken),
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
-          : remoteConfig.previewApiUrl,
+        previewUrl: formatBrowserPreviewUrl(remoteConfig, remoteConfig.previewUrl, previewToken, {
+          privatePreviewUrl,
+          publicLink,
+        }),
+        previewApiUrl: publicLink
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
+          : null,
       };
     }
     case 'AgentDeviceRunSessionRemoteConfig':
@@ -333,11 +382,15 @@ export function sanitizeRemoteConfigForJson(
       return {
         ...rest,
         webPreviewUrl: remoteConfig.webPreviewUrl
-          ? formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, webPreviewToken)
+          ? formatBrowserPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, webPreviewToken, {
+              privatePreviewUrl,
+              publicLink,
+            })
           : remoteConfig.webPreviewUrl,
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
-          : remoteConfig.previewApiUrl,
+        previewApiUrl: publicLink
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
+          : null,
       };
     }
   }
@@ -346,9 +399,19 @@ export function sanitizeRemoteConfigForJson(
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType,
-  { egressAllow, egressClientRunsInline = false, sessionUrl, platform }: LocalEgressOptions = {}
+  {
+    egressAllow,
+    egressClientRunsInline = false,
+    sessionUrl,
+    platform,
+    privatePreviewUrl,
+    publicLink,
+  }: LocalEgressOptions & PreviewLinkOptions = {}
 ): string {
-  const instructions = formatControllerInstructions(remoteConfig, configType);
+  const instructions = formatControllerInstructions(remoteConfig, configType, {
+    privatePreviewUrl,
+    publicLink,
+  });
   const egress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
   if (!egress) {
     return instructions;
@@ -393,7 +456,8 @@ export function formatRemoteSessionInstructions(
 
 function formatControllerInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
-  configType: RemoteSessionInstructionsConfigType
+  configType: RemoteSessionInstructionsConfigType,
+  previewLinkOptions: PreviewLinkOptions
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
@@ -417,7 +481,12 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -455,7 +524,12 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -483,7 +557,12 @@ function formatControllerInstructions(
           '',
           'Open the simulator preview:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -492,13 +571,23 @@ function formatControllerInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatBrowserPreviewInstructions(
+          remoteConfig,
+          remoteConfig.previewUrl,
+          remoteConfig.previewToken,
+          previewLinkOptions
+        ),
       ].join('\n');
     case 'WebPreviewOnlyRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatBrowserPreviewInstructions(
+          remoteConfig,
+          remoteConfig.previewUrl,
+          remoteConfig.previewToken,
+          previewLinkOptions
+        ),
       ].join('\n');
   }
 }

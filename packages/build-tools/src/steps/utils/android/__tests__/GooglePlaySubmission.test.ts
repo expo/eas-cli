@@ -18,15 +18,17 @@ afterEach(() => {
 function commit({
   signal,
   changesNotSentForReview = false,
+  logger = createMockLogger(),
 }: {
   signal?: AbortSignal;
   changesNotSentForReview?: boolean;
+  logger?: ReturnType<typeof createMockLogger>;
 } = {}) {
   return GooglePlayUtils.commitEditAsync(new GooglePlayClient(serviceAccount), {
     packageName,
     editId: 'edit',
     changesNotSentForReview,
-    logger: createMockLogger(),
+    logger,
     signal,
   });
 }
@@ -57,10 +59,16 @@ it.each([
 ] as const)(
   'retries the rejected review setting (requested=%s)',
   async (changesNotSentForReview, initialQuery, message, retryQuery) => {
+    const logger = createMockLogger();
     mockToken();
     api().post(`${editPath}:commit`).query(initialQuery).reply(400, { error: { message } });
     api().post(`${editPath}:commit`).query(retryQuery).reply(200, { id: 'edit' });
-    await expect(commit({ changesNotSentForReview })).resolves.toBeUndefined();
+    await expect(commit({ changesNotSentForReview, logger })).resolves.toBeUndefined();
+    expect(logger.info).toHaveBeenLastCalledWith(
+      changesNotSentForReview
+        ? 'Google Play saved the release using its normal review process. Check its review and publishing status at https://play.google.com/console/.'
+        : 'Google Play saved the changes without sending them for review. Send them for review at https://play.google.com/console/.'
+    );
   }
 );
 it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
@@ -86,21 +94,33 @@ it.each([
   [403, 'wrong signing key', 'EAS_GOOGLE_PLAY_REQUEST_FAILED'],
   [400, 'privacy policy required', 'EAS_GOOGLE_PLAY_PRIVACY_POLICY_REQUIRED'],
   [400, 'Only releases with status draft may be created on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
+  [400, 'Staged rollout is not permitted on draft app', 'EAS_GOOGLE_PLAY_DRAFT_APP'],
   [409, 'edit invalid', 'EAS_GOOGLE_PLAY_EDIT_INVALID'],
   [400, 'unknown track', 'EAS_GOOGLE_PLAY_INVALID_RELEASE'],
 ] as const)('keeps the Google error behind %s %s', (status, message, code) => {
   const original = new GooglePlayApiError(status, message, []);
-  const mapped = GooglePlayUtils.mapGooglePlayError(original);
+  const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
   expect(mapped).toBeInstanceOf(UserError);
   expect(mapped).toMatchObject({
     errorCode: code,
-    message: expect.stringContaining(`Google Play said: ${message}`),
     cause: original,
   });
+  if (code === 'EAS_GOOGLE_PLAY_REQUEST_FAILED' || code === 'EAS_GOOGLE_PLAY_INVALID_RELEASE') {
+    expect((mapped as Error).message).toContain(message);
+  } else {
+    expect((mapped as Error).message).not.toContain(message);
+  }
+  expect((mapped as Error).message).toContain(`App: ${packageName}`);
+  expect((mapped as Error).message).toContain('https://play.google.com/console/');
+  expect((mapped as Error).message).not.toContain('Google Play error:');
+  if (code === 'EAS_GOOGLE_PLAY_DRAFT_APP') {
+    expect((mapped as Error).message).toContain('without a rollout');
+    expect((mapped as Error).message).toContain('releaseStatus: "draft" in eas.json');
+  }
 });
 it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');
-  expect(GooglePlayUtils.mapGooglePlayError(original)).toMatchObject({
+  expect(GooglePlayUtils.mapGooglePlayError(original, packageName)).toMatchObject({
     errorCode: 'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
     cause: original,
   });
@@ -110,7 +130,7 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
     new GooglePlayApiError(status, 'temporary failure', []),
     new GooglePlayAuthRequestError(status, 'temporarily_unavailable'),
   ]) {
-    const mapped = GooglePlayUtils.mapGooglePlayError(original);
+    const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
     expect(mapped).toBeInstanceOf(SystemError);
     expect(mapped).toMatchObject({ cause: original });
     expect((mapped as Error).message).not.toContain('settings');
@@ -118,5 +138,5 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
 });
 it('keeps non-Google errors unchanged', () => {
   const error = new SystemError('file failure');
-  expect(GooglePlayUtils.mapGooglePlayError(error)).toBe(error);
+  expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toBe(error);
 });

@@ -4,6 +4,7 @@ import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from 
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { EventEmitter } from 'node:events';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,9 @@ import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import {
+  createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -34,21 +38,27 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
+  validateServeSimLaunchOptions,
   waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
 
 import {
+  EXPO_DEVICE_HUB_STATE_DIR,
   createExpoDeviceHubArgs,
   createServeSimArgs,
   simulatorPreviewPageUrl,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
   websiteOrigin,
-  websiteOriginServeSimArgs,
+  websiteOriginArgs,
 } from '../deviceSessionHost';
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../localEgress', () => ({
+  ...jest.requireActual('../localEgress'),
+  readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
@@ -71,6 +81,7 @@ function createLoggerMock(): bunyan {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
   } as unknown as bunyan;
 }
 
@@ -210,6 +221,51 @@ function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
 
+describe(createIosSessionStartupInputProviders, () => {
+  it('declares optional inputs so existing workflows do not opt into owned startup', () => {
+    const inputs = createIosSessionStartupInputProviders().map(provider =>
+      provider(createGlobalContextMock(), 'Test step')
+    );
+    expect(
+      inputs.map(({ id, required, allowedValueTypeName }) => ({
+        id,
+        required,
+        allowedValueTypeName,
+      }))
+    ).toEqual([
+      {
+        id: 'boot_simulator',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      },
+      {
+        id: 'device_identifier',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+      {
+        id: 'install_app_path',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+    ]);
+  });
+});
+
+describe(validateServeSimLaunchOptions, () => {
+  it('accepts empty options and arguments at the count, character and byte limits', () => {
+    expect(() => validateServeSimLaunchOptions({})).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: Array(256).fill('a') })).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: ['a'.repeat(8192)] })).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ launchArgs: Array(16).fill('a'.repeat(8191)) })
+    ).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ openUrl: `https://${'a'.repeat(8184)}` })
+    ).not.toThrow();
+  });
+});
+
 describe(createServeSimLaunchInputProviders, () => {
   it('declares the launch inputs as optional', () => {
     const globalCtx = createGlobalContextMock();
@@ -240,6 +296,28 @@ describe(createServeSimLaunchInputProviders, () => {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       },
     ]);
+  });
+});
+
+describe(createPublicPreviewInputProvider, () => {
+  it('preserves the native Share button for legacy jobs without the input', () => {
+    const input = createPublicPreviewInputProvider()(createGlobalContextMock(), 'Test step');
+    expect(input).toMatchObject({
+      id: 'public_preview',
+      required: false,
+      defaultValue: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    });
+  });
+});
+
+describe(createPrivatePreviewUrlInputProvider, () => {
+  it('accepts an optional authenticated preview URL from the session job', () => {
+    const provider = createPrivatePreviewUrlInputProvider();
+    const input = provider(createGlobalContextMock(), 'step-id');
+    expect(input.id).toBe('private_preview_url');
+    expect(input.required).toBe(false);
+    expect(input.allowedValueTypeName).toBe(BuildStepInputValueTypeName.STRING);
   });
 });
 
@@ -436,6 +514,14 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
+  it('disables the native Share button only when requested', () => {
+    expect(createServeSimArgs({ port: 4321, disableShare: true })).toContain('--disable-share');
+    expect(createServeSimArgs({ port: 4321, disableShare: false })).not.toContain(
+      '--disable-share'
+    );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--disable-share');
+  });
+
   it('appends the launch flags after the streaming policy', () => {
     const args = createServeSimArgs({
       port: 4321,
@@ -560,6 +646,7 @@ describe(createExpoDeviceHubArgs, () => {
       '4321',
       '--host',
       '127.0.0.1',
+      '--require-token',
       '--platform',
       'android',
       '--transport',
@@ -581,6 +668,23 @@ describe(createExpoDeviceHubArgs, () => {
     ]);
   });
 
+  // The same website flags as serve-sim, after the TURN args.
+  it('appends the website args after the TURN args when provided', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
+    });
+    expect(args.slice(-6)).toEqual([
+      '--turn-url',
+      'turns:turn.example.test:443',
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' })[0]).toBe(
       'expo-device-hub@0.7.0'
@@ -588,9 +692,9 @@ describe(createExpoDeviceHubArgs, () => {
   });
 });
 
-describe(websiteOriginServeSimArgs, () => {
+describe(websiteOriginArgs, () => {
   it('names only the production website by default', () => {
-    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).toEqual([
+    expect(websiteOriginArgs({} as BuildStepEnv)).toEqual([
       '--cors-origin',
       'https://expo.dev',
       '--frame-ancestor',
@@ -599,7 +703,7 @@ describe(websiteOriginServeSimArgs, () => {
   });
 
   it('names staging, its deploy previews and local website subdomains on staging', () => {
-    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    const args = websiteOriginArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
     expect(args).toEqual([
       '--cors-origin',
       'https://staging.expo.dev',
@@ -622,14 +726,14 @@ describe(websiteOriginServeSimArgs, () => {
 
   it('names only https origins', () => {
     for (const env of [{}, { EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
-      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      const args = websiteOriginArgs(env as BuildStepEnv);
       expect(args.filter(value => value.startsWith('http://'))).toEqual([]);
     }
   });
 
   it('names local website subdomains without the deploy-preview wildcard on local', () => {
     for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
-      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).toEqual([
+      expect(websiteOriginArgs(env as BuildStepEnv)).toEqual([
         '--cors-origin',
         'https://expo.test',
         '--frame-ancestor',
@@ -655,6 +759,8 @@ describe(waitForWebPreviewReadyAsync, () => {
       .mocked(turtleFetch)
       .mockRejectedValueOnce(new Error('not ready'))
       .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
@@ -677,6 +783,43 @@ describe(waitForWebPreviewReadyAsync, () => {
 });
 
 describe(startNgrokTunnelAsync, () => {
+  it.each(['rejected', 'stalled'] as const)(
+    'retains a %s close failure on repeated stops',
+    async mode => {
+      jest.useFakeTimers();
+      try {
+        const failure = new Error('close failed');
+        const close = jest
+          .fn()
+          .mockImplementation(() =>
+            mode === 'rejected' ? Promise.reject(failure) : new Promise<void>(() => {})
+          );
+        jest.mocked(ngrok.forward).mockResolvedValue({
+          url: () => 'https://web-preview.example.test',
+          close,
+        } as never);
+        const tunnel = await startNgrokTunnelAsync({
+          port: 4321,
+          subdomainPrefix: 'web-preview',
+          baseDomain: 'eas-simulator.ngrok.dev',
+          authtoken: 'token',
+          logger: createLoggerMock(),
+        });
+        const stopping = tunnel.stopAsync();
+        const assertion = expect(stopping).rejects.toThrow(
+          mode === 'rejected' ? 'close failed' : 'Ngrok tunnel stop timed out after 4000ms.'
+        );
+        expect(tunnel.stopAsync()).toBe(stopping);
+        await jest.advanceTimersByTimeAsync(4_000);
+        await assertion;
+        await expect(tunnel.stopAsync()).rejects.toThrow();
+        expect(close).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+  );
+
   it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
@@ -716,7 +859,15 @@ describe('spawnDetached process group shutdown', () => {
 
   beforeEach(() => {
     const spawned = Object.assign(Promise.resolve(undefined), {
-      child: { pid: 4321, unref: jest.fn(), once: jest.fn() },
+      child: {
+        pid: 4321,
+        unref: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
+      },
     });
     jest.mocked(spawn).mockReturnValue(spawned as never);
   });
@@ -751,7 +902,16 @@ describe('spawnDetached process group shutdown', () => {
   });
 
   it('kills a detached child that outlives the shutdown deadline', async () => {
-    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+    let killed = false;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -4321 && signal === 'SIGKILL') {
+        killed = true;
+      }
+      if (killed && signal === 0) {
+        throw Object.assign(new Error('Process group exited'), { code: 'ESRCH' });
+      }
+      return true;
+    });
 
     const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 0 });
     await detached.stopAsync();
@@ -772,10 +932,11 @@ describe(startDeviceSessionHostAsync, () => {
     'turn-credential',
   ];
   const websiteArgs = ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'];
+  const authtoken = 'ngrok-token';
   const env = {
     DEVICE_RUN_SESSION_ID: 'drs-id',
-    NGROK_AUTHTOKEN: 'ngrok-token',
   } as unknown as BuildStepEnv;
+  const hubStateFiles: string[] = [];
 
   beforeEach(() => {
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
@@ -790,10 +951,24 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
       },
     });
-    jest.mocked(spawn).mockReturnValue(spawnPromise as never);
+    // expo-device-hub records its session token in `server-<port>.json` before it is ready.
+    jest.mocked(spawn).mockImplementation(((_command: string, args: string[] = []) => {
+      if (args.includes('--platform')) {
+        const port = args[args.indexOf('--port') + 1];
+        const file = path.join(EXPO_DEVICE_HUB_STATE_DIR, `server-${port}.json`);
+        mkdirSync(EXPO_DEVICE_HUB_STATE_DIR, { recursive: true });
+        writeFileSync(file, JSON.stringify({ pid: 1, port: Number(port), token: 'hub-token' }));
+        hubStateFiles.push(file);
+      }
+      return spawnPromise;
+    }) as never);
 
     jest.mocked(turtleFetch).mockImplementation(async url => {
       if (url.endsWith('/turn-ice-servers')) {
@@ -812,13 +987,16 @@ describe(startDeviceSessionHostAsync, () => {
         } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
       }
       return {
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
+    await Promise.all(hubStateFiles.splice(0).map(file => fs.rm(file, { force: true })));
   });
 
   it('gives serve-sim its recording grace period on shutdown', async () => {
@@ -834,6 +1012,84 @@ describe(startDeviceSessionHostAsync, () => {
       expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
     );
     expect(spawnDetachedSpy.mock.calls[0][0].stopGracePeriodMs).toBeGreaterThanOrEqual(120_000);
+    await host.finishAsync();
+  });
+
+  it.each([undefined, 'latest', '1.2.3'])(
+    'passes private sharing flags directly to serve-sim version %s',
+    async packageVersion => {
+      const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        packageVersion,
+        disableShare: true,
+      });
+
+      const serveSimCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([, args]) =>
+          args.includes(`@expo/serve-sim@${packageVersion ?? 'latest'}`)
+        );
+      expect(serveSimCalls).toHaveLength(1);
+      expect(serveSimCalls[0][1]).toContain('--disable-share');
+      expect(serveSimCalls[0][1]).not.toContain('--share-url');
+      await host.finishAsync();
+    }
+  );
+
+  it('keeps the authenticated link out of serve-sim while retaining the public frame URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const privatePreviewUrl =
+      'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+      privatePreviewUrl,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(serveSimArgs).toContain('--disable-share');
+    expect(preview.sharePageUrl).toBe(privatePreviewUrl);
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    await host.finishAsync();
+  });
+
+  it('does not expose a public share URL when a private job omits its authenticated URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(preview.sharePageUrl).toBeUndefined();
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
     await host.finishAsync();
   });
 
@@ -857,7 +1113,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
     expect(spawnCalls[0]).toEqual([
@@ -888,7 +1144,13 @@ describe(startDeviceSessionHostAsync, () => {
     const recordingDirectory = args[args.indexOf('--android-recording-directory') + 1];
     expect(args).toEqual([
       '--yes',
-      ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+      ...createExpoDeviceHubArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        packageVersion,
+        recordingDirectory,
+      }),
     ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
@@ -910,10 +1172,16 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
+    expect(preview.sharePageUrl).toBe(preview.previewPageUrl);
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs[serveSimArgs.indexOf('--share-url') + 1]).toBe(preview.previewPageUrl);
+    expect(serveSimArgs).not.toContain('--disable-share');
   });
 
   it.each([
@@ -939,7 +1207,7 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     expect(preview.previewPageUrl).toMatch(
       /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
@@ -967,8 +1235,8 @@ describe(startDeviceSessionHostAsync, () => {
     ).rejects.toThrow(/wrote no session token/);
   });
 
-  // expo-device-hub mints no token, so the Android preview must not require one.
-  it('starts for Linux without a token, and does not gate expo-device-hub', async () => {
+  // expo-device-hub records its token in a state file, as serve-sim does.
+  it('carries the expo-device-hub session token for Linux', async () => {
     jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -981,11 +1249,12 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
-    expect(preview.previewToken).toBeUndefined();
-    const [, args] = jest.mocked(spawn).mock.calls[0];
-    expect(args).not.toContain('--require-token');
+    expect(preview.previewToken).toBe('hub-token');
+    const [, args] = jest.mocked(spawn).mock.calls.find(([command]) => command === 'npx')!;
+    expect(args).toContain('--require-token');
+    await host.finishAsync();
   });
 
   it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
@@ -1003,7 +1272,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1042,7 +1311,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion: '4.5.6',
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1076,7 +1345,7 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
