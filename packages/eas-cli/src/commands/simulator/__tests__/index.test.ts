@@ -95,6 +95,7 @@ const projectDir = '/test/project';
 const simulatorDotenvPath = `${projectDir}/.env.eas-simulator`;
 const deviceRunSessionUrl =
   'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
+const deviceRunSessionPreviewUrl = `${deviceRunSessionUrl}/preview`;
 
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
@@ -142,6 +143,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     id: 'session-123',
     name: null,
     tags: [],
+    publicPreview: false,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -644,14 +646,18 @@ describe(Simulator, () => {
     expect(getContextAsync).toHaveBeenCalledWith(Simulator, {
       nonInteractive: true,
     });
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
       `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
@@ -694,7 +700,7 @@ describe(Simulator, () => {
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
-        'https://preview.example.com',
+        deviceRunSessionPreviewUrl,
       ].join('\n')
     );
   });
@@ -768,7 +774,7 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({ type: DeviceRunSessionType.WebPreviewOnly })
     );
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://preview.example.test'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
   });
 
   it('overwrites .env.eas-simulator when outputting dotenv and the file exists', async () => {
@@ -807,14 +813,18 @@ describe(Simulator, () => {
         'The previous remote session will continue running until stopped. ' +
         'To stop it, run: eas simulator:stop --id existing-session'
     );
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it(`creates a new session when ${EAS_SIMULATOR_SESSION_ID} is present with --force`, async () => {
@@ -828,14 +838,18 @@ describe(Simulator, () => {
         'The previous remote session will continue running until stopped. ' +
         'To stop it, run: eas simulator:stop --id existing-session'
     );
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes --max-idle-time-minutes to the createDeviceRunSession mutation', async () => {
@@ -848,15 +862,19 @@ describe(Simulator, () => {
     ]);
     await command.runAsync();
 
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      maxIdleTimeMinutes: 30,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        maxIdleTimeMinutes: 30,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes --network-capture to the createDeviceRunSession mutation', async () => {
@@ -868,15 +886,19 @@ describe(Simulator, () => {
     ]);
     await command.runAsync();
 
-    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: 'project-123',
-      name: undefined,
-      networkCapture: true,
-      packageVersion: undefined,
-      platform: AppPlatform.Ios,
-      type: DeviceRunSessionType.AgentDevice,
-      requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
-    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        appId: 'project-123',
+        name: undefined,
+        networkCapture: true,
+        packageVersion: undefined,
+        platform: AppPlatform.Ios,
+        type: DeviceRunSessionType.AgentDevice,
+        publicPreview: false,
+        requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+      })
+    );
   });
 
   it('passes the requested capture fields, splitting a comma-separated value', async () => {
@@ -1944,6 +1966,220 @@ describe(Simulator, () => {
       expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
     );
   });
+
+  it('sends frame ancestors and prints the embed URL', async () => {
+    const remoteConfig = {
+      __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+      agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+      agentDeviceRemoteSessionToken: 'daemon-token',
+      webPreviewUrl: 'https://expo.dev/simulator-preview/preview-123',
+      webPreviewToken: 'preview-secret',
+      previewApiUrl: 'https://preview-api.example.test',
+    };
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+    const frameAncestorFlags = [
+      '--frame-ancestor',
+      'https://Embed.example.test/',
+      '--frame-ancestor',
+      'https://*.example.test',
+    ];
+
+    const { command: jsonCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--json',
+      ...frameAncestorFlags,
+    ]);
+    await jsonCommand.runAsync();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        publicPreview: false,
+        frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
+      })
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: deviceRunSessionPreviewUrl,
+          previewApiUrl: 'https://preview-api.example.test/?token=preview-secret',
+        }),
+      })
+    );
+
+    jest.clearAllMocks();
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+    const { command: humanCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      ...frameAncestorFlags,
+    ]);
+    await humanCommand.runAsync();
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://preview-api.example.test/?token=preview-secret')
+    );
+  });
+
+  it('sends CORS origins and prints the preview API URL', async () => {
+    const remoteConfig = {
+      __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+      agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+      agentDeviceRemoteSessionToken: 'daemon-token',
+      webPreviewUrl: 'https://expo.dev/simulator-preview/preview-123',
+      webPreviewToken: 'preview-secret',
+      previewApiUrl: 'https://preview-api.example.test',
+    };
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+
+    const { command: jsonCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--json',
+      '--cors-origin',
+      'https://App.example.test/',
+    ]);
+    await jsonCommand.runAsync();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.not.objectContaining({ frameAncestors: expect.anything() })
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          previewApiUrl: 'https://preview-api.example.test/?token=preview-secret',
+        }),
+      })
+    );
+
+    jest.clearAllMocks();
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ type: DeviceRunSessionType.AgentDevice, remoteConfig })
+    );
+    const { command: humanCommand } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--cors-origin',
+      'https://app.example.test',
+    ]);
+    await humanCommand.runAsync();
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://preview-api.example.test/?token=preview-secret')
+    );
+  });
+
+  it('rejects a CORS origin with a path before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--cors-origin',
+      'https://app.example.test/app',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--cors-origin https://app.example.test/app must be an origin only'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a frame ancestor that is not an origin before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--frame-ancestor',
+      'https://embed.example.test/embed',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('must be an origin only');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'uses the %s public-link choice in start JSON and human output',
+    async publicLink => {
+      const publicUrl = 'https://expo.dev/simulator-preview/preview-123';
+      const remoteConfig = {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: publicUrl,
+        previewToken: 'preview-secret',
+        previewApiUrl: 'https://preview-api.example.test',
+      };
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig,
+        })
+      );
+      const choice = publicLink ? ['--public-link'] : [];
+      const expectedUrl = publicLink
+        ? `${publicUrl}#token=preview-secret`
+        : deviceRunSessionPreviewUrl;
+
+      const { command: jsonCommand } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        'web-preview-only',
+        '--non-interactive',
+        '--json',
+        ...choice,
+      ]);
+      await jsonCommand.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({ publicPreview: publicLink })
+      );
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: expect.objectContaining({
+            previewUrl: expectedUrl,
+            previewApiUrl: publicLink
+              ? 'https://preview-api.example.test/?token=preview-secret'
+              : null,
+          }),
+        })
+      );
+      if (!publicLink) {
+        expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
+          'preview-secret'
+        );
+      }
+
+      jest.clearAllMocks();
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig,
+        })
+      );
+      const { command: humanCommand } = createCommand([
+        '--platform',
+        'ios',
+        '--type',
+        'web-preview-only',
+        '--non-interactive',
+        ...choice,
+      ]);
+      await humanCommand.runAsync();
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(expectedUrl));
+      if (!publicLink) {
+        expect(JSON.stringify(jest.mocked(Log.log).mock.calls)).not.toContain('preview-secret');
+      }
+    }
+  );
 
   it('warns but continues when the dotenv file cannot be written', async () => {
     jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);

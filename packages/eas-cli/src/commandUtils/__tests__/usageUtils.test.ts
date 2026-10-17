@@ -22,6 +22,15 @@ function createMockFullUsageData(
     bandwidthLimit: number;
     buildOverageCost: number;
     updateOverageCost: number;
+    simulator: {
+      planValue: number;
+      limit: number;
+      iosMinutes: number;
+      androidMinutes: number;
+      overageMinutes: number;
+      overageCost: number;
+      jobTypeBreakdown?: { workflows: number; simulator: number; other: number };
+    };
   }> = {}
 ): AccountFullUsageData {
   const {
@@ -35,6 +44,7 @@ function createMockFullUsageData(
     bandwidthLimit = 10,
     buildOverageCost = 0,
     updateOverageCost = 0,
+    simulator,
   } = overrides;
 
   const now = new Date();
@@ -167,6 +177,72 @@ function createMockFullUsageData(
             : [],
         totalCost: updateOverageCost,
       },
+      EAS_SIMULATOR: {
+        unavailableServiceUsageMetrics: [],
+        __typename: 'UsageMetricTotal',
+        id: 'simulator-metric-id',
+        billingPeriod: {
+          __typename: 'BillingPeriod',
+          id: 'billing-period-id',
+          start: startOfMonth.toISOString(),
+          end: endOfMonth.toISOString(),
+          anchor: startOfMonth.toISOString(),
+        },
+        planMetrics: simulator
+          ? [
+              {
+                __typename: 'EstimatedUsage',
+                id: 'simulator-plan-metric-id',
+                service: EasService.Simulator,
+                serviceMetric: EasServiceMetric.SimulatorUsage,
+                metricType: UsageMetricType.Minute,
+                value: simulator.planValue,
+                limit: simulator.limit,
+                jobTypeBreakdown: simulator.jobTypeBreakdown
+                  ? { __typename: 'EstimatedUsageJobTypeBreakdown', ...simulator.jobTypeBreakdown }
+                  : null,
+              },
+            ]
+          : [],
+        overageMetrics:
+          simulator && simulator.overageMinutes > 0
+            ? [
+                {
+                  __typename: 'EstimatedOverageAndCost',
+                  id: 'simulator-overage-id',
+                  service: EasService.Simulator,
+                  serviceMetric: EasServiceMetric.SimulatorUsage,
+                  metricType: UsageMetricType.Minute,
+                  value: simulator.overageMinutes,
+                  limit: simulator.limit,
+                  totalCost: simulator.overageCost,
+                },
+              ]
+            : [],
+        totalCost: simulator?.overageCost ?? 0,
+      },
+      IOS_SIMULATOR_MINUTES: simulator
+        ? [
+            {
+              __typename: 'AccountUsageMetric',
+              id: 'ios-simulator-minutes-id',
+              serviceMetric: EasServiceMetric.SimulatorUsage,
+              metricType: UsageMetricType.Minute,
+              value: simulator.iosMinutes,
+            },
+          ]
+        : [],
+      ANDROID_SIMULATOR_MINUTES: simulator
+        ? [
+            {
+              __typename: 'AccountUsageMetric',
+              id: 'android-simulator-minutes-id',
+              serviceMetric: EasServiceMetric.SimulatorUsage,
+              metricType: UsageMetricType.Minute,
+              value: simulator.androidMinutes,
+            },
+          ]
+        : [],
     },
   };
 }
@@ -240,6 +316,14 @@ describe('calculateBillingPeriodDays', () => {
 });
 
 describe('extractUsageData', () => {
+  it('does not estimate a bill when Simulator usage is unavailable', () => {
+    const data = createMockFullUsageData();
+    data.usageMetrics.EAS_SIMULATOR.unavailableServiceUsageMetrics = [
+      { service: EasService.Simulator },
+    ];
+    expect(() => extractUsageData(data)).toThrow('Simulator usage is temporarily unavailable');
+  });
+
   it('correctly extracts usage data from API response', () => {
     const mockData = createMockFullUsageData({
       buildValue: 25,
@@ -269,6 +353,71 @@ describe('extractUsageData', () => {
 
     expect(result.builds.overageCostCents).toBe(2000);
     expect(result.totalOverageCostCents).toBe(2000);
+  });
+
+  it('omits simulator usage when the account has no simulator metric', () => {
+    const result = extractUsageData(createMockFullUsageData());
+
+    expect(result.simulator).toBeUndefined();
+  });
+
+  it('extracts simulator minutes and adds the overage to the total cost', () => {
+    const mockData = createMockFullUsageData({
+      buildValue: 60,
+      buildLimit: 50,
+      buildOverageCost: 2000,
+      simulator: {
+        planValue: 60,
+        limit: 60,
+        iosMinutes: 50.5,
+        androidMinutes: 14,
+        overageMinutes: 4.5,
+        overageCost: 68,
+      },
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.simulator).toEqual({
+      minutes: {
+        name: 'Simulator minutes',
+        planValue: 60,
+        limit: 60,
+        percentUsed: 100,
+        overageValue: 4.5,
+        overageCost: 68,
+        unit: 'minutes',
+        maxDecimals: 1,
+      },
+      iosMinutes: 50.5,
+      androidMinutes: 14,
+      jobTypeBreakdown: undefined,
+      overageCostCents: 68,
+    });
+    expect(result.totalOverageCostCents).toBe(2068);
+    expect(result.estimatedBillCents).toBe(1900 + 2068);
+  });
+
+  it('labels the Free plan minute pool and keeps the job type breakdown', () => {
+    const mockData = createMockFullUsageData({
+      subscriptionName: 'Free',
+      simulator: {
+        planValue: 45,
+        limit: 60,
+        iosMinutes: 5,
+        androidMinutes: 0,
+        overageMinutes: 0,
+        overageCost: 0,
+        jobTypeBreakdown: { workflows: 40, simulator: 5, other: 0 },
+      },
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.simulator?.minutes.name).toBe('CI/CD and Simulator minutes');
+    expect(result.simulator?.minutes.percentUsed).toBe(75);
+    expect(result.simulator?.jobTypeBreakdown).toEqual({ workflows: 40, simulator: 5, other: 0 });
+    expect(result.totalOverageCostCents).toBe(0);
   });
 
   it('handles Free plan', () => {

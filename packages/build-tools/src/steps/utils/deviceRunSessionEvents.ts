@@ -1,6 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { graphql } from 'gql.tada';
 import fs from 'node:fs';
 import { StringDecoder } from 'node:string_decoder';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
@@ -10,25 +9,12 @@ import HttpLogStream from '../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../logging/RemoteLoggerStream';
 import { Sentry } from '../../sentry';
 import { type SignedUrl } from '../../storage/uploadWithSignedUrl';
-import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const POLL_INTERVAL_MS = 1_000;
 const UPLOAD_INTERVAL_MS = 5_000;
 const EAS_LOGS_THREAD = 'session-events';
 const EAS_LOGS_BUFFER_RETENTION_MS = 30_000;
-
-const CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION = graphql(`
-  mutation CreateDeviceRunSessionEventLogUploadSession($deviceRunSessionId: ID!) {
-    deviceRunSession {
-      createEventLogUploadSession(deviceRunSessionId: $deviceRunSessionId) {
-        uploadSession {
-          url
-          headers
-        }
-      }
-    }
-  }
-`);
 
 /**
  * The normalized, producer-agnostic event shape uploaded to the API server.
@@ -350,35 +336,17 @@ async function createEventLogUploadSessionAsync(
   ctx: CustomBuildContext,
   deviceRunSessionId: string
 ): Promise<SignedUrl> {
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    try {
-      return await workerApi.createEventLogUploadSessionAsync();
-    } catch (err) {
-      throw new SystemError(
-        `Failed to create device run session event log upload session: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        { cause: err }
-      );
-    }
-  }
-  const result = await ctx.graphqlClient
-    .mutation(CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION, {
-      deviceRunSessionId,
-    })
-    .toPromise();
-  if (result.error) {
+  const workerApi = requireDeviceRunSessionWorkerApi(ctx);
+  try {
+    return await workerApi.createEventLogUploadSessionAsync();
+  } catch (err) {
     throw new SystemError(
-      `Failed to create device run session event log upload session: ${result.error.message}`,
-      { cause: result.error }
+      `Failed to create device run session event log upload session: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
     );
   }
-  const uploadSession = result.data!.deviceRunSession.createEventLogUploadSession.uploadSession;
-  return {
-    url: uploadSession.url,
-    headers: uploadSession.headers as Record<string, string>,
-  };
 }
 
 async function collectEventFileAsync({

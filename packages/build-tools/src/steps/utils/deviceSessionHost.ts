@@ -103,6 +103,16 @@ export function websiteOriginArgs(env: BuildStepEnv): string[] {
   return [...origins].flatMap(origin => ['--cors-origin', origin, '--frame-ancestor', origin]);
 }
 
+// Both hosts take the same flag; it only applies under --require-token, which both run with.
+export function frameAncestorArgs(frameAncestors: readonly string[]): string[] {
+  return frameAncestors.flatMap(origin => ['--frame-ancestor', origin]);
+}
+
+// Both hosts take the same flag and match the same origin shapes.
+export function corsOriginArgs(corsOrigins: readonly string[]): string[] {
+  return corsOrigins.flatMap(origin => ['--cors-origin', origin]);
+}
+
 export function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
@@ -115,7 +125,10 @@ export function createServeSimArgs({
   port,
   turnArgs = [],
   websiteArgs = [],
+  frameAncestorArgs: frameArgs = [],
+  corsOriginArgs: corsArgs = [],
   shareUrl,
+  disableShare = false,
   packageVersion,
   iosSimulatorUdid,
   installAppPath,
@@ -128,7 +141,10 @@ export function createServeSimArgs({
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
+  frameAncestorArgs?: string[];
+  corsOriginArgs?: string[];
   shareUrl?: string;
+  disableShare?: boolean;
   packageVersion?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
@@ -157,7 +173,10 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...websiteArgs,
+    ...frameArgs,
+    ...corsArgs,
     ...(shareUrl ? ['--share-url', shareUrl] : []),
+    ...(disableShare ? ['--disable-share'] : []),
     ...(launchAppIdentifier ? ['--launch-app-identifier', launchAppIdentifier] : []),
     ...(installAppPath ? ['--install-app-path', installAppPath] : []),
     ...launchArgs.flatMap(argument => ['--launch-arg', argument]),
@@ -177,12 +196,16 @@ export function createExpoDeviceHubArgs({
   port,
   turnArgs = [],
   websiteArgs = [],
+  frameAncestorArgs: frameArgs = [],
+  corsOriginArgs: corsArgs = [],
   packageVersion,
   recordingDirectory,
 }: {
   port: number;
   turnArgs?: string[];
   websiteArgs?: string[];
+  frameAncestorArgs?: string[];
+  corsOriginArgs?: string[];
   packageVersion?: string;
   recordingDirectory?: string;
 }): string[] {
@@ -212,6 +235,8 @@ export function createExpoDeviceHubArgs({
     ...(recordingDirectory ? ['--android-recording-directory', recordingDirectory] : []),
     ...turnArgs,
     ...websiteArgs,
+    ...frameArgs,
+    ...corsArgs,
   ];
 }
 
@@ -219,6 +244,13 @@ const WebPreviewReadyResponseSchema = z.object({
   status: z.literal('ready'),
   device: z.string(),
 });
+
+// Startup output includes bearer URLs (or a token field with --quiet).
+function redactPreviewTokens(output: string): string {
+  return output
+    .replace(/([?&#]token=)[^\s&"'<>]+/g, '$1[redacted]')
+    .replace(/("token"\s*:\s*")[^"]*/g, '$1[redacted]');
+}
 
 export async function waitForWebPreviewReadyAsync({
   previewServer,
@@ -245,7 +277,7 @@ export async function waitForWebPreviewReadyAsync({
     if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
       throw new SystemError(
         `${serverName} exited before becoming ready. Last output:\n${
-          previewServer.getOutput() || '<empty>'
+          redactPreviewTokens(previewServer.getOutput()) || '<empty>'
         }`
       );
     }
@@ -281,7 +313,7 @@ export async function waitForWebPreviewReadyAsync({
   throw new SystemError(
     `Timed out waiting for ${serverName} readiness at ${readyUrl}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
+    }. Last output:\n${redactPreviewTokens(previewServer.getOutput()) || '<empty>'}`
   );
 }
 
@@ -309,6 +341,8 @@ export async function readServeSimPreviewTokenAsync(
 
 export type DeviceWebPreview = {
   previewPageUrl: string;
+  /** Human-facing link, absent when a private job has no authenticated URL. */
+  sharePageUrl?: string;
   apiUrl: string;
   previewToken?: string;
   /** Closes this tunnel only. The session host and recording remain running. */
@@ -340,6 +374,12 @@ type DeviceSessionHostOptions = {
   startupTimeoutMs?: number;
   signal?: AbortSignal;
   packageVersion?: string;
+  disableShare?: boolean;
+  privatePreviewUrl?: string;
+  /** Origins allowed to embed the preview host, in addition to the website origins. */
+  frameAncestors?: string[];
+  /** Origins whose pages may call the preview host's API, in addition to the website origins. */
+  corsOrigins?: string[];
   iosSimulatorUdid?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
@@ -388,6 +428,10 @@ async function startDeviceSessionHostInternalAsync(
     installAppPath,
     application,
     onStartupError,
+    disableShare = false,
+    privatePreviewUrl,
+    frameAncestors = [],
+    corsOrigins = [],
     launchAppIdentifier,
     launchArgs,
     openUrl,
@@ -443,12 +487,13 @@ async function startDeviceSessionHostInternalAsync(
   const serveSimStateDir = env.SERVE_SIM_STATE_DIR ?? SERVE_SIM_STATE_DIR;
   const subdomainId = randomBytes(16).toString('hex');
   const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
+  const sharePageUrl = disableShare ? privatePreviewUrl : previewPageUrl;
   const port = await findAvailablePortAsync();
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
-  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid
@@ -458,6 +503,8 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           recordingDirectory: recording?.directory,
           websiteArgs: websiteOriginArgs(env),
+          frameAncestorArgs: frameAncestorArgs(frameAncestors),
+          corsOriginArgs: corsOriginArgs(corsOrigins),
         })
       : createServeSimArgs({
           port,
@@ -465,7 +512,11 @@ async function startDeviceSessionHostInternalAsync(
           packageVersion,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
-          shareUrl: previewPageUrl,
+          frameAncestorArgs: frameAncestorArgs(frameAncestors),
+          corsOriginArgs: corsOriginArgs(corsOrigins),
+          // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
+          shareUrl: disableShare ? undefined : previewPageUrl,
+          disableShare,
           installAppPath: iosSimulatorUdid ? undefined : installAppPath,
           launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
           launchArgs: iosSimulatorUdid ? [] : launchArgs,
@@ -558,6 +609,7 @@ async function startDeviceSessionHostInternalAsync(
         previewFailed = false;
         return {
           previewPageUrl,
+          sharePageUrl,
           apiUrl: tunnel.url,
           previewToken,
           closeAsync() {
@@ -880,7 +932,11 @@ async function finishDeviceSessionHostAsync(
   if (recording && captured && (finalization === 'failed' || !uploaded)) {
     // The Hub reports capture failures on stderr; the stop route answers with only a summary.
     artifactLogger.warn(
-      { hostOutput: previewServer.getOutput().slice(-HOST_OUTPUT_TAIL_CHARS) || '<empty>' },
+      {
+        hostOutput:
+          redactPreviewTokens(previewServer.getOutput()).slice(-HOST_OUTPUT_TAIL_CHARS) ||
+          '<empty>',
+      },
       'Session host output around the recording failure.'
     );
   }

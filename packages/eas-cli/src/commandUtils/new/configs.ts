@@ -3,11 +3,10 @@ import { nanoid } from 'nanoid';
 import path from 'path';
 
 import { printDirectory } from './utils';
-import { Role } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { Choice, promptAsync } from '../../prompts';
-import { Actor } from '../../user/User';
+import { SelectChoice, promptAsync } from '../../prompts';
+import { Actor, getCannotCreateProjectsOnAccountReason } from '../../user/User';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 function validateProjectPath(resolvedPath: string): void {
@@ -76,30 +75,17 @@ export async function generateProjectConfigAsync(
   };
 }
 
-function getAccountPermissionsMap(actor: Actor): Map<string, boolean> {
-  const permissionsMap = new Map<string, boolean>();
-
-  for (const account of actor.accounts) {
-    const hasPermission = account.viewerUserPermission.role !== Role.ViewOnly;
-    permissionsMap.set(account.name, hasPermission);
-  }
-
-  return permissionsMap;
-}
-
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
-  const permissionsMap = getAccountPermissionsMap(actor);
-
   // If only one account, use it (if has permissions)
   if (actor.accounts.length === 1) {
     const account = actor.accounts[0];
-
-    if (permissionsMap.get(account.name)) {
+    const reason = getCannotCreateProjectsOnAccountReason(account);
+    if (!reason) {
       return account.name;
     }
 
     throw new Error(
-      `You don't have permission to create projects on your only available account (${account.name}).`
+      `You can't create projects on your only available account (${account.name}). ${reason}`
     );
   }
 
@@ -109,13 +95,12 @@ export async function promptForProjectAccountAsync(actor: Actor): Promise<string
       type: 'select',
       name: 'account',
       message: 'Which account should own this project?',
-      choices: getAccountChoices(actor, permissionsMap),
+      choices: getAccountChoices(actor),
     })
   ).account.name;
 }
 
-export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boolean>): Choice[] {
-  const permissions = permissionsMap ?? getAccountPermissionsMap(actor);
+export function getAccountChoices(actor: Actor): SelectChoice[] {
   const sortedAccounts = [...actor.accounts].sort((a, _b) => (a.ownerUserActor ? 1 : -1));
 
   return sortedAccounts.map(account => {
@@ -128,15 +113,12 @@ export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boo
         ? `${account.name} (Limited - Team Account)`
         : account.name;
 
-    const disabled = !permissions.get(account.name);
+    const disabledReason = getCannotCreateProjectsOnAccountReason(account);
 
     return {
       title: accountDisplayName,
       value: { name: account.name },
-      ...(disabled && {
-        disabled: true,
-        description: 'You do not have the required permissions to create projects on this account.',
-      }),
+      ...(disabledReason && { disabled: true, disabledReason }),
     };
   });
 }

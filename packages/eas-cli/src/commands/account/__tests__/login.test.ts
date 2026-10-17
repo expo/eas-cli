@@ -28,6 +28,7 @@ const sessionManager = new SessionManager({
   logEvent: jest.fn(),
   setActor: jest.fn(),
   flushAsync: jest.fn(),
+  getDeviceId: jest.fn(),
 });
 const originalIsTTY = process.stdin.isTTY;
 const originalCI = process.env.CI;

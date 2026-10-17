@@ -1,5 +1,5 @@
 import type { bunyan } from '@expo/logger';
-import { Client, fetchExchange } from '@urql/core';
+import { BuildRuntimePlatform } from '@expo/steps';
 import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -10,6 +10,7 @@ import {
   screenshotArtifactDetails,
 } from '../deviceRunSessionScreenshotNames';
 import { uploadDeviceRunSessionScreenshotsAsync } from '../deviceRunSessionScreenshots';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 jest.unmock('node-fetch');
 jest.mock('../../../sentry');
 function deferred<T>() {
@@ -26,7 +27,7 @@ let ctx: CustomBuildContext;
 let url: string;
 let directory: string;
 let creates: number;
-let authorization: string | undefined;
+let deviceRunSessionToken: string | string[] | undefined;
 let stallCreation: boolean;
 let creationStarted: ReturnType<typeof deferred<IncomingMessage>>;
 let creationBodies: string[];
@@ -40,42 +41,32 @@ beforeEach(async () => {
   sessionLookups = 0;
   sessionLookupFails = false;
   uploadQuery = '';
-  authorization = undefined;
+  deviceRunSessionToken = undefined;
   stallCreation = false;
   creationBodies = [];
   creationStarted = deferred();
   directory = await mkdtemp(path.join(tmpdir(), 'recording-upload-http-'));
   server = createServer((request, response) => {
-    if (request.url?.startsWith('/graphql')) {
-      authorization = request.headers.authorization;
+    if (request.url?.startsWith('/v2/device-run-session-worker/')) {
+      deviceRunSessionToken = request.headers[DEVICE_RUN_SESSION_TOKEN_HEADER];
       request.setEncoding('utf8');
       let body = '';
-      if (request.method === 'GET') {
-        const requestUrl = new URL(request.url, 'http://localhost');
-        body = JSON.stringify({ query: requestUrl.searchParams.get('query') });
-      }
       request.on('data', chunk => (body += chunk));
       request.on('end', () => {
-        const operation = JSON.parse(body);
-        if (operation.query.includes('query ScreenshotSession')) {
+        if (request.url === '/v2/device-run-session-worker/application') {
           sessionLookups++;
           response.setHeader('Content-Type', 'application/json');
           if (sessionLookupFails) {
+            response.statusCode = 503;
             response.end(JSON.stringify({ errors: [{ message: 'Lookup unavailable' }] }));
           } else {
             response.end(
               JSON.stringify({
                 data: {
-                  deviceRunSessions: {
-                    byId: {
-                      platform: 'IOS',
-                      app: { slug: 'session-project' },
-                      build: {
-                        id: 'installed-build',
-                        gitCommitHash: installedCommit,
-                        app: { slug: 'my-app' },
-                      },
-                    },
+                  build: {
+                    id: 'installed-build',
+                    gitCommitHash: installedCommit,
+                    applicationArchiveUrl: null,
                   },
                 },
               })
@@ -92,13 +83,7 @@ beforeEach(async () => {
         response.setHeader('Content-Type', 'application/json');
         response.end(
           JSON.stringify({
-            data: {
-              deviceRunSession: {
-                createArtifactUploadSession: {
-                  uploadSession: { url: `${url}/artifact${uploadQuery}`, headers: {} },
-                },
-              },
-            },
+            data: { uploadSession: { url: `${url}/artifact${uploadQuery}`, headers: {} } },
           })
         );
       });
@@ -113,12 +98,10 @@ beforeEach(async () => {
   }
   url = `http://127.0.0.1:${address.port}`;
   ctx = {
-    graphqlClient: new Client({
-      url: `${url}/graphql`,
-      exchanges: [fetchExchange],
-      fetchOptions: { headers: { Authorization: 'Bearer test-auth' } },
-    }),
-  } as CustomBuildContext;
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'test-device-run-session-token' },
+    expoApiV2BaseUrl: `${url}/v2/`,
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+  } as unknown as CustomBuildContext;
 });
 
 afterEach(async () => {
@@ -127,7 +110,7 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-it('publishes a manual preview PNG through the artifact GraphQL and HTTP upload path', async () => {
+it('publishes a manual preview PNG through the worker API and HTTP upload path', async () => {
   const payload = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=',
     'base64'
@@ -157,25 +140,20 @@ it('publishes a manual preview PNG through the artifact GraphQL and HTTP upload 
   expect(bodies).toEqual([payload]);
   expect(creates).toBe(1);
   expect(sessionLookups).toBe(1);
-  expect(authorization).toBe('Bearer test-auth');
-  expect(JSON.parse(creationBodies[0]).variables).toEqual(
-    expect.objectContaining({
-      deviceRunSessionId: 'drs-id',
-      input: expect.objectContaining({
-        name: 'Screenshot 2026-09-24 08:45:59 UTC',
-        filename: 'my-app-ios-a1b2c3d-2026-09-24T08-45-59-123Z.png',
-        kind: 'screenshot',
-        size: payload.length,
-        metadata: {
-          __eas_type: 'screenshot',
-          appSlug: 'my-app',
-          platform: 'ios',
-          buildId: 'installed-build',
-          gitCommitHash: installedCommit,
-        },
-      }),
-    })
-  );
+  expect(deviceRunSessionToken).toBe('test-device-run-session-token');
+  // The worker API does not return the app slug, so the filename starts with the platform.
+  expect(JSON.parse(creationBodies[0])).toEqual({
+    name: 'Screenshot 2026-09-24 08:45:59 UTC',
+    filename: 'ios-a1b2c3d-2026-09-24T08-45-59-123Z.png',
+    kind: 'screenshot',
+    size: payload.length,
+    metadata: {
+      __eas_type: 'screenshot',
+      platform: 'ios',
+      buildId: 'installed-build',
+      gitCommitHash: installedCommit,
+    },
+  });
   await expect(stat(path.join(directory, filename))).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
@@ -206,7 +184,7 @@ it('rereads the PNG when the artifact PUT is retried', async () => {
   await expect(stat(path.join(directory, filename))).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
-it('aborts a stalled GraphQL upload request and keeps the PNG', async () => {
+it('aborts a stalled worker API upload session request and keeps the PNG', async () => {
   stallCreation = true;
   const filename = 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png';
   await writeFile(path.join(directory, filename), 'png');

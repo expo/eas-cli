@@ -2,7 +2,6 @@ import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
-import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -12,25 +11,12 @@ import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { killProcessGroup } from '../../utils/processes';
-import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
 const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
-const CREATE_PREVIEW_UPLOAD_SESSION_MUTATION = graphql(`
-  mutation CreateDeviceRunSessionPreviewUploadSession($deviceRunSessionId: ID!) {
-    deviceRunSession {
-      createPreviewUploadSession(deviceRunSessionId: $deviceRunSessionId) {
-        uploadSession {
-          url
-          headers
-        }
-      }
-    }
-  }
-`);
-
 /**
  * node-fetch includes the request URL in its error messages, and this URL is a signed upload URL
  * that is valid for the whole session. Replace such errors with one that names only the failure.
@@ -122,35 +108,7 @@ async function createPreviewUploadSessionAsync(
   deviceRunSessionId: string,
   signal: AbortSignal
 ): Promise<{ url: string; headers: Record<string, string> }> {
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    return await workerApi.createPreviewUploadSessionAsync({ signal });
-  }
-  const result = await ctx.graphqlClient
-    .mutation(
-      CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
-      { deviceRunSessionId },
-      {
-        // Keep the client's auth headers and combine cancellation after URQL sets its signal.
-        fetch: (url, options) =>
-          globalThis.fetch(url, {
-            ...options,
-            signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
-          }),
-      }
-    )
-    .toPromise();
-  if (result.error) {
-    throw result.error;
-  }
-  const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
-  if (!session) {
-    throw new Error('No session preview upload URL was returned.');
-  }
-  return {
-    url: session.url,
-    headers: session.headers as Record<string, string>,
-  };
+  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync({ signal });
 }
 
 /**

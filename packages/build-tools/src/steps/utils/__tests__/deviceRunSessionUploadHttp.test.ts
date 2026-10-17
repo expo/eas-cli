@@ -1,6 +1,5 @@
 import type { bunyan } from '@expo/logger';
 import type { BuildStepEnv } from '@expo/steps';
-import { Client, fetchExchange } from '@urql/core';
 import { createReadStream } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
@@ -13,6 +12,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import { findUnlistedDeviceScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 
 jest.unmock('node-fetch');
 jest.unmock('node:fs');
@@ -40,20 +40,20 @@ let ctx: CustomBuildContext;
 let url: string;
 let directory: string;
 let creates: number;
-let authorization: string | undefined;
+let deviceRunSessionToken: string | string[] | undefined;
 let stallCreation: boolean;
 let creationStarted: ReturnType<typeof deferred<IncomingMessage>>;
 
 beforeEach(async () => {
   creates = 0;
-  authorization = undefined;
+  deviceRunSessionToken = undefined;
   stallCreation = false;
   creationStarted = deferred();
   directory = await mkdtemp(path.join(tmpdir(), 'recording-upload-http-'));
   server = createServer((request, response) => {
-    if (request.url === '/graphql') {
+    if (request.url === '/v2/device-run-session-worker/artifact-upload-sessions') {
       creates++;
-      authorization = request.headers.authorization;
+      deviceRunSessionToken = request.headers[DEVICE_RUN_SESSION_TOKEN_HEADER];
       creationStarted.resolve(request);
       request.resume();
       request.on('end', () => {
@@ -63,13 +63,7 @@ beforeEach(async () => {
         response.setHeader('Content-Type', 'application/json');
         response.end(
           JSON.stringify({
-            data: {
-              deviceRunSession: {
-                createArtifactUploadSession: {
-                  uploadSession: { url: `${url}/artifact`, headers: {} },
-                },
-              },
-            },
+            data: { uploadSession: { url: `${url}/artifact`, headers: {} } },
           })
         );
       });
@@ -84,12 +78,9 @@ beforeEach(async () => {
   }
   url = `http://127.0.0.1:${address.port}`;
   ctx = {
-    graphqlClient: new Client({
-      url: `${url}/graphql`,
-      exchanges: [fetchExchange],
-      fetchOptions: { headers: { Authorization: 'Bearer test-auth' } },
-    }),
-  } as CustomBuildContext;
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'test-device-run-session-token' },
+    expoApiV2BaseUrl: `${url}/v2/`,
+  } as unknown as CustomBuildContext;
 });
 
 afterEach(async () => {
@@ -126,7 +117,7 @@ it('replays the full file after a transient PUT failure without recreating the u
     attempts: 3,
   });
   expect(creates).toBe(1);
-  expect(authorization).toBe('Bearer test-auth');
+  expect(deviceRunSessionToken).toBe('test-device-run-session-token');
   expect(bodies).toEqual([payload, payload]);
   expect(streams).toHaveLength(2);
   expect(streams.every(stream => stream.destroyed)).toBe(true);
@@ -281,7 +272,7 @@ it.each([200, 400, 503])(
   }
 );
 
-it('cancels urql session creation with auth intact and never starts a PUT', async () => {
+it('cancels worker API session creation with the token intact and never starts a PUT', async () => {
   stallCreation = true;
   const puts = jest.fn();
   handle = puts;
@@ -298,7 +289,7 @@ it('cancels urql session creation with auth intact and never starts a PUT', asyn
   controller.abort(new Error('test cancellation'));
   await rejected;
   await closed;
-  expect(authorization).toBe('Bearer test-auth');
+  expect(deviceRunSessionToken).toBe('test-device-run-session-token');
   expect(creates).toBe(1);
   expect(puts).not.toHaveBeenCalled();
   expect(openStream).not.toHaveBeenCalled();

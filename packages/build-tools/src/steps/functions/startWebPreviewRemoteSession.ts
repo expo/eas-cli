@@ -17,13 +17,19 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import {
+  createCorsOriginsInputProvider,
+  createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   omitNgrokAuthtoken,
+  parseCorsOriginsInput,
+  parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -42,6 +48,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       ...createServeSimLaunchInputProviders(),
       ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createPublicPreviewInputProvider(),
+      createPrivatePreviewUrlInputProvider(),
+      createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -98,6 +108,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         timeoutMs: STARTUP_TIMEOUT_MS,
         signal,
         packageVersion,
+        disableShare: inputs.public_preview?.value === false,
+        privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+        frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+        corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
         launchAppIdentifier: launch.launchAppIdentifier,
         launchArgs: launch.launchArgs,
         openUrl: launch.openUrl,
@@ -110,7 +124,11 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
         });
-        logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
+        logger.info(
+          webPreview.sharePageUrl
+            ? `Preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+            : 'Private preview URL unavailable for this session.'
+        );
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,

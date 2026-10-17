@@ -1,6 +1,5 @@
 import type { bunyan } from '@expo/logger';
 import type { BuildStepEnv } from '@expo/steps';
-import { Client, fetchExchange } from '@urql/core';
 import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
@@ -25,28 +24,23 @@ let ctx: CustomBuildContext;
 let url: string;
 let directory: string;
 let creationBodies: string[];
+let creationTokens: (string | undefined)[];
 
 beforeEach(async () => {
   creationBodies = [];
+  creationTokens = [];
   directory = await mkdtemp(path.join(tmpdir(), 'recording-recovery-'));
   server = createServer((request, response) => {
-    if (request.url === '/graphql') {
+    if (request.url === '/v2/device-run-session-worker/artifact-upload-sessions') {
       request.setEncoding('utf8');
       let body = '';
       request.on('data', chunk => (body += chunk));
       request.on('end', () => {
         creationBodies.push(body);
+        creationTokens.push(request.headers['expo-device-run-session-token'] as string | undefined);
         response.setHeader('Content-Type', 'application/json');
         response.end(
-          JSON.stringify({
-            data: {
-              deviceRunSession: {
-                createArtifactUploadSession: {
-                  uploadSession: { url: `${url}/artifact`, headers: {} },
-                },
-              },
-            },
-          })
+          JSON.stringify({ data: { uploadSession: { url: `${url}/artifact`, headers: {} } } })
         );
       });
     } else {
@@ -60,12 +54,9 @@ beforeEach(async () => {
   }
   url = `http://127.0.0.1:${address.port}`;
   ctx = {
-    graphqlClient: new Client({
-      url: `${url}/graphql`,
-      exchanges: [fetchExchange],
-      fetchOptions: { headers: { Authorization: 'Bearer test-auth' } },
-    }),
-  } as CustomBuildContext;
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'session-token' },
+    expoApiV2BaseUrl: `${url}/v2/`,
+  } as unknown as CustomBuildContext;
 });
 
 afterEach(async () => {
@@ -181,8 +172,9 @@ it('recovers unlisted recordings from a killed host and flags the unfinished one
     })
   ).resolves.toBe(true);
   expect(putBytes).toBe(3 * (await stat(path.join(cut, 'recording.mp4.partial'))).size);
+  expect(creationTokens).toEqual(['session-token', 'session-token', 'session-token']);
   const inputs = creationBodies
-    .map(body => JSON.parse(body).variables.input)
+    .map(body => JSON.parse(body))
     .sort((a, b) => a.filename.localeCompare(b.filename));
   expect(inputs.map(input => input.filename)).toEqual(['cut.mp4', 'done.mp4', 'failed.mp4']);
   expect(inputs.map(input => input.name.includes(', partial)'))).toEqual([true, false, true]);
