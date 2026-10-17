@@ -138,6 +138,22 @@ describe(buildHostActionParams, () => {
 });
 
 describe(formatHostActionUsage, () => {
+  it.each(['anyOf', 'oneOf'])('shows a %s input group only once', composition => {
+    expect(
+      formatHostActionUsage('app.install', {
+        type: 'object',
+        properties: {
+          bundleId: { type: 'string' },
+          path: { type: 'string' },
+          uploadId: { type: 'string' },
+        },
+        required: ['bundleId'],
+        args: ['bundleId', 'path', 'uploadId'],
+        [composition]: [{ required: ['path'] }, { required: ['uploadId'] }],
+      })
+    ).toBe('app.install <bundleId> <path|uploadId=...>');
+  });
+
   it('shows the required alternative file sources for an upload action', () => {
     expect(formatHostActionUsage('app.install', entry('app.install'))).toBe(
       'app.install <uploadId=...|path>'
