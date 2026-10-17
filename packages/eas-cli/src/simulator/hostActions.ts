@@ -364,9 +364,21 @@ function coerce(value: string, schemas: unknown[]): unknown {
 
 export function formatHostActionUsage(name: string, entry: HostActionCatalogEntry): string {
   const required = requiredProperties(entry);
-  const names = positionalNames(entry).map(property =>
-    required.has(property) ? `<${property}>` : `[${property}]`
+  const alternatives = (entry.anyOf ?? entry.oneOf ?? []).map(branch =>
+    [...requiredProperties(branch)].filter(
+      property => property !== 'udid' && !required.has(property)
+    )
   );
+  const requiredAlternatives =
+    alternatives.length > 0 && alternatives.every(properties => properties.length === 1)
+      ? alternatives.map(([property]) => property)
+      : [];
+  const names = positionalNames(entry).map(property => {
+    if (requiredAlternatives.includes(property)) {
+      return `<${requiredAlternatives.map(name => (name === property ? name : `${name}=...`)).join('|')}>`;
+    }
+    return required.has(property) ? `<${property}>` : `[${property}]`;
+  });
   return [name, ...names].join(' ');
 }
 
