@@ -18,6 +18,7 @@ import {
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
+  DeviceRunSessionStoppedError,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
@@ -26,6 +27,7 @@ import {
   parseCorsOriginsInput,
   parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
+  waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 import {
   createNetworkCaptureInputProviders,
@@ -175,8 +177,29 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       );
 
       const tasks = createStartupTasks(logger, signal);
+      tasks.signal.throwIfAborted();
+      const stoppedDuringStartup = new DeviceRunSessionStoppedError(
+        `Device run session ${sessionEnv.deviceRunSessionId} was stopped during startup.`
+      );
+      const startupWatchDone = new AbortController();
+      const startupWatchSignal = AbortSignal.any([tasks.signal, startupWatchDone.signal]);
+      const startupWatch = waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: sessionEnv.deviceRunSessionId,
+        logger,
+        signal: startupWatchSignal,
+      }).then(
+        () => {
+          if (!startupWatchSignal.aborted) {
+            tasks.abort(stoppedDuringStartup);
+          }
+        },
+        error => tasks.abort(error)
+      );
       let downloaded: Promise<string> | undefined;
+      let booted: Promise<void> | undefined;
       let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
+      let sessionOwnsTeardown = false;
 
       try {
         if (isIos) {
@@ -199,7 +222,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           logger.info(`Selected iOS Simulator: ${iosSimulatorUdid}.`);
         }
 
-        const booted = iosSimulatorUdid
+        booted = iosSimulatorUdid
           ? undefined
           : tasks.run('Android Emulator boot', async taskLogger => {
               const logcatDirectory = await fs.promises.mkdtemp(
@@ -274,6 +297,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
             })
           : undefined;
 
+        sessionOwnsTeardown = true;
         await runAgentDeviceRemoteSessionAsync(ctx, {
           env,
           logger,
@@ -290,6 +314,11 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           tasks,
+          onStarted: async () => {
+            startupWatchDone.abort();
+            await startupWatch;
+            tasks.signal.throwIfAborted();
+          },
           device: iosSimulatorUdid
             ? {
                 ...iosStartup,
@@ -301,9 +330,18 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
                 ready: applicationReady ?? tasks.untilAborted(booted!),
               },
         });
+      } catch (error) {
+        if (
+          error !== stoppedDuringStartup &&
+          (sessionOwnsTeardown || tasks.signal.reason !== stoppedDuringStartup)
+        ) {
+          throw error;
+        }
+        logger.info(stoppedDuringStartup.message);
       } finally {
+        startupWatchDone.abort();
         tasks.abort(new Error('Agent-device session ended.'));
-        await Promise.allSettled([downloaded, applicationReady]);
+        await Promise.allSettled([startupWatch, booted, downloaded, applicationReady]);
       }
     }),
   });

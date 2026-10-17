@@ -23,6 +23,7 @@ import { type ServeSimApplicationOptions } from '../utils/remoteDeviceRunSession
 import { type StartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
+  DeviceRunSessionStoppedError,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -98,6 +99,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors,
     corsOrigins,
     tasks,
+    onStarted,
     device,
   }: {
     env: BuildStepEnv;
@@ -114,6 +116,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors?: string[];
     corsOrigins?: string[];
     tasks: StartupTasks;
+    onStarted?: () => Promise<void>;
     device:
       | {
           booted: Promise<unknown>;
@@ -228,7 +231,7 @@ export async function runAgentDeviceRemoteSessionAsync(
 
     await uploadRemoteSessionConfigWithLocalEgressAsync({
       env,
-      signal,
+      signal: tasks.signal,
       ctx,
       deviceRunSessionId,
       remoteConfig: {
@@ -240,6 +243,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       },
       logger,
     });
+    await onStarted?.();
     tasks.signal.throwIfAborted();
     void pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId,
@@ -271,6 +275,9 @@ export async function runAgentDeviceRemoteSessionAsync(
           : undefined,
     });
   } catch (error) {
+    if (tasks.signal.reason instanceof DeviceRunSessionStoppedError) {
+      throw tasks.signal.reason;
+    }
     sessionFailed = true;
     throw error;
   } finally {
