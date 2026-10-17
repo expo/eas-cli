@@ -1,7 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform } from '@expo/steps';
+import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
-import { Client, fetchExchange } from '@urql/core';
 import { getEventListeners } from 'node:events';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
@@ -10,20 +10,43 @@ import fetch from 'node-fetch';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
 import * as processes from '../../../utils/processes';
+import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 
 jest.mock('node-fetch');
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../../utils/turtleFetch');
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+const DEVICE_RUN_SESSION_TOKEN = 'device-run-session-token-value';
+const PREVIEW_UPLOAD_SESSION_URL =
+  'https://api.expo.test/v2/device-run-session-worker/preview-upload-session';
+const uploadSession = {
+  url: 'https://uploads.expo.test/preview',
+  headers: { 'content-type': 'image/webp' },
+};
+
+function createCtx(): CustomBuildContext {
+  return {
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: DEVICE_RUN_SESSION_TOKEN },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+  } as unknown as CustomBuildContext;
+}
+
+function uploadSessionResponse(): InstanceType<typeof Response> {
+  return new Response(JSON.stringify({ data: { uploadSession } }), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
 
 describe(startDeviceRunSessionPreview, () => {
   const image = Buffer.from('webp-image');
   let captureAsync: jest.Mock<Promise<Buffer>, [AbortSignal]>;
-  let mutation: jest.Mock;
   let logger: bunyan;
   let ctx: CustomBuildContext;
   let preview: ReturnType<typeof startDeviceRunSessionPreview> | undefined;
@@ -31,21 +54,11 @@ describe(startDeviceRunSessionPreview, () => {
   beforeEach(() => {
     jest.useFakeTimers();
     captureAsync = jest.fn().mockResolvedValue(image);
-    mutation = jest.fn().mockReturnValue({
-      toPromise: async () => ({
-        data: {
-          deviceRunSession: {
-            createPreviewUploadSession: {
-              uploadSession: {
-                url: 'https://uploads.expo.test/preview',
-                headers: { 'content-type': 'image/webp' },
-              },
-            },
-          },
-        },
-      }),
-    });
-    ctx = { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+    jest
+      .mocked(turtleFetch)
+      .mockReset()
+      .mockImplementation(async () => uploadSessionResponse());
+    ctx = createCtx();
     logger = { warn: jest.fn() } as unknown as bunyan;
     jest
       .mocked(fetch)
@@ -82,7 +95,7 @@ describe(startDeviceRunSessionPreview, () => {
     expect(captureAsync).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(1);
     expect(captureAsync).toHaveBeenCalledTimes(2);
-    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
     await preview!.stopAsync();
     await jest.advanceTimersByTimeAsync(120_000);
     expect(captureAsync).toHaveBeenCalledTimes(2);
@@ -92,7 +105,7 @@ describe(startDeviceRunSessionPreview, () => {
     captureAsync.mockRejectedValueOnce(new Error('device not ready'));
     start();
     await jest.advanceTimersByTimeAsync(0);
-    expect(mutation).not.toHaveBeenCalled();
+    expect(turtleFetch).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalled();
     await jest.advanceTimersByTimeAsync(60_000);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -102,7 +115,7 @@ describe(startDeviceRunSessionPreview, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 403 }));
     start();
     await jest.advanceTimersByTimeAsync(60_000);
-    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -126,7 +139,7 @@ describe(startDeviceRunSessionPreview, () => {
   it('reuses the upload URL for the full session', async () => {
     start();
     await jest.advanceTimersByTimeAsync(119 * 60_000);
-    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
   });
 
   it('does not overlap captures and aborts pending work when stopped', async () => {
@@ -156,29 +169,20 @@ describe(startDeviceRunSessionPreview, () => {
     const stopping = handle.stopAsync();
     finish(image);
     await stopping;
-    expect(mutation).not.toHaveBeenCalled();
+    expect(turtleFetch).not.toHaveBeenCalled();
   });
 });
 
-describe('session preview with the real GraphQL client', () => {
-  const uploadSession = {
-    url: 'https://uploads.expo.test/preview',
-    headers: { 'content-type': 'image/webp' },
-  };
-  let graphqlFetch: jest.SpyInstance;
+describe('session preview upload session from the worker API', () => {
   let preview: ReturnType<typeof startDeviceRunSessionPreview> | undefined;
   let logger: bunyan;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    graphqlFetch = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new globalThis.Response(
-        JSON.stringify({
-          data: { deviceRunSession: { createPreviewUploadSession: { uploadSession } } },
-        }),
-        { headers: { 'content-type': 'application/json' } }
-      )
-    );
+    jest
+      .mocked(turtleFetch)
+      .mockReset()
+      .mockImplementation(async () => uploadSessionResponse());
     logger = { warn: jest.fn() } as unknown as bunyan;
     jest
       .mocked(fetch)
@@ -193,14 +197,9 @@ describe('session preview with the real GraphQL client', () => {
     jest.useRealTimers();
   });
 
-  const start = () => {
-    const graphqlClient = new Client({
-      url: 'https://api.expo.test/graphql',
-      exchanges: [fetchExchange],
-      fetchOptions: { headers: { Authorization: 'Bearer worker-token' } },
-    });
+  const start = (ctx: CustomBuildContext = createCtx()) => {
     preview = startDeviceRunSessionPreview({
-      ctx: { graphqlClient } as CustomBuildContext,
+      ctx,
       deviceRunSessionId: 'session-id',
       captureAsync: async () => Buffer.from('webp-image'),
       logger,
@@ -208,25 +207,49 @@ describe('session preview with the real GraphQL client', () => {
     return preview;
   };
 
-  it('preserves the worker authentication when creating the upload session', async () => {
+  it('sends the device run session token when creating the upload session', async () => {
     start();
     await jest.advanceTimersByTimeAsync(0);
-    const [, options] = graphqlFetch.mock.calls[0];
-    expect(new Headers(options.headers).get('authorization')).toBe('Bearer worker-token');
+    expect(turtleFetch).toHaveBeenCalledWith(
+      PREVIEW_UPLOAD_SESSION_URL,
+      'POST',
+      expect.objectContaining({
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
+        signal: expect.any(AbortSignal),
+      })
+    );
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['shutdown', 'timeout'])('aborts a stalled GraphQL request on %s', async reason => {
+  it('logs a failure and uploads nothing when the job has no device run session token', async () => {
+    start({
+      env: {},
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+    } as unknown as CustomBuildContext);
+    await jest.advanceTimersByTimeAsync(0);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(SystemError) },
+      'Could not refresh the session preview; retrying in 60 seconds.'
+    );
+    const [{ err }] = jest.mocked(logger.warn).mock.calls[0] as unknown as [{ err: Error }];
+    expect(err.message).toMatch(
+      /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+    );
+    expect(turtleFetch).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['shutdown', 'timeout'])('aborts a stalled worker API request on %s', async reason => {
     const timeout = new AbortController();
     jest.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout.signal);
     let requestSignal: AbortSignal | undefined;
     let rejectRequest!: (error: Error) => void;
-    graphqlFetch.mockImplementation(
-      (_url, options) =>
+    jest.mocked(turtleFetch).mockImplementation(
+      (_url, _method, options) =>
         new Promise((_, reject) => {
           rejectRequest = reject;
-          requestSignal = options.signal;
-          requestSignal!.addEventListener('abort', () => reject(requestSignal!.reason), {
+          requestSignal = options.signal as AbortSignal;
+          requestSignal.addEventListener('abort', () => reject(requestSignal!.reason), {
             once: true,
           });
         })
@@ -255,14 +278,7 @@ describe('session preview with the real GraphQL client', () => {
       await stopping;
     } else {
       expect(logger.warn).toHaveBeenCalled();
-      graphqlFetch.mockResolvedValue(
-        new globalThis.Response(
-          JSON.stringify({
-            data: { deviceRunSession: { createPreviewUploadSession: { uploadSession } } },
-          }),
-          { headers: { 'content-type': 'application/json' } }
-        )
-      );
+      jest.mocked(turtleFetch).mockImplementation(async () => uploadSessionResponse());
       jest.spyOn(AbortSignal, 'timeout').mockReturnValue(new AbortController().signal);
       await jest.advanceTimersByTimeAsync(60_000);
       expect(fetch).toHaveBeenCalledTimes(1);

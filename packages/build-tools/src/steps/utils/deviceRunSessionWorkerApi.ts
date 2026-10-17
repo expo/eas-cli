@@ -20,24 +20,10 @@ export const DEVICE_RUN_SESSION_TOKEN_HEADER = 'expo-device-run-session-token';
 
 const DEVICE_RUN_SESSION_WORKER_PATH = 'device-run-session-worker/';
 
-/**
- * www returns the entity value of the status. The client maps it to the GraphQL enum value, so
- * callers compare statuses the same way on both paths.
- */
-const DEVICE_RUN_SESSION_STATUS_FROM_ENTITY_VALUE = {
-  new: 'NEW',
-  queued: 'QUEUED',
-  starting: 'STARTING',
-  'in-progress': 'IN_PROGRESS',
-  stopped: 'STOPPED',
-  errored: 'ERRORED',
-} as const;
-
 const DeviceRunSessionStatusSchema = z.object({
   id: z.string(),
-  status: z
-    .enum(['new', 'queued', 'starting', 'in-progress', 'stopped', 'errored'])
-    .transform(status => DEVICE_RUN_SESSION_STATUS_FROM_ENTITY_VALUE[status]),
+  // The status entity values that www returns.
+  status: z.enum(['new', 'queued', 'starting', 'in-progress', 'stopped', 'errored']),
 });
 
 const UploadSessionSchema = z.object({
@@ -305,6 +291,24 @@ export function getDeviceRunSessionWorkerApi(
     return null;
   }
   return new DeviceRunSessionWorkerApi(getExpoApiV2BaseUrl(ctx), token);
+}
+
+/**
+ * Returns the client for the device run session worker API, which every device run session job
+ * uses to call www about its session.
+ */
+export function requireDeviceRunSessionWorkerApi(
+  ctx: Pick<CustomBuildContext, 'env' | 'expoApiV2BaseUrl'>
+): DeviceRunSessionWorkerApi {
+  const workerApi = getDeviceRunSessionWorkerApi(ctx);
+  if (!workerApi) {
+    throw new SystemError(
+      `This device run session job has no ${DEVICE_RUN_SESSION_TOKEN_ENV} secret. ` +
+        'www gives one to every device run session job, and the worker needs it to call the ' +
+        'device run session API. Start a new session, and contact support if it happens again.'
+    );
+  }
+  return workerApi;
 }
 
 function getExpoApiV2BaseUrl(ctx: Pick<CustomBuildContext, 'env' | 'expoApiV2BaseUrl'>): string {

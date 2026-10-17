@@ -3,8 +3,11 @@ import { bunyan } from '@expo/logger';
 import fs from 'node:fs/promises';
 import promiseRetry from 'promise-retry';
 
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
+import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthRequestError } from './GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
+import { GooglePlayClient, ReleaseStatus } from './GooglePlayClient';
 import { GooglePlayResumableUpload } from './GooglePlayResumableUpload';
 import { AndroidArtifactType } from './appArtifact';
 
@@ -141,7 +144,7 @@ export namespace GooglePlayUtils {
       signal?: AbortSignal;
     }
   ): Promise<void> {
-    const commitOnceAsync = async ({
+    const sendCommitAsync = async ({
       changesNotSentForReview,
     }: {
       changesNotSentForReview?: boolean;
@@ -163,13 +166,11 @@ export namespace GooglePlayUtils {
         }
         if (
           !(error instanceof GooglePlayApiError) ||
-          error.status >= 500 ||
-          error.status === 408 ||
-          error.status === 429
+          GooglePlayApiError.isRetryableStatus(error.status)
         ) {
           throw new GooglePlayCommitOutcomeUnknownError(
-            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again. The request was not retried because it may have succeeded.`,
-            { cause: error }
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
+            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
         throw error;
@@ -180,10 +181,42 @@ export namespace GooglePlayUtils {
           : 'Google Play saved the release using its normal review process. Check its review and publishing status at https://play.google.com/console/.'
       );
     };
+    // Google can accept the bundle upload before the edit is ready to commit.
+    // Retry only this explicit rejection, not other HTTP 400 preconditions.
+    const isUploadStillProcessing = (error: unknown): boolean =>
+      error instanceof GooglePlayApiError &&
+      error.status === 400 &&
+      error.apiMessage === 'Some of the Android App Bundle uploads are not completed yet.';
+
+    const commitAsync = async (options: { changesNotSentForReview?: boolean }): Promise<void> => {
+      try {
+        await promiseRetryWithCondition(
+          sendCommitAsync,
+          error => {
+            signal?.throwIfAborted();
+            return isUploadStillProcessing(error);
+          },
+          { retries: 5, factor: 2, minTimeout: 2000, maxTimeout: 32_000 },
+          ({ attemptNumber, maxAttemptsCount }) => {
+            logger.warn(
+              `Google Play is still processing the uploaded bundle. Retrying the same edit commit (attempt ${attemptNumber}/${maxAttemptsCount}).`
+            );
+          }
+        )(options);
+      } catch (error) {
+        if (isUploadStillProcessing(error)) {
+          throw new SystemError(
+            `Google Play did not finish processing the uploaded bundle for ${packageName} after six commit attempts. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
+            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
+          );
+        }
+        throw error;
+      }
+    };
     try {
       // Omit the optional parameter for normal review submission. Some app states
       // reject its presence, even when false. True saves changes for review in Console.
-      await commitOnceAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
+      await commitAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
     } catch (error) {
       if (!(error instanceof GooglePlayApiError) || error.status !== 400) {
         throw error;
@@ -196,7 +229,7 @@ export namespace GooglePlayUtils {
         logger.warn(
           'Google does not allow changesNotSentForReview for this app right now. Retrying commit once without it. The changes will be sent for review.'
         );
-        await commitOnceAsync({});
+        await commitAsync({});
       } else if (
         !changesNotSentForReview &&
         error.apiMessage.includes('Please set the query parameter changesNotSentForReview to true')
@@ -204,7 +237,7 @@ export namespace GooglePlayUtils {
         logger.warn(
           'Google requires changesNotSentForReview=true. Retrying commit once. Send the saved changes for review from Play Console.'
         );
-        await commitOnceAsync({ changesNotSentForReview: true });
+        await commitAsync({ changesNotSentForReview: true });
       } else {
         throw error;
       }
@@ -212,21 +245,23 @@ export namespace GooglePlayUtils {
   }
 
   export function mapGooglePlayError(error: unknown, packageName: string): unknown {
+    if (error instanceof AggregateError) {
+      return mapGooglePlayError(error.cause, packageName);
+    }
     if (
       (error instanceof GooglePlayApiError || error instanceof GooglePlayAuthRequestError) &&
-      (error.status === 408 || error.status === 429 || error.status >= 500)
+      GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new SystemError(
         `Google Play is temporarily unavailable or rate limited (HTTP ${error.status}). Try again later.`,
-        { cause: error }
+        { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
       );
     }
     if (
       error instanceof GooglePlayAuthRequestError &&
       error.status >= 400 &&
       error.status < 500 &&
-      error.status !== 408 &&
-      error.status !== 429
+      !GooglePlayApiError.isRetryableStatus(error.status)
     ) {
       return new UserError(
         'EAS_GOOGLE_PLAY_INVALID_CREDENTIALS',
@@ -282,9 +317,7 @@ export namespace GooglePlayUtils {
     return new UserError(
       code,
       `${detail}\n\nApp: ${packageName}\nGoogle Play Console: https://play.google.com/console/`,
-      {
-        cause: error,
-      }
+      { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
     );
   }
 }
