@@ -381,7 +381,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
-      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX })
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX, disableShare: false })
     );
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -392,6 +392,82 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       })
     );
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes public_preview=false to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          public_preview: { value: false },
+          private_preview_url: { value: 'https://expo.dev/private-preview' },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        disableShare: true,
+        privatePreviewUrl: 'https://expo.dev/private-preview',
+      })
+    );
+  });
+
+  it('passes frame_ancestors to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          frame_ancestors: { value: ['https://embed.example.test'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
+
+  it('passes cors_origins to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          cors_origins: { value: ['https://app.example.test'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
   });
 
   it('continues the session when disabling the video watermark fails', async () => {
@@ -549,7 +625,15 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
 
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
-    ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
+    ).toEqual(
+      expect.arrayContaining([
+        'launch_app_identifier',
+        'launch_args',
+        'open_url',
+        'public_preview',
+        'private_preview_url',
+      ])
+    );
   });
 
   it('stops automation without waiting for recording upload', async () => {

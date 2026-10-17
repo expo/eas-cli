@@ -1,44 +1,12 @@
 import { SystemError } from '@expo/eas-build-job';
 import fetch, { RequestInit, Response } from 'node-fetch';
+import { bunyan } from '@expo/logger';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 import { z } from 'zod';
 
+import { isConnectFailure, isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { GooglePlayApiError } from './GooglePlayApiError';
 import { GooglePlayAuthUtils, GoogleServiceAccount } from './GooglePlayAuthUtils';
-
-export class GooglePlayApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly apiMessage: string,
-    readonly reasons: string[]
-  ) {
-    super(`Google Play request failed (HTTP ${status})${apiMessage ? `: ${apiMessage}` : '.'}`);
-  }
-
-  static async fromResponseAsync(
-    response: Response,
-    signal?: AbortSignal
-  ): Promise<GooglePlayApiError> {
-    let data: unknown;
-    try {
-      data = await response.json();
-    } catch {
-      signal?.throwIfAborted();
-      // Raw text or HTML can contain the request URL, including an upload secret.
-    }
-    const parsed = z
-      .object({
-        error: z.object({
-          message: z.string().optional(),
-          errors: z.array(z.object({ reason: z.string().optional() })).optional(),
-        }),
-      })
-      .safeParse(data);
-    return new GooglePlayApiError(
-      response.status,
-      parsed.data?.error.message ?? '',
-      parsed.data?.error.errors?.flatMap(error => (error.reason ? [error.reason] : [])) ?? []
-    );
-  }
-}
 
 export const ReleaseStatusZ = z.enum(['draft', 'inProgress', 'halted', 'completed']);
 export type ReleaseStatus = z.output<typeof ReleaseStatusZ>;
@@ -88,7 +56,9 @@ const PostApi = {
   '/androidpublisher/v3/applications/:packageName/edits/:editId:commit': {
     path: z.object({ packageName: z.string().min(1), editId: z.string().min(1) }),
     request: z.object({}),
-    query: z.object({ changesNotSentForReview: z.boolean().optional() }),
+    query: z.object({
+      changesNotSentForReview: z.boolean().optional(),
+    }),
     response: z.object({ id: z.string().min(1), expiryTimeSeconds: z.string().optional() }),
   },
   '/androidpublisher/v3/applications/:packageName/edits/:editId:validate': {
@@ -128,7 +98,10 @@ export class GooglePlayClient {
   private readonly baseUrl = 'https://androidpublisher.googleapis.com';
   private cachedToken?: Promise<{ value: string; expiresAt: number }>;
 
-  constructor(private readonly serviceAccount: GoogleServiceAccount) {}
+  constructor(
+    private readonly serviceAccount: GoogleServiceAccount,
+    private readonly logger?: bunyan
+  ) {}
 
   private async getTokenAsync(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
@@ -204,7 +177,21 @@ export class GooglePlayClient {
     for (const [key, value] of Object.entries(DeleteApi[path].path.parse(params))) {
       url = url.replace(`:${key}`, encodeURIComponent(value));
     }
-    await this.requestAsync('DELETE', url, undefined, signal);
+    try {
+      await this.requestWithRetriesAsync(
+        () => this.requestAsync('DELETE', url, undefined, signal),
+        signal
+      );
+    } catch (error) {
+      if (
+        error instanceof AggregateError &&
+        error.cause instanceof GooglePlayApiError &&
+        error.cause.status === 404
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private async sendJsonRequestAsync(
@@ -236,12 +223,16 @@ export class GooglePlayClient {
       }
     }
 
-    const response = await this.requestAsync(
-      method,
-      search.size ? `${path}?${search}` : path,
-      method === 'GET' ? undefined : JSON.stringify(parsedBody),
-      signal,
-      { 'Content-Type': 'application/json' }
+    const response = await this.requestWithRetriesAsync(
+      () =>
+        this.requestAsync(
+          method,
+          search.size ? `${path}?${search}` : path,
+          method === 'GET' ? undefined : JSON.stringify(parsedBody),
+          signal,
+          { 'Content-Type': 'application/json' }
+        ),
+      signal
     );
 
     let data: unknown;
@@ -262,6 +253,47 @@ export class GooglePlayClient {
     }
 
     return parsed.data;
+  }
+
+  private async requestWithRetriesAsync<T>(
+    request: () => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
+    const errors: unknown[] = [];
+    try {
+      return await promiseRetryWithCondition(
+        async () => {
+          try {
+            signal?.throwIfAborted();
+            return await request();
+          } catch (error) {
+            errors.push(error);
+            throw error;
+          }
+        },
+        error =>
+          !signal?.aborted &&
+          (error instanceof GooglePlayApiError
+            ? GooglePlayApiError.isRetryableStatus(error.status)
+            : isConnectFailure(error) || isConnectionInterruptedError(error)),
+        { retries: 5, factor: 2, minTimeout: 1000, maxTimeout: 32_000, randomize: true },
+        ({ attemptNumber, maxAttemptsCount, error }) => {
+          const reason =
+            error instanceof GooglePlayApiError ? `HTTP ${error.status}` : 'network error';
+          this.logger?.warn(
+            `Retrying Google Play request (${reason}, attempt ${attemptNumber}/${maxAttemptsCount})...`
+          );
+        }
+      )();
+    } catch (error) {
+      // Keep earlier failures: a later rejection does not prove that every attempt failed.
+      if (errors.length > 1) {
+        throw new AggregateError(errors, 'Google Play request failed after retries.', {
+          cause: error,
+        });
+      }
+      throw error;
+    }
   }
 
   async requestAsync(

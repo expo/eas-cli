@@ -194,7 +194,15 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
 
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
-    ).toEqual(expect.arrayContaining(['launch_app_identifier', 'launch_args', 'open_url']));
+    ).toEqual(
+      expect.arrayContaining([
+        'launch_app_identifier',
+        'launch_args',
+        'open_url',
+        'public_preview',
+        'private_preview_url',
+      ])
+    );
   });
 });
 

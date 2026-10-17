@@ -7,6 +7,7 @@ import {
   DeviceRunSessionWorkerApi,
   DeviceRunSessionWorkerApiError,
   getDeviceRunSessionWorkerApi,
+  requireDeviceRunSessionWorkerApi,
 } from '../deviceRunSessionWorkerApi';
 
 jest.mock('../../../utils/turtleFetch');
@@ -88,6 +89,36 @@ describe(getDeviceRunSessionWorkerApi, () => {
   });
 });
 
+describe(requireDeviceRunSessionWorkerApi, () => {
+  it('returns the client when the job has a device run session token', () => {
+    expect(
+      requireDeviceRunSessionWorkerApi({
+        env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN },
+        expoApiV2BaseUrl: BASE_URL,
+      } as unknown as CustomBuildContext)
+    ).toBeInstanceOf(DeviceRunSessionWorkerApi);
+  });
+
+  it('throws a system error when the job has no device run session token', () => {
+    const error = (() => {
+      try {
+        requireDeviceRunSessionWorkerApi({
+          env: { __API_SERVER_URL: 'https://api.expo.test' },
+          expoApiV2BaseUrl: BASE_URL,
+        } as unknown as CustomBuildContext);
+      } catch (err) {
+        return err;
+      }
+      return undefined;
+    })();
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect((error as Error).message).toMatch(
+      /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+    );
+  });
+});
+
 describe(DeviceRunSessionWorkerApi, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
@@ -101,7 +132,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       route: 'session',
       json: undefined,
       data: { id: 'drs-id', status: 'in-progress' },
-      expected: { id: 'drs-id', status: 'IN_PROGRESS' },
+      expected: { id: 'drs-id', status: 'in-progress' },
     },
     {
       name: 'startAsync',
@@ -111,7 +142,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       route: 'start',
       json: { remoteConfig: { type: 'agent-device', url: 'https://x.test' } },
       data: { id: 'drs-id', status: 'in-progress' },
-      expected: { id: 'drs-id', status: 'IN_PROGRESS' },
+      expected: { id: 'drs-id', status: 'in-progress' },
     },
     {
       name: 'stopAsync',
@@ -120,7 +151,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       route: 'stop',
       json: undefined,
       data: { id: 'drs-id', status: 'stopped' },
-      expected: { id: 'drs-id', status: 'STOPPED' },
+      expected: { id: 'drs-id', status: 'stopped' },
     },
     {
       name: 'createArtifactUploadSessionAsync',
@@ -217,20 +248,16 @@ describe(DeviceRunSessionWorkerApi, () => {
     }
   );
 
-  it.each([
-    ['new', 'NEW'],
-    ['queued', 'QUEUED'],
-    ['starting', 'STARTING'],
-    ['in-progress', 'IN_PROGRESS'],
-    ['stopped', 'STOPPED'],
-    ['errored', 'ERRORED'],
-  ])('maps the www status %s to the GraphQL status %s', async (wwwStatus, status) => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: wwwStatus } }));
+  it.each(['new', 'queued', 'starting', 'in-progress', 'stopped', 'errored'])(
+    'returns the www status %s unchanged',
+    async status => {
+      jest
+        .mocked(turtleFetch)
+        .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status } }));
 
-    await expect(createApi().getSessionAsync()).resolves.toEqual({ id: 'drs-id', status });
-  });
+      await expect(createApi().getSessionAsync()).resolves.toEqual({ id: 'drs-id', status });
+    }
+  );
 
   it('rejects an application response without the build field', async () => {
     jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { platform: 'ios' } }));

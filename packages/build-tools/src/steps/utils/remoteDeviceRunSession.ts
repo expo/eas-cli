@@ -10,8 +10,6 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
-import { graphql } from 'gql.tada';
-import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
@@ -29,48 +27,14 @@ import {
 import { Sentry } from '../../sentry';
 import { isProcessGroupRunning } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
-import { turtleFetch } from '../../utils/turtleFetch';
 import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
-import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+import {
+  type DeviceRunSessionStatus,
+  requireDeviceRunSessionWorkerApi,
+} from './deviceRunSessionWorkerApi';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-
-const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
-  mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
-    deviceRunSession {
-      startDeviceRunSession(
-        deviceRunSessionId: $deviceRunSessionId
-        remoteConfig: $remoteConfig
-      ) {
-        id
-        status
-      }
-    }
-  }
-`);
-
-const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
-  query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
-    deviceRunSessions {
-      byId(deviceRunSessionId: $deviceRunSessionId) {
-        id
-        status
-      }
-    }
-  }
-`);
-
-const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
-  mutation EnsureDeviceRunSessionStopped($deviceRunSessionId: ID!) {
-    deviceRunSession {
-      ensureDeviceRunSessionStopped(deviceRunSessionId: $deviceRunSessionId) {
-        id
-        status
-      }
-    }
-  }
-`);
 
 const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
 // A request to the device run session worker API that hangs counts as a failed poll or stop.
@@ -230,15 +194,12 @@ export async function waitForDeviceRunSessionStoppedAsync({
       }
       try {
         const status = await fetchDeviceRunSessionStatusAsync(ctx, deviceRunSessionId, signal);
-        if (!status) {
-          throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
-        }
         pollErrorCount = 0;
-        if (status === 'STOPPED') {
+        if (status === 'stopped') {
           logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
           return;
         }
-        if (status === 'ERRORED') {
+        if (status === 'errored') {
           throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
         }
       } catch (err) {
@@ -269,24 +230,14 @@ async function fetchDeviceRunSessionStatusAsync(
   ctx: CustomBuildContext,
   deviceRunSessionId: string,
   signal: AbortSignal
-): Promise<string | undefined> {
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    // One request per poll; the polling loop retries on its own schedule.
-    return (
-      await workerApi.getSessionAsync({
-        signal,
-        timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
-      })
-    ).status;
-  }
-  const result = await ctx.graphqlClient
-    .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
-    .toPromise();
-  if (result.error) {
-    throw result.error;
-  }
-  return result.data?.deviceRunSessions?.byId?.status;
+): Promise<DeviceRunSessionStatus['status']> {
+  // One request per poll; the polling loop retries on its own schedule.
+  return (
+    await requireDeviceRunSessionWorkerApi(ctx).getSessionAsync({
+      signal,
+      timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+    })
+  ).status;
 }
 
 // Best effort: when this fails, the caller still tears the session down and the
@@ -301,17 +252,9 @@ async function ensureDeviceRunSessionStoppedSafelyAsync({
   logger: bunyan;
 }): Promise<void> {
   try {
-    const workerApi = getDeviceRunSessionWorkerApi(ctx);
-    if (workerApi) {
-      await workerApi.stopAsync({ timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS });
-    } else {
-      const result = await ctx.graphqlClient
-        .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })
-        .toPromise();
-      if (result.error) {
-        throw result.error;
-      }
-    }
+    await requireDeviceRunSessionWorkerApi(ctx).stopAsync({
+      timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+    });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     Sentry.capture('Could not mark idle device run session as stopped', error, {
@@ -476,12 +419,6 @@ export async function ensureFfmpegInstalledOnceAsync({
   }
 }
 
-const TurnIceServersResponseSchema = z.object({
-  data: z.object({
-    iceServers: TurnIceServersSchema,
-  }),
-});
-
 /**
  * Translate Cloudflare ICE servers into web preview CLI flags: `--stun-url` (the
  * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
@@ -523,10 +460,10 @@ export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): stri
  */
 export async function fetchWebPreviewTurnArgsAsync(
   ctx: CustomBuildContext,
-  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+  { logger }: { logger: bunyan }
 ): Promise<string[]> {
   try {
-    const iceServers = await fetchTurnIceServersAsync(ctx, { env, logger });
+    const iceServers = await fetchTurnIceServersAsync(ctx, { logger });
     const args = turnIceServersToWebPreviewArgs(iceServers);
     if (args.length > 0) {
       logger.info('Configured the web preview with Cloudflare TURN ICE servers.');
@@ -545,38 +482,13 @@ export async function fetchWebPreviewTurnArgsAsync(
 
 async function fetchTurnIceServersAsync(
   ctx: CustomBuildContext,
-  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+  { logger }: { logger: bunyan }
 ): Promise<TurnIceServers> {
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    return await workerApi.fetchTurnIceServersAsync({ timeoutMs: 5000, retries: 1, logger });
-  }
-
-  const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-  const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
-  const robotAccessToken = nullthrows(
-    ctx.job.secrets?.robotAccessToken,
-    'robot access token is not set'
-  );
-
-  const response = await turtleFetch(
-    new URL(
-      `/v2/device-run-sessions/${deviceRunSessionId}/turn-ice-servers`,
-      expoApiServerUrl
-    ).toString(),
-    'POST',
-    {
-      headers: {
-        Authorization: `Bearer ${robotAccessToken}`,
-      },
-      timeout: 5000,
-      retries: 1,
-      logger,
-    }
-  );
-
-  const { data } = TurnIceServersResponseSchema.parse(await response.json());
-  return data.iceServers;
+  return await requireDeviceRunSessionWorkerApi(ctx).fetchTurnIceServersAsync({
+    timeoutMs: 5000,
+    retries: 1,
+    logger,
+  });
 }
 
 export async function uploadRemoteSessionConfigAsync({
@@ -593,26 +505,15 @@ export async function uploadRemoteSessionConfigAsync({
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    try {
-      await workerApi.startAsync({ remoteConfig });
-    } catch (err) {
-      throw new SystemError(
-        `Failed to start device run session ${deviceRunSessionId}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        { cause: err }
-      );
-    }
-    return;
-  }
-  const result = await ctx.graphqlClient
-    .mutation(START_DEVICE_RUN_SESSION_MUTATION, { deviceRunSessionId, remoteConfig })
-    .toPromise();
-  if (result.error) {
+  const workerApi = requireDeviceRunSessionWorkerApi(ctx);
+  try {
+    await workerApi.startAsync({ remoteConfig });
+  } catch (err) {
     throw new SystemError(
-      `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
+      `Failed to start device run session ${deviceRunSessionId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
     );
   }
 }
@@ -856,6 +757,80 @@ export function createServeSimLaunchInputProviders(): ReturnType<
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     }),
   ];
+}
+
+/** Older session jobs omit this input and keep their existing Share button. */
+export function createPublicPreviewInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'public_preview',
+    required: false,
+    defaultValue: true,
+    allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+  });
+}
+
+export function createPrivatePreviewUrlInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'private_preview_url',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+  });
+}
+
+/**
+ * Origins that may embed the preview host in a frame, next to the website origins. The host
+ * drops values that are not an origin or a subdomain wildcard, so this parser only guards
+ * the input shape.
+ */
+export function createFrameAncestorsInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'frame_ancestors',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseFrameAncestorsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'frame_ancestors', 'EAS_FRAME_ANCESTORS_INVALID_INPUT');
+}
+
+/**
+ * Origins whose pages may call the preview host's API cross-origin, such as a page that renders
+ * the device with @expo/hub-client. Framing alone does not need it. The host refuses values that
+ * are not an origin or a subdomain wildcard, so this parser only guards the input shape.
+ */
+export function createCorsOriginsInputProvider(): ReturnType<typeof BuildStepInput.createProvider> {
+  return BuildStepInput.createProvider({
+    id: 'cors_origins',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseCorsOriginsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'cors_origins', 'EAS_CORS_ORIGINS_INVALID_INPUT');
+}
+
+function parseOriginListInput(value: unknown, inputId: string, errorCode: string): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every(origin => typeof origin === 'string' && origin.trim().length > 0)
+  ) {
+    throw new UserError(
+      errorCode,
+      `Input "${inputId}" must be an array of non-empty strings, one origin each.`
+    );
+  }
+  return value;
 }
 
 export function parseServeSimLaunchInputs(

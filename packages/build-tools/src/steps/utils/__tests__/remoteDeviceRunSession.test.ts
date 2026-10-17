@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -26,12 +26,19 @@ import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
+  createCorsOriginsInputProvider,
+  createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  parseCorsOriginsInput,
+  parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -42,8 +49,10 @@ import {
 
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
+  corsOriginArgs,
   createExpoDeviceHubArgs,
   createServeSimArgs,
+  frameAncestorArgs,
   simulatorPreviewPageUrl,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
@@ -146,73 +155,70 @@ describe(spawnDetached, () => {
   );
 });
 
-function createCtxMock(): CustomBuildContext {
+const DEVICE_RUN_SESSION_TOKEN = 'device-run-session-token';
+const DEVICE_RUN_SESSION_WORKER_URL = 'https://api.expo.test/v2/device-run-session-worker/';
+
+function createCtxMock({ withToken = true }: { withToken?: boolean } = {}): CustomBuildContext {
   return {
     env: {
       __API_SERVER_URL: 'https://api.expo.test',
+      ...(withToken ? { EAS_DEVICE_RUN_SESSION_TOKEN: DEVICE_RUN_SESSION_TOKEN } : {}),
     },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
     job: {
       secrets: { robotAccessToken: 'robot-token' },
     },
   } as unknown as CustomBuildContext;
 }
 
+/** A successful device run session worker API response with the `{ data }` body. */
+function workerApiResponse(data: unknown): Awaited<ReturnType<typeof turtleFetch>> {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ data }),
+  } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+}
+
+/** The number of device run session worker API requests to the route. */
+function workerApiCallCount(route: string): number {
+  return jest
+    .mocked(turtleFetch)
+    .mock.calls.filter(([url]) => url === `${DEVICE_RUN_SESSION_WORKER_URL}${route}`).length;
+}
+
+/**
+ * Serves session status polls from `results` in order, and idle stops, through the device run
+ * session worker API.
+ */
 function createStatusCtxMock(
   results: (
-    | { status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' }
+    | { status: 'new' | 'in-progress' | 'stopped' | 'errored' }
     | { error: Error }
     | { data: unknown }
   )[],
-  { ensureStoppedError }: { ensureStoppedError?: Error } = {}
+  { stopError }: { stopError?: Error } = {}
 ): CustomBuildContext {
-  const query = jest.fn(() => {
+  jest.mocked(turtleFetch).mockImplementation(async url => {
+    if (url === `${DEVICE_RUN_SESSION_WORKER_URL}stop`) {
+      if (stopError) {
+        throw stopError;
+      }
+      return workerApiResponse({ id: 'drs-id', status: 'stopped' });
+    }
     const result = results.shift();
     if (!result) {
       throw new Error('No mocked status result available');
     }
-    return {
-      toPromise: async () => {
-        if ('error' in result) {
-          throw result.error;
-        }
-        if ('data' in result) {
-          return { data: result.data };
-        }
-        return {
-          data: {
-            deviceRunSessions: {
-              byId: {
-                id: 'drs-id',
-                status: result.status,
-              },
-            },
-          },
-        };
-      },
-    };
+    if ('error' in result) {
+      throw result.error;
+    }
+    if ('data' in result) {
+      return workerApiResponse(result.data);
+    }
+    return workerApiResponse({ id: 'drs-id', status: result.status });
   });
-
-  const mutation = jest.fn(() => ({
-    toPromise: async () => {
-      if (ensureStoppedError) {
-        return { error: ensureStoppedError };
-      }
-      return {
-        data: {
-          deviceRunSession: {
-            ensureDeviceRunSessionStopped: { id: 'drs-id', status: 'STOPPED' },
-          },
-        },
-      };
-    },
-  }));
-
-  return {
-    graphqlClient: {
-      query,
-      mutation,
-    },
-  } as unknown as CustomBuildContext;
+  return createCtxMock();
 }
 
 function createEnvMock(): BuildStepEnv {
@@ -294,6 +300,110 @@ describe(createServeSimLaunchInputProviders, () => {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       },
     ]);
+  });
+});
+
+describe(createPublicPreviewInputProvider, () => {
+  it('preserves the native Share button for legacy jobs without the input', () => {
+    const input = createPublicPreviewInputProvider()(createGlobalContextMock(), 'Test step');
+    expect(input).toMatchObject({
+      id: 'public_preview',
+      required: false,
+      defaultValue: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    });
+  });
+});
+
+describe(createPrivatePreviewUrlInputProvider, () => {
+  it('accepts an optional authenticated preview URL from the session job', () => {
+    const provider = createPrivatePreviewUrlInputProvider();
+    const input = provider(createGlobalContextMock(), 'step-id');
+    expect(input.id).toBe('private_preview_url');
+    expect(input.required).toBe(false);
+    expect(input.allowedValueTypeName).toBe(BuildStepInputValueTypeName.STRING);
+  });
+});
+
+describe(createFrameAncestorsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createFrameAncestorsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'frame_ancestors',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseFrameAncestorsInput, () => {
+  it('defaults to no extra origins when the step declares nothing', () => {
+    expect(parseFrameAncestorsInput(undefined)).toEqual([]);
+  });
+
+  it('returns the origins as given', () => {
+    expect(
+      parseFrameAncestorsInput(['https://embed.example.test', 'https://*.example.test'])
+    ).toEqual(['https://embed.example.test', 'https://*.example.test']);
+  });
+
+  it.each([['https://embed.example.test'], [['https://embed.example.test', '']], [[1]]])(
+    'rejects %j',
+    value => {
+      expect(() => parseFrameAncestorsInput(value)).toThrow(
+        'Input "frame_ancestors" must be an array of non-empty strings, one origin each.'
+      );
+    }
+  );
+});
+
+describe(createCorsOriginsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createCorsOriginsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'cors_origins',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseCorsOriginsInput, () => {
+  it('defaults to no extra origins and returns the origins as given', () => {
+    expect(parseCorsOriginsInput(undefined)).toEqual([]);
+    expect(parseCorsOriginsInput(['https://app.example.test'])).toEqual([
+      'https://app.example.test',
+    ]);
+  });
+
+  it('rejects anything but a list of non-empty strings', () => {
+    expect(() => parseCorsOriginsInput(['https://app.example.test', ''])).toThrow(
+      'Input "cors_origins" must be an array of non-empty strings, one origin each.'
+    );
+  });
+});
+
+describe(corsOriginArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(corsOriginArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--cors-origin',
+      'https://a.example.test',
+      '--cors-origin',
+      'https://b.example.test',
+    ]);
+    expect(corsOriginArgs([])).toEqual([]);
+  });
+});
+
+describe(frameAncestorArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(frameAncestorArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--frame-ancestor',
+      'https://a.example.test',
+      '--frame-ancestor',
+      'https://b.example.test',
+    ]);
+    expect(frameAncestorArgs([])).toEqual([]);
   });
 });
 
@@ -464,6 +574,26 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
+      shareUrl: 'https://expo.dev/simulator-preview/preview-id',
+    });
+    expect(args.slice(-8)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
+      '--share-url',
+      'https://expo.dev/simulator-preview/preview-id',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' })[0]).toBe(
       '@expo/serve-sim@0.1.38'
@@ -488,6 +618,14 @@ describe(createServeSimArgs, () => {
       '--share-url',
       'https://expo.dev/simulator-preview/abc',
     ]);
+  });
+
+  it('disables the native Share button only when requested', () => {
+    expect(createServeSimArgs({ port: 4321, disableShare: true })).toContain('--disable-share');
+    expect(createServeSimArgs({ port: 4321, disableShare: false })).not.toContain(
+      '--disable-share'
+    );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--disable-share');
   });
 
   it('appends the launch flags after the streaming policy', () => {
@@ -650,6 +788,23 @@ describe(createExpoDeviceHubArgs, () => {
       'https://expo.dev',
       '--frame-ancestor',
       'https://expo.dev',
+    ]);
+  });
+
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
+    });
+    expect(args.slice(-6)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
     ]);
   });
 
@@ -941,6 +1096,8 @@ describe(startDeviceSessionHostAsync, () => {
     jest.mocked(turtleFetch).mockImplementation(async url => {
       if (url.endsWith('/turn-ice-servers')) {
         return {
+          ok: true,
+          status: 200,
           json: async () => ({
             data: {
               iceServers: [
@@ -980,6 +1137,84 @@ describe(startDeviceSessionHostAsync, () => {
       expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
     );
     expect(spawnDetachedSpy.mock.calls[0][0].stopGracePeriodMs).toBeGreaterThanOrEqual(120_000);
+    await host.finishAsync();
+  });
+
+  it.each([undefined, 'latest', '1.2.3'])(
+    'passes private sharing flags directly to serve-sim version %s',
+    async packageVersion => {
+      const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        packageVersion,
+        disableShare: true,
+      });
+
+      const serveSimCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([, args]) =>
+          args.includes(`@expo/serve-sim@${packageVersion ?? 'latest'}`)
+        );
+      expect(serveSimCalls).toHaveLength(1);
+      expect(serveSimCalls[0][1]).toContain('--disable-share');
+      expect(serveSimCalls[0][1]).not.toContain('--share-url');
+      await host.finishAsync();
+    }
+  );
+
+  it('keeps the authenticated link out of serve-sim while retaining the public frame URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const privatePreviewUrl =
+      'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+      privatePreviewUrl,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(serveSimArgs).toContain('--disable-share');
+    expect(preview.sharePageUrl).toBe(privatePreviewUrl);
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    await host.finishAsync();
+  });
+
+  it('does not expose a public share URL when a private job omits its authenticated URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(preview.sharePageUrl).toBeUndefined();
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
     await host.finishAsync();
   });
 
@@ -1066,6 +1301,12 @@ describe(startDeviceSessionHostAsync, () => {
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
+    expect(preview.sharePageUrl).toBe(preview.previewPageUrl);
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs[serveSimArgs.indexOf('--share-url') + 1]).toBe(preview.previewPageUrl);
+    expect(serveSimArgs).not.toContain('--disable-share');
   });
 
   it.each([
@@ -1354,24 +1595,21 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
-    jest.mocked(turtleFetch).mockResolvedValue({
-      json: async () => ({
-        data: {
-          iceServers: [
-            { urls: ['stun:stun.cloudflare.com:3478'] },
-            {
-              urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
-              username: 'u',
-              credential: 'c',
-            },
-          ],
-        },
-      }),
-    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+  it('requests TURN ICE servers from the device run session worker API and returns web preview args', async () => {
+    jest.mocked(turtleFetch).mockResolvedValue(
+      workerApiResponse({
+        iceServers: [
+          { urls: ['stun:stun.cloudflare.com:3478'] },
+          {
+            urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
+            username: 'u',
+            credential: 'c',
+          },
+        ],
+      })
+    );
 
     const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
       logger: createLoggerMock(),
     });
 
@@ -1386,10 +1624,10 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
       'c',
     ]);
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      'https://api.expo.test/v2/device-run-sessions/drs-id/turn-ice-servers',
+      `${DEVICE_RUN_SESSION_WORKER_URL}turn-ice-servers`,
       'POST',
       expect.objectContaining({
-        headers: { Authorization: 'Bearer robot-token' },
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
       })
     );
   });
@@ -1398,14 +1636,32 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
-      logger,
-    });
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), { logger });
 
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('returns [] and warns when the job has no device run session token', async () => {
+    const logger = createLoggerMock();
+
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock({ withToken: false }), {
+      logger,
+    });
+
+    expect(args).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      {
+        err: expect.objectContaining({
+          message: expect.stringMatching(
+            /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+          ),
+        }),
+      },
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
   });
 });
 
@@ -1422,7 +1678,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('continues polling until the device run session is stopped', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1431,13 +1687,59 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
+  it('polls the session status through the worker API with the abort signal', async () => {
+    const ctx = createStatusCtxMock([{ status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
+      `${DEVICE_RUN_SESSION_WORKER_URL}session`,
+      'GET',
+      expect.objectContaining({
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
+        signal: expect.any(AbortSignal),
+        timeout: 30_000,
+      })
+    );
+  });
+
+  it('keeps polling while the session status is new', async () => {
+    const ctx = createStatusCtxMock([{ status: 'new' }, { status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(workerApiCallCount('session')).toBe(2);
+  });
+
+  it('fails with a system error when the job has no device run session token', async () => {
+    const error = await waitForDeviceRunSessionStoppedAsync({
+      ctx: createCtxMock({ withToken: false }),
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toMatch(
+      /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+  });
+
   it('returns normally when the maximum duration elapses', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const logger = createLoggerMock();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1451,7 +1753,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     durationTimeoutCallback();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(logger.info).toHaveBeenCalledWith(
       'Device run session drs-id reached its maximum duration.'
     );
@@ -1460,7 +1762,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
   it('clears the duration timeout when the session stops first', async () => {
     await waitForDeviceRunSessionStoppedAsync({
-      ctx: createStatusCtxMock([{ status: 'STOPPED' }]),
+      ctx: createStatusCtxMock([{ status: 'stopped' }]),
       deviceRunSessionId: 'drs-id',
       logger: createLoggerMock(),
       maxDurationSeconds: 30,
@@ -1482,12 +1784,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       signal: abortController.signal,
     });
 
-    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
+    expect(workerApiCallCount('session')).toBe(0);
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
   it('throws when the device run session errors', async () => {
-    const ctx = createStatusCtxMock([{ status: 'ERRORED' }]);
+    const ctx = createStatusCtxMock([{ status: 'errored' }]);
 
     await expect(
       waitForDeviceRunSessionStoppedAsync({
@@ -1501,7 +1803,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('clears the duration timeout when the build step is aborted', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const abortController = new AbortController();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1514,12 +1816,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     abortController.abort();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
   it('logs and retries transient polling errors', async () => {
-    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1528,7 +1830,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1540,11 +1842,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     );
   });
 
-  it('logs and retries when the status response is missing', async () => {
-    const ctx = createStatusCtxMock([
-      { data: { deviceRunSessions: { byId: null } } },
-      { status: 'STOPPED' },
-    ]);
+  it('logs and retries when the status response does not match the route contract', async () => {
+    const ctx = createStatusCtxMock([{ data: { id: 'drs-id' } }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1553,7 +1852,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1561,7 +1860,9 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
       'Could not poll device run session status',
       expect.objectContaining({
-        message: 'Device run session drs-id status response was missing.',
+        message: expect.stringContaining(
+          'GET /v2/device-run-session-worker/session returned an unexpected response'
+        ),
       }),
       { level: 'warning' }
     );
@@ -1582,8 +1883,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       jest.useRealTimers();
     });
 
-    function manyInProgressStatuses(): { status: 'IN_PROGRESS' }[] {
-      return Array.from({ length: 20 }, () => ({ status: 'IN_PROGRESS' as const }));
+    function manyInProgressStatuses(): { status: 'in-progress' }[] {
+      return Array.from({ length: 20 }, () => ({ status: 'in-progress' as const }));
     }
 
     it('stops the session when no activity is observed within the max idle time', async () => {
@@ -1601,15 +1902,15 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       });
 
       // One minute at the 5-second poll interval is 12 status polls.
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(12);
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('session')).toBe(12);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.info).toHaveBeenCalledWith(
         'Device run session drs-id had no activity for 1 minute(s) (max idle time). Stopping the session.'
       );
     });
 
     it('keeps the session alive while events keep arriving', async () => {
-      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'STOPPED' }]);
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
       const logger = createLoggerMock();
 
       await waitForDeviceRunSessionStoppedAsync({
@@ -1624,14 +1925,14 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(21);
-      expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
       expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     });
 
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
-        ensureStoppedError: new Error('forbidden'),
+        stopError: new Error('forbidden'),
       });
       const logger = createLoggerMock();
 
@@ -1645,7 +1946,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.warn).toHaveBeenCalledWith(
         { err: expect.any(Error) },
         'Could not mark device run session drs-id as stopped. The session job ends anyway.'

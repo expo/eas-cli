@@ -2,6 +2,58 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [25.1.1](https://github.com/expo/eas-cli/releases/tag/v25.1.1) - 2026-10-16
+
+### 🐛 Bug fixes
+
+- [build-tools] Call www only through the device run session worker API in device run session jobs, and remove their GraphQL fallbacks. ([#4638](https://github.com/expo/eas-cli/pull/4638) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [25.1.0](https://github.com/expo/eas-cli/releases/tag/v25.1.0) - 2026-10-16
+
+### 🎉 New features
+
+- [eas-cli] Show EAS Simulator minutes in `eas account:usage`. ([#4583](https://github.com/expo/eas-cli/pull/4583) by [@LipLoody](https://github.com/LipLoody))
+- [build-tools] Pass the `cors_origins` session input to serve-sim and expo-device-hub as `--cors-origin` origins, so a third party page can call the preview host API, for example with `@expo/hub-client`. ([#4657](https://github.com/expo/eas-cli/pull/4657) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [build-tools] Pass the `frame_ancestors` session input to serve-sim and expo-device-hub as `--frame-ancestor` origins, so a third party can embed the preview host. ([#4655](https://github.com/expo/eas-cli/pull/4655) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [eas-cli] Add `--cors-origin` to `eas simulator:start`, so a third party page can call the simulator preview API, for example with `@expo/hub-client`. ([#4658](https://github.com/expo/eas-cli/pull/4658) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [eas-cli] Add `--frame-ancestor` to `eas simulator:start`, so a third party site can embed the simulator preview, and print the embeddable preview URL. ([#4656](https://github.com/expo/eas-cli/pull/4656) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
+### 🐛 Bug fixes
+
+- [build-tools] Allocate 4 GiB of guest RAM to Android emulators in EAS Simulator sessions. ([#4640](https://github.com/expo/eas-cli/pull/4640) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Retry transient Google Play API failures with exponential backoff while keeping uncertain commit results explicit. ([#4629](https://github.com/expo/eas-cli/pull/4629) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Retry Google Play edit commits when an uploaded Android App Bundle is still processing, with bounded retries and progress warnings. ([#4651](https://github.com/expo/eas-cli/pull/4651) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Report Google Play error responses to Sentry so unexplained submission failures can be classified. ([#4652](https://github.com/expo/eas-cli/pull/4652) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [25.0.0](https://github.com/expo/eas-cli/releases/tag/v25.0.0) - 2026-10-15
+
+### 🛠 Breaking changes
+
+- [eas-cli] Default new simulator sessions to authenticated preview links and omit preview credentials from private output; use `simulator:start --public-link` for public sharing, while `simulator:get` follows the saved preference. ([#4619](https://github.com/expo/eas-cli/pull/4619) by [@gwdp](https://github.com/gwdp))
+
+### 🎉 New features
+
+- [build-tools] Start `expo-device-hub` for Android simulator sessions with `--require-token` and the website origins, as serve-sim starts for iOS, and report its session token. ([#4578](https://github.com/expo/eas-cli/pull/4578) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [build-tools] Respect saved sharing preferences for iOS simulator preview sessions. ([#4620](https://github.com/expo/eas-cli/pull/4620) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give agent-device and its simulator preview separate session logs. ([#4585](https://github.com/expo/eas-cli/pull/4585) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give Appium and its simulator preview separate session logs. ([#4586](https://github.com/expo/eas-cli/pull/4586) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Give Argent and its simulator preview separate session logs. ([#4587](https://github.com/expo/eas-cli/pull/4587) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Let serve-sim start the iOS Simulator for web-preview sessions. ([#4601](https://github.com/expo/eas-cli/pull/4601) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stream simulator preview output into its existing session step. ([#4525](https://github.com/expo/eas-cli/pull/4525) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Use effectivePermissions for logic about capabilities and account:view display. ([#4637](https://github.com/expo/eas-cli/pull/4637) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- [build-tools] Speed up cold iOS Appium sessions by launching preinstalled WebDriverAgent. ([#4618](https://github.com/expo/eas-cli/pull/4618) by [@gwdp](https://github.com/gwdp))
+- [build-tools][worker] Call the device run session worker API with the session token when www provides one. ([#4615](https://github.com/expo/eas-cli/pull/4615) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools][eas-json] Clarify Google Play submission messages and reject zero Android submission rollouts. ([#4625](https://github.com/expo/eas-cli/pull/4625) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Update error message for scoped VC in EAS CLI now that scoped can be used outside build. ([#4636](https://github.com/expo/eas-cli/pull/4636) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- [build-tools][worker] Mask the credentials `eas/run_agent` leases with the build log secrets filter instead of redacting them in the step. ([#4624](https://github.com/expo/eas-cli/pull/4624) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Add shared opt-in serve-sim Simulator startup support. ([#4605](https://github.com/expo/eas-cli/pull/4605) by [@gwdp](https://github.com/gwdp))
+
 ## [24.14.0](https://github.com/expo/eas-cli/releases/tag/v24.14.0) - 2026-10-14
 
 ### 🎉 New features

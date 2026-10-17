@@ -56,6 +56,7 @@ export const DeviceRunSessionQuery = {
                   id
                   name
                   tags
+                  publicPreview
                   status
                   type
                   platform
