@@ -4,8 +4,11 @@ import { DeviceRunSessionQuery } from '../graphql/queries/DeviceRunSessionQuery'
 import Log from '../log';
 
 export class ControlSessionEndedError extends Error {
-  constructor(sessionId: string) {
-    super(`Simulator session ${sessionId} has ended.`);
+  constructor(
+    sessionId: string,
+    readonly failed = false
+  ) {
+    super(`Simulator session ${sessionId} ${failed ? 'errored' : 'has ended'}.`);
     this.name = 'ControlSessionEndedError';
   }
 }
@@ -98,7 +101,10 @@ export function watchControlSession(
               session.turtleJobRun.status
             ))
         ) {
-          stop(new ControlSessionEndedError(sessionId));
+          const failed =
+            session.status === DeviceRunSessionStatus.Errored ||
+            session.turtleJobRun?.status === JobRunStatus.Errored;
+          stop(new ControlSessionEndedError(sessionId, failed));
         } else {
           schedulePoll();
         }

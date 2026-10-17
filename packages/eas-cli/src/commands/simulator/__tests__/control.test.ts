@@ -22,6 +22,7 @@ import {
   HostActionCatalog,
   HostActionResult,
   connectHostActionsAsync,
+  fetchHostActionDeviceAsync,
 } from '../../../simulator/hostActions';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorControl from '../control';
@@ -35,6 +36,7 @@ jest.mock('../../../simulator/env', () => ({
 jest.mock('../../../simulator/hostActions', () => ({
   ...jest.requireActual('../../../simulator/hostActions'),
   connectHostActionsAsync: jest.fn(),
+  fetchHostActionDeviceAsync: jest.fn(),
 }));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
@@ -131,6 +133,9 @@ describe(SimulatorControl, () => {
     jest.clearAllMocks();
     jest.mocked(loadSimulatorEnvAsync).mockResolvedValue();
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
+    jest
+      .mocked(fetchHostActionDeviceAsync)
+      .mockResolvedValue({ udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' });
     connectionController = new AbortController();
     mockConnectHostActionsAsync.mockResolvedValue({
       requestAsync,
@@ -367,6 +372,10 @@ describe(SimulatorControl, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        device: expect.objectContaining({ udid: 'simulator-udid' }),
+      }),
       action: 'permissions.list',
       output: { voiceover: 'off' },
       file: null,
@@ -383,6 +392,11 @@ describe(SimulatorControl, () => {
     ]).runAsync();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        project: '@testuser/testapp',
+        device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+      }),
       action: 'hardwareKeyboard.set',
       output: 'off',
       file: null,
@@ -723,6 +737,37 @@ describe(SimulatorControl, () => {
     } finally {
       watch.mockRestore();
     }
+  });
+
+  it('propagates an errored session instead of reporting a successful end', async () => {
+    jest
+      .mocked(runControlMenuAsync)
+      .mockRejectedValueOnce(
+        new controlSession.ControlSessionEndedError('session-123', /* failed */ true)
+      );
+    await expect(createCommand(['--id', 'session-123']).runAsync()).rejects.toThrow(
+      'session-123 errored'
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(Log.log).not.toHaveBeenCalledWith('Simulator session session-123 has ended.');
+  });
+
+  it('shows session and device details without terminal escape sequences', async () => {
+    mockByIdAsync.mockResolvedValueOnce(
+      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed' })
+    );
+    await createCommand(['--id', 'session-123']).runAsync();
+    const text = jest
+      .mocked(Log.log)
+      .mock.calls.map(([value]) => String(value))
+      .join('\n');
+    expect(text).toContain('Checkout QA Spoofed');
+    expect(text).toContain('@testuser/testapp');
+    expect(text).toContain('iPhone 17 Pro · iOS 26.4');
+    expect(text).toContain('session-123');
+    expect(text).toContain('simulator-udid');
+    expect(text).not.toContain('\x1b[31m');
+    expect(text).not.toContain('preview-token');
   });
 
   it('closes the connection if the interactive controller fails unexpectedly', async () => {

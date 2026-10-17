@@ -15,6 +15,7 @@ import {
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
+  fetchHostActionDeviceAsync,
   formatHostActionUsage,
   saveHostActionOutputAsync,
   uploadFileAsync,
@@ -138,6 +139,12 @@ describe(buildHostActionParams, () => {
 });
 
 describe(formatHostActionUsage, () => {
+  it('shows the required alternative file sources for an upload action', () => {
+    expect(formatHostActionUsage('app.install', entry('app.install'))).toBe(
+      'app.install <uploadId=...|path>'
+    );
+  });
+
   it('marks required and optional parameters', () => {
     expect(formatHostActionUsage('permissions.set', entry('permissions.set'))).toBe(
       'permissions.set <action> <service> <bundleId>'
@@ -148,6 +155,61 @@ describe(formatHostActionUsage, () => {
     expect(formatHostActionUsage('camera.switch', entry('camera.switch'))).toBe(
       'camera.switch <source> [target]'
     );
+  });
+});
+
+describe(fetchHostActionDeviceAsync, () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('selects the connected device from the authenticated metadata catalog', async () => {
+    const fetch = jest.spyOn(fetchModule, 'default').mockResolvedValueOnce(
+      new fetchModule.Response(
+        JSON.stringify({
+          devices: [
+            { device: 'other-device', name: 'Other Simulator' },
+            { device: UDID, name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+          ],
+        })
+      )
+    );
+    await expect(
+      fetchHostActionDeviceAsync(
+        { apiUrl: 'https://sim.example.test/preview/', token: TOKEN },
+        UDID
+      )
+    ).resolves.toEqual({
+      udid: UDID,
+      name: 'iPhone 17 Pro',
+      runtime: 'iOS-26-4',
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      'https://sim.example.test/preview/grid/api/catalog',
+      expect.objectContaining({
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        redirect: 'error',
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it('keeps the device ID when an older server has no metadata route', async () => {
+    jest.spyOn(fetchModule, 'default').mockRejectedValueOnce(new Error('Not found'));
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+    ).resolves.toEqual({ udid: UDID });
+  });
+
+  it('does not borrow metadata from another device', async () => {
+    jest
+      .spyOn(fetchModule, 'default')
+      .mockResolvedValueOnce(
+        new fetchModule.Response(
+          JSON.stringify({ devices: [{ device: 'other-device', name: 'Other Simulator' }] })
+        )
+      );
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+    ).resolves.toEqual({ udid: UDID });
   });
 });
 

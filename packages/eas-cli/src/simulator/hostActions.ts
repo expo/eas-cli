@@ -44,6 +44,8 @@ const Catalog = z.record(z.string(), CatalogEntry);
 export type HostActionCatalog = z.infer<typeof Catalog>;
 export type HostActionCatalogEntry = z.infer<typeof CatalogEntry>;
 
+export type HostActionDevice = { udid: string; name?: string; runtime?: string };
+
 const PreviewConfig = z.object({ device: z.string().min(1) });
 
 const ReplyId = z.object({ id: z.number() });
@@ -63,7 +65,7 @@ const HOST_ACTION_TIMEOUT_MS = 130_000;
 const PREVIEW_API_TIMEOUT_MS = 30_000;
 const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
 const NAMED_VALUE = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/s;
-const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+export const NUMBER_PATTERN = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 function previewEndpoint(apiUrl: string, endpoint: string): URL {
   const base = new URL(apiUrl);
@@ -117,6 +119,31 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
     );
   }
   return config.data.device;
+}
+
+/** Display metadata is optional on older preview servers and must not block device controls. */
+export async function fetchHostActionDeviceAsync(
+  { apiUrl, token }: PreviewApiAccess,
+  udid: string
+): Promise<HostActionDevice> {
+  try {
+    const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(3000),
+    });
+    const catalog = z
+      .object({
+        devices: z.array(
+          z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
+        ),
+      })
+      .parse(await response.json());
+    const device = catalog.devices.find(device => device.device === udid);
+    return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
+  } catch {
+    return { udid };
+  }
 }
 
 function refusedError(error: string): Error {
@@ -365,7 +392,10 @@ function coerce(value: string, schemas: unknown[]): unknown {
       return value;
     }
   }
-  if (NUMBER.test(value) && schemas.some(schema => acceptsType(schema, ['number', 'integer']))) {
+  if (
+    NUMBER_PATTERN.test(value) &&
+    schemas.some(schema => acceptsType(schema, ['number', 'integer']))
+  ) {
     return Number(value);
   }
   if (
@@ -379,9 +409,21 @@ function coerce(value: string, schemas: unknown[]): unknown {
 
 export function formatHostActionUsage(name: string, entry: HostActionCatalogEntry): string {
   const required = requiredProperties(entry);
-  const names = positionalNames(entry).map(property =>
-    required.has(property) ? `<${property}>` : `[${property}]`
+  const alternatives = (entry.anyOf ?? entry.oneOf ?? []).map(branch =>
+    [...requiredProperties(branch)].filter(
+      property => property !== 'udid' && !required.has(property)
+    )
   );
+  const requiredAlternatives =
+    alternatives.length > 0 && alternatives.every(properties => properties.length === 1)
+      ? alternatives.map(([property]) => property)
+      : [];
+  const names = positionalNames(entry).map(property => {
+    if (requiredAlternatives.includes(property)) {
+      return `<${requiredAlternatives.map(name => (name === property ? name : `${name}=...`)).join('|')}>`;
+    }
+    return required.has(property) ? `<${property}>` : `[${property}]`;
+  });
   return [name, ...names].join(' ');
 }
 

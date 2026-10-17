@@ -2,26 +2,26 @@ import chalk from 'chalk';
 
 import { ControlAction } from './controlActions';
 import { ControlPromptCancelledError, promptControlValueAsync } from './controlPrompts';
-import { HostActionCatalog, HostActionCatalogEntry } from './hostActions';
+import { HostActionCatalog, HostActionCatalogEntry, NUMBER_PATTERN } from './hostActions';
 import Log from '../log';
 
 type Schema = Record<string, unknown>;
 type Fields = { properties: Record<string, unknown>; required: Set<string> };
 
-function object(value: unknown): value is Schema {
+function isObject(value: unknown): value is Schema {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function fields(schema: Schema): Fields | null {
+function getObjectFields(schema: Schema): Fields | null {
   if (schema.anyOf || schema.oneOf || (schema.type && schema.type !== 'object')) {
     return null;
   }
   const result: Fields = {
-    properties: object(schema.properties) ? { ...schema.properties } : {},
+    properties: isObject(schema.properties) ? { ...schema.properties } : {},
     required: new Set(Array.isArray(schema.required) ? (schema.required as string[]) : []),
   };
   for (const child of Array.isArray(schema.allOf) ? schema.allOf : []) {
-    const nested = object(child) ? fields(child) : null;
+    const nested = isObject(child) ? getObjectFields(child) : null;
     if (!nested) {
       return null;
     }
@@ -37,10 +37,10 @@ async function selectFieldsAsync(
 ): Promise<{ fields: Fields; params: Schema } | null> {
   const alternatives = entry.oneOf ?? entry.anyOf;
   if (!alternatives) {
-    const result = fields(entry);
+    const result = getObjectFields(entry);
     return result && { fields: result, params: {} };
   }
-  const branches = alternatives.map(branch => (object(branch) ? fields(branch) : null));
+  const branches = alternatives.map(branch => (isObject(branch) ? getObjectFields(branch) : null));
   if (branches.some(branch => !branch)) {
     return null;
   }
@@ -52,7 +52,7 @@ async function selectFieldsAsync(
       continue;
     }
     const values = available.map(branch => branch.properties[name]);
-    if (!values.every(schema => object(schema) && Object.hasOwn(schema, 'const'))) {
+    if (!values.every(schema => isObject(schema) && Object.hasOwn(schema, 'const'))) {
       continue;
     }
     const constants = values.map(schema => (schema as Schema).const);
@@ -85,7 +85,7 @@ async function selectFieldsAsync(
     }
     selected = candidates[0].index;
   }
-  const common = fields({ ...entry, anyOf: undefined, oneOf: undefined });
+  const common = getObjectFields({ ...entry, anyOf: undefined, oneOf: undefined });
   if (!common || !available[selected]) {
     return null;
   }
@@ -99,7 +99,7 @@ async function selectFieldsAsync(
   };
 }
 
-function types(schema: Schema): string[] {
+function getSchemaTypes(schema: Schema): string[] {
   return [
     schema.type ?? [],
     ...(Array.isArray(schema.anyOf) ? schema.anyOf : []),
@@ -109,14 +109,14 @@ function types(schema: Schema): string[] {
       ? [value]
       : Array.isArray(value)
         ? value.filter((item): item is string => typeof item === 'string')
-        : object(value)
-          ? types(value)
+        : isObject(value)
+          ? getSchemaTypes(value)
           : []
   );
 }
 
 function parseValue(value: string, schema: Schema): unknown {
-  const accepted = types(schema);
+  const accepted = getSchemaTypes(schema);
   if (usesJson(accepted)) {
     const parsed: unknown = JSON.parse(value);
     const type = parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed;
@@ -128,10 +128,7 @@ function parseValue(value: string, schema: Schema): unknown {
     }
     throw new Error('Enter a JSON value matching this parameter.');
   }
-  if (
-    (accepted.includes('number') || accepted.includes('integer')) &&
-    /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(value)
-  ) {
+  if ((accepted.includes('number') || accepted.includes('integer')) && NUMBER_PATTERN.test(value)) {
     const number = Number(value);
     if (
       Number.isFinite(number) &&
@@ -151,7 +148,7 @@ function usesJson(accepted: string[]): boolean {
 }
 
 async function promptFieldAsync(name: string, raw: unknown, signal: AbortSignal): Promise<unknown> {
-  const schema = object(raw) ? raw : {};
+  const schema = isObject(raw) ? raw : {};
   if (Object.hasOwn(schema, 'const')) {
     return schema.const;
   }
@@ -168,7 +165,7 @@ async function promptFieldAsync(name: string, raw: unknown, signal: AbortSignal)
       signal
     );
   }
-  const accepted = types(schema);
+  const accepted = getSchemaTypes(schema);
   if (accepted.length === 1 && accepted[0] === 'boolean') {
     return await promptControlValueAsync(
       { type: 'toggle', message: name, active: 'true', inactive: 'false', initial: false },
@@ -208,7 +205,7 @@ export async function promptControlActionAsync(
         message: 'Parameters (JSON object, without udid)',
         validate(value: string) {
           try {
-            return object(JSON.parse(value)) || 'Enter a JSON object.';
+            return isObject(JSON.parse(value)) || 'Enter a JSON object.';
           } catch {
             return 'Enter a JSON object.';
           }
@@ -231,7 +228,7 @@ export async function promptControlActionAsync(
       const schema = selected.fields.properties[name];
       if (!selected.fields.required.has(name)) {
         const hint =
-          object(schema) && Object.hasOwn(schema, 'default')
+          isObject(schema) && Object.hasOwn(schema, 'default')
             ? ` (default: ${JSON.stringify(schema.default)})`
             : '';
         const include = await promptControlValueAsync(
@@ -281,8 +278,6 @@ export async function runControlMenuAsync({
       })),
   ];
   signal.throwIfAborted();
-  Log.newLine();
-  Log.log(chalk.bold('Simulator controls'));
   Log.gray(
     `${Object.keys(catalog).length} actions · Type to search · ↑/↓ to navigate · Enter to select · Ctrl-C to exit`
   );
