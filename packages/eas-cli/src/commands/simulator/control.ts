@@ -45,14 +45,14 @@ import {
 import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import formatFields from '../../utils/formatFields';
-import { sanitizeTerminalText } from '../../utils/terminalText';
+import { sanitizeTerminalText, truncate } from '../../utils/terminalText';
 import { formatMilliseconds } from '../../utils/timer';
 
 type ControlSession = {
   id: string;
   name: string | null;
   project: string;
-  status: string;
+  status: DeviceRunSessionStatus;
   device: HostActionDevice;
 };
 
@@ -91,7 +91,7 @@ export default class SimulatorControl extends EasCommand {
     }),
     import: Flags.string({
       description:
-        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Existing output files are replaced without prompting. Example: {"version":1,"actions":[{"action":"app.install","file":"./MyApp.ipa"}]}',
+        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Explicit output files are overwritten without prompting; directory outputs use simulator filenames and fail if the file exists. Example: {"version":1,"actions":[{"action":"app.install","file":"./MyApp.ipa"}]}',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -263,8 +263,13 @@ export default class SimulatorControl extends EasCommand {
             Log.gray(`  Read: ${plan.localFile.path}`);
           }
           if (plan.outputPath) {
-            Log.gray(`  Write: ${plan.outputPath} (overwrites if it exists)`);
+            Log.gray(`  Output: ${plan.outputPath}`);
           }
+        }
+        if (config.actions.some(({ plan }) => plan.outputPath)) {
+          Log.gray(
+            'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+          );
         }
         Log.newLine();
       }
@@ -356,18 +361,21 @@ export default class SimulatorControl extends EasCommand {
   }
 
   private printSessionHeader(session: ControlSession): void {
-    const clean = (value: string): string => sanitizeTerminalText(stripVTControlCharacters(value));
+    const clean = (value: string): string =>
+      sanitizeTerminalText(
+        stripVTControlCharacters(value).replace(/[\u202A-\u202E\u2066-\u2069]/g, '')
+      );
     const runtime = session.device.runtime?.replace(/^([A-Za-z]+)-/, '$1 ').replaceAll('-', '.');
     Log.newLine();
     Log.log(chalk.bold('Simulator controls'));
     Log.log(
       formatFields(
         [
-          { label: 'Session', value: clean(session.name ?? '') || 'Unnamed session' },
+          { label: 'Session', value: truncate(clean(session.name ?? '') || 'Unnamed session', 80) },
           { label: 'Project', value: session.project },
           {
             label: 'Device',
-            value: [clean(session.device.name ?? '') || 'iOS Simulator', runtime]
+            value: [truncate(clean(session.device.name ?? '') || 'iOS Simulator', 80), runtime]
               .filter(Boolean)
               .join(' · '),
           },

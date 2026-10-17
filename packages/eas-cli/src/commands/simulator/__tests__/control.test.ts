@@ -325,7 +325,10 @@ describe(SimulatorControl, () => {
     const savedPath = path.join(tmpDir, 'shot.png');
     expect(await fs.readFile(savedPath, 'utf8')).toBe('png bytes');
     expect(Log.log).toHaveBeenCalledWith(`  Saved: ${savedPath}`);
-    expect(Log.gray).toHaveBeenCalledWith(`  Write: ${savedPath} (overwrites if it exists)`);
+    expect(Log.gray).toHaveBeenCalledWith(`  Output: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(
+      'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+    );
     expect(jest.mocked(Log.gray).mock.invocationCallOrder[0]).toBeLessThan(
       requestAsync.mock.invocationCallOrder[1]
     );
@@ -771,7 +774,7 @@ describe(SimulatorControl, () => {
 
   it('shows session and device details without terminal escape sequences', async () => {
     mockByIdAsync.mockResolvedValueOnce(
-      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed' })
+      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed\u202E' })
     );
     await createCommand(['--id', 'session-123']).runAsync();
     const text = jest
@@ -784,6 +787,7 @@ describe(SimulatorControl, () => {
     expect(text).toContain('session-123');
     expect(text).toContain('simulator-udid');
     expect(text).not.toContain('\x1b[31m');
+    expect(text).not.toContain('\u202E');
     expect(text).not.toContain('preview-token');
   });
 
