@@ -166,10 +166,9 @@ describe(SimulatorControl, () => {
     await createCommand(['--list', '--id', 'session-123']).runAsync();
 
     expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
-      'permissions.set <action> <service> <bundleId>'
-    );
-    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
-      '    Grant, revoke or reset one permission for an app.'
+      expect.stringMatching(
+        /^permissions\.set <action> <service> <bundleId> {2,}Grant, revoke or reset one permission for an app\.$/
+      )
     );
     expect(actionRequests()).toEqual([]);
   });

@@ -133,11 +133,13 @@ export default class SimulatorControl extends EasCommand {
       printJsonOnlyOutput(catalog);
       return;
     }
-    for (const [name, entry] of Object.entries(catalog)) {
-      Log.log(formatHostActionUsage(name, entry));
-      if (entry.description) {
-        Log.log(`    ${entry.description}`);
-      }
+    const rows = Object.entries(catalog).map(([name, entry]) => ({
+      usage: formatHostActionUsage(name, entry),
+      description: entry.description,
+    }));
+    const width = Math.max(0, ...rows.map(row => row.usage.length));
+    for (const { usage, description } of rows) {
+      Log.log(description ? `${usage.padEnd(width)}  ${description}` : usage);
     }
   }
 
