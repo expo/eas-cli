@@ -149,6 +149,36 @@ describe(SimulatorControl, () => {
     return requestAsync.mock.calls.filter(([action]) => action !== 'actions.describe');
   }
 
+  it.each([['--id='], ['--id', '']])('refuses an empty session ID in %j', async (...flags) => {
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      EAS_SIMULATOR_SESSION_ID: 'env-session',
+    });
+    try {
+      await expect(
+        createCommand(['hardwareKeyboard.set', 'off', ...flags]).runAsync()
+      ).rejects.toThrow('--id needs a simulator session ID.');
+      expect(loadSimulatorEnvAsync).not.toHaveBeenCalled();
+      expect(mockByIdAsync).not.toHaveBeenCalled();
+      expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+    } finally {
+      env.restore();
+    }
+  });
+
+  it('uses the environment session when --id is absent', async () => {
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      EAS_SIMULATOR_SESSION_ID: 'env-session',
+    });
+    try {
+      await createCommand(['hardwareKeyboard.set', 'off']).runAsync();
+      expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'env-session');
+    } finally {
+      env.restore();
+    }
+  });
+
   it('runs an action from the catalog with its values and prints the output', async () => {
     await createCommand(['hardwareKeyboard.set', 'off', '--id', 'session-123']).runAsync();
 

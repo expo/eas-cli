@@ -40,6 +40,7 @@ export default class SimulatorControl extends EasCommand {
   static override examples = [
     '$ eas simulator:control',
     '$ eas simulator:control --id <session-id>',
+    '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -49,7 +50,7 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
     }),
   };
 
@@ -78,6 +79,9 @@ export default class SimulatorControl extends EasCommand {
     if (jsonFlag) {
       enableJsonOutput();
     }
+    if (flags.id === '') {
+      throw new Error('--id needs a simulator session ID.');
+    }
     const action = flags.list ? undefined : args.action;
 
     const {
@@ -88,7 +92,7 @@ export default class SimulatorControl extends EasCommand {
     });
 
     await loadSimulatorEnvAsync(projectDir);
-    const sessionId = flags.id || process.env[EAS_SIMULATOR_SESSION_ID];
+    const sessionId = flags.id ?? process.env[EAS_SIMULATOR_SESSION_ID];
     if (!sessionId) {
       throw new Error(
         `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
