@@ -1,4 +1,5 @@
 import { Args, Flags } from '@oclif/core';
+import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import path from 'path';
 
@@ -40,6 +41,7 @@ export default class SimulatorControl extends EasCommand {
   static override examples = [
     '$ eas simulator:control',
     '$ eas simulator:control --id <session-id>',
+    '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
@@ -56,6 +58,10 @@ export default class SimulatorControl extends EasCommand {
   };
 
   static override flags = {
+    help: Flags.boolean({
+      char: 'h',
+      description: 'Show command help, or usage for the selected action from the session.',
+    }),
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
@@ -84,7 +90,7 @@ export default class SimulatorControl extends EasCommand {
     if (flags.id === '') {
       throw new Error('--id needs a simulator session ID.');
     }
-    const action = flags.list ? undefined : args.action;
+    const action = flags.list && !flags.help ? undefined : args.action;
 
     const {
       projectDir,
@@ -118,7 +124,17 @@ export default class SimulatorControl extends EasCommand {
         this.printCatalog(catalog, jsonFlag);
         return;
       }
-      await this.runActionAsync(connection, catalog, {
+      const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
+      if (!entry) {
+        throw new Error(
+          `Unknown simulator action "${action}". Run \`eas simulator:control\` to see the actions.`
+        );
+      }
+      if (flags.help) {
+        this.printActionHelp(action, entry, jsonFlag);
+        return;
+      }
+      await this.runActionAsync(connection, entry, {
         sessionId,
         action,
         values: argv.slice(1).map(String),
@@ -135,26 +151,59 @@ export default class SimulatorControl extends EasCommand {
       printJsonOnlyOutput(catalog);
       return;
     }
-    const rows = Object.entries(catalog).map(([name, entry]) => {
-      const usage = formatHostActionUsage(name, entry);
-      const output =
-        entry.output === 'base64' ? '--output <local-path>' : '[--output <local-path>]';
-      return {
-        usage: entry.output ? `${usage} ${output}` : usage,
-        description: entry.output
-          ? `${entry.description ?? ''} Use --output for the local filename.`.trim()
-          : entry.description,
-      };
-    });
-    const width = Math.max(0, ...rows.map(row => row.usage.length));
-    for (const { usage, description } of rows) {
-      Log.log(description ? `${usage.padEnd(width)}  ${description}` : usage);
+    const names = Object.keys(catalog).sort();
+    const width = Math.max(0, ...names.map(name => name.length)) + 3;
+    const columns = Math.max(1, Math.min(3, Math.floor((process.stdout.columns || 80) / width)));
+    const rows = Math.ceil(names.length / columns);
+    for (let row = 0; row < rows; row++) {
+      const cells = Array.from({ length: columns }, (_, column) =>
+        (names[row + column * rows] ?? '').padEnd(width)
+      );
+      Log.log(cells.join('').trimEnd());
     }
+    Log.newLine();
+    Log.log('For action usage: eas simulator:control <action> --help');
+  }
+
+  private printActionHelp(action: string, entry: HostActionCatalogEntry, jsonFlag: boolean): void {
+    if (jsonFlag) {
+      printJsonOnlyOutput({ ...entry, action });
+      return;
+    }
+    Log.newLine();
+    Log.log(`  ${chalk.bold(action)}`);
+    if (entry.description) {
+      Log.log(`  ${entry.description}`);
+    }
+    Log.newLine();
+    Log.log(`  ${chalk.bold('USAGE')}`);
+    Log.log(`    eas simulator:control ${formatHostActionUsage(action, entry)}`);
+    const outputFlag = entry.output === 'base64' ? '--output <path>' : '[--output <path>]';
+    Log.log(`      ${entry.output ? `${outputFlag} ` : ''}[--id <session-id>] [--json]`);
+    Log.newLine();
+    Log.log(`  ${chalk.bold('OPTIONS')}`);
+    Log.log(`    --id <session-id>  Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`);
+    Log.log('    --json             Print the action schema as JSON. Implies --non-interactive.');
+    if (entry.output) {
+      Log.log(
+        entry.output === 'base64'
+          ? '    --output <path>    Required local filename for the returned file.'
+          : '    --output <path>    Local filename or existing directory.'
+      );
+      if (entry.output === 'path') {
+        Log.log('                       Omit to save with the generated filename.');
+      }
+      Log.newLine();
+      Log.log(
+        '  Action arguments refer to the simulator host. Use --output for the local filename.'
+      );
+    }
+    Log.newLine();
   }
 
   private async runActionAsync(
     connection: HostActionConnection,
-    catalog: HostActionCatalog,
+    entry: HostActionCatalogEntry,
     {
       sessionId,
       action,
@@ -169,12 +218,6 @@ export default class SimulatorControl extends EasCommand {
       jsonFlag: boolean;
     }
   ): Promise<void> {
-    const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
-    if (!entry) {
-      throw new Error(
-        `Unknown simulator action "${action}". Run \`eas simulator:control --list\` to see the actions.`
-      );
-    }
     const params = buildHostActionParams(action, entry, values);
     await assertHostActionOutputAsync(action, entry, outputPath);
     const localFile = await findLocalUploadAsync(entry, params);

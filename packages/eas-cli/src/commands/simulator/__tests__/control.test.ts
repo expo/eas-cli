@@ -195,12 +195,64 @@ describe(SimulatorControl, () => {
   it.each([false, true])('lists the actions of the session with --list=%s', async list => {
     await createCommand([...(list ? ['--list'] : []), '--id', 'session-123']).runAsync();
 
-    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /^permissions\.set <action> <service> <bundleId> {2,}Grant, revoke or reset one permission for an app\.$/
-      )
+    const lines = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
+    expect(lines.pop()).toBe('For action usage: eas simulator:control <action> --help');
+    expect(lines.flatMap(line => line.trim().split(/\s+/)).sort()).toEqual(
+      Object.keys(catalog).sort()
     );
     expect(actionRequests()).toEqual([]);
+  });
+
+  it.each(['--help', '-h'])('shows action help with %s without running the action', async help => {
+    await createCommand(['permissions.set', help, '--id', 'session-123']).runAsync();
+
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '  Grant, revoke or reset one permission for an app.'
+    );
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '    eas simulator:control permissions.set <action> <service> <bundleId>'
+    );
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows local file guidance without validating output or uploading files', async () => {
+    await createCommand([
+      'screenshot.capture',
+      '--help',
+      '--output',
+      '/missing/folder/screen.png',
+      '--id',
+      'session-123',
+    ]).runAsync();
+
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '    eas simulator:control screenshot.capture [fileName]'
+    );
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '    --output <path>    Local filename or existing directory.'
+    );
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('prints the host action schema as JSON for help', async () => {
+    await createCommand(['app.install', '--help', '--json', '--id', 'session-123']).runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      action: 'app.install',
+      ...catalog['app.install'],
+    });
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects unknown actions in help and closes the connection', async () => {
+    await expect(
+      createCommand(['unknown.action', '--help', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('Unknown simulator action "unknown.action"');
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
   });
 
   it('prints parsed JSON output', async () => {
@@ -374,7 +426,7 @@ describe(SimulatorControl, () => {
 
   it('refuses an action that the session does not list', async () => {
     await expect(createCommand(['server.kill', '--id', 'session-123']).runAsync()).rejects.toThrow(
-      'Unknown simulator action "server.kill". Run `eas simulator:control --list` to see the actions.'
+      'Unknown simulator action "server.kill". Run `eas simulator:control` to see the actions.'
     );
     expect(actionRequests()).toEqual([]);
     expect(close).toHaveBeenCalled();

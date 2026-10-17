@@ -185,6 +185,7 @@
     ],
     "bin": "eas",
     "commands": "./build/commands",
+    "helpClass": "./build/help",
     "plugins": [
       "@oclif/plugin-autocomplete",
       "@expo/plugin-help",
