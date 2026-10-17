@@ -1525,6 +1525,33 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
+  it('does not warn when retiring a watch aborts its pending status request', async () => {
+    const controller = new AbortController();
+    const logger = createLoggerMock();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(new Error('request aborted')), {
+            once: true,
+          });
+        })
+    );
+    const waiting = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await waiting;
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+
   it('logs and retries transient polling errors', async () => {
     const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'STOPPED' }]);
     const logger = createLoggerMock();
@@ -1664,6 +1691,107 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       );
     });
   });
+});
+
+describe('remote configuration cancellation', () => {
+  beforeEach(() => jest.mocked(turtleFetch).mockReset());
+
+  it('does not report readiness for an already stopped startup', async () => {
+    const controller = new AbortController();
+    const stopped = new Error('startup stopped');
+    controller.abort(stopped);
+
+    await expect(
+      remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+        ctx: createCtxMock(),
+        deviceRunSessionId: 'drs-id',
+        remoteConfig: {},
+        logger: createLoggerMock(),
+        signal: controller.signal,
+      })
+    ).rejects.toBe(stopped);
+    expect(turtleFetch).not.toHaveBeenCalled();
+  });
+
+  it('forwards cancellation to the in-flight readiness HTTP request', async () => {
+    const controller = new AbortController();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    const stopped = new Error('session cancelled');
+    let requestAborted = false;
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener(
+            'abort',
+            () => {
+              requestAborted = true;
+              reject(new Error('ready request aborted'));
+            },
+            { once: true }
+          );
+        })
+    );
+    const reporting = remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      remoteConfig: {},
+      logger: createLoggerMock(),
+      signal: controller.signal,
+    });
+    controller.abort(stopped);
+
+    await expect(reporting).rejects.toBe(stopped);
+    expect(requestAborted).toBe(true);
+  });
+
+  it.each(['status', 'ready'])(
+    'cancels a pending tokenless GraphQL %s request',
+    async operation => {
+      const controller = new AbortController();
+      const stopped = new Error('startup stopped');
+      const logger = createLoggerMock();
+      const request = jest.spyOn(globalThis, 'fetch').mockImplementation(
+        (_input, init) =>
+          new Promise((_resolve, reject) => {
+            init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason), {
+              once: true,
+            });
+          })
+      );
+      const graphql = jest.fn((_query, _variables, context: { fetch: typeof fetch }) => ({
+        toPromise: () =>
+          context.fetch('https://api.expo.test/graphql', {}).then(
+            () => ({ data: undefined }),
+            error => ({ error })
+          ),
+      }));
+      const ctx = {
+        ...createCtxMock(),
+        graphqlClient: { query: graphql, mutation: graphql },
+      } as unknown as CustomBuildContext;
+      const options = { ctx, deviceRunSessionId: 'drs-id', logger, signal: controller.signal };
+      const pending =
+        operation === 'status'
+          ? waitForDeviceRunSessionStoppedAsync(options)
+          : remoteDeviceRunSession.uploadRemoteSessionConfigAsync({ ...options, remoteConfig: {} });
+      pending.catch(() => {});
+      try {
+        expect(request).toHaveBeenCalledTimes(1);
+        controller.abort(stopped);
+        if (operation === 'status') {
+          await expect(pending).resolves.toBeUndefined();
+          expect(logger.warn).not.toHaveBeenCalled();
+        } else {
+          await expect(pending).rejects.toBe(stopped);
+        }
+      } finally {
+        controller.abort(stopped);
+        await pending.catch(() => {});
+        request.mockRestore();
+      }
+    }
+  );
 });
 
 describe(ensureFfmpegInstalledOnceAsync, () => {
