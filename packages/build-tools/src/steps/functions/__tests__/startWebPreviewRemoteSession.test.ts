@@ -6,11 +6,13 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
+  DeviceRunSessionStoppedError,
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
+  watchDeviceRunSessionStartup,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
@@ -38,6 +40,7 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
+  watchDeviceRunSessionStartup: jest.fn(),
 }));
 
 const ctx = {} as CustomBuildContext;
@@ -48,7 +51,8 @@ const stopAsync = jest.fn();
 
 async function runAsync(
   runtimePlatform: BuildRuntimePlatform,
-  launchInputs: Record<string, { value: unknown }> = {}
+  launchInputs: Record<string, { value: unknown }> = {},
+  signal?: AbortSignal
 ): Promise<void> {
   const buildFunction = createStartWebPreviewRemoteSessionBuildFunction(ctx);
   await buildFunction.fn!(
@@ -63,6 +67,7 @@ async function runAsync(
         ...launchInputs,
       },
       outputs: {},
+      signal,
       env,
     } as never
   );
@@ -84,7 +89,80 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
+    jest.mocked(watchDeviceRunSessionStartup).mockImplementation(() => ({
+      stopped: new DeviceRunSessionStoppedError('startup stopped'),
+      finishAsync: jest.fn().mockResolvedValue(undefined),
+    }));
     stopAsync.mockResolvedValue(undefined);
+  });
+
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'handles Stop while the %s host starts',
+    async runtimePlatform => {
+      let hostEntered!: () => void;
+      const entered = new Promise<void>(resolve => {
+        hostEntered = resolve;
+      });
+      jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce((_ctx, { signal }) => {
+        hostEntered();
+        return new Promise((_resolve, reject) =>
+          signal!.addEventListener('abort', () => reject(new Error('host aborted')), { once: true })
+        );
+      });
+      const running = runAsync(runtimePlatform);
+      running.catch(() => {});
+      await entered;
+      const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+      jest.mocked(watchDeviceRunSessionStartup).mock.calls[0][0].abort(watch.stopped);
+      await expect(running).resolves.toBeUndefined();
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(watch.finishAsync).toHaveBeenCalled();
+    }
+  );
+
+  it('keeps a teardown failure visible after Stop during preview setup', async () => {
+    let previewEntered!: () => void;
+    let finishPreview!: (value: {
+      previewPageUrl: string;
+      apiUrl: string;
+      closeAsync: () => Promise<void>;
+    }) => void;
+    const entered = new Promise<void>(resolve => {
+      previewEntered = resolve;
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync: () => {
+        previewEntered();
+        return new Promise(resolve => {
+          finishPreview = resolve;
+        });
+      },
+      finishAsync: stopAsync,
+    });
+    const failed = new Error('host teardown failed');
+    stopAsync.mockRejectedValueOnce(failed);
+    const running = runAsync(BuildRuntimePlatform.LINUX);
+    running.catch(() => {});
+    await entered;
+    const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+    jest.mocked(watchDeviceRunSessionStartup).mock.calls[0][0].abort(watch.stopped);
+    finishPreview({
+      previewPageUrl: 'https://preview.test',
+      apiUrl: 'https://server.test',
+      closeAsync: async () => {},
+    });
+    await expect(running).rejects.toBe(failed);
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('retires the startup watcher before lifetime waiting', async () => {
+    await runAsync(BuildRuntimePlatform.LINUX);
+    const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+    expect(watch.finishAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
+    );
   });
 
   it('reports the session token when serve-sim minted one', async () => {
@@ -141,7 +219,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       env: childEnv,
       logger,
       timeoutMs: 60_000,
-      signal: undefined,
+      signal: expect.any(AbortSignal),
       ...(selectsXcode
         ? {
             iosSimulatorUdid: 'SELECTED-IOS-UDID',
@@ -170,6 +248,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         previewApiUrl: 'https://web-preview.example.test',
       },
       logger,
+      signal: expect.any(AbortSignal),
     });
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith({
       ctx,

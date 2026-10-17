@@ -6,7 +6,7 @@ import {
 } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
@@ -26,6 +26,7 @@ import {
   omitNgrokAuthtoken,
   selectXcodeDeveloperDirectoryAsync,
   waitForDeviceRunSessionStoppedAsync,
+  watchDeviceRunSessionStartup,
 } from '../utils/remoteDeviceRunSession';
 
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -61,51 +62,66 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-        runtimePlatform,
-        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
-        installAppPath: inputs.install_app_path?.value as string | undefined,
-        launchAppIdentifier: inputs.launch_app_identifier?.value,
-        launchArgs: inputs.launch_args?.value,
-        openUrl: inputs.open_url?.value,
-        env,
+      const startupAbortController = new AbortController();
+      const startupSignal = signal
+        ? AbortSignal.any([signal, startupAbortController.signal])
+        : startupAbortController.signal;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId,
         logger,
-        signal,
+        signal: startupSignal,
+        abort: reason => startupAbortController.abort(reason),
       });
-      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
-        {
-          networkCapture: inputs.network_capture?.value,
-          networkCaptureFields: inputs.network_capture_fields?.value,
-        },
-        { runtimePlatform }
-      );
-
-      logger.info(`Starting web preview remote session (runtime: ${runtimePlatform}).`);
-      const launchDescription = describeServeSimLaunch(launch);
-      if (launchDescription) {
-        logger.info(launchDescription);
-      }
-
-      const sessionHost = await startDeviceSessionHostAsync(ctx, {
-        ...iosStartup,
-        runtimePlatform,
-        env,
-        logger,
-        timeoutMs: STARTUP_TIMEOUT_MS,
-        signal,
-        packageVersion,
-        launchAppIdentifier: launch.launchAppIdentifier,
-        launchArgs: launch.launchArgs,
-        openUrl: launch.openUrl,
-        networkCapture,
-        networkCaptureFields,
-      });
-
+      let sessionHost: DeviceSessionHost | undefined;
       try {
+        startupSignal.throwIfAborted();
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
+        }
+        const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+          runtimePlatform,
+          bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+          deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+          installAppPath: inputs.install_app_path?.value as string | undefined,
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
+          env,
+          logger,
+          signal: startupSignal,
+        });
+        startupSignal.throwIfAborted();
+        const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+          {
+            networkCapture: inputs.network_capture?.value,
+            networkCaptureFields: inputs.network_capture_fields?.value,
+          },
+          { runtimePlatform }
+        );
+
+        logger.info(`Starting web preview remote session (runtime: ${runtimePlatform}).`);
+        const launchDescription = describeServeSimLaunch(launch);
+        if (launchDescription) {
+          logger.info(launchDescription);
+        }
+
+        sessionHost = await startDeviceSessionHostAsync(ctx, {
+          ...iosStartup,
+          runtimePlatform,
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+          signal: startupSignal,
+          packageVersion,
+          launchAppIdentifier: launch.launchAppIdentifier,
+          launchArgs: launch.launchArgs,
+          openUrl: launch.openUrl,
+          networkCapture,
+          networkCaptureFields,
+        });
+        startupSignal.throwIfAborted();
+
         const webPreview = await sessionHost.openPreviewAsync({
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
@@ -113,7 +129,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         logger.info(`Preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`);
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
-          signal,
+          signal: startupSignal,
           ctx,
           deviceRunSessionId,
           // WEB_PREVIEW_ONLY sessions read webPreviewUrl and webPreviewToken. Legacy SERVE_SIM
@@ -130,6 +146,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           logger,
         });
 
+        await startupWatch.finishAsync();
+        startupSignal.throwIfAborted();
         await waitForDeviceRunSessionStoppedAsync({
           ctx,
           deviceRunSessionId,
@@ -137,8 +155,14 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           maxDurationSeconds,
           signal,
         });
+      } catch (error) {
+        if (startupSignal.reason !== startupWatch.stopped) {
+          throw startupSignal.aborted ? startupSignal.reason : error;
+        }
       } finally {
-        await sessionHost.finishAsync();
+        startupAbortController.abort(new Error('Web preview session ended.'));
+        await startupWatch.finishAsync();
+        await sessionHost?.finishAsync();
       }
     }),
   });
