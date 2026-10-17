@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "start": {
+    "platform": "ios",
+    "type": "web-preview-only",
+    "name": "Saved session",
+    "device": "iPhone 17 Pro",
+    "max-duration-minutes": 10
+  },
+  "actions": [
+    {
+      "action": "appearance.set",
+      "params": {
+        "value": "dark"
+      }
+    },
+    {
+      "action": "hardwareKeyboard.set",
+      "params": {
+        "value": "off"
+      }
+    },
+    {
+      "action": "app.install",
+      "file": "./ControlQA.ipa"
+    },
+    {
+      "action": "app.file.upload",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/imported.txt",
+        "overwrite": true
+      },
+      "file": "./imported.txt"
+    },
+    {
+      "action": "app.file.read",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/imported.txt"
+      },
+      "output": "./readback.txt"
+    },
+    {
+      "action": "app.launch",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "openUrl": "easqa://start-import"
+      }
+    },
+    {
+      "action": "screenshot.capture",
+      "output": "./started-app.png"
+    }
+  ]
+}
