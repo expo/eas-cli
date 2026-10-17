@@ -70,22 +70,6 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
-    {
-      description:
-        'simulator-control.json: file uploads local content; output saves a returned file locally.',
-      command: JSON.stringify(
-        {
-          version: 1,
-          actions: [
-            { action: 'appearance.set', params: { value: 'dark' } },
-            { action: 'app.install', file: './MyApp.ipa' },
-            { action: 'screenshot.capture', output: './screen.png' },
-          ],
-        },
-        null,
-        2
-      ),
-    },
   ];
 
   static override args = {
@@ -107,7 +91,7 @@ export default class SimulatorControl extends EasCommand {
     }),
     import: Flags.string({
       description:
-        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Existing output files are replaced without prompting.',
+        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Existing output files are replaced without prompting. Example: {"version":1,"actions":[{"action":"app.install","file":"./MyApp.ipa"}]}',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
