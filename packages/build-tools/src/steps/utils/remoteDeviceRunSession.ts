@@ -28,6 +28,7 @@ import { Sentry } from '../../sentry';
 import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
@@ -162,6 +163,8 @@ export type DeviceRunSessionIdleTimeout = {
   getLastEventObservedAt: () => Date | undefined;
 };
 
+export class DeviceRunSessionStoppedError extends Error {}
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
@@ -195,9 +198,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }, maxDurationSeconds * 1_000);
 
   try {
-    logger.info(
-      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-    );
+    logger.info(`Polling device run session ${deviceRunSessionId} until it is stopped.`);
     if (durationTimeout !== undefined) {
       logger.info(
         `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
@@ -240,6 +241,9 @@ export async function waitForDeviceRunSessionStoppedAsync({
           throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
         }
       } catch (err) {
+        if (signal.aborted) {
+          return;
+        }
         if (err instanceof SystemError) {
           throw err;
         }
@@ -279,7 +283,7 @@ async function fetchDeviceRunSessionStatusAsync(
     ).status;
   }
   const result = await ctx.graphqlClient
-    .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+    .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId }, graphqlAbortContext(signal))
     .toPromise();
   if (result.error) {
     throw result.error;
@@ -629,20 +633,24 @@ export async function uploadRemoteSessionConfigAsync({
   deviceRunSessionId,
   remoteConfig,
   logger,
+  signal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   remoteConfig: Record<string, unknown>;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
+  signal?.throwIfAborted();
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
   const workerApi = getDeviceRunSessionWorkerApi(ctx);
   if (workerApi) {
     try {
-      await workerApi.startAsync({ remoteConfig });
+      await workerApi.startAsync({ remoteConfig }, { signal });
     } catch (err) {
+      signal?.throwIfAborted();
       throw new SystemError(
         `Failed to start device run session ${deviceRunSessionId}: ${
           err instanceof Error ? err.message : String(err)
@@ -653,8 +661,13 @@ export async function uploadRemoteSessionConfigAsync({
     return;
   }
   const result = await ctx.graphqlClient
-    .mutation(START_DEVICE_RUN_SESSION_MUTATION, { deviceRunSessionId, remoteConfig })
+    .mutation(
+      START_DEVICE_RUN_SESSION_MUTATION,
+      { deviceRunSessionId, remoteConfig },
+      graphqlAbortContext(signal)
+    )
     .toPromise();
+  signal?.throwIfAborted();
   if (result.error) {
     throw new SystemError(
       `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
