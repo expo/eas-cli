@@ -8,6 +8,7 @@ import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts
 import { type RecordedNetworkCapture } from './serveSimNetworkCaptureRecorder';
 
 const NETWORK_CAPTURE_ARTIFACT_FILENAME = 'network-capture.har';
+const MAX_NETWORK_CAPTURE_ARTIFACT_SIZE_BYTES = 500 * 1024 * 1024;
 
 /** Never rejects; a failed upload is logged. */
 export async function uploadNetworkCaptureHarsAsync(
@@ -27,6 +28,12 @@ export async function uploadNetworkCaptureHarsAsync(
     const part = (parts.get(capture.udid) ?? 0) + 1;
     parts.set(capture.udid, part);
     const label = part > 1 ? `, part ${part}` : '';
+    if (capture.size > MAX_NETWORK_CAPTURE_ARTIFACT_SIZE_BYTES) {
+      logger.warn(
+        `Skipping network capture for ${capture.udid}${label}: exceeds the ${formatBytes(MAX_NETWORK_CAPTURE_ARTIFACT_SIZE_BYTES)} upload limit.`
+      );
+      continue;
+    }
     try {
       logger.info(
         `Uploading the network capture for ${capture.udid}${label} (${formatBytes(capture.size)}).`
