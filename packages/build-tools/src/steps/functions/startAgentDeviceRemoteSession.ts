@@ -1,31 +1,34 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import {
-  BuildFunction,
-  BuildRuntimePlatform,
-  type BuildStepEnv,
-  BuildStepInput,
-  BuildStepInputValueTypeName,
-} from '@expo/steps';
+import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { uploadRemoteSessionConfigWithLocalEgressAsync } from '../utils/localEgressSession';
+import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import { Sentry } from '../../sentry';
+import {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageAdd,
+  resolvePackageInstall,
+} from '../../utils/packageManager';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
+import { type parseNetworkCaptureInputs } from '../utils/networkCaptureFields';
 import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
+import { type ServeSimApplicationOptions } from '../utils/remoteDeviceRunSession';
+import { type StartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
+  finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
-  selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
-  startServeSimWithTunnelAsync,
-  uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -39,145 +42,358 @@ const STARTUP_TIMEOUT_MS = 60_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
   AGENT_DEVICE_RETAIN_ARTIFACTS: '1',
+  // The session lifetime is owned by max_idle_time_minutes / max_duration_seconds
+  // and the device run session stop, so disable agent-device's own idle timers.
+  // Without this the daemon exits after 5 minutes with no open session, and the
+  // tunnel is left without a daemon behind it.
+  AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS: '0',
+  AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS: '0',
+  AGENT_DEVICE_SESSION_IDLE_TIMEOUT_MS: '0',
 };
 
-export function createStartAgentDeviceRemoteSessionBuildFunction(
-  ctx: CustomBuildContext
-): BuildFunction {
-  return new BuildFunction({
-    namespace: 'eas',
-    id: 'start_agent_device_remote_session',
-    name: 'Start agent device remote session',
-    __metricsId: 'eas/start_agent_device_remote_session',
-    inputProviders: [
-      BuildStepInput.createProvider({
-        id: 'package_version',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-      }),
-      BuildStepInput.createProvider({
-        id: 'max_idle_time_minutes',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
-      }),
-      BuildStepInput.createProvider({
-        id: 'max_duration_seconds',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
-      }),
-    ],
-    fn: async ({ logger, global }, { inputs, env, signal }) => {
-      // Fail fast before any expensive setup if the injected env
-      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
-      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
-      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+export type AgentDeviceRemoteSessionEnv = {
+  deviceRunSessionId: string;
+  ngrokTunnelDomain: string;
+  ngrokAuthtoken: string;
+};
 
-      const packageVersion = inputs.package_version.value as string | undefined;
-      // A missing or non-positive value disables the idle timeout (opt-in feature).
-      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
-      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      const { runtimePlatform } = global;
-      logger.info(
-        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
-      );
+/**
+ * Reads the env vars that the API server injects into a device run session job:
+ * DEVICE_RUN_SESSION_ID (to report the remote config back to the API server),
+ * EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain for our ngrok tunnels), and
+ * NGROK_AUTHTOKEN (to authenticate them).
+ */
+export function getAgentDeviceRemoteSessionEnvOrThrow(
+  env: BuildStepEnv
+): AgentDeviceRemoteSessionEnv {
+  return {
+    deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
+    ngrokTunnelDomain: getNgrokTunnelDomainOrThrow(env),
+    ngrokAuthtoken: getNgrokAuthtokenOrThrow(env),
+  };
+}
 
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-
-      logger.info('Launching agent-device daemon.');
-      const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
-
-      logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
-        daemonProcess,
-      });
-      logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
-
-      const agentDeviceTunnel = await startNgrokTunnelAsync({
-        port: daemonPort,
-        subdomainPrefix: 'agent-device',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
-        logger,
-      });
-      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
-      logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
-
-      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
-      let eventCollection:
-        | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
-        | undefined;
-      try {
-        // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
-        // on Darwin. Android sessions go without a preview URL.
-        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          serveSim = await startServeSimWithTunnelAsync(ctx, {
-            baseDomain: ngrokTunnelDomain,
-            env,
-            logger,
-            timeoutMs: STARTUP_TIMEOUT_MS,
-          });
-          logger.info(`Web preview URL: ${serveSim.previewUrl}`);
+/**
+ * Starts the agent-device daemon, its tunnel, the session host and the web preview,
+ * reports the session as ready, and keeps it alive until it stops.
+ *
+ * Serve-sim boots while the iOS download runs. After device preparation verifies
+ * any egress guard, its control API installs and launches the app.
+ * Startup failures abort the other tasks; teardown drains them before stopping acquired resources.
+ */
+export async function runAgentDeviceRemoteSessionAsync(
+  ctx: CustomBuildContext,
+  {
+    env,
+    logger,
+    signal,
+    runtimePlatform,
+    sessionEnv: { deviceRunSessionId, ngrokTunnelDomain, ngrokAuthtoken },
+    packageVersion,
+    maxIdleTimeMinutes,
+    maxDurationSeconds,
+    capture,
+    disableShare = false,
+    privatePreviewUrl,
+    frameAncestors,
+    corsOrigins,
+    tasks,
+    device,
+  }: {
+    env: BuildStepEnv;
+    logger: bunyan;
+    signal?: AbortSignal;
+    runtimePlatform: BuildRuntimePlatform;
+    sessionEnv: AgentDeviceRemoteSessionEnv;
+    packageVersion: string | undefined;
+    maxIdleTimeMinutes: number | undefined;
+    maxDurationSeconds: number | undefined;
+    capture: ReturnType<typeof parseNetworkCaptureInputs>;
+    disableShare?: boolean;
+    privatePreviewUrl?: string;
+    frameAncestors?: string[];
+    corsOrigins?: string[];
+    tasks: StartupTasks;
+    device:
+      | {
+          booted: Promise<unknown>;
+          ready: Promise<unknown>;
         }
+      | {
+          iosSimulatorUdid: string;
+          bootEnv?: Record<string, string>;
+          application?: Promise<ServeSimApplicationOptions | void>;
+        };
+  }
+): Promise<void> {
+  signal?.throwIfAborted();
+  tasks.signal.throwIfAborted();
 
-        await uploadRemoteSessionConfigAsync({
-          ctx,
-          deviceRunSessionId,
-          remoteConfig: {
-            agentDeviceRemoteSessionUrl,
-            agentDeviceRemoteSessionToken: daemonToken,
-            ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
-          },
-          logger,
-        });
-        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
-          deviceRunSessionId,
-          daemonUrl: `http://127.0.0.1:${daemonPort}`,
-          daemonToken,
-          logger,
-        });
+  logger.info(
+    `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
+  );
 
-        eventCollection = await startAgentDeviceEventCollectionAsync({
-          ctx,
-          deviceRunSessionId,
-          stateDir: AGENT_DEVICE_STATE_DIR,
-          logger,
-        });
+  let daemonProcess: DetachedProcessHandle | undefined;
+  let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+  let sessionHost: DeviceSessionHost | undefined;
+  let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
+  let sessionFailed = false;
+  const daemonSecrets = [ngrokAuthtoken];
+  const hostBootedDevice = 'iosSimulatorUdid' in device ? device : undefined;
+  const externallyBootedDevice = 'booted' in device ? device : undefined;
 
-        await waitForDeviceRunSessionStoppedAsync({
-          ctx,
-          deviceRunSessionId,
-          logger,
-          maxDurationSeconds,
-          signal,
-          idleTimeout:
-            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
-              ? {
-                  maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
-                }
-              : undefined,
-        });
-      } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
-        }
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
-            deviceRunSessionId,
-            logger,
-          });
-        }
-        await daemonProcess.stopAsync();
-      }
-    },
+  // Each task stores what it started, so the teardown below can stop it even when
+  // another task failed first.
+  const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
+    taskLogger.info('Launching agent-device daemon.');
+    daemonProcess = await startAgentDeviceDaemonAsync({
+      packageVersion,
+      env,
+      logger: taskLogger,
+      signal: tasks.signal,
+      secrets: daemonSecrets,
+    });
+
+    taskLogger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
+    // The daemon is stored above, so the teardown stops it. The wait itself is bounded
+    // (STARTUP_TIMEOUT_MS) and only reads a file, so it may finish in the background.
+    const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
+    daemonSecrets.push(daemonInfo.token);
+    taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
+
+    tasks.signal.throwIfAborted();
+    agentDeviceTunnel = await startNgrokTunnelAsync({
+      port: daemonInfo.port,
+      subdomainPrefix: 'agent-device',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      logger: taskLogger,
+    });
+    tasks.signal.throwIfAborted();
+    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
   });
+  const sessionHostStartup = tasks.run('session host', async taskLogger => {
+    if (externallyBootedDevice) {
+      await tasks.untilAborted(externallyBootedDevice.booted);
+    }
+    tasks.signal.throwIfAborted();
+    sessionHost = await startDeviceSessionHostAsync(ctx, {
+      separateLogPhase: true,
+      runtimePlatform,
+      env,
+      logger: taskLogger,
+      timeoutMs: STARTUP_TIMEOUT_MS,
+      disableShare,
+      privatePreviewUrl,
+      frameAncestors,
+      corsOrigins,
+      signal: tasks.signal,
+      onStartupError: tasks.abort,
+      networkCapture: capture.networkCapture,
+      networkCaptureFields: capture.networkCaptureFields,
+      iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
+      bootEnv: hostBootedDevice?.bootEnv,
+      application: hostBootedDevice?.application,
+    });
+    tasks.signal.throwIfAborted();
+    const webPreview = await sessionHost.openPreviewAsync({
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+    });
+    tasks.signal.throwIfAborted();
+    taskLogger.info(
+      webPreview.sharePageUrl
+        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+        : 'Private preview URL unavailable for this session.'
+    );
+    return webPreview;
+  });
+  const deviceReady = externallyBootedDevice?.ready;
+
+  try {
+    const [
+      { port: daemonPort, token: daemonToken, remoteSessionUrl: agentDeviceRemoteSessionUrl },
+      webPreview,
+    ] = await Promise.all([agentDeviceStartup, sessionHostStartup, deviceReady]).catch(
+      (err: unknown) => {
+        // Also aborts for a `device.ready` that does not come from `tasks.run`.
+        tasks.abort(err);
+        throw tasks.signal.reason;
+      }
+    );
+    tasks.signal.throwIfAborted();
+    logger.info(tasks.summary());
+
+    await uploadRemoteSessionConfigWithLocalEgressAsync({
+      env,
+      signal,
+      ctx,
+      deviceRunSessionId,
+      remoteConfig: {
+        agentDeviceRemoteSessionUrl,
+        agentDeviceRemoteSessionToken: daemonToken,
+        webPreviewUrl: webPreview.previewPageUrl,
+        previewApiUrl: webPreview.apiUrl,
+        ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
+      },
+      logger,
+    });
+    tasks.signal.throwIfAborted();
+    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId,
+      daemonUrl: `http://127.0.0.1:${daemonPort}`,
+      daemonToken,
+      logger,
+    });
+
+    eventCollection = await startAgentDeviceEventCollectionAsync({
+      ctx,
+      deviceRunSessionId,
+      stateDir: AGENT_DEVICE_STATE_DIR,
+      logger,
+    });
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId,
+      logger,
+      maxDurationSeconds,
+      signal,
+      idleTimeout:
+        maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+          ? {
+              maxIdleTimeMinutes,
+              getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+            }
+          : undefined,
+    });
+  } catch (error) {
+    sessionFailed = true;
+    throw error;
+  } finally {
+    // Promise.all rejects on the first failure while other tasks can still be starting.
+    // They stop at their next abort check. Wait for all of them, so the teardown sees
+    // everything that was started.
+    await Promise.allSettled([agentDeviceStartup, sessionHostStartup, deviceReady]);
+    const startedDaemon = daemonProcess;
+    await finishRemoteSessionAsync({
+      logger,
+      sessionFailed,
+      teardown: [
+        ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        [
+          'agent-device daemon',
+          startedDaemon &&
+            (async () => {
+              try {
+                if (eventCollection) {
+                  await stopAgentDeviceEventCollectionSafelyAsync({
+                    eventCollection,
+                    deviceRunSessionId,
+                    logger,
+                  });
+                }
+              } finally {
+                await startedDaemon.stopAsync();
+              }
+            })(),
+        ],
+        ['session host', sessionHost?.finishAsync()],
+      ],
+    });
+  }
+}
+
+export async function startAgentDeviceDaemonAsync({
+  packageVersion,
+  env,
+  logger,
+  signal,
+  secrets,
+}: {
+  packageVersion: string | undefined;
+  env: BuildStepEnv;
+  logger: bunyan;
+  /** Kills the install and stops before the daemon starts, when aborted. No git fallback then. */
+  signal?: AbortSignal;
+  secrets?: string[];
+}): Promise<DetachedProcessHandle> {
+  signal?.throwIfAborted();
+  const packageSpec = createAgentDevicePackageSpec(packageVersion);
+  const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+  const installDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-agent-device-'));
+  await fs.promises.writeFile(
+    path.join(installDir, 'package.json'),
+    `${JSON.stringify({ name: 'eas-agent-device', private: true })}\n`
+  );
+
+  try {
+    signal?.throwIfAborted();
+    const add = resolvePackageAdd(packageManager, packageSpec);
+    logger.info(`Installing ${packageSpec} with ${add.command}.`);
+    await spawn(add.command, add.args, { cwd: installDir, env, logger, signal });
+
+    const daemonPath = getInstalledAgentDeviceDaemonPath(installDir);
+    if (!fs.existsSync(daemonPath)) {
+      throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
+    }
+
+    signal?.throwIfAborted();
+    logger.info(`Launching daemon from ${daemonPath} after ${add.command} install.`);
+    const daemonProcess = spawnDetached({
+      command: 'node',
+      args: [daemonPath],
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+      logger,
+      secrets,
+    });
+    return {
+      ...daemonProcess,
+      stopAsync: async () => {
+        try {
+          await daemonProcess.stopAsync();
+        } finally {
+          await fs.promises.rm(installDir, { recursive: true, force: true });
+        }
+      },
+    };
+  } catch (err) {
+    await fs.promises.rm(installDir, { recursive: true, force: true });
+    // An abort is not an install problem: stop instead of falling back to git.
+    if (signal?.aborted) {
+      throw err;
+    }
+    const error = err instanceof Error ? err : new Error(String(err));
+    const bunVersion = await getBunVersionForDiagnosticsAsync(env);
+    Sentry.capture(
+      'Failed to start agent-device daemon from the configured package manager; falling back to git clone',
+      error,
+      {
+        level: 'warning',
+        tags: {
+          phase: 'agent-device-daemon-start',
+          fallback: 'git-clone',
+        },
+        extras: {
+          packageSpec,
+          packageVersion: packageVersion ?? 'latest',
+          packageManager,
+          bunVersion,
+        },
+      }
+    );
+    logger.warn(
+      `Failed to start daemon from ${packageSpec} via ${packageManager}; falling back to git clone: ${error.message}`
+    );
+    return await startAgentDeviceDaemonFromGitAsync({
+      packageVersion,
+      env,
+      logger,
+      signal,
+      secrets,
+    });
+  }
 }
 
 export async function stopAgentDeviceEventCollectionSafelyAsync({
@@ -202,90 +418,46 @@ export async function stopAgentDeviceEventCollectionSafelyAsync({
   }
 }
 
-async function startAgentDeviceDaemonAsync({
-  packageVersion,
-  env,
-  logger,
-}: {
-  packageVersion: string | undefined;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<DetachedProcessHandle> {
-  const packageSpec = createAgentDevicePackageSpec(packageVersion);
-  try {
-    logger.info(`Installing ${packageSpec} globally with Bun.`);
-    await spawn('bun', ['add', '--global', packageSpec], {
-      env,
-      logger,
-    });
-
-    const daemonPath = getGlobalAgentDeviceDaemonPath(env);
-    if (!fs.existsSync(daemonPath)) {
-      throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
-    }
-
-    logger.info(`Launching daemon from ${daemonPath}.`);
-    return spawnDetached({
-      command: 'node',
-      args: [daemonPath],
-      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
-    });
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    const bunVersion = await getBunVersionForDiagnosticsAsync(env);
-    Sentry.capture(
-      'Failed to start agent-device daemon from global Bun package; falling back to git clone',
-      error,
-      {
-        level: 'warning',
-        tags: {
-          phase: 'agent-device-daemon-start',
-          fallback: 'git-clone',
-        },
-        extras: {
-          packageSpec,
-          packageVersion: packageVersion ?? 'latest',
-          bunVersion,
-          bunInstallConfigured: Boolean(env.BUN_INSTALL?.trim()),
-        },
-      }
-    );
-    logger.warn(
-      `Failed to start daemon from global ${packageSpec}; falling back to git clone: ${error.message}`
-    );
-    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
-  }
-}
-
 async function startAgentDeviceDaemonFromGitAsync({
   packageVersion,
   env,
   logger,
+  signal,
+  secrets,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
+  secrets?: string[];
 }): Promise<DetachedProcessHandle> {
   logger.info(
     packageVersion
       ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
       : `Cloning agent-device (latest) into ${SRC_DIR}.`
   );
-  await cloneAgentDeviceAsync({ packageVersion, env, logger });
+  await cloneAgentDeviceAsync({ packageVersion, env, logger, signal });
 
-  logger.info('Installing agent-device dependencies.');
-  await spawn('bun', ['install', '--production'], {
+  const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+  const install = resolvePackageInstall(packageManager, { production: true });
+  logger.info(`Installing agent-device dependencies with ${install.command}.`);
+  await spawn(install.command, install.args, {
     cwd: SRC_DIR,
     env,
     logger,
+    signal,
   });
 
+  signal?.throwIfAborted();
   logger.info('Launching daemon from cloned agent-device source.');
+  // Git fallback is TypeScript source. The published path runs node on dist JS.
   return spawnDetached({
     command: 'bun',
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
     env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
+    logger,
+    secrets,
   });
 }
 
@@ -293,15 +465,18 @@ async function cloneAgentDeviceAsync({
   packageVersion,
   env,
   logger,
+  signal,
 }: {
   packageVersion: string | undefined;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
   const branchArgs = packageVersion ? ['--branch', `v${packageVersion}`] : [];
   await spawn('git', ['clone', '--depth', '1', ...branchArgs, AGENT_DEVICE_REPO_URL, SRC_DIR], {
     env,
     logger,
+    signal,
   });
 }
 
@@ -343,11 +518,9 @@ function createAgentDevicePackageSpec(packageVersion: string | undefined): strin
   return `${AGENT_DEVICE_PACKAGE_NAME}@${versionSpec}`;
 }
 
-function getGlobalAgentDeviceDaemonPath(env: BuildStepEnv): string {
+function getInstalledAgentDeviceDaemonPath(installDir: string): string {
   return path.join(
-    getBunInstallDirectory(env),
-    'install',
-    'global',
+    installDir,
     'node_modules',
     AGENT_DEVICE_PACKAGE_NAME,
     'dist',
@@ -355,11 +528,6 @@ function getGlobalAgentDeviceDaemonPath(env: BuildStepEnv): string {
     'internal',
     'daemon.js'
   );
-}
-
-function getBunInstallDirectory(env: BuildStepEnv): string {
-  const bunInstall = env.BUN_INSTALL?.trim();
-  return bunInstall ? bunInstall : path.join(os.homedir(), '.bun');
 }
 
 function parseDaemonInfo(raw: string): { port: number; token: string } {

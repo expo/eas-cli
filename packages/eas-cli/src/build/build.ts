@@ -28,8 +28,19 @@ import {
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
+import {
+  FreeTierLimitAgentGuidanceExperiment,
+  getFreeTierLimitAgentGuidanceExperiment,
+  maybeAppendFreeTierLimitAgentGuidanceAsync,
+} from './freeTierLimitGuidance';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
+import {
+  formatActiveBuildText,
+  formatActiveBuildsText,
+  isBuildCompleted,
+  logSourceForBuild,
+} from './logs';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
@@ -43,8 +54,11 @@ import {
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
+import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
+import { LogsState } from '../commandUtils/logs/state';
+import { LogsWatcher } from '../commandUtils/logs/watcher';
 import { createFingerprintAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
@@ -59,7 +73,7 @@ import {
 import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore, link } from '../log';
-import { Ora, ora } from '../ora';
+import { Ora, isSpinnerEnabled, ora, updateSpinnerText } from '../ora';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -69,6 +83,7 @@ import {
 import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAsync';
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { createRealtimeLogsClient } from '../utils/centrifuge';
 import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
@@ -209,7 +224,12 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform);
+        return await handleBuildRequestErrorAsync(
+          error,
+          job.platform,
+          ctx.accountName,
+          getFreeTierLimitAgentGuidanceExperiment(ctx)
+        );
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -230,7 +250,12 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-export function handleBuildRequestError(error: any, platform: Platform): never {
+export async function handleBuildRequestErrorAsync(
+  error: any,
+  platform: Platform,
+  accountName?: string,
+  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment
+): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
 
   const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
@@ -241,7 +266,19 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
     | undefined;
   if (graphQLErrorCode && graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(graphQLErrors[0]?.message);
+    const message = graphQLErrors[0]?.message;
+    const isFreeTierLimitError =
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
+    throw new ErrorClass(
+      isFreeTierLimitError
+        ? await maybeAppendFreeTierLimitAgentGuidanceAsync(
+            `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
+            platform,
+            freeTierLimitAgentGuidanceExperiment
+          )
+        : message
+    );
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -525,17 +562,62 @@ export async function waitForBuildEndAsync(
     originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
     spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
   }
-  while (true) {
-    const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
-    const { refetch } =
-      builds.length === 1
-        ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
-        : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
-    if (!refetch) {
-      return builds;
+  let render = (): void => {};
+  const watcher = isSpinnerEnabled()
+    ? new LogsWatcher(
+        () => createRealtimeLogsClient(graphqlClient),
+        () => {
+          render();
+        }
+      )
+    : null;
+
+  try {
+    while (true) {
+      render = (): void => {};
+      const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
+      const logsStates = await syncBuildLogsAsync(watcher, builds);
+      const installRender = (nextRender: () => void): void => {
+        render = nextRender;
+      };
+      const { refetch } =
+        builds.length === 1
+          ? await handleSingleBuildProgressAsync(
+              { build: builds[0], accountName },
+              { spinner, logsStates, installRender }
+            )
+          : await handleMultipleBuildsProgressAsync(
+              { builds },
+              { spinner, originalSpinnerText, logsStates, installRender }
+            );
+      if (!refetch) {
+        return builds;
+      }
+      await sleepAsync(intervalSec * 1000);
     }
-    await sleepAsync(intervalSec * 1000);
+  } finally {
+    watcher?.close();
   }
+}
+
+async function syncBuildLogsAsync(
+  watcher: LogsWatcher | null,
+  builds: MaybeBuildFragment[]
+): Promise<Map<string, LogsState>> {
+  if (!watcher) {
+    return new Map();
+  }
+  const existingBuilds = builds.filter(isBuildFragment);
+  const logsStates = await watcher.syncAsync(existingBuilds.map(build => logSourceForBuild(build)));
+  for (const build of existingBuilds) {
+    if (isBuildCompleted(build.status)) {
+      nullthrows(
+        logsStates.get(build.id),
+        'syncAsync must have been called before markCompleted'
+      ).markCompleted();
+    }
+  }
+  return logsStates;
 }
 
 async function getBuildsSafelyAsync(
@@ -557,6 +639,11 @@ interface BuildProgressResult {
   refetch: boolean;
 }
 
+type BuildLogsProgressOptions = {
+  logsStates: Map<string, LogsState>;
+  installRender: (render: () => void) => void;
+};
+
 let queueProgressBarStarted = false;
 const queueProgressBar = new cliProgress.SingleBar(
   { format: '|{bar}| {estimatedWaitTime}' },
@@ -574,10 +661,12 @@ async function handleSingleBuildProgressAsync(
     build: MaybeBuildFragment;
     accountName: string;
   },
-  { spinner }: { spinner: Ora }
+  { spinner, logsStates, installRender }: { spinner: Ora } & BuildLogsProgressOptions
 ): Promise<BuildProgressResult> {
   if (build === null) {
-    spinner.text = 'Could not fetch the build status. Check your network connection.';
+    updateSpinnerText(spinner, {
+      text: 'Could not fetch the build status. Check your network connection.',
+    });
     return { refetch: true };
   }
 
@@ -602,16 +691,18 @@ async function handleSingleBuildProgressAsync(
       statusNewSetAt ??= now;
       const newStatusDurationMs = now - statusNewSetAt;
       if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
-        spinner.text = 'Waiting for build to get enqueued…';
+        updateSpinnerText(spinner, { text: 'Waiting for build to get enqueued…' });
       } else {
-        spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-          formatAccountBillingUrl(accountName)
-        )}.`;
+        updateSpinnerText(spinner, {
+          text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
+            formatAccountBillingUrl(accountName)
+          )}.`,
+        });
       }
       break;
     }
     case BuildStatus.InQueue: {
-      spinner.text = 'Build queued...';
+      updateSpinnerText(spinner, { text: 'Build queued...' });
       const progressBarPayload =
         typeof build.estimatedWaitTimeLeftSeconds === 'number'
           ? { estimatedWaitTime: formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds) }
@@ -648,9 +739,17 @@ async function handleSingleBuildProgressAsync(
     case BuildStatus.Canceled:
       spinner.fail('Build canceled');
       return { refetch: false };
-    case BuildStatus.InProgress:
-      spinner.text = 'Build in progress...';
+    case BuildStatus.InProgress: {
+      const logsState = logsStates.get(build.id);
+      const render = (): void => {
+        updateSpinnerText(spinner, {
+          text: formatActiveBuildText('Build in progress...', logsState?.getLogs() ?? new Map()),
+        });
+      };
+      installRender(render);
+      render();
       break;
+    }
     case BuildStatus.Errored:
       spinner.fail('Build failed');
       if (build.error) {
@@ -685,7 +784,12 @@ const platforms = [AppPlatform.Android, AppPlatform.Ios];
 
 async function handleMultipleBuildsProgressAsync(
   { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
-  { spinner, originalSpinnerText }: { spinner: Ora; originalSpinnerText: string }
+  {
+    spinner,
+    originalSpinnerText,
+    logsStates,
+    installRender,
+  }: { spinner: Ora; originalSpinnerText: string } & BuildLogsProgressOptions
 ): Promise<BuildProgressResult> {
   const buildCount = maybeBuilds.length;
   const builds = maybeBuilds.filter<BuildFragment>(isBuildFragment);
@@ -719,7 +823,24 @@ async function handleMultipleBuildsProgressAsync(
       someNew &&
       statusNewSetAt !== null &&
       Date.now() - statusNewSetAt >= NEW_STATUS_GRACE_PERIOD_MS;
-    spinner.text = formatPendingBuildsText(originalSpinnerText, builds, showConcurrencyWarning);
+    const pendingBuildsText = formatPendingBuildsText(
+      originalSpinnerText,
+      builds,
+      showConcurrencyWarning
+    );
+    const inProgressBuilds = builds.filter(build => build.status === BuildStatus.InProgress);
+    const render = (): void => {
+      const text = formatActiveBuildsText(
+        pendingBuildsText,
+        inProgressBuilds.map(build => ({
+          build,
+          logs: logsStates.get(build.id)?.getLogs() ?? new Map(),
+        }))
+      );
+      updateSpinnerText(spinner, { text });
+    };
+    installRender(render);
+    render();
     return { refetch: true };
   }
 }

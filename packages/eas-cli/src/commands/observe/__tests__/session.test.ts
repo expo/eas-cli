@@ -56,10 +56,10 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 function makeMetricEvent(overrides: any = {}): any {
   return {
-    __typename: 'AppObserveEvent',
+    __typename: 'AppObserveMetric',
     id: 'evt-m-1',
-    metricName: 'expo.app_startup.tti',
-    metricValue: 1.23,
+    name: 'expo.app_startup.tti',
+    value: 1.23,
     timestamp: '2025-01-15T10:00:00.000Z',
     appVersion: '1.0.0',
     appBuildNumber: '42',
@@ -78,9 +78,9 @@ function makeMetricEvent(overrides: any = {}): any {
 
 function makeCustomEvent(overrides: any = {}): any {
   return {
-    __typename: 'AppObserveCustomEvent',
+    __typename: 'AppObserveUserEvent',
     id: 'evt-c-1',
-    eventName: 'login_pressed',
+    name: 'login_pressed',
     timestamp: '2025-01-15T10:00:00.000Z',
     sessionId: 'session-log-1',
     severityNumber: null,
@@ -239,6 +239,11 @@ describe(ObserveSession, () => {
     await expect(command.runAsync()).rejects.toThrow(/picker flags/);
   });
 
+  it('rejects --environment when a session ID is also provided', async () => {
+    const command = createCommand(['session-abc', '--environment', 'production']);
+    await expect(command.runAsync()).rejects.toThrow(/picker flags/);
+  });
+
   it('picker mode with --event-name tti fetches metric events and threads selected sessionId', async () => {
     mockFetchSessionMetricCandidatesAsync.mockResolvedValue([
       makeMetricEvent({ sessionId: 'picked-session-1' }),
@@ -284,9 +289,7 @@ describe(ObserveSession, () => {
 
   it('picker mode without --event-name or --sort prompts for event name, then sort, then event', async () => {
     mockCustomEventNamesAsync.mockResolvedValue({
-      names: [
-        { __typename: 'AppObserveCustomEventName', eventName: 'login_pressed', count: 12 } as any,
-      ],
+      names: [{ __typename: 'AppObserveUserEventName', name: 'login_pressed', count: 12 } as any],
       isTruncated: false,
     });
     // 1) event-name picker → metric choice

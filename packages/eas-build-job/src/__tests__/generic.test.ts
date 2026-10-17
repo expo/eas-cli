@@ -9,7 +9,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -51,7 +50,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -96,7 +94,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -131,7 +128,6 @@ describe('Generic.JobZ', () => {
     const job: Generic.Job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -183,7 +179,6 @@ describe('Generic.JobZ', () => {
     const job = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },
@@ -232,7 +227,6 @@ describe('Generic.JobZ', () => {
     const job: Omit<Generic.Job, 'customBuildConfig' | 'steps'> = {
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'https://github.com/expo/expo.git',
         gitCommitHash: '1234567890',
         gitRef: null,
       },

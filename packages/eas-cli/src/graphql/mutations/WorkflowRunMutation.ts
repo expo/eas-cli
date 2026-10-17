@@ -12,6 +12,7 @@ import {
   WorkflowProjectSourceInput,
   WorkflowRevisionInput,
   WorkflowRunInput,
+  WorkflowRunSshInput,
 } from '../generated';
 
 export namespace WorkflowRunMutation {
@@ -64,10 +65,12 @@ export namespace WorkflowRunMutation {
       workflowRevisionId,
       gitRef,
       inputs,
+      ssh,
     }: {
       workflowRevisionId: string;
       gitRef: string;
       inputs?: Record<string, any>;
+      ssh?: WorkflowRunSshInput | null;
     }
   ): Promise<{ id: string }> {
     const data = await withErrorHandlingAsync(
@@ -81,12 +84,14 @@ export namespace WorkflowRunMutation {
               $workflowRevisionId: ID!
               $gitRef: String!
               $inputs: JSONObject
+              $ssh: WorkflowRunSshInput
             ) {
               workflowRun {
                 createWorkflowRunFromGitRef(
                   workflowRevisionId: $workflowRevisionId
                   gitRef: $gitRef
                   inputs: $inputs
+                  ssh: $ssh
                 ) {
                   id
                 }
@@ -97,6 +102,7 @@ export namespace WorkflowRunMutation {
             workflowRevisionId,
             gitRef,
             inputs,
+            ssh,
           }
         )
         .toPromise()

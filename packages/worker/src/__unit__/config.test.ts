@@ -21,4 +21,18 @@ describe('config', () => {
       expect(config.loggers.http.baseUrl).toBe(expectedBaseUrl);
     });
   });
+
+  it.each([
+    [Environment.DEVELOPMENT, 'ws://localhost:8787'],
+    [Environment.STAGING, 'wss://staging-mcp.expo.dev'],
+    [Environment.PRODUCTION, 'wss://mcp.expo.dev'],
+    [Environment.TEST, 'ws://localhost:8787'],
+  ])('uses the expected MCP server URL in %s', (environment, expectedMcpServerUrl) => {
+    process.env.ENVIRONMENT = environment;
+
+    jest.isolateModules(() => {
+      const config = require('../config').default;
+      expect(config.mcpServerUrl).toBe(expectedMcpServerUrl);
+    });
+  });
 });

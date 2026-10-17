@@ -3,6 +3,7 @@ import openBrowserAsync from 'better-opn';
 import * as fs from 'fs-extra';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
 import {
@@ -62,12 +63,6 @@ describe(IntegrationsPostHogConnect, () => {
     email: 'user@example.com',
     featureGates: {},
     isExpoAdmin: false,
-    primaryAccount: {
-      id: testAccountId,
-      name: testAccountName,
-      ownerUserActor: null,
-      viewerUserPermission: { role: Role.Owner },
-    },
     accounts: [],
   };
 
@@ -75,7 +70,7 @@ describe(IntegrationsPostHogConnect, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   };
 
   const mockConnection: PostHogOrganizationConnectionData = {

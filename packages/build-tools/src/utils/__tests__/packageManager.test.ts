@@ -9,6 +9,12 @@ import {
   PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolveConfiguredPackageManager,
+  resolveFallbackPackageManager,
+  resolveOverridePackageManager,
+  resolvePackageAdd,
+  resolvePackageExec,
+  resolvePackageInstall,
   resolvePackageManager,
   resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
@@ -114,6 +120,176 @@ describe(resolvePackageManager, () => {
       expect(error.message).toContain('bunn');
       expect(error.message).toContain('yarn, npm, pnpm, bun');
     }
+  });
+});
+
+describe(resolveFallbackPackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveFallbackPackageManager({})).toBeUndefined();
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveOverridePackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveOverridePackageManager({})).toBeUndefined();
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveConfiguredPackageManager, () => {
+  it('uses the unset default', () => {
+    expect(resolveConfiguredPackageManager({}, PackageManager.NPM)).toBe(PackageManager.NPM);
+  });
+
+  it('uses EAS_FALLBACK_PACKAGE_MANAGER when no override is set', () => {
+    expect(
+      resolveConfiguredPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' }, PackageManager.NPM)
+    ).toBe(PackageManager.BUN);
+  });
+
+  it('prefers EAS_OVERRIDE_PACKAGE_MANAGER over the fallback', () => {
+    expect(
+      resolveConfiguredPackageManager(
+        {
+          EAS_OVERRIDE_PACKAGE_MANAGER: 'npm',
+          EAS_FALLBACK_PACKAGE_MANAGER: 'bun',
+        },
+        PackageManager.BUN
+      )
+    ).toBe(PackageManager.NPM);
+  });
+});
+
+describe(resolvePackageExec, () => {
+  const packageArgs = ['@expo/serve-sim@latest', '--port', '1'];
+
+  it('maps npm to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.NPM, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps bun to bun x', () => {
+    expect(resolvePackageExec(PackageManager.BUN, packageArgs)).toEqual({
+      command: 'bun',
+      args: ['x', ...packageArgs],
+    });
+  });
+
+  it('maps yarn to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.YARN, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps pnpm to pnpm dlx', () => {
+    expect(resolvePackageExec(PackageManager.PNPM, packageArgs)).toEqual({
+      command: 'pnpm',
+      args: ['dlx', ...packageArgs],
+    });
+  });
+});
+
+describe(resolvePackageAdd, () => {
+  it('maps npm to npm install --no-audit', () => {
+    expect(resolvePackageAdd(PackageManager.NPM, 'appium@^3')).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', 'appium@^3'],
+    });
+  });
+
+  it('maps bun to bun add', () => {
+    expect(resolvePackageAdd(PackageManager.BUN, 'agent-device@latest')).toEqual({
+      command: 'bun',
+      args: ['add', 'agent-device@latest'],
+    });
+  });
+
+  it('maps yarn to yarn add', () => {
+    expect(resolvePackageAdd(PackageManager.YARN, 'appium@^3')).toEqual({
+      command: 'yarn',
+      args: ['add', 'appium@^3'],
+    });
+  });
+
+  it('maps pnpm to pnpm add', () => {
+    expect(resolvePackageAdd(PackageManager.PNPM, 'appium@^3')).toEqual({
+      command: 'pnpm',
+      args: ['add', 'appium@^3'],
+    });
+  });
+});
+
+describe(resolvePackageInstall, () => {
+  it('maps bun production install', () => {
+    expect(resolvePackageInstall(PackageManager.BUN, { production: true })).toEqual({
+      command: 'bun',
+      args: ['install', '--production'],
+    });
+  });
+
+  it('maps npm production install without audit', () => {
+    expect(resolvePackageInstall(PackageManager.NPM, { production: true })).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', '--omit=dev'],
+    });
+  });
+
+  it('maps yarn and pnpm production installs', () => {
+    expect(resolvePackageInstall(PackageManager.YARN, { production: true })).toEqual({
+      command: 'yarn',
+      args: ['install', '--production'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM, { production: true })).toEqual({
+      command: 'pnpm',
+      args: ['install', '--prod'],
+    });
+  });
+
+  it('maps non-production installs', () => {
+    expect(resolvePackageInstall(PackageManager.NPM)).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit'],
+    });
+    expect(resolvePackageInstall(PackageManager.BUN)).toEqual({
+      command: 'bun',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.YARN)).toEqual({
+      command: 'yarn',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM)).toEqual({
+      command: 'pnpm',
+      args: ['install'],
+    });
   });
 });
 

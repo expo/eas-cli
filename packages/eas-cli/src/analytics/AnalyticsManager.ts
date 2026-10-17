@@ -15,10 +15,25 @@ const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> =
   linux: 'Linux',
 };
 
-export type AnalyticsEvent = CommandEvent | BuildEvent | SubmissionEvent | MetadataEvent;
+export type AnalyticsEvent =
+  | CommandEvent
+  | BuildEvent
+  | SubmissionEvent
+  | MetadataEvent
+  | BillingEvent
+  | SimulatorEvent
+  | ExperimentationEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
+}
+
+export enum ExperimentationEvent {
+  EXPERIMENT_VIEWED = 'Experiment Viewed',
+}
+
+export enum BillingEvent {
+  SUBSCRIBE_COMMAND = 'billing cli subscribe command',
 }
 
 export enum SubmissionEvent {
@@ -68,6 +83,12 @@ export enum BuildEvent {
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
 }
 
+export enum SimulatorEvent {
+  REQUEST_SENT = 'sim session request sent',
+  REQUEST_CANCELLED = 'sim session request cancelled',
+  REQUEST_FAILED = 'sim session request failed',
+}
+
 export enum MetadataEvent {
   APPLE_METADATA_DOWNLOAD = 'metadata cli download apple response',
   APPLE_METADATA_UPLOAD = 'metadata cli upload apple response',
@@ -89,6 +110,8 @@ export interface Analytics {
 export interface AnalyticsWithOrchestration extends Analytics {
   setActor(actor: Actor): void;
   flushAsync(): Promise<void>;
+  /** The persisted RudderStack anonymous ID, or null when analytics is disabled. */
+  getDeviceId(): string | null;
 }
 
 const USER_SETTINGS_KEY_AMPLITUDE_ENABLED = 'amplitudeEnabled';
@@ -110,6 +133,16 @@ export async function setAnalyticsEnabledAsync(enabled: boolean): Promise<void> 
 export async function getAnalyticsEnabledAsync(): Promise<boolean> {
   const analyticsEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, null);
   return !!analyticsEnabled;
+}
+
+/**
+ * Returns true when the user opted out of analytics with DISABLE_EAS_ANALYTICS or `eas analytics off`.
+ */
+export async function isAnalyticsOptedOutAsync(): Promise<boolean> {
+  if (process.env.DISABLE_EAS_ANALYTICS) {
+    return true;
+  }
+  return (await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true)) === false;
 }
 
 /**
@@ -157,6 +190,9 @@ class NoOpAnalytics implements AnalyticsWithOrchestration {
   logEvent(): void {}
   setActor(): void {}
   async flushAsync(): Promise<void> {}
+  getDeviceId(): null {
+    return null;
+  }
 }
 
 const RudderstackAnalyticsConfig =
@@ -206,6 +242,10 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
       },
     });
     this.identifiedActor = actor;
+  }
+
+  public getDeviceId(): string {
+    return this.persistentDeviceId;
   }
 
   public logEvent(name: AnalyticsEvent, properties: AnalyticsEventProperties): void {

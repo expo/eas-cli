@@ -30,6 +30,7 @@ import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import {
   AppPlatform,
   BuildFragment,
@@ -57,7 +58,6 @@ import {
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
-  validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
   ensureAppVersionSourceIsSetAsync,
@@ -119,6 +119,7 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
   envOverride,
+  experimentation,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -129,6 +130,8 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
   envOverride?: Env;
+  /** Enables the Free plan limit guidance experiment for builds driven by a coding agent. */
+  experimentation?: LazyExperimentationClient;
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -241,6 +244,7 @@ export async function runBuildAndSubmitAsync({
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
+      experimentation,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -379,6 +383,7 @@ async function prepareAndStartBuildAsync({
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
+  experimentation,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -393,6 +398,7 @@ async function prepareAndStartBuildAsync({
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
+  experimentation?: LazyExperimentationClient;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -418,6 +424,7 @@ async function prepareAndStartBuildAsync({
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     whatToTest: flags.whatToTest,
     env,
+    experimentation,
   });
 
   if (!lockfileChecked && !flags.localBuildOptions.localBuildMode) {
@@ -481,7 +488,6 @@ async function prepareAndStartBuildAsync({
     }
   }
 
-  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (
     easJsonCliConfig?.appVersionSource === undefined &&
     buildProfile.profile.autoIncrement !== 'version'
@@ -504,7 +510,10 @@ async function prepareAndStartBuildAsync({
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
-  if (buildCtx.workflow === Workflow.MANAGED) {
+  // Custom builds run the steps from the profile's config file instead of the
+  // standard managed pipeline, so the managed-workflow checks do not apply.
+  const isCustomBuild = !!buildProfile.profile.config;
+  if (buildCtx.workflow === Workflow.MANAGED && !isCustomBuild) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);
       sdkVersionChecked = true;

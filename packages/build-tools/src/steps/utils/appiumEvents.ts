@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { humanizeAppiumCommand } from './appiumCommandSummary';
 import {
   type DeviceRunSessionEventCollection,
   type DeviceRunSessionEventSource,
@@ -146,7 +147,7 @@ function createAppiumEventSource(eventFile: string): DeviceRunSessionEventSource
           type: 'operation.completed',
           operationId,
           durationMs: Math.max(0, command.endTime - command.startTime),
-          summary: command.cmd,
+          summary: humanizeAppiumCommand(command.cmd),
           data: {
             command: command.cmd,
             appiumSessionId: command.appiumSessionId,

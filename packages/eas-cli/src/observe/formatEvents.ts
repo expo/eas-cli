@@ -1,14 +1,14 @@
 import chalk from 'chalk';
 
-import { AppObserveEvent, PageInfo } from '../graphql/generated';
+import { AppObserveMetric, PageInfo } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
-import { buildTimeRangeDescription, formatTimestamp } from './formatUtils';
+import { buildTimeRangeDescription, formatLogTimestamp, formatTimestamp } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
 
 export interface ObserveEventJson {
   id: string;
-  metricName: string;
-  metricValue: number;
+  name: string;
+  value: number;
   appVersion: string;
   appBuildNumber: string;
   appUpdateId: string | null;
@@ -23,8 +23,52 @@ export interface ObserveEventJson {
   routeName: string | null;
 }
 
-function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | null {
+function resolveCustomParams(event: AppObserveMetric): { [key: string]: any } | null {
   return event.customParams ?? null;
+}
+
+export function buildObserveEventJson(event: AppObserveMetric): ObserveEventJson {
+  return {
+    id: event.id,
+    name: event.name,
+    value: event.value,
+    appVersion: event.appVersion,
+    appBuildNumber: event.appBuildNumber,
+    appUpdateId: event.appUpdateId ?? null,
+    deviceModel: event.deviceModel,
+    deviceOs: event.deviceOs,
+    deviceOsVersion: event.deviceOsVersion,
+    countryCode: event.countryCode ?? null,
+    sessionId: event.sessionId ?? null,
+    easClientId: event.easClientId,
+    timestamp: event.timestamp,
+    customParams: resolveCustomParams(event),
+    routeName: event.routeName ?? null,
+  };
+}
+
+/**
+ * Render a single metric event as a vertical Field/Value detail table, for
+ * `eas observe:event`.
+ */
+export function buildObserveEventDetail(event: AppObserveMetric): string {
+  const rows: string[][] = [
+    ['ID', event.id],
+    ['Type', 'Metric'],
+    ['Metric', getMetricDisplayName(event.name)],
+    ['Value', `${event.value.toFixed(2)}s`],
+    ['Timestamp', formatLogTimestamp(event.timestamp)],
+    ['Session ID', event.sessionId ?? '-'],
+    ['Route', event.routeName ?? '-'],
+    ['App Version', `${event.appVersion} (${event.appBuildNumber})`],
+    ['Update ID', event.appUpdateId ?? '-'],
+    ['Platform', `${event.deviceOs} ${event.deviceOsVersion}`],
+    ['Device', event.deviceModel],
+    ['Country', event.countryCode ?? '-'],
+    ['EAS Client ID', event.easClientId],
+    ['Custom Params', event.customParams ? JSON.stringify(event.customParams) : '-'],
+  ];
+  return [chalk.bold('Metric event'), '', renderTextTable(['Field', 'Value'], rows)].join('\n');
 }
 
 export interface BuildEventsTableOptions {
@@ -36,7 +80,7 @@ export interface BuildEventsTableOptions {
 }
 
 export function buildObserveEventsTable(
-  events: AppObserveEvent[],
+  events: AppObserveMetric[],
   pageInfo: PageInfo,
   options?: BuildEventsTableOptions
 ): string {
@@ -57,7 +101,7 @@ export function buildObserveEventsTable(
   ];
 
   const rows: string[][] = events.map(event => [
-    `${event.metricValue.toFixed(2)}s`,
+    `${event.value.toFixed(2)}s`,
     `${event.appVersion} (${event.appBuildNumber})`,
     ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
     `${event.deviceOs} ${event.deviceOsVersion}`,
@@ -88,27 +132,11 @@ export function buildObserveEventsTable(
 }
 
 export function buildObserveEventsJson(
-  events: AppObserveEvent[],
+  events: AppObserveMetric[],
   pageInfo: PageInfo
 ): { events: ObserveEventJson[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } {
   return {
-    events: events.map(event => ({
-      id: event.id,
-      metricName: event.metricName,
-      metricValue: event.metricValue,
-      appVersion: event.appVersion,
-      appBuildNumber: event.appBuildNumber,
-      appUpdateId: event.appUpdateId ?? null,
-      deviceModel: event.deviceModel,
-      deviceOs: event.deviceOs,
-      deviceOsVersion: event.deviceOsVersion,
-      countryCode: event.countryCode ?? null,
-      sessionId: event.sessionId ?? null,
-      easClientId: event.easClientId,
-      timestamp: event.timestamp,
-      customParams: resolveCustomParams(event),
-      routeName: event.routeName ?? null,
-    })),
+    events: events.map(buildObserveEventJson),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,
       endCursor: pageInfo.endCursor ?? null,

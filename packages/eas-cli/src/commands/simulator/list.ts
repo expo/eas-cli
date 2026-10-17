@@ -17,9 +17,9 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
-  DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
-  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   deviceRunSessionTypeToFlagValue,
+  deviceRunSessionTypesForFlagValue,
 } from '../../simulator/utils';
 import { fromNow } from '../../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -29,6 +29,8 @@ const MAX_LIMIT = 100;
 
 const STATUS_FLAG_VALUES: Record<DeviceRunSessionStatus, string> = {
   [DeviceRunSessionStatus.New]: 'new',
+  [DeviceRunSessionStatus.Queued]: 'queued',
+  [DeviceRunSessionStatus.Starting]: 'starting',
   [DeviceRunSessionStatus.InProgress]: 'in-progress',
   [DeviceRunSessionStatus.Stopped]: 'stopped',
   [DeviceRunSessionStatus.Errored]: 'errored',
@@ -49,7 +51,6 @@ const PLATFORM_BY_FLAG_VALUE = Object.fromEntries(
 );
 
 export default class SimulatorList extends EasCommand {
-  static override hidden = true;
   static override aliases = ['sim:list'];
   static override description =
     '[EXPERIMENTAL] list remote simulator sessions for the current project';
@@ -61,8 +62,9 @@ export default class SimulatorList extends EasCommand {
       multiple: true,
     })(),
     type: Flags.option({
-      description: 'Filter by session type (repeatable)',
-      options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
+      description:
+        'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
+      options: DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
       multiple: true,
     })(),
     platform: Flags.option({
@@ -72,6 +74,10 @@ export default class SimulatorList extends EasCommand {
     })(),
     name: Flags.string({
       description: 'Filter by session name (case-insensitive prefix match)',
+    }),
+    tag: Flags.string({
+      description: 'Filter by tag (repeatable). A session must carry every tag listed.',
+      multiple: true,
     }),
     limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_LIMIT, limit: MAX_LIMIT }),
     after: Flags.string({
@@ -106,13 +112,16 @@ export default class SimulatorList extends EasCommand {
       filter.statuses = flags.status.map(value => STATUS_BY_FLAG_VALUE[value]);
     }
     if (flags.type && flags.type.length > 0) {
-      filter.types = flags.type.map(value => DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[value]);
+      filter.types = flags.type.flatMap(deviceRunSessionTypesForFlagValue);
     }
     if (flags.platform && flags.platform.length > 0) {
       filter.platforms = flags.platform.map(value => PLATFORM_BY_FLAG_VALUE[value]);
     }
     if (flags.name) {
       filter.name = flags.name;
+    }
+    if (flags.tag && flags.tag.length > 0) {
+      filter.tags = flags.tag;
     }
 
     const limit = flags.limit ?? DEFAULT_LIMIT;
@@ -139,6 +148,7 @@ export default class SimulatorList extends EasCommand {
         sessions: sessions.map(session => ({
           id: session.id,
           name: session.name ?? undefined,
+          tags: session.tags,
           type: deviceRunSessionTypeToFlagValue(session.type),
           status: session.status,
           platform: session.platform,
@@ -172,6 +182,7 @@ export default class SimulatorList extends EasCommand {
       const lines = [
         `ID:       ${session.id}`,
         `Name:     ${session.name ?? 'null'}`,
+        `Tags:     ${session.tags.length > 0 ? session.tags.join(', ') : 'none'}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,

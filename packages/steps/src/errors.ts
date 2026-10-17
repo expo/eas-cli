@@ -23,6 +23,18 @@ export class BuildInternalError extends Error {}
 
 export class BuildStepRuntimeError extends UserError {}
 
+export class BuildStepConditionEvaluationError extends UserError {
+  constructor(
+    public readonly subject: string,
+    public readonly ifCondition: string,
+    extra?: {
+      cause?: Error;
+    }
+  ) {
+    super(`Failed to evaluate the if condition "${ifCondition}" of ${subject}.`, extra);
+  }
+}
+
 export class BuildWorkflowError extends UserError {
   constructor(
     public override readonly message: string,

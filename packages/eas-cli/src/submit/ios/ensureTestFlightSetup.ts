@@ -49,12 +49,7 @@ export async function ensureTestFlightSetupForExistingAppAsync(
         resolveAppleTeamTypeFromEnvironment() ?? AppleTeamType.COMPANY_OR_ORGANIZATION;
       if (hasAscEnvVars()) {
         const teamId = process.env.EXPO_APPLE_TEAM_ID;
-        if (
-          !process.env.EXPO_ASC_API_KEY_PATH ||
-          !process.env.EXPO_ASC_KEY_ID ||
-          !process.env.EXPO_ASC_ISSUER_ID ||
-          !teamId
-        ) {
+        if (!process.env.EXPO_ASC_API_KEY_PATH || !process.env.EXPO_ASC_KEY_ID || !teamId) {
           Log.log('App Store Connect credentials are incomplete, skipping TestFlight setup');
           return;
         }

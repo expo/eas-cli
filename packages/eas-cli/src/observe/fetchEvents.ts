@@ -1,16 +1,16 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  AppObserveEvent,
-  AppObserveEventsFilter,
-  AppObserveEventsOrderBy,
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
+  AppObserveMetric,
+  AppObserveMetricsListFilter,
+  AppObserveMetricsListOrderBy,
+  AppObserveMetricsListOrderByField,
+  AppObserveOrderDirection,
   AppObservePlatform,
-  AppPlatform,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import { isObservePlanGateError } from './planGating';
+import { ObservePlatformTarget } from './platforms';
 
 export enum EventsOrderPreset {
   Slowest = 'SLOWEST',
@@ -19,47 +19,49 @@ export enum EventsOrderPreset {
   Oldest = 'OLDEST',
 }
 
-export function resolveOrderBy(input: string): AppObserveEventsOrderBy {
+export function resolveOrderBy(input: string): AppObserveMetricsListOrderBy {
   const preset = input.toUpperCase() as EventsOrderPreset;
   switch (preset) {
     case EventsOrderPreset.Slowest:
       return {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Desc,
       };
     case EventsOrderPreset.Fastest:
       return {
-        field: AppObserveEventsOrderByField.MetricValue,
-        direction: AppObserveEventsOrderByDirection.Asc,
+        field: AppObserveMetricsListOrderByField.Value,
+        direction: AppObserveOrderDirection.Asc,
       };
     case EventsOrderPreset.Newest:
       return {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Desc,
+        field: AppObserveMetricsListOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Desc,
       };
     case EventsOrderPreset.Oldest:
       return {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Asc,
+        field: AppObserveMetricsListOrderByField.Timestamp,
+        direction: AppObserveOrderDirection.Asc,
       };
   }
 }
 
 interface FetchObserveEventsOptions {
   metricName?: string;
-  orderBy: AppObserveEventsOrderBy;
+  orderBy: AppObserveMetricsListOrderBy;
   limit: number;
   after?: string;
   startTime?: string;
   endTime?: string;
-  platform?: AppObservePlatform;
+  platforms?: AppObservePlatform[];
   appVersion?: string;
+  buildNumber?: string;
   updateId?: string;
   sessionId?: string;
+  environment?: string;
 }
 
 interface FetchObserveEventsResult {
-  events: AppObserveEvent[];
+  events: AppObserveMetric[];
   pageInfo: PageInfo;
 }
 
@@ -68,14 +70,16 @@ export async function fetchObserveEventsAsync(
   appId: string,
   options: FetchObserveEventsOptions
 ): Promise<FetchObserveEventsResult> {
-  const filter: AppObserveEventsFilter = {
+  const filter: AppObserveMetricsListFilter = {
     ...(options.startTime && { startTime: options.startTime }),
     ...(options.endTime && { endTime: options.endTime }),
-    ...(options.metricName && { metricName: options.metricName }),
-    ...(options.platform && { platform: options.platform }),
+    ...(options.metricName && { name: options.metricName }),
+    ...(options.platforms?.length && { platforms: options.platforms }),
     ...(options.appVersion && { appVersion: options.appVersion }),
+    ...(options.buildNumber && { appBuildNumber: options.buildNumber }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
+    ...(options.environment && { environment: options.environment }),
   };
 
   return await ObserveQuery.eventsAsync(graphqlClient, {
@@ -87,27 +91,24 @@ export async function fetchObserveEventsAsync(
   });
 }
 
-const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};
-
 export async function fetchTotalEventCountAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   metricName: string,
-  platforms: AppPlatform[],
+  targets: ObservePlatformTarget[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<number> {
-  const queries = platforms.map(async appPlatform => {
+  const queries = targets.map(async target => {
     try {
       const versions = await ObserveQuery.appVersionsAsync(graphqlClient, {
         appId,
-        platform: appPlatformToObservePlatform[appPlatform],
+        platforms: target.platforms,
         startTime,
         endTime,
         metricNames: [metricName],
+        environment,
       });
       return versions.reduce((sum, v) => {
         const metric = v.metrics.find(m => m.metricName === metricName);

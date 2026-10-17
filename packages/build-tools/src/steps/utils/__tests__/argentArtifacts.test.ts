@@ -67,8 +67,15 @@ describe(listArgentArtifactsAsync, () => {
           artifacts: [
             {
               id: 'artifact-id',
+              kind: 'native-profile-report',
               filename: 'report.json',
               mimeType: 'application/json',
+              isDirectory: false,
+            },
+            {
+              id: 'legacy-artifact-id',
+              filename: 'screen.png',
+              mimeType: 'image/png',
               isDirectory: false,
             },
           ],
@@ -84,8 +91,15 @@ describe(listArgentArtifactsAsync, () => {
     expect(artifacts).toEqual([
       {
         id: 'artifact-id',
+        kind: 'native-profile-report',
         filename: 'report.json',
         mimeType: 'application/json',
+        isDirectory: false,
+      },
+      {
+        id: 'legacy-artifact-id',
+        filename: 'screen.png',
+        mimeType: 'image/png',
         isDirectory: false,
       },
     ]);
@@ -110,8 +124,8 @@ describe(uploadArgentArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadArgentArtifactAsync(ctx, {
@@ -137,12 +151,13 @@ describe(uploadArgentArtifactAsync, () => {
       filename: 'report.json',
       kind: undefined,
       size: data.length,
-      stream: expect.anything(),
+      openStream: expect.any(Function),
     });
   });
 
   async function uploadAsync(artifact: {
     id: string;
+    kind?: string;
     filename: string;
     mimeType: string;
     isDirectory?: boolean;
@@ -153,8 +168,8 @@ describe(uploadArgentArtifactAsync, () => {
       .mockResolvedValueOnce(new Response(Readable.from([Buffer.from('artifact-data')])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadArgentArtifactAsync(ctx, {
@@ -185,7 +200,42 @@ describe(uploadArgentArtifactAsync, () => {
     );
   });
 
-  it('leaves directory artifacts unclassified because they are uploaded as a tarball', async () => {
+  it('uses the semantic kind reported by Argent', async () => {
+    const ctx = await uploadAsync({
+      id: 'artifact-id',
+      kind: 'native-profile-report',
+      filename: 'native-profile-report.md',
+      mimeType: 'text/markdown',
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        filename: 'native-profile-report.md',
+        kind: 'native-profile-report',
+      })
+    );
+  });
+
+  it('keeps the semantic kind when a directory is uploaded as a tarball', async () => {
+    const ctx = await uploadAsync({
+      id: 'artifact-id',
+      kind: 'native-profile-trace',
+      filename: 'native-profile.trace',
+      mimeType: 'application/octet-stream',
+      isDirectory: true,
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        filename: 'native-profile.trace.tar.gz',
+        kind: 'native-profile-trace',
+      })
+    );
+  });
+
+  it('leaves an older unclassified directory artifact without a kind', async () => {
     const ctx = await uploadAsync({
       id: 'artifact-id',
       filename: 'screenshots',
@@ -295,8 +345,8 @@ describe(pollArgentArtifactsForUploadAsync, () => {
     });
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementation(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementation(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     const pollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
@@ -321,7 +371,7 @@ describe(pollArgentArtifactsForUploadAsync, () => {
       name: 'b.json (artifact-b)',
       filename: 'b.json',
       size: 'artifact-b-data'.length,
-      stream: expect.anything(),
+      openStream: expect.any(Function),
     });
   });
 

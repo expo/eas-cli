@@ -1,16 +1,61 @@
-import { CurrentUserQuery, PartnerActor, Robot, Role, SsoUser, User } from '../graphql/generated';
+import {
+  CurrentUserQuery,
+  PartnerActor,
+  Permission,
+  Robot,
+  SsoUser,
+  User,
+} from '../graphql/generated';
 
 export type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
 /**
- * Names of the accounts where the actor can create projects (non-ViewOnly role), listed in the
+ * Whether the actor can create projects on the account with the credential used for this command.
+ * Creating a project requires the PUBLISH permission, and the scopes of a scoped credential cap
+ * `effectivePermissions`.
+ */
+export function canCreateProjectsOnAccount(account: Actor['accounts'][number]): boolean {
+  return account.viewerUserPermission2.effectivePermissions.includes(Permission.Publish);
+}
+
+/**
+ * Why the actor cannot create projects on the account, or null if they can. Tells apart a role
+ * without the PUBLISH permission from a credential whose scopes remove it.
+ */
+export function getCannotCreateProjectsOnAccountReason(
+  account: Actor['accounts'][number]
+): string | null {
+  if (canCreateProjectsOnAccount(account)) {
+    return null;
+  }
+  if (account.viewerUserPermission2.permissions.includes(Permission.Publish)) {
+    return `The permissions granted during authentication do not allow you to create projects on the "${account.name}" account. Run eas login to change the permission grant.`;
+  }
+  return `You do not have the required permissions to create projects on the "${account.name}" account.`;
+}
+
+/**
+ * `getCannotCreateProjectsOnAccountReason` for an account given by name, which may not be one of
+ * the actor's accounts.
+ */
+export function getCannotCreateProjectsOnAccountNameReason(
+  actor: Actor,
+  accountName: string
+): string | null {
+  const account = actor.accounts.find(a => a.name === accountName);
+  if (!account) {
+    return `You do not have access to the "${accountName}" account.`;
+  }
+  return getCannotCreateProjectsOnAccountReason(account);
+}
+
+/**
+ * Names of the accounts where the actor can create projects, listed in the
  * same order as account selection prompts: the personal account first, then team accounts,
  * then organization accounts.
  */
 export function getCreatableAccountNames(actor: Actor): string[] {
-  const creatableAccounts = actor.accounts.filter(
-    a => a.viewerUserPermission.role !== Role.ViewOnly
-  );
+  const creatableAccounts = actor.accounts.filter(canCreateProjectsOnAccount);
   if (actor.__typename === 'Robot') {
     return creatableAccounts.map(it => it.name);
   }

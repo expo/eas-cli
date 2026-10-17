@@ -10,13 +10,18 @@ import {
 } from './StepsConfigParser-composite-functions-test-utils';
 import { createGlobalContextMock } from './utils/context';
 import { getErrorAsync } from './utils/error';
+import { createRecordingLogger } from './utils/logger';
 import { BuildFunction } from '../BuildFunction';
 import { StepsConfigParser } from '../StepsConfigParser';
 import { BuildStepStatus } from '../BuildStep';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
 import { BuildWorkflow } from '../BuildWorkflow';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors';
+import {
+  BuildConfigError,
+  BuildStepConditionEvaluationError,
+  BuildStepRuntimeError,
+} from '../errors';
 
 describe('StepsConfigParser local composite functions', () => {
   describe('step reference scoping', () => {
@@ -1250,6 +1255,75 @@ describe('StepsConfigParser local composite functions', () => {
       const show = workflow.buildSteps.find(s => s.id === 'wrap__inner__show');
       expect(show?.status).toBe(BuildStepStatus.SUCCESS);
       expect(show?.getOutputValueByName('out')).toBe('hello');
+    });
+  });
+  describe('call-site if evaluation errors', () => {
+    it('attributes a broken call-site if: to the composite call and logs it once', async () => {
+      const messages: string[] = [];
+      const workflow = await parseCompositeFunctions({
+        ctx: createGlobalContextMock({ logger: createRecordingLogger(messages) }),
+        catalog: {
+          [SETUP]: {
+            runs: {
+              steps: [
+                { id: 'first', uses: 'eas/echo', if: '${{ always() }}' },
+                { id: 'second', uses: 'eas/echo' },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', if: '${{ nonexistent.object.property }}' }],
+        externalFunctions: [echoFunction()],
+      });
+
+      const error = await getErrorAsync(() => workflow.executeAsync());
+      expect(error).toBeInstanceOf(BuildStepConditionEvaluationError);
+      expect(error.ifCondition).toBe('${{ nonexistent.object.property }}');
+
+      for (const id of ['setup__first', 'setup__second']) {
+        expect(workflow.buildSteps.find(s => s.id === id)?.status).toBe(BuildStepStatus.SKIPPED);
+      }
+
+      const gateMessages = messages.filter(m => m.includes('Runner failed to evaluate'));
+      expect(gateMessages).toHaveLength(1);
+      expect(gateMessages[0]).toContain(`composite function call "${SETUP}"`);
+      expect(gateMessages[0]).toContain('${{ nonexistent.object.property }}');
+      expect(messages.join('\n')).not.toContain('${{ always() }}');
+    });
+
+    it('names the outer call when its broken if: gates a nested composite, still logging once', async () => {
+      const messages: string[] = [];
+      const workflow = await parseCompositeFunctions({
+        ctx: createGlobalContextMock({ logger: createRecordingLogger(messages) }),
+        catalog: {
+          './.eas/functions/outer': {
+            runs: {
+              steps: [
+                { uses: './.eas/functions/inner', id: 'nested' },
+                { id: 'tail', uses: 'eas/echo' },
+              ],
+            },
+          },
+          './.eas/functions/inner': {
+            runs: { steps: [{ id: 'leaf', uses: 'eas/echo' }] },
+          },
+        },
+        steps: [
+          { uses: './.eas/functions/outer', id: 'top', if: '${{ nonexistent.object.property }}' },
+        ],
+        externalFunctions: [echoFunction()],
+      });
+
+      const error = await getErrorAsync(() => workflow.executeAsync());
+      expect(error).toBeInstanceOf(BuildStepConditionEvaluationError);
+
+      for (const id of ['top__nested__leaf', 'top__tail']) {
+        expect(workflow.buildSteps.find(s => s.id === id)?.status).toBe(BuildStepStatus.SKIPPED);
+      }
+
+      const gateMessages = messages.filter(m => m.includes('Runner failed to evaluate'));
+      expect(gateMessages).toHaveLength(1);
+      expect(gateMessages[0]).toContain('composite function call "./.eas/functions/outer"');
     });
   });
 });

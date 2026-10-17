@@ -4,6 +4,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -16,7 +17,7 @@ import {
   fetchSessionMetricCandidatesAsync,
   verifyObserveSessionAccessAsync,
 } from '../../observe/fetchSessions';
-import { ObserveProjectIdFlag, ObserveTimeRangeFlags } from '../../observe/flags';
+import { ObserveEnvironmentFlag, ObserveTimeRangeFlags } from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import {
   buildObserveSessionEventsJson,
@@ -29,7 +30,6 @@ import {
   isKnownMetricName,
   resolveMetricName,
 } from '../../observe/metricNames';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { ExpoChoice, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -66,7 +66,8 @@ export default class ObserveSession extends EasCommand {
         'Metric or log event name to pick candidate sessions by (e.g. tti, cold_launch, login_pressed). If omitted in interactive mode, you will be prompted.',
     }),
     ...ObserveTimeRangeFlags,
-    ...ObserveProjectIdFlag,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -75,20 +76,16 @@ export default class ObserveSession extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  private static loggedInOnlyContextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-  };
-
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveSession);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveSession,
-      loggedInOnlyContextDefinition: ObserveSession.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveSession, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {
@@ -102,10 +99,11 @@ export default class ObserveSession extends EasCommand {
         flags.sort !== undefined ||
         flags.days !== undefined ||
         flags.start !== undefined ||
-        flags.end !== undefined;
+        flags.end !== undefined ||
+        flags.environment !== undefined;
       if (pickerFlagsProvided) {
         throw new EasCommandError(
-          'The picker flags (--event-name, --sort, --days, --start, --end) describe how to find a session and cannot be combined with a session ID argument.'
+          'The picker flags (--event-name, --sort, --days, --start, --end, --environment) describe how to find a session and cannot be combined with a session ID argument.'
         );
       }
       sessionId = args.sessionId;
@@ -127,6 +125,7 @@ export default class ObserveSession extends EasCommand {
         eventNameFlag: flags['event-name'],
         sort: flags.sort,
         timeRangeFlags: { days: flags.days, start: flags.start, end: flags.end },
+        environment: flags.environment,
       });
     }
 
@@ -172,18 +171,20 @@ async function pickSessionIdInteractivelyAsync({
   eventNameFlag,
   sort,
   timeRangeFlags,
+  environment,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
   eventNameFlag: string | undefined;
   sort: string | undefined;
   timeRangeFlags: { days: number | undefined; start: string | undefined; end: string | undefined };
+  environment: string | undefined;
 }): Promise<string> {
   const { startTime, endTime } = resolveTimeRange(timeRangeFlags);
 
   const eventNameChoice: EventNameChoice = eventNameFlag
     ? { name: eventNameFlag, isMetric: isKnownMetricName(eventNameFlag) }
-    : await promptForEventNameAsync({ graphqlClient, projectId, startTime, endTime });
+    : await promptForEventNameAsync({ graphqlClient, projectId, startTime, endTime, environment });
 
   let sortValue: string;
   if (sort) {
@@ -208,6 +209,7 @@ async function pickSessionIdInteractivelyAsync({
           startTime,
           endTime,
           limit: PICKER_CANDIDATE_LIMIT,
+          environment,
         })
       ).map(event => ({ sessionId: event.sessionId, title: formatMetricCandidateTitle(event) }))
     : (
@@ -217,6 +219,7 @@ async function pickSessionIdInteractivelyAsync({
           startTime,
           endTime,
           limit: PICKER_CANDIDATE_LIMIT,
+          environment,
         })
       ).map(event => ({ sessionId: event.sessionId, title: formatLogCandidateTitle(event) }));
 
@@ -254,16 +257,19 @@ async function promptForEventNameAsync({
   projectId,
   startTime,
   endTime,
+  environment,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
   startTime: string;
   endTime: string;
+  environment: string | undefined;
 }): Promise<EventNameChoice> {
   const { names: customEventNames } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
     appId: projectId,
     startTime,
     endTime,
+    environment,
   });
 
   const metricChoices: ExpoChoice<EventNameChoice>[] = Object.entries(METRIC_SHORT_NAMES).map(
@@ -273,12 +279,10 @@ async function promptForEventNameAsync({
     })
   );
 
-  const logChoices: ExpoChoice<EventNameChoice>[] = customEventNames.map(
-    ({ eventName, count }) => ({
-      title: `${eventName} (${count} log event${count === 1 ? '' : 's'})`,
-      value: { name: eventName, isMetric: false },
-    })
-  );
+  const logChoices: ExpoChoice<EventNameChoice>[] = customEventNames.map(({ name, count }) => ({
+    title: `${name} (${count} log event${count === 1 ? '' : 's'})`,
+    value: { name, isMetric: false },
+  }));
 
   const choices = [...metricChoices, ...logChoices];
   if (choices.length === 0) {

@@ -42,6 +42,7 @@ function makeSession(overrides: Partial<DeviceRunSessionNode> = {}): DeviceRunSe
   return {
     id: 'session-123',
     name: null,
+    tags: [],
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -111,7 +112,7 @@ describe(SimulatorList, () => {
   }
 
   it('emits JSON when --json is passed', async () => {
-    const session = makeSession();
+    const session = makeSession({ type: DeviceRunSessionType.ServeSim });
     mockListByAppIdAsync.mockResolvedValue(makeConnection([session]));
 
     const { command, getContextAsync } = createCommand(['--json']);
@@ -132,7 +133,8 @@ describe(SimulatorList, () => {
         {
           id: 'session-123',
           name: undefined,
-          type: 'agent-device',
+          tags: [],
+          type: 'web-preview-only',
           status: DeviceRunSessionStatus.InProgress,
           platform: AppPlatform.Ios,
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -160,12 +162,22 @@ describe(SimulatorList, () => {
       'in-progress',
       '--status',
       'new',
+      '--status',
+      'queued',
+      '--status',
+      'starting',
       '--type',
       'appium',
+      '--type',
+      'web-preview-only',
       '--platform',
       'ios',
       '--name',
       'checkout',
+      '--tag',
+      'variant:pro',
+      '--tag',
+      'nightly',
       '--limit',
       '25',
       '--after',
@@ -178,12 +190,41 @@ describe(SimulatorList, () => {
       first: 25,
       after: 'page-cursor',
       filter: {
-        statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Appium],
+        statuses: [
+          DeviceRunSessionStatus.InProgress,
+          DeviceRunSessionStatus.New,
+          DeviceRunSessionStatus.Queued,
+          DeviceRunSessionStatus.Starting,
+        ],
+        types: [
+          DeviceRunSessionType.Appium,
+          DeviceRunSessionType.ServeSim,
+          DeviceRunSessionType.WebPreviewOnly,
+        ],
         platforms: [AppPlatform.Ios],
         name: 'checkout',
+        tags: ['variant:pro', 'nightly'],
       },
     });
+  });
+
+  it('prints a tags row for every session, tagged or not', async () => {
+    mockListByAppIdAsync.mockResolvedValue(
+      makeConnection([
+        makeSession({ id: 'session-1', tags: ['variant:pro', 'nightly'] }),
+        makeSession({ id: 'session-2' }),
+      ])
+    );
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    const printed = jest
+      .mocked(Log.log)
+      .mock.calls.map(([entry]) => String(entry))
+      .join('\n');
+    expect(printed).toContain('Tags:     variant:pro, nightly');
+    expect(printed).toContain('Tags:     none');
   });
 
   it('prints a name row for every session, named or not', async () => {

@@ -1,4 +1,5 @@
 import { validateDateFlag } from './fetchMetrics';
+import { EasCommandError } from '../commandUtils/errors';
 
 export const DEFAULT_DAYS_BACK = 60;
 
@@ -36,6 +37,9 @@ export function resolveTimeRange(flags: { days?: number; start?: string; end?: s
   if (flags.end) {
     validateDateFlag(flags.end, '--end');
   }
+  if (flags.end && !flags.start) {
+    throw new EasCommandError('--end requires --start. Pass both, or use --days instead.');
+  }
 
   const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
   const { startTime, endTime } = startAndEndTime({
@@ -43,6 +47,14 @@ export function resolveTimeRange(flags: { days?: number; start?: string; end?: s
     start: flags.start,
     end: flags.end,
   });
+
+  // Reachable by swapping --start and --end, or by passing a --start in the future, since --end
+  // defaults to now.
+  if (new Date(startTime) >= new Date(endTime)) {
+    throw new EasCommandError(
+      `The requested time range is empty: --start (${startTime}) must be earlier than the end of the range (${endTime}). Pass a --start earlier than the end, or use --days instead.`
+    );
+  }
 
   return { daysBack, startTime, endTime };
 }

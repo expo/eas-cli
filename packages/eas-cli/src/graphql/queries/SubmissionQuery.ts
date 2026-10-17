@@ -7,6 +7,8 @@ import {
   AppPlatform,
   GetAllSubmissionsForAppQuery,
   GetAllSubmissionsForAppQueryVariables,
+  GetProjectStatusSubmissionsQuery,
+  GetProjectStatusSubmissionsQueryVariables,
   SubmissionByIdWithSubmittedBuildQuery,
   SubmissionByIdWithSubmittedBuildQueryVariables,
   SubmissionFragment,
@@ -24,6 +26,9 @@ type Filters = {
   offset?: number;
   limit?: number;
 };
+
+export type ProjectStatusSubmission =
+  GetProjectStatusSubmissionsQuery['app']['byId']['submissions'][number];
 
 export const SubmissionQuery = {
   async byIdAsync(
@@ -118,6 +123,59 @@ export const SubmissionQuery = {
             ${print(SubmissionWithSubmittedBuildFragmentNode)}
           `,
           { appId, offset, limit, status, platform },
+          { additionalTypenames: ['Submission'] }
+        )
+        .toPromise()
+    );
+
+    return data.app?.byId.submissions ?? [];
+  },
+
+  async forProjectStatusAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string,
+    { limit, offset }: { limit: number; offset: number }
+  ): Promise<ProjectStatusSubmission[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<GetProjectStatusSubmissionsQuery, GetProjectStatusSubmissionsQueryVariables>(
+          gql`
+            query GetProjectStatusSubmissions($appId: String!, $offset: Int!, $limit: Int!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  submissions(filter: {}, offset: $offset, limit: $limit) {
+                    id
+                    status
+                    platform
+                    createdAt
+                    completedAt
+                    initiatingActor {
+                      id
+                      displayName
+                    }
+                    submittedBuild {
+                      id
+                    }
+                    androidConfig {
+                      applicationIdentifier
+                      track
+                      releaseStatus
+                      rollout
+                    }
+                    iosConfig {
+                      ascAppIdentifier
+                    }
+                    error {
+                      errorCode
+                      message
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { appId, offset, limit },
           { additionalTypenames: ['Submission'] }
         )
         .toPromise()

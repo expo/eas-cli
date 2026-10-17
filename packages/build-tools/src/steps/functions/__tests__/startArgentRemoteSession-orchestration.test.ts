@@ -4,11 +4,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
+import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
+import { createProcessOutput } from '../../utils/processOutput';
 import {
+  ensureFfmpegInstalledOnceAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -39,15 +44,18 @@ jest.mock('../../utils/argentEvents', () => ({
   ...jest.requireActual('../../utils/argentEvents'),
   startArgentEventCollectionAsync: jest.fn(),
 }));
+jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
-  ensureFfmpegInstalledAsync: jest.fn(),
+  ...jest.requireActual('../../utils/remoteDeviceRunSession'),
+  ensureFfmpegInstalledOnceAsync: jest.fn(),
+  finishRemoteSessionAsync: jest.requireActual('../../utils/remoteDeviceRunSession')
+    .finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
   spawnDetached: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
-  startServeSimWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
@@ -58,6 +66,7 @@ const EXPECTED_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, 'tool-server-events.
 
 const mockStopAsync = jest.fn();
 const mockTunnelStopAsync = jest.fn();
+const mockPreviewStopAsync = jest.fn();
 
 describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
   beforeEach(async () => {
@@ -68,6 +77,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(pollArgentArtifactsForUploadAsync).mockResolvedValue(undefined);
     mockStopAsync.mockResolvedValue(undefined);
     mockTunnelStopAsync.mockResolvedValue(undefined);
+    mockPreviewStopAsync.mockResolvedValue(undefined);
     jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({
       stopAsync: mockStopAsync,
       getLastEventObservedAt: () => undefined,
@@ -80,11 +90,21 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(spawnDetached).mockReturnValue({
       pid: 4242,
       getOutput: () => '',
+      getExitError: () => undefined,
       stopAsync: jest.fn(),
     });
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://argent-abc.tunnel.example.com',
+      subdomainId: 'argent-abc',
       stopAsync: mockTunnelStopAsync,
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
+      openPreviewAsync: jest.fn().mockResolvedValue({
+        previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
+        apiUrl: 'https://web-preview.tunnel.example.com',
+        closeAsync: jest.fn(),
+      }),
+      finishAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
@@ -101,7 +121,187 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     await fs.promises.rm(TEST_HOME, { recursive: true, force: true });
   });
 
-  it('enables the event log flag, shares one path, and starts/stops the collector', async () => {
+  it('reports an early exit with output and stops Argent before opening tunnels', async () => {
+    const stopError = new Error('drain timed out');
+    const stopServer = jest.fn().mockRejectedValue(stopError);
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 4242,
+      getOutput: () => 'could not bind server port',
+      getExitError: () => new Error('process exited with code 1'),
+      stopAsync: stopServer,
+    });
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toThrow(
+      'Argent exited before becoming ready: process exited with code 1\nArgent tool-server output:\ncould not bind server port'
+    );
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the Argent tool-server during remote session teardown.'
+    );
+    expect(pollArgentArtifactsForUploadAsync).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(startArgentEventCollectionAsync).not.toHaveBeenCalled();
+  });
+
+  it('drains artifact polling and stops the tool-server when event collection cannot start', async () => {
+    const collectionError = new Error('event collection failed');
+    const stopError = new Error('drain timed out');
+    let pollingFinished = false;
+    jest
+      .mocked(pollArgentArtifactsForUploadAsync)
+      .mockImplementationOnce(async (_ctx, { signal }) => {
+        await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+        pollingFinished = true;
+      });
+    jest.mocked(startArgentEventCollectionAsync).mockRejectedValueOnce(collectionError);
+    const stopServer = jest.fn(async () => {
+      expect(pollingFinished).toBe(true);
+      throw stopError;
+    });
+    jest.mocked(spawnDetached).mockReturnValueOnce({
+      pid: 4242,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    });
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toBe(collectionError);
+    expect(pollingFinished).toBe(true);
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop the Argent tool-server during remote session teardown.'
+    );
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(['preview', 'config', 'wait'])(
+    'finishes the host and tools after %s fails',
+    async phase => {
+      const error = new Error(`${phase} failed`);
+      if (phase === 'preview') {
+        jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+          openPreviewAsync: jest.fn().mockRejectedValue(error),
+          finishAsync: mockPreviewStopAsync,
+        });
+      } else if (phase === 'config') {
+        jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
+      } else {
+        jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+      }
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      await expect(
+        buildFunction.fn!(
+          {
+            logger: { info: jest.fn(), warn: jest.fn() },
+            global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      ).rejects.toBe(error);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockStopAsync).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(spawnDetached).mock.results[0].value.stopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([
+    ['succeeded', false],
+    ['failed', true],
+  ])(
+    'fails after stopping the host and tools when the tools tunnel cannot close and the session %s',
+    async (_description, sessionFails) => {
+      const closeError = new Error('ngrok close failed');
+      const sessionError = new Error('session failed');
+      mockTunnelStopAsync.mockRejectedValueOnce(closeError);
+      if (sessionFails) {
+        jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(sessionError);
+      }
+      const logger = { info: jest.fn(), warn: jest.fn() };
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      // The tunnel may still be serving, so its failure fails a session that otherwise succeeded.
+      await expect(
+        buildFunction.fn!(
+          {
+            logger,
+            global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      ).rejects.toBe(sessionFails ? sessionError : closeError);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockStopAsync).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(spawnDetached).mock.results[0].value.stopAsync).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: closeError },
+        'Could not stop the Argent tunnel during remote session teardown.'
+      );
+      expect(jest.mocked(Sentry.capture).mock.calls).toEqual(
+        sessionFails
+          ? [
+              [
+                'Could not stop the Argent tunnel after the remote session failed',
+                closeError,
+                { level: 'warning' },
+              ],
+            ]
+          : []
+      );
+    }
+  );
+
+  it('enables the event log flag, disables the video watermark, shares one path, and starts/stops the collector', async () => {
     const ctx = {} as unknown as CustomBuildContext;
     const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
 
@@ -120,27 +320,55 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       } as never
     );
 
-    // (1) The event log flag is enabled, before the tool-server is launched.
+    // (1) FFmpeg setup starts in the background before Argent setup.
+    expect(ensureFfmpegInstalledOnceAsync).toHaveBeenCalledWith({
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: { EXISTING: 'value' },
+      logger: expect.anything(),
+    });
+    expect(jest.mocked(ensureFfmpegInstalledOnceAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(spawn).mock.invocationCallOrder[0]
+    );
+
+    // (2) The event log flag is enabled, before the tool-server is launched.
     const spawnCalls = jest.mocked(spawn).mock.calls;
     const enableEventLogIndex = spawnCalls.findIndex(
       ([command, args]) =>
-        command === 'bunx' && Array.isArray(args) && args.includes('tool-server-event-log')
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('tool-server-event-log')
     );
     expect(enableEventLogIndex).toBeGreaterThanOrEqual(0);
     expect(jest.mocked(spawn).mock.invocationCallOrder[enableEventLogIndex]).toBeLessThan(
       jest.mocked(spawnDetached).mock.invocationCallOrder[0]
     );
 
-    // (2) The tool-server and the collector are pinned to the exact same event log path.
+    // (2b) The video watermark flag is disabled, before the tool-server is launched.
+    const disableWatermarkIndex = spawnCalls.findIndex(
+      ([command, args]) =>
+        command === 'bun' &&
+        Array.isArray(args) &&
+        args[0] === 'x' &&
+        args.includes('disable') &&
+        args.includes('video-watermark')
+    );
+    expect(disableWatermarkIndex).toBeGreaterThanOrEqual(0);
+    expect(jest.mocked(spawn).mock.invocationCallOrder[disableWatermarkIndex]).toBeLessThan(
+      jest.mocked(spawnDetached).mock.invocationCallOrder[0]
+    );
+
+    // (3) The tool-server and the collector are pinned to the exact same event log path.
     const serverEnv = jest.mocked(spawnDetached).mock.calls[0][0].env;
     expect(serverEnv.ARGENT_EVENT_LOG).toBe(EXPECTED_EVENT_LOG_PATH);
+    expect(serverEnv.ARGENT_EMULATOR_NO_WINDOW).toBe('1');
     expect(serverEnv.EXISTING).toBe('value');
     expect(jest.mocked(startArgentEventCollectionAsync).mock.calls[0][0]).toMatchObject({
       deviceRunSessionId: 'device-run-session-id',
       eventLogPath: EXPECTED_EVENT_LOG_PATH,
     });
 
-    // (3) Collection starts (before we wait for the session to stop) and (4) is torn down
+    // (4) Collection starts (before we wait for the session to stop) and (5) is torn down
     // afterwards, exactly once.
     expect(startArgentEventCollectionAsync).toHaveBeenCalledTimes(1);
     expect(mockStopAsync).toHaveBeenCalledTimes(1);
@@ -151,5 +379,305 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
     );
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX, disableShare: false })
+    );
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({
+          webPreviewUrl: 'https://expo.dev/simulator-preview/preview-id',
+          previewApiUrl: 'https://web-preview.tunnel.example.com',
+        }),
+      })
+    );
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes public_preview=false to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          public_preview: { value: false },
+          private_preview_url: { value: 'https://expo.dev/private-preview' },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        disableShare: true,
+        privatePreviewUrl: 'https://expo.dev/private-preview',
+      })
+    );
+  });
+
+  it('passes frame_ancestors to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          frame_ancestors: { value: ['https://embed.example.test'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+  });
+
+  it('passes cors_origins to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          cors_origins: { value: ['https://app.example.test'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+  });
+
+  it('continues the session when disabling the video watermark fails', async () => {
+    const error = new Error('bun x failed');
+    jest
+      .mocked(spawn)
+      .mockImplementation(
+        (_command, args) =>
+          (args.includes('video-watermark')
+            ? Promise.reject(error)
+            : Promise.resolve(undefined)) as never
+      );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      expect.stringContaining('Could not disable the Argent video watermark')
+    );
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('redacts startup credentials and registers the state token for later output', async () => {
+    const token = 'tool/server "secret"';
+    await fs.promises.writeFile(
+      path.join(ARGENT_STATE_DIR, 'tool-server-orchestration.json'),
+      JSON.stringify({ port: 5678, pid: 9999, token })
+    );
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const output = createProcessOutput(options.logger, options.secrets);
+      output.stdout.append(`argent link argent://${encodeURIComponent(token)}@127.0.0.1:5678\n`);
+      return {
+        pid: 4242,
+        getOutput: output.getOutput,
+        getExitError: () => undefined,
+        stopAsync: async () => {
+          output.stderr.append(`opaque ${token}\nencoded ${encodeURIComponent(token)}\n`);
+          output.stderr.append(`escaped ${JSON.stringify(token).slice(1, -1)}\n`);
+          output.finish();
+        },
+      };
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      { source: 'stdout' },
+      'argent link argent://[REDACTED]@127.0.0.1:5678'
+    );
+    for (const label of ['opaque', 'encoded', 'escaped']) {
+      expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, `${label} [REDACTED]`);
+    }
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain('secret');
+  });
+
+  it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+
+    await buildFunction.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          max_duration_seconds: { value: undefined },
+          launch_app_identifier: { value: 'host.exp.Exponent' },
+          launch_args: { value: ['-EXDevMenuIsOnboardingFinished', '1'] },
+          open_url: { value: 'exp://127.0.0.1:8081' },
+        },
+        outputs: {},
+        env: { EXISTING: 'value' },
+      } as never
+    );
+
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        launchAppIdentifier: 'host.exp.Exponent',
+        launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
+        openUrl: 'exp://127.0.0.1:8081',
+      })
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      'serve-sim will launch host.exp.Exponent with arguments ' +
+        '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
+    );
+  });
+
+  it('fails before starting anything when a launch is asked for on Android', async () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            max_duration_seconds: { value: undefined },
+            launch_app_identifier: { value: 'host.exp.Exponent' },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toThrow('runs on linux');
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('declares the launch inputs', () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    const globalCtx = createGlobalContextMock();
+
+    expect(
+      buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
+    ).toEqual(
+      expect.arrayContaining([
+        'launch_app_identifier',
+        'launch_args',
+        'open_url',
+        'public_preview',
+        'private_preview_url',
+      ])
+    );
+  });
+
+  it('stops automation without waiting for recording upload', async () => {
+    let release!: () => void;
+    let stopped!: () => void;
+    const pendingFinish = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const toolStopped = new Promise<void>(resolve => {
+      stopped = resolve;
+    });
+    mockPreviewStopAsync.mockReturnValueOnce(pendingFinish);
+    const stopServer = jest.fn(async () => {
+      stopped();
+    });
+    jest.mocked(spawnDetached).mockReturnValueOnce({
+      pid: 4242,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    try {
+      await toolStopped;
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(stopServer).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await running;
+    }
   });
 });

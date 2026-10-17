@@ -1,10 +1,16 @@
 import { type bunyan } from '@expo/logger';
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs';
+import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
 
-import { compressCacheAsync } from '../saveCache';
+import { compressCacheAsync, uploadCacheAsync } from '../saveCache';
 import { decompressCacheAsync } from '../restoreCache';
+
+jest.mock('node-fetch');
+
+const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
 function createLoggerMock(): bunyan {
   return { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as bunyan;
@@ -79,5 +85,73 @@ describe('cache compress/decompress round trip', () => {
 
     const restoredStat = await fs.promises.stat(path.join(restoreDir, 'entry'));
     expect(Math.floor(restoredStat.mtimeMs / 1000)).toBe(Math.floor(mtime.getTime() / 1000));
+  });
+});
+
+describe(uploadCacheAsync, () => {
+  afterEach(() => {
+    jest.mocked(fetch).mockReset();
+  });
+
+  it.each([
+    ['normal upload', undefined, false],
+    ['forced upload', true, true],
+  ] as const)('sends force for %s', async (_name, force, expectedForce) => {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'upload-cache-test-'));
+    const archivePath = path.join(tempDir, 'cache.tar.gz');
+    await fs.promises.writeFile(archivePath, 'cache archive');
+
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              headers: {},
+              url: 'https://storage.expo.test/cache',
+            },
+          }),
+          { status: 200 }
+        )
+      )
+      .mockImplementationOnce(async (_url, request) => {
+        const body = request!.body as NodeJS.ReadableStream & AsyncIterable<Buffer>;
+        for await (const _chunk of body) {
+          // Consume the archive stream as a real upload would.
+        }
+        return new Response(undefined, { status: 200 });
+      });
+
+    try {
+      await uploadCacheAsync({
+        logger: createLoggerMock(),
+        jobId: 'build-id',
+        expoApiServerURL: 'https://api.expo.test',
+        robotAccessToken: 'robot-token',
+        paths: ['/cache/path'],
+        key: 'cache-key',
+        archivePath,
+        size: 13,
+        platform: Platform.ANDROID,
+        force,
+      });
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      const [uploadSessionUrl, uploadSessionRequest] = jest.mocked(fetch).mock.calls[0];
+      expect(uploadSessionUrl.toString()).toBe(
+        'https://api.expo.test/v2/turtle-builds/caches/upload-sessions'
+      );
+      expect(JSON.parse(uploadSessionRequest!.body as string)).toMatchObject({
+        buildId: 'build-id',
+        force: expectedForce,
+        key: 'cache-key',
+        size: 13,
+      });
+      expect(jest.mocked(fetch).mock.calls[1][0].toString()).toBe(
+        'https://storage.expo.test/cache'
+      );
+    } finally {
+      await fs.promises.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

@@ -133,6 +133,7 @@ export const testChannelObject: UpdateChannelObject = {
     '{"data":[{"branchId":"754bf17f-efc0-46ab-8a59-a03f20e53e9b","branchMappingLogic":{"operand":0.15,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"6941a8dd-5c0a-48bc-8876-f49c88ed419f","branchMappingLogic":"true"}],"version":0}',
   updateBranches: [testUpdateBranch1, testUpdateBranch2],
   isPaused: false,
+  isProtected: false,
   __typename: 'UpdateChannel',
 };
 
@@ -141,6 +142,7 @@ export const testBasicChannelInfo: UpdateChannelBasicInfoFragment = {
   name: 'production',
   branchMapping:
     '{"data":[{"branchId":"754bf17f-efc0-46ab-8a59-a03f20e53e9b","branchMappingLogic":{"operand":0.1,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"6941a8dd-5c0a-48bc-8876-f49c88ed419f","branchMappingLogic":"true"}],"version":0}',
+  isProtected: false,
   __typename: 'UpdateChannel',
 };
 
@@ -149,5 +151,6 @@ export const testBasicChannelInfo2: UpdateChannelBasicInfoFragment = {
   name: 'staging',
   branchMapping:
     '{"data":[{"branchId":"d7d68e32-d9c9-4a8d-8d1b-21e53100a5e8","branchMappingLogic":{"operand":0.1,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"f9f708c2-0c91-4360-b2a4-0b61834aef4a","branchMappingLogic":"true"}],"version":0}',
+  isProtected: false,
   __typename: 'UpdateChannel',
 };

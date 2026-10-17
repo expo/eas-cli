@@ -246,7 +246,11 @@ function displayAscApiKey(
     if (name) {
       fields.push({ label: 'Name', value: name });
     }
-    fields.push({ label: 'Issuer ID', value: issuerIdentifier });
+    if (issuerIdentifier) {
+      fields.push({ label: 'Issuer ID', value: issuerIdentifier });
+    } else {
+      fields.push({ label: 'Key Type', value: 'Individual (submissions only)' });
+    }
     if (roles) {
       fields.push({ label: 'Roles', value: roles.join(',') });
     }

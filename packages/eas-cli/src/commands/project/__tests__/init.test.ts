@@ -28,7 +28,6 @@ jest.mock('../../../project/expoConfig', () => ({
   createOrModifyExpoConfigAsync: jest.fn(),
 }));
 jest.mock('../../../prompts');
-jest.mock('../../../user/actions');
 jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../ora', () => ({
@@ -523,7 +522,7 @@ describe(ProjectInit.name, () => {
         it('prompts for an account', async () => {
           jest.mocked(promptAsync).mockResolvedValue({ account: { name: 'other' } });
           await expect(new ProjectInit([], commandOptions).run()).rejects.toThrowError(
-            `You don't have permission to create a new project on the other account and no matching project already exists on the account.`
+            'No matching project exists on the other account, and you can\'t create one. You do not have the required permissions to create projects on the "other" account.'
           );
           expect(promptAsync).toHaveBeenCalledTimes(1);
         });
@@ -533,7 +532,7 @@ describe(ProjectInit.name, () => {
         mockTestProject({ configuredOwner: jester.accounts[1].name });
         jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
         await expect(new ProjectInit([], commandOptions).run()).rejects.toThrowError(
-          `You don't have permission to create a new project on the other account and no matching project already exists on the account.`
+          'No matching project exists on the other account, and you can\'t create one. You do not have the required permissions to create projects on the "other" account.'
         );
         expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
       });
@@ -625,7 +624,7 @@ describe(ProjectInit.name, () => {
       await expect(
         new ProjectInit(['--account', 'nonexistent'], commandOptions).run()
       ).rejects.toThrowError(
-        `You are not able to create projects in the "nonexistent" account. Accounts you have permissions to create projects in: jester`
+        `You do not have access to the "nonexistent" account. Accounts you have permissions to create projects in: jester`
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
@@ -637,7 +636,7 @@ describe(ProjectInit.name, () => {
       await expect(
         new ProjectInit(['--account', 'other'], commandOptions).run()
       ).rejects.toThrowError(
-        `You are not able to create projects in the "other" account. Accounts you have permissions to create projects in: jester`
+        `You do not have the required permissions to create projects on the "other" account. Accounts you have permissions to create projects in: jester`
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();

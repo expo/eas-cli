@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -26,21 +27,16 @@ describe(AccountResolver, () => {
       id: 'user_id_666',
       email: 'dominik@example.com',
       username: 'dominik',
-      primaryAccount: {
-        id: 'account_id_777',
-        name: 'dominik',
-        viewerUserPermission: { role: Role.Owner },
-      },
       accounts: [
         {
           id: 'account_id_777',
           name: 'dominik',
-          viewerUserPermission: { role: Role.Owner },
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
         },
         {
           id: 'account_id_888',
           name: 'foo',
-          viewerUserPermission: { role: Role.Owner },
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
         },
       ],
       isExpoAdmin: false,
@@ -57,7 +53,7 @@ describe(AccountResolver, () => {
           ownerAccount: {
             id: 'account_id_888',
             name: 'foo',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
         });
       });
@@ -73,7 +69,7 @@ describe(AccountResolver, () => {
         expect(account).toEqual({
           id: user.accounts[1].id,
           name: user.accounts[1].name,
-          viewerUserPermission: user.accounts[1].viewerUserPermission,
+          viewerUserPermission2: user.accounts[1].viewerUserPermission2,
         });
       });
 

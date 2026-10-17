@@ -86,4 +86,10 @@ export default {
       : process.env.ENVIRONMENT === 'staging'
         ? 'https://staging-api.expo.dev/v2/'
         : 'https://api.expo.dev/v2/',
+  mcpServerUrl:
+    process.env.ENVIRONMENT === 'development' || process.env.ENVIRONMENT === 'test'
+      ? 'ws://localhost:8787'
+      : process.env.ENVIRONMENT === 'staging'
+        ? 'wss://staging-mcp.expo.dev'
+        : 'wss://mcp.expo.dev',
 };

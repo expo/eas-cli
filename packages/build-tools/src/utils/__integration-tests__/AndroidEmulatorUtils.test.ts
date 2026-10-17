@@ -71,6 +71,9 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
         deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
         env: process.env,
         logger: createMockLogger({ logToConsole: true }),
       });
@@ -95,6 +98,9 @@ describe('AndroidEmulatorUtils', () => {
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });
@@ -158,6 +164,9 @@ describe('AndroidEmulatorUtils', () => {
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });
@@ -209,6 +218,9 @@ describe('AndroidEmulatorUtils', () => {
             deviceName,
             systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
             deviceIdentifier: null,
+            lcdWidth: null,
+            lcdHeight: null,
+            lcdDensity: null,
             env: envForAttempt,
             logger: createMockLogger({ logToConsole: true }),
           });
@@ -290,6 +302,9 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
         deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
         env: process.env,
         logger,
       });
@@ -361,6 +376,9 @@ describe('AndroidEmulatorUtils', () => {
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });

@@ -4,11 +4,14 @@ import { Client, CombinedError } from '@urql/core';
 import fetch, { Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import * as files from '../../../utils/files';
 import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
 
 // contains a 'TestApp.app/TestApp' file with 'i am executable' content
@@ -18,6 +21,9 @@ const APP_TAR_GZ_BUFFER = Buffer.from(
     '=',
   'base64'
 );
+
+const FLAT_APP_INFO_PLIST_BASE64 =
+  'YnBsaXN0MDDSAQIDBF8QEkNGQnVuZGxlRXhlY3V0YWJsZV8QE0NGQnVuZGxlUGFja2FnZVR5cGVXVGVzdEFwcFRBUFBMCA0iOEAAAAAAAAABAQAAAAAAAAAFAAAAAAAAAAAAAAAAAAAARQ==';
 
 const APPLICATION_ARCHIVE_URL = `https://expo.dev/artifacts/eas/${randomUUID()}.tar.gz`;
 
@@ -51,6 +57,57 @@ function createMockGraphqlClient({
   } as unknown as Client;
 }
 
+function createSuccessfulResponse({
+  body,
+  url,
+  headers,
+}: {
+  body: Buffer;
+  url: string;
+  headers?: Record<string, string>;
+}): Response {
+  const normalizedHeaders = Object.fromEntries(
+    Object.entries(headers ?? {}).map(([name, value]) => [name.toLowerCase(), value])
+  );
+
+  return {
+    ok: true,
+    body: Readable.from(body),
+    url,
+    headers: {
+      get: (name: string): string | null => normalizedHeaders[name.toLowerCase()] ?? null,
+    },
+  } as unknown as Response;
+}
+
+async function createFlatAppTarGzBufferAsync(): Promise<Buffer> {
+  const sourceDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'flat-app-source-'));
+  const archivePath = path.join(os.tmpdir(), `${randomUUID()}.tar.gz`);
+
+  try {
+    await Promise.all([
+      fs.promises.writeFile(path.join(sourceDirectory, 'Info.plist'), FLAT_APP_INFO_PLIST_BASE64, {
+        encoding: 'base64',
+      }),
+      fs.promises.writeFile(path.join(sourceDirectory, 'TestApp'), 'i am executable\n'),
+    ]);
+    await tar.create(
+      {
+        cwd: sourceDirectory,
+        file: archivePath,
+        gzip: true,
+      },
+      ['Info.plist', 'TestApp']
+    );
+    return await fs.promises.readFile(archivePath);
+  } finally {
+    await Promise.all([
+      fs.promises.rm(sourceDirectory, { recursive: true, force: true }),
+      fs.promises.rm(archivePath, { force: true }),
+    ]);
+  }
+}
+
 describe('downloadBuild', () => {
   it('downloads from applicationArchiveUrl returned by GraphQL', async () => {
     const buildId = randomUUID();
@@ -58,11 +115,12 @@ describe('downloadBuild', () => {
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(APP_TAR_GZ_BUFFER),
-      url: APPLICATION_ARCHIVE_URL,
-    } as unknown as Response);
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: APP_TAR_GZ_BUFFER,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
@@ -82,17 +140,39 @@ describe('downloadBuild', () => {
     );
   });
 
+  it('downloads an archive containing app bundle contents at its root', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: await createFlatAppTarGzBufferAsync(),
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.extname(artifactPath)).toBe('.app');
+    expect(await fs.promises.readFile(path.join(artifactPath, 'TestApp'), 'utf8')).toBe(
+      'i am executable\n'
+    );
+  });
+
   it('should handle a straight-up file', async () => {
     const applicationArchiveUrl = `https://expo.dev/artifacts/eas/${randomUUID()}.apk`;
     const graphqlClient = createMockGraphqlClient({
       applicationArchiveUrl,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(Buffer.from('hello')),
-      url: applicationArchiveUrl,
-    } as unknown as Response);
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
@@ -104,6 +184,266 @@ describe('downloadBuild', () => {
 
     expect(artifactPath).toBeDefined();
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('downloads a direct application archive URL without querying GraphQL or forwarding the EAS token', async () => {
+    const applicationArchiveUrl = `https://artifacts.example.test/${randomUUID()}.apk`;
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient,
+      robotAccessToken: 'scoped-eas-token',
+      extensions: ['apk'],
+    });
+
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      applicationArchiveUrl,
+      expect.objectContaining({ headers: undefined })
+    );
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('uses the Content-Disposition filename for an extensionless URL', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/download';
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: Buffer.from('hello'),
+        url: applicationArchiveUrl,
+        headers: { 'content-disposition': 'attachment; filename="app.apk"' },
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('app.apk');
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('uses the expected extension when the URL has no filename', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('application.apk');
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('passes the abort signal to the build lookup', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const buildId = randomUUID();
+
+    await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+      signal: new AbortController().signal,
+    });
+
+    expect(graphqlClient.query).toHaveBeenCalledWith(
+      expect.anything(),
+      { buildId },
+      { fetch: expect.any(Function) }
+    );
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      APPLICATION_ARCHIVE_URL,
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
+  });
+
+  it('stops a pending build lookup when aborted', async () => {
+    // The lookup request runs through the abort-aware fetch from graphqlAbortContext and
+    // hangs until its signal fires, like a stalled API call.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn(
+      (_input: unknown, init?: RequestInit) =>
+        new Promise<never>((_resolve, reject) => {
+          init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason));
+        })
+    ) as typeof globalThis.fetch;
+    const graphqlClient = {
+      query: jest.fn((_query, _variables, context: { fetch: typeof globalThis.fetch }) => ({
+        toPromise: () =>
+          context.fetch('https://api.expo.dev/graphql', {}).then(
+            () => ({ data: undefined }),
+            (networkError: Error) => ({ error: new CombinedError({ networkError }) })
+          ),
+      })),
+    } as unknown as Client;
+    const controller = new AbortController();
+    const failure = new Error('daemon failed');
+
+    try {
+      const download = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+        signal: controller.signal,
+      });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      controller.abort(failure);
+
+      await expect(download).rejects.toBe(failure);
+      expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it('lets a started extraction finish before it reports an abort', async () => {
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const { decompressTarAsync } = jest.requireActual<typeof files>('../../../utils/files');
+    const controller = new AbortController();
+    const failure = new Error('daemon failed');
+    let extractionDirectory: string | undefined;
+    let extractionFinished = false;
+    const decompressSpy = jest.spyOn(files, 'decompressTarAsync').mockImplementation(async args => {
+      extractionDirectory = args.destinationDirectory;
+      // The startup fails while the archive is being extracted.
+      controller.abort(failure);
+      await decompressTarAsync(args);
+      extractionFinished = true;
+    });
+
+    try {
+      await expect(
+        downloadBuildAsync({
+          logger: createLogger({ name: 'test' }),
+          applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+          graphqlClient: createMockGraphqlClient({}),
+          robotAccessToken: null,
+          extensions: ['app'],
+          signal: controller.signal,
+        })
+      ).rejects.toBe(failure);
+
+      // The download settled only after the extraction wrote its last file.
+      expect(extractionFinished).toBe(true);
+      expect(
+        await fs.promises.readFile(
+          path.join(extractionDirectory!, 'TestApp.app', 'TestApp'),
+          'utf8'
+        )
+      ).toBe('i am executable\n');
+    } finally {
+      decompressSpy.mockRestore();
+    }
+  });
+
+  it('does not look up the build when already aborted', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+    const failure = new Error('boot failed');
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+        signal: AbortSignal.abort(failure),
+      })
+    ).rejects.toBe(failure);
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing or ambiguous build sources', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+
+    await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass buildId or applicationArchiveUrl.',
+    });
+
+    await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass only one of buildId or applicationArchiveUrl.',
+    });
+
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-HTTP application archive URL', async () => {
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl: 'file:///tmp/app.apk',
+        graphqlClient: createMockGraphqlClient({}),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      message: 'application_archive_url must be a valid HTTP or HTTPS URL.',
+    });
   });
 
   it('throws UserError when the build has no application archive url', async () => {
@@ -203,11 +543,12 @@ describe('downloadBuild', () => {
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(APP_TAR_GZ_BUFFER),
-      url: APPLICATION_ARCHIVE_URL,
-    } as unknown as Response);
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: APP_TAR_GZ_BUFFER,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
 
     await expect(
       downloadBuildAsync({
@@ -222,6 +563,128 @@ describe('downloadBuild', () => {
 });
 
 describe('createDownloadBuildFunction', () => {
+  it('aborts a pending archive request when the step times out', async () => {
+    let requestAborted = false;
+    jest.mocked(fetch).mockImplementation(
+      async (_url, options) =>
+        await new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            requestAborted = true;
+            reject(new Error('Archive request aborted'));
+          });
+        })
+    );
+    const graphqlClient = createMockGraphqlClient({});
+    const step = createDownloadBuildFunction({
+      graphqlClient,
+    } as any).createBuildStepFromFunctionCall(
+      createGlobalContextMock({ staticContextContent: { job: {} } }),
+      {
+        callInputs: { application_archive_url: APPLICATION_ARCHIVE_URL, extensions: ['ipa'] },
+        timeoutMs: 100,
+      }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow('timed out');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(requestAborted).toBe(true);
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+  });
+
+  describe('with a device run session token in the job env', () => {
+    const { Response: ActualResponse } = jest.requireActual(
+      'node-fetch'
+    ) as typeof import('node-fetch');
+    const workerApiUrl = 'https://api.expo.test/v2/device-run-session-worker/application';
+
+    function createSessionCtx(graphqlClient: Client): any {
+      return {
+        graphqlClient,
+        env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'session-token' },
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      };
+    }
+
+    function createStep(ctx: any, callInputs: Record<string, unknown>) {
+      return createDownloadBuildFunction(ctx).createBuildStepFromFunctionCall(
+        createGlobalContextMock({
+          logger: createMockLogger(),
+          staticContextContent: { job: { secrets: { robotAccessToken: 'session-token' } } },
+        }),
+        { callInputs }
+      );
+    }
+
+    it('looks up build_id through the worker API and downloads without an Authorization header', async () => {
+      const buildId = randomUUID();
+      const graphqlClient = createMockGraphqlClient({});
+      jest.mocked(fetch).mockImplementation(async url => {
+        if (url === workerApiUrl) {
+          return new ActualResponse(
+            JSON.stringify({
+              data: {
+                build: {
+                  id: buildId,
+                  gitCommitHash: null,
+                  applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return {
+          ok: false,
+          text: () => Promise.resolve('Internal Server Error'),
+          status: 500,
+        } as unknown as Response;
+      });
+
+      await expect(
+        createStep(createSessionCtx(graphqlClient), {
+          build_id: buildId,
+          extensions: ['app'],
+        }).executeAsync()
+      ).rejects.toThrow('Internal Server Error');
+
+      expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+        workerApiUrl,
+        expect.objectContaining({
+          method: 'GET',
+          headers: { 'expo-device-run-session-token': 'session-token' },
+        })
+      );
+      expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+        APPLICATION_ARCHIVE_URL,
+        expect.objectContaining({ headers: undefined })
+      );
+      expect(graphqlClient.query).not.toHaveBeenCalled();
+    });
+
+    it('does not call the worker API for an application_archive_url input', async () => {
+      const graphqlClient = createMockGraphqlClient({});
+      jest.mocked(fetch).mockResolvedValue({
+        ok: false,
+        text: () => Promise.resolve('Internal Server Error'),
+        status: 500,
+      } as unknown as Response);
+
+      await expect(
+        createStep(createSessionCtx(graphqlClient), {
+          application_archive_url: APPLICATION_ARCHIVE_URL,
+          extensions: ['app'],
+        }).executeAsync()
+      ).rejects.toThrow('Internal Server Error');
+
+      expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+        APPLICATION_ARCHIVE_URL,
+        expect.objectContaining({ headers: undefined })
+      );
+      expect(graphqlClient.query).not.toHaveBeenCalled();
+    });
+  });
+
   it('should download a build', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({

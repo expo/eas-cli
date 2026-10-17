@@ -18,14 +18,21 @@ import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
 import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreCocoapodsCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveCocoapodsCacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
-import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
@@ -103,7 +110,13 @@ async function buildInnerAsync(
       await restoreCcacheAsync({
         logger: ctx.logger,
         workingDirectory,
-        platform: ctx.job.platform,
+        target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      });
+      await restoreCocoapodsCacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
@@ -224,15 +237,26 @@ async function buildInnerAsync(
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     await uploadApplicationArchive(ctx, {
-      patternOrPath: resolveArtifactPath(ctx),
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
   });
 
-  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
+  if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
-      await uploadEmbeddedBundleAsync(ctx);
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
     });
   }
 
@@ -245,8 +269,14 @@ async function buildInnerAsync(
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveCocoapodsCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

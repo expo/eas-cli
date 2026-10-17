@@ -1,0 +1,265 @@
+import { type bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
+import fetch from 'node-fetch';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { type CustomBuildContext } from '../../customBuildContext';
+import { killProcessGroup } from '../../utils/processes';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+
+const PREVIEW_INTERVAL_MS = 60_000;
+const PREVIEW_MAX_DIMENSION = 320;
+const PREVIEW_QUALITY = 70;
+const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
+/**
+ * node-fetch includes the request URL in its error messages, and this URL is a signed upload URL
+ * that is valid for the whole session. Replace such errors with one that names only the failure.
+ */
+async function putPreviewAsync(
+  uploadSession: { url: string; headers: Record<string, string> },
+  { image, signal }: { image: Buffer; signal: AbortSignal }
+): Promise<Awaited<ReturnType<typeof fetch>>> {
+  try {
+    return await fetch(uploadSession.url, {
+      method: 'PUT',
+      headers: uploadSession.headers,
+      body: image,
+      signal,
+      timeout: 30_000,
+    });
+  } catch (err) {
+    const { name, type, code } = err as { name?: unknown; type?: unknown; code?: unknown };
+    const details = Object.entries({ name, type, code })
+      .filter(([, value]) => typeof value === 'string' && value.length > 0)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ');
+    throw new Error(`Session preview upload request failed (${details || 'unknown error'}).`);
+  }
+}
+
+export function startDeviceRunSessionPreview({
+  ctx,
+  deviceRunSessionId,
+  captureAsync,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  captureAsync: (signal: AbortSignal) => Promise<Buffer>;
+  logger: bunyan;
+}): { stopAsync: () => Promise<void> } {
+  const controller = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+  let uploadSession: { url: string; headers: Record<string, string> } | undefined;
+  let pending: Promise<void>;
+
+  const uploadAsync = async (): Promise<void> => {
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]);
+    try {
+      const image = await captureAsync(signal);
+      if (controller.signal.aborted) {
+        return;
+      }
+      if (image.length === 0 || image.length > MAX_PREVIEW_SIZE_BYTES) {
+        throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
+      }
+      if (!uploadSession) {
+        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
+      }
+      if (controller.signal.aborted) {
+        return;
+      }
+      const response = await putPreviewAsync(uploadSession, { image, signal });
+      if (!response.ok) {
+        throw new Error(`Session preview upload failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');
+      }
+    }
+  };
+  const tick = (): void => {
+    pending = uploadAsync().finally(() => {
+      if (!controller.signal.aborted) {
+        timer = setTimeout(tick, PREVIEW_INTERVAL_MS);
+        timer.unref();
+      }
+    });
+  };
+  tick();
+  return {
+    stopAsync: async () => {
+      controller.abort();
+      clearTimeout(timer);
+      await pending;
+    },
+  };
+}
+
+async function createPreviewUploadSessionAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<{ url: string; headers: Record<string, string> }> {
+  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync({ signal });
+}
+
+/**
+ * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews with `cwebp` from
+ * Homebrew's webp package instead. Throws when it cannot be installed.
+ */
+export async function ensureMacosPreviewEncoderInstalledAsync({
+  env,
+  logger,
+  signal,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<void> {
+  const probe = await asyncResult(
+    runEncoderCommandAsync('cwebp', ['-version'], { env, stdio: 'pipe' }, signal)
+  );
+  if (probe.ok) {
+    return;
+  }
+  signal?.throwIfAborted();
+  logger.info('Installing webp with Homebrew for the session preview.');
+  await runEncoderCommandAsync(
+    'brew',
+    ['install', 'webp'],
+    { env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+    signal
+  );
+}
+
+async function runEncoderCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal?.throwIfAborted();
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
+export async function captureDeviceRunSessionPreviewAsync({
+  runtimePlatform,
+  device,
+  env,
+  signal,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  device: string;
+  env: BuildStepEnv;
+  signal: AbortSignal;
+}): Promise<Buffer> {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
+  try {
+    const options = { env, signal, timeout: 30_000, stdio: 'pipe' as const };
+    const preview = path.join(directory, 'preview.webp');
+    if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+      await captureIosPreviewAsync({ device, directory, preview, options });
+    } else {
+      await captureAndroidPreviewAsync({ device, directory, preview, options });
+    }
+    return await readFile(preview);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+type CaptureOptions = {
+  env: BuildStepEnv;
+  signal: AbortSignal;
+  timeout: number;
+  stdio: 'pipe';
+};
+
+async function captureIosPreviewAsync({
+  device,
+  directory,
+  preview,
+  options,
+}: {
+  device: string;
+  directory: string;
+  preview: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  const screenshot = path.join(directory, 'screen.png');
+  const resized = path.join(directory, 'resized.png');
+  await spawn('xcrun', ['simctl', 'io', device, 'screenshot', screenshot], options);
+  await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
+  await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
+}
+
+async function captureAndroidPreviewAsync({
+  device,
+  directory,
+  preview,
+  options,
+}: {
+  device: string;
+  directory: string;
+  preview: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  const screenshot = path.join(directory, 'screen.png');
+  let serial = device;
+  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
+  if (serial === 'no-device-id') {
+    const result = await spawn('adb', ['devices'], options);
+    const devices = result.stdout
+      .split('\n')
+      .map(line => line.trim().split(/\s+/))
+      .filter(([, status]) => status === 'device');
+    if (devices.length !== 1) {
+      throw new Error('Expected exactly one connected Android device for the session preview.');
+    }
+    serial = devices[0][0];
+  }
+  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
+  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
+  await Promise.all([
+    capture,
+    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
+  ]);
+  await spawn(
+    'ffmpeg',
+    [
+      '-nostdin',
+      '-y',
+      '-i',
+      screenshot,
+      '-vf',
+      `scale=${PREVIEW_MAX_DIMENSION}:${PREVIEW_MAX_DIMENSION}:force_original_aspect_ratio=decrease`,
+      '-frames:v',
+      '1',
+      '-c:v',
+      'libwebp',
+      '-quality',
+      String(PREVIEW_QUALITY),
+      preview,
+    ],
+    options
+  );
+}

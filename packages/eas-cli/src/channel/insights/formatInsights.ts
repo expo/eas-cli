@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { ChannelRuntimeInsights } from '../../graphql/queries/ChannelInsightsQuery';
-import { formatTimespan } from '../../insights/formatTimespan';
+import { formatTimespan, toTimespanJson } from '../../insights/formatTimespan';
 import formatFields from '../../utils/formatFields';
 import renderTextTable from '../../utils/renderTextTable';
 
@@ -90,11 +90,7 @@ export function buildChannelInsightsJson(summary: ChannelInsightsSummary): objec
   return {
     channel: summary.channelName,
     runtimeVersion: summary.runtimeVersion,
-    timespan: {
-      start: summary.startTime,
-      end: summary.endTime,
-      ...(summary.daysBack !== undefined ? { daysBack: summary.daysBack } : {}),
-    },
+    timespan: toTimespanJson(summary),
     embeddedUpdateTotalUniqueUsers: summary.embeddedUpdateTotalUniqueUsers,
     otaTotalUniqueUsers: summary.otaTotalUniqueUsers,
     mostPopularUpdates: summary.mostPopularUpdates,

@@ -4,7 +4,8 @@ import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 
 export default class AnalyticsView extends EasCommand {
-  static override description = 'display or change analytics settings';
+  static override description =
+    'display or change analytics settings (disabling analytics also disables experiments)';
 
   static override args = {
     STATUS: Args.string({

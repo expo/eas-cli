@@ -1,18 +1,18 @@
 import { getConfigFilePaths } from '@expo/config';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
-import Go from '../../commands/go';
+import Go, { toRepackTargetSdkVersion } from '../../commands/go';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
+import { detectProjectSdkVersionAsync } from '../../project/detectProjectSdkVersionAsync';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
-import { ensureActorHasPrimaryAccount } from '../../user/actions';
-import { detectProjectSdkVersionAsync, toRepackTargetSdkVersion } from '../../commands/go';
 import { mockTestCommand } from './utils';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 
 jest.mock('@expo/config', () => ({
   ...jest.requireActual('@expo/config'),
@@ -45,8 +45,8 @@ jest.mock('fs-extra', () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
   remove: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../user/actions');
 jest.mock('../../graphql/queries/WorkflowRunQuery');
+jest.mock('../../graphql/queries/UserQuery');
 jest.mock('../../graphql/mutations/WorkflowRunMutation');
 jest.mock('../../project/uploadAccountScopedFileAsync');
 jest.mock('../../project/uploadAccountScopedProjectSourceAsync');
@@ -110,7 +110,9 @@ const mockActor = {
 
 describe('Go command', () => {
   beforeEach(() => {
-    jest.mocked(ensureActorHasPrimaryAccount).mockReturnValue(mockAccount as any);
+    jest
+      .mocked(UserQuery.requireCurrentUserPrimaryAccountAsync)
+      .mockReturnValue(mockAccount as any);
     jest.mocked(WorkflowRunQuery.expoGoRepackConfigurationAsync).mockResolvedValue({
       files: [],
       sdkVersion: '55.0.0',

@@ -1,12 +1,12 @@
-import { AppObserveEvent, PageInfo } from '../../graphql/generated';
+import { AppObserveMetric, PageInfo } from '../../graphql/generated';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../formatEvents';
 
-function createMockEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEvent {
+function createMockEvent(overrides: Partial<AppObserveMetric> = {}): AppObserveMetric {
   return {
-    __typename: 'AppObserveEvent',
+    __typename: 'AppObserveMetric',
     id: 'evt-1',
-    metricName: 'expo.app_startup.tti',
-    metricValue: 1.23,
+    name: 'expo.app_startup.tti',
+    value: 1.23,
     timestamp: '2025-01-15T10:30:00.000Z',
     appVersion: '1.0.0',
     appBuildNumber: '42',
@@ -35,8 +35,8 @@ describe(buildObserveEventsTable, () => {
   it('formats events into aligned columns', () => {
     const events = [
       createMockEvent({
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        name: 'expo.app_startup.tti',
+        value: 1.23,
         appVersion: '1.2.0',
         appBuildNumber: '42',
         deviceOs: 'iOS',
@@ -47,8 +47,8 @@ describe(buildObserveEventsTable, () => {
       }),
       createMockEvent({
         id: 'evt-2',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 0.85,
+        name: 'expo.app_startup.tti',
+        value: 0.85,
         appVersion: '1.1.0',
         appBuildNumber: '38',
         deviceOs: 'Android',
@@ -76,7 +76,7 @@ describe(buildObserveEventsTable, () => {
   });
 
   it('shows metric name in summary header when options are provided', () => {
-    const events = [createMockEvent({ metricName: 'expo.app_startup.tti' })];
+    const events = [createMockEvent({ name: 'expo.app_startup.tti' })];
     const output = buildObserveEventsTable(events, noNextPage, {
       metricName: 'expo.app_startup.tti',
       daysBack: 30,
@@ -126,8 +126,8 @@ describe(buildObserveEventsJson, () => {
     const events = [
       createMockEvent({
         id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        name: 'expo.app_startup.tti',
+        value: 1.23,
         appVersion: '1.0.0',
         appBuildNumber: '42',
         deviceModel: 'iPhone 15',
@@ -146,8 +146,8 @@ describe(buildObserveEventsJson, () => {
       events: [
         {
           id: 'evt-1',
-          metricName: 'expo.app_startup.tti',
-          metricValue: 1.23,
+          name: 'expo.app_startup.tti',
+          value: 1.23,
           appVersion: '1.0.0',
           appBuildNumber: '42',
           appUpdateId: null,

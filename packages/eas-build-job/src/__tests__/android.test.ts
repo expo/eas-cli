@@ -240,7 +240,6 @@ describe('Android.JobSchema', () => {
       username: 'turtle-tutorial',
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'http://localhost:3000',
         gitRef: 'master',
         gitCommitHash: '1b57db5b1cd12638aba0d12da71a2d691416700d',
       },

@@ -12,6 +12,7 @@ import {
   SubmissionAndroidReleaseStatus,
 } from '../../graphql/generated';
 import { AppStoreConnectApiKeyQuery } from '../../graphql/queries/AppStoreConnectApiKeyQuery';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import { GoogleServiceAccountKeyQuery } from '../../graphql/queries/GoogleServiceAccountKeyQuery';
 import AndroidSubmitCommand from '../../submit/android/AndroidSubmitCommand';
 import { SubmissionContext, createSubmissionContextAsync } from '../../submit/context';
@@ -41,11 +42,19 @@ export default class SubmitInternal extends EasCommand {
       description: 'ID of the build to submit',
       required: true,
     }),
+    'project-id': Flags.string({
+      description: 'EAS project ID. With --application-identifier, skips loading app config.',
+      dependsOn: ['application-identifier'],
+    }),
+    'application-identifier': Flags.string({
+      description: 'Bundle identifier or Android package name read from the build artifact.',
+      dependsOn: ['project-id'],
+    }),
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
@@ -58,13 +67,23 @@ export default class SubmitInternal extends EasCommand {
 
     const {
       loggedIn: { actor, graphqlClient },
-      privateProjectConfig: { exp, projectId, projectDir },
+      projectDir,
+      getDynamicPrivateProjectConfigAsync,
       analytics,
       vcsClient,
     } = await this.getContextAsync(SubmitInternal, {
       nonInteractive: true,
       withServerSideEnvironment: null,
     });
+
+    const project = flags['project-id']
+      ? await AppQuery.byIdAsync(graphqlClient, flags['project-id'])
+      : undefined;
+    // Worker submissions already know the project and artifact identifiers.
+    // The existing submission code only needs the project name and slug here.
+    const { exp, projectId } = project
+      ? { exp: { name: project.name, slug: project.slug }, projectId: project.id }
+      : await getDynamicPrivateProjectConfigAsync();
 
     if (vcsClient instanceof GitClient) {
       // `build:internal` is run on EAS workers and the repo may have been changed
@@ -93,6 +112,7 @@ export default class SubmitInternal extends EasCommand {
       analytics,
       exp,
       projectId,
+      applicationIdentifier: flags['application-identifier'],
       vcsClient,
       specifiedProfile: flags.profile,
       groups: undefined, // use groups from submit profile
@@ -183,17 +203,20 @@ async function getGoogleServiceAccountKeyJsonAsync({
   return null;
 }
 
-async function getAppStoreConnectApiKeyJsonAsync({
+export async function getAppStoreConnectApiKeyJsonAsync({
   iosConfig,
   graphqlClient,
 }: {
   iosConfig: IosSubmissionConfigInput;
   graphqlClient: ExpoGraphqlClient;
 }): Promise<string | null> {
+  // Individual API keys have no issuer. fastlane detects them by the absence of the issuer_id field.
   if (iosConfig.ascApiKey) {
     return JSON.stringify({
       key_id: iosConfig.ascApiKey.keyIdentifier,
-      issuer_id: iosConfig.ascApiKey.issuerIdentifier,
+      ...(iosConfig.ascApiKey.issuerIdentifier
+        ? { issuer_id: iosConfig.ascApiKey.issuerIdentifier }
+        : null),
       key: iosConfig.ascApiKey.keyP8,
     });
   } else if (iosConfig.ascApiKeyId) {
@@ -201,7 +224,7 @@ async function getAppStoreConnectApiKeyJsonAsync({
 
     return JSON.stringify({
       key_id: key.keyIdentifier,
-      issuer_id: key.issuerIdentifier,
+      ...(key.issuerIdentifier ? { issuer_id: key.issuerIdentifier } : null),
       key: key.keyP8,
     });
   }

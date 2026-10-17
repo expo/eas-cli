@@ -289,6 +289,23 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
     await expect(loadOrganizationsBestEffortAsync(client, 'acct-1')).resolves.toBeNull();
   });
 
+  it('waits for the existing connection to change during reauthorization', async () => {
+    jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
+    const updated = { ...connection, updatedAt: '2024-01-02T00:00:00.000Z' };
+    jest
+      .mocked(SupabaseMutation.beginSupabaseOAuthAsync)
+      .mockResolvedValue({ url: 'https://supabase.com/oauth' });
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockResolvedValueOnce(connection)
+      .mockResolvedValueOnce(updated);
+    jest.mocked(SupabaseMutation.listSupabaseOrganizationsAsync).mockResolvedValue([]);
+    const promise = authorizeViaBrowserAsync(client, account, false, connection.updatedAt);
+    await jest.advanceTimersByTimeAsync(2000);
+    await expect(promise).resolves.toEqual(updated);
+    expect(SupabaseMutation.disconnectSupabaseAsync).not.toHaveBeenCalled();
+  });
+
   it('pollForConnectionAsync retries after retriable query errors', async () => {
     jest
       .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)

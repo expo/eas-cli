@@ -3,6 +3,7 @@ import { Args, Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
@@ -12,8 +13,9 @@ import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
-  ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
@@ -26,8 +28,7 @@ import {
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
-import { appObservePlatformFromFlag } from '../../observe/platforms';
-import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
+import { observePlatformsFromFlag } from '../../observe/platforms';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -53,7 +54,9 @@ export default class ObserveEvents extends EasCommand {
     }),
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
     ...ObserveUpdateIdFlag,
+    ...ObserveEnvironmentFlag,
     'session-id': Flags.string({
       description:
         'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
@@ -63,16 +66,12 @@ export default class ObserveEvents extends EasCommand {
         'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
       default: false,
     }),
-    ...ObserveProjectIdFlag,
+    ...EasProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
-    ...this.ContextOptions.LoggedIn,
-  };
-
-  private static loggedInOnlyContextDefinition = {
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -86,12 +85,12 @@ export default class ObserveEvents extends EasCommand {
       );
     }
 
-    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
-      command: this,
-      commandClass: ObserveEvents,
-      loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
-      projectIdOverride: flags['project-id'],
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveEvents, {
       nonInteractive,
+      projectIdOverride: flags['project-id'],
     });
 
     if (json) {
@@ -100,7 +99,7 @@ export default class ObserveEvents extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platform = appObservePlatformFromFlag(flags.platform);
+    const platforms = observePlatformsFromFlag(flags.platform);
 
     // A session ID narrows to a single session, so show that session's events
     // (like --all-events) instead of the account-wide name+count summary, which
@@ -111,7 +110,8 @@ export default class ObserveEvents extends EasCommand {
           appId: projectId,
           startTime,
           endTime,
-          platform,
+          platforms,
+          environment: flags.environment,
         })
       );
 
@@ -138,10 +138,12 @@ export default class ObserveEvents extends EasCommand {
         ...(flags.after && { after: flags.after }),
         startTime,
         endTime,
-        platform,
+        platforms,
         appVersion: flags['app-version'],
+        buildNumber: flags['build-number'],
         updateId: flags['update-id'],
         sessionId: flags['session-id'],
+        environment: flags.environment,
       })
     );
 
@@ -150,7 +152,8 @@ export default class ObserveEvents extends EasCommand {
         appId: projectId,
         startTime,
         endTime,
-        platform,
+        platforms,
+        environment: flags.environment,
       });
 
       if (json) {

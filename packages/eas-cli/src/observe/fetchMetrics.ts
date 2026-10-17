@@ -1,6 +1,5 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
-import { AppPlatform } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import {
@@ -11,7 +10,7 @@ import {
   makeMetricsKey,
 } from './formatMetrics';
 import { isObservePlanGateError } from './planGating';
-import { appPlatformToObservePlatform } from './platforms';
+import { ObservePlatformTarget, observePlatformDisplayNames } from './platforms';
 
 export function validateDateFlag(value: string, flagName: string): void {
   const parsed = new Date(value);
@@ -33,28 +32,33 @@ export async function fetchObserveMetricsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   metricNames: string[],
-  platforms: AppPlatform[],
+  targets: ObservePlatformTarget[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<FetchObserveMetricsResult> {
-  const queries = platforms.map(async appPlatform => {
-    const observePlatform = appPlatformToObservePlatform[appPlatform];
+  const queries = targets.map(async target => {
     try {
       const appVersions = await ObserveQuery.appVersionsAsync(graphqlClient, {
         appId,
-        platform: observePlatform,
+        platforms: target.platforms,
         startTime,
         endTime,
         metricNames,
+        environment,
       });
-      return { appPlatform, appVersions };
+      return { target, appVersions };
     } catch (error: any) {
       // A plan gate is an account-wide rejection, not a per-platform failure —
       // let it propagate so the command surfaces the upgrade prompt.
       if (isObservePlanGateError(error)) {
         throw error;
       }
-      Log.warn(`Failed to fetch observe data on ${observePlatform}: ${error.message}`);
+      Log.warn(
+        `Failed to fetch observe data on ${observePlatformDisplayNames[target.key]}: ${
+          error.message
+        }`
+      );
       return null;
     }
   });
@@ -70,10 +74,10 @@ export async function fetchObserveMetricsAsync(
     if (!result) {
       continue;
     }
-    const { appPlatform, appVersions } = result;
+    const { target, appVersions } = result;
 
     for (const version of appVersions) {
-      const key = makeMetricsKey(version.appVersion, appPlatform);
+      const key = makeMetricsKey(version.appVersion, target.key);
       if (!metricsMap.has(key)) {
         metricsMap.set(key, new Map());
       }
@@ -103,7 +107,7 @@ export async function fetchObserveMetricsAsync(
         };
         metricsMap.get(key)!.set(metric.metricName, values);
 
-        const eventCountKey = `${metric.metricName}:${appPlatform}`;
+        const eventCountKey = `${metric.metricName}:${target.key}`;
         totalEventCounts.set(
           eventCountKey,
           (totalEventCounts.get(eventCountKey) ?? 0) + metric.eventCount

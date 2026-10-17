@@ -17,6 +17,12 @@ export const EasNonInteractiveAndJsonFlags = {
   }),
 };
 
+export const EasProjectIdFlag = {
+  'project-id': Flags.string({
+    description: 'EAS project ID (defaults to the project ID of the current directory)',
+  }),
+};
+
 export function resolveNonInteractiveAndJsonFlags(flags: {
   json?: boolean;
   'non-interactive'?: boolean;

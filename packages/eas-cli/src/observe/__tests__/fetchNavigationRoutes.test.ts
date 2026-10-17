@@ -6,14 +6,18 @@ import {
   AppObserveNavigationRoute,
   AppObserveNavigationRoutesOrderByField,
   AppObservePlatform,
-  AppPlatform,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveNavigationRoutesAsync } from '../fetchNavigationRoutes';
 import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
+import { ObservePlatformTarget } from '../platforms';
 
 jest.mock('../../graphql/queries/ObserveQuery');
 jest.mock('../../log');
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 function makeRoute(routeName: string): AppObserveNavigationRoute {
   return {
@@ -41,7 +45,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 25,
       appVersion: '2.1.0',
       updateId: 'update-xyz',
@@ -53,7 +57,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     expect(call.appId).toBe('project-123');
     expect(call.first).toBe(25);
     expect(call.filter).toEqual({
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
       appVersion: '2.1.0',
@@ -66,7 +70,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 50,
     });
 
@@ -81,7 +85,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 50,
     });
 
@@ -96,7 +100,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 50,
       routeNames: ['/home', '/profile'],
     });
@@ -111,7 +115,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 50,
       routeNames: [],
     });
@@ -123,7 +127,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platforms: [AppPlatform.Ios],
+      targets: [target(AppObservePlatform.Ios)],
       limit: 50,
       after: 'cursor-abc',
     });
@@ -133,7 +137,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
 
   it('fans out across multiple platforms and tags each route with its platform', async () => {
     mockNavigationRoutesAsync.mockImplementation(async (_client, vars) => {
-      if (vars.filter.platform === AppObservePlatform.Android) {
+      if (vars.filter.platforms?.includes(AppObservePlatform.Android)) {
         return {
           routes: [makeRoute('/android-home')],
           pageInfo: { hasNextPage: false, hasPreviousPage: false },
@@ -151,7 +155,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
       {
         startTime: '2025-01-01T00:00:00.000Z',
         endTime: '2025-03-01T00:00:00.000Z',
-        platforms: [AppPlatform.Ios, AppPlatform.Android],
+        targets: [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
         limit: 50,
       }
     );
@@ -159,15 +163,15 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     expect(mockNavigationRoutesAsync).toHaveBeenCalledTimes(2);
     expect(routes).toHaveLength(2);
     const byName = new Map(routes.map(r => [r.route.routeName, r.platform]));
-    expect(byName.get('/android-home')).toBe(AppPlatform.Android);
-    expect(byName.get('/ios-home')).toBe(AppPlatform.Ios);
-    expect(pageInfoByPlatform.get(AppPlatform.Ios)?.hasNextPage).toBe(true);
-    expect(pageInfoByPlatform.get(AppPlatform.Android)?.hasNextPage).toBe(false);
+    expect(byName.get('/android-home')).toBe(AppObservePlatform.Android);
+    expect(byName.get('/ios-home')).toBe(AppObservePlatform.Ios);
+    expect(pageInfoByPlatform.get(AppObservePlatform.Ios)?.hasNextPage).toBe(true);
+    expect(pageInfoByPlatform.get(AppObservePlatform.Android)?.hasNextPage).toBe(false);
   });
 
   it('handles partial failures gracefully', async () => {
     mockNavigationRoutesAsync.mockImplementation(async (_client, vars) => {
-      if (vars.filter.platform === AppObservePlatform.Android) {
+      if (vars.filter.platforms?.includes(AppObservePlatform.Android)) {
         throw new Error('Network error');
       }
       return {
@@ -182,14 +186,14 @@ describe('fetchObserveNavigationRoutesAsync', () => {
       {
         startTime: '2025-01-01T00:00:00.000Z',
         endTime: '2025-03-01T00:00:00.000Z',
-        platforms: [AppPlatform.Ios, AppPlatform.Android],
+        targets: [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
         limit: 50,
       }
     );
 
     expect(routes).toHaveLength(1);
-    expect(routes[0].platform).toBe(AppPlatform.Ios);
-    expect(pageInfoByPlatform.has(AppPlatform.Android)).toBe(false);
+    expect(routes[0].platform).toBe(AppObservePlatform.Ios);
+    expect(pageInfoByPlatform.has(AppObservePlatform.Android)).toBe(false);
   });
 
   it('rethrows plan-gate errors instead of swallowing them as a partial failure', async () => {
@@ -214,7 +218,7 @@ describe('fetchObserveNavigationRoutesAsync', () => {
       fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
         startTime: '2025-01-01T00:00:00.000Z',
         endTime: '2025-03-01T00:00:00.000Z',
-        platforms: [AppPlatform.Ios, AppPlatform.Android],
+        targets: [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
         limit: 50,
       })
     ).rejects.toBe(gateError);

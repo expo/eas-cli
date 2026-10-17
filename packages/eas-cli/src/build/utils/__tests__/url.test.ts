@@ -1,4 +1,9 @@
-import { getProjectDashboardUrl, getProjectPageUrl } from '../url';
+import {
+  getDeviceRunSessionPreviewUrl,
+  getProjectDashboardUrl,
+  getProjectPageUrl,
+  getSubmissionUrl,
+} from '../url';
 
 describe(getProjectPageUrl, () => {
   it('builds the project dashboard URL when no page is provided', () => {
@@ -30,6 +35,22 @@ describe(getProjectDashboardUrl, () => {
   it('matches the page URL with no page', () => {
     expect(getProjectDashboardUrl('testuser', 'testapp')).toBe(
       getProjectPageUrl('testuser', 'testapp')
+    );
+  });
+});
+
+describe(getSubmissionUrl, () => {
+  it('builds an encoded submission URL', () => {
+    expect(getSubmissionUrl('my org', 'my app', 'submission/id')).toBe(
+      'https://expo.dev/accounts/my%20org/projects/my%20app/submissions/submission%2Fid'
+    );
+  });
+});
+
+describe(getDeviceRunSessionPreviewUrl, () => {
+  it('builds the authenticated preview route with encoded path segments', () => {
+    expect(getDeviceRunSessionPreviewUrl('my org', 'my app', 'session/id')).toBe(
+      'https://expo.dev/accounts/my%20org/projects/my%20app/simulator-sessions/session%2Fid/preview'
     );
   });
 });

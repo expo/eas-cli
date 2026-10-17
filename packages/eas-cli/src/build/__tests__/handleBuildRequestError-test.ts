@@ -3,11 +3,15 @@ import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getError } from '../../__tests__/commands/utils';
+import { getErrorAsync } from '../../__tests__/commands/utils';
+import { getAgentTelemetryContext } from '../../analytics/agent';
 import { EasCommandError } from '../../commandUtils/errors';
 import Build from '../../commands/build';
+import { ExperimentOverrides } from '../../experimentation/ExperimentOverrides';
+import { ExperimentationClient } from '../../experimentation/ExperimentationClient';
+import { LazyExperimentationClient } from '../../experimentation/LazyExperimentationClient';
 import Log, { link } from '../../log';
-import { handleBuildRequestError } from '../build';
+import { handleBuildRequestErrorAsync } from '../build';
 import {
   EasBuildDownForMaintenanceError,
   EasBuildFreeTierDisabledAndroidError,
@@ -20,10 +24,33 @@ import {
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from '../errors';
+import {
+  FREE_TIER_LIMIT_AGENT_GUIDANCE_EXPERIMENT_NAMESPACE,
+  FreeTierLimitAgentGuidanceExperiment,
+} from '../freeTierLimitGuidance';
+
+jest.mock('../../analytics/agent');
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(getAgentTelemetryContext).mockReturnValue(null);
 });
+
+/** An experiment handle whose client is forced to the given variant through an override. */
+function createExperiment(variant: string): FreeTierLimitAgentGuidanceExperiment {
+  return {
+    accountId: 'account-id',
+    experimentation: LazyExperimentationClient.fromClient(
+      ExperimentationClient.createDisabled(
+        new ExperimentOverrides(
+          new Map([
+            [FREE_TIER_LIMIT_AGENT_GUIDANCE_EXPERIMENT_NAMESPACE, new Map([['variant', variant]])],
+          ])
+        )
+      )
+    ),
+  };
+}
 
 const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `Build request error details:
 {
@@ -84,7 +111,7 @@ describe(Build.name, () => {
         const error = new CombinedError({ graphQLErrors });
 
         try {
-          handleBuildRequestError(error, platform);
+          await handleBuildRequestErrorAsync(error, platform);
         } catch {}
 
         expect(logDebugSpy).toBeCalledWith(EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON);
@@ -97,7 +124,7 @@ describe(Build.name, () => {
         const error = new CombinedError({ graphQLErrors });
 
         try {
-          handleBuildRequestError(error, platform);
+          await handleBuildRequestErrorAsync(error, platform);
         } catch {}
 
         expect(logDebugSpy).toBeCalledWith(EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON);
@@ -111,7 +138,7 @@ describe(Build.name, () => {
         const error = new Error('Generic error');
 
         try {
-          handleBuildRequestError(error, platform);
+          await handleBuildRequestErrorAsync(error, platform);
         } catch {}
 
         expect(logDebugSpy).not.toHaveBeenCalled();
@@ -123,7 +150,7 @@ describe(Build.name, () => {
         const error = new Error('Generic error');
 
         try {
-          handleBuildRequestError(error, platform);
+          await handleBuildRequestErrorAsync(error, platform);
         } catch {}
 
         expect(logDebugSpy).not.toHaveBeenCalled();
@@ -139,9 +166,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<TurtleDeprecatedJobFormatError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<TurtleDeprecatedJobFormatError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -162,8 +189,8 @@ describe(Build.name, () => {
             const error = new CombinedError({ graphQLErrors });
 
             const handleBuildRequestErrorThrownError =
-              getError<EasBuildResourceClassNotAvailableInFreeTierError>(() => {
-                handleBuildRequestError(error, platform);
+              await getErrorAsync<EasBuildResourceClassNotAvailableInFreeTierError>(async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               });
 
             assertReThrownError(
@@ -180,9 +207,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<TurtleDeprecatedJobFormatError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<TurtleDeprecatedJobFormatError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -203,8 +230,8 @@ describe(Build.name, () => {
             const error = new CombinedError({ graphQLErrors });
 
             const handleBuildRequestErrorThrownError =
-              getError<EasBuildResourceClassNotAvailableInFreeTierError>(() => {
-                handleBuildRequestError(error, platform);
+              await getErrorAsync<EasBuildResourceClassNotAvailableInFreeTierError>(async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               });
 
             assertReThrownError(
@@ -224,9 +251,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierDisabledError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierDisabledError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -244,9 +271,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierDisabledError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierDisabledError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -266,7 +293,7 @@ describe(Build.name, () => {
           const error = new CombinedError({ graphQLErrors });
 
           try {
-            handleBuildRequestError(error, platform);
+            await handleBuildRequestErrorAsync(error, platform);
           } catch (caughtError) {
             assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledIOSError, 'Error 1');
           }
@@ -279,9 +306,9 @@ describe(Build.name, () => {
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
 
-          const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierDisabledAndroidError>(
-            () => {
-              handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierDisabledAndroidError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             }
           );
 
@@ -295,19 +322,129 @@ describe(Build.name, () => {
       describe('for EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED', () => {
         it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.ANDROID;
+          const accountName = 'test-account';
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
 
-          const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierLimitExceededError>(
-            () => {
-              handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName);
             }
           );
 
           assertReThrownError(
             handleBuildRequestErrorThrownError,
             EasBuildFreeTierLimitExceededError,
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+          );
+        });
+      });
+      describe('for free tier limit errors in the agent guidance experiment', () => {
+        beforeEach(() => {
+          jest
+            .mocked(getAgentTelemetryContext)
+            .mockReturnValue({ id: 'claude-code', sessionId: 'session-1' });
+        });
+
+        it('appends the human required block for Android in the treatment arm', async () => {
+          const platform = Platform.ANDROID;
+          const accountName = 'test-account';
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierLimitExceededError,
+            [
+              'Error 1',
+              'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.',
+              'Fix: Human required: Android builds for this account are blocked until the Free plan resets. Upgrading costs money, so an account owner or admin decides.',
+            ].join('\n')
+          );
+        });
+
+        it('appends the human required block for iOS in the treatment arm', async () => {
+          const platform = Platform.IOS;
+          const accountName = 'test-account';
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED');
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError =
+            await getErrorAsync<EasBuildFreeTierIosLimitExceededError>(async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
+            });
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierIosLimitExceededError,
+            [
+              'Error 1',
+              'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.',
+              'Fix: Human required: iOS builds for this account are blocked until the Free plan resets. Upgrading costs money, so an account owner or admin decides.',
+            ].join('\n')
+          );
+        });
+
+        it('does not append the block in the control arm', async () => {
+          const platform = Platform.ANDROID;
+          const accountName = 'test-account';
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('control'));
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierLimitExceededError,
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+          );
+        });
+
+        it('does not append the block when no coding agent runs the CLI', async () => {
+          jest.mocked(getAgentTelemetryContext).mockReturnValue(null);
+          const platform = Platform.ANDROID;
+          const accountName = 'test-account';
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierLimitExceededError,
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+          );
+        });
+
+        it('does not append the block to other server-side errors', async () => {
+          const platform = Platform.ANDROID;
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierDisabledError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform, undefined, createExperiment('treatment'));
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierDisabledError,
             'Error 1'
           );
         });
@@ -315,19 +452,20 @@ describe(Build.name, () => {
       describe('for EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED', () => {
         it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.ANDROID;
+          const accountName = 'test-account';
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
 
           const handleBuildRequestErrorThrownError =
-            getError<EasBuildFreeTierIosLimitExceededError>(() => {
-              handleBuildRequestError(error, platform);
+            await getErrorAsync<EasBuildFreeTierIosLimitExceededError>(async () => {
+              await handleBuildRequestErrorAsync(error, platform, accountName);
             });
 
           assertReThrownError(
             handleBuildRequestErrorThrownError,
             EasBuildFreeTierIosLimitExceededError,
-            'Error 1'
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
           );
         });
       });
@@ -340,8 +478,8 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<RequestValidationError>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<RequestValidationError>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(
@@ -358,8 +496,8 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<RequestValidationError>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<RequestValidationError>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(
@@ -381,9 +519,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildDownForMaintenanceError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildDownForMaintenanceError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -401,9 +539,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildDownForMaintenanceError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildDownForMaintenanceError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -424,9 +562,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildTooManyPendingBuildsError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildTooManyPendingBuildsError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -444,9 +582,9 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
 
-            const handleBuildRequestErrorThrownError = getError<EasBuildTooManyPendingBuildsError>(
-              () => {
-                handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildTooManyPendingBuildsError>(
+              async () => {
+                await handleBuildRequestErrorAsync(error, platform);
               }
             );
 
@@ -469,8 +607,8 @@ describe(Build.name, () => {
           const error = new CombinedError({ graphQLErrors });
           const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nRequest ID: ${mockRequestId}\nError message: Error 1`;
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -492,8 +630,8 @@ describe(Build.name, () => {
             `Request ID: ${mockRequestId}\n` +
             'Error message: Error 3';
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -507,8 +645,8 @@ describe(Build.name, () => {
             const error = new CombinedError({ graphQLErrors });
             const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Error 1`;
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -535,8 +673,8 @@ describe(Build.name, () => {
               'Response status: 400 Bad Request\n' +
               `Request ID: ${mockRequestId}`;
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -559,7 +697,7 @@ describe(Build.name, () => {
             });
 
             try {
-              handleBuildRequestError(error, platform);
+              await handleBuildRequestErrorAsync(error, platform);
             } catch {}
 
             expect(logDebugSpy).toBeCalledWith(expect.stringContaining('"graphQLErrors": []'));
@@ -595,8 +733,8 @@ describe(Build.name, () => {
               'Response status: 400 Bad Request\n' +
               `Request ID: ${mockRequestId}`;
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -623,8 +761,8 @@ describe(Build.name, () => {
               'Error message: Error 1\n' +
               'Response status: 400 Bad Request';
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -636,8 +774,8 @@ describe(Build.name, () => {
             const error = { graphQLErrors: [], message: 'Something went wrong' };
             const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Something went wrong`;
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -652,8 +790,8 @@ describe(Build.name, () => {
           const error = new CombinedError({ graphQLErrors });
           const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nRequest ID: ${mockRequestId}\nError message: Error 1`;
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -675,8 +813,8 @@ describe(Build.name, () => {
             `Request ID: ${mockRequestId}\n` +
             'Error message: Error 3';
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -690,8 +828,8 @@ describe(Build.name, () => {
             const error = new CombinedError({ graphQLErrors });
             const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Error 1`;
 
-            const handleBuildRequestErrorThrownError = getError<Error>(() => {
-              handleBuildRequestError(error, platform);
+            const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+              await handleBuildRequestErrorAsync(error, platform);
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
@@ -706,8 +844,8 @@ describe(Build.name, () => {
           const platform = Platform.ANDROID;
           const error = new Error('Non-graphQL-related error');
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           expect(handleBuildRequestErrorThrownError).toStrictEqual(error);
@@ -718,8 +856,8 @@ describe(Build.name, () => {
           const platform = Platform.IOS;
           const error = new Error('Non-graphQL-related error');
 
-          const handleBuildRequestErrorThrownError = getError<Error>(() => {
-            handleBuildRequestError(error, platform);
+          const handleBuildRequestErrorThrownError = await getErrorAsync<Error>(async () => {
+            await handleBuildRequestErrorAsync(error, platform);
           });
 
           expect(handleBuildRequestErrorThrownError).toStrictEqual(error);

@@ -55,6 +55,8 @@ export const DeviceRunSessionQuery = {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
                   name
+                  tags
+                  publicPreview
                   status
                   type
                   platform
@@ -86,19 +88,52 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionUrl
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                     }
                     ... on ArgentRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       toolsUrl
                       toolsAuthToken
                       webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
                     }
                     ... on AppiumRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       appiumUrl
                       capabilities
                       webPreviewUrl
+                      webPreviewToken
+                      previewApiUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
                       previewUrl
+                      previewToken
+                      previewApiUrl
+                    }
+                    ... on WebPreviewOnlyRunSessionRemoteConfig {
+                      egressUrl
+                      egressToken
+                      egressFingerprint
+                      egressPort
+                      previewUrl: webPreviewUrl
+                      previewToken: webPreviewToken
+                      previewApiUrl
                     }
                   }
                   turtleJobRun {
@@ -149,6 +184,7 @@ export const DeviceRunSessionQuery = {
                       node {
                         id
                         name
+                        tags
                         status
                         type
                         platform

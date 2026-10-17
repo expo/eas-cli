@@ -1,5 +1,6 @@
 import * as osascript from '@expo/osascript';
 import spawnAsync from '@expo/spawn-async';
+import path from 'path';
 
 import { simctlAsync } from './simctl';
 import Log from '../../log';
@@ -129,13 +130,26 @@ export async function ensureSimulatorBootedAsync(simulator: IosSimulator): Promi
   await simctlAsync(['boot', simulator.udid]);
 }
 
+// TODO: once Xcode 27 is stable, try DeviceHub before Simulator here and in getSimulatorAppIdAsync,
+// in lockstep with @expo/cli (see SimulatorAppPrerequisite.ts there).
 export async function openSimulatorAppAsync(simulatorUdid: string): Promise<void> {
-  const args = ['-a', 'Simulator'];
-  if (simulatorUdid) {
-    // This has no effect if the app is already running.
-    args.push('--args', '-CurrentDeviceUDID', simulatorUdid);
+  try {
+    const args = ['-a', 'Simulator'];
+    if (simulatorUdid) {
+      // This has no effect if the app is already running.
+      args.push('--args', '-CurrentDeviceUDID', simulatorUdid);
+    }
+    await spawnAsync('open', args);
+  } catch (error) {
+    const deviceHubArgs = simulatorUdid
+      ? [`devices://device/open?id=${simulatorUdid}`]
+      : ['-a', 'DeviceHub'];
+    try {
+      await spawnAsync('open', deviceHubArgs);
+    } catch {
+      throw error;
+    }
   }
-  await spawnAsync('open', args);
 }
 
 export async function launchAppAsync(
@@ -171,7 +185,7 @@ async function waitForSimulatorAppToStartAsync(
 async function isSimulatorAppRunningAsync(): Promise<boolean> {
   try {
     const result = await osascript.execAsync(
-      'tell app "System Events" to count processes whose name is "Simulator"'
+      'tell app "System Events" to count processes whose name is "Simulator" or name is "DeviceHub"'
     );
 
     if (result.trim() === '0') {
@@ -205,9 +219,41 @@ export async function installAppAsync(deviceId: string, filePath: string): Promi
   Log.succeed('Successfully installed your app on the simulator!');
 }
 
+const XCODE_SIMULATOR_INFO_PLIST_PATH = './Applications/Simulator.app/Contents/Info.plist';
+const XCODE_DEVICE_HUB_INFO_PLIST_PATH = '../Applications/DeviceHub.app/Contents/Info.plist';
+
 export async function getSimulatorAppIdAsync(): Promise<string | undefined> {
+  // TODO: resolve DeviceHub before Simulator once Xcode 27 is stable, see openSimulatorAppAsync
+  const launchServicesAppId =
+    (await osascript.safeIdOfAppAsync('Simulator')) ||
+    (await osascript.safeIdOfAppAsync('DeviceHub'));
+  if (launchServicesAppId) {
+    return launchServicesAppId;
+  }
+
+  const xcodePath = await getXcodeSelectPathAsync();
+  if (!xcodePath) {
+    return undefined;
+  }
+  return (
+    (await getInfoPlistBundleIdAsync(path.join(xcodePath, XCODE_SIMULATOR_INFO_PLIST_PATH))) ||
+    (await getInfoPlistBundleIdAsync(path.join(xcodePath, XCODE_DEVICE_HUB_INFO_PLIST_PATH)))
+  );
+}
+
+async function getXcodeSelectPathAsync(): Promise<string | undefined> {
   try {
-    return (await osascript.execAsync('id of app "Simulator"')).trim();
+    const { stdout } = await spawnAsync('xcode-select', ['--print-path']);
+    return stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function getInfoPlistBundleIdAsync(infoPlistPath: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await spawnAsync('defaults', ['read', infoPlistPath, 'CFBundleIdentifier']);
+    return stdout.trim() || undefined;
   } catch {
     return undefined;
   }

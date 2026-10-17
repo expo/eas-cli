@@ -1,10 +1,9 @@
 import chalk from 'chalk';
 
 import { EasCommandError } from '../commandUtils/errors';
-import { AppPlatform } from '../graphql/generated';
-import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
 import { NavigationRouteWithPlatform } from './fetchNavigationRoutes';
+import { ObservePlatformKey, observePlatformDisplayNames } from './platforms';
 import { buildTimeRangeDescription } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
 
@@ -73,7 +72,7 @@ function formatMergedCell(
 
 export interface NavigationRouteValuesJson {
   routeName: string;
-  platform: AppPlatform;
+  platform: ObservePlatformKey;
   metrics: Record<string, Partial<Record<NavigationStatKey, number | null>>>;
 }
 
@@ -102,7 +101,7 @@ export function buildObserveNavigationRoutesJson(
   routes: NavigationRouteWithPlatform[],
   metricNames: string[],
   stats: NavigationStatKey[],
-  pageInfoByPlatform: Map<AppPlatform, { hasNextPage: boolean; endCursor?: string | null }>
+  pageInfoByPlatform: Map<ObservePlatformKey, { hasNextPage: boolean; endCursor?: string | null }>
 ): ObserveNavigationRoutesJsonOutput {
   const jsonRoutes: NavigationRouteValuesJson[] = routes.map(node => {
     const metrics: Record<string, Partial<Record<NavigationStatKey, number | null>>> = {};
@@ -139,7 +138,7 @@ export interface BuildNavigationRoutesTableOptions {
   daysBack?: number;
   startTime?: string;
   endTime?: string;
-  pageInfoByPlatform?: Map<AppPlatform, { hasNextPage: boolean; endCursor?: string | null }>;
+  pageInfoByPlatform?: Map<ObservePlatformKey, { hasNextPage: boolean; endCursor?: string | null }>;
 }
 
 export function buildObserveNavigationRoutesTable(
@@ -167,7 +166,7 @@ export function buildObserveNavigationRoutesTable(
   const countSuffix = hasCount && displayStats.length > 0 ? ' (navigation count)' : '';
   const summaryLine = `${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
 
-  const byPlatform = new Map<AppPlatform, NavigationRouteWithPlatform[]>();
+  const byPlatform = new Map<ObservePlatformKey, NavigationRouteWithPlatform[]>();
   for (const node of routes) {
     if (!byPlatform.has(node.platform)) {
       byPlatform.set(node.platform, []);
@@ -204,7 +203,7 @@ export function buildObserveNavigationRoutesTable(
 
   for (const [platform, platformRoutes] of byPlatform) {
     sections.push('');
-    sections.push(chalk.bold(appPlatformDisplayNames[platform]));
+    sections.push(chalk.bold(observePlatformDisplayNames[platform]));
 
     const rows: string[][] = platformRoutes.map(node => {
       const cells: string[] = [];
@@ -230,7 +229,7 @@ export function buildObserveNavigationRoutesTable(
     const pageInfo = options?.pageInfoByPlatform?.get(platform);
     if (pageInfo?.hasNextPage && pageInfo.endCursor) {
       sections.push(
-        `Next page (${appPlatformDisplayNames[platform]}): --after ${pageInfo.endCursor}`
+        `Next page (${observePlatformDisplayNames[platform]}): --after ${pageInfo.endCursor}`
       );
     }
   }

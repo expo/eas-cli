@@ -16,6 +16,7 @@ import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/An
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
@@ -46,6 +47,7 @@ export async function createBuildContextAsync<T extends Platform>({
   isVerboseLoggingEnabled,
   whatToTest,
   env,
+  experimentation,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -70,6 +72,7 @@ export async function createBuildContextAsync<T extends Platform>({
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
   env: Env;
+  experimentation?: LazyExperimentationClient;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
     env,
@@ -87,8 +90,7 @@ export async function createBuildContextAsync<T extends Platform>({
     buildProfile.developmentClient ??
     (platform === Platform.ANDROID
       ? (buildProfile as BuildProfile<Platform.ANDROID>)?.gradleCommand === ':app:assembleDebug'
-      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
-    false;
+      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug');
 
   const requiredPackageManager = resolvePackageManager(projectDir);
 
@@ -160,6 +162,7 @@ export async function createBuildContextAsync<T extends Platform>({
     isVerboseLoggingEnabled,
     env,
     whatToTest,
+    experimentation,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

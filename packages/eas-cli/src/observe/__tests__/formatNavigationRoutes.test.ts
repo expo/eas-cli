@@ -1,4 +1,4 @@
-import { AppPlatform } from '../../graphql/generated';
+import { AppObservePlatform } from '../../graphql/generated';
 import { NavigationRouteWithPlatform } from '../fetchNavigationRoutes';
 import {
   buildObserveNavigationRoutesJson,
@@ -9,7 +9,7 @@ import {
 
 function makeRoute(
   routeName: string,
-  platform: AppPlatform,
+  platform: AppObservePlatform,
   overrides?: Partial<{
     coldTtr: { count: number; median: number | null; p90: number | null };
     warmTtr: { count: number; median: number | null; p90: number | null };
@@ -87,11 +87,11 @@ describe(buildObserveNavigationRoutesTable, () => {
 
   it('formats routes grouped by platform with merged (med + count) cells', () => {
     const routes = [
-      makeRoute('/home', AppPlatform.Ios),
-      makeRoute('/profile', AppPlatform.Ios, {
+      makeRoute('/home', AppObservePlatform.Ios),
+      makeRoute('/profile', AppObservePlatform.Ios, {
         coldTtr: { count: 5, median: 0.7, p90: 1.0 },
       }),
-      makeRoute('/home', AppPlatform.Android),
+      makeRoute('/home', AppObservePlatform.Android),
     ];
 
     const output = buildObserveNavigationRoutesTable(
@@ -114,7 +114,7 @@ describe(buildObserveNavigationRoutesTable, () => {
   });
 
   it('renders separate columns when count is omitted from stats', () => {
-    const routes = [makeRoute('/home', AppPlatform.Ios)];
+    const routes = [makeRoute('/home', AppObservePlatform.Ios)];
     const output = buildObserveNavigationRoutesTable(
       routes,
       ['expo.navigation.cold_ttr'],
@@ -129,7 +129,7 @@ describe(buildObserveNavigationRoutesTable, () => {
   });
 
   it('renders count-only column when only count stat is requested', () => {
-    const routes = [makeRoute('/home', AppPlatform.Ios)];
+    const routes = [makeRoute('/home', AppObservePlatform.Ios)];
     const output = buildObserveNavigationRoutesTable(
       routes,
       ['expo.navigation.cold_ttr'],
@@ -142,9 +142,9 @@ describe(buildObserveNavigationRoutesTable, () => {
   });
 
   it('shows a next-page hint per platform when hasNextPage is true', () => {
-    const routes = [makeRoute('/home', AppPlatform.Ios)];
+    const routes = [makeRoute('/home', AppObservePlatform.Ios)];
     const pageInfoByPlatform = new Map([
-      [AppPlatform.Ios, { hasNextPage: true, endCursor: 'cursor-ios' }],
+      [AppObservePlatform.Ios, { hasNextPage: true, endCursor: 'cursor-ios' }],
     ]);
 
     const output = buildObserveNavigationRoutesTable(
@@ -160,9 +160,9 @@ describe(buildObserveNavigationRoutesTable, () => {
 
 describe(buildObserveNavigationRoutesJson, () => {
   it('maps routes to the requested metrics and stats, including pageInfoByPlatform', () => {
-    const routes = [makeRoute('/home', AppPlatform.Ios)];
+    const routes = [makeRoute('/home', AppObservePlatform.Ios)];
     const pageInfoByPlatform = new Map([
-      [AppPlatform.Ios, { hasNextPage: true, endCursor: 'cursor-ios' }],
+      [AppObservePlatform.Ios, { hasNextPage: true, endCursor: 'cursor-ios' }],
     ]);
 
     const result = buildObserveNavigationRoutesJson(
@@ -175,7 +175,7 @@ describe(buildObserveNavigationRoutesJson, () => {
     expect(result.routes).toEqual([
       {
         routeName: '/home',
-        platform: AppPlatform.Ios,
+        platform: AppObservePlatform.Ios,
         metrics: {
           'expo.navigation.cold_ttr': { median: 0.5, p90: 0.9, count: 10 },
           'expo.navigation.tti': { median: 0.45, p90: 0.7, count: 12 },
@@ -183,13 +183,13 @@ describe(buildObserveNavigationRoutesJson, () => {
       },
     ]);
     expect(result.pageInfoByPlatform).toEqual({
-      [AppPlatform.Ios]: { hasNextPage: true, endCursor: 'cursor-ios' },
+      [AppObservePlatform.Ios]: { hasNextPage: true, endCursor: 'cursor-ios' },
     });
   });
 
   it('returns null for stats when the underlying value is null', () => {
     const routes = [
-      makeRoute('/home', AppPlatform.Ios, {
+      makeRoute('/home', AppObservePlatform.Ios, {
         coldTtr: { count: 0, median: null, p90: null },
       }),
     ];

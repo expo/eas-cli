@@ -9,6 +9,7 @@ import {
   AppByFullNameQuery,
   AppByIdProfileImageUrlQuery,
   AppByIdQuery,
+  AppByIdWorkflowFileNamesQuery,
   AppByIdWorkflowRunsFilteredByStatusQuery,
   AppByIdWorkflowsQuery,
   AppFragment,
@@ -125,6 +126,34 @@ export const AppQuery = {
           `,
           { appId },
           { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId.workflows;
+  },
+  async byIdWorkflowFileNamesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<{ id: string; fileName: string }[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdWorkflowFileNamesQuery>(
+          gql`
+            query AppByIdWorkflowFileNamesQuery($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  workflows {
+                    id
+                    fileName
+                  }
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: ['App', 'Workflow'] }
         )
         .toPromise()
     );

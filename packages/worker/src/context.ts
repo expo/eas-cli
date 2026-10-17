@@ -26,6 +26,7 @@ export async function createBuildContext<TJob extends Job>({
   projectId,
   buildId,
   buildLogger,
+  addBuildLogMask,
 }: {
   job: TJob;
   logBuffer: LogBuffer;
@@ -34,6 +35,7 @@ export async function createBuildContext<TJob extends Job>({
   projectId: string;
   buildId: string;
   buildLogger: bunyan;
+  addBuildLogMask: (secret: string) => void;
 }): Promise<BuildContext<TJob>> {
   const childLogger = buildLogger.child({ buildId });
   await RuntimeSettings.loadAsync({
@@ -103,6 +105,8 @@ export async function createBuildContext<TJob extends Job>({
     cacheManager: new GCSCacheManager(),
     metadata,
     expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+    mcpServerUrl: config.mcpServerUrl,
+    addBuildLogMask,
   });
   return ctx;
 }

@@ -1,7 +1,55 @@
-import { AscApiRequestError } from '../AscApiClient';
+import { createLogger } from '@expo/logger';
+import fs from 'fs-extra';
+import * as jose from 'jose';
+import nock from 'nock';
+
+import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
+jest.unmock('node-fetch');
+
 describe('AscApiUtils', () => {
+  describe('loadApiKeyAsync', () => {
+    beforeAll(() => nock.disableNetConnect());
+    afterAll(() => nock.enableNetConnect());
+    afterEach(() => nock.cleanAll());
+
+    it.each([undefined, 'test-issuer'])(
+      'loads a key that authenticates ASC requests (issuer: %s)',
+      async issuerId => {
+        const { privateKey, publicKey } = await jose.generateKeyPair('ES256');
+        const keyPath = '/asc-api-key.json';
+        await fs.writeJson(keyPath, {
+          key_id: 'TESTKEY',
+          issuer_id: issuerId,
+          key: await jose.exportPKCS8(privateKey),
+        });
+        const client = new AscApiClient({ key: await AscApiUtils.loadApiKeyAsync({ keyPath }) });
+        let token = '';
+        const scope = nock('https://api.appstoreconnect.apple.com')
+          .get('/v1/apps/app')
+          .query(true)
+          .reply(function () {
+            token = String(this.req.headers.authorization).replace(/^Bearer /, '');
+            return [200, require('./fixtures/apps/get-apps-200.json')];
+          });
+
+        await client.getAsync(
+          '/v1/apps/:id',
+          { 'fields[apps]': ['bundleId', 'name'] },
+          { id: 'app' }
+        );
+        await expect(
+          jose.jwtVerify(token, publicKey, { audience: 'appstoreconnect-v1' })
+        ).resolves.toMatchObject({
+          protectedHeader: { kid: 'TESTKEY', alg: 'ES256' },
+          payload: issuerId ? { iss: issuerId } : { sub: 'user' },
+        });
+        expect(scope.isDone()).toBe(true);
+      }
+    );
+  });
+
   describe('getAppInfoAsync', () => {
     it('returns app info when lookup succeeds', async () => {
       const response = {
@@ -24,48 +72,53 @@ describe('AscApiUtils', () => {
       ).resolves.toEqual(response);
     });
 
-    it('throws UserError with visible apps when app id is not found', async () => {
-      const notFoundPayload = {
-        errors: [
-          {
-            status: '404',
-            code: 'NOT_FOUND',
-            detail: "There is no resource of type 'apps' with id '1234567890'",
-          },
-        ],
-      };
-      const notFoundError = new AscApiRequestError(
-        'Unexpected response (404) from App Store Connect',
-        404,
-        notFoundPayload
-      );
-      const client = {
-        getAsync: jest
-          .fn()
-          .mockRejectedValueOnce(notFoundError)
-          .mockResolvedValueOnce({
-            data: [
-              {
-                type: 'apps',
-                id: '1111111111',
-                attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
-              },
-            ],
-          }),
-      };
+    it.each([false, true])(
+      'throws UserError with visible apps (aggregate: %s)',
+      async aggregate => {
+        const notFoundPayload = {
+          errors: [
+            {
+              status: '404',
+              code: 'NOT_FOUND',
+              detail: "There is no resource of type 'apps' with id '1234567890'",
+            },
+          ],
+        };
+        const notFoundError = new AscApiRequestError(
+          'Unexpected response (404) from App Store Connect',
+          404,
+          notFoundPayload.errors[0]
+        );
+        const client = {
+          getAsync: jest
+            .fn()
+            .mockRejectedValueOnce(
+              aggregate ? new AggregateError([notFoundError, notFoundError]) : notFoundError
+            )
+            .mockResolvedValueOnce({
+              data: [
+                {
+                  type: 'apps',
+                  id: '1111111111',
+                  attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+                },
+              ],
+            }),
+        };
 
-      await expect(
-        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
-      ).rejects.toEqual(
-        expect.objectContaining({
-          errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
-          docsUrl: 'https://expo.fyi/asc-app-id',
-          message: expect.stringMatching(
-            /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
-          ),
-        })
-      );
-    });
+        await expect(
+          AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
+        ).rejects.toEqual(
+          expect.objectContaining({
+            errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
+            docsUrl: 'https://expo.fyi/asc-app-id',
+            message: expect.stringMatching(
+              /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
+            ),
+          })
+        );
+      }
+    );
 
     it('rethrows original not-found error when app-list lookup fails', async () => {
       const notFoundPayload = {
@@ -79,7 +132,7 @@ describe('AscApiUtils', () => {
       const notFoundError = new AscApiRequestError(
         'Unexpected response (404) from App Store Connect',
         404,
-        notFoundPayload
+        notFoundPayload.errors[0]
       );
 
       const listingError = new Error('listing failed');
@@ -122,7 +175,7 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
-    it('throws UserError when ASC duplicate version error is returned', async () => {
+    it.each([false, true])('explains duplicate versions (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [
           {
@@ -135,11 +188,15 @@ describe('AscApiUtils', () => {
       const duplicateError = new AscApiRequestError(
         'Unexpected response (409) from App Store Connect',
         409,
-        payload
+        payload.errors[0]
       );
 
       const client = {
-        postAsync: jest.fn().mockRejectedValue(duplicateError),
+        postAsync: jest
+          .fn()
+          .mockRejectedValue(
+            aggregate ? new AggregateError([duplicateError, duplicateError]) : duplicateError
+          ),
       };
 
       await expect(
@@ -211,7 +268,7 @@ describe('AscApiUtils', () => {
       );
     });
 
-    it('rethrows when error payload includes mixed error codes', async () => {
+    it.each([false, true])('rethrows unrelated errors (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [
           {
@@ -224,11 +281,8 @@ describe('AscApiUtils', () => {
           },
         ],
       };
-      const mixedError = new AscApiRequestError(
-        'Unexpected response (409) from App Store Connect',
-        409,
-        payload
-      );
+      const errors = payload.errors.map(error => new AscApiRequestError('API error', 409, error));
+      const mixedError = aggregate ? new AggregateError(errors) : errors[1];
       const client = {
         postAsync: jest.fn().mockRejectedValue(mixedError),
       };
@@ -267,4 +321,113 @@ describe('AscApiUtils', () => {
       expect(AscApiUtils.testFlightPlatformPathSegment('VISION_OS')).toBe('visionos');
     });
   });
+});
+
+describe('commitBuildUploadFileAsync', () => {
+  const logger = createLogger({ name: 'test' });
+  const fileResponse = (state: string) => ({
+    data: {
+      type: 'buildUploadFiles',
+      id: 'file',
+      attributes: { assetDeliveryState: { state } },
+    },
+  });
+  let client: AscApiClient;
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256');
+    client = new AscApiClient({ key: { keyId: 'TESTKEY', privateKey } });
+    nock.disableNetConnect();
+  });
+  afterAll(() => nock.enableNetConnect());
+  afterEach(() => {
+    try {
+      expect(nock.pendingMocks()).toEqual([]);
+    } finally {
+      nock.cleanAll();
+    }
+  });
+
+  it.each(['COMPLETE', 'FAILED'])('does not commit a terminal file: %s', async state => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fileResponse(state));
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).resolves.toBeUndefined();
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD'])(
+    'reads the file before retrying an interrupted commit: %s',
+    async state => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
+        .patch('/v1/buildUploadFiles/file')
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' })
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .reply(200, fileResponse(state));
+      if (state === 'AWAITING_UPLOAD') {
+        scope.patch('/v1/buildUploadFiles/file').reply(200, fileResponse('COMPLETE'));
+      }
+      await expect(
+        AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+      ).resolves.toBeUndefined();
+    }
+  );
+
+  it.each([
+    [401, 'NOT_AUTHORIZED'],
+    [403, 'FORBIDDEN'],
+    [409, 'STATE_ERROR.INVALID_STATE'],
+  ])('preserves Apple errors without retrying: %s %s', async (status, code) => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(200, fileResponse('UPLOAD_COMPLETE'))
+      .patch('/v1/buildUploadFiles/file')
+      .reply(status, { errors: [{ code }] });
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).rejects.toMatchObject({ status, code });
+  });
+
+  it('does not commit when the initial state read fails', async () => {
+    nock('https://api.appstoreconnect.apple.com')
+      .get('/v1/buildUploadFiles/file')
+      .query(true)
+      .reply(503, 'Unavailable');
+    await expect(
+      AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
+    ).rejects.toThrow('503');
+  });
+
+  it.each(['COMPLETE', 'AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'FAILED', 'read-error'])(
+    'checks the file after the final interrupted commit: %s',
+    async finalState => {
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/buildUploadFiles/file')
+        .query(true)
+        .times(4)
+        .reply(200, fileResponse('AWAITING_UPLOAD'))
+        .patch('/v1/buildUploadFiles/file')
+        .times(4)
+        .replyWithError({ code: 'ECONNRESET', message: 'Lost response' });
+      const finalRead = scope.get('/v1/buildUploadFiles/file').query(true);
+      if (finalState === 'read-error') {
+        finalRead.reply(503, 'Unavailable');
+      } else {
+        finalRead.reply(200, fileResponse(finalState));
+      }
+      const result = AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger });
+      if (finalState === 'COMPLETE') {
+        await expect(result).resolves.toBeUndefined();
+      } else {
+        await expect(result).rejects.toMatchObject({ code: 'ECONNRESET' });
+      }
+    },
+    15_000
+  );
 });

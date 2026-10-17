@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { UpdateWithInsightsObject } from '../../graphql/queries/UpdateInsightsQuery';
-import { formatTimespan, toDateOnly } from '../../insights/formatTimespan';
+import { formatTimespan, toDateOnly, toTimespanJson } from '../../insights/formatTimespan';
 import formatFields from '../../utils/formatFields';
 import renderTextTable from '../../utils/renderTextTable';
 
@@ -84,11 +84,7 @@ function toPlatformSummary(update: UpdateWithInsightsObject): UpdateInsightsPlat
 export function buildUpdateInsightsJson(summary: UpdateInsightsSummary): object {
   return {
     groupId: summary.groupId,
-    timespan: {
-      start: summary.startTime,
-      end: summary.endTime,
-      ...(summary.daysBack !== undefined ? { daysBack: summary.daysBack } : {}),
-    },
+    timespan: toTimespanJson(summary),
     platforms: summary.platforms.map(p => ({
       platform: p.platform,
       updateId: p.updateId,

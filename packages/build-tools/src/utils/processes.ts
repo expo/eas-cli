@@ -1,4 +1,41 @@
+import { ChildProcess } from 'node:child_process';
+
 import spawn from '@expo/turtle-spawn';
+
+export function isChildProcessAlive(child: ChildProcess): boolean {
+  return child.exitCode === null && child.signalCode === null && !child.killed;
+}
+
+/** Whether any process in the group led by `pgid` exists. EPERM means it does. */
+export function isProcessGroupRunning(pgid: number): boolean {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch (error: any) {
+    return error?.code === 'EPERM';
+  }
+}
+
+/**
+ * Kill a detached spawn's process group. Negated pid targets the group so bash/sleep
+ * children cannot survive after the parent is gone (e.g. across upterm redial).
+ */
+export function killProcessGroup(
+  child: { pid?: number; kill(signal?: NodeJS.Signals): void },
+  signal: NodeJS.Signals = 'SIGTERM'
+): void {
+  if (child.pid == null) {
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch (error: any) {
+    // ESRCH means the process group no longer exists, so there is nothing left to stop.
+    if (error?.code !== 'ESRCH') {
+      child.kill(signal);
+    }
+  }
+}
 
 async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
   try {

@@ -162,6 +162,28 @@ describe(createEasBuildBuildFunctionGroup, () => {
       expect(installPodsStep!.ctx.relativeWorkingDirectory).toBe('./ios');
     });
 
+    it('restores and saves caches around an iOS simulator build', () => {
+      const buildToolsContext = createMockBuildToolsContext({
+        platform: Platform.IOS,
+        simulator: true,
+      });
+      const functionGroup = createEasBuildBuildFunctionGroup(buildToolsContext);
+      const globalCtx = createGlobalContextMock({ logger: createMockLogger() });
+
+      const steps = functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx);
+      const stepNames = steps.map(step => step.displayName);
+      const restoreCacheIndex = stepNames.indexOf('Restore Cache');
+      const installPodsIndex = stepNames.indexOf('Install Pods');
+      const saveCacheIndex = stepNames.indexOf('Save Cache');
+
+      expect(restoreCacheIndex).toBeGreaterThan(-1);
+      expect(restoreCacheIndex).toBeLessThan(installPodsIndex);
+      expect(saveCacheIndex).toBeGreaterThan(installPodsIndex);
+
+      const restoreCacheStep = steps[restoreCacheIndex];
+      expect(restoreCacheStep.inputs?.find(input => input.id === 'simulator')?.rawValue).toBe(true);
+    });
+
     it('sets working directory on all steps except checkout (Android with credentials)', () => {
       const buildToolsContext = createMockBuildToolsContext({
         platform: Platform.ANDROID,
@@ -196,5 +218,72 @@ describe(createEasBuildBuildFunctionGroup, () => {
     expect(() => functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx)).toThrow(
       'Build function group is not supported in generic jobs.'
     );
+  });
+
+  describe('embedded bundle upload', () => {
+    function getStepNames(
+      options: Parameters<typeof createMockBuildToolsContext>[0],
+      { sdkVersion, env = {} }: { sdkVersion?: string; env?: Record<string, string> }
+    ): string[] {
+      const functionGroup = createEasBuildBuildFunctionGroup(createMockBuildToolsContext(options));
+      const globalCtx = createGlobalContextMock({
+        logger: createMockLogger(),
+        staticContextContent: { metadata: sdkVersion ? { sdkVersion } : null },
+      });
+      globalCtx.updateEnv(env);
+      return functionGroup
+        .createBuildStepsFromFunctionGroupCall(globalCtx)
+        .map(step => step.displayName);
+    }
+
+    it.each([
+      ['Android', { platform: Platform.ANDROID }],
+      ['Android with credentials', { platform: Platform.ANDROID, buildCredentials: { test: {} } }],
+      ['iOS with credentials', { platform: Platform.IOS, buildCredentials: { test: {} } }],
+    ])('uploads the embedded bundle after the build artifacts on SDK 58 (%s)', (_, options) => {
+      const stepNames = getStepNames(options, { sdkVersion: '58.0.0' });
+
+      expect(stepNames.indexOf('Upload embedded bundle')).toBe(
+        stepNames.indexOf('Find and upload build artifacts') + 1
+      );
+    });
+
+    it.each([
+      ['Android', { platform: Platform.ANDROID }],
+      ['Android with credentials', { platform: Platform.ANDROID, buildCredentials: { test: {} } }],
+      ['iOS with credentials', { platform: Platform.IOS, buildCredentials: { test: {} } }],
+    ])('passes ignore_error to the embedded bundle step (%s)', (_, options) => {
+      const functionGroup = createEasBuildBuildFunctionGroup(createMockBuildToolsContext(options));
+      const globalCtx = createGlobalContextMock({
+        logger: createMockLogger(),
+        staticContextContent: { metadata: { sdkVersion: '58.0.0' } },
+      });
+
+      const uploadStep = functionGroup
+        .createBuildStepsFromFunctionGroupCall(globalCtx)
+        .find(step => step.displayName === 'Upload embedded bundle');
+
+      expect(uploadStep).toBeDefined();
+      expect(uploadStep!.inputs?.find(input => input.id === 'ignore_error')?.rawValue).toBe(true);
+    });
+
+    it('does not upload the embedded bundle on SDK 57 without the opt-in', () => {
+      expect(getStepNames({}, { sdkVersion: '57.0.0' })).not.toContain('Upload embedded bundle');
+    });
+
+    it('uploads the embedded bundle on SDK 57 with the opt-in', () => {
+      expect(
+        getStepNames(
+          {},
+          { sdkVersion: '57.0.0', env: { EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1' } }
+        )
+      ).toContain('Upload embedded bundle');
+    });
+
+    it('does not upload the embedded bundle for iOS simulator builds', () => {
+      expect(
+        getStepNames({ platform: Platform.IOS, simulator: true }, { sdkVersion: '58.0.0' })
+      ).not.toContain('Upload embedded bundle');
+    });
   });
 });

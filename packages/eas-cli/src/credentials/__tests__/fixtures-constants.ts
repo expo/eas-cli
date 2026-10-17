@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 
+import { getMockViewerUserPermission } from '../../__tests__/viewerUserPermission';
 import { AppFragment, Role } from '../../graphql/generated';
 import { Actor } from '../../user/User';
 
@@ -8,21 +9,16 @@ export const jester: Actor = {
   id: 'jester-id',
   email: 'jester@example.com',
   username: 'jester',
-  primaryAccount: {
-    id: 'jester-account-id',
-    name: 'jester',
-    viewerUserPermission: { role: Role.Admin },
-  },
   accounts: [
     {
       id: 'jester-account-id',
       name: 'jester',
-      viewerUserPermission: { role: Role.Admin },
+      viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
     },
     {
       id: 'other-account-id',
       name: 'other',
-      viewerUserPermission: { role: Role.ViewOnly },
+      viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
     },
   ],
   isExpoAdmin: false,
@@ -37,7 +33,7 @@ export const jester2 = {
     {
       id: 'jester2-account-id',
       name: 'jester2',
-      viewerUserPermission: { role: Role.Admin },
+      viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
     },
   ],
   isExpoAdmin: false,
@@ -52,7 +48,7 @@ export const robot: Actor = {
     {
       id: 'robot-account-id',
       name: 'robot-account',
-      viewerUserPermission: { role: Role.Owner },
+      viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
     },
   ],
   isExpoAdmin: false,

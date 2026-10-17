@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { App } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -19,6 +19,7 @@ import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExist
 import { ensureTestFlightGroupExistsAsync } from '../credentials/ios/appstore/ensureTestFlightGroup';
 import { Target } from '../credentials/ios/types';
 import {
+  AccountFragment,
   WorkflowJobStatus,
   WorkflowProjectSourceType,
   WorkflowRunStatus,
@@ -30,11 +31,10 @@ import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
 import { confirmAsync, selectAsync } from '../prompts';
 import { ora } from '../ora';
-import { getPrivateExpoConfigAsync } from '../project/expoConfig';
+import { detectProjectSdkVersionAsync } from '../project/detectProjectSdkVersionAsync';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
-import { ensureActorHasPrimaryAccount } from '../user/actions';
 import { Actor, getActorDisplayName } from '../user/User';
 import { sleepAsync } from '../utils/promise';
 import { Client } from '../vcs/vcs';
@@ -43,23 +43,10 @@ import {
   INVALID_BUNDLE_IDENTIFIER_MESSAGE,
   isBundleIdentifierValid,
 } from '../project/ios/bundleIdentifier';
+import { UserQuery } from '../graphql/queries/UserQuery';
 
 function deriveBundleIdSlug(bundleId: string): string {
   return bundleId.split('.').filter(Boolean).pop()!;
-}
-
-export async function detectProjectSdkVersionAsync(
-  projectDir: string
-): Promise<string | undefined> {
-  const paths = getConfigFilePaths(projectDir);
-  if (!paths.staticConfigPath && !paths.dynamicConfigPath) {
-    return;
-  }
-  try {
-    return (await getPrivateExpoConfigAsync(projectDir)).sdkVersion;
-  } catch {
-    return;
-  }
 }
 
 export function toRepackTargetSdkVersion(sdkVersion: string | undefined): string | undefined {
@@ -156,7 +143,10 @@ export default class Go extends EasCommand {
     } = await this.getContextAsync(Go, {
       nonInteractive: false,
     });
+
     Log.withTick(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
+
+    const userPrimaryAccount = await UserQuery.requireCurrentUserPrimaryAccountAsync(graphqlClient);
 
     const detectedSdkVersion = await detectProjectSdkVersionAsync(process.cwd());
     if (detectedSdkVersion && !flags['sdk-version']) {
@@ -168,7 +158,7 @@ export default class Go extends EasCommand {
     if (!sdkVersion) {
       ({ sdkVersion } = await this.selectSdkVersionAsync(graphqlClient));
     }
-    const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
+    const bundleId = flags['bundle-id'] ?? this.generateBundleId(userPrimaryAccount);
     if (!isBundleIdentifierValid(bundleId)) {
       throw new Error(
         `"${bundleId}" is not a valid iOS bundle identifier. ${INVALID_BUNDLE_IDENTIFIER_MESSAGE} Pass a valid identifier with --bundle-id.`
@@ -181,7 +171,7 @@ export default class Go extends EasCommand {
     let projectId: string;
     try {
       projectId = await withSuppressedOutputAsync(() =>
-        this.ensureEasProjectAsync(graphqlClient, actor, slug)
+        this.ensureEasProjectAsync(graphqlClient, userPrimaryAccount, slug)
       );
     } catch (error) {
       setupSpinner.fail();
@@ -216,7 +206,7 @@ export default class Go extends EasCommand {
       } = await this.dispatchWorkflowAsync(
         graphqlClient,
         projectId,
-        actor,
+        userPrimaryAccount,
         bundleId,
         appName,
         ascApp.id,
@@ -289,8 +279,8 @@ export default class Go extends EasCommand {
     };
   }
 
-  private generateBundleId(actor: Actor): string {
-    const username = ensureActorHasPrimaryAccount(actor).name;
+  private generateBundleId(userPrimaryAccount: AccountFragment): string {
+    const username = userPrimaryAccount.name;
     const sanitizedUsername = username
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '-')
@@ -301,14 +291,12 @@ export default class Go extends EasCommand {
 
   private async ensureEasProjectAsync(
     graphqlClient: ExpoGraphqlClient,
-    actor: Actor,
+    userPrimaryAccount: AccountFragment,
     slug: string
   ): Promise<string> {
-    const account = ensureActorHasPrimaryAccount(actor);
-
     const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
       graphqlClient,
-      account.name,
+      userPrimaryAccount.name,
       slug
     );
 
@@ -317,7 +305,7 @@ export default class Go extends EasCommand {
     }
 
     return await AppMutation.createAppAsync(graphqlClient, {
-      accountId: account.id,
+      accountId: userPrimaryAccount.id,
       projectName: slug,
     });
   }
@@ -408,7 +396,7 @@ export default class Go extends EasCommand {
   private async dispatchWorkflowAsync(
     graphqlClient: ExpoGraphqlClient,
     projectId: string,
-    actor: Actor,
+    userPrimaryAccount: AccountFragment,
     bundleId: string,
     appName: string,
     ascAppId: string,
@@ -416,8 +404,6 @@ export default class Go extends EasCommand {
     tmpDir: string,
     vcsClient: Client
   ): Promise<{ workflowUrl: string; workflowRunId: string; sdkVersion: string }> {
-    const account = ensureActorHasPrimaryAccount(actor);
-
     const repackConfig = await WorkflowRunQuery.expoGoRepackConfigurationAsync(graphqlClient, {
       appId: projectId,
       ascAppId,
@@ -435,17 +421,17 @@ export default class Go extends EasCommand {
         const { projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
           graphqlClient,
           vcsClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
         });
         const { fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
           filePath: path.join(tmpDir, 'eas.json'),
           maxSizeBytes: 1024 * 1024,
         });
         const { fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
-          accountId: account.id,
+          accountId: userPrimaryAccount.id,
           filePath: path.join(tmpDir, 'package.json'),
           maxSizeBytes: 1024 * 1024,
         });
@@ -463,7 +449,11 @@ export default class Go extends EasCommand {
       },
     });
 
-    const workflowUrl = getWorkflowRunUrl(account.name, deriveBundleIdSlug(bundleId), result.id);
+    const workflowUrl = getWorkflowRunUrl(
+      userPrimaryAccount.name,
+      deriveBundleIdSlug(bundleId),
+      result.id
+    );
 
     return { workflowUrl, workflowRunId: result.id, sdkVersion: repackConfig.sdkVersion };
   }

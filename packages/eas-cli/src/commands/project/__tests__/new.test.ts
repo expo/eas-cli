@@ -17,12 +17,12 @@ jest.mock('fs-extra', () => ({
 jest.mock('../../../prompts', () => ({
   promptAsync: jest.fn(),
 }));
-jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/runCommand');
 jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../project/expoConfig');
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../user/User', () => ({
+  ...jest.requireActual('../../../user/User'),
   getActorUsername: jest.fn().mockReturnValue('jester'),
 }));
 jest.mock('../../../ora');

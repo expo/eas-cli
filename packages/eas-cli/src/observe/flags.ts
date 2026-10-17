@@ -2,17 +2,17 @@ import { Flags } from '@oclif/core';
 
 import { allowedPlatformFlagValues } from './platforms';
 
-export const ObserveProjectIdFlag = {
-  'project-id': Flags.string({
-    description: 'EAS project ID (defaults to the project ID of the current directory)',
-  }),
-};
-
 export const ObservePlatformFlag = {
   platform: Flags.option({
-    description: 'Filter by platform',
+    description: 'Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)',
     options: allowedPlatformFlagValues,
   })(),
+};
+
+export const ObserveEnvironmentFlag = {
+  environment: Flags.string({
+    description: 'Filter by environment (e.g. production, development)',
+  }),
 };
 
 export const ObserveTimeRangeFlags = {
@@ -47,5 +47,11 @@ export const ObserveAppVersionFlag = {
 export const ObserveUpdateIdFlag = {
   'update-id': Flags.string({
     description: 'Filter by EAS update ID',
+  }),
+};
+
+export const ObserveBuildNumberFlag = {
+  'build-number': Flags.string({
+    description: 'Filter by app build number',
   }),
 };

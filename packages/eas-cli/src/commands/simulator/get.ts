@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -18,6 +18,7 @@ import {
 import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
+  sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { formatBytes } from '../../utils/files';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
@@ -27,10 +28,9 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 
 export default class SimulatorGet extends EasCommand {
-  static override hidden = true;
   static override aliases = ['sim:get'];
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
+    "[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference.";
 
   static override flags = {
     id: Flags.string({
@@ -82,11 +82,17 @@ export default class SimulatorGet extends EasCommand {
       session.app.slug,
       session.id
     );
+    const deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
+      session.app.ownerAccount.name,
+      session.app.slug,
+      session.id
+    );
 
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: session.id,
         name: session.name ?? undefined,
+        tags: session.tags,
         type: deviceRunSessionTypeToFlagValue(session.type),
         status: session.status,
         platform: session.platform,
@@ -95,7 +101,13 @@ export default class SimulatorGet extends EasCommand {
         finishedAt: session.finishedAt ?? undefined,
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
-        remoteConfig: session.remoteConfig,
+        remoteConfig: session.remoteConfig
+          ? sanitizeRemoteConfigForJson(
+              session.remoteConfig,
+              deviceRunSessionPreviewUrl,
+              session.publicPreview
+            )
+          : session.remoteConfig,
         artifacts: session.artifacts,
       });
       return;
@@ -107,7 +119,14 @@ export default class SimulatorGet extends EasCommand {
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();
       if (session.remoteConfig) {
-        Log.log(formatRemoteSessionInstructions(session.remoteConfig, 'env'));
+        Log.log(
+          formatRemoteSessionInstructions(session.remoteConfig, 'env', {
+            sessionUrl: deviceRunSessionUrl,
+            privatePreviewUrl: deviceRunSessionPreviewUrl,
+            publicLink: session.publicPreview,
+            platform: session.platform,
+          })
+        );
       } else {
         Log.log(
           '⏳ Session is starting up — remote config is not available yet. Re-run this command in a moment.'
@@ -123,6 +142,7 @@ function formatSessionFields(session: DeviceRunSessionById, deviceRunSessionUrl:
   return formatFields([
     { label: 'ID', value: session.id },
     { label: 'Name', value: formatNullable(session.name) },
+    { label: 'Tags', value: session.tags.length > 0 ? session.tags.join(', ') : 'none' },
     { label: 'Type', value: session.type },
     { label: 'Status', value: session.status },
     { label: 'Platform', value: session.platform },

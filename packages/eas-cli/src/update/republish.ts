@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from './active-rollout';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from './getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import {
   selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync,
@@ -52,6 +53,7 @@ export async function republishAsync({
   codeSigningInfo,
   json,
   rolloutPercentage,
+  activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
   app: { exp: ExpoConfig; projectId: string };
@@ -61,6 +63,7 @@ export async function republishAsync({
   codeSigningInfo?: CodeSigningInfo;
   json?: boolean;
   rolloutPercentage?: number;
+  activeRollout?: { forceEndActiveRollout: boolean };
 }): Promise<void> {
   const { branchName: targetBranchName, branchId: targetBranchId } = targetBranch;
 
@@ -166,7 +169,7 @@ export async function republishAsync({
             : null,
         };
 
-    updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
+    const updateGroups = [
       {
         branchId: targetBranchId,
         runtimeVersion,
@@ -179,7 +182,21 @@ export async function republishAsync({
         manifestHostOverride: updatesToPublish[0].manifestHostOverride,
         assetHostOverride: updatesToPublish[0].assetHostOverride,
       },
-    ]);
+    ];
+
+    const updateGroupsToPublish = activeRollout
+      ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
+          appId: app.projectId,
+          branchName: targetBranchName,
+          forceEndActiveRollout: activeRollout.forceEndActiveRollout,
+          rolloutPercentage,
+        })
+      : updateGroups;
+
+    updatesRepublished = await PublishMutation.publishUpdateGroupAsync(
+      graphqlClient,
+      updateGroupsToPublish
+    );
 
     if (codeSigningInfo) {
       Log.log('🔒 Signing republished update group');

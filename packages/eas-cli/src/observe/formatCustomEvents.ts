@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 
-import { AppObserveCustomEvent, AppObserveCustomEventName, PageInfo } from '../graphql/generated';
+import { AppObserveUserEvent, AppObserveUserEventName, PageInfo } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
 import { buildTimeRangeDescription, formatLogTimestamp } from './formatUtils';
 
-function formatSeverity(event: AppObserveCustomEvent): string {
+function formatSeverity(event: AppObserveUserEvent): string {
   if (event.severityText) {
     return event.severityText;
   }
@@ -22,7 +22,7 @@ export interface ObserveCustomEventPropertyJson {
 
 export interface ObserveCustomEventJson {
   id: string;
-  eventName: string;
+  name: string;
   timestamp: string;
   sessionId: string | null;
   severityNumber: number | null;
@@ -40,6 +40,66 @@ export interface ObserveCustomEventJson {
   easClientId: string;
 }
 
+export function buildObserveCustomEventJson(event: AppObserveUserEvent): ObserveCustomEventJson {
+  return {
+    id: event.id,
+    name: event.name,
+    timestamp: event.timestamp,
+    sessionId: event.sessionId ?? null,
+    severityNumber: event.severityNumber ?? null,
+    severityText: event.severityText ?? null,
+    properties: event.properties.map(p => ({
+      key: p.key,
+      value: p.value,
+      type: p.type,
+    })),
+    appVersion: event.appVersion,
+    appBuildNumber: event.appBuildNumber,
+    appUpdateId: event.appUpdateId ?? null,
+    appEasBuildId: event.appEasBuildId ?? null,
+    deviceModel: event.deviceModel,
+    deviceOs: event.deviceOs,
+    deviceOsVersion: event.deviceOsVersion,
+    countryCode: event.countryCode ?? null,
+    environment: event.environment ?? null,
+    easClientId: event.easClientId,
+  };
+}
+
+/**
+ * Render a single user-defined (log) event as a vertical Field/Value detail
+ * table, plus its properties, for `eas observe:event`.
+ */
+export function buildObserveCustomEventDetail(event: AppObserveUserEvent): string {
+  const rows: string[][] = [
+    ['ID', event.id],
+    ['Type', 'Log'],
+    ['Event Name', event.name],
+    ['Timestamp', formatLogTimestamp(event.timestamp)],
+    ['Severity', formatSeverity(event)],
+    ['Session ID', event.sessionId ?? '-'],
+    ['App Version', `${event.appVersion} (${event.appBuildNumber})`],
+    ['Update ID', event.appUpdateId ?? '-'],
+    ['EAS Build ID', event.appEasBuildId ?? '-'],
+    ['Platform', `${event.deviceOs} ${event.deviceOsVersion}`],
+    ['Device', event.deviceModel],
+    ['Country', event.countryCode ?? '-'],
+    ['Environment', event.environment ?? '-'],
+    ['EAS Client ID', event.easClientId],
+  ];
+  const lines = [chalk.bold('Log event'), '', renderTextTable(['Field', 'Value'], rows)];
+  if (event.properties.length > 0) {
+    const propertyRows = event.properties.map(p => [p.key, p.type, p.value]);
+    lines.push(
+      '',
+      chalk.bold('Properties'),
+      '',
+      renderTextTable(['Key', 'Type', 'Value'], propertyRows)
+    );
+  }
+  return lines.join('\n');
+}
+
 export interface BuildCustomEventsTableOptions {
   eventName?: string;
   daysBack?: number;
@@ -49,7 +109,7 @@ export interface BuildCustomEventsTableOptions {
 }
 
 export function buildObserveCustomEventsTable(
-  events: AppObserveCustomEvent[],
+  events: AppObserveUserEvent[],
   pageInfo: PageInfo,
   options?: BuildCustomEventsTableOptions
 ): string {
@@ -72,7 +132,7 @@ export function buildObserveCustomEventsTable(
 
   const rows: string[][] = events.map(event => [
     formatLogTimestamp(event.timestamp),
-    ...(showEventName ? [event.eventName] : []),
+    ...(showEventName ? [event.name] : []),
     ...(hasSeverity ? [formatSeverity(event)] : []),
     `${event.appVersion} (${event.appBuildNumber})`,
     `${event.deviceOs} ${event.deviceOsVersion}`,
@@ -102,36 +162,14 @@ export function buildObserveCustomEventsTable(
 }
 
 export function buildObserveCustomEventsJson(
-  events: AppObserveCustomEvent[],
+  events: AppObserveUserEvent[],
   pageInfo: PageInfo
 ): {
   events: ObserveCustomEventJson[];
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
 } {
   return {
-    events: events.map(event => ({
-      id: event.id,
-      eventName: event.eventName,
-      timestamp: event.timestamp,
-      sessionId: event.sessionId ?? null,
-      severityNumber: event.severityNumber ?? null,
-      severityText: event.severityText ?? null,
-      properties: event.properties.map(p => ({
-        key: p.key,
-        value: p.value,
-        type: p.type,
-      })),
-      appVersion: event.appVersion,
-      appBuildNumber: event.appBuildNumber,
-      appUpdateId: event.appUpdateId ?? null,
-      appEasBuildId: event.appEasBuildId ?? null,
-      deviceModel: event.deviceModel,
-      deviceOs: event.deviceOs,
-      deviceOsVersion: event.deviceOsVersion,
-      countryCode: event.countryCode ?? null,
-      environment: event.environment ?? null,
-      easClientId: event.easClientId,
-    })),
+    events: events.map(buildObserveCustomEventJson),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,
       endCursor: pageInfo.endCursor ?? null,
@@ -148,7 +186,7 @@ export interface BuildEmptyCustomEventsWithSuggestionsOptions {
 
 export function buildObserveCustomEventsEmptyWithSuggestionsTable(
   eventName: string,
-  names: AppObserveCustomEventName[],
+  names: AppObserveUserEventName[],
   options?: BuildEmptyCustomEventsWithSuggestionsOptions
 ): string {
   const lines: string[] = [];
@@ -163,7 +201,7 @@ export function buildObserveCustomEventsEmptyWithSuggestionsTable(
   lines.push('', 'Available event names in this time range:', '');
 
   const headers = ['Event Name', 'Count'];
-  const rows: string[][] = names.map(n => [n.eventName, n.count.toLocaleString()]);
+  const rows: string[][] = names.map(n => [n.name, n.count.toLocaleString()]);
   lines.push(renderTextTable(headers, rows));
 
   if (options?.isTruncated) {
@@ -175,18 +213,18 @@ export function buildObserveCustomEventsEmptyWithSuggestionsTable(
 
 export function buildObserveCustomEventsEmptyWithSuggestionsJson(
   eventName: string,
-  names: AppObserveCustomEventName[],
+  names: AppObserveUserEventName[],
   isTruncated: boolean
 ): {
   filteredEventName: string;
   events: [];
-  availableEventNames: Array<{ eventName: string; count: number }>;
+  availableEventNames: Array<{ name: string; count: number }>;
   availableEventNamesIsTruncated: boolean;
 } {
   return {
     filteredEventName: eventName,
     events: [],
-    availableEventNames: names.map(n => ({ eventName: n.eventName, count: n.count })),
+    availableEventNames: names.map(n => ({ name: n.name, count: n.count })),
     availableEventNamesIsTruncated: isTruncated,
   };
 }
@@ -199,7 +237,7 @@ export interface BuildCustomEventNamesTableOptions {
 }
 
 export function buildObserveCustomEventNamesTable(
-  names: AppObserveCustomEventName[],
+  names: AppObserveUserEventName[],
   options?: BuildCustomEventNamesTableOptions
 ): string {
   if (names.length === 0) {
@@ -207,7 +245,7 @@ export function buildObserveCustomEventNamesTable(
   }
 
   const headers = ['Event Name', 'Count'];
-  const rows: string[][] = names.map(n => [n.eventName, n.count.toLocaleString()]);
+  const rows: string[][] = names.map(n => [n.name, n.count.toLocaleString()]);
 
   const lines: string[] = [];
 
@@ -227,11 +265,11 @@ export function buildObserveCustomEventNamesTable(
 }
 
 export function buildObserveCustomEventNamesJson(
-  names: AppObserveCustomEventName[],
+  names: AppObserveUserEventName[],
   isTruncated: boolean
-): { names: Array<{ eventName: string; count: number }>; isTruncated: boolean } {
+): { names: Array<{ name: string; count: number }>; isTruncated: boolean } {
   return {
-    names: names.map(n => ({ eventName: n.eventName, count: n.count })),
+    names: names.map(n => ({ name: n.name, count: n.count })),
     isTruncated,
   };
 }

@@ -41,20 +41,3 @@ export type WorkflowRunWithJobsResult = WorkflowRunResult & {
   jobs: WorkflowJobResult[];
   logs?: string;
 };
-
-export type WorkflowLogLine = {
-  time: string;
-  msg: string;
-  result?: string;
-  marker?: string;
-  err?: any;
-};
-
-export type WorkflowLogs = Map<
-  string,
-  {
-    key: string;
-    label: string;
-    logLines: WorkflowLogLine[];
-  }
->;

@@ -87,19 +87,40 @@ async function getAscKeyIdFromEnvironmentOrOptionsAsync(
 
 async function getAscIssuerIdFromEnvironmentOrOptionsAsync(
   ascApiKey?: MinimalAscApiKey
-): Promise<string> {
+): Promise<string | undefined> {
   if (ascApiKey?.issuerId) {
-    return ascApiKey?.issuerId;
-  } else if (process.env.EXPO_ASC_ISSUER_ID) {
+    return ascApiKey.issuerId;
+  }
+
+  if (process.env.EXPO_ASC_ISSUER_ID) {
+    if (ascApiKey?.keyId) {
+      Log.warn(
+        `App Store Connect API key ${ascApiKey.keyId} was configured without an Issuer ID, so EXPO_ASC_ISSUER_ID is used for it instead. App Store Connect rejects requests when the Issuer ID belongs to a different key. Unset EXPO_ASC_ISSUER_ID if ${ascApiKey.keyId} is an individual API key, or configure the Issuer ID that belongs to it.`
+      );
+    }
     return process.env.EXPO_ASC_ISSUER_ID;
+  }
+
+  const keyId = ascApiKey?.keyId ?? process.env.EXPO_ASC_KEY_ID;
+  const keyP8IsResolvable = !!ascApiKey?.keyP8 || !!process.env.EXPO_ASC_API_KEY_PATH;
+  if (keyId && keyP8IsResolvable) {
+    Log.debug(
+      `App Store Connect API key ${keyId} has no Issuer ID, treating it as an individual API key.`
+    );
+    return undefined;
   }
 
   const { ascIssuerId } = await promptAsync({
     type: 'text',
     name: 'ascIssuerId',
-    message: `ASC Issuer ID:`,
-    validate: (val: string) => val !== '',
+    message: `ASC Issuer ID (leave empty for an individual API key):`,
   });
+  if (!ascIssuerId) {
+    Log.debug(
+      'No Issuer ID provided, treating the App Store Connect API key as an individual API key.'
+    );
+    return undefined;
+  }
   return ascIssuerId;
 }
 

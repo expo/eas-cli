@@ -38,6 +38,7 @@ describe(createBuildContext.name, () => {
     projectId: 'project-id',
     buildId: 'build-id',
     buildLogger,
+    addBuildLogMask: jest.fn(),
   };
 
   beforeEach(() => {
@@ -89,6 +90,19 @@ describe(createBuildContext.name, () => {
         env: undefined,
       })
     );
+  });
+
+  it('adds the MCP server URL to the build context', async () => {
+    const ctx = await createBuildContext({
+      ...baseOptions,
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.GENERIC,
+        secrets: { environmentSecrets: [] },
+      } as any,
+    });
+
+    expect(ctx.mcpServerUrl).toBe(config.mcpServerUrl);
   });
 
   it('routes managed source maps to the source-map uploader', async () => {

@@ -10,6 +10,7 @@ import path from 'path';
 
 import { shouldUseEagerBundle } from '../../common/eagerBundle';
 import { CustomBuildContext } from '../../customBuildContext';
+import { shouldUploadEmbeddedBundle } from '../../utils/expoUpdatesEmbedded';
 import { calculateEASUpdateRuntimeVersionFunction } from '../functions/calculateEASUpdateRuntimeVersion';
 import { createCheckoutBuildFunction } from '../functions/checkout';
 import { configureAndroidVersionFunction } from '../functions/configureAndroidVersion';
@@ -32,6 +33,7 @@ import {
 import { runFastlaneFunction } from '../functions/runFastlane';
 import { runGradleFunction } from '../functions/runGradle';
 import { createSaveBuildCacheFunction } from '../functions/saveBuildCache';
+import { createUploadEmbeddedBundleBuildFunction } from '../functions/uploadEmbeddedBundle';
 import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
 
 interface HelperFunctionsInput {
@@ -98,6 +100,8 @@ function createStepsForIosSimulatorBuild({
   buildToolsContext,
   workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
+  const evictUsedBefore = new Date();
+
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
@@ -106,6 +110,16 @@ function createStepsForIosSimulatorBuild({
   const installPods = createInstallPodsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
     workingDirectory: workingDirectory ? path.join(workingDirectory, './ios') : './ios',
   });
+  const restoreCache = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
+    globalCtx,
+    {
+      workingDirectory,
+      callInputs: {
+        platform: Platform.IOS,
+        simulator: true,
+      },
+    }
+  );
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -123,6 +137,16 @@ function createStepsForIosSimulatorBuild({
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
     },
   });
+  const saveCache = createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(
+    globalCtx,
+    {
+      workingDirectory,
+      callInputs: {
+        platform: Platform.IOS,
+        simulator: true,
+      },
+    }
+  );
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
     createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
@@ -138,6 +162,7 @@ function createStepsForIosSimulatorBuild({
     createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
     }),
+    restoreCache,
     calculateEASUpdateRuntimeVersion,
     installPods,
     configureEASUpdate,
@@ -159,6 +184,10 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    saveCache,
+    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
   ];
 }
 
@@ -276,6 +305,19 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -363,6 +405,19 @@ function createStepsForAndroidBuildWithoutCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -456,6 +511,19 @@ function createStepsForAndroidBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ...(shouldUploadEmbeddedBundle({
+      env: globalCtx.env,
+      metadata: globalCtx.staticContext.metadata,
+    })
+      ? [
+          createUploadEmbeddedBundleBuildFunction(
+            buildToolsContext
+          ).createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
+            callInputs: { ignore_error: true },
+          }),
+        ]
+      : []),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,

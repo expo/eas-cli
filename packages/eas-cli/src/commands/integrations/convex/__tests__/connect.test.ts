@@ -2,6 +2,7 @@ import spawnAsync from '@expo/spawn-async';
 import * as fs from 'fs-extra';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { DefaultEnvironment } from '../../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
@@ -56,12 +57,6 @@ describe(IntegrationsConvexConnect, () => {
     email: 'user@example.com',
     featureGates: {},
     isExpoAdmin: false,
-    primaryAccount: {
-      id: testAccountId,
-      name: testAccountName,
-      ownerUserActor: null,
-      viewerUserPermission: { role: Role.Owner },
-    },
     accounts: [],
   };
 
@@ -77,7 +72,7 @@ describe(IntegrationsConvexConnect, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    viewerUserPermission: { role: 'OWNER' as any },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   };
 
   const mockConnection: ConvexTeamConnectionData = {

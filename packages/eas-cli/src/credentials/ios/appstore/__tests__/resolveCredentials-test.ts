@@ -2,6 +2,7 @@ import { JsonFileCache } from '@expo/apple-utils';
 import * as fs from 'fs-extra';
 import { vol } from 'memfs';
 
+import Log from '../../../../log';
 import { promptAsync } from '../../../../prompts';
 import { AppleTeamType } from '../authenticateTypes';
 import * as Keychain from '../keychain';
@@ -66,6 +67,104 @@ describe(resolveAscApiKeyAsync, () => {
     }));
     const ascApiKey = await resolveAscApiKeyAsync();
     expect(ascApiKey).toMatchObject(testAscApiKey);
+  });
+  it(`fills a missing issuer ID on a key passed in options from EXPO_ASC_ISSUER_ID and warns`, async () => {
+    process.env.EXPO_ASC_ISSUER_ID = testAscApiKey.issuerId;
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+
+    const ascApiKey = await resolveAscApiKeyAsync({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+    });
+    expect(ascApiKey).toEqual({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+      issuerId: testAscApiKey.issuerId,
+    });
+    expect(promptAsync).not.toHaveBeenCalled();
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Unset EXPO_ASC_ISSUER_ID if test-key-id is an individual API key')
+    );
+    logWarnSpy.mockRestore();
+  });
+
+  it(`does not warn about EXPO_ASC_ISSUER_ID when the key comes from the environment too`, async () => {
+    vol.fromJSON({
+      '/test-asc-key.p8': testAscApiKey.keyP8,
+    });
+    process.env.EXPO_ASC_API_KEY_PATH = '/test-asc-key.p8';
+    process.env.EXPO_ASC_KEY_ID = testAscApiKey.keyId;
+    process.env.EXPO_ASC_ISSUER_ID = testAscApiKey.issuerId;
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+
+    await expect(resolveAscApiKeyAsync()).resolves.toEqual(testAscApiKey);
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    logWarnSpy.mockRestore();
+  });
+
+  it(`treats a key passed in options without an issuer ID as individual without prompting`, async () => {
+    const ascApiKey = await resolveAscApiKeyAsync({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+    });
+    expect(ascApiKey).toEqual({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+      issuerId: undefined,
+    });
+    expect(promptAsync).not.toHaveBeenCalled();
+  });
+
+  it(`treats an environment key without EXPO_ASC_ISSUER_ID as individual without prompting`, async () => {
+    vol.fromJSON({
+      '/test-asc-key.p8': testAscApiKey.keyP8,
+    });
+    process.env.EXPO_ASC_API_KEY_PATH = '/test-asc-key.p8';
+    process.env.EXPO_ASC_KEY_ID = testAscApiKey.keyId;
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+    const logDebugSpy = jest.spyOn(Log, 'debug').mockImplementation(() => {});
+
+    const ascApiKey = await resolveAscApiKeyAsync();
+    expect(ascApiKey).toEqual({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+      issuerId: undefined,
+    });
+    expect(promptAsync).not.toHaveBeenCalled();
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    expect(logDebugSpy).toHaveBeenCalledWith(expect.stringContaining('individual API key'));
+    logWarnSpy.mockRestore();
+    logDebugSpy.mockRestore();
+  });
+  it(`accepts an empty issuer from the prompt as an individual key`, async () => {
+    vol.fromJSON({
+      '/test-asc-key.p8': testAscApiKey.keyP8,
+    });
+    process.env.EXPO_ASC_API_KEY_PATH = '/test-asc-key.p8';
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+    const logDebugSpy = jest.spyOn(Log, 'debug').mockImplementation(() => {});
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValueOnce({ ascApiKeyId: testAscApiKey.keyId })
+      .mockResolvedValueOnce({ ascIssuerId: '' });
+
+    const ascApiKey = await resolveAscApiKeyAsync();
+    expect(ascApiKey).toEqual({
+      keyP8: testAscApiKey.keyP8,
+      keyId: testAscApiKey.keyId,
+      issuerId: undefined,
+    });
+    expect(promptAsync).toHaveBeenCalledTimes(2);
+    const question = jest.mocked(promptAsync).mock.calls[1][0] as unknown as {
+      message: string;
+      validate?: unknown;
+    };
+    expect(question.message).toContain('leave empty');
+    expect(question.validate).toBeUndefined();
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    expect(logDebugSpy).toHaveBeenCalledWith(expect.stringContaining('individual API key'));
+    logWarnSpy.mockRestore();
+    logDebugSpy.mockRestore();
   });
 });
 
