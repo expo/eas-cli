@@ -50,6 +50,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
+  watchDeviceRunSessionStartup,
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
@@ -122,48 +123,17 @@ export function createStartArgentRemoteSessionBuildFunction(
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-        runtimePlatform,
-        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
-        installAppPath: inputs.install_app_path?.value as string | undefined,
-        launchAppIdentifier: inputs.launch_app_identifier?.value,
-        launchArgs: inputs.launch_args?.value,
-        openUrl: inputs.open_url?.value,
-        env,
-        logger,
-        signal,
-      });
-      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
-        {
-          networkCapture: inputs.network_capture?.value,
-          networkCaptureFields: inputs.network_capture_fields?.value,
-        },
-        { runtimePlatform }
-      );
-      logger.info(
-        `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
-      );
-
-      // Start the potentially slow installation while Argent is being prepared.
-      // On Linux expo-device-hub calls this again and awaits the same in-flight
-      // setup before launching. On macOS this remains non-blocking, so only a
-      // recording started in the first moments may miss ffmpeg.
-      // Never rejects, so `void` is safe.
-      void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
-
-      const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
-      const argentExec = (args: string[]): { command: string; args: string[] } =>
-        resolvePackageExec(packageManager, args);
-
       const startupAbortController = new AbortController();
       const startupSignal = signal
         ? AbortSignal.any([signal, startupAbortController.signal])
         : startupAbortController.signal;
-      const setupSignal = iosStartup ? startupSignal : undefined;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        signal: startupSignal,
+        abort: reason => startupAbortController.abort(reason),
+      });
       const artifactPollAbortController = new AbortController();
       let artifactPollingPromise: Promise<void> | undefined;
       let eventCollection: Awaited<ReturnType<typeof startArgentEventCollectionAsync>> | undefined;
@@ -172,26 +142,65 @@ export function createStartArgentRemoteSessionBuildFunction(
       let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let sessionFailed = false;
-      const startHost = () =>
-        startDeviceSessionHostAsync(ctx, {
-          ...iosStartup,
-          separateLogPhase: true,
+      try {
+        startupSignal.throwIfAborted();
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
+        }
+        const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
+          bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+          deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+          installAppPath: inputs.install_app_path?.value as string | undefined,
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
           env,
           logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
           signal: startupSignal,
-          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
-          ...launch,
-          networkCapture,
-          networkCaptureFields,
-        }).catch(error => {
-          if (iosStartup) {
-            startupAbortController.abort(error);
-          }
-          throw error;
         });
-      try {
+        startupSignal.throwIfAborted();
+        const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+          {
+            networkCapture: inputs.network_capture?.value,
+            networkCaptureFields: inputs.network_capture_fields?.value,
+          },
+          { runtimePlatform }
+        );
+        logger.info(
+          `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
+        );
+
+        // Start the potentially slow installation while Argent is being prepared.
+        // On Linux expo-device-hub calls this again and awaits the same in-flight
+        // setup before launching. On macOS this remains non-blocking, so only a
+        // recording started in the first moments may miss ffmpeg.
+        // Never rejects, so `void` is safe.
+        void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
+
+        const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+        const argentExec = (args: string[]): { command: string; args: string[] } =>
+          resolvePackageExec(packageManager, args);
+
+        const startHost = () =>
+          startDeviceSessionHostAsync(ctx, {
+            ...iosStartup,
+            separateLogPhase: true,
+            runtimePlatform,
+            env,
+            logger,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+            signal: startupSignal,
+            onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+            ...launch,
+            networkCapture,
+            networkCaptureFields,
+          }).catch(error => {
+            if (iosStartup) {
+              startupAbortController.abort(error);
+            }
+            throw error;
+          });
         if (iosStartup) {
           hostStartup = asyncResult(startHost());
         }
@@ -205,7 +214,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           enableArtifacts.command,
           enableArtifacts.args,
           { env, logger },
-          setupSignal
+          startupSignal
         );
 
         logger.info('Enabling the Argent tool-server event log flag.');
@@ -218,7 +227,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           enableEventLog.command,
           enableEventLog.args,
           { env, logger },
-          setupSignal
+          startupSignal
         );
 
         logger.info('Disabling the Argent video watermark flag.');
@@ -233,17 +242,17 @@ export function createStartArgentRemoteSessionBuildFunction(
             disableVideoWatermark.command,
             disableVideoWatermark.args,
             { env, logger },
-            setupSignal
+            startupSignal
           );
         } catch (err) {
-          setupSignal?.throwIfAborted();
+          startupSignal.throwIfAborted();
           logger.warn(
             { err },
             'Could not disable the Argent video watermark, so recorded videos may include it. Continuing the session.'
           );
         }
 
-        setupSignal?.throwIfAborted();
+        startupSignal.throwIfAborted();
         const startServer = argentExec([
           `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
           'server',
@@ -282,7 +291,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             ancestorPid: argentServer.pid,
             timeoutMs: STARTUP_TIMEOUT_MS,
             getExitError: argentServer.getExitError,
-            signal: setupSignal,
+            signal: startupSignal,
           });
           toolServerPort = toolServerState.port;
           toolServerToken = toolServerState.token;
@@ -300,7 +309,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (hostStartup) {
           sessionHost = (await hostStartup).enforceValue();
         }
-        setupSignal?.throwIfAborted();
+        startupSignal.throwIfAborted();
         logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
         const artifactPollSignal = signal
           ? AbortSignal.any([signal, artifactPollAbortController.signal])
@@ -347,7 +356,7 @@ export function createStartArgentRemoteSessionBuildFunction(
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
-          signal,
+          signal: startupSignal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
@@ -360,6 +369,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger,
         });
 
+        await startupWatch.finishAsync();
+        startupSignal.throwIfAborted();
         await waitForDeviceRunSessionStoppedAsync({
           ctx,
           deviceRunSessionId,
@@ -375,10 +386,14 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } catch (error) {
+        if (startupSignal.reason === startupWatch.stopped) {
+          return;
+        }
         sessionFailed = true;
-        throw setupSignal?.aborted ? setupSignal.reason : error;
+        throw startupSignal.aborted ? startupSignal.reason : error;
       } finally {
         startupAbortController.abort(new Error('Argent session ended.'));
+        await startupWatch.finishAsync();
         await finishRemoteSessionAsync({
           logger,
           sessionFailed,
@@ -478,12 +493,8 @@ async function runArgentSetupCommandAsync(
   command: string,
   args: string[],
   options: SpawnOptions,
-  signal?: AbortSignal
+  signal: AbortSignal
 ): Promise<void> {
-  if (!signal) {
-    await spawn(command, args, options);
-    return;
-  }
   signal.throwIfAborted();
   const task = spawn(command, args, { ...options, detached: true });
   const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
