@@ -207,11 +207,11 @@ export async function waitForDeviceRunSessionStoppedAsync({
           throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
         }
       } catch (err) {
-        if (signal.aborted) {
-          return;
-        }
         if (err instanceof SystemError) {
           throw err;
+        }
+        if (signal.aborted) {
+          return;
         }
 
         const error = err instanceof Error ? err : new Error(String(err));
