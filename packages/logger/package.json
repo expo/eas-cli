@@ -1,6 +1,6 @@
 {
   "name": "@expo/logger",
-  "version": "25.1.1",
+  "version": "25.2.0",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "author": "Expo <support@expo.io>",
