@@ -266,6 +266,18 @@ describe(Simulator, () => {
       );
     }
 
+    it('enables JSON output before import preflight can fail', async () => {
+      config({ unknown: true });
+      const { command, getContextAsync } = createCommand(['--import', configPath, '--json']);
+      await expect(command.runAsync()).rejects.toThrow('Unknown or invocation-only');
+      expect(mockEnableJsonOutput).toHaveBeenCalledTimes(1);
+      expect(mockEnableJsonOutput.mock.invocationCallOrder[0]).toBeLessThan(
+        jest.mocked(fs.readJson).mock.invocationCallOrder[0]
+      );
+      expect(getContextAsync).not.toHaveBeenCalled();
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    });
+
     it('creates from saved flags with explicit CLI overrides and unchanged output without actions', async () => {
       config({
         platform: 'ios',

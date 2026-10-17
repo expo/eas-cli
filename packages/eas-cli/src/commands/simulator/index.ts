@@ -234,13 +234,13 @@ export default class Simulator extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    // Import preflight can fail before parsing; keep diagnostics off JSON stdout.
+    if (this.argv.includes('--json')) {
+      enableJsonOutput();
+    }
     const imported = await resolveStartConfigAsync(this.argv, Simulator.flags);
     const { flags } = await this.parse(Simulator, imported.argv);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const {
       projectId,
