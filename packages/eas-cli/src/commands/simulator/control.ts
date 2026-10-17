@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -16,6 +17,13 @@ import {
   executeControlActionAsync,
   prepareControlActionAsync,
 } from '../../simulator/controlActions';
+import {
+  ControlConfigExecutionError,
+  ControlConfigResult,
+  PreparedControlConfig,
+  executeControlConfigAsync,
+  prepareControlConfigAsync,
+} from '../../simulator/controlConfig';
 import { runControlMenuAsync } from '../../simulator/controlInteractive';
 import { ControlPromptCancelledError } from '../../simulator/controlPrompts';
 import { ControlSessionEndedError, watchControlSession } from '../../simulator/controlSession';
@@ -37,14 +45,14 @@ import {
 import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import formatFields from '../../utils/formatFields';
-import { sanitizeTerminalText } from '../../utils/terminalText';
+import { sanitizeTerminalText, truncate } from '../../utils/terminalText';
 import { formatMilliseconds } from '../../utils/timer';
 
 type ControlSession = {
   id: string;
   name: string | null;
   project: string;
-  status: string;
+  status: DeviceRunSessionStatus;
   device: HostActionDevice;
 };
 
@@ -57,6 +65,7 @@ export default class SimulatorControl extends EasCommand {
   static override examples = [
     '$ eas simulator:control',
     '$ eas simulator:control --list',
+    '$ eas simulator:control --import ./simulator-control.json',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -80,6 +89,10 @@ export default class SimulatorControl extends EasCommand {
     output: Flags.string({
       description: 'Where to save the file that an action returns, such as a screenshot.',
     }),
+    import: Flags.string({
+      description:
+        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Explicit output files are overwritten without prompting; directory outputs use simulator filenames and fail if the file exists. Example: {"version":1,"actions":[{"action":"app.install","file":"./MyApp.ipa"}]}',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -96,7 +109,11 @@ export default class SimulatorControl extends EasCommand {
       enableJsonOutput();
     }
     const action = flags.list ? undefined : args.action;
-    const interactive = !flags.list && !action;
+    const importing = flags.import !== undefined;
+    if (importing && (args.action || flags.list || flags.output !== undefined)) {
+      throw new Error('--import cannot be combined with an action, --list, or --output.');
+    }
+    const interactive = !flags.list && !action && !importing;
     if (!action && flags.output) {
       throw new Error(
         '--output requires an action. Choose an output path when selecting a file action in the interactive menu.'
@@ -139,7 +156,7 @@ export default class SimulatorControl extends EasCommand {
           project: `@${session.app.ownerAccount.name}/${session.app.slug}`,
           status: session.status,
           device:
-            interactive || (jsonFlag && !flags.list)
+            interactive || importing || (jsonFlag && !flags.list)
               ? await fetchHostActionDeviceAsync(access, connection.udid)
               : { udid: connection.udid },
         };
@@ -182,7 +199,11 @@ export default class SimulatorControl extends EasCommand {
         };
         session.signal.addEventListener('abort', detach, { once: true });
         try {
-          await runControlMenuAsync({ catalog, signal: session.signal, runActionAsync });
+          await runControlMenuAsync({
+            catalog,
+            signal: session.signal,
+            runActionAsync,
+          });
         } catch (error) {
           const reason: unknown = session.signal.aborted ? session.signal.reason : error;
           if (reason instanceof ControlPromptCancelledError) {
@@ -201,6 +222,11 @@ export default class SimulatorControl extends EasCommand {
           activeConnection.signal.removeEventListener('abort', onConnectionLost);
           process.removeListener('SIGINT', onInterrupt);
         }
+      } else if (importing) {
+        await this.importConfigAsync(activeConnection, catalog, flags.import!, {
+          session: controlSession,
+          jsonFlag,
+        });
       } else {
         const entry = Object.hasOwn(catalog, action!) ? catalog[action!] : undefined;
         await runActionAsync({
@@ -211,6 +237,113 @@ export default class SimulatorControl extends EasCommand {
       }
     } finally {
       connection?.close();
+    }
+  }
+
+  private async importConfigAsync(
+    connection: HostActionConnection,
+    catalog: HostActionCatalog,
+    filePath: string,
+    { session, jsonFlag }: { session: ControlSession; jsonFlag: boolean }
+  ): Promise<void> {
+    const spinner = jsonFlag ? undefined : ora(`Validating ${path.basename(filePath)}`).start();
+    const startedAt = Date.now();
+    let stepStartedAt = startedAt;
+    let config: PreparedControlConfig | undefined;
+    let results: ControlConfigResult[];
+    try {
+      config = await prepareControlConfigAsync(catalog, filePath, connection.udid);
+      if (spinner) {
+        spinner.succeed(`Validated ${formatActionCount(config.actions.length)}`);
+        this.printSessionHeader(session);
+        Log.log(chalk.bold(path.basename(config.path)));
+        Log.gray(config.path);
+        for (const { plan } of config.actions) {
+          if (plan.localFile) {
+            Log.gray(`  Read: ${plan.localFile.path}`);
+          }
+          if (plan.outputPath) {
+            Log.gray(`  Output: ${plan.outputPath}`);
+          }
+        }
+        if (config.actions.some(({ plan }) => plan.outputPath)) {
+          Log.gray(
+            'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+          );
+        }
+        Log.newLine();
+      }
+      const prepared = config;
+      results = await executeControlConfigAsync(connection, prepared, {
+        onProgress: spinner
+          ? progress => {
+              const label = `[${progress.step}/${progress.total}] ${progress.action}`;
+              if (progress.status === 'running') {
+                stepStartedAt = Date.now();
+                spinner.start(label);
+              } else {
+                spinner.succeed(`${label} ${chalk.dim(formatElapsed(stepStartedAt))}`);
+                this.printConfigResult(progress.result);
+              }
+            }
+          : undefined,
+      });
+    } catch (error) {
+      if (error instanceof ControlConfigExecutionError && config) {
+        spinner?.fail(
+          `[${error.step}/${config.actions.length}] ${error.action} ${chalk.dim(formatElapsed(stepStartedAt))}`
+        );
+        if (jsonFlag) {
+          printJsonOnlyOutput({
+            id: session.id,
+            session,
+            config: config.path,
+            results: configResultsJson(error.completed),
+            error: { step: error.step, action: error.action, message: error.message },
+          });
+          process.exitCode = 1;
+          return;
+        }
+        const skipped = config.actions.length - error.step;
+        Log.newLine();
+        Log.log(`${error.completed.length} completed · 1 failed · ${skipped} skipped`);
+        for (const [index, { plan }] of config.actions.entries()) {
+          if (index >= error.step) {
+            Log.gray(`  [${index + 1}/${config.actions.length}] ${plan.action} skipped`);
+          }
+        }
+      } else {
+        spinner?.fail(config ? 'Import failed' : 'Validation failed. No actions were run.');
+      }
+      throw error;
+    }
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        id: session.id,
+        session,
+        config: config.path,
+        results: configResultsJson(results),
+      });
+    } else {
+      Log.newLine();
+      Log.succeed(
+        `Import complete · ${formatActionCount(results.length)} · ${formatElapsed(startedAt)}`
+      );
+    }
+  }
+
+  private printConfigResult(result: ControlConfigResult): void {
+    if (result.file) {
+      Log.log(`  Saved: ${result.file}`);
+    } else if (result.output) {
+      const output = parseJsonOutput(result.output);
+      const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+      Log.log(
+        text
+          .split('\n')
+          .map(line => `  ${line}`)
+          .join('\n')
+      );
     }
   }
 
@@ -228,24 +361,30 @@ export default class SimulatorControl extends EasCommand {
   }
 
   private printSessionHeader(session: ControlSession): void {
+    const clean = (value: string): string =>
+      sanitizeTerminalText(
+        stripVTControlCharacters(value).replace(/[\u202A-\u202E\u2066-\u2069]/g, '')
+      );
     const runtime = session.device.runtime?.replace(/^([A-Za-z]+)-/, '$1 ').replaceAll('-', '.');
     Log.newLine();
     Log.log(chalk.bold('Simulator controls'));
     Log.log(
       formatFields(
         [
-          { label: 'Session', value: session.name || 'Unnamed session' },
+          { label: 'Session', value: truncate(clean(session.name ?? '') || 'Unnamed session', 80) },
           { label: 'Project', value: session.project },
           {
             label: 'Device',
-            value: [session.device.name || 'iOS Simulator', runtime].filter(Boolean).join(' · '),
+            value: [truncate(clean(session.device.name ?? '') || 'iOS Simulator', 80), runtime]
+              .filter(Boolean)
+              .join(' · '),
           },
           { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
           { label: 'Session ID', value: session.id },
           { label: 'Device ID', value: session.device.udid },
         ].map(field => ({
           ...field,
-          value: sanitizeTerminalText(stripVTControlCharacters(field.value)),
+          value: clean(field.value),
         }))
       )
     );
@@ -274,7 +413,7 @@ export default class SimulatorControl extends EasCommand {
       ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
       spinner.succeed(
         interactive
-          ? `${action} complete · ${formatMilliseconds(Date.now() - startedAt) || '<1s'}`
+          ? `${action} complete · ${formatElapsed(startedAt)}`
           : `Ran ${action} on simulator session ${session.id}`
       );
     } catch (err) {
@@ -306,6 +445,20 @@ export default class SimulatorControl extends EasCommand {
       Log.log(interactive && typeof parsed !== 'string' ? JSON.stringify(parsed, null, 2) : output);
     }
   }
+}
+
+function formatElapsed(startedAt: number): string {
+  return formatMilliseconds(Date.now() - startedAt) || '<1s';
+}
+
+function formatActionCount(count: number): string {
+  return `${count} action${count === 1 ? '' : 's'}`;
+}
+
+function configResultsJson(
+  results: readonly ControlConfigResult[]
+): { action: string; output: unknown; file: string | null }[] {
+  return results.map(result => ({ ...result, output: parseJsonOutput(result.output) }));
 }
 
 function assertControllableSession(

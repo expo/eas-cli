@@ -13,6 +13,7 @@ import {
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
+import { ora } from '../../../ora';
 import { EAS_SIMULATOR_SESSION_ID, loadSimulatorEnvAsync } from '../../../simulator/env';
 import * as controlSession from '../../../simulator/controlSession';
 import { runControlMenuAsync } from '../../../simulator/controlInteractive';
@@ -166,9 +167,198 @@ describe(SimulatorControl, () => {
     return requestAsync.mock.calls.filter(([action]) => action !== 'actions.describe');
   }
 
+  async function writeImportAsync(actions: unknown[]): Promise<string> {
+    const filePath = path.join(tmpDir, 'control.json');
+    await fs.writeJson(filePath, { version: 1, actions });
+    return filePath;
+  }
+
+  it('imports an ordered config without prompts over the existing connection', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+    ]);
+    await createCommand([
+      '--import',
+      filePath,
+      '--id',
+      'session-123',
+      '--non-interactive',
+    ]).runAsync();
+    expect(actionRequests()).toEqual([
+      ['hardwareKeyboard.set', { value: 'off' }],
+      ['hardwareKeyboard.set', { value: 'on' }],
+    ]);
+    expect(mockConnectHostActionsAsync).toHaveBeenCalledTimes(1);
+    expect(runControlMenuAsync).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iPhone 17 Pro · iOS 26.4'));
+    expect(Log.log).toHaveBeenCalledWith('  off');
+    const spinner = jest.mocked(ora).mock.results[1].value;
+    expect(spinner.start).toHaveBeenCalledWith('[1/2] hardwareKeyboard.set');
+    expect(spinner.start).toHaveBeenCalledWith('[2/2] hardwareKeyboard.set');
+    expect(Log.succeed).toHaveBeenCalledWith(
+      expect.stringContaining('Import complete · 2 actions')
+    );
+  });
+
+  it('prints one JSON result for a successful imported batch', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    actionResult = ok('{"enabled":false}\n');
+    await createCommand(['--import', filePath, '--id', 'session-123', '--json']).runAsync();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledTimes(1);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+      }),
+      config: filePath,
+      results: [{ action: 'hardwareKeyboard.set', output: { enabled: false }, file: null }],
+    });
+    expect(runControlMenuAsync).not.toHaveBeenCalled();
+    expect(ora).toHaveBeenCalledTimes(1);
+    expect(Log.log).not.toHaveBeenCalled();
+    expect(Log.succeed).not.toHaveBeenCalled();
+  });
+
+  it('retains completed results and failure metadata in JSON and stops the imported batch', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    requestAsync
+      .mockImplementationOnce(async () => ok(JSON.stringify(served)))
+      .mockResolvedValueOnce(ok('first completed'))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'Permission denied', exitCode: 1 });
+    const previous = process.exitCode;
+    try {
+      await createCommand(['--import', filePath, '--id', 'session-123', '--json']).runAsync();
+      expect(process.exitCode).toBe(1);
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+        id: 'session-123',
+        session: expect.objectContaining({
+          id: 'session-123',
+          device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+        }),
+        config: filePath,
+        results: [{ action: 'hardwareKeyboard.set', output: 'first completed', file: null }],
+        error: {
+          step: 2,
+          action: 'hardwareKeyboard.set',
+          message: expect.stringContaining('Permission denied'),
+        },
+      });
+      expect(actionRequests()).toHaveLength(2);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      process.exitCode = previous;
+    }
+  });
+
+  it('preflights every imported step before running the first action', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'invalid' } },
+    ]);
+    await expect(
+      createCommand(['--import', filePath, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('Config step 2');
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(ora).mock.results[1].value.fail).toHaveBeenCalledWith(
+      'Validation failed. No actions were run.'
+    );
+  });
+
+  it.each([
+    { args: ['hardwareKeyboard.set', 'off'] },
+    { args: ['--list'] },
+    { args: ['--output', './out.png'] },
+  ])('rejects conflicting import options before connecting: %j', async ({ args }) => {
+    await expect(
+      createCommand(['--import', './control.json', '--id', 'session-123', ...args]).runAsync()
+    ).rejects.toThrow('--import cannot be combined');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('refuses Android imports before connecting or reading the config file', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ platform: AppPlatform.Android }));
+    await expect(
+      createCommand(['--import', './missing.json', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('not supported yet');
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+    expect(runControlMenuAsync).not.toHaveBeenCalled();
+  });
+
+  it('prints completed steps before a non-JSON import failure', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    requestAsync
+      .mockImplementationOnce(async () => ok(JSON.stringify(served)))
+      .mockResolvedValueOnce(ok('first done'))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'Native action failed', exitCode: 1 });
+    await expect(
+      createCommand(['--import', filePath, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('Config step 2');
+    expect(Log.log).toHaveBeenCalledWith('  first done');
+    expect(Log.log).toHaveBeenCalledWith('1 completed · 1 failed · 1 skipped');
+    expect(Log.gray).toHaveBeenCalledWith('  [3/3] hardwareKeyboard.set skipped');
+    expect(actionRequests()).toHaveLength(2);
+    expect(runControlMenuAsync).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('downloads config-relative outputs and reports each saved file', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'screenshot.capture', output: './shot.png' },
+    ]);
+    actionResult = ok('/remote/screenshot.png');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    const savedPath = path.join(tmpDir, 'shot.png');
+    expect(await fs.readFile(savedPath, 'utf8')).toBe('png bytes');
+    expect(Log.log).toHaveBeenCalledWith(`  Saved: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(`  Output: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(
+      'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+    );
+    expect(jest.mocked(Log.gray).mock.invocationCallOrder[0]).toBeLessThan(
+      requestAsync.mock.invocationCallOrder[1]
+    );
+  });
+
+  it('reports completion for actions with empty output', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    actionResult = ok('');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(jest.mocked(ora).mock.results[1].value.succeed).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[1\/1\] hardwareKeyboard\.set /)
+    );
+  });
+
+  it('formats structured results without opening a picker', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    actionResult = ok('{"text":"Imported text"}');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(Log.log).toHaveBeenCalledWith('  {\n    "text": "Imported text"\n  }');
+    expect(runControlMenuAsync).not.toHaveBeenCalled();
+  });
+
   it('runs an action from the catalog with its values and prints the output', async () => {
     await createCommand(['hardwareKeyboard.set', 'off', '--id', 'session-123']).runAsync();
 
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
     expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
     expect(mockConnectHostActionsAsync).toHaveBeenCalledWith({
       apiUrl: 'https://sim.example.test',
@@ -189,6 +379,7 @@ describe(SimulatorControl, () => {
       '    Grant, revoke or reset one permission for an app.'
     );
     expect(actionRequests()).toEqual([]);
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
   });
 
   it('prints parsed JSON output', async () => {
@@ -229,8 +420,10 @@ describe(SimulatorControl, () => {
       file: null,
     });
     mockPrintJsonOnlyOutput.mockClear();
+    jest.mocked(fetchHostActionDeviceAsync).mockClear();
     await createCommand(['--list', '--id', 'session-123', '--json']).runAsync();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
     expect(runControlMenuAsync).not.toHaveBeenCalled();
   });
 
@@ -581,7 +774,7 @@ describe(SimulatorControl, () => {
 
   it('shows session and device details without terminal escape sequences', async () => {
     mockByIdAsync.mockResolvedValueOnce(
-      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed' })
+      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed\u202E' })
     );
     await createCommand(['--id', 'session-123']).runAsync();
     const text = jest
@@ -594,7 +787,16 @@ describe(SimulatorControl, () => {
     expect(text).toContain('session-123');
     expect(text).toContain('simulator-udid');
     expect(text).not.toContain('\x1b[31m');
+    expect(text).not.toContain('\u202E');
     expect(text).not.toContain('preview-token');
+  });
+
+  it('shows fallback names when optional details are unavailable or blank', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession({ name: ' \n ' }));
+    jest.mocked(fetchHostActionDeviceAsync).mockResolvedValueOnce({ udid: 'simulator-udid' });
+    await createCommand(['--id', 'session-123']).runAsync();
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unnamed session'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iOS Simulator'));
   });
 
   it('closes the connection if the interactive controller fails unexpectedly', async () => {
