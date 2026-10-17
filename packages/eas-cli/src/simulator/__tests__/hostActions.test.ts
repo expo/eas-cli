@@ -138,6 +138,12 @@ describe(buildHostActionParams, () => {
 });
 
 describe(formatHostActionUsage, () => {
+  it('shows the required alternative file sources for an upload action', () => {
+    expect(formatHostActionUsage('app.install', entry('app.install'))).toBe(
+      'app.install <uploadId=...|path>'
+    );
+  });
+
   it('marks required and optional parameters', () => {
     expect(formatHostActionUsage('permissions.set', entry('permissions.set'))).toBe(
       'permissions.set <action> <service> <bundleId>'
