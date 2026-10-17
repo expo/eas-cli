@@ -236,7 +236,7 @@ export async function connectHostActionsAsync(
         new Error(
           ready
             ? 'The simulator preview server closed the connection before it answered. The action may still have run. Check the current state before you try again.'
-            : 'The simulator preview server closed the connection during setup. The session may run an older serve-sim version. Start a new session with `eas simulator:start`.'
+            : 'The simulator preview server closed the connection during setup. The session token may be invalid or expired, or the session may run an older serve-sim version. Check the session with `eas simulator:get` before starting a new session.'
         )
       );
     });
