@@ -1712,6 +1712,38 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 });
 
+describe('startup Stop watcher', () => {
+  beforeEach(() => jest.mocked(setTimeoutAsync).mockReset().mockResolvedValue(undefined));
+  it('aborts startup when the session is stopped', async () => {
+    const controller = new AbortController();
+    const watch = remoteDeviceRunSession.watchDeviceRunSessionStartup({
+      ctx: createStatusCtxMock([{ status: 'STOPPED' }]),
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      signal: controller.signal,
+      abort: reason => controller.abort(reason),
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(controller.signal.reason).toBe(watch.stopped);
+    await watch.finishAsync();
+  });
+
+  it('retires without cancelling startup or keeping a status timer alive', async () => {
+    const controller = new AbortController();
+    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const watch = remoteDeviceRunSession.watchDeviceRunSessionStartup({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      signal: controller.signal,
+      abort: reason => controller.abort(reason),
+    });
+    await watch.finishAsync();
+    expect(controller.signal.aborted).toBe(false);
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('remote configuration cancellation', () => {
   beforeEach(() => jest.mocked(turtleFetch).mockReset());
 

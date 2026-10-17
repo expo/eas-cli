@@ -165,6 +165,46 @@ export type DeviceRunSessionIdleTimeout = {
 
 export class DeviceRunSessionStoppedError extends Error {}
 
+export function watchDeviceRunSessionStartup({
+  ctx,
+  deviceRunSessionId,
+  logger,
+  signal,
+  abort,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+  signal: AbortSignal;
+  abort: (reason: unknown) => void;
+}): { stopped: DeviceRunSessionStoppedError; finishAsync: () => Promise<void> } {
+  const stopped = new DeviceRunSessionStoppedError(
+    `Device run session ${deviceRunSessionId} was stopped during startup.`
+  );
+  const done = new AbortController();
+  const watchSignal = AbortSignal.any([signal, done.signal]);
+  const watching = waitForDeviceRunSessionStoppedAsync({
+    ctx,
+    deviceRunSessionId,
+    logger,
+    signal: watchSignal,
+  }).then(
+    () => {
+      if (!watchSignal.aborted) {
+        abort(stopped);
+      }
+    },
+    error => abort(error)
+  );
+  return {
+    stopped,
+    finishAsync: async () => {
+      done.abort();
+      await watching;
+    },
+  };
+}
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
