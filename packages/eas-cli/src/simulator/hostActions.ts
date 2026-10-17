@@ -373,11 +373,18 @@ export function formatHostActionUsage(name: string, entry: HostActionCatalogEntr
     alternatives.length > 0 && alternatives.every(properties => properties.length === 1)
       ? alternatives.map(([property]) => property)
       : [];
-  const names = positionalNames(entry).map(property => {
+  let describedAlternatives = false;
+  const names = positionalNames(entry).flatMap(property => {
     if (requiredAlternatives.includes(property)) {
-      return `<${requiredAlternatives.map(name => (name === property ? name : `${name}=...`)).join('|')}>`;
+      if (describedAlternatives) {
+        return [];
+      }
+      describedAlternatives = true;
+      return [
+        `<${requiredAlternatives.map(name => (name === property ? name : `${name}=...`)).join('|')}>`,
+      ];
     }
-    return required.has(property) ? `<${property}>` : `[${property}]`;
+    return [required.has(property) ? `<${property}>` : `[${property}]`];
   });
   return [name, ...names].join(' ');
 }
