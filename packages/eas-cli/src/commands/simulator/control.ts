@@ -34,11 +34,12 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
   static override description =
-    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run with --list to see the actions the session supports.';
+    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports.';
   static override strict = false;
 
   static override examples = [
-    '$ eas simulator:control --list',
+    '$ eas simulator:control',
+    '$ eas simulator:control --id <session-id>',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -48,7 +49,7 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Run with --list to see the actions.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions.',
     }),
   };
 
@@ -78,11 +79,6 @@ export default class SimulatorControl extends EasCommand {
       enableJsonOutput();
     }
     const action = flags.list ? undefined : args.action;
-    if (!flags.list && !action) {
-      throw new Error(
-        'No action provided. Run `eas simulator:control --list` to see the actions, then `eas simulator:control <action> [values...]`.'
-      );
-    }
 
     const {
       projectDir,

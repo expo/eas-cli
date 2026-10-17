@@ -162,8 +162,8 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalled();
   });
 
-  it('lists the actions of the session', async () => {
-    await createCommand(['--list', '--id', 'session-123']).runAsync();
+  it.each([false, true])('lists the actions of the session with --list=%s', async list => {
+    await createCommand([...(list ? ['--list'] : []), '--id', 'session-123']).runAsync();
 
     expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
       expect.stringMatching(
@@ -358,11 +358,11 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('asks for an action before it loads the session', async () => {
-    await expect(createCommand(['--id', 'session-123']).runAsync()).rejects.toThrow(
-      'No action provided.'
-    );
-    expect(mockByIdAsync).not.toHaveBeenCalled();
+  it('lists the actions as JSON when no action is provided', async () => {
+    await createCommand(['--id', 'session-123', '--json']).runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+    expect(actionRequests()).toEqual([]);
   });
 
   it('refuses a session that is not running', async () => {
