@@ -34,7 +34,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
   static override description =
-    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports.';
+    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports. To save a screenshot locally, run `eas simulator:control screenshot.capture --output ./screenshot.png`.';
   static override strict = false;
 
   static override examples = [
@@ -45,6 +45,7 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
+    '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
 
   static override args = {
@@ -62,7 +63,8 @@ export default class SimulatorControl extends EasCommand {
       description: 'List the actions the session supports.',
     }),
     output: Flags.string({
-      description: 'Where to save the file that an action returns, such as a screenshot.',
+      description:
+        'Local path to save a returned file. For screenshots, --output ./screenshot.png sets the local filename; omit it to save with a generated filename in the current directory.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -133,10 +135,17 @@ export default class SimulatorControl extends EasCommand {
       printJsonOnlyOutput(catalog);
       return;
     }
-    const rows = Object.entries(catalog).map(([name, entry]) => ({
-      usage: formatHostActionUsage(name, entry),
-      description: entry.description,
-    }));
+    const rows = Object.entries(catalog).map(([name, entry]) => {
+      const usage = formatHostActionUsage(name, entry);
+      const output =
+        entry.output === 'base64' ? '--output <local-path>' : '[--output <local-path>]';
+      return {
+        usage: entry.output ? `${usage} ${output}` : usage,
+        description: entry.output
+          ? `${entry.description ?? ''} Use --output for the local filename.`.trim()
+          : entry.description,
+      };
+    });
     const width = Math.max(0, ...rows.map(row => row.usage.length));
     for (const { usage, description } of rows) {
       Log.log(description ? `${usage.padEnd(width)}  ${description}` : usage);
