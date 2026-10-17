@@ -192,6 +192,7 @@ describe(SimulatorControl, () => {
     expect(mockConnectHostActionsAsync).toHaveBeenCalledTimes(1);
     expect(runControlMenuAsync).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledTimes(1);
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iPhone 17 Pro · iOS 26.4'));
     expect(Log.log).toHaveBeenCalledWith('  off');
     const spinner = jest.mocked(ora).mock.results[1].value;
     expect(spinner.start).toHaveBeenCalledWith('[1/2] hardwareKeyboard.set');
@@ -210,6 +211,10 @@ describe(SimulatorControl, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledTimes(1);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+      }),
       config: filePath,
       results: [{ action: 'hardwareKeyboard.set', output: { enabled: false }, file: null }],
     });
@@ -235,6 +240,10 @@ describe(SimulatorControl, () => {
       expect(process.exitCode).toBe(1);
       expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
         id: 'session-123',
+        session: expect.objectContaining({
+          id: 'session-123',
+          device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+        }),
         config: filePath,
         results: [{ action: 'hardwareKeyboard.set', output: 'first completed', file: null }],
         error: {
@@ -316,6 +325,10 @@ describe(SimulatorControl, () => {
     const savedPath = path.join(tmpDir, 'shot.png');
     expect(await fs.readFile(savedPath, 'utf8')).toBe('png bytes');
     expect(Log.log).toHaveBeenCalledWith(`  Saved: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(`  Write: ${savedPath} (replaces an existing file)`);
+    expect(jest.mocked(Log.gray).mock.invocationCallOrder[0]).toBeLessThan(
+      requestAsync.mock.invocationCallOrder[1]
+    );
   });
 
   it('reports completion for actions with empty output', async () => {

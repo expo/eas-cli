@@ -70,6 +70,22 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
+    {
+      description:
+        'simulator-control.json: file uploads local content; output saves a returned file locally.',
+      command: JSON.stringify(
+        {
+          version: 1,
+          actions: [
+            { action: 'appearance.set', params: { value: 'dark' } },
+            { action: 'app.install', file: './MyApp.ipa' },
+            { action: 'screenshot.capture', output: './screen.png' },
+          ],
+        },
+        null,
+        2
+      ),
+    },
   ];
 
   static override args = {
@@ -91,7 +107,7 @@ export default class SimulatorControl extends EasCommand {
     }),
     import: Flags.string({
       description:
-        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. File/output paths are relative to the configuration file.',
+        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Existing output files are replaced without prompting.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -156,7 +172,7 @@ export default class SimulatorControl extends EasCommand {
           project: `@${session.app.ownerAccount.name}/${session.app.slug}`,
           status: session.status,
           device:
-            interactive || (jsonFlag && !flags.list)
+            interactive || importing || (jsonFlag && !flags.list)
               ? await fetchHostActionDeviceAsync(access, connection.udid)
               : { udid: connection.udid },
         };
@@ -224,7 +240,7 @@ export default class SimulatorControl extends EasCommand {
         }
       } else if (importing) {
         await this.importConfigAsync(activeConnection, catalog, flags.import!, {
-          sessionId,
+          session: controlSession,
           jsonFlag,
         });
       } else {
@@ -244,7 +260,7 @@ export default class SimulatorControl extends EasCommand {
     connection: HostActionConnection,
     catalog: HostActionCatalog,
     filePath: string,
-    { sessionId, jsonFlag }: { sessionId: string; jsonFlag: boolean }
+    { session, jsonFlag }: { session: ControlSession; jsonFlag: boolean }
   ): Promise<void> {
     const spinner = jsonFlag ? undefined : ora(`Validating ${path.basename(filePath)}`).start();
     const startedAt = Date.now();
@@ -255,10 +271,17 @@ export default class SimulatorControl extends EasCommand {
       config = await prepareControlConfigAsync(catalog, filePath, connection.udid);
       if (spinner) {
         spinner.succeed(`Validated ${formatActionCount(config.actions.length)}`);
-        Log.newLine();
+        this.printSessionHeader(session);
         Log.log(chalk.bold(path.basename(config.path)));
-        Log.gray(`Session ${sessionId} · ${formatActionCount(config.actions.length)}`);
         Log.gray(config.path);
+        for (const { plan } of config.actions) {
+          if (plan.localFile) {
+            Log.gray(`  Read: ${plan.localFile.path}`);
+          }
+          if (plan.outputPath) {
+            Log.gray(`  Write: ${plan.outputPath} (replaces an existing file)`);
+          }
+        }
         Log.newLine();
       }
       const prepared = config;
@@ -271,10 +294,6 @@ export default class SimulatorControl extends EasCommand {
                 spinner.start(label);
               } else {
                 spinner.succeed(`${label} ${chalk.dim(formatElapsed(stepStartedAt))}`);
-                const source = prepared.actions[progress.step - 1].plan.localFile;
-                if (source) {
-                  Log.gray(`  Source: ${source.path}`);
-                }
                 this.printConfigResult(progress.result);
               }
             }
@@ -287,7 +306,8 @@ export default class SimulatorControl extends EasCommand {
         );
         if (jsonFlag) {
           printJsonOnlyOutput({
-            id: sessionId,
+            id: session.id,
+            session,
             config: config.path,
             results: configResultsJson(error.completed),
             error: { step: error.step, action: error.action, message: error.message },
@@ -310,7 +330,8 @@ export default class SimulatorControl extends EasCommand {
     }
     if (jsonFlag) {
       printJsonOnlyOutput({
-        id: sessionId,
+        id: session.id,
+        session,
         config: config.path,
         results: configResultsJson(results),
       });
@@ -397,7 +418,7 @@ export default class SimulatorControl extends EasCommand {
       ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
       spinner.succeed(
         interactive
-          ? `${action} complete · ${formatMilliseconds(Date.now() - startedAt) || '<1s'}`
+          ? `${action} complete · ${formatElapsed(startedAt)}`
           : `Ran ${action} on simulator session ${session.id}`
       );
     } catch (err) {
