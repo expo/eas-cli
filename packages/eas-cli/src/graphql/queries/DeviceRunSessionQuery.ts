@@ -1,3 +1,4 @@
+import { OperationContext, OperationResult, OperationResultSource } from '@urql/core';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -47,109 +48,114 @@ export const DeviceRunSessionQuery = {
     deviceRunSessionId: string
   ): Promise<DeviceRunSessionByIdQuery['deviceRunSessions']['byId']> {
     const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<DeviceRunSessionByIdQuery, DeviceRunSessionByIdQueryVariables>(
-          gql`
-            query DeviceRunSessionByIdQuery($deviceRunSessionId: ID!) {
-              deviceRunSessions {
-                byId(deviceRunSessionId: $deviceRunSessionId) {
-                  id
-                  name
-                  tags
-                  publicPreview
-                  status
-                  type
-                  platform
-                  createdAt
-                  startedAt
-                  finishedAt
-                  updatedAt
-                  app {
-                    id
-                    slug
-                    ownerAccount {
-                      id
-                      name
-                    }
-                  }
-                  artifacts {
-                    id
-                    name
-                    filename
-                    downloadUrl
-                    fileSizeBytes
-                    metadata
-                    createdAt
-                    updatedAt
-                  }
-                  remoteConfig {
-                    __typename
-                    ... on AgentDeviceRunSessionRemoteConfig {
-                      agentDeviceRemoteSessionUrl
-                      agentDeviceRemoteSessionToken
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                    }
-                    ... on ArgentRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      toolsUrl
-                      toolsAuthToken
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                    }
-                    ... on AppiumRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      appiumUrl
-                      capabilities
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                    }
-                    ... on ServeSimRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      previewUrl
-                      previewToken
-                      previewApiUrl
-                    }
-                    ... on WebPreviewOnlyRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      previewUrl: webPreviewUrl
-                      previewToken: webPreviewToken
-                      previewApiUrl
-                    }
-                  }
-                  turtleJobRun {
-                    id
-                    status
-                  }
-                }
-              }
-            }
-          `,
-          { deviceRunSessionId },
-          { requestPolicy: 'network-only' }
-        )
-        .toPromise()
+      DeviceRunSessionQuery.byId(graphqlClient, deviceRunSessionId).toPromise()
     );
     return data.deviceRunSessions.byId;
+  },
+  byId(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string,
+    context: Partial<OperationContext> = {}
+  ): OperationResultSource<OperationResult<DeviceRunSessionByIdQuery>> {
+    return graphqlClient.query<DeviceRunSessionByIdQuery, DeviceRunSessionByIdQueryVariables>(
+      gql`
+        query DeviceRunSessionByIdQuery($deviceRunSessionId: ID!) {
+          deviceRunSessions {
+            byId(deviceRunSessionId: $deviceRunSessionId) {
+              id
+              name
+              tags
+              publicPreview
+              status
+              type
+              platform
+              createdAt
+              startedAt
+              finishedAt
+              updatedAt
+              app {
+                id
+                slug
+                ownerAccount {
+                  id
+                  name
+                }
+              }
+              artifacts {
+                id
+                name
+                filename
+                downloadUrl
+                fileSizeBytes
+                metadata
+                createdAt
+                updatedAt
+              }
+              remoteConfig {
+                __typename
+                ... on AgentDeviceRunSessionRemoteConfig {
+                  agentDeviceRemoteSessionUrl
+                  agentDeviceRemoteSessionToken
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                }
+                ... on ArgentRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  toolsUrl
+                  toolsAuthToken
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                }
+                ... on AppiumRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  appiumUrl
+                  capabilities
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                }
+                ... on ServeSimRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  previewUrl
+                  previewToken
+                  previewApiUrl
+                }
+                ... on WebPreviewOnlyRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  previewUrl: webPreviewUrl
+                  previewToken: webPreviewToken
+                  previewApiUrl
+                }
+              }
+              turtleJobRun {
+                id
+                status
+              }
+            }
+          }
+        }
+      `,
+      { deviceRunSessionId },
+      { requestPolicy: 'network-only', ...context }
+    );
   },
   async listByAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
