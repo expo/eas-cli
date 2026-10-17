@@ -35,7 +35,6 @@ import {
   resolvePackageAdd,
 } from '../../utils/packageManager';
 import { killProcessGroup } from '../../utils/processes';
-import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
@@ -53,6 +52,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
+  watchDeviceRunSessionStartup,
 } from '../utils/remoteDeviceRunSession';
 
 const APPIUM_HOST = '127.0.0.1';
@@ -96,46 +96,17 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const packageVersion = inputs.package_version.value as string | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
-      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-        runtimePlatform,
-        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
-        installAppPath: inputs.install_app_path?.value as string | undefined,
-        launchAppIdentifier: inputs.launch_app_identifier?.value,
-        launchArgs: inputs.launch_args?.value,
-        openUrl: inputs.open_url?.value,
-        env,
-        logger,
-        signal,
-      });
-      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
-        {
-          networkCapture: inputs.network_capture?.value,
-          networkCaptureFields: inputs.network_capture_fields?.value,
-        },
-        { runtimePlatform }
-      );
-      const versionSpec = resolveAppium3VersionSpec(packageVersion);
-
-      logger.info(
-        `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
-      );
-      const device: AppiumDevice = iosStartup
-        ? {
-            platformName: 'iOS',
-            automationName: 'XCUITest',
-            driverName: 'xcuitest',
-            udid: iosStartup.iosSimulatorUdid,
-          }
-        : await resolveAppiumDeviceAsync({ runtimePlatform, env });
       const startupAbortController = new AbortController();
       const startupSignal = signal
         ? AbortSignal.any([signal, startupAbortController.signal])
         : startupAbortController.signal;
-      const setupSignal = iosStartup ? startupSignal : undefined;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        signal: startupSignal,
+        abort: reason => startupAbortController.abort(reason),
+      });
       let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let appiumProcess: ReturnType<typeof spawnDetached> | undefined;
@@ -143,26 +114,64 @@ export function createStartAppiumRemoteSessionBuildFunction(
       let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionFailed = false;
-      const startHost = () =>
-        startDeviceSessionHostAsync(ctx, {
-          ...iosStartup,
-          separateLogPhase: true,
+      try {
+        startupSignal.throwIfAborted();
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
+        }
+        const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
+          bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+          deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+          installAppPath: inputs.install_app_path?.value as string | undefined,
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
           env,
           logger,
-          timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
           signal: startupSignal,
-          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
-          ...launch,
-          networkCapture,
-          networkCaptureFields,
-        }).catch(error => {
-          if (iosStartup) {
-            startupAbortController.abort(error);
-          }
-          throw error;
         });
-      try {
+        startupSignal.throwIfAborted();
+        const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+          {
+            networkCapture: inputs.network_capture?.value,
+            networkCaptureFields: inputs.network_capture_fields?.value,
+          },
+          { runtimePlatform }
+        );
+        const versionSpec = resolveAppium3VersionSpec(packageVersion);
+
+        logger.info(
+          `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
+        );
+        const device: AppiumDevice = iosStartup
+          ? {
+              platformName: 'iOS',
+              automationName: 'XCUITest',
+              driverName: 'xcuitest',
+              udid: iosStartup.iosSimulatorUdid,
+            }
+          : await resolveAppiumDeviceAsync({ runtimePlatform, env });
+        startupSignal.throwIfAborted();
+        const startHost = () =>
+          startDeviceSessionHostAsync(ctx, {
+            ...iosStartup,
+            separateLogPhase: true,
+            runtimePlatform,
+            env,
+            logger,
+            timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+            signal: startupSignal,
+            onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+            ...launch,
+            networkCapture,
+            networkCaptureFields,
+          }).catch(error => {
+            if (iosStartup) {
+              startupAbortController.abort(error);
+            }
+            throw error;
+          });
         if (iosStartup) {
           hostStartup = asyncResult(startHost());
         }
@@ -177,22 +186,20 @@ export function createStartAppiumRemoteSessionBuildFunction(
               driverName: device.driverName,
               env,
               logger,
-              signal: setupSignal,
-              onError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+              signal: startupSignal,
+              onError: error => startupAbortController.abort(error),
             }).catch(error => {
-              if (iosStartup) {
-                startupAbortController.abort(error);
-              }
+              startupAbortController.abort(error);
               throw error;
             })
           ),
           asyncResult(
-            ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal: setupSignal })
+            ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal: startupSignal })
           ),
         ]);
         const installation = appiumInstall.enforceValue();
         appiumHome = installation.appiumHome;
-        setupSignal?.throwIfAborted();
+        startupSignal.throwIfAborted();
         const { appiumBinPath, appiumEnv } = installation;
         const wdaCapabilities = await preparePreinstalledWdaAsync({
           runtimeIdentifier: iosStartup
@@ -207,10 +214,10 @@ export function createStartAppiumRemoteSessionBuildFunction(
           appiumBinPath,
           appiumEnv,
           logger,
-          signal: setupSignal,
+          signal: startupSignal,
         });
 
-        setupSignal?.throwIfAborted();
+        startupSignal.throwIfAborted();
         appiumProcess = spawnDetached({
           command: appiumBinPath,
           args: [
@@ -233,11 +240,11 @@ export function createStartAppiumRemoteSessionBuildFunction(
           env: appiumEnv,
           logger,
         });
-        await waitForAppiumReadyAsync({ appiumProcess, logger, signal: setupSignal });
+        await waitForAppiumReadyAsync({ appiumProcess, logger, signal: startupSignal });
         if (hostStartup) {
           sessionHost = (await hostStartup).enforceValue();
         }
-        setupSignal?.throwIfAborted();
+        startupSignal.throwIfAborted();
         eventCollection = await startAppiumEventCollectionAsync({
           ctx,
           deviceRunSessionId,
@@ -267,7 +274,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
 
         await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
-          signal,
+          signal: startupSignal,
           ctx,
           deviceRunSessionId,
           remoteConfig: {
@@ -284,6 +291,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
+        await startupWatch.finishAsync();
+        startupSignal.throwIfAborted();
         await waitForDeviceRunSessionStoppedAsync({
           ctx,
           deviceRunSessionId,
@@ -298,10 +307,14 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } catch (error) {
+        if (startupSignal.reason === startupWatch.stopped) {
+          return;
+        }
         sessionFailed = true;
-        throw setupSignal?.aborted ? setupSignal.reason : error;
+        throw startupSignal.aborted ? startupSignal.reason : error;
       } finally {
         startupAbortController.abort(new Error('Appium session ended.'));
+        await startupWatch.finishAsync();
         await finishRemoteSessionAsync({
           logger,
           sessionFailed,
@@ -501,11 +514,11 @@ async function waitForAppiumReadyAsync({
 }: {
   appiumProcess: { getOutput: () => string };
   logger: bunyan;
-  signal?: AbortSignal;
+  signal: AbortSignal;
 }): Promise<void> {
   const deadline = Date.now() + APPIUM_STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     try {
       const response = await turtleFetch(`http://${APPIUM_HOST}:${APPIUM_PORT}/status`, 'GET', {
         timeout: 2_000,
@@ -513,17 +526,13 @@ async function waitForAppiumReadyAsync({
         logger,
         signal,
       });
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       if (response.ok) {
         return;
       }
     } catch {}
-    signal?.throwIfAborted();
-    if (signal) {
-      await setTimeoutAsync(1_000, undefined, { signal });
-    } else {
-      await sleepAsync(1_000);
-    }
+    signal.throwIfAborted();
+    await setTimeoutAsync(1_000, undefined, { signal });
   }
   const output = appiumProcess.getOutput();
   throw new SystemError(
