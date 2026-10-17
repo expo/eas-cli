@@ -14,4 +14,6 @@ Codex recorded the real EAS CLI terminal against authenticated serve-sim in an o
 
 Recordings capture actual PTY output and input. Rendered videos use the captured cast; existing dependency deprecation warning DEP0040 was suppressed only in the recorder environment. Credentials and private server logs are excluded.
 
+The published stack subsequently merged current main `0199cd933` through all four layers (top `fae8c090f`). Control/UI source is unchanged from the recordings. Post-merge validation: all 25 simulator suites / 607 tests passed, including the combined preview-access and embedding tests; typecheck, build, affected-file lint and formatting passed.
+
 — Codex
