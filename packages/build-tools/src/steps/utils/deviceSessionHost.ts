@@ -45,6 +45,7 @@ import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
 } from './IosSimulatorRecordingUtils';
+import { ServeSimCrashesRecorder } from './serveSimCrashesRecorder';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
@@ -903,6 +904,9 @@ async function finishDeviceSessionHostAsync(
       logger,
     });
   }
+  await ServeSimCrashesRecorder.stopAsync().catch(() => {
+    logger.warn('Could not finish collecting simulator crashes before stopping the session host.');
+  });
   let hostStopped = false;
   try {
     await previewServer.stopAsync();
