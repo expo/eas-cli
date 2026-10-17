@@ -68,7 +68,8 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 
-const EGRESS_SETUP_TIMEOUT_MS = 60_000;
+// Allow the cold-cache client download (up to 60s) and a further minute to connect.
+const EGRESS_SETUP_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
 const STARTUP_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes, excluding time in the queue
 const OUT_CONFIG_TYPE_VALUES = {
@@ -553,27 +554,32 @@ export default class Simulator extends EasCommand {
     const onSessionAbort = (): void => {
       egressAbortController.abort();
     };
-    if (localEgress && !nonInteractive) {
-      sessionInterrupt.signal.addEventListener('abort', onSessionAbort, { once: true });
-      egressPromise = runLocalEgressAsync({
-        ...localEgress,
-        signal: egressAbortController.signal,
-        onConnected: () => {
-          markEgressReady();
-          Log.succeed('Egress tunnel connected.');
-        },
-        onDisconnected: () => {
-          Log.warn(
-            'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
+    const startLocalEgress = (): void => {
+      if (localEgress && !nonInteractive) {
+        sessionInterrupt.signal.addEventListener('abort', onSessionAbort, { once: true });
+        egressPromise = runLocalEgressAsync({
+          ...localEgress,
+          signal: egressAbortController.signal,
+          onConnected: () => {
+            markEgressReady();
+            Log.succeed('Egress tunnel connected.');
+          },
+          onDisconnected: () => {
+            Log.warn(
+              'Egress tunnel disconnected; reconnecting. Proxied HTTP(S) requests are unavailable until it reconnects.'
+            );
+          },
+        }).catch(err => {
+          egressError = err instanceof Error ? err : new Error(String(err));
+          Log.error(
+            `${err instanceof Error ? err.message : String(err)} Stopping the simulator session.`
           );
-        },
-      }).catch(err => {
-        egressError = err instanceof Error ? err : new Error(String(err));
-        Log.error(
-          `${err instanceof Error ? err.message : String(err)} Stopping the simulator session.`
-        );
-        sessionInterrupt.abort();
-      });
+          sessionInterrupt.abort();
+        });
+      }
+    };
+    if (imported.config?.actions?.length) {
+      startLocalEgress();
     }
 
     try {
@@ -583,6 +589,9 @@ export default class Simulator extends EasCommand {
       if (imported.config?.actions?.length) {
         const setupSpinner = ora('Applying imported simulator configuration').start();
         try {
+          if (egress && !localEgress) {
+            throw new Error('The ready session did not provide local egress connection settings.');
+          }
           if (egressPromise) {
             setupSpinner.text = 'Waiting for local egress before applying configuration';
             let timer: NodeJS.Timeout | undefined;
@@ -593,7 +602,7 @@ export default class Simulator extends EasCommand {
                 sessionInterrupt.abortPromise,
                 new Promise<never>((_resolve, reject) => {
                   timer = setTimeout(() => {
-                    reject(new Error('Local egress did not connect within 60 seconds.'));
+                    reject(new Error('Local egress did not connect within 120 seconds.'));
                   }, EGRESS_SETUP_TIMEOUT_MS);
                   timer.unref();
                 }),
@@ -750,6 +759,10 @@ export default class Simulator extends EasCommand {
           `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
         );
         return;
+      }
+
+      if (!imported.config?.actions?.length) {
+        startLocalEgress();
       }
 
       await waitForSessionEndOrInterruptAsync({

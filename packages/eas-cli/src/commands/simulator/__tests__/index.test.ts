@@ -539,6 +539,76 @@ describe(Simulator, () => {
       expect(process.listeners('SIGINT')).toEqual(listeners);
     });
 
+    it('stops setup instead of running without requested local egress settings', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toThrow(
+        'did not provide local egress connection settings'
+      );
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+    });
+
+    it.each(['action', 'egress'])(
+      'preserves a %s failure during connected setup and closes the tunnel',
+      async source => {
+        config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+        mockByIdAsync.mockResolvedValue(localEgressSession);
+        const failure = new Error(`${source} failed during setup`);
+        let rejectTunnel: (error: Error) => void = () => {};
+        let tunnelClosed = false;
+        jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ signal, onConnected }) => {
+          onConnected?.();
+          try {
+            await new Promise<void>((resolve, reject) => {
+              rejectTunnel = reject;
+              signal.addEventListener(
+                'abort',
+                () => {
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+          } finally {
+            tunnelClosed = true;
+          }
+        });
+        jest
+          .mocked(applyStartConfigAsync)
+          .mockImplementationOnce(async (_access, _config, { signal }) => {
+            if (source === 'action') {
+              throw failure;
+            }
+            rejectTunnel(failure);
+            await new Promise<void>((_resolve, reject) => {
+              signal.addEventListener(
+                'abort',
+                () => {
+                  reject(new Error('action aborted'));
+                },
+                { once: true }
+              );
+            });
+            return [];
+          });
+        const listeners = process.listeners('SIGINT');
+        await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toBe(
+          failure
+        );
+        expect(tunnelClosed).toBe(true);
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+        expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+        expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+        expect(process.listeners('SIGINT')).toEqual(listeners);
+      }
+    );
+
     it('bounds the wait for local egress and closes the tunnel on timeout', async () => {
       config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
       mockByIdAsync.mockResolvedValue(localEgressSession);
@@ -559,8 +629,8 @@ describe(Simulator, () => {
       try {
         const result = expect(
           createCommand(['--import', configPath]).command.runAsync()
-        ).rejects.toThrow('did not connect within 60 seconds');
-        await jest.advanceTimersByTimeAsync(60_000);
+        ).rejects.toThrow('did not connect within 120 seconds');
+        await jest.advanceTimersByTimeAsync(120_000);
         await result;
         expect(tunnelSignal?.aborted).toBe(true);
         expect(applyStartConfigAsync).not.toHaveBeenCalled();
@@ -2159,7 +2229,14 @@ describe(Simulator, () => {
     'stops %s after an interactive egress failure and removes its interrupt handler',
     async (typeFlag, type, remoteConfig) => {
       const failure = new Error('listen EADDRINUSE');
-      jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async () => {
+        expect(fs.writeFile).toHaveBeenCalledWith(
+          simulatorDotenvPath,
+          expect.stringContaining("EAS_SIMULATOR_EGRESS_TOKEN='pw'")
+        );
+        expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionUrl));
+        throw failure;
+      });
       mockByIdAsync.mockResolvedValue(
         makeDeviceRunSession({
           type,
