@@ -7,7 +7,12 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import HttpLogStream from '../../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
 import { Sentry } from '../../../sentry';
+import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAgentDeviceEventCollectionAsync } from '../agentDeviceEvents';
+import {
+  DEVICE_RUN_SESSION_TOKEN_HEADER,
+  DeviceRunSessionWorkerApiError,
+} from '../deviceRunSessionWorkerApi';
 
 const mockEventLogStream = {
   init: jest.fn(async () => undefined),
@@ -28,10 +33,18 @@ jest.mock('../../../logging/RemoteLoggerStream', () => ({
   default: jest.fn(() => mockEventLogStream),
 }));
 jest.mock('../../../sentry');
+jest.mock('../../../utils/turtleFetch');
+
+const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+const DEVICE_RUN_SESSION_TOKEN = 'device-run-session-token-value';
+const EVENT_LOG_UPLOAD_SESSION_URL =
+  'https://api.expo.test/v2/device-run-session-worker/event-log-upload-session';
 
 describe(startAgentDeviceEventCollectionAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(turtleFetch).mockImplementation(async () => eventLogUploadSessionResponse());
   });
 
   it('uploads normalized events to the session event artifact once', async () => {
@@ -88,9 +101,13 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       await fs.promises.rm(stateDir, { recursive: true, force: true });
     }
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalledWith(expect.anything(), {
-      deviceRunSessionId: 'session-id',
-    });
+    expect(turtleFetch).toHaveBeenCalledWith(
+      EVENT_LOG_UPLOAD_SESSION_URL,
+      'POST',
+      expect.objectContaining({
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
+      })
+    );
     expect(RemoteLoggerStream).toHaveBeenCalledWith({
       logger,
       uploadMethod: {
@@ -535,11 +552,13 @@ describe(startAgentDeviceEventCollectionAsync, () => {
   });
 
   it('does not fail the session when event log setup fails', async () => {
-    const error = new Error('WWW unavailable');
     const ctx = createContext({ realtimeLogs: true });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce({
-      toPromise: async () => ({ error }),
-    } as unknown as ReturnType<CustomBuildContext['graphqlClient']['mutation']>);
+    jest.mocked(turtleFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ errors: [{ message: 'WWW unavailable' }] }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
     const logger = createLogger();
 
     const collection = await startAgentDeviceEventCollectionAsync({
@@ -554,8 +573,11 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     expect(logger.warn).toHaveBeenCalledWith(
       {
         err: expect.objectContaining({
-          message: 'Failed to create device run session event log upload session: WWW unavailable',
-          cause: error,
+          message:
+            'Failed to create device run session event log upload session: ' +
+            'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
+            'WWW unavailable',
+          cause: expect.any(DeviceRunSessionWorkerApiError),
         }),
       },
       'Could not persist device run session events to the artifact.'
@@ -563,8 +585,11 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Could not persist device run session events',
       expect.objectContaining({
-        message: 'Failed to create device run session event log upload session: WWW unavailable',
-        cause: error,
+        message:
+          'Failed to create device run session event log upload session: ' +
+          'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
+          'WWW unavailable',
+        cause: expect.any(DeviceRunSessionWorkerApiError),
       }),
       {
         level: 'warning',
@@ -669,30 +694,33 @@ describe(startAgentDeviceEventCollectionAsync, () => {
 function createContext({
   realtimeLogs = false,
 }: { realtimeLogs?: boolean } = {}): CustomBuildContext {
-  const mutation = jest.fn().mockReturnValue({
-    toPromise: async () => ({
-      data: {
-        deviceRunSession: {
-          createEventLogUploadSession: {
-            uploadSession: {
-              url: 'https://uploads.expo.test/events',
-              headers: {
-                'content-disposition': 'attachment; filename="events.ndjson"',
-                'x-goog-content-length-range': '0,104857600',
-              },
-            },
-          },
-        },
-      },
-    }),
-  });
   return {
-    graphqlClient: { mutation },
-    env: realtimeLogs ? { EXPO_STAGING: '1', EAS_BUILD_ID: 'job-run-id' } : {},
+    env: {
+      EAS_DEVICE_RUN_SESSION_TOKEN: DEVICE_RUN_SESSION_TOKEN,
+      ...(realtimeLogs ? { EXPO_STAGING: '1', EAS_BUILD_ID: 'job-run-id' } : {}),
+    },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
     job: {
       secrets: realtimeLogs ? { robotAccessToken: 'robot-access-token' } : {},
     },
   } as unknown as CustomBuildContext;
+}
+
+function eventLogUploadSessionResponse(): InstanceType<typeof Response> {
+  return new Response(
+    JSON.stringify({
+      data: {
+        uploadSession: {
+          url: 'https://uploads.expo.test/events',
+          headers: {
+            'content-disposition': 'attachment; filename="events.ndjson"',
+            'x-goog-content-length-range': '0,104857600',
+          },
+        },
+      },
+    }),
+    { headers: { 'content-type': 'application/json' } }
+  );
 }
 
 function createLogger(): bunyan {

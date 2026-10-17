@@ -140,6 +140,7 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
+    ...this.ContextOptions.Experimentation,
   };
 
   async runAsync(): Promise<void> {
@@ -156,6 +157,7 @@ export default class Build extends EasCommand {
       projectDir,
       analytics,
       vcsClient,
+      experimentation,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
       withServerSideEnvironment: null,
@@ -182,6 +184,7 @@ export default class Build extends EasCommand {
       flags: flagsWithPlatform,
       actor,
       getDynamicPrivateProjectConfigAsync,
+      experimentation,
     });
 
     this.maybeSuggestUsingEasBuildDev({

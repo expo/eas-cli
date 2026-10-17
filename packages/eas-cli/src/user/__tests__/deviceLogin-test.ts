@@ -18,7 +18,12 @@ const now = Date.parse('2026-09-29T12:00:00Z');
 let directory: string;
 
 function manager(): SessionManager {
-  return new SessionManager({ logEvent: jest.fn(), setActor: jest.fn(), flushAsync: jest.fn() });
+  return new SessionManager({
+    logEvent: jest.fn(),
+    setActor: jest.fn(),
+    flushAsync: jest.fn(),
+    getDeviceId: jest.fn(),
+  });
 }
 
 async function startAsync(): Promise<string> {
