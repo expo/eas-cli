@@ -423,7 +423,7 @@ describe('host action connection', () => {
     closeBeforeReady = true;
 
     await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
-      'closed the connection during setup'
+      /closed the connection during setup.*token.*eas simulator:get/
     );
   });
 
