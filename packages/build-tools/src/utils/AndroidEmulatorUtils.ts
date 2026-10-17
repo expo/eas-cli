@@ -154,8 +154,10 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      logger.info('Setting hw.ramSize to 2048.');
-      configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
+      // Give interactive sessions more headroom for guest VSOCK packet allocations.
+      const ramSize = env.DEVICE_RUN_SESSION_ID ? 4096 : 2048;
+      logger.info(`Setting hw.ramSize to ${ramSize}.`);
+      configIniFileContent = `${configIniFileContent}\nhw.ramSize=${ramSize}\n`;
 
       const shouldResizeScreen =
         env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';

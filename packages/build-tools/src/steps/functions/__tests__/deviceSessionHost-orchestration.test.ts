@@ -108,7 +108,11 @@ describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
   ['Agent Device', createStartAgentDeviceSessionBuildFunction],
 ] as const)('%s host ownership', (name, createFunction) => {
-  async function runAsync(publicPreview?: boolean) {
+  async function runAsync(
+    publicPreview?: boolean,
+    frameAncestors?: string[],
+    corsOrigins?: string[]
+  ) {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
@@ -118,7 +122,11 @@ describe.each([
       {
         // Inputs a step does not get default to undefined, like in a real step call.
         inputs: new Proxy(
-          { public_preview: { value: publicPreview } } as Record<string, { value: unknown }>,
+          {
+            public_preview: { value: publicPreview },
+            frame_ancestors: { value: frameAncestors },
+            cors_origins: { value: corsOrigins },
+          } as Record<string, { value: unknown }>,
           {
             get: (target, id: string) => target[id] ?? { value: undefined },
           }
@@ -176,6 +184,34 @@ describe.each([
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ disableShare: publicPreview === false })
+    );
+  });
+
+  it('maps frame_ancestors to the host and defaults to none', async () => {
+    await runAsync(undefined, ['https://embed.example.test']);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+    jest.mocked(startDeviceSessionHostAsync).mockClear();
+    await runAsync();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ frameAncestors: [] })
+    );
+  });
+
+  it('maps cors_origins to the host and defaults to none', async () => {
+    await runAsync(undefined, undefined, ['https://app.example.test']);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+    jest.mocked(startDeviceSessionHostAsync).mockClear();
+    await runAsync();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: [] })
     );
   });
 

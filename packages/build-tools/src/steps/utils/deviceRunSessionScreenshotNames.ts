@@ -1,11 +1,8 @@
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform } from '@expo/steps';
-import { graphql } from 'gql.tada';
-import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const SHORT_COMMIT_HASH_LENGTH = 7;
 const MAX_APP_SLUG_LENGTH = 80;
@@ -17,38 +14,9 @@ const LEADING_OR_TRAILING_DOTS_AND_HYPHENS = /^[.-]+|[.-]+$/g;
 // A full git commit hash: 40 hex characters for SHA-1 or 64 for SHA-256.
 const FULL_GIT_COMMIT_HASH = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i;
 
-const SCREENSHOT_SESSION_QUERY = graphql(`
-  query ScreenshotSession($deviceRunSessionId: ID!) {
-    deviceRunSessions {
-      byId(deviceRunSessionId: $deviceRunSessionId) {
-        platform
-        app { slug }
-        build {
-          id
-          gitCommitHash
-          app { slug }
-        }
-      }
-    }
-  }
-`);
-
-const AppSchema = z.object({ slug: z.string() });
-const ScreenshotSessionSchema = z.object({
-  platform: z.enum(['IOS', 'ANDROID']),
-  app: AppSchema,
-  build: z
-    .object({
-      id: z.string(),
-      gitCommitHash: z.string().nullable(),
-      app: AppSchema,
-    })
-    .nullable(),
-});
-
 /**
- * Session details used to name screenshots. `app` is null when the source does not report an app
- * slug: the device run session worker API does not return one.
+ * Session details used to name screenshots. `app` is always null: the device run session worker
+ * API does not return the app slug.
  */
 export type ScreenshotSession = {
   platform: 'IOS' | 'ANDROID';
@@ -63,30 +31,22 @@ export async function loadScreenshotSessionAsync(
 ): Promise<ScreenshotSession | null> {
   try {
     const signal = AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS);
-    const workerApi = getDeviceRunSessionWorkerApi(ctx);
-    if (workerApi) {
-      const application = await workerApi.getApplicationAsync({ signal });
-      return {
-        // www runs iOS sessions only on macOS workers and Android sessions only on Linux workers,
-        // so the worker API does not return the platform.
-        platform: ctx.runtimePlatform === BuildRuntimePlatform.DARWIN ? 'IOS' : 'ANDROID',
-        app: null,
-        build: application.build
-          ? {
-              id: application.build.id,
-              gitCommitHash: application.build.gitCommitHash,
-              app: null,
-            }
-          : null,
-      };
-    }
-    const result = await ctx.graphqlClient
-      .query(SCREENSHOT_SESSION_QUERY, { deviceRunSessionId }, graphqlAbortContext(signal))
-      .toPromise();
-    if (result.error) {
-      throw result.error;
-    }
-    return ScreenshotSessionSchema.parse(result.data?.deviceRunSessions.byId);
+    const application = await requireDeviceRunSessionWorkerApi(ctx).getApplicationAsync({
+      signal,
+    });
+    return {
+      // www runs iOS sessions only on macOS workers and Android sessions only on Linux workers,
+      // so the worker API does not return the platform.
+      platform: ctx.runtimePlatform === BuildRuntimePlatform.DARWIN ? 'IOS' : 'ANDROID',
+      app: null,
+      build: application.build
+        ? {
+            id: application.build.id,
+            gitCommitHash: application.build.gitCommitHash,
+            app: null,
+          }
+        : null,
+    };
   } catch (err) {
     logger.warn(
       { err, deviceRunSessionId },

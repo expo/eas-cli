@@ -280,7 +280,13 @@ type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 type PreviewLinkOptions = {
   privatePreviewUrl?: string;
   publicLink?: boolean;
+  /** Origins the session allows to embed the preview host; the embed URL is printed for them. */
+  frameAncestors?: readonly string[];
+  /** Origins the session allows to call the preview host API; the embed URL is printed for them. */
+  corsOrigins?: readonly string[];
 };
+
+export type PreviewAccessOrigins = Pick<PreviewLinkOptions, 'frameAncestors' | 'corsOrigins'>;
 
 function previewUrlIsWebsitePage(remoteConfig: DeviceRunSessionRemoteConfig): boolean {
   return remoteConfig.previewApiUrl != null;
@@ -353,12 +359,16 @@ function formatBrowserPreviewInstructions(
 /**
  * Remote config for `--json`. Private sessions omit the direct preview API address and preview
  * tokens. Public sessions include bearer preview links while preserving controller credentials.
+ * A session with frame ancestors or CORS origins also includes the preview API address, since
+ * the page on those origins needs it.
  */
 export function sanitizeRemoteConfigForJson(
   remoteConfig: DeviceRunSessionRemoteConfig,
   privatePreviewUrl: string,
-  publicLink = false
+  publicLink = false,
+  { frameAncestors = [], corsOrigins = [] }: PreviewAccessOrigins = {}
 ): DeviceRunSessionRemoteConfig {
+  const includePreviewApiUrl = publicLink || frameAncestors.length > 0 || corsOrigins.length > 0;
   switch (remoteConfig.__typename) {
     case 'ServeSimRunSessionRemoteConfig':
     case 'WebPreviewOnlyRunSessionRemoteConfig': {
@@ -369,7 +379,7 @@ export function sanitizeRemoteConfigForJson(
           privatePreviewUrl,
           publicLink,
         }),
-        previewApiUrl: publicLink
+        previewApiUrl: includePreviewApiUrl
           ? remoteConfig.previewApiUrl &&
             formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
           : null,
@@ -387,13 +397,62 @@ export function sanitizeRemoteConfigForJson(
               publicLink,
             })
           : remoteConfig.webPreviewUrl,
-        previewApiUrl: publicLink
+        previewApiUrl: includePreviewApiUrl
           ? remoteConfig.previewApiUrl &&
             formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
           : null,
       };
     }
   }
+}
+
+/**
+ * The preview host address with the session token, which an embedding page loads directly. The
+ * expo.dev preview page cannot be framed by other sites. Null until the worker reports the host.
+ */
+export function formatEmbedPreviewUrl(remoteConfig: DeviceRunSessionRemoteConfig): string | null {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.previewToken)
+        : null;
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.webPreviewToken)
+        : null;
+  }
+}
+
+function formatEmbedInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  { frameAncestors = [], corsOrigins = [] }: PreviewAccessOrigins
+): string[] {
+  if (frameAncestors.length === 0 && corsOrigins.length === 0) {
+    return [];
+  }
+  const embedUrl = formatEmbedPreviewUrl(remoteConfig);
+  const grants = [
+    ...(frameAncestors.length > 0
+      ? [`Pages on ${frameAncestors.join(', ')} may embed the preview in a frame.`]
+      : []),
+    ...(corsOrigins.length > 0
+      ? [
+          `Pages on ${corsOrigins.join(', ')} may call the preview API, for example with @expo/hub-client.`,
+        ]
+      : []),
+  ];
+  return [
+    '',
+    `🖼  ${grants.join(' ')} Use this URL there:`,
+    '',
+    embedUrl ?? 'The preview host has not reported its address yet.',
+    chalk.yellow(
+      'Warning: Anyone who can read this URL can view and control the simulator, including your app and logs that may contain sensitive data.'
+    ),
+  ];
 }
 
 export function formatRemoteSessionInstructions(
@@ -406,12 +465,17 @@ export function formatRemoteSessionInstructions(
     platform,
     privatePreviewUrl,
     publicLink,
+    frameAncestors = [],
+    corsOrigins = [],
   }: LocalEgressOptions & PreviewLinkOptions = {}
 ): string {
-  const instructions = formatControllerInstructions(remoteConfig, configType, {
-    privatePreviewUrl,
-    publicLink,
-  });
+  const instructions = [
+    formatControllerInstructions(remoteConfig, configType, {
+      privatePreviewUrl,
+      publicLink,
+    }),
+    ...formatEmbedInstructions(remoteConfig, { frameAncestors, corsOrigins }),
+  ].join('\n');
   const egress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
   if (!egress) {
     return instructions;

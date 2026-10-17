@@ -12,6 +12,7 @@ import {
   EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
   deviceRunSessionTypesForFlagValue,
+  formatEmbedPreviewUrl,
   formatLoopbackForwardNotice,
   formatPreviewUrl,
   formatRemoteSessionInstructions,
@@ -476,6 +477,46 @@ describe(sanitizeRemoteConfigForJson, () => {
     expect(sanitized).toMatchObject({ webPreviewUrl: null });
   });
 
+  it('includes the tokenized preview API address for a session with frame ancestors', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'AgentDeviceRunSessionRemoteConfig' as const,
+        agentDeviceRemoteSessionUrl: 'https://agent-device.example.test',
+        agentDeviceRemoteSessionToken: 'daemon-token',
+        webPreviewUrl: PAGE_URL,
+        webPreviewToken: 'tok-1',
+        previewApiUrl: PREVIEW_URL,
+      },
+      PRIVATE_URL,
+      false,
+      { frameAncestors: ['https://embed.example.test'] }
+    );
+
+    expect(sanitized).toMatchObject({
+      webPreviewUrl: PRIVATE_URL,
+      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+  });
+
+  it('includes the tokenized preview API address for a session with CORS origins', () => {
+    const sanitized = sanitizeRemoteConfigForJson(
+      {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: PAGE_URL,
+        previewToken: 'tok-1',
+        previewApiUrl: PREVIEW_URL,
+      },
+      PRIVATE_URL,
+      false,
+      { corsOrigins: ['https://app.example.test'] }
+    );
+
+    expect(sanitized).toMatchObject({
+      previewUrl: PRIVATE_URL,
+      previewApiUrl: `${PREVIEW_URL}/?token=tok-1`,
+    });
+  });
+
   it('returns a fragment-bearing website link with --public-link', () => {
     const sanitized = sanitizeRemoteConfigForJson(
       {
@@ -833,5 +874,95 @@ describe(getPreviewApiAccess, () => {
         previewApiUrl: 'https://sim.example.test',
       })
     ).toBeNull();
+  });
+});
+
+describe(formatEmbedPreviewUrl, () => {
+  it('is null until the worker reports the preview host', () => {
+    expect(formatEmbedPreviewUrl(agentDeviceConfig)).toBeNull();
+    expect(
+      formatEmbedPreviewUrl({
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: 'https://expo.dev/simulator-preview/abc',
+        previewToken: 'tok-2',
+      })
+    ).toBeNull();
+  });
+
+  it('adds the preview token to the preview host address', () => {
+    expect(
+      formatEmbedPreviewUrl({
+        ...agentDeviceConfig,
+        previewApiUrl: 'https://web-preview.example.test',
+        webPreviewToken: 'tok-1',
+      })
+    ).toBe('https://web-preview.example.test/?token=tok-1');
+    expect(
+      formatEmbedPreviewUrl({
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig' as const,
+        previewUrl: 'https://expo.dev/simulator-preview/abc',
+        previewToken: 'tok-2',
+        previewApiUrl: 'https://web-preview.example.test',
+      })
+    ).toBe('https://web-preview.example.test/?token=tok-2');
+  });
+});
+
+describe('embed instructions', () => {
+  const config = {
+    ...agentDeviceConfig,
+    previewApiUrl: 'https://web-preview.example.test',
+    webPreviewToken: 'tok-1',
+  };
+
+  it('prints the embed URL and the allowed origins', () => {
+    const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+      frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
+    });
+    expect(instructions).toContain(
+      'Pages on https://embed.example.test, https://*.example.test may embed the preview'
+    );
+    expect(instructions).toContain('https://web-preview.example.test/?token=tok-1');
+  });
+
+  it('says the host is not reported yet when the preview address is missing', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfig, 'dotenv', {
+      frameAncestors: ['https://embed.example.test'],
+    });
+    expect(instructions).toContain('has not reported its address yet');
+  });
+
+  it('adds the embed URL before the local egress instructions', () => {
+    const instructions = formatRemoteSessionInstructions(
+      { ...config, ...agentDeviceConfigWithEgress, previewApiUrl: config.previewApiUrl },
+      'dotenv',
+      { frameAncestors: ['https://embed.example.test'] }
+    );
+    expect(instructions.indexOf('tok-1')).toBeLessThan(
+      instructions.indexOf('eas simulator:egress')
+    );
+  });
+
+  it('prints the API URL and the CORS origins', () => {
+    const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+      corsOrigins: ['https://app.example.test'],
+    });
+    expect(instructions).toContain('Pages on https://app.example.test may call the preview API');
+    expect(instructions).not.toContain('embed the preview in a frame');
+    expect(instructions).toContain('https://web-preview.example.test/?token=tok-1');
+  });
+
+  it('lists both grants when frame ancestors and CORS origins are set', () => {
+    const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+      frameAncestors: ['https://embed.example.test'],
+      corsOrigins: ['https://app.example.test'],
+    });
+    expect(instructions).toContain('may embed the preview in a frame.');
+    expect(instructions).toContain('may call the preview API');
+  });
+
+  it('says nothing about embedding without frame ancestors', () => {
+    expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain('embed the preview');
+    expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain('tok-1');
   });
 });

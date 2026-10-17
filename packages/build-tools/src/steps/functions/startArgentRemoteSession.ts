@@ -34,6 +34,8 @@ import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createCorsOriginsInputProvider,
+  createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
@@ -44,6 +46,8 @@ import {
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   omitNgrokAuthtoken,
+  parseCorsOriginsInput,
+  parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -89,6 +93,8 @@ export function createStartArgentRemoteSessionBuildFunction(
       ...createNetworkCaptureInputProviders(),
       createPublicPreviewInputProvider(),
       createPrivatePreviewUrlInputProvider(),
+      createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -289,6 +295,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           timeoutMs: STARTUP_TIMEOUT_MS,
           disableShare: inputs.public_preview?.value === false,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+          frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+          corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           launchAppIdentifier: launch.launchAppIdentifier,
           launchArgs: launch.launchArgs,
           openUrl: launch.openUrl,
