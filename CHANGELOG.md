@@ -443,6 +443,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [steps] Declare the `fast-glob` dependency, fixing `MODULE_NOT_FOUND` when eas-cli is installed with pnpm. ([#4050](https://github.com/expo/eas-cli/pull/4050) by [@ifeanyi-ugwu](https://github.com/ifeanyi-ugwu))
+
+### 🧹 Chores
 - [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
