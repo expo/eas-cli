@@ -154,6 +154,7 @@ describe(watchControlSession, () => {
       expect(watcher.signal.aborted).toBe(true);
       expect(watcher.signal.reason).toBeInstanceOf(ControlSessionEndedError);
       expect(watcher.signal.reason.message).toContain('session-id');
+      expect(watcher.signal.reason.failed).toBe(status === DeviceRunSessionStatus.Errored);
       expect(jest.getTimerCount()).toBe(0);
       await jest.advanceTimersByTimeAsync(60_000);
       expect(observed.fetch).toHaveBeenCalledTimes(1);
@@ -175,6 +176,7 @@ describe(watchControlSession, () => {
       await jest.advanceTimersByTimeAsync(0);
 
       expect(watcher.signal.reason).toBeInstanceOf(ControlSessionEndedError);
+      expect(watcher.signal.reason.failed).toBe(status === JobRunStatus.Errored);
       expect(jest.getTimerCount()).toBe(0);
     }
   );

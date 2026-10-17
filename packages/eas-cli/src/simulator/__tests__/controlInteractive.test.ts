@@ -1,3 +1,5 @@
+import { PassThrough } from 'node:stream';
+
 import Log from '../../log';
 import { promptControlActionAsync, runControlMenuAsync } from '../controlInteractive';
 import { ControlPromptCancelledError, promptControlValueAsync } from '../controlPrompts';
@@ -437,4 +439,3 @@ describe('interactive control loop', () => {
     expect(prompt).not.toHaveBeenCalled();
   });
 });
-import { PassThrough } from 'node:stream';

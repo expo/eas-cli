@@ -1,4 +1,6 @@
 import { Args, Flags } from '@oclif/core';
+import chalk from 'chalk';
+import { stripVTControlCharacters } from 'node:util';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -25,14 +27,26 @@ import {
 import {
   HostActionCatalog,
   HostActionConnection,
+  HostActionDevice,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
+  fetchHostActionDeviceAsync,
   formatHostActionUsage,
 } from '../../simulator/hostActions';
 import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import formatFields from '../../utils/formatFields';
+import { sanitizeTerminalText } from '../../utils/terminalText';
 import { formatMilliseconds } from '../../utils/timer';
+
+type ControlSession = {
+  id: string;
+  name: string | null;
+  project: string;
+  status: string;
+  device: HostActionDevice;
+};
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
@@ -113,10 +127,22 @@ export default class SimulatorControl extends EasCommand {
     let connection: HostActionConnection | undefined;
     try {
       let catalog: HostActionCatalog;
+      let controlSession: ControlSession;
       try {
         const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
-        connection = await connectHostActionsAsync(assertControllableSession(session));
+        const access = assertControllableSession(session);
+        connection = await connectHostActionsAsync(access);
         catalog = await fetchHostActionCatalogAsync(connection);
+        controlSession = {
+          id: session.id,
+          name: session.name ?? null,
+          project: `@${session.app.ownerAccount.name}/${session.app.slug}`,
+          status: session.status,
+          device:
+            interactive || (jsonFlag && !flags.list)
+              ? await fetchHostActionDeviceAsync(access, connection.udid)
+              : { udid: connection.udid },
+        };
         spinner.succeed(`Connected to simulator session ${sessionId}`);
       } catch (err) {
         spinner.fail(`Failed to connect to simulator session ${sessionId}`);
@@ -129,12 +155,13 @@ export default class SimulatorControl extends EasCommand {
       const activeConnection = connection;
       const runActionAsync = async (selection: ControlAction): Promise<void> => {
         await this.runActionAsync(activeConnection, catalog, selection, {
-          sessionId,
+          session: controlSession,
           jsonFlag,
           interactive,
         });
       };
       if (interactive) {
+        this.printSessionHeader(controlSession);
         const controller = new AbortController();
         const onConnectionLost = (): void => {
           controller.abort(activeConnection.signal.reason);
@@ -161,6 +188,9 @@ export default class SimulatorControl extends EasCommand {
           if (reason instanceof ControlPromptCancelledError) {
             process.exitCode = 130;
           } else if (reason instanceof ControlSessionEndedError) {
+            if (reason.failed) {
+              throw reason;
+            }
             Log.log(reason.message);
           } else {
             throw reason;
@@ -197,21 +227,46 @@ export default class SimulatorControl extends EasCommand {
     }
   }
 
+  private printSessionHeader(session: ControlSession): void {
+    const runtime = session.device.runtime?.replace(/^([A-Za-z]+)-/, '$1 ').replaceAll('-', '.');
+    Log.newLine();
+    Log.log(chalk.bold('Simulator controls'));
+    Log.log(
+      formatFields(
+        [
+          { label: 'Session', value: session.name || 'Unnamed session' },
+          { label: 'Project', value: session.project },
+          {
+            label: 'Device',
+            value: [session.device.name || 'iOS Simulator', runtime].filter(Boolean).join(' · '),
+          },
+          { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
+          { label: 'Session ID', value: session.id },
+          { label: 'Device ID', value: session.device.udid },
+        ].map(field => ({
+          ...field,
+          value: sanitizeTerminalText(stripVTControlCharacters(field.value)),
+        }))
+      )
+    );
+    Log.newLine();
+  }
+
   private async runActionAsync(
     connection: HostActionConnection,
     catalog: HostActionCatalog,
     selection: ControlAction,
     {
-      sessionId,
+      session,
       jsonFlag,
       interactive,
-    }: { sessionId: string; jsonFlag: boolean; interactive: boolean }
+    }: { session: ControlSession; jsonFlag: boolean; interactive: boolean }
   ): Promise<void> {
     const { action } = selection;
     const plan = await prepareControlActionAsync(catalog, selection);
     const startedAt = Date.now();
     const spinner = ora(
-      interactive ? `Running ${action}` : `Running ${action} on simulator session ${sessionId}`
+      interactive ? `Running ${action}` : `Running ${action} on simulator session ${session.id}`
     ).start();
     let output: string;
     let savedFile: string | null;
@@ -220,20 +275,21 @@ export default class SimulatorControl extends EasCommand {
       spinner.succeed(
         interactive
           ? `${action} complete · ${formatMilliseconds(Date.now() - startedAt) || '<1s'}`
-          : `Ran ${action} on simulator session ${sessionId}`
+          : `Ran ${action} on simulator session ${session.id}`
       );
     } catch (err) {
       spinner.fail(
         interactive
           ? `${action} failed`
-          : `Failed to run ${action} on simulator session ${sessionId}`
+          : `Failed to run ${action} on simulator session ${session.id}`
       );
       throw err;
     }
 
     if (jsonFlag) {
       printJsonOnlyOutput({
-        id: sessionId,
+        id: session.id,
+        session,
         action,
         output: parseJsonOutput(output),
         file: savedFile,
