@@ -325,7 +325,7 @@ describe(SimulatorControl, () => {
     const savedPath = path.join(tmpDir, 'shot.png');
     expect(await fs.readFile(savedPath, 'utf8')).toBe('png bytes');
     expect(Log.log).toHaveBeenCalledWith(`  Saved: ${savedPath}`);
-    expect(Log.gray).toHaveBeenCalledWith(`  Write: ${savedPath} (replaces an existing file)`);
+    expect(Log.gray).toHaveBeenCalledWith(`  Write: ${savedPath} (overwrites if it exists)`);
     expect(jest.mocked(Log.gray).mock.invocationCallOrder[0]).toBeLessThan(
       requestAsync.mock.invocationCallOrder[1]
     );
@@ -355,6 +355,7 @@ describe(SimulatorControl, () => {
   it('runs an action from the catalog with its values and prints the output', async () => {
     await createCommand(['hardwareKeyboard.set', 'off', '--id', 'session-123']).runAsync();
 
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
     expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
     expect(mockConnectHostActionsAsync).toHaveBeenCalledWith({
       apiUrl: 'https://sim.example.test',
@@ -375,6 +376,7 @@ describe(SimulatorControl, () => {
       '    Grant, revoke or reset one permission for an app.'
     );
     expect(actionRequests()).toEqual([]);
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
   });
 
   it('prints parsed JSON output', async () => {
@@ -415,8 +417,10 @@ describe(SimulatorControl, () => {
       file: null,
     });
     mockPrintJsonOnlyOutput.mockClear();
+    jest.mocked(fetchHostActionDeviceAsync).mockClear();
     await createCommand(['--list', '--id', 'session-123', '--json']).runAsync();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
     expect(runControlMenuAsync).not.toHaveBeenCalled();
   });
 
@@ -781,6 +785,14 @@ describe(SimulatorControl, () => {
     expect(text).toContain('simulator-udid');
     expect(text).not.toContain('\x1b[31m');
     expect(text).not.toContain('preview-token');
+  });
+
+  it('shows fallback names when optional details are unavailable or blank', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession({ name: ' \n ' }));
+    jest.mocked(fetchHostActionDeviceAsync).mockResolvedValueOnce({ udid: 'simulator-udid' });
+    await createCommand(['--id', 'session-123']).runAsync();
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unnamed session'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iOS Simulator'));
   });
 
   it('closes the connection if the interactive controller fails unexpectedly', async () => {

@@ -263,7 +263,7 @@ export default class SimulatorControl extends EasCommand {
             Log.gray(`  Read: ${plan.localFile.path}`);
           }
           if (plan.outputPath) {
-            Log.gray(`  Write: ${plan.outputPath} (replaces an existing file)`);
+            Log.gray(`  Write: ${plan.outputPath} (overwrites if it exists)`);
           }
         }
         Log.newLine();
@@ -356,24 +356,27 @@ export default class SimulatorControl extends EasCommand {
   }
 
   private printSessionHeader(session: ControlSession): void {
+    const clean = (value: string): string => sanitizeTerminalText(stripVTControlCharacters(value));
     const runtime = session.device.runtime?.replace(/^([A-Za-z]+)-/, '$1 ').replaceAll('-', '.');
     Log.newLine();
     Log.log(chalk.bold('Simulator controls'));
     Log.log(
       formatFields(
         [
-          { label: 'Session', value: session.name || 'Unnamed session' },
+          { label: 'Session', value: clean(session.name ?? '') || 'Unnamed session' },
           { label: 'Project', value: session.project },
           {
             label: 'Device',
-            value: [session.device.name || 'iOS Simulator', runtime].filter(Boolean).join(' · '),
+            value: [clean(session.device.name ?? '') || 'iOS Simulator', runtime]
+              .filter(Boolean)
+              .join(' · '),
           },
           { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
           { label: 'Session ID', value: session.id },
           { label: 'Device ID', value: session.device.udid },
         ].map(field => ({
           ...field,
-          value: sanitizeTerminalText(stripVTControlCharacters(field.value)),
+          value: clean(field.value),
         }))
       )
     );
