@@ -1,0 +1,192 @@
+{
+  "cliBeforeFix": "2b7a4f4ea1629380110072ec4f1086537bd04c7c",
+  "cliAfterFix": "1b0114c148ba862a65cb3febf0ffaf9eb1b112be",
+  "nativeHead": "1c41d7e0aa3f27ca9cc10f74f2c8bd2442b71620",
+  "nativeTarballSHA256": "eafbbd4f9fe6db7b8e2a6b05bb7b328e3d2c7b8ebc72f53d8a39ddedbc3ba3b8",
+  "sessionCount": 6,
+  "ownedSessions": {
+    "json": "01a14908-716e-7a45-b9c0-6ccd728cefe0",
+    "interactive-archive-error": "01a1490e-f649-7f00-a6a0-8045d08105da",
+    "interactive": "01a14910-85b3-7e5c-b3cd-7b4c86312601",
+    "failure": "01a14913-3f30-7deb-9725-45f69272615c",
+    "cancel": "01a14913-438e-754a-b009-96cf1466bdd7",
+    "detached": "01a14915-c9a5-7ebc-8d20-2208709e6ecb"
+  },
+  "mainJSONImports": [
+    {
+      "file": "start-json.stdout.json",
+      "completed": 7
+    },
+    {
+      "file": "control-suite.stdout.json",
+      "completed": 54
+    },
+    {
+      "file": "clipboard-hardware-on.stdout.json",
+      "completed": 15
+    }
+  ],
+  "uniqueSuccessfulActions": [
+    "app.file.list",
+    "app.file.read",
+    "app.file.upload",
+    "app.install",
+    "app.launch",
+    "appearance.get",
+    "appearance.set",
+    "clipboard.copy",
+    "clipboard.paste",
+    "clipboard.read",
+    "clipboard.write",
+    "colorFilter.get",
+    "colorFilter.set",
+    "gesture",
+    "hardwareKeyboard.get",
+    "hardwareKeyboard.set",
+    "increaseContrast.get",
+    "increaseContrast.set",
+    "liquidGlass.get",
+    "liquidGlass.set",
+    "location.clear",
+    "location.set",
+    "memoryWarning",
+    "permissions.list",
+    "reduceMotion.get",
+    "reduceMotion.set",
+    "reduceTransparency.get",
+    "reduceTransparency.set",
+    "rotate",
+    "screenshot.capture",
+    "settings.status",
+    "showBorders.get",
+    "showBorders.set",
+    "softwareKeyboard.toggle",
+    "tap",
+    "textSize.get",
+    "textSize.set",
+    "type",
+    "voiceover.get",
+    "voiceover.set"
+  ],
+  "negativeCases": {
+    "cases": [
+      {
+        "case": "empty",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      },
+      {
+        "case": "missing",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      },
+      {
+        "case": "android",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      },
+      {
+        "case": "detached-egress",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      },
+      {
+        "case": "invalid-platform",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      },
+      {
+        "case": "local-file",
+        "exit": 1,
+        "expectedError": true,
+        "stdoutEmpty": true,
+        "created": false
+      }
+    ],
+    "sessionIdsUnchanged": true
+  },
+  "egressNetworkProof": {
+    "status": 200,
+    "error": "",
+    "body": "EAS start import reached the local egress service"
+  },
+  "typingFollowups": [
+    {
+      "hardwareKeyboardDuringType": "off",
+      "expected": "Typed clipboard probe",
+      "actual": "Typed clipboard probe",
+      "equal": true
+    },
+    {
+      "hardwareKeyboardDuringType": "off",
+      "expected": "abcd0123",
+      "actual": "abcd0123",
+      "equal": true
+    }
+  ],
+  "nativeLimits": [
+    "Copy timed out twice with hardware keyboard off despite a visible selection; turning it on made Copy/Paste pass.",
+    "One typing character-loss observation with keyboard off did not reproduce in two follow-up probes."
+  ],
+  "finalStatuses": [
+    {
+      "role": "json",
+      "id": "01a14908-716e-7a45-b9c0-6ccd728cefe0",
+      "status": "STOPPED",
+      "jobStatus": "FINISHED",
+      "hasConfig": true,
+      "publicPreview": false
+    },
+    {
+      "role": "interactive-archive-error",
+      "id": "01a1490e-f649-7f00-a6a0-8045d08105da",
+      "status": "ERRORED",
+      "jobStatus": "ERRORED",
+      "hasConfig": false,
+      "publicPreview": false
+    },
+    {
+      "role": "interactive",
+      "id": "01a14910-85b3-7e5c-b3cd-7b4c86312601",
+      "status": "STOPPED",
+      "jobStatus": "FINISHED",
+      "hasConfig": true,
+      "publicPreview": false
+    },
+    {
+      "role": "failure",
+      "id": "01a14913-3f30-7deb-9725-45f69272615c",
+      "status": "STOPPED",
+      "jobStatus": "FINISHED",
+      "hasConfig": true,
+      "publicPreview": false
+    },
+    {
+      "role": "cancel",
+      "id": "01a14913-438e-754a-b009-96cf1466bdd7",
+      "status": "STOPPED",
+      "jobStatus": "FINISHED",
+      "hasConfig": true,
+      "publicPreview": false
+    },
+    {
+      "role": "detached",
+      "id": "01a14915-c9a5-7ebc-8d20-2208709e6ecb",
+      "status": "STOPPED",
+      "jobStatus": "FINISHED",
+      "hasConfig": true,
+      "publicPreview": false
+    }
+  ],
+  "activeOwnedSessions": 0
+}
