@@ -86,16 +86,22 @@ function previewEndpoint(apiUrl: string, endpoint: string): URL {
   return new URL(endpoint, base);
 }
 
-async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Promise<string> {
+async function fetchSimulatorUdidAsync(
+  { apiUrl, token }: PreviewApiAccess,
+  signal?: AbortSignal
+): Promise<string> {
   let text: string;
   try {
     const response = await fetch(previewEndpoint(apiUrl, 'api').toString(), {
       headers: { Authorization: `Bearer ${token}` },
       redirect: 'error',
-      signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS)])
+        : AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
     });
     text = await response.text();
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof RequestError && [401, 403].includes(error.response.status)) {
       throw new Error(
         `The simulator preview server refused the session token (HTTP ${error.response.status}). Run \`eas simulator:get\` to check that the session still runs, then try again.`
@@ -156,9 +162,11 @@ function refusedError(error: string): Error {
 
 export async function connectHostActionsAsync(
   access: PreviewApiAccess,
-  { timeoutMs = HOST_ACTION_TIMEOUT_MS }: { timeoutMs?: number } = {}
+  { timeoutMs = HOST_ACTION_TIMEOUT_MS, signal }: { timeoutMs?: number; signal?: AbortSignal } = {}
 ): Promise<HostActionConnection> {
-  const udid = await fetchSimulatorUdidAsync(access);
+  signal?.throwIfAborted();
+  const udid = await fetchSimulatorUdidAsync(access, signal);
+  signal?.throwIfAborted();
   const socketUrl = previewEndpoint(access.apiUrl, 'exec-ws');
   socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(
@@ -212,6 +220,14 @@ export async function connectHostActionsAsync(
       reject(error);
       loseConnection(error);
     };
+
+    const onAbort = (): void => {
+      fail(
+        signal?.reason instanceof Error ? signal.reason : new Error('Simulator setup canceled.')
+      );
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    ws.once('close', () => signal?.removeEventListener('abort', onAbort));
 
     ws.on('message', data => {
       let message: unknown;
@@ -271,6 +287,9 @@ export async function connectHostActionsAsync(
         )
       );
     });
+    if (signal?.aborted) {
+      onAbort();
+    }
   });
 
   return {

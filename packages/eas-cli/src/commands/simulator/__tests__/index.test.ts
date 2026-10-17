@@ -32,11 +32,14 @@ import {
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
+import { applyStartConfigAsync } from '../../../simulator/startSetup';
+import { ControlConfigExecutionError } from '../../../simulator/controlConfig';
 import * as promiseUtils from '../../../utils/promise';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
+jest.mock('../../../simulator/startSetup');
 jest.mock('../../../analytics/AnalyticsManager', () => ({
   ...jest.requireActual('../../../analytics/AnalyticsManager'),
   isAnalyticsOptedOutAsync: jest.fn(),
@@ -190,6 +193,7 @@ describe(Simulator, () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
+    jest.mocked(applyStartConfigAsync).mockResolvedValue([]);
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
@@ -231,6 +235,184 @@ describe(Simulator, () => {
     });
     return { command, getContextAsync };
   }
+
+  describe('imported session configuration', () => {
+    const configPath = '/test/simulator.json';
+    function config(start: object = { platform: 'ios' }, actions?: object[]): void {
+      jest
+        .mocked(fs.readJson)
+        .mockResolvedValue({ version: 1, start, ...(actions ? { actions } : {}) } as never);
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: 'https://expo.dev/preview',
+            previewApiUrl: 'https://sim.example.test',
+            previewToken: 'private-token',
+          },
+        })
+      );
+    }
+
+    it('creates from saved flags with explicit CLI overrides and unchanged output without actions', async () => {
+      config({
+        platform: 'ios',
+        name: 'Saved name',
+        type: 'web-preview-only',
+        device: 'Saved phone',
+        tag: ['saved'],
+      });
+      const { command } = createCommand(['--import', configPath, '--name', 'CLI name', '--json']);
+      await command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          name: 'CLI name',
+          type: DeviceRunSessionType.WebPreviewOnly,
+          ios: { deviceIdentifier: 'Saved phone' },
+          tags: ['saved'],
+        })
+      );
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+      expect(jest.mocked(printJsonOnlyOutput)).toHaveBeenCalledWith(
+        expect.not.objectContaining({ setup: expect.anything() })
+      );
+    });
+
+    it('applies actions after readiness and includes parsed setup results in one JSON object', async () => {
+      config(undefined, [{ action: 'appearance.set', params: { value: 'dark' } }]);
+      jest
+        .mocked(applyStartConfigAsync)
+        .mockResolvedValue([{ action: 'appearance.set', output: '{"value":"dark"}', file: null }]);
+      const { command } = createCommand(['--import', configPath, '--json']);
+      await command.runAsync();
+      expect(jest.mocked(applyStartConfigAsync).mock.invocationCallOrder[0]).toBeGreaterThan(
+        mockByIdAsync.mock.invocationCallOrder[0]
+      );
+      expect(applyStartConfigAsync).toHaveBeenCalledWith(
+        { apiUrl: 'https://sim.example.test', token: 'private-token' },
+        expect.objectContaining({ path: configPath }),
+        { signal: expect.any(AbortSignal), onProgress: undefined }
+      );
+      expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'session-123',
+          setup: {
+            config: configPath,
+            results: [{ action: 'appearance.set', output: { value: 'dark' }, file: null }],
+          },
+        })
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    });
+
+    it('stops only the newly created session on setup failure and retains completed JSON results', async () => {
+      config(undefined, [{ action: 'appearance.set' }, { action: 'appearance.get' }]);
+      process.env[EAS_SIMULATOR_SESSION_ID] = 'previous-session';
+      jest
+        .mocked(applyStartConfigAsync)
+        .mockRejectedValue(
+          new ControlConfigExecutionError(
+            2,
+            'appearance.get',
+            [{ action: 'appearance.set', output: '"dark"', file: null }],
+            new Error('refused')
+          )
+        );
+      const prior = process.exitCode;
+      const listeners = process.listenerCount('SIGINT');
+      try {
+        await createCommand(['--import', configPath, '--json']).command.runAsync();
+        expect(process.exitCode).toBe(1);
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+        expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+        expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: 'session-123',
+            stopped: true,
+            setup: expect.objectContaining({
+              results: [{ action: 'appearance.set', output: 'dark', file: null }],
+              error: expect.objectContaining({ step: 2, action: 'appearance.get' }),
+            }),
+          })
+        );
+        expect(process.listenerCount('SIGINT')).toBe(listeners);
+      } finally {
+        process.exitCode = prior;
+      }
+    });
+
+    it('reports unconfirmed cleanup rather than implying the session stopped', async () => {
+      config(undefined, [{ action: 'appearance.set' }]);
+      jest.mocked(applyStartConfigAsync).mockRejectedValue(new Error('setup failed'));
+      mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('network failed'));
+      const prior = process.exitCode;
+      try {
+        await createCommand(['--import', configPath, '--json']).command.runAsync();
+        expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+          expect.objectContaining({ stopped: false })
+        );
+        expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
+        expect(Log.warn).toHaveBeenCalledWith(
+          expect.stringContaining('simulator:stop --id session-123')
+        );
+      } finally {
+        process.exitCode = prior;
+      }
+    });
+
+    it('rejects Android actions and invalid files before creating a session', async () => {
+      config({ platform: 'android' }, [{ action: 'appearance.set' }]);
+      await expect(
+        createCommand(['--import', configPath, '--non-interactive']).command.runAsync()
+      ).rejects.toThrow('not supported on Android');
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      config({ typo: 'value' });
+      const { command, getContextAsync } = createCommand(['--import', configPath]);
+      await expect(command.runAsync()).rejects.toThrow('Unknown or invocation-only');
+      expect(getContextAsync).not.toHaveBeenCalled();
+    });
+
+    it('allows Android start settings without actions', async () => {
+      config({ platform: 'android' });
+      await createCommand(['--import', configPath, '--json']).command.runAsync();
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({ platform: AppPlatform.Android })
+      );
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('stops on Ctrl-C during setup and removes the session handler', async () => {
+      config(undefined, [{ action: 'appearance.set' }]);
+      const interrupted = new Error('exit 130');
+      const exit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw interrupted;
+      });
+      const listeners = process.listenerCount('SIGINT');
+      jest
+        .mocked(applyStartConfigAsync)
+        .mockImplementation(async (_access, _config, { signal }) => {
+          process.emit('SIGINT');
+          signal.throwIfAborted();
+          return [];
+        });
+      await expect(
+        createCommand(['--import', configPath, '--non-interactive']).command.runAsync()
+      ).rejects.toBe(interrupted);
+      expect(exit).toHaveBeenCalledWith(130);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(process.listenerCount('SIGINT')).toBe(listeners);
+    });
+  });
 
   it('fails with the waitlist link without creating a session when the account is gated', async () => {
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });

@@ -97,7 +97,7 @@ export async function prepareControlActionAsync(
   });
 }
 
-async function assertLocalFileAsync(localPath: string): Promise<void> {
+export async function assertLocalFileAsync(localPath: string): Promise<void> {
   const stat = await fs.stat(localPath).catch(() => null);
   if (!stat) {
     throw new Error(`${localPath} does not exist on this computer.`);
@@ -148,5 +148,13 @@ export async function executeControlActionAsync(
     if (uploadId && (!plan.entry.keepUpload || !succeeded)) {
       await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
     }
+  }
+}
+
+export function parseControlActionOutput(output: string): unknown {
+  try {
+    return JSON.parse(output);
+  } catch {
+    return output;
   }
 }

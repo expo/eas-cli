@@ -30,6 +30,10 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
+import { parseControlActionOutput } from '../../simulator/controlActions';
+import { ControlConfigExecutionError, ControlConfigResult } from '../../simulator/controlConfig';
+import { resolveStartConfigAsync } from '../../simulator/startConfig';
+import { applyStartConfigAsync } from '../../simulator/startSetup';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
@@ -55,6 +59,7 @@ import {
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
+  getPreviewApiAccess,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
@@ -81,7 +86,16 @@ export default class Simulator extends EasCommand {
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.';
 
+  static override examples = [
+    '$ eas simulator:start --import ./simulator.json',
+    '$ eas simulator:start --import ./simulator.json --device "iPhone 17 Pro" --json',
+  ];
+
   static override flags = {
+    import: Flags.string({
+      description:
+        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness. Local action paths are relative to the file. Setup failure stops the newly created session.',
+    }),
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
@@ -214,7 +228,8 @@ export default class Simulator extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(Simulator);
+    const imported = await resolveStartConfigAsync(this.argv, Simulator.flags);
+    const { flags } = await this.parse(Simulator, imported.argv);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -312,6 +327,12 @@ export default class Simulator extends EasCommand {
     if (flags['network-capture'] && platform !== AppPlatform.Ios) {
       throw new EasCommandError(
         'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
+      );
+    }
+
+    if (platform === AppPlatform.Android && imported.config?.actions?.length) {
+      throw new EasCommandError(
+        'Imported control actions are not supported on Android yet. Remove actions to import only start settings, or use --platform ios.'
       );
     }
 
@@ -507,6 +528,92 @@ export default class Simulator extends EasCommand {
       );
     }
 
+    let setupResults: ControlConfigResult[] | undefined;
+    if (imported.config?.actions?.length) {
+      const setupSpinner = ora('Applying imported simulator configuration').start();
+      try {
+        const access = getPreviewApiAccess(remoteConfig);
+        if (!access) {
+          throw new Error(
+            'This session does not expose an authenticated preview API for control actions.'
+          );
+        }
+        setupResults = await applyStartConfigAsync(access, imported.config, {
+          signal: sessionInterrupt.signal,
+          onProgress: jsonFlag
+            ? undefined
+            : progress => {
+                const label = `[${progress.step}/${progress.total}] ${progress.action}`;
+                if (progress.status === 'running') {
+                  setupSpinner.start(label);
+                } else {
+                  setupSpinner.succeed(label);
+                  if (progress.result.file) {
+                    Log.log(`Saved ${progress.result.file}`);
+                  } else if (progress.result.output) {
+                    Log.log(progress.result.output);
+                  }
+                }
+              },
+        });
+        setupSpinner.succeed('Simulator configuration applied');
+      } catch (error) {
+        setupSpinner.fail('Simulator configuration failed');
+        if (sessionInterrupt.signal.aborted) {
+          await stopDeviceRunSessionAfterInterruptAsync({
+            graphqlClient,
+            deviceRunSessionId,
+            projectDir,
+            spinner: setupSpinner,
+            sessionInterrupt,
+          });
+          return;
+        }
+        const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
+          graphqlClient,
+          deviceRunSessionId
+        );
+        if (stopped) {
+          await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
+            Log.warn(
+              `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
+            );
+          });
+        } else {
+          Log.warn(
+            `Could not confirm cleanup. Run eas simulator:stop --id ${deviceRunSessionId} to stop the session.`
+          );
+        }
+        sessionInterrupt.dispose();
+        if (jsonFlag) {
+          printJsonOnlyOutput({
+            id: deviceRunSessionId,
+            deviceRunSessionUrl,
+            stopped,
+            setup: {
+              config: imported.config.path,
+              results:
+                error instanceof ControlConfigExecutionError
+                  ? error.completed.map(result => ({
+                      ...result,
+                      output: parseControlActionOutput(result.output),
+                    }))
+                  : [],
+              error: {
+                ...(error instanceof ControlConfigExecutionError
+                  ? { step: error.step, action: error.action }
+                  : {}),
+                message: error instanceof Error ? error.message : String(error),
+              },
+            },
+          });
+          process.exitCode = 1;
+          return;
+        }
+        throw error;
+      }
+    }
+
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
       await writeSimulatorEnvSafelyAsync(projectDir, {
         ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
@@ -532,6 +639,17 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
+        ...(setupResults
+          ? {
+              setup: {
+                config: imported.config!.path,
+                results: setupResults.map(result => ({
+                  ...result,
+                  output: parseControlActionOutput(result.output),
+                })),
+              },
+            }
+          : {}),
         remoteConfig: sanitizeRemoteConfigForJson(
           remoteConfig,
           deviceRunSessionPreviewUrl,
