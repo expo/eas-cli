@@ -27,8 +27,11 @@ export async function resolveStartConfigAsync(
     ])
   );
   const parsed = await Parser.parse(argv, { flags: relaxed });
-  if (!parsed.flags.import) {
+  if (parsed.flags.import === undefined) {
     return { argv };
+  }
+  if (!parsed.flags.import.trim()) {
+    throw new Error('--import requires a non-empty configuration file path.');
   }
   const config = await readSimulatorSessionConfigAsync(parsed.flags.import);
   const values: Record<string, unknown> = { ...config.start };
@@ -37,10 +40,23 @@ export async function resolveStartConfigAsync(
       throw new Error(`Unknown or invocation-only start setting "${key}" in ${config.path}.`);
     }
   }
-  for (const [name, value] of Object.entries(parsed.flags)) {
-    if (value !== undefined && !parsed.metadata.flags[name]?.setFromDefault) {
-      values[name] = value;
+  const explicit = Object.entries(parsed.flags).filter(
+    ([name, value]) => value !== undefined && !parsed.metadata.flags[name]?.setFromDefault
+  );
+  const explicitNames = new Set(explicit.map(([name]) => name));
+  const removed = new Set<string>();
+  for (const [name, value] of explicit) {
+    for (const excluded of definitions[name].exclusive ?? []) {
+      if (!explicitNames.has(excluded)) {
+        delete values[excluded];
+        removed.add(excluded);
+      }
     }
+    values[name] = value;
+  }
+  // SDK selection belongs to the saved Expo Go app source, not a replacement build.
+  if (removed.has('expo-go') && !explicitNames.has('sdk-version')) {
+    delete values['sdk-version'];
   }
   const effectiveArgv: string[] = [];
   for (const [name, value] of Object.entries(values)) {

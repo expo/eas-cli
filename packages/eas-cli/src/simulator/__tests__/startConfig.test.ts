@@ -53,12 +53,44 @@ describe('simulator start configuration', () => {
     });
   });
 
+  it('lets explicit CLI defaults override different saved values', async () => {
+    const { parsed } = await resolve({ type: 'web-preview-only', force: false }, [
+      '--type',
+      'agent-device',
+      '--force',
+    ]);
+    expect(parsed.flags.type).toBe('agent-device');
+    expect(parsed.flags.force).toBe(true);
+  });
+
   it('validates dependencies after merging and replaces array flags instead of appending', async () => {
     const { parsed } = await resolve(
       { 'network-capture': true, 'network-capture-field': ['header'] },
       ['--network-capture-field', 'request-body']
     );
     expect(parsed.flags['network-capture-field']).toEqual(['request-body']);
+  });
+
+  it('lets an explicit app source replace a saved exclusive source and its Expo Go SDK', async () => {
+    const expoGo = await resolve({ 'build-id': 'saved-build' }, ['--expo-go']);
+    expect(expoGo.parsed.flags['expo-go']).toBe(true);
+    expect(expoGo.parsed.flags['build-id']).toBeUndefined();
+    const build = await resolve({ 'expo-go': true, 'sdk-version': '55.0.0' }, [
+      '--build-id',
+      'cli-build',
+    ]);
+    expect(build.parsed.flags['build-id']).toBe('cli-build');
+    expect(build.parsed.flags['expo-go']).toBeUndefined();
+    expect(build.parsed.flags['sdk-version']).toBeUndefined();
+    await expect(resolve({}, ['--build-id', 'cli-build', '--expo-go'])).rejects.toThrow(
+      'cannot also be provided'
+    );
+  });
+
+  it('rejects an empty import path instead of silently creating a default session', async () => {
+    await expect(resolveStartConfigAsync(['--import='], Simulator.flags)).rejects.toThrow(
+      'non-empty configuration file path'
+    );
   });
 
   it('honors short flags and negated CLI booleans', async () => {
@@ -122,6 +154,12 @@ describe('simulator start configuration', () => {
     );
     expect(prepared.actions[0].plan.localFile?.path).toBe(path.join(folder, 'input.txt'));
     expect(config?.actions?.[0].params).toEqual({});
+  });
+
+  it('reports an unreadable file before trying to create a session', async () => {
+    await expect(resolveStartConfigAsync(['--import', file], Simulator.flags)).rejects.toThrow(
+      `Could not read simulator configuration ${file}`
+    );
   });
 
   it('preserves no-import argv and reports malformed or unknown config fields', async () => {

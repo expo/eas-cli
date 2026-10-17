@@ -24,6 +24,7 @@ import {
   PreparedControlConfig,
   executeControlConfigAsync,
   prepareControlConfigAsync,
+  serializeControlConfigResults,
 } from '../../simulator/controlConfig';
 import { runControlMenuAsync } from '../../simulator/controlInteractive';
 import { ControlPromptCancelledError } from '../../simulator/controlPrompts';
@@ -299,7 +300,7 @@ export default class SimulatorControl extends EasCommand {
             id: session.id,
             session,
             config: config.path,
-            results: configResultsJson(error.completed),
+            results: serializeControlConfigResults(error.completed),
             error: { step: error.step, action: error.action, message: error.message },
           });
           process.exitCode = 1;
@@ -323,7 +324,7 @@ export default class SimulatorControl extends EasCommand {
         id: session.id,
         session,
         config: config.path,
-        results: configResultsJson(results),
+        results: serializeControlConfigResults(results),
       });
     } else {
       Log.newLine();
@@ -454,12 +455,6 @@ function formatElapsed(startedAt: number): string {
 
 function formatActionCount(count: number): string {
   return `${count} action${count === 1 ? '' : 's'}`;
-}
-
-function configResultsJson(
-  results: readonly ControlConfigResult[]
-): { action: string; output: unknown; file: string | null }[] {
-  return results.map(result => ({ ...result, output: parseControlActionOutput(result.output) }));
 }
 
 function assertControllableSession(

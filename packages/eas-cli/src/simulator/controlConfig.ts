@@ -8,6 +8,7 @@ import {
   PreparedControlAction,
   assertLocalFileAsync,
   executeControlActionAsync,
+  parseControlActionOutput,
   prepareControlActionAsync,
 } from './controlActions';
 import { HostActionCatalog, HostActionConnection, createHostActionUploadId } from './hostActions';
@@ -198,4 +199,10 @@ export async function executeControlConfigAsync(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+export function serializeControlConfigResults(
+  results: readonly ControlConfigResult[]
+): { action: string; output: unknown; file: string | null }[] {
+  return results.map(result => ({ ...result, output: parseControlActionOutput(result.output) }));
 }

@@ -30,8 +30,10 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
-import { parseControlActionOutput } from '../../simulator/controlActions';
-import { ControlConfigExecutionError, ControlConfigResult } from '../../simulator/controlConfig';
+import {
+  ControlConfigExecutionError,
+  serializeControlConfigResults,
+} from '../../simulator/controlConfig';
 import { resolveStartConfigAsync } from '../../simulator/startConfig';
 import { applyStartConfigAsync } from '../../simulator/startSetup';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
@@ -94,7 +96,7 @@ export default class Simulator extends EasCommand {
   static override flags = {
     import: Flags.string({
       description:
-        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness. Local action paths are relative to the file. Setup failure stops the newly created session.',
+        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness, before the inline local-egress client starts. Local action paths are relative to the file. Setup failure stops the newly created session. Example: {"version":1,"start":{"platform":"ios"},"actions":[{"action":"appearance.set","params":{"value":"dark"}}]}',
     }),
     platform: Flags.option({
       char: 'p',
@@ -528,7 +530,9 @@ export default class Simulator extends EasCommand {
       );
     }
 
-    let setupResults: ControlConfigResult[] | undefined;
+    let setup:
+      | { config: string; results: ReturnType<typeof serializeControlConfigResults> }
+      | undefined;
     if (imported.config?.actions?.length) {
       const setupSpinner = ora('Applying imported simulator configuration').start();
       try {
@@ -538,7 +542,7 @@ export default class Simulator extends EasCommand {
             'This session does not expose an authenticated preview API for control actions.'
           );
         }
-        setupResults = await applyStartConfigAsync(access, imported.config, {
+        const results = await applyStartConfigAsync(access, imported.config, {
           signal: sessionInterrupt.signal,
           onProgress: jsonFlag
             ? undefined
@@ -556,6 +560,7 @@ export default class Simulator extends EasCommand {
                 }
               },
         });
+        setup = { config: imported.config.path, results: serializeControlConfigResults(results) };
         setupSpinner.succeed('Simulator configuration applied');
       } catch (error) {
         setupSpinner.fail('Simulator configuration failed');
@@ -574,6 +579,9 @@ export default class Simulator extends EasCommand {
           deviceRunSessionId
         );
         if (stopped) {
+          if (!jsonFlag) {
+            Log.succeed('Stopped the simulator session after setup failed.');
+          }
           await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
             Log.warn(
               `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
@@ -594,10 +602,7 @@ export default class Simulator extends EasCommand {
               config: imported.config.path,
               results:
                 error instanceof ControlConfigExecutionError
-                  ? error.completed.map(result => ({
-                      ...result,
-                      output: parseControlActionOutput(result.output),
-                    }))
+                  ? serializeControlConfigResults(error.completed)
                   : [],
               error: {
                 ...(error instanceof ControlConfigExecutionError
@@ -639,17 +644,7 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        ...(setupResults
-          ? {
-              setup: {
-                config: imported.config!.path,
-                results: setupResults.map(result => ({
-                  ...result,
-                  output: parseControlActionOutput(result.output),
-                })),
-              },
-            }
-          : {}),
+        ...(setup ? { setup } : {}),
         remoteConfig: sanitizeRemoteConfigForJson(
           remoteConfig,
           deviceRunSessionPreviewUrl,

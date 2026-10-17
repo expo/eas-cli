@@ -65,7 +65,9 @@ describe(applyStartConfigAsync, () => {
     apiUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
   afterEach(async () => {
-    for (const socket of sockets.clients) socket.terminate();
+    for (const socket of sockets.clients) {
+      socket.terminate();
+    }
     sockets.close();
     server.close();
     await once(server, 'close');
