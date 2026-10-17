@@ -58,6 +58,13 @@ export async function resolveStartConfigAsync(
   if (removed.has('expo-go') && !explicitNames.has('sdk-version')) {
     delete values['sdk-version'];
   }
+  if (
+    explicitNames.has('network-capture') &&
+    values['network-capture'] === false &&
+    !explicitNames.has('network-capture-field')
+  ) {
+    delete values['network-capture-field'];
+  }
   const effectiveArgv: string[] = [];
   for (const [name, value] of Object.entries(values)) {
     const flag = definitions[name];

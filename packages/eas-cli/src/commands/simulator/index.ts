@@ -68,6 +68,7 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 
+const EGRESS_SETUP_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
 const STARTUP_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes, excluding time in the queue
 const OUT_CONFIG_TYPE_VALUES = {
@@ -96,7 +97,7 @@ export default class Simulator extends EasCommand {
   static override flags = {
     import: Flags.string({
       description:
-        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness, before the inline local-egress client starts. Local action paths are relative to the file. Setup failure stops the newly created session. Example: {"version":1,"start":{"platform":"ios"},"actions":[{"action":"appearance.set","params":{"value":"dark"}}]}',
+        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness and after interactive local egress connects. Actions with local egress require interactive mode; otherwise import them separately with simulator:control after connecting simulator:egress. Local action paths are relative to the file. Setup failure stops the newly created session. Example: {"version":1,"start":{"platform":"ios"},"actions":[{"action":"appearance.set","params":{"value":"dark"}}]}',
     }),
     platform: Flags.option({
       char: 'p',
@@ -159,6 +160,7 @@ export default class Simulator extends EasCommand {
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
     'network-capture': Flags.boolean({
+      allowNo: true,
       description:
         'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
     }),
@@ -216,6 +218,7 @@ export default class Simulator extends EasCommand {
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
     'public-link': Flags.boolean({
+      allowNo: true,
       description:
         'Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
     }),
@@ -305,6 +308,9 @@ export default class Simulator extends EasCommand {
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    if (networkCaptureFields.length && !flags['network-capture']) {
+      throw new EasCommandError('--network-capture-field requires --network-capture.');
+    }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
@@ -335,6 +341,12 @@ export default class Simulator extends EasCommand {
     if (platform === AppPlatform.Android && imported.config?.actions?.length) {
       throw new EasCommandError(
         'Imported control actions are not supported on Android yet. Remove actions to import only start settings, or use --platform ios.'
+      );
+    }
+
+    if (nonInteractive && egress && imported.config?.actions?.length) {
+      throw new EasCommandError(
+        'Imported actions with local egress require interactive mode. Start without actions, connect eas simulator:egress, then run eas simulator:control --import with the same file.'
       );
     }
 
@@ -530,174 +542,24 @@ export default class Simulator extends EasCommand {
       );
     }
 
-    let setup:
-      | { config: string; results: ReturnType<typeof serializeControlConfigResults> }
-      | undefined;
-    if (imported.config?.actions?.length) {
-      const setupSpinner = ora('Applying imported simulator configuration').start();
-      try {
-        const access = getPreviewApiAccess(remoteConfig);
-        if (!access) {
-          throw new Error(
-            'This session does not expose an authenticated preview API for control actions.'
-          );
-        }
-        const results = await applyStartConfigAsync(access, imported.config, {
-          signal: sessionInterrupt.signal,
-          onProgress: jsonFlag
-            ? undefined
-            : progress => {
-                const label = `[${progress.step}/${progress.total}] ${progress.action}`;
-                if (progress.status === 'running') {
-                  setupSpinner.start(label);
-                } else {
-                  setupSpinner.succeed(label);
-                  if (progress.result.file) {
-                    Log.log(`Saved ${progress.result.file}`);
-                  } else if (progress.result.output) {
-                    Log.log(progress.result.output);
-                  }
-                }
-              },
-        });
-        setup = { config: imported.config.path, results: serializeControlConfigResults(results) };
-        setupSpinner.succeed('Simulator configuration applied');
-      } catch (error) {
-        setupSpinner.fail('Simulator configuration failed');
-        if (sessionInterrupt.signal.aborted) {
-          await stopDeviceRunSessionAfterInterruptAsync({
-            graphqlClient,
-            deviceRunSessionId,
-            projectDir,
-            spinner: setupSpinner,
-            sessionInterrupt,
-          });
-          return;
-        }
-        const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
-          graphqlClient,
-          deviceRunSessionId
-        );
-        if (stopped) {
-          if (!jsonFlag) {
-            Log.succeed('Stopped the simulator session after setup failed.');
-          }
-          await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
-            Log.warn(
-              `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
-            );
-          });
-        } else {
-          Log.warn(
-            `Could not confirm cleanup. Run eas simulator:stop --id ${deviceRunSessionId} to stop the session.`
-          );
-        }
-        sessionInterrupt.dispose();
-        if (jsonFlag) {
-          printJsonOnlyOutput({
-            id: deviceRunSessionId,
-            deviceRunSessionUrl,
-            stopped,
-            setup: {
-              config: imported.config.path,
-              results:
-                error instanceof ControlConfigExecutionError
-                  ? serializeControlConfigResults(error.completed)
-                  : [],
-              error: {
-                ...(error instanceof ControlConfigExecutionError
-                  ? { step: error.step, action: error.action }
-                  : {}),
-                message: error instanceof Error ? error.message : String(error),
-              },
-            },
-          });
-          process.exitCode = 1;
-          return;
-        }
-        throw error;
-      }
-    }
-
-    if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
-      await writeSimulatorEnvSafelyAsync(projectDir, {
-        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
-        [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
-      });
-    }
-
-    if (sessionInterrupt.signal.aborted) {
-      await stopDeviceRunSessionAfterInterruptAsync({
-        graphqlClient,
-        deviceRunSessionId,
-        projectDir,
-        spinner: pollSpinner,
-        sessionInterrupt,
-      });
-      return;
-    }
-
-    if (jsonFlag) {
-      sessionInterrupt.dispose();
-      printJsonOnlyOutput({
-        id: deviceRunSessionId,
-        name,
-        type: flags.type,
-        deviceRunSessionUrl,
-        ...(setup ? { setup } : {}),
-        remoteConfig: sanitizeRemoteConfigForJson(
-          remoteConfig,
-          deviceRunSessionPreviewUrl,
-          flags['public-link'],
-          { frameAncestors, corsOrigins }
-        ),
-      });
-      return;
-    }
-
-    Log.newLine();
-    Log.log(
-      formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
-        egressAllow,
-        egressClientRunsInline: !nonInteractive,
-        sessionUrl: deviceRunSessionUrl,
-        privatePreviewUrl: deviceRunSessionPreviewUrl,
-        publicLink: flags['public-link'],
-        frameAncestors,
-        corsOrigins,
-        platform,
-      })
-    );
-    Log.newLine();
-
     const localEgress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
-
-    if (nonInteractive) {
-      sessionInterrupt.dispose();
-      // The instructions above already tell the reader to run eas simulator:egress.
-      Log.log(
-        `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
-      );
-      return;
-    }
-
-    // In interactive mode the egress client runs right here, for as long as the
-    // session does. A session with a disconnected tunnel still bills, so Ctrl+C stops both.
     let egressPromise: Promise<void> | undefined;
     let egressError: Error | undefined;
     const egressAbortController = new AbortController();
-    if (localEgress) {
-      sessionInterrupt.signal.addEventListener(
-        'abort',
-        () => {
-          egressAbortController.abort();
-        },
-        { once: true }
-      );
+    let markEgressReady: () => void;
+    const egressReady = new Promise<void>(resolve => {
+      markEgressReady = resolve;
+    });
+    const onSessionAbort = (): void => {
+      egressAbortController.abort();
+    };
+    if (localEgress && !nonInteractive) {
+      sessionInterrupt.signal.addEventListener('abort', onSessionAbort, { once: true });
       egressPromise = runLocalEgressAsync({
         ...localEgress,
         signal: egressAbortController.signal,
         onConnected: () => {
+          markEgressReady();
           Log.succeed('Egress tunnel connected.');
         },
         onDisconnected: () => {
@@ -715,6 +577,181 @@ export default class Simulator extends EasCommand {
     }
 
     try {
+      let setup:
+        | { config: string; results: ReturnType<typeof serializeControlConfigResults> }
+        | undefined;
+      if (imported.config?.actions?.length) {
+        const setupSpinner = ora('Applying imported simulator configuration').start();
+        try {
+          if (egressPromise) {
+            setupSpinner.text = 'Waiting for local egress before applying configuration';
+            let timer: NodeJS.Timeout | undefined;
+            try {
+              await Promise.race([
+                egressReady,
+                egressPromise,
+                sessionInterrupt.abortPromise,
+                new Promise<never>((_resolve, reject) => {
+                  timer = setTimeout(() => {
+                    reject(new Error('Local egress did not connect within 60 seconds.'));
+                  }, EGRESS_SETUP_TIMEOUT_MS);
+                  timer.unref();
+                }),
+              ]);
+            } finally {
+              clearTimeout(timer);
+            }
+            if (egressError) {
+              throw egressError;
+            }
+            sessionInterrupt.signal.throwIfAborted();
+          }
+          const access = getPreviewApiAccess(remoteConfig);
+          if (!access) {
+            throw new Error(
+              'This session does not expose an authenticated preview API for control actions.'
+            );
+          }
+          const results = await applyStartConfigAsync(access, imported.config, {
+            signal: sessionInterrupt.signal,
+            onProgress: jsonFlag
+              ? undefined
+              : progress => {
+                  const label = `[${progress.step}/${progress.total}] ${progress.action}`;
+                  if (progress.status === 'running') {
+                    setupSpinner.start(label);
+                  } else {
+                    setupSpinner.succeed(label);
+                    if (progress.result.file) {
+                      Log.log(`Saved ${progress.result.file}`);
+                    } else if (progress.result.output) {
+                      Log.log(progress.result.output);
+                    }
+                  }
+                },
+          });
+          setup = { config: imported.config.path, results: serializeControlConfigResults(results) };
+          setupSpinner.succeed('Simulator configuration applied');
+        } catch (caught) {
+          egressAbortController.abort();
+          await egressPromise;
+          const error = egressError ?? caught;
+          if (sessionInterrupt.signal.aborted && !egressError) {
+            await stopDeviceRunSessionAfterInterruptAsync({
+              graphqlClient,
+              deviceRunSessionId,
+              projectDir,
+              spinner: setupSpinner,
+              sessionInterrupt,
+            });
+            return;
+          }
+          setupSpinner.fail('Simulator configuration failed');
+          const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
+            graphqlClient,
+            deviceRunSessionId
+          );
+          if (stopped) {
+            if (!jsonFlag) {
+              Log.succeed('Stopped the simulator session after setup failed.');
+            }
+            await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
+              Log.warn(
+                `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
+              );
+            });
+          } else {
+            Log.warn(
+              `Could not confirm cleanup. Run eas simulator:stop --id ${deviceRunSessionId} to stop the session.`
+            );
+          }
+          sessionInterrupt.dispose();
+          if (jsonFlag) {
+            printJsonOnlyOutput({
+              id: deviceRunSessionId,
+              deviceRunSessionUrl,
+              stopped,
+              setup: {
+                config: imported.config.path,
+                results:
+                  error instanceof ControlConfigExecutionError
+                    ? serializeControlConfigResults(error.completed)
+                    : [],
+                error: {
+                  ...(error instanceof ControlConfigExecutionError
+                    ? { step: error.step, action: error.action }
+                    : {}),
+                  message: error instanceof Error ? error.message : String(error),
+                },
+              },
+            });
+            process.exitCode = 1;
+            return;
+          }
+          throw error;
+        }
+      }
+
+      if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
+        await writeSimulatorEnvSafelyAsync(projectDir, {
+          ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
+          [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+        });
+      }
+
+      if (sessionInterrupt.signal.aborted && !egressError) {
+        await stopDeviceRunSessionAfterInterruptAsync({
+          graphqlClient,
+          deviceRunSessionId,
+          projectDir,
+          spinner: pollSpinner,
+          sessionInterrupt,
+        });
+        return;
+      }
+
+      if (jsonFlag) {
+        sessionInterrupt.dispose();
+        printJsonOnlyOutput({
+          id: deviceRunSessionId,
+          name,
+          type: flags.type,
+          deviceRunSessionUrl,
+          ...(setup ? { setup } : {}),
+          remoteConfig: sanitizeRemoteConfigForJson(
+            remoteConfig,
+            deviceRunSessionPreviewUrl,
+            flags['public-link'],
+            { frameAncestors, corsOrigins }
+          ),
+        });
+        return;
+      }
+
+      Log.newLine();
+      Log.log(
+        formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
+          egressAllow,
+          egressClientRunsInline: !nonInteractive,
+          sessionUrl: deviceRunSessionUrl,
+          privatePreviewUrl: deviceRunSessionPreviewUrl,
+          publicLink: flags['public-link'],
+          frameAncestors,
+          corsOrigins,
+          platform,
+        })
+      );
+      Log.newLine();
+
+      if (nonInteractive) {
+        sessionInterrupt.dispose();
+        // The instructions above already tell the reader to run eas simulator:egress.
+        Log.log(
+          `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+        );
+        return;
+      }
+
       await waitForSessionEndOrInterruptAsync({
         graphqlClient,
         deviceRunSessionId,
@@ -722,12 +759,13 @@ export default class Simulator extends EasCommand {
         projectDir,
         sessionInterrupt,
       });
+      if (egressError) {
+        throw egressError;
+      }
     } finally {
+      sessionInterrupt.signal.removeEventListener('abort', onSessionAbort);
       egressAbortController.abort();
       await egressPromise;
-    }
-    if (egressError) {
-      throw egressError;
     }
   }
 }

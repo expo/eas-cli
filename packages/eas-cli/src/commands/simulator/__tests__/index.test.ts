@@ -238,6 +238,18 @@ describe(Simulator, () => {
 
   describe('imported session configuration', () => {
     const configPath = '/test/simulator.json';
+    const localEgressSession = makeDeviceRunSession({
+      remoteConfig: {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+        previewUrl: 'https://expo.dev/preview',
+        previewApiUrl: 'https://sim.example.test',
+        previewToken: 'private-token',
+        egressUrl: 'https://egress.example.com',
+        egressToken: 'token',
+        egressFingerprint: 'fp',
+        egressPort: 8899,
+      },
+    });
     function config(start: object = { platform: 'ios' }, actions?: object[]): void {
       jest
         .mocked(fs.readJson)
@@ -378,6 +390,20 @@ describe(Simulator, () => {
       expect(getContextAsync).not.toHaveBeenCalled();
     });
 
+    it('rejects explicit capture fields when the CLI disables saved capture', async () => {
+      config({ platform: 'ios', 'network-capture': true });
+      await expect(
+        createCommand([
+          '--import',
+          configPath,
+          '--no-network-capture',
+          '--network-capture-field',
+          'header',
+        ]).command.runAsync()
+      ).rejects.toThrow('--network-capture-field requires --network-capture');
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    });
+
     it('allows Android start settings without actions', async () => {
       config({ platform: 'android' });
       await createCommand(['--import', configPath, '--json']).command.runAsync();
@@ -386,6 +412,202 @@ describe(Simulator, () => {
         expect.objectContaining({ platform: AppPlatform.Android })
       );
       expect(applyStartConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('uses the existing platform prompt and attached-session lifecycle in interactive mode', async () => {
+      config({}, [{ action: 'appearance.set' }]);
+      const ready = makeDeviceRunSession({
+        remoteConfig: {
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+          previewUrl: 'https://expo.dev/preview',
+          previewApiUrl: 'https://sim.example.test',
+          previewToken: 'private-token',
+        },
+      });
+      mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Ios });
+      mockByIdAsync
+        .mockResolvedValueOnce(ready)
+        .mockResolvedValueOnce({ ...ready, status: DeviceRunSessionStatus.Stopped });
+      const listeners = process.listeners('SIGINT');
+      await createCommand(['--import', configPath]).command.runAsync();
+      expect(mockPromptAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Select platform' })
+      );
+      expect(applyStartConfigAsync).toHaveBeenCalledTimes(1);
+      expect(mockByIdAsync).toHaveBeenCalledTimes(2);
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+      expect(process.listeners('SIGINT')).toEqual(listeners);
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    });
+
+    it.each([['--non-interactive'], ['--json']])(
+      'refuses an incomplete platform without prompting: %j',
+      async mode => {
+        config({}, [{ action: 'appearance.set' }]);
+        await expect(
+          createCommand(['--import', configPath, mode]).command.runAsync()
+        ).rejects.toThrow('platform flag must be set');
+        expect(mockPromptAsync).not.toHaveBeenCalled();
+        expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(['CI', 'pipe'])('inherits non-interactive defaults for %s', async mode => {
+      config({}, [{ action: 'appearance.set' }]);
+      const priorCi = process.env.CI;
+      const priorTty = process.stdin.isTTY;
+      try {
+        if (mode === 'CI') {
+          process.env.CI = 'true';
+        } else {
+          Object.defineProperty(process.stdin, 'isTTY', { value: false, writable: true });
+        }
+        await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toThrow(
+          'platform flag must be set'
+        );
+        expect(mockPromptAsync).not.toHaveBeenCalled();
+        expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      } finally {
+        if (priorCi === undefined) {
+          delete process.env.CI;
+        } else {
+          process.env.CI = priorCi;
+        }
+        Object.defineProperty(process.stdin, 'isTTY', { value: priorTty, writable: true });
+      }
+    });
+
+    it('connects interactive local egress before applying imported actions and closes it on session end', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.set' }]);
+      const ready = localEgressSession;
+      mockByIdAsync
+        .mockResolvedValueOnce(ready)
+        .mockResolvedValueOnce({ ...ready, status: DeviceRunSessionStatus.Stopped });
+      let connected = false;
+      let tunnelSignal: AbortSignal | undefined;
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ signal, onConnected }) => {
+        tunnelSignal = signal;
+        await new Promise<void>(resolve => setImmediate(resolve));
+        connected = true;
+        onConnected?.();
+        await new Promise<void>(resolve => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true }
+          );
+        });
+      });
+      jest.mocked(applyStartConfigAsync).mockImplementationOnce(async () => {
+        expect(connected).toBe(true);
+        return [];
+      });
+      await createCommand(['--import', configPath]).command.runAsync();
+      expect(tunnelSignal?.aborted).toBe(true);
+    });
+
+    it.each([['--non-interactive'], ['--json']])(
+      'rejects actions with detached local egress before creating a session: %j',
+      async mode => {
+        config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+        await expect(
+          createCommand(['--import', configPath, mode]).command.runAsync()
+        ).rejects.toThrow('Imported actions with local egress require interactive mode');
+        expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+        expect(applyStartConfigAsync).not.toHaveBeenCalled();
+        expect(runLocalEgressAsync).not.toHaveBeenCalled();
+        expect(mockPromptAsync).not.toHaveBeenCalled();
+      }
+    );
+
+    it('cleans up and preserves an egress connection failure before setup', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      mockByIdAsync.mockResolvedValue(localEgressSession);
+      const failure = new Error('egress could not bind');
+      jest.mocked(runLocalEgressAsync).mockRejectedValueOnce(failure);
+      const listeners = process.listeners('SIGINT');
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toBe(
+        failure
+      );
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(process.listeners('SIGINT')).toEqual(listeners);
+    });
+
+    it('bounds the wait for local egress and closes the tunnel on timeout', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      mockByIdAsync.mockResolvedValue(localEgressSession);
+      let tunnelSignal: AbortSignal | undefined;
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ signal }) => {
+        tunnelSignal = signal;
+        await new Promise<void>(resolve => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true }
+          );
+        });
+      });
+      jest.useFakeTimers();
+      try {
+        const result = expect(
+          createCommand(['--import', configPath]).command.runAsync()
+        ).rejects.toThrow('did not connect within 60 seconds');
+        await jest.advanceTimersByTimeAsync(60_000);
+        await result;
+        expect(tunnelSignal?.aborted).toBe(true);
+        expect(applyStartConfigAsync).not.toHaveBeenCalled();
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          'session-123'
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('closes local egress and stops the session on Ctrl-C before the tunnel connects', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      mockByIdAsync.mockResolvedValue(localEgressSession);
+      const interrupted = new Error('exit 130');
+      jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw interrupted;
+      });
+      let tunnelClosed = false;
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ signal }) => {
+        await new Promise<void>(resolve => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true }
+          );
+          setImmediate(() => {
+            process.emit('SIGINT');
+          });
+        });
+        tunnelClosed = true;
+      });
+      const listeners = process.listeners('SIGINT');
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toBe(
+        interrupted
+      );
+      expect(tunnelClosed).toBe(true);
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+      expect(process.listeners('SIGINT')).toEqual(listeners);
     });
 
     it('stops on Ctrl-C during setup and removes the session handler', async () => {
