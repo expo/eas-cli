@@ -1,13 +1,20 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import nock from 'nock';
+import { Response } from 'node-fetch';
 
 import { api, editPath, mockToken, packageName, serviceAccount } from './googlePlayTestUtils';
 import { createMockLogger } from '../../../../__tests__/utils/logger';
 import { GooglePlayAuthRequestError } from '../GooglePlayAuthClient';
-import { GooglePlayApiError, GooglePlayClient } from '../GooglePlayClient';
-import { GooglePlayUtils } from '../GooglePlayUtils';
+import { GooglePlayApiError } from '../GooglePlayApiError';
+import { GooglePlayClient } from '../GooglePlayClient';
+import { GooglePlayCommitOutcomeUnknownError, GooglePlayUtils } from '../GooglePlayUtils';
 
 jest.unmock('node-fetch');
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
 beforeEach(() => nock.disableNetConnect());
 afterEach(() => {
   const pending = nock.pendingMocks();
@@ -71,16 +78,85 @@ it.each([
     );
   }
 );
-it.each([408, 429, 503])('does not retry an uncertain HTTP %s commit', async status => {
+it.each([408, 429, 503])('retries a transient HTTP %s commit on the same edit', async status => {
   mockToken();
   api().post(`${editPath}:commit`).query(true).reply(status);
-  await expect(commit()).rejects.toMatchObject({ cause: expect.objectContaining({ status }) });
+  api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
+  await expect(commit()).resolves.toBeUndefined();
 });
 it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();
   const reason = new Error('cancelled before commit');
   controller.abort(reason);
   await expect(commit({ signal: controller.signal })).rejects.toBe(reason);
+});
+const pendingUploadMessage = 'Some of the Android App Bundle uploads are not completed yet.';
+
+it.each([false, true])(
+  'waits for bundle processing without changing review settings (%s)',
+  async changesNotSentForReview => {
+    const logger = createMockLogger();
+    const query = changesNotSentForReview ? { changesNotSentForReview: 'true' } : {};
+    mockToken();
+    api()
+      .post(`${editPath}:commit`, {})
+      .query(query)
+      .reply(400, { error: { message: pendingUploadMessage } });
+    api().post(`${editPath}:commit`, {}).query(query).reply(200, { id: 'edit' });
+    await expect(commit({ changesNotSentForReview, logger })).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Google Play is still processing')
+    );
+  }
+);
+
+it('stops waiting for bundle processing after six attempts', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .times(6)
+    .reply(400, { error: { message: pendingUploadMessage } });
+  const error = await commit().catch(error => error);
+  expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toMatchObject({
+    message: expect.stringContaining('Google Play did not finish processing'),
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify({ error: { message: pendingUploadMessage } }),
+    },
+  });
+});
+
+it('does not retry an unrelated commit precondition', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: 'Precondition check failed.' } });
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayApiError);
+});
+
+it('checks cancellation before sending a processing retry', async () => {
+  const controller = new AbortController();
+  const reason = new Error('cancelled while waiting');
+  const logger = createMockLogger();
+  jest.spyOn(logger, 'warn').mockImplementation(() => controller.abort(reason));
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  await expect(commit({ signal: controller.signal, logger })).rejects.toBe(reason);
+});
+
+it('does not report success if a processing retry has no valid commit receipt', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  api().post(`${editPath}:commit`).query({}).reply(200, { id: 'different-edit' });
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
 });
 it('preserves OAuth rejection before commit is sent', async () => {
   nock('https://oauth2.googleapis.com').post('/token').reply(400, { error: 'invalid_grant' });
@@ -139,4 +215,57 @@ it.each([408, 429, 500, 503])('classifies temporary HTTP %s errors as system err
 it('keeps non-Google errors unchanged', () => {
   const error = new SystemError('file failure');
   expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toBe(error);
+});
+it('keeps the Google Play error response in metadata, not in the message', async () => {
+  const response = {
+    error: {
+      code: 400,
+      message: 'Precondition check failed.',
+      status: 'FAILED_PRECONDITION',
+      details: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.PreconditionFailure',
+          violations: [{ type: 'APP_SETUP', description: 'Complete the app setup.' }],
+        },
+      ],
+    },
+  };
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(400, response);
+  const error = await commit().catch(error => error);
+  const mapped = GooglePlayUtils.mapGooglePlayError(error, packageName);
+  expect(mapped).toMatchObject({
+    errorCode: 'EAS_GOOGLE_PLAY_INVALID_RELEASE',
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify(response),
+    },
+  });
+  expect((mapped as Error).message).not.toContain('APP_SETUP');
+});
+it('keeps the last Google Play error response when the commit outcome is unknown', async () => {
+  mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .times(6)
+    .reply(503, { error: { message: 'Backend error' } });
+  await expect(commit()).rejects.toMatchObject({
+    metadata: {
+      googlePlayRequestPath: `${editPath}:commit`,
+      googlePlayErrorResponse: JSON.stringify({ error: { message: 'Backend error' } }),
+    },
+  });
+});
+it('does not keep the upload session query or a non-JSON response', async () => {
+  const error = await GooglePlayApiError.fromResponseAsync(
+    new Response('<html>upload_id=SECRET</html>', {
+      status: 400,
+      url: 'https://androidpublisher.googleapis.com/upload/session?upload_id=SECRET',
+    })
+  );
+  expect(GooglePlayApiError.getErrorMetadata(error)).toEqual({
+    googlePlayRequestPath: '/upload/session',
+    googlePlayErrorResponse: undefined,
+  });
 });

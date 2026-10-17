@@ -877,6 +877,23 @@ it.each([
   await host.finishAsync();
 });
 
+it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+    frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
+    corsOrigins: ['https://app.example.test'],
+  });
+  const { args } = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(args.join(' ')).toContain(
+    '--frame-ancestor https://expo.dev --frame-ancestor https://embed.example.test --frame-ancestor https://*.example.test --cors-origin https://app.example.test'
+  );
+  await host.finishAsync();
+});
+
 it('stops when expo-device-hub records no session token', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     const flag = options.args.indexOf('--android-recording-directory');
@@ -1784,4 +1801,25 @@ it('finishes in-flight crash collection before stopping the host', async () => {
   collecting.resolve();
   await finishing;
   expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('redacts bearer tokens from preview readiness diagnostics while preserving the failure', async () => {
+  const output = [
+    'Native addon failed to initialize',
+    'Local: http://localhost:1234/?token=private-token&mode=preview',
+    'Share: https://expo.dev/simulator-preview/abc#token=fragment-secret',
+    '{"url":"http://localhost:1234/","token":"quiet-secret"}',
+  ].join('\n');
+  const readiness = waitForWebPreviewReadyAsync({
+    previewServer: { pid: undefined, getOutput: () => output },
+    serverName: 'serve-sim',
+    port: 1234,
+    timeoutMs: 0,
+  });
+  await expect(readiness).rejects.toThrow('Timed out waiting for serve-sim readiness');
+  await expect(readiness).rejects.toThrow('Native addon failed to initialize');
+  await expect(readiness).rejects.toThrow('?token=[redacted]&mode=preview');
+  for (const secret of ['private-token', 'fragment-secret', 'quiet-secret']) {
+    await expect(readiness).rejects.not.toThrow(secret);
+  }
 });

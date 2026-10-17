@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
 
+import { GooglePlayApiError } from './GooglePlayApiError';
 const PostApi = {
   '/token': {
     request: z.object({
@@ -61,7 +62,7 @@ export class GooglePlayAuthClient {
       error =>
         !signal?.aborted &&
         error instanceof GooglePlayAuthRequestError &&
-        (error.status === 429 || error.status >= 500),
+        GooglePlayApiError.isRetryableStatus(error.status),
       { retries: 3, factor: 2, minTimeout: 1000, maxTimeout: 4000 }
     )();
   }

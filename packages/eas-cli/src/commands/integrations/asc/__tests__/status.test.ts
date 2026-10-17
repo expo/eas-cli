@@ -2,6 +2,7 @@ import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AscAppLinkQuery } from '../../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../../log';
@@ -20,7 +21,7 @@ const mockMetadataConnected = {
     id: 'account-id',
     name: 'testuser',
     ownerUserActor: null,
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
   appStoreConnectApp: {
     id: 'asc-app-link-id',
@@ -41,7 +42,7 @@ const mockMetadataDisconnected = {
     id: 'account-id',
     name: 'testuser',
     ownerUserActor: null,
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
   appStoreConnectApp: null,
 };

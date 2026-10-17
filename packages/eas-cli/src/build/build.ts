@@ -28,6 +28,11 @@ import {
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
+import {
+  FreeTierLimitAgentGuidanceExperiment,
+  getFreeTierLimitAgentGuidanceExperiment,
+  maybeAppendFreeTierLimitAgentGuidanceAsync,
+} from './freeTierLimitGuidance';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import {
@@ -219,7 +224,12 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform, ctx.accountName);
+        return await handleBuildRequestErrorAsync(
+          error,
+          job.platform,
+          ctx.accountName,
+          getFreeTierLimitAgentGuidanceExperiment(ctx)
+        );
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -240,11 +250,12 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-export function handleBuildRequestError(
+export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
-  accountName?: string
-): never {
+  accountName?: string,
+  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment
+): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
 
   const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
@@ -261,7 +272,11 @@ export function handleBuildRequestError(
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
     throw new ErrorClass(
       isFreeTierLimitError
-        ? `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`
+        ? await maybeAppendFreeTierLimitAgentGuidanceAsync(
+            `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
+            platform,
+            freeTierLimitAgentGuidanceExperiment
+          )
         : message
     );
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {

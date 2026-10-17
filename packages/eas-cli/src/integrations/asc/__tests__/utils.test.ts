@@ -1,6 +1,7 @@
 import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
 
+import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
 import {
   buildInvalidJsonOutput,
   buildJsonOutput,
@@ -16,7 +17,7 @@ const mockMetadataConnected = {
     id: 'account-id',
     name: 'testuser',
     ownerUserActor: null,
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
   appStoreConnectApp: {
     id: 'asc-app-link-id',
@@ -37,7 +38,7 @@ const mockMetadataDisconnected = {
     id: 'account-id',
     name: 'testuser',
     ownerUserActor: null,
-    viewerUserPermission: { role: Role.Owner },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
   appStoreConnectApp: null,
 };

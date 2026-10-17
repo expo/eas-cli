@@ -7,6 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import { uploadServeSimCrashesFileAsync } from '../serveSimCrashesArtifacts';
 import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
 import * as serveSimServers from '../serveSimMetricsRecorder';
@@ -85,7 +86,22 @@ it('saves recurrences as separate private IPS files and uploads unchanged report
   let requests = 0;
   const uploaded: Buffer[] = [];
   let uploadAttempts = 0;
+  const uploadInputs: { filename: string }[] = [];
   server.on('request', (request, response) => {
+    if (request.url === '/v2/device-run-session-worker/artifact-upload-sessions') {
+      expect(request.method).toBe('POST');
+      expect(request.headers[DEVICE_RUN_SESSION_TOKEN_HEADER]).toBe('worker-token');
+      const chunks: Buffer[] = [];
+      request.on('data', chunk => chunks.push(chunk));
+      request.on('end', () => {
+        uploadInputs.push(JSON.parse(Buffer.concat(chunks).toString()));
+        response.setHeader('Content-Type', 'application/json');
+        response.end(
+          JSON.stringify({ data: { uploadSession: { url: baseUrl + '/upload', headers: {} } } })
+        );
+      });
+      return;
+    }
     if (request.method === 'PUT') {
       const chunks: Buffer[] = [];
       request.on('data', chunk => chunks.push(chunk));
@@ -133,36 +149,27 @@ it('saves recurrences as separate private IPS files and uploads unchanged report
     expect((await stat(path.dirname(file.filePath))).mode & 0o777).toBe(0o700);
   }
   expect(files[0].filePath).not.toBe(files[1].filePath);
-  const mutation = jest.fn().mockReturnValue({
-    toPromise: async () => ({
-      data: {
-        deviceRunSession: {
-          createArtifactUploadSession: {
-            uploadSession: {
-              url: baseUrl + '/upload',
-              headers: {},
-            },
-          },
-        },
-      },
-    }),
-  });
+  const context = {
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'worker-token' },
+    expoApiV2BaseUrl: baseUrl + '/v2/',
+  } as unknown as CustomBuildContext;
   for (const file of files) {
-    await uploadServeSimCrashesFileAsync(
-      { graphqlClient: { mutation } } as unknown as CustomBuildContext,
-      { deviceRunSessionId: 'session-id', ...file, logger }
-    );
+    await uploadServeSimCrashesFileAsync(context, {
+      deviceRunSessionId: 'session-id',
+      ...file,
+      logger,
+    });
   }
   expect(uploaded).toEqual([expected[0], expected[0], expected[1]]);
   expect(uploadAttempts).toBe(3);
-  expect(mutation.mock.calls.map(([, { input }]) => input.filename)).toEqual(
+  expect(uploadInputs.map(input => input.filename)).toEqual(
     files.map(file => path.basename(file.filePath))
   );
-  expect(mutation.mock.calls[0][1].input).toMatchObject({
+  expect(uploadInputs[0]).toMatchObject({
     kind: 'simulator-crashes',
     metadata: { __eas_type: 'simulator-crashes', udid: 'device-A', source: 'serve-sim/crashes' },
   });
-  expect(JSON.stringify(mutation.mock.calls)).not.toContain('PRIVATE APP LOG');
+  expect(JSON.stringify(uploadInputs)).not.toContain('PRIVATE APP LOG');
   expect(await ServeSimCrashesRecorder.finishAsync()).toEqual({
     outputDirectory: null,
     crashes: [],
@@ -463,7 +470,27 @@ it('closes a stalled upload within its budget and lets another device upload', a
   let firstClosed = false;
   let firstRequests = 0;
   let uploaded: Buffer | undefined;
+  let sessions = 0;
   server.on('request', (request, response) => {
+    if (request.url === '/v2/device-run-session-worker/artifact-upload-sessions') {
+      expect(request.method).toBe('POST');
+      expect(request.headers[DEVICE_RUN_SESSION_TOKEN_HEADER]).toBe('worker-token');
+      request.resume();
+      request.on('end', () => {
+        response.setHeader('Content-Type', 'application/json');
+        response.end(
+          JSON.stringify({
+            data: {
+              uploadSession: {
+                url: baseUrl + (sessions++ === 0 ? '/stalled' : '/upload'),
+                headers: {},
+              },
+            },
+          })
+        );
+      });
+      return;
+    }
     if (request.url === '/stalled') {
       firstRequests += 1;
       response.on('close', () => {
@@ -479,22 +506,10 @@ it('closes a stalled upload within its budget and lets another device upload', a
       });
     }
   });
-  let sessions = 0;
-  const mutation = jest.fn().mockImplementation(() => ({
-    toPromise: async () => ({
-      data: {
-        deviceRunSession: {
-          createArtifactUploadSession: {
-            uploadSession: {
-              url: baseUrl + (sessions++ === 0 ? '/stalled' : '/upload'),
-              headers: {},
-            },
-          },
-        },
-      },
-    }),
-  }));
-  const context = { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+  const context = {
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'worker-token' },
+    expoApiV2BaseUrl: baseUrl + '/v2/',
+  } as unknown as CustomBuildContext;
   await uploadServeSimCrashesFileAsync(context, {
     deviceRunSessionId: 'session-id',
     udid: 'A',
@@ -515,7 +530,7 @@ it('closes a stalled upload within its budget and lets another device upload', a
     logger,
     signal: AbortSignal.timeout(1_000),
   });
-  expect(mutation).toHaveBeenCalledTimes(2);
+  expect(sessions).toBe(2);
   expect(uploaded).toEqual(expected);
 });
 

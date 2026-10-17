@@ -15,6 +15,11 @@ import {
 import { createSubmitToGooglePlayBuildFunction } from '../submitToGooglePlay';
 
 jest.unmock('node-fetch');
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
 jest.unmock('fs');
 jest.unmock('node:fs');
 jest.unmock('fs/promises');
@@ -174,7 +179,7 @@ it('preserves the original failure when cleanup fails', async () => {
   api()
     .put(`${editPath}/tracks/internal`)
     .reply(400, { error: { message: 'unknown track' } });
-  api().delete(editPath).reply(500);
+  api().delete(editPath).times(6).reply(500);
   await expect(submission().run()).rejects.toMatchObject({
     cause: expect.objectContaining({ apiMessage: 'unknown track' }),
   });
@@ -183,6 +188,7 @@ it('does not delete the edit or publish outputs when commit outcome is unknown',
   upload();
   api().put(`${editPath}/tracks/internal`).reply(200, { track: 'internal' });
   api().post(`${editPath}:commit`).query(true).reply(503);
+  api().post(`${editPath}:commit`).query(true).reply(404);
   let deleted = false;
   api()
     .delete(editPath)
