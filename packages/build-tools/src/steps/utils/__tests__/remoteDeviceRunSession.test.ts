@@ -1507,6 +1507,25 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
+  it('preserves an errored status when the duration timer fires during the response', async () => {
+    const ctx = createStatusCtxMock([]);
+    jest.mocked(ctx.graphqlClient.query).mockImplementationOnce((() => ({
+      toPromise: async () => {
+        (jest.mocked(setTimeoutCallback).mock.calls[0][0] as () => void)();
+        return { data: { deviceRunSessions: { byId: { status: 'ERRORED' } } } };
+      },
+    })) as never);
+    await expect(
+      waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger: createLoggerMock(),
+        maxDurationSeconds: 30,
+      })
+    ).rejects.toThrow('Device run session drs-id errored.');
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
   it('clears the duration timeout when the build step is aborted', async () => {
     const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
     const abortController = new AbortController();
