@@ -15,6 +15,7 @@ import { ora } from '../../ora';
 import {
   ControlAction,
   executeControlActionAsync,
+  parseControlActionOutput,
   prepareControlActionAsync,
 } from '../../simulator/controlActions';
 import {
@@ -23,6 +24,7 @@ import {
   PreparedControlConfig,
   executeControlConfigAsync,
   prepareControlConfigAsync,
+  serializeControlConfigResults,
 } from '../../simulator/controlConfig';
 import { runControlMenuAsync } from '../../simulator/controlInteractive';
 import { ControlPromptCancelledError } from '../../simulator/controlPrompts';
@@ -298,7 +300,7 @@ export default class SimulatorControl extends EasCommand {
             id: session.id,
             session,
             config: config.path,
-            results: configResultsJson(error.completed),
+            results: serializeControlConfigResults(error.completed),
             error: { step: error.step, action: error.action, message: error.message },
           });
           process.exitCode = 1;
@@ -322,7 +324,7 @@ export default class SimulatorControl extends EasCommand {
         id: session.id,
         session,
         config: config.path,
-        results: configResultsJson(results),
+        results: serializeControlConfigResults(results),
       });
     } else {
       Log.newLine();
@@ -336,7 +338,7 @@ export default class SimulatorControl extends EasCommand {
     if (result.file) {
       Log.log(`  Saved: ${result.file}`);
     } else if (result.output) {
-      const output = parseJsonOutput(result.output);
+      const output = parseControlActionOutput(result.output);
       const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
       Log.log(
         text
@@ -430,7 +432,7 @@ export default class SimulatorControl extends EasCommand {
         id: session.id,
         session,
         action,
-        output: parseJsonOutput(output),
+        output: parseControlActionOutput(output),
         file: savedFile,
       });
       return;
@@ -441,7 +443,7 @@ export default class SimulatorControl extends EasCommand {
     if (savedFile) {
       Log.log(`Saved ${savedFile}`);
     } else if (output) {
-      const parsed = parseJsonOutput(output);
+      const parsed = parseControlActionOutput(output);
       Log.log(interactive && typeof parsed !== 'string' ? JSON.stringify(parsed, null, 2) : output);
     }
   }
@@ -453,12 +455,6 @@ function formatElapsed(startedAt: number): string {
 
 function formatActionCount(count: number): string {
   return `${count} action${count === 1 ? '' : 's'}`;
-}
-
-function configResultsJson(
-  results: readonly ControlConfigResult[]
-): { action: string; output: unknown; file: string | null }[] {
-  return results.map(result => ({ ...result, output: parseJsonOutput(result.output) }));
 }
 
 function assertControllableSession(
@@ -481,12 +477,4 @@ function assertControllableSession(
     );
   }
   return access;
-}
-
-function parseJsonOutput(output: string): unknown {
-  try {
-    return JSON.parse(output);
-  } catch {
-    return output;
-  }
 }
