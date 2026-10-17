@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform } from '@expo/steps';
 import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 import { setImmediate } from 'node:timers/promises';
@@ -105,8 +105,6 @@ async function waitForCallAsync(mock: jest.Mock): Promise<void> {
   }
 }
 
-const env = { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
-
 const eventSource = {
   producer: 'test-producer',
   findEventFilesAsync: async () => [],
@@ -203,7 +201,7 @@ describe('with a device run session token', () => {
       })
     );
 
-    const args = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+    const args = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
 
     expect(args).toEqual([
       '--stun-url',
@@ -426,29 +424,38 @@ describe('with a device run session token', () => {
 });
 
 describe('without a device run session token', () => {
-  it('polls the session status with GraphQL', async () => {
+  const MISSING_TOKEN_MESSAGE =
+    /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./;
+
+  function expectMissingTokenError(error: unknown): void {
+    expect(error).toBeInstanceOf(SystemError);
+    expect((error as Error).message).toMatch(MISSING_TOKEN_MESSAGE);
+  }
+
+  function expectMissingTokenWarning(message: string): void {
+    const warning = (jest.mocked(logger.warn).mock.calls as unknown[][]).find(
+      ([, warningMessage]) => warningMessage === message
+    );
+    expect(warning).toBeDefined();
+    expectMissingTokenError((warning![0] as { err: unknown }).err);
+  }
+
+  it('fails the status poll with a system error', async () => {
     const ctx = createCtx({ withToken: false });
-    jest
-      .mocked(ctx.graphqlClient.query)
-      .mockReturnValueOnce(
-        graphqlResult({ deviceRunSessions: { byId: { id: 'drs-id', status: 'STOPPED' } } }) as never
-      );
 
-    await waitForDeviceRunSessionStoppedAsync({ ctx, deviceRunSessionId: 'drs-id', logger });
-
-    expect(ctx.graphqlClient.query).toHaveBeenCalledWith(expect.anything(), {
+    const error = await waitForDeviceRunSessionStoppedAsync({
+      ctx,
       deviceRunSessionId: 'drs-id',
-    });
+      logger,
+    }).catch(err => err);
+
+    expectMissingTokenError(error);
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
   });
 
-  it('stops an idle session with GraphQL', async () => {
+  it('logs the failed idle stop and ends the wait', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSession: { ensureDeviceRunSessionStopped: { id: 'drs-id', status: 'STOPPED' } },
-      }) as never
-    );
 
     await waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -457,65 +464,43 @@ describe('without a device run session token', () => {
       idleTimeout: { maxIdleTimeMinutes: 0, getLastEventObservedAt: () => undefined },
     });
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalledWith(expect.anything(), {
-      deviceRunSessionId: 'drs-id',
-    });
+    expectMissingTokenWarning(
+      'Could not mark device run session drs-id as stopped. The session job ends anyway.'
+    );
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('starts the session with GraphQL', async () => {
+  it('fails the start with a system error', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSession: { startDeviceRunSession: { id: 'drs-id', status: 'IN_PROGRESS' } },
-      }) as never
-    );
 
-    await uploadRemoteSessionConfigAsync({
+    const error = await uploadRemoteSessionConfigAsync({
       ctx,
       deviceRunSessionId: 'drs-id',
       remoteConfig: { type: 'agent-device' },
       logger,
-    });
+    }).catch(err => err);
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalledWith(expect.anything(), {
-      deviceRunSessionId: 'drs-id',
-      remoteConfig: { type: 'agent-device' },
-    });
+    expectMissingTokenError(error);
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
+  });
+
+  it('falls back to no TURN ICE servers', async () => {
+    const ctx = createCtx({ withToken: false });
+
+    await expect(fetchWebPreviewTurnArgsAsync(ctx, { logger })).resolves.toEqual([]);
+
+    expectMissingTokenWarning(
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
+    );
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
   });
 
-  it('fetches TURN ICE servers from the device run sessions route with the robot token', async () => {
+  it('fails the artifact upload with a system error before any PUT', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { iceServers: [] } }));
 
-    await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
-
-    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      'https://api.expo.test/v2/device-run-sessions/drs-id/turn-ice-servers',
-      'POST',
-      expect.objectContaining({
-        headers: { Authorization: `Bearer ${ROBOT_ACCESS_TOKEN}` },
-        timeout: 5000,
-        retries: 1,
-      })
-    );
-  });
-
-  it('creates artifact upload sessions with GraphQL', async () => {
-    const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSession: {
-          createArtifactUploadSession: {
-            uploadSession: { url: 'https://uploads.expo.test/artifact', headers: {} },
-          },
-        },
-      }) as never
-    );
-    jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
-
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
+    const error = await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId: 'drs-id',
       artifactId: 'artifact-id',
       name: 'Report',
@@ -523,23 +508,16 @@ describe('without a device run session token', () => {
       kind: undefined,
       size: 4,
       openStream: () => Readable.from(Buffer.from('data')),
-    });
+    }).catch(err => err);
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalled();
+    expectMissingTokenError(error);
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('creates the event log upload session with GraphQL', async () => {
+  it('runs the session without persisting events', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSession: {
-          createEventLogUploadSession: {
-            uploadSession: { url: 'https://uploads.expo.test/events', headers: {} },
-          },
-        },
-      }) as never
-    );
 
     const collection = await startDeviceRunSessionEventCollectionAsync({
       ctx,
@@ -549,24 +527,14 @@ describe('without a device run session token', () => {
     });
     await collection.stopAsync();
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalledWith(expect.anything(), {
-      deviceRunSessionId: 'drs-id',
-    });
+    expectMissingTokenWarning('Could not persist device run session events to the artifact.');
+    expect(jest.mocked(RemoteLoggerStream)).not.toHaveBeenCalled();
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('creates the preview upload session with GraphQL', async () => {
+  it('logs the failed preview upload session and uploads no preview', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSession: {
-          createPreviewUploadSession: {
-            uploadSession: { url: 'https://uploads.expo.test/preview', headers: {} },
-          },
-        },
-      }) as never
-    );
-    jest.mocked(fetch).mockResolvedValue(new Response('', { status: 200 }));
 
     const preview = startDeviceRunSessionPreview({
       ctx,
@@ -574,29 +542,25 @@ describe('without a device run session token', () => {
       captureAsync: async () => Buffer.from('webp'),
       logger,
     });
-    await waitForCallAsync(jest.mocked(fetch));
+    await waitForCallAsync(jest.mocked(logger.warn));
     await preview.stopAsync();
 
-    expect(ctx.graphqlClient.mutation).toHaveBeenCalled();
+    expectMissingTokenWarning('Could not refresh the session preview; retrying in 60 seconds.');
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('loads the screenshot naming details with GraphQL', async () => {
+  it('names screenshots with capture timestamps', async () => {
     const ctx = createCtx({ withToken: false });
-    jest.mocked(ctx.graphqlClient.query).mockReturnValueOnce(
-      graphqlResult({
-        deviceRunSessions: {
-          byId: { platform: 'ANDROID', app: { slug: 'app' }, build: null },
-        },
-      }) as never
-    );
 
-    await expect(loadScreenshotSessionAsync(ctx, 'drs-id', logger)).resolves.toEqual({
-      platform: 'ANDROID',
-      app: { slug: 'app' },
-      build: null,
-    });
+    await expect(loadScreenshotSessionAsync(ctx, 'drs-id', logger)).resolves.toBeNull();
+
+    expectMissingTokenWarning(
+      'Could not load screenshot session details; using capture timestamps.'
+    );
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
   });
 
   it('looks up the build archive URL with GraphQL', async () => {

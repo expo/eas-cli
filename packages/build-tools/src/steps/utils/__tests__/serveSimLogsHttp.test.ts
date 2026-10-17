@@ -6,11 +6,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import { uploadServeSimLogsFileAsync } from '../serveSimLogsArtifacts';
 import { streamServeSimLogsToFileAsync } from '../serveSimLogsRecorder';
 
 // This test exercises actual sockets, UTF-8 decoding, files, and PUT uploads.
-// Only WWW's allocation response is substituted; it does not verify cloud storage.
+// WWW's device run session worker API is served by the local server; it does not verify cloud
+// storage.
 jest.mock('../../../sentry');
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -55,7 +57,29 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
   let streamRequest: { url?: string; authorization?: string } | undefined;
   let uploaded: Buffer | undefined;
   let uploadedLength: string | undefined;
+  let uploadSessionRequest: { token?: string | string[]; body: unknown } | undefined;
   server.on('request', (request, response) => {
+    if (request.url === '/v2/device-run-session-worker/artifact-upload-sessions') {
+      const chunks: Buffer[] = [];
+      request.on('data', chunk => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        uploadSessionRequest = {
+          token: request.headers[DEVICE_RUN_SESSION_TOKEN_HEADER],
+          body: JSON.parse(Buffer.concat(chunks).toString('utf8')),
+        };
+        response.writeHead(200, { 'Content-Type': 'application/json' }).end(
+          JSON.stringify({
+            data: {
+              uploadSession: {
+                url: `${baseUrl}/upload`,
+                headers: { 'Content-Length': String(expected.length) },
+              },
+            },
+          })
+        );
+      });
+      return;
+    }
     if (request.method === 'GET') {
       streamRequest = { url: request.url, authorization: request.headers.authorization };
       response.writeHead(200, {
@@ -95,27 +119,16 @@ it('streams selected-device logs into NDJSON and uploads the exact bytes as a se
   });
   expect(await readFile(filePath)).toEqual(expected);
 
-  const mutation = jest.fn().mockReturnValue({
-    toPromise: async () => ({
-      data: {
-        deviceRunSession: {
-          createArtifactUploadSession: {
-            uploadSession: {
-              url: `${baseUrl}/upload`,
-              headers: { 'Content-Length': String(expected.length) },
-            },
-          },
-        },
-      },
-    }),
-  });
   await uploadServeSimLogsFileAsync(
-    { graphqlClient: { mutation } } as unknown as CustomBuildContext,
+    {
+      env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'device-run-session-token' },
+      expoApiV2BaseUrl: `${baseUrl}/v2/`,
+    } as unknown as CustomBuildContext,
     { deviceRunSessionId: 'session-test', udid: 'device-B', filePath, logger }
   );
-  expect(mutation.mock.calls[0][1]).toEqual({
-    deviceRunSessionId: 'session-test',
-    input: {
+  expect(uploadSessionRequest).toEqual({
+    token: 'device-run-session-token',
+    body: {
       name: 'App logs (device-B)',
       filename: 'app-logs.ndjson',
       kind: 'simulator-log',

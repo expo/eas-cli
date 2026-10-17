@@ -89,14 +89,16 @@ it('uploads aligned chunks and reports server-confirmed progress', async () => {
   ]);
 });
 
-it.each(['network', 429, 503])(
+it.each(['network', 408, 429, 503])(
   'recovers the accepted offset after a %s interruption',
   async failure => {
     mockToken();
     mockStart();
     const interrupted = uploadApi().put(session).matchHeader('content-range', 'bytes 0-11/12');
     if (failure === 'network') {
-      interrupted.replyWithError('connection reset');
+      interrupted.replyWithError(
+        Object.assign(new Error('connection reset'), { code: 'ECONNRESET' })
+      );
     } else {
       interrupted.reply(failure as number, { error: { message: 'retry' } });
     }
@@ -121,7 +123,7 @@ it('recovers a completed upload when the final upload response is lost', async (
   uploadApi()
     .put(session)
     .matchHeader('content-length', '12')
-    .replyWithError('lost final response');
+    .replyWithError(Object.assign(new Error('lost final response'), { code: 'ECONNRESET' }));
   status().reply(200, { versionCode: 42 });
   await expect(upload()).resolves.toBe(42);
 });
@@ -286,7 +288,7 @@ it('retries a network failure during session creation', async () => {
   api()
     .post(`/upload${editPath}/apks`)
     .query({ uploadType: 'resumable' })
-    .replyWithError('connection reset');
+    .replyWithError(Object.assign(new Error('connection reset'), { code: 'ECONNRESET' }));
   mockStart();
   uploadApi().put(session).reply(200, { versionCode: 42 });
   await expect(upload()).resolves.toBe(42);
@@ -347,7 +349,9 @@ it.each([
     mockStart();
     const finalChunk = uploadApi().put(session).matchHeader('content-length', '12');
     if (finalResponse === 'lost') {
-      finalChunk.replyWithError('lost final response');
+      finalChunk.replyWithError(
+        Object.assign(new Error('lost final response'), { code: 'ECONNRESET' })
+      );
     } else {
       finalChunk.reply(308, '', { Range: 'bytes=0-11' });
     }

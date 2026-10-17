@@ -1,8 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
-import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
   ArtifactPutError,
   ArtifactPutNetworkError,
@@ -11,23 +9,7 @@ import {
   putArtifactWithRetriesAsync,
 } from './artifactPut';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
-import { getDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
-
-const CREATE_DEVICE_RUN_SESSION_ARTIFACT_UPLOAD_SESSION_MUTATION = graphql(`
-  mutation CreateDeviceRunSessionArtifactUploadSession(
-    $deviceRunSessionId: ID!
-    $input: CreateDeviceRunSessionArtifactUploadSessionInput!
-  ) {
-    deviceRunSession {
-      createArtifactUploadSession(deviceRunSessionId: $deviceRunSessionId, input: $input) {
-        uploadSession {
-          url
-          headers
-        }
-      }
-    }
-  }
-`);
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 type ArtifactMetadata = {
   deviceRunSessionId: string;
@@ -72,54 +54,28 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
   { deviceRunSessionId, artifactId, name, filename, kind, metadata, size }: ArtifactMetadata,
   signal: AbortSignal
 ): Promise<ArtifactUploadSession> {
-  const workerApi = getDeviceRunSessionWorkerApi(ctx);
-  if (workerApi) {
-    let uploadSession: ArtifactUploadSession;
-    try {
-      uploadSession = await workerApi.createArtifactUploadSessionAsync(
-        {
-          name,
-          filename,
-          ...(kind !== undefined ? { kind } : {}),
-          ...(metadata !== undefined ? { metadata } : {}),
-          size,
-        },
-        { signal }
-      );
-    } catch (err) {
-      signal.throwIfAborted();
-      throw new SystemError(
-        `Failed to create upload session for device run session artifact ${artifactId}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        { cause: err }
-      );
-    }
-    signal.throwIfAborted();
-    return uploadSession;
-  }
-  const result = await ctx.graphqlClient
-    .mutation(
-      CREATE_DEVICE_RUN_SESSION_ARTIFACT_UPLOAD_SESSION_MUTATION,
+  const workerApi = requireDeviceRunSessionWorkerApi(ctx);
+  let uploadSession: ArtifactUploadSession;
+  try {
+    uploadSession = await workerApi.createArtifactUploadSessionAsync(
       {
-        deviceRunSessionId,
-        input: {
-          name,
-          filename,
-          ...(kind !== undefined ? { kind } : {}),
-          ...(metadata !== undefined ? { metadata } : {}),
-          size,
-        },
+        name,
+        filename,
+        ...(kind !== undefined ? { kind } : {}),
+        ...(metadata !== undefined ? { metadata } : {}),
+        size,
       },
-      graphqlAbortContext(signal)
-    )
-    .toPromise();
-  signal.throwIfAborted();
-  if (result.error) {
+      { signal }
+    );
+  } catch (err) {
+    signal.throwIfAborted();
     throw new SystemError(
-      `Failed to create upload session for device run session artifact ${artifactId}: ${result.error.message}`,
-      { cause: result.error }
+      `Failed to create upload session for device run session artifact ${artifactId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
     );
   }
-  return result.data!.deviceRunSession.createArtifactUploadSession.uploadSession;
+  signal.throwIfAborted();
+  return uploadSession;
 }

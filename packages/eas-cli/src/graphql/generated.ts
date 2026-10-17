@@ -6418,6 +6418,14 @@ export type CreateDeviceRunSessionInput = {
    * and applicationArchiveUrl.
    */
   expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Origins of pages that may embed the session's preview host in a frame, next to expo.dev.
+   * Each value is an https origin such as https://app.example.com or a subdomain wildcard such
+   * as https://*.example.com; plain http is accepted for localhost only. At most 10. The
+   * embedding page still needs the preview token from remoteConfig, and whoever embeds the
+   * preview can also control the device. If omitted, only expo.dev may embed the preview.
+   */
+  frameAncestors?: InputMaybe<Array<Scalars['String']['input']>>;
   /** iOS Simulator options. Only supported when platform is IOS. */
   ios?: InputMaybe<CreateIosDeviceRunSessionInput>;
   /**
@@ -6556,6 +6564,13 @@ export type CreateGitHubRepositorySettingsInput = {
 };
 
 export type CreateIosDeviceRunSessionInput = {
+  /**
+   * Origins of pages that may call the session's preview host API cross-origin, for example to
+   * render the device with @expo/hub-client. Framing the preview does not need this. Same value
+   * rules as frameAncestors. At most 10. The page still needs the preview token from remoteConfig.
+   * If omitted, only expo.dev may call the preview API cross-origin.
+   */
+  corsOrigins?: InputMaybe<Array<Scalars['String']['input']>>;
   /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
@@ -16097,6 +16112,11 @@ export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
 
 
 export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
+
+export type ExperimentationConfigsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ExperimentationConfigsQuery = { __typename?: 'RootQuery', experimentation: { __typename?: 'ExperimentationQuery', userConfig: any, accountConfig: any, deviceConfig: any } };
 
 export type FingerprintsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

@@ -22,4 +22,3 @@ jobs:
         uses: ./.github/actions/setup-mise
       - run: yarn install --immutable
       - run: yarn verify-graphql-code
-        working-directory: packages/eas-cli
