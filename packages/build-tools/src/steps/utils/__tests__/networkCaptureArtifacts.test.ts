@@ -83,3 +83,31 @@ it('logs a failed upload and continues with the next HAR', async () => {
   );
   expect(Sentry.capture).toHaveBeenCalledTimes(1);
 });
+
+it('accepts 500 MiB, skips larger HARs, and continues with other parts and devices', async () => {
+  const limit = 500 * 1024 * 1024;
+  const first = await harAsync('A-1.har');
+  const oversized = await harAsync('A-2.har');
+  const next = await harAsync('A-3.har');
+  const other = await harAsync('B-1.har');
+  await uploadNetworkCaptureHarsAsync(ctx, {
+    deviceRunSessionId: 'drs-id',
+    captures: [
+      { udid: 'A', filePath: first, size: limit },
+      { udid: 'A', filePath: oversized, size: limit + 1 },
+      { udid: 'A', filePath: next, size: 22 },
+      { udid: 'B', filePath: other, size: 22 },
+    ],
+    logger,
+  });
+  const calls = jest
+    .mocked(uploadDeviceRunSessionArtifactAsync)
+    .mock.calls.map(([, options]) => options);
+  expect(calls.map(({ artifactId, size }) => [artifactId, size])).toEqual([
+    ['network-capture-A-1', limit],
+    ['network-capture-A-3', 22],
+    ['network-capture-B-1', 22],
+  ]);
+  expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('500 MB upload limit'));
+  expect(Sentry.capture).not.toHaveBeenCalled();
+});
