@@ -1,5 +1,5 @@
 ---
-'eas-cli': patch
+'eas-cli': none
 ---
 
-Add a client for remote simulator host actions.
+Prepare authenticated simulator action transport and file transfers.
