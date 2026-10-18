@@ -75,9 +75,9 @@ export type CreateDeviceRunSessionArtifactUploadSessionInput = {
 type RequestOptions = {
   /** Stops the request when aborted. */
   signal?: AbortSignal;
-  /** node-fetch timeout of each attempt, in milliseconds. Defaults to 30 seconds. */
+  /** node-fetch timeout of each attempt, in milliseconds. */
   timeoutMs?: number;
-  /** Additional attempts for transient failures. Defaults to three except artifact creation; use zero for polling. */
+  /** Additional attempts for transient failures. Defaults to none; critical callers opt in. */
   retries?: number;
   logger?: bunyan;
 };
@@ -138,8 +138,7 @@ export class DeviceRunSessionWorkerApi {
       'POST',
       'artifact-upload-sessions',
       UploadSessionSchema,
-      // This route creates a new artifact row each time; replay needs server-side idempotency.
-      { retries: 0, ...options, json: input }
+      { ...options, json: input }
     );
     return uploadSession;
   }
@@ -195,13 +194,17 @@ export class DeviceRunSessionWorkerApi {
     method: 'GET' | 'POST',
     route: string,
     dataSchema: z.ZodType<T>,
-    { retries = 3, ...options }: RequestOptions & { json?: Record<string, unknown> }
+    { retries = 0, ...options }: RequestOptions & { json?: Record<string, unknown> }
   ): Promise<T> {
+    const request = () => {
+      options.signal?.throwIfAborted();
+      return this.requestOnceAsync(method, route, dataSchema, options);
+    };
+    if (retries === 0) {
+      return await request();
+    }
     return await promiseRetryWithCondition(
-      () => {
-        options.signal?.throwIfAborted();
-        return this.requestOnceAsync(method, route, dataSchema, options);
-      },
+      request,
       error =>
         !options.signal?.aborted &&
         error instanceof DeviceRunSessionWorkerApiError &&
@@ -220,7 +223,7 @@ export class DeviceRunSessionWorkerApi {
     dataSchema: z.ZodType<T>,
     {
       signal,
-      timeoutMs = 30_000,
+      timeoutMs,
       logger,
       json,
     }: Omit<RequestOptions, 'retries'> & {
