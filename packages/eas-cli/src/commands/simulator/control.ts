@@ -2,6 +2,8 @@ import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
+import * as tar from 'tar';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -45,7 +47,7 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
-    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control app.install ./MyApp.app',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
@@ -220,7 +222,7 @@ export default class SimulatorControl extends EasCommand {
   ): Promise<void> {
     const params = buildHostActionParams(action, entry, values);
     await assertHostActionOutputAsync(action, entry, outputPath);
-    const localFile = await findLocalUploadAsync(entry, params);
+    const localFile = await findLocalUploadAsync(action, entry, params);
 
     const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
     let uploadId: string | undefined;
@@ -251,6 +253,7 @@ export default class SimulatorControl extends EasCommand {
       if (uploadId && (!entry.keepUpload || !succeeded)) {
         await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
       }
+      await localFile?.cleanupAsync?.();
     }
 
     if (jsonFlag) {
@@ -271,9 +274,10 @@ export default class SimulatorControl extends EasCommand {
 }
 
 async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
+  action: string,
+  { upload: param, uploadWhen = {}, uploadArchive }: HostActionCatalogEntry,
   params: Record<string, unknown>
-): Promise<{ param: string; path: string } | null> {
+): Promise<{ param: string; path: string; cleanupAsync?: () => Promise<void> } | null> {
   const value = param ? params[param] : undefined;
   const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
   if (!param || typeof value !== 'string' || !applies) {
@@ -281,7 +285,38 @@ async function findLocalUploadAsync(
   }
   const stat = await fs.stat(value).catch(() => null);
   if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass the path of a file.`);
+    if (action !== 'app.install' || path.extname(path.resolve(value)) !== '.app') {
+      throw new Error(
+        `${value} is a folder. Pass the path of a file or an app.install .app bundle.`
+      );
+    }
+    if (uploadArchive !== 'tar.gz') {
+      throw new Error(
+        'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
+      );
+    }
+    const bundle = await fs.realpath(value);
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-simulator-app-'));
+    const archive = path.join(directory, 'app.tar.gz');
+    const cleanupAsync = async (): Promise<void> => {
+      await fs.remove(directory);
+    };
+    try {
+      await tar.create(
+        {
+          cwd: bundle,
+          file: archive,
+          prefix: path.basename(path.resolve(value)),
+          gzip: true,
+          portable: true,
+        },
+        ['.']
+      );
+      return { param, path: archive, cleanupAsync };
+    } catch (error) {
+      await cleanupAsync();
+      throw error;
+    }
   }
   if (!stat && !path.isAbsolute(value)) {
     throw new Error(
