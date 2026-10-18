@@ -1,0 +1,32 @@
+name: Guest metrics artifact
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - packages/build-tools/src/steps/utils/guestMetricsRecorder.ts
+      - .github/workflows/test-guest-metrics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-mise
+      - run: yarn install --immutable
+      - name: Compile standalone collector for hosted profiling
+        run: |
+          yarn exec tsc packages/build-tools/src/steps/utils/guestMetricsRecorder.ts --target es2022 --module commonjs --esModuleInterop --skipLibCheck --types node --outDir guest-metrics-artifact
+          git rev-parse HEAD > guest-metrics-artifact/source-commit.txt
+          sha256sum guest-metrics-artifact/guestMetricsRecorder.js > guest-metrics-artifact/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: guest-metrics
+          path: guest-metrics-artifact
+          retention-days: 7
