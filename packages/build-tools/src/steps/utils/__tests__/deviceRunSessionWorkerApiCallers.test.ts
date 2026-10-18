@@ -213,7 +213,7 @@ describe('with a device run session token', () => {
       '--turn-credential',
       'credential',
     ]);
-    expectWorkerApiCall('turn-ice-servers', 'POST', { timeout: 5000, retries: 1 });
+    expectWorkerApiCall('turn-ice-servers', 'POST', { timeout: 5000, retries: 0 });
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledTimes(1);
   });
 

@@ -554,8 +554,8 @@ describe(startAgentDeviceEventCollectionAsync, () => {
   it('does not fail the session when event log setup fails', async () => {
     const ctx = createContext({ realtimeLogs: true });
     jest.mocked(turtleFetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ errors: [{ message: 'WWW unavailable' }] }), {
-        status: 503,
+      new Response(JSON.stringify({ errors: [{ message: 'WWW refused' }] }), {
+        status: 403,
         headers: { 'content-type': 'application/json' },
       })
     );
@@ -575,8 +575,8 @@ describe(startAgentDeviceEventCollectionAsync, () => {
         err: expect.objectContaining({
           message:
             'Failed to create device run session event log upload session: ' +
-            'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
-            'WWW unavailable',
+            'POST /v2/device-run-session-worker/event-log-upload-session failed with status 403: ' +
+            'WWW refused',
           cause: expect.any(DeviceRunSessionWorkerApiError),
         }),
       },
@@ -587,8 +587,8 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       expect.objectContaining({
         message:
           'Failed to create device run session event log upload session: ' +
-          'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
-          'WWW unavailable',
+          'POST /v2/device-run-session-worker/event-log-upload-session failed with status 403: ' +
+          'WWW refused',
         cause: expect.any(DeviceRunSessionWorkerApiError),
       }),
       {

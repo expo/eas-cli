@@ -1762,7 +1762,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     durationTimeoutCallback();
     await waitPromise;
 
-    expect(workerApiCallCount('session')).toBe(1);
+    expect(workerApiCallCount('session')).toBe(0);
     expect(logger.info).toHaveBeenCalledWith(
       'Device run session drs-id reached its maximum duration.'
     );
@@ -1825,7 +1825,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     abortController.abort();
     await waitPromise;
 
-    expect(workerApiCallCount('session')).toBe(1);
+    expect(workerApiCallCount('session')).toBe(0);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
@@ -1982,11 +1982,11 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
-        stopError: new Error('forbidden'),
+        stopError: new Error('network down'),
       });
       const logger = createLoggerMock();
 
-      await waitForDeviceRunSessionStoppedAsync({
+      const waitPromise = waitForDeviceRunSessionStoppedAsync({
         ctx,
         deviceRunSessionId: 'drs-id',
         logger,
@@ -1996,7 +1996,10 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(workerApiCallCount('stop')).toBe(1);
+      await jest.runAllTimersAsync();
+      await waitPromise;
+
+      expect(workerApiCallCount('stop')).toBe(4);
       expect(logger.warn).toHaveBeenCalledWith(
         { err: expect.any(Error) },
         'Could not mark device run session drs-id as stopped. The session job ends anyway.'
