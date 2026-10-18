@@ -1,3 +1,4 @@
+import { SandboxDaemonError, SandboxDaemonErrorCode } from '@expo/eas-build-job';
 import * as pty from 'node-pty';
 import { type ChildProcess, spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -126,7 +127,10 @@ export class ShellSessionManager {
   private getSession(sessionId: number): CommandSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Command session ${sessionId} does not exist.`);
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `Command session ${sessionId} does not exist.`
+      );
     }
     return session;
   }
@@ -258,21 +262,33 @@ async function validateWorkingDirectoryAsync(workingDirectory: string): Promise<
     stats = await fs.stat(workingDirectory);
   } catch (error: any) {
     if (error?.code === 'ENOENT') {
-      throw new Error(`Working directory does not exist: ${workingDirectory}`);
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `Working directory does not exist: ${workingDirectory}`
+      );
     }
     if (error?.code === 'EACCES') {
-      throw new Error(`Working directory is not accessible: ${workingDirectory}`);
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `Working directory is not accessible: ${workingDirectory}`
+      );
     }
     throw error;
   }
   if (!stats.isDirectory()) {
-    throw new Error(`Working directory is not a directory: ${workingDirectory}`);
+    throw new SandboxDaemonError(
+      SandboxDaemonErrorCode.BAD_REQUEST,
+      `Working directory is not a directory: ${workingDirectory}`
+    );
   }
   try {
     await fs.access(workingDirectory, fs.constants.R_OK | fs.constants.X_OK);
   } catch (error: any) {
     if (error?.code === 'EACCES') {
-      throw new Error(`Working directory is not accessible: ${workingDirectory}`);
+      throw new SandboxDaemonError(
+        SandboxDaemonErrorCode.BAD_REQUEST,
+        `Working directory is not accessible: ${workingDirectory}`
+      );
     }
     throw error;
   }

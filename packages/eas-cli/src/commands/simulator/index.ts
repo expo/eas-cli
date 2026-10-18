@@ -8,7 +8,7 @@ import {
   isAnalyticsOptedOutAsync,
 } from '../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../analytics/agent';
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../commandUtils/errors';
@@ -31,6 +31,7 @@ import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
+import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -78,7 +79,7 @@ export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.';
 
   static override flags = {
     platform: Flags.option({
@@ -177,6 +178,16 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['egress'],
     }),
+    'cors-origin': Flags.string({
+      description:
+        'Origin of a page that may call the simulator preview API cross-origin, for example to render the device with @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview URL and its token.',
+      multiple: true,
+    }),
+    'frame-ancestor': Flags.string({
+      description:
+        'Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries the session token, so anyone who can read that page can also control the simulator.',
+      multiple: true,
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -188,6 +199,10 @@ export default class Simulator extends EasCommand {
       options: Object.values(OUT_CONFIG_TYPE_VALUES),
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
+    'public-link': Flags.boolean({
+      description:
+        'Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -282,6 +297,18 @@ export default class Simulator extends EasCommand {
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
+    let frameAncestors: string[] = [];
+    try {
+      frameAncestors = parseFrameAncestorList(flags['frame-ancestor'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    let corsOrigins: string[] = [];
+    try {
+      corsOrigins = parseCorsOriginList(flags['cors-origin'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
     if (flags['network-capture'] && platform !== AppPlatform.Ios) {
       throw new EasCommandError(
         'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
@@ -310,6 +337,7 @@ export default class Simulator extends EasCommand {
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
+    let deviceRunSessionPreviewUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
       const agentIdentity = await agentIdentityInputAsync();
@@ -334,6 +362,7 @@ export default class Simulator extends EasCommand {
             ...(tags?.length ? { tags } : {}),
             platform,
             type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+            publicPreview: flags['public-link'] ?? false,
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
@@ -352,15 +381,24 @@ export default class Simulator extends EasCommand {
             ...(openUrl ? { openUrl } : {}),
             ...(resourceClass ? { resourceClass } : {}),
             ...(egress ? { egress } : {}),
+            ...(frameAncestors.length ? { frameAncestors } : {}),
+            ...(corsOrigins.length ? { corsOrigins } : {}),
             requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
             ...agentIdentity,
             maxRunTimeMinutes: flags['max-duration-minutes'],
             maxIdleTimeMinutes: flags['max-idle-time-minutes'],
-          })
+          }),
+        createdSession =>
+          stopDeviceRunSessionCreatedAfterCancelAsync(graphqlClient, createdSession.id)
       );
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
       deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        deviceRunSessionId
+      );
+      deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
         session.app.ownerAccount.name,
         session.app.slug,
         deviceRunSessionId
@@ -494,7 +532,12 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
+        remoteConfig: sanitizeRemoteConfigForJson(
+          remoteConfig,
+          deviceRunSessionPreviewUrl,
+          flags['public-link'],
+          { frameAncestors, corsOrigins }
+        ),
       });
       return;
     }
@@ -505,6 +548,10 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        privatePreviewUrl: deviceRunSessionPreviewUrl,
+        publicLink: flags['public-link'],
+        frameAncestors,
+        corsOrigins,
         platform,
       })
     );
@@ -762,6 +809,23 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   process.exit(130);
 }
 
+async function stopDeviceRunSessionCreatedAfterCancelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string
+): Promise<void> {
+  const spinner = ora(
+    `Stopping simulator session ${deviceRunSessionId}, which the request created after Ctrl+C`
+  ).start();
+  const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+  if (stopped) {
+    spinner.succeed(`Simulator session ${deviceRunSessionId} stopped`);
+  } else {
+    spinner.fail(
+      `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+  }
+}
+
 async function resetSimulatorEnvVerboseAsync(
   projectDir: string,
   deviceRunSessionId: string
@@ -801,31 +865,52 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
  */
 const CANCEL_FLUSH_TIMEOUT_MS = 1_000;
 
+/**
+ * How long Ctrl+C then waits for the create request. The server can still create the session after
+ * the client stops waiting, and nothing else stops that session before its maximum duration.
+ */
+const CANCEL_CREATE_WAIT_MS = 5_000;
+
+const SESSION_MAY_BE_RUNNING_WARNING =
+  'A simulator session may still be running. Run `eas simulator:list` to check for a running session, and `eas simulator:stop --id <id>` to stop it.';
+
 class SimulatorRequestCancelledError extends Error {}
 
 /**
  * Runs the create request and logs the client-side funnel events around it: "request sent" before
  * it leaves, "request cancelled" on Ctrl+C before an answer, and "request failed" when no answer
- * arrives. Ctrl+C stops the spinner, flushes analytics, and exits with 130, like the session's own
- * Ctrl+C handler: going through the command's error handling would print the exit as an error and
- * report it to Sentry.
+ * arrives. "Request cancelled" means the client stopped waiting; the server can still create the
+ * session. So Ctrl+C stops the spinner, flushes analytics, and waits a bounded time for the
+ * request: a session that comes back goes to `stopCreatedAsync`, and otherwise the user is told how
+ * to check for one. Then it exits with 130, like the session's own Ctrl+C handler: going through
+ * the command's error handling would print the exit as an error and report it to Sentry. A second
+ * Ctrl+C exits at once.
  */
 async function withSimulatorRequestAnalyticsAsync<T>(
   analytics: AnalyticsWithOrchestration,
   properties: AnalyticsEventProperties,
   spinner: Ora,
-  createAsync: () => Promise<T>
+  createAsync: () => Promise<T>,
+  stopCreatedAsync: (created: T) => Promise<void>
 ): Promise<T> {
+  let cancelRequested = false;
   let onSigint: (() => void) | undefined;
   const cancelled = new Promise<never>((_, reject) => {
     onSigint = () => {
+      if (cancelRequested) {
+        Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
+        process.exit(130);
+      }
+      cancelRequested = true;
       reject(new SimulatorRequestCancelledError());
     };
   });
-  process.once('SIGINT', onSigint!);
+  process.on('SIGINT', onSigint!);
   analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
+  let createPromise: Promise<T> | undefined;
   try {
-    return await Promise.race([createAsync(), cancelled]);
+    createPromise = createAsync();
+    return await Promise.race([createPromise, cancelled]);
   } catch (error) {
     if (error instanceof SimulatorRequestCancelledError) {
       analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
@@ -836,6 +921,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
         sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
       ]);
       flushTimeout.abort();
+      await stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync);
       process.exit(130);
     }
     const reason = simulatorRequestFailureReason(error);
@@ -845,6 +931,33 @@ async function withSimulatorRequestAnalyticsAsync<T>(
     throw error;
   } finally {
     process.removeListener('SIGINT', onSigint!);
+  }
+}
+
+async function stopSessionCreatedAfterCancelAsync<T>(
+  createPromise: Promise<T> | undefined,
+  stopCreatedAsync: (created: T) => Promise<void>
+): Promise<void> {
+  if (!createPromise) {
+    // Ctrl+C came before the request was sent, so no session can have been created.
+    return;
+  }
+  Log.log(
+    `Waiting up to ${CANCEL_CREATE_WAIT_MS / 1_000} seconds for the request to finish, so a session it created can be stopped. Press Ctrl+C again to exit now.`
+  );
+  const waitTimeout = new AbortController();
+  const created = await Promise.race([
+    createPromise.then(
+      value => ({ value }),
+      () => undefined
+    ),
+    sleepAsync(CANCEL_CREATE_WAIT_MS, waitTimeout.signal).then(() => undefined),
+  ]);
+  waitTimeout.abort();
+  if (created) {
+    await stopCreatedAsync(created.value);
+  } else {
+    Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
   }
 }
 

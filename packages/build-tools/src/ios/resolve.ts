@@ -15,10 +15,10 @@ export function resolveScheme(ctx: BuildContext<Ios.Job>): string {
   return schemes[0];
 }
 
-export function resolveArtifactPath(ctx: BuildContext<Ios.Job>): string {
-  if (ctx.job.applicationArchivePath) {
-    return ctx.job.applicationArchivePath;
-  } else if (ctx.job.simulator) {
+export function resolveArtifactPath(job: Ios.Job): string {
+  if (job.applicationArchivePath) {
+    return job.applicationArchivePath;
+  } else if (job.simulator) {
     return 'ios/build/Build/Products/*simulator/*.app';
   } else {
     return 'ios/build/*.ipa';

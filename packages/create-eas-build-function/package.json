@@ -1,6 +1,6 @@
 {
   "name": "create-eas-build-function",
-  "version": "24.9.0",
+  "version": "25.2.0",
   "description": "Create functions for use in EAS Build custom builds.",
   "keywords": [
     "expo",
@@ -35,13 +35,13 @@
     "clean": "rimraf ./build/ \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/steps": "24.9.0"
+    "@expo/steps": "25.2.0"
   },
   "devDependencies": {
     "@expo/package-manager": "1.9.10",
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
-    "@types/node": "20.19.43",
+    "@types/node": "22.20.5",
     "@types/prompts": "^2.4.9",
     "@vercel/ncc": "^0.38.1",
     "arg": "^5.0.2",

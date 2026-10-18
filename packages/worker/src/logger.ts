@@ -1,5 +1,5 @@
 import { HttpLogStream, LogBuffer, RemoteLoggerStream } from '@expo/build-tools';
-import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
+import { BuildPhase, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
@@ -23,7 +23,10 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   public writable: boolean = true;
   public buffer: CachedLog[] = [];
 
-  constructor(private readonly numberOfLines: number) {
+  constructor(
+    private readonly numberOfLines: number,
+    private readonly secretPatterns: ReadonlySet<string>
+  ) {
     super();
   }
 
@@ -43,7 +46,7 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
     if (this.buffer.length >= this.numberOfLines) {
       this.buffer.shift();
     }
-    this.buffer.push({ msg: rec.msg, phase: rec.phase });
+    this.buffer.push({ msg: maskSecrets(rec.msg, this.secretPatterns), phase: rec.phase });
     return true;
   }
 
@@ -56,13 +59,7 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   }
 }
 
-function createTransformStream(secrets: EnvironmentSecret[]): Transform {
-  const secretValues = secrets.map(({ value }) => value);
-  const secretList: string[] = [
-    ...secretValues,
-    ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
-  ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
-
+function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
@@ -79,19 +76,29 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
       }
 
       if (chunk && typeof chunk === 'object' && chunk.msg) {
-        const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
-          return acc.replaceAll(pattern, '*'.repeat(pattern.length));
-        }, chunk.msg as string);
-
         callback(null, {
           ...chunk,
-          msg: msgWithoutSecrets,
+          msg: maskSecrets(chunk.msg as string, secretPatterns),
         });
       } else {
         callback(null, chunk);
       }
     },
   });
+}
+
+function maskSecrets(message: string, secrets: Iterable<string>): string {
+  const characters = message.split('');
+  for (const secret of secrets) {
+    for (
+      let start = message.indexOf(secret);
+      start !== -1;
+      start = message.indexOf(secret, start + 1)
+    ) {
+      characters.fill('*', start, start + secret.length);
+    }
+  }
+  return characters.join('');
 }
 
 function createDiscardStream(): Writable {
@@ -105,13 +112,26 @@ function createDiscardStream(): Writable {
 
 export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
+  addBuildLogMask: (secret: string) => void;
   cleanUp: () => Promise<void>;
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
 }> {
   const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
 
-  const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
+  const secretPatterns = new Set<string>();
+  const addBuildLogMask = (secret: string): void => {
+    for (const pattern of [secret, maybeStringBase64Decode(secret)]) {
+      if (pattern && pattern.length > 1 && !simpleSecretsWhitelist.includes(pattern)) {
+        secretPatterns.add(pattern);
+      }
+    }
+  };
+  for (const { value } of secrets?.environmentSecrets ?? []) {
+    addBuildLogMask(value);
+  }
+
+  const transformStream = createTransformStream(secretPatterns);
   const discardStream = createDiscardStream();
   transformStream.pipe(discardStream);
 
@@ -136,7 +156,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
     await remoteLoggerStream.init();
   }
 
-  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
+  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER, secretPatterns);
   buildLogger.addStream({
     type: 'raw',
     stream: logBuffer,
@@ -161,6 +181,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
 
   return {
     logger: buildLogger,
+    addBuildLogMask,
     cleanUp: async () => {
       await Promise.all([remoteLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
