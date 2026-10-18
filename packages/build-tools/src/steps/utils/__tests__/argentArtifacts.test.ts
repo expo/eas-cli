@@ -124,8 +124,8 @@ describe(uploadArgentArtifactAsync, () => {
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadArgentArtifactAsync(ctx, {
@@ -151,7 +151,7 @@ describe(uploadArgentArtifactAsync, () => {
       filename: 'report.json',
       kind: undefined,
       size: data.length,
-      stream: expect.anything(),
+      openStream: expect.any(Function),
     });
   });
 
@@ -168,8 +168,8 @@ describe(uploadArgentArtifactAsync, () => {
       .mockResolvedValueOnce(new Response(Readable.from([Buffer.from('artifact-data')])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementationOnce(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     await uploadArgentArtifactAsync(ctx, {
@@ -345,8 +345,8 @@ describe(pollArgentArtifactsForUploadAsync, () => {
     });
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
-      .mockImplementation(async (_ctx, { stream }) => {
-        await readStreamAsync(stream);
+      .mockImplementation(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
       });
 
     const pollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
@@ -371,7 +371,7 @@ describe(pollArgentArtifactsForUploadAsync, () => {
       name: 'b.json (artifact-b)',
       filename: 'b.json',
       size: 'artifact-b-data'.length,
-      stream: expect.anything(),
+      openStream: expect.any(Function),
     });
   });
 

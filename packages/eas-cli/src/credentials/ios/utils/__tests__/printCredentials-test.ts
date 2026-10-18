@@ -2,6 +2,7 @@ import mockdate from 'mockdate';
 import nullthrows from 'nullthrows';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
@@ -30,7 +31,7 @@ describe('print credentials', () => {
       account: {
         id: 'account-id',
         name: 'quinlanj',
-        viewerUserPermission: { role: Role.Owner },
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       },
       projectName: 'test52',
     };
@@ -62,7 +63,7 @@ describe('print credentials', () => {
       account: {
         id: 'account-id',
         name: 'quinlanj',
-        viewerUserPermission: { role: Role.Owner },
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       },
       projectName: 'test52',
     };

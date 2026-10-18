@@ -1,10 +1,9 @@
 import { UserRole } from '@expo/apple-utils';
 import fs from 'fs-extra';
 
-import env from '../../../../env';
 import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../../../../log';
-import { promptAsync, selectAsync } from '../../../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testAscApiKey } from '../../../__tests__/fixtures-ios';
@@ -47,6 +46,7 @@ function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
 afterEach(() => {
   jest.mocked(promptAsync).mockClear();
   jest.mocked(selectAsync).mockClear();
+  jest.mocked(confirmAsync).mockClear();
   jest.mocked(getCredentialsFromUserAsync).mockClear();
   jest.mocked(shouldAutoGenerateCredentialsAsync).mockClear();
   jest.mocked(fs.readFile).mockClear();
@@ -85,13 +85,6 @@ describe(getAscApiKeyName, () => {
 });
 
 describe(promptForAscApiKeyPathAsync, () => {
-  beforeEach(() => {
-    env.enableIndividualAscApiKeys = '1';
-  });
-  afterEach(() => {
-    env.enableIndividualAscApiKeys = undefined;
-  });
-
   it('prompts for keyId, keyP8Path and issuerId when user is not authenticated to Apple', async () => {
     jest.mocked(selectAsync).mockResolvedValueOnce(false); // team key
     jest.mocked(promptAsync).mockImplementationOnce(async () => ({
@@ -208,35 +201,6 @@ describe(promptForAscApiKeyPathAsync, () => {
     });
     expect(selectAsync).not.toHaveBeenCalled();
   });
-  it('does not ask the key type in the submission flow when individual keys are not enabled', async () => {
-    env.enableIndividualAscApiKeys = undefined;
-    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
-      keyP8Path: '/asc-api-key.p8',
-    }));
-    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
-      keyId: 'test-key-id',
-      issuerId: 'test-issuer-id',
-    }));
-    const ctx = createCtxMock({
-      nonInteractive: false,
-      appStore: {
-        ...getAppstoreMock(),
-        authCtx: null,
-      },
-    });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
-      ctx,
-      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-    );
-    expect(ascApiKeyPath).toEqual({
-      keyId: 'test-key-id',
-      issuerId: 'test-issuer-id',
-      keyP8Path: '/asc-api-key.p8',
-    });
-    expect(selectAsync).not.toHaveBeenCalled();
-    expect(promptAsync).toHaveBeenCalledTimes(1); // keyP8Path
-    expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(2); // keyId, issuerId
-  });
 });
 
 describe(provideOrGenerateAscApiKeyAsync, () => {
@@ -317,6 +281,39 @@ describe(provideOrGenerateAscApiKeyAsync, () => {
     });
     expect(selectAsync).not.toHaveBeenCalled();
     expect(createAscApiKeyAsync).not.toHaveBeenCalled();
+  });
+
+  it('accepts a user-provided individual key without validating it on Apple servers', async () => {
+    const logWarnSpy = jest.spyOn(Log, 'warn').mockImplementation(() => {});
+    jest.mocked(shouldAutoGenerateCredentialsAsync).mockResolvedValue(false);
+    jest.mocked(selectAsync).mockResolvedValueOnce(true); // individual key
+    jest.mocked(promptAsync).mockResolvedValue({ keyP8Path: '/asc-api-key.p8' });
+    jest.mocked(fs.readFile).mockImplementation(async () => 'test-key-p8' as any);
+    jest.mocked(getCredentialsFromUserAsync).mockResolvedValueOnce({ keyId: 'test-key-id' });
+
+    const getAscApiKeyAsync = jest.fn(async () => null);
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        getAscApiKeyAsync,
+      },
+    });
+
+    try {
+      const result = await provideOrGenerateAscApiKeyAsync(
+        ctx,
+        AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+      );
+
+      expect(result).toEqual({ keyP8: 'test-key-p8', keyId: 'test-key-id' });
+      expect(getAscApiKeyAsync).not.toHaveBeenCalled();
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(logWarnSpy).not.toHaveBeenCalled();
+    } finally {
+      logWarnSpy.mockRestore();
+    }
   });
 });
 

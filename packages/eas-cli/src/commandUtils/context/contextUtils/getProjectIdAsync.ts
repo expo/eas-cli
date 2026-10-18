@@ -8,10 +8,7 @@ import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
-import {
-  getAccountChoices,
-  getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
-} from '../../../project/accountSelection';
+import { getAccountChoices } from '../../../project/accountSelection';
 import {
   createOrModifyExpoConfigAsync,
   getPrivateExpoConfigAsync,
@@ -245,10 +242,7 @@ async function chooseAccountNameForEASProjectAsync(
     throw getUnconfiguredProjectError({ actor });
   }
 
-  const choices = getAccountChoices(
-    actor,
-    getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(actor)
-  );
+  const choices = getAccountChoices(actor);
 
   return (
     await promptAsync({

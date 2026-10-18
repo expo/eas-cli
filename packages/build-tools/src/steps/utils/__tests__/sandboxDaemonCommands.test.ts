@@ -3,8 +3,12 @@ jest.unmock('fs/promises');
 jest.unmock('node:fs');
 jest.unmock('node:fs/promises');
 
-import { type SandboxDaemonCommandResult, type SandboxDaemonMethod } from '@expo/eas-build-job';
-import fs from 'node:fs/promises';
+import { type SandboxDaemonCommandResult, SandboxDaemonErrorCode } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
+import { type Client } from '@urql/core';
+import fetch from 'node-fetch';
+import { readFileSync, statSync } from 'node:fs';
+import fs, { type FileHandle } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,18 +20,34 @@ import {
   createSandboxCommandImplementations,
 } from '../sandboxCommandImplementations';
 
+const READ_FILE_LIMITS = { maxTextBytes: 40_000, maxImageBytes: 3_000_000 };
+const FIXTURES_DIRECTORY = path.join(__dirname, 'fixtures');
+
+const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+const ARTIFACT_ID = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
+
 describe('sandbox daemon commands', () => {
   let commandImplementations: SandboxDaemonCommandImplementations;
   let stopAsync: () => Promise<void>;
   let workingDirectory: string;
+  let mutation: jest.Mock;
+  let graphqlClient: Client;
+  let logger: bunyan;
 
   beforeEach(async () => {
     workingDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'sandbox-command-executor-'));
+    mutation = jest.fn();
+    graphqlClient = { mutation } as unknown as Client;
+    logger = { info: jest.fn(), error: jest.fn() } as unknown as bunyan;
     const controller = new AbortController();
     const commands = createSandboxCommandImplementations({
       workingDirectory,
       env: process.env,
       signal: controller.signal,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
+      logger,
     });
     commandImplementations = commands.commandImplementations;
     stopAsync = async () => {
@@ -55,6 +75,9 @@ describe('sandbox daemon commands', () => {
       workingDirectory,
       env: process.env,
       signal: controller.signal,
+      graphqlClient,
+      sandboxId: 'sandbox-id',
+      logger,
     });
     const command = commands.commandImplementations.execCommand({ cmd: 'printf should-not-run' });
     controller.abort();
@@ -194,9 +217,10 @@ describe('sandbox daemon commands', () => {
   it('reports a missing working directory', async () => {
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'missing' })
-    ).rejects.toThrow(
-      `Working directory does not exist: ${path.join(workingDirectory, 'missing')}`
-    );
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory does not exist: ${path.join(workingDirectory, 'missing')}`,
+    });
   });
 
   it('reports a working directory that is not a directory', async () => {
@@ -205,7 +229,10 @@ describe('sandbox daemon commands', () => {
 
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'file' })
-    ).rejects.toThrow(`Working directory is not a directory: ${file}`);
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory is not a directory: ${file}`,
+    });
   });
 
   it('reports an inaccessible working directory', async () => {
@@ -217,7 +244,10 @@ describe('sandbox daemon commands', () => {
 
     await expect(
       commandImplementations.execCommand({ cmd: 'true', workdir: 'inaccessible' })
-    ).rejects.toThrow(`Working directory is not accessible: ${directory}`);
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: `Working directory is not accessible: ${directory}`,
+    });
 
     await fs.chmod(directory, 0o700);
   });
@@ -237,10 +267,226 @@ describe('sandbox daemon commands', () => {
 
     expect(isProcessRunning(childPid)).toBe(false);
   });
+  describe('readFile', () => {
+    let readLengths: number[];
+
+    beforeEach(() => {
+      readLengths = [];
+      const open = fs.open;
+      jest.spyOn(fs, 'open').mockImplementation(async (...args) => {
+        const file = await open(...args);
+        const read = file.read.bind(file);
+        file.read = ((buffer: Buffer, offset: number, length: number, position: number) => {
+          readLengths.push(length);
+          return read(buffer, offset, length, position);
+        }) as FileHandle['read'];
+        return file;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    async function readAsync(
+      contents: Buffer | string,
+      limits: Partial<typeof READ_FILE_LIMITS> = {}
+    ) {
+      await fs.writeFile(path.join(workingDirectory, 'file'), contents);
+      return await commandImplementations.readFile({
+        path: 'file',
+        ...READ_FILE_LIMITS,
+        ...limits,
+      });
+    }
+
+    async function readFixtureAsync(name: string, limits: Partial<typeof READ_FILE_LIMITS> = {}) {
+      return await commandImplementations.readFile({
+        path: path.join(FIXTURES_DIRECTORY, name),
+        ...READ_FILE_LIMITS,
+        ...limits,
+      });
+    }
+
+    it.each([
+      ['leiothrix.png', 'image/png'],
+      ['sparrow.jpg', 'image/jpeg'],
+      ['robin.gif', 'image/gif'],
+      ['chat.webp', 'image/webp'],
+    ])('returns %s as an %s image with its data', async (name, mimeType) => {
+      const contents = readFileSync(path.join(FIXTURES_DIRECTORY, name));
+
+      expect(await readFixtureAsync(name)).toEqual({
+        kind: 'image',
+        mimeType,
+        data: contents.toString('base64'),
+      });
+      expect(readLengths).toEqual([12, contents.length]);
+    });
+
+    it('detects an image by its content instead of its extension', async () => {
+      await fs.copyFile(
+        path.join(FIXTURES_DIRECTORY, 'leiothrix.png'),
+        path.join(workingDirectory, 'screenshot.txt')
+      );
+
+      expect(
+        await commandImplementations.readFile({ path: 'screenshot.txt', ...READ_FILE_LIMITS })
+      ).toMatchObject({ kind: 'image', mimeType: 'image/png' });
+    });
+
+    it('reports an image over the byte limit after reading only its header', async () => {
+      const { size } = statSync(path.join(FIXTURES_DIRECTORY, 'leiothrix.png'));
+
+      expect(await readFixtureAsync('leiothrix.png', { maxImageBytes: size - 1 })).toEqual({
+        kind: 'image',
+        mimeType: 'image/png',
+        size,
+        error: 'tooLarge',
+      });
+      expect(readLengths).toEqual([12]);
+    });
+
+    it('returns a text file within the limit in full', async () => {
+      expect(await readFixtureAsync('birds.txt')).toEqual({
+        kind: 'text',
+        text: 'Robin, sparrow, leiothrix and chat\nZażółć gęślą jaźń\n€ 🐦\n',
+        truncated: false,
+        size: 71,
+      });
+    });
+
+    it('reads no more text than the limit without splitting a character', async () => {
+      expect(await readFixtureAsync('birds.txt', { maxTextBytes: 38 })).toEqual({
+        kind: 'text',
+        text: 'Robin, sparrow, leiothrix and chat\nZa',
+        truncated: true,
+        size: 71,
+      });
+      expect(readLengths).toEqual([12, 38]);
+    });
+
+    it.each([
+      ['invalid UTF-8', Buffer.from([0x61, 0x80, 0x62])],
+      ['an incomplete final character', Buffer.from([0x61, 0xe2, 0x82])],
+    ])('reports a file with %s as binary', async (_, contents) => {
+      expect(await readAsync(contents)).toEqual({ kind: 'binary', size: 3 });
+    });
+
+    it('reports a missing file', async () => {
+      await expect(
+        commandImplementations.readFile({ path: 'missing', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `File does not exist: ${path.join(workingDirectory, 'missing')}`,
+      });
+    });
+
+    it('reports an inaccessible file', async () => {
+      const file = path.join(workingDirectory, 'inaccessible');
+      await fs.writeFile(file, 'content', { mode: 0o000 });
+
+      await expect(
+        commandImplementations.readFile({ path: 'inaccessible', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `File is not accessible: ${file}`,
+      });
+    });
+
+    it('rejects a directory', async () => {
+      const directory = path.join(workingDirectory, 'directory');
+      await fs.mkdir(directory);
+
+      await expect(
+        commandImplementations.readFile({ path: 'directory', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `${directory} is not a regular file.`,
+      });
+    });
+
+    it('rejects a FIFO without waiting for a writer', async () => {
+      const fifo = path.join(workingDirectory, 'fifo');
+      expect(spawnSync('mkfifo', [fifo]).status).toBe(0);
+
+      await expect(
+        commandImplementations.readFile({ path: 'fifo', ...READ_FILE_LIMITS })
+      ).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `${fifo} is not a regular file.`,
+      });
+    });
+  });
+
+  it('rejects a directory with a hint to upload an archive', async () => {
+    await fs.mkdir(path.join(workingDirectory, 'dist'));
+
+    await expect(
+      commandImplementations.uploadArtifact({ path: 'dist', name: 'Build output' })
+    ).rejects.toMatchObject({
+      code: SandboxDaemonErrorCode.BAD_REQUEST,
+      message: expect.stringContaining(
+        `${path.join(workingDirectory, 'dist')} is not a regular file. To upload a directory, create an archive first`
+      ),
+    });
+    expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it('uploads an artifact from a path relative to the working directory and waits for it by default', async () => {
+    await fs.mkdir(path.join(workingDirectory, 'logs'));
+    await fs.writeFile(path.join(workingDirectory, 'logs', 'crash.log'), 'crash');
+    mutation
+      .mockReturnValueOnce({
+        toPromise: async () => ({
+          data: {
+            sandbox: {
+              createArtifactUploadSession: {
+                artifact: { id: ARTIFACT_ID },
+                uploadSession: { url: 'https://uploads.expo.test/artifact', headers: {} },
+              },
+            },
+          },
+        }),
+      })
+      .mockReturnValueOnce({
+        toPromise: async () => ({
+          data: {
+            sandbox: {
+              finalizeArtifact: {
+                id: ARTIFACT_ID,
+                downloadUrl: 'https://downloads.expo.test/artifact',
+              },
+            },
+          },
+        }),
+      });
+    jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const result = await commandImplementations.uploadArtifact({
+      path: 'logs/crash.log',
+      name: 'Crash log',
+    });
+
+    expect(result).toEqual({
+      id: ARTIFACT_ID,
+      status: 'uploaded',
+      downloadUrl: 'https://downloads.expo.test/artifact',
+    });
+    expect(mutation).toHaveBeenCalledWith(
+      expect.anything(),
+      { sandboxId: 'sandbox-id', input: { name: 'Crash log', filename: 'crash.log', size: 5 } },
+      expect.anything()
+    );
+  });
+
   async function readUntilAsync(
-    initial: SandboxDaemonCommandResult<SandboxDaemonMethod>,
-    isReady: (output: string, result: SandboxDaemonCommandResult<SandboxDaemonMethod>) => boolean
-  ): Promise<SandboxDaemonCommandResult<SandboxDaemonMethod>> {
+    initial: SandboxDaemonCommandResult<'execCommand' | 'writeStdin'>,
+    isReady: (
+      output: string,
+      result: SandboxDaemonCommandResult<'execCommand' | 'writeStdin'>
+    ) => boolean
+  ): Promise<SandboxDaemonCommandResult<'execCommand' | 'writeStdin'>> {
     let result = initial;
     let output = result.output;
     const deadline = Date.now() + 10_000;

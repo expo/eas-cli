@@ -1,0 +1,293 @@
+import nock from 'nock';
+import { generateKeyPairSync } from 'node:crypto';
+import { ZodError } from 'zod';
+
+import { GooglePlayClient } from '../GooglePlayClient';
+import { createMockLogger } from '../../../../__tests__/utils/logger';
+
+const packageName = 'dev.expo.submitfixture';
+const editPath = `/androidpublisher/v3/applications/${packageName}/edits/edit`;
+const api = (): nock.Scope =>
+  nock('https://androidpublisher.googleapis.com', {
+    reqheaders: { authorization: 'Bearer test-access-token' },
+  });
+
+jest.unmock('node-fetch');
+jest.mock('promise-retry', () => {
+  const actual = jest.requireActual('promise-retry');
+  return (fn: Parameters<typeof actual>[0], options: object) =>
+    actual(fn, { ...options, minTimeout: 1, maxTimeout: 1, randomize: false });
+});
+
+const serviceAccount = {
+  client_email: 'test@example.iam.gserviceaccount.com',
+  private_key: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey,
+};
+let client: GooglePlayClient;
+beforeEach(() => {
+  nock.disableNetConnect();
+  client = new GooglePlayClient(serviceAccount);
+  nock('https://oauth2.googleapis.com')
+    .post('/token')
+    .optionally()
+    .reply(200, { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' });
+});
+afterEach(() => {
+  const pending = nock.pendingMocks();
+  nock.cleanAll();
+  nock.enableNetConnect();
+  jest.restoreAllMocks();
+  expect(pending).toEqual([]);
+});
+
+it('creates an edit and validates the response', async () => {
+  api().post(`/androidpublisher/v3/applications/${packageName}/edits`, {}).reply(200, {
+    id: 'edit',
+    expiryTimeSeconds: '1234567890',
+  });
+  await expect(
+    client.postAsync(
+      '/androidpublisher/v3/applications/:packageName/edits',
+      {},
+      {
+        packageName,
+      }
+    )
+  ).resolves.toEqual({ id: 'edit', expiryTimeSeconds: '1234567890' });
+});
+
+it('encodes track path parameters and validates track responses', async () => {
+  api().get(`${editPath}/tracks/wear%3Aproduction`).reply(200, { track: 'wear:production' });
+  await expect(
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track', {
+      packageName,
+      editId: 'edit',
+      track: 'wear:production',
+    })
+  ).resolves.toEqual({ track: 'wear:production' });
+});
+
+it('rejects invalid rollout requests before sending them', async () => {
+  await expect(
+    client.putAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
+      {
+        track: 'production',
+        releases: [{ versionCodes: ['123'], status: 'inProgress', userFraction: 1 }],
+      },
+      { packageName, editId: 'edit', track: 'production' }
+    )
+  ).rejects.toBeInstanceOf(ZodError);
+});
+
+it('keeps the outcome unknown when a lost commit response is followed by an invalid edit', async () => {
+  api()
+    .post(`${editPath}:commit`, {})
+    .query({ changesNotSentForReview: false })
+    .replyWithError(Object.assign(new Error('Lost response'), { code: 'ECONNRESET' }));
+  api().post(`${editPath}:commit`, {}).query({ changesNotSentForReview: false }).reply(404);
+  await expect(
+    client.postAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId:commit',
+      {},
+      { packageName, editId: 'edit' },
+      { query: { changesNotSentForReview: false } }
+    )
+  ).rejects.toMatchObject({
+    errors: [expect.any(Error), expect.objectContaining({ status: 404 })],
+  });
+});
+
+it.each([408, 429, 500, 503])('stops after five retries for HTTP %s', async status => {
+  api().get(editPath).times(6).reply(status);
+  await expect(
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toMatchObject({
+    cause: expect.objectContaining({ status }),
+    errors: expect.arrayContaining([expect.objectContaining({ status })]),
+  });
+});
+
+it('retries the same track update body after a temporary error', async () => {
+  const body = {
+    track: 'internal',
+    releases: [{ versionCodes: ['123'], status: 'draft' as const }],
+  };
+  api().put(`${editPath}/tracks/internal`, body).reply(503);
+  api().put(`${editPath}/tracks/internal`, body).reply(200, { track: 'internal' });
+  await expect(
+    client.putAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId/tracks/:track',
+      body,
+      { packageName, editId: 'edit', track: 'internal' }
+    )
+  ).resolves.toEqual({ track: 'internal' });
+});
+
+it('does not add retries to upload-session requests', async () => {
+  api().post('/upload/session').reply(503);
+  await expect(client.requestAsync('POST', '/upload/session')).rejects.toMatchObject({
+    status: 503,
+  });
+});
+
+it('stops retrying when cancelled after a transient response', async () => {
+  const controller = new AbortController();
+  api()
+    .get(editPath)
+    .reply(() => {
+      controller.abort();
+      return [503];
+    });
+  await expect(
+    client.getAsync(
+      '/androidpublisher/v3/applications/:packageName/edits/:editId',
+      { packageName, editId: 'edit' },
+      controller.signal
+    )
+  ).rejects.toBeDefined();
+});
+
+it('deletes an edit with an empty response', async () => {
+  api().delete(editPath).reply(204);
+  await expect(
+    client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).resolves.toBeUndefined();
+});
+
+it('reports a retry even when the next request succeeds', async () => {
+  const logger = createMockLogger();
+  client = new GooglePlayClient(serviceAccount, logger);
+  api().get(editPath).reply(503);
+  api().get(editPath).reply(200, { id: 'edit' });
+  await client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+    packageName,
+    editId: 'edit',
+  });
+  expect(logger.warn).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'Retrying Google Play request (HTTP 503, attempt 2/6)...'
+  );
+});
+
+it('accepts a missing edit after a lost delete response', async () => {
+  api()
+    .delete(editPath)
+    .replyWithError(Object.assign(new Error('Lost response'), { code: 'ECONNRESET' }));
+  api().delete(editPath).reply(404);
+  await expect(
+    client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).resolves.toBeUndefined();
+});
+
+it('retains an initial delete rejection', async () => {
+  api().delete(editPath).reply(404);
+  await expect(
+    client.deleteAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toMatchObject({ status: 404 });
+});
+
+it('rejects malformed success responses without exposing their contents', async () => {
+  api()
+    .get(editPath)
+    .reply(200, { id: 'edit', expiryTimeSeconds: { secret: 'PRIVATE' } });
+  await expect(
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toThrow('Malformed response from Google Play (HTTP 200)');
+});
+
+it('retains structured API errors', async () => {
+  api()
+    .get(editPath)
+    .reply(403, { error: { message: 'Denied', errors: [{ reason: 'forbidden' }] } });
+  await expect(
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    })
+  ).rejects.toMatchObject({ status: 403, apiMessage: 'Denied', reasons: ['forbidden'] });
+});
+
+it.each(['CERT_HAS_EXPIRED', 'EPROTO', 'EACCES', undefined])(
+  'does not retry a system error with code %s',
+  async code => {
+    const logger = createMockLogger();
+    client = new GooglePlayClient(serviceAccount, logger);
+    api()
+      .get(editPath)
+      .replyWithError(Object.assign(new Error('Request failed'), { code }));
+    await expect(
+      client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+        packageName,
+        editId: 'edit',
+      })
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({ type: 'system' }),
+    });
+    expect(logger.warn).not.toHaveBeenCalled();
+  }
+);
+
+it.each(['EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'UND_ERR_SOCKET'])(
+  'retries a recognised network error %s',
+  async code => {
+    api()
+      .get(editPath)
+      .replyWithError(Object.assign(new Error('Request failed'), { code }));
+    api().get(editPath).reply(200, { id: 'edit' });
+    await expect(
+      client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+        packageName,
+        editId: 'edit',
+      })
+    ).resolves.toEqual({ id: 'edit' });
+  }
+);
+
+it.each(['body', 'query'])('accepts extra fields in an empty %s object', async field => {
+  api()
+    .post(`/androidpublisher/v3/applications/${packageName}/edits`, {})
+    .reply(200, { id: 'edit' });
+  await expect(
+    client.postAsync(
+      '/androidpublisher/v3/applications/:packageName/edits',
+      (field === 'body' ? { unexpected: true } : {}) as never,
+      { packageName },
+      { query: (field === 'query' ? { unexpected: true } : {}) as never }
+    )
+  ).resolves.toEqual({ id: 'edit' });
+});
+
+it('shares a token across concurrent requests and refreshes before expiry', async () => {
+  nock.cleanAll();
+  const now = Date.now();
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+  nock('https://oauth2.googleapis.com')
+    .post('/token')
+    .twice()
+    .reply(200, { access_token: 'test-access-token', expires_in: 3600, token_type: 'Bearer' });
+  api().get(editPath).times(4).reply(200, { id: 'edit' });
+  const get = () =>
+    client.getAsync('/androidpublisher/v3/applications/:packageName/edits/:editId', {
+      packageName,
+      editId: 'edit',
+    });
+  await Promise.all([get(), get()]);
+  clock.mockReturnValue(now + 3550_000);
+  await Promise.all([get(), get()]);
+});

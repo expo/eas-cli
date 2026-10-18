@@ -32,6 +32,7 @@ export interface BuilderRuntimeApi {
   uploadArtifact: (spec: { artifact: ArtifactToUpload; logger: bunyan }) => Promise<{
     artifactId: string | null;
   }>;
+  addBuildLogMask?: (secret: string) => void;
 }
 
 export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuildContextProvider {
@@ -63,12 +64,12 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   public readonly logger: bunyan;
   public readonly graphqlClient: Client;
   public readonly runtimeApi: BuilderRuntimeApi;
+  public readonly expoApiV2BaseUrl?: string;
   public readonly mcpServerUrl?: string;
   public job: TJob;
   public metadata?: Metadata;
 
   private _env: Env;
-  private readonly expoApiV2BaseUrl?: string;
   private readonly pendingMetricUploads: Promise<void>[] = [];
 
   constructor(buildCtx: BuildContext<TJob>) {
@@ -84,6 +85,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.buildLogsDirectory = path.join(buildCtx.workingdir, 'logs');
     this.runtimeApi = {
       uploadArtifact: (...args) => buildCtx['uploadArtifact'](...args),
+      addBuildLogMask: buildCtx.addBuildLogMask,
     };
     this.mcpServerUrl = buildCtx.mcpServerUrl;
     this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;

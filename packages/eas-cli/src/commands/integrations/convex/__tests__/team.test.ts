@@ -1,6 +1,8 @@
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
+import { Role } from '../../../../graphql/generated';
 import { ConvexQuery } from '../../../../graphql/queries/ConvexQuery';
 import { ConvexTeamConnectionData } from '../../../../graphql/types/ConvexTeamConnection';
 import Log from '../../../../log';
@@ -21,7 +23,7 @@ describe(IntegrationsConvexTeam, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    viewerUserPermission: { role: 'OWNER' as any },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   };
 
   const mockConnection: ConvexTeamConnectionData = {
