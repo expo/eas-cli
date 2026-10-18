@@ -395,17 +395,26 @@ describe(SimulatorControl, () => {
     expect(actionRequests()).toEqual([]);
   });
 
-  it('passes a path that is not a local file through unchanged', async () => {
-    actionResult = ok('');
+  it('refuses a missing absolute local file without running an action', async () => {
+    const missing = path.join(tmpDir, 'missing.png');
+    await expect(
+      createCommand(['media.add', missing, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('does not exist on this computer');
+    expect(actionRequests()).toEqual([]);
+  });
 
-    await createCommand([
-      'app.install',
-      '/Users/runner/MyApp.ipa',
-      '--id',
-      'session-123',
-    ]).runAsync();
+  it('passes an explicit host path through without uploading a matching local file', async () => {
+    const localFile = path.join(tmpDir, 'existing.png');
+    await fs.writeFile(localFile, 'local bytes');
+    await createCommand(['media.add', `host:${localFile}`, '--id', 'session-123']).runAsync();
+    expect(actionRequests()).toEqual([['media.add', { path: localFile }]]);
+  });
 
-    expect(actionRequests()).toEqual([['app.install', { path: '/Users/runner/MyApp.ipa' }]]);
+  it.each(['host:relative.png', 'host:'])('rejects a non-absolute host path: %s', async value => {
+    await expect(
+      createCommand(['media.add', value, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('absolute');
+    expect(actionRequests()).toEqual([]);
   });
 
   it('downloads the file an action returns', async () => {

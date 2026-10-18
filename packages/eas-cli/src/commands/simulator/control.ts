@@ -184,6 +184,9 @@ export default class SimulatorControl extends EasCommand {
     Log.log(`  ${chalk.bold('OPTIONS')}`);
     Log.log(`    --id <session-id>  Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`);
     Log.log('    --json             Print the action schema as JSON. Implies --non-interactive.');
+    if (entry.upload) {
+      Log.log('  File paths are local. Use host:/absolute/path for files on the simulator host.');
+    }
     if (entry.output) {
       Log.log(
         entry.output === 'base64'
@@ -279,13 +282,26 @@ async function findLocalUploadAsync(
   if (!param || typeof value !== 'string' || !applies) {
     return null;
   }
-  const stat = await fs.stat(value).catch(() => null);
+  if (value.startsWith('host:')) {
+    const hostPath = value.slice('host:'.length);
+    if (!path.posix.isAbsolute(hostPath)) {
+      throw new Error('A host: path must be absolute, for example host:/tmp/app.tar.gz.');
+    }
+    params[param] = hostPath;
+    return null;
+  }
+  const stat = await fs.stat(value).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+      return null;
+    }
+    throw error;
+  });
   if (stat?.isDirectory()) {
     throw new Error(`${value} is a folder. Pass the path of a file.`);
   }
-  if (!stat && !path.isAbsolute(value)) {
+  if (!stat) {
     throw new Error(
-      `${value} does not exist on this computer. Pass the path of a local file, or an absolute path on the simulator host.`
+      `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
     );
   }
   return stat ? { param, path: value } : null;
