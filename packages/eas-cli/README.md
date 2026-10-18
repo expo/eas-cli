@@ -2868,8 +2868,9 @@ USAGE
     [--idle-timeout <value> --keep-alive] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
-               positional literals, including text that starts with -- or name=.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after
+               -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not
+               disable name=value parsing.
 
 FLAGS
   -h, --help                  Show help for this command or the selected action
@@ -2920,6 +2921,8 @@ EXAMPLES
   $ eas simulator:control clipboard.write -- --some-text
 
   $ eas simulator:control --import ./simulator-control.json
+
+  $ eas simulator:control clipboard.write -- 'text=hello'
 
   $ eas simulator:control hardwareKeyboard.set off
 
@@ -3449,8 +3452,9 @@ USAGE
     [--idle-timeout <value> --keep-alive] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
-               positional literals, including text that starts with -- or name=.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after
+               -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not
+               disable name=value parsing.
 
 FLAGS
   -h, --help                  Show help for this command or the selected action
@@ -3501,6 +3505,8 @@ EXAMPLES
   $ eas simulator:control clipboard.write -- --some-text
 
   $ eas simulator:control --import ./simulator-control.json
+
+  $ eas simulator:control clipboard.write -- 'text=hello'
 
   $ eas simulator:control hardwareKeyboard.set off
 

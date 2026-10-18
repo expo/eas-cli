@@ -86,6 +86,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control --import ./simulator-control.json',
+    "$ eas simulator:control clipboard.write -- 'text=hello'",
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -96,7 +97,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not disable name=value parsing.',
     }),
   };
 
