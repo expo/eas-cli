@@ -516,6 +516,31 @@ describe(SimulatorControl, () => {
     }
   );
 
+  it('packages the contents of an app bundle reached through a local symlink', async () => {
+    const actual = path.join(tmpDir, 'Actual.app');
+    const link = path.join(tmpDir, 'Linked.app');
+    await fs.mkdir(actual);
+    await fs.writeFile(path.join(actual, 'Info.plist'), 'app plist');
+    await fs.symlink(actual, link);
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    await createCommand(['app.install', link, '--id', 'session-123']).runAsync();
+    const data = Buffer.concat(
+      actionRequests()
+        .filter(([action]) => action === 'upload.append')
+        .map(([, params]) => Buffer.from(String(params?.data), 'base64'))
+    );
+    const file = path.join(tmpDir, 'received.tgz');
+    await fs.writeFile(file, data);
+    const entries: string[] = [];
+    await tar.list({
+      file,
+      onReadEntry: entry => {
+        entries.push(entry.path);
+      },
+    });
+    expect(entries).toContain('Actual.app/Info.plist');
+  });
+
   it('cleans a packaged bundle when uploading fails', async () => {
     const bundle = path.join(tmpDir, 'Upload.app');
     await fs.mkdir(bundle);

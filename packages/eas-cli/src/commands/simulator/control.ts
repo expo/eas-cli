@@ -330,16 +330,16 @@ async function findLocalUploadAsync(
         'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
       );
     }
+    const bundle = await fs.realpath(value);
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-simulator-app-'));
     const archive = path.join(directory, 'app.tar.gz');
     const cleanupAsync = async (): Promise<void> => {
       await fs.remove(directory);
     };
     try {
-      await tar.create(
-        { cwd: path.dirname(path.resolve(value)), file: archive, gzip: true, portable: true },
-        [path.basename(value)]
-      );
+      await tar.create({ cwd: path.dirname(bundle), file: archive, gzip: true, portable: true }, [
+        path.basename(bundle),
+      ]);
       return { param, path: archive, cleanupAsync };
     } catch (error) {
       await cleanupAsync();
