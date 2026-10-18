@@ -56,17 +56,25 @@ function cpuTotals(): { busy: number; total: number } {
   );
 }
 
-async function command(file: string, args: string[]): Promise<{ output?: string; error?: string }> {
+async function command(
+  file: string,
+  args: string[]
+): Promise<{ output?: string; error?: string; completedMonotonicMs: number }> {
   try {
     const { stdout } = await execFileAsync(file, args, {
       timeout: 2_000,
+      killSignal: 'SIGKILL',
       maxBuffer: 8 * 1024 * 1024,
       env: { ...process.env, LC_ALL: 'C' },
     });
-    return { output: stdout };
+    return { output: stdout, completedMonotonicMs: performance.now() };
   } catch (error) {
     // Do not serialize commands, environment, or stderr into telemetry errors.
-    return { error: error instanceof Error ? error.name : 'CommandError' };
+    const details = error as { name?: string; code?: string | number; signal?: string };
+    return {
+      error: `${details.name ?? 'CommandError'}:${details.code ?? details.signal ?? 'unknown'}`,
+      completedMonotonicMs: performance.now(),
+    };
   }
 }
 
@@ -160,7 +168,8 @@ export class GuestMetricsRecorder {
             ? command('/usr/sbin/ioreg', ['-a', '-l', '-r', '-c', 'IOAccelerator'])
             : Promise.resolve(undefined),
         ]);
-        const processTime = performance.now();
+        // Use this probe's completion, not a slower sibling probe's completion.
+        const processTime = ps.completedMonotonicMs;
         const errors: Record<string, string> = {};
         let processes: (ProcessSample & { cpuCores: number | null })[] = [];
         let exited: string[] = [];
@@ -202,6 +211,8 @@ export class GuestMetricsRecorder {
           type: 'sample',
           sequence: count++,
           elapsedMs: performance.now() - start,
+          cpuSampleMonotonicMs: start,
+          processSampleMonotonicMs: processTime,
           uptimeSeconds: os.uptime(),
           freeBytes: os.freemem(),
           busyCores: count > 1 ? busyCores : null,
