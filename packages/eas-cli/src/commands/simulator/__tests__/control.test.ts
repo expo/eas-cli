@@ -2,6 +2,7 @@ import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
+import * as tar from 'tar';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -395,17 +396,160 @@ describe(SimulatorControl, () => {
     expect(actionRequests()).toEqual([]);
   });
 
-  it('passes a path that is not a local file through unchanged', async () => {
-    actionResult = ok('');
+  it('refuses a missing absolute local file without running an action', async () => {
+    const missing = path.join(tmpDir, 'missing.png');
+    await expect(
+      createCommand(['media.add', missing, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('does not exist on this computer');
+    expect(actionRequests()).toEqual([]);
+  });
 
+  it('passes an explicit host path through without uploading a matching local file', async () => {
+    const localFile = path.join(tmpDir, 'existing.png');
+    await fs.writeFile(localFile, 'local bytes');
+    await createCommand(['media.add', `host:${localFile}`, '--id', 'session-123']).runAsync();
+    expect(actionRequests()).toEqual([['media.add', { path: localFile }]]);
+  });
+
+  it.each(['host:relative.png', 'host:'])('rejects a non-absolute host path: %s', async value => {
+    await expect(
+      createCommand(['media.add', value, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('absolute');
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it.each(['text=hello', '--', '--help'])(
+    'preserves the literal value after the separator: %s',
+    async value => {
+      served = {
+        ...catalog,
+        'clipboard.write': {
+          type: 'object',
+          properties: { udid: { type: 'string' }, text: { type: 'string' } },
+          required: ['udid', 'text'],
+        },
+      };
+      await createCommand(['clipboard.write', '--id', 'session-123', '--', value]).runAsync();
+      expect(actionRequests()).toEqual([['clipboard.write', { text: value }]]);
+    }
+  );
+
+  it('does not treat a flag value of -- as the literal separator', async () => {
+    served = {
+      ...catalog,
+      'clipboard.write': {
+        type: 'object',
+        properties: { udid: { type: 'string' }, text: { type: 'string' } },
+        required: ['udid', 'text'],
+      },
+    };
+    await createCommand(['clipboard.write', 'text=hello', '--id', '--']).runAsync();
+    expect(actionRequests()).toEqual([['clipboard.write', { text: 'hello' }]]);
+  });
+
+  it('keeps named arguments before the separator and positional values after it', async () => {
     await createCommand([
-      'app.install',
-      '/Users/runner/MyApp.ipa',
+      'permissions.set',
+      'action=grant',
       '--id',
       'session-123',
+      '--',
+      'service=camera',
+      'bundleId=literal',
     ]).runAsync();
+    expect(actionRequests()).toEqual([
+      [
+        'permissions.set',
+        { action: 'grant', service: 'service=camera', bundleId: 'bundleId=literal' },
+      ],
+    ]);
+  });
 
-    expect(actionRequests()).toEqual([['app.install', { path: '/Users/runner/MyApp.ipa' }]]);
+  it.each([false, true])(
+    'packages a local app bundle and cleans it after failure=%s',
+    async fails => {
+      const bundle = path.join(tmpDir, 'My App.app');
+      await fs.mkdir(bundle);
+      await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+      served = {
+        ...catalog,
+        'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' },
+      };
+      const directories = await fs.readdir(os.tmpdir());
+      actionResult = fails ? { stdout: '', stderr: 'install rejected', exitCode: 1 } : ok('');
+      const command = createCommand([
+        'app.install',
+        `${bundle}/`,
+        '--id',
+        'session-123',
+      ]).runAsync();
+      if (fails) {
+        await expect(command).rejects.toThrow('install rejected');
+      } else {
+        await command;
+      }
+      const requests = actionRequests();
+      expect(requests.map(([action]) => action)).toEqual([
+        'upload.append',
+        'app.install',
+        'upload.remove',
+      ]);
+      const data = Buffer.concat(
+        requests
+          .filter(([action]) => action === 'upload.append')
+          .map(([, params]) => Buffer.from(String(params?.data), 'base64'))
+      );
+      const file = path.join(tmpDir, 'received.tgz');
+      await fs.writeFile(file, data);
+      const entries: string[] = [];
+      await tar.list({
+        file,
+        onReadEntry: entry => {
+          entries.push(entry.path);
+        },
+      });
+      expect(entries).toContain('My App.app/Info.plist');
+      const newDirectories = (await fs.readdir(os.tmpdir())).filter(
+        name => name.startsWith('eas-simulator-app-') && !directories.includes(name)
+      );
+      expect(newDirectories).toEqual([]);
+    }
+  );
+
+  it('cleans a packaged bundle when uploading fails', async () => {
+    const bundle = path.join(tmpDir, 'Upload.app');
+    await fs.mkdir(bundle);
+    await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    const before = await fs.readdir(os.tmpdir());
+    requestAsync
+      .mockResolvedValueOnce(ok(JSON.stringify(served)))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'upload rejected', exitCode: 1 });
+    await expect(
+      createCommand(['app.install', bundle, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('upload rejected');
+    expect(actionRequests().map(([action]) => action)).toEqual(['upload.append', 'upload.remove']);
+    expect(
+      (await fs.readdir(os.tmpdir())).filter(
+        name => name.startsWith('eas-simulator-app-') && !before.includes(name)
+      )
+    ).toEqual([]);
+  });
+
+  it('refuses bundle upload to a host that does not advertise app archives', async () => {
+    const bundle = path.join(tmpDir, 'My.app');
+    await fs.mkdir(bundle);
+    await expect(
+      createCommand(['app.install', bundle, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('does not support app archives');
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it('continues rejecting unrelated folders', async () => {
+    await expect(
+      createCommand(['media.add', tmpDir, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('is a folder');
+    expect(actionRequests()).toEqual([]);
   });
 
   it('downloads the file an action returns', async () => {

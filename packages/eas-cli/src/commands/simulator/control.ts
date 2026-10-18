@@ -2,6 +2,8 @@ import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
+import * as tar from 'tar';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -45,7 +47,7 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
-    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control app.install ./MyApp.app',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
@@ -53,7 +55,7 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=.',
     }),
   };
 
@@ -82,6 +84,21 @@ export default class SimulatorControl extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { args, argv, flags } = await this.parse(SimulatorControl);
+    let literalFrom = argv.length - 1;
+    for (let index = 0; index < this.argv.length; index++) {
+      const value = this.argv[index];
+      if (value === '--') {
+        literalFrom = argv.length - 1 - (this.argv.length - index - 1);
+        break;
+      }
+      // A standalone -- consumed as a flag value is not an argument separator.
+      const flag = value.startsWith('--')
+        ? SimulatorControl.flags[value.slice(2) as keyof typeof SimulatorControl.flags]
+        : undefined;
+      if (flag?.type === 'option') {
+        index++;
+      }
+    }
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -138,6 +155,7 @@ export default class SimulatorControl extends EasCommand {
         sessionId,
         action,
         values: argv.slice(1).map(String),
+        literalFrom,
         outputPath: flags.output,
         jsonFlag,
       });
@@ -198,6 +216,10 @@ export default class SimulatorControl extends EasCommand {
         '  Action arguments refer to the simulator host. Use --output for the local filename.'
       );
     }
+    Log.log('  Values after -- are positional literals.');
+    if (entry.upload) {
+      Log.log('  File paths are local. Use host:/absolute/path for files on the simulator host.');
+    }
     Log.newLine();
   }
 
@@ -208,19 +230,21 @@ export default class SimulatorControl extends EasCommand {
       sessionId,
       action,
       values,
+      literalFrom,
       outputPath,
       jsonFlag,
     }: {
       sessionId: string;
       action: string;
       values: string[];
+      literalFrom: number;
       outputPath: string | undefined;
       jsonFlag: boolean;
     }
   ): Promise<void> {
-    const params = buildHostActionParams(action, entry, values);
+    const params = buildHostActionParams(action, entry, values, literalFrom);
     await assertHostActionOutputAsync(action, entry, outputPath);
-    const localFile = await findLocalUploadAsync(entry, params);
+    const localFile = await findLocalUploadAsync(action, entry, params);
 
     const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
     let uploadId: string | undefined;
@@ -251,6 +275,7 @@ export default class SimulatorControl extends EasCommand {
       if (uploadId && (!entry.keepUpload || !succeeded)) {
         await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
       }
+      await localFile?.cleanupAsync?.();
     }
 
     if (jsonFlag) {
@@ -271,21 +296,59 @@ export default class SimulatorControl extends EasCommand {
 }
 
 async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
+  action: string,
+  { upload: param, uploadWhen = {}, uploadArchive }: HostActionCatalogEntry,
   params: Record<string, unknown>
-): Promise<{ param: string; path: string } | null> {
+): Promise<{ param: string; path: string; cleanupAsync?: () => Promise<void> } | null> {
   const value = param ? params[param] : undefined;
   const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
   if (!param || typeof value !== 'string' || !applies) {
     return null;
   }
-  const stat = await fs.stat(value).catch(() => null);
-  if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass the path of a file.`);
+  if (value.startsWith('host:')) {
+    const hostPath = value.slice('host:'.length);
+    if (!path.posix.isAbsolute(hostPath)) {
+      throw new Error('A host: path must be absolute, for example host:/tmp/app.tar.gz.');
+    }
+    params[param] = hostPath;
+    return null;
   }
-  if (!stat && !path.isAbsolute(value)) {
+  const stat = await fs.stat(value).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+      return null;
+    }
+    throw error;
+  });
+  if (stat?.isDirectory()) {
+    if (action !== 'app.install' || path.extname(path.resolve(value)) !== '.app') {
+      throw new Error(
+        `${value} is a folder. Pass the path of a file or an app.install .app bundle.`
+      );
+    }
+    if (uploadArchive !== 'tar.gz') {
+      throw new Error(
+        'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
+      );
+    }
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-simulator-app-'));
+    const archive = path.join(directory, 'app.tar.gz');
+    const cleanupAsync = async (): Promise<void> => {
+      await fs.remove(directory);
+    };
+    try {
+      await tar.create(
+        { cwd: path.dirname(path.resolve(value)), file: archive, gzip: true, portable: true },
+        [path.basename(value)]
+      );
+      return { param, path: archive, cleanupAsync };
+    } catch (error) {
+      await cleanupAsync();
+      throw error;
+    }
+  }
+  if (!stat) {
     throw new Error(
-      `${value} does not exist on this computer. Pass the path of a local file, or an absolute path on the simulator host.`
+      `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
     );
   }
   return stat ? { param, path: value } : null;

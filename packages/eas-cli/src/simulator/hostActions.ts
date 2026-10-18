@@ -31,6 +31,7 @@ const CatalogEntry = SchemaNode.extend({
   description: z.string().optional(),
   args: z.array(z.string()).optional(),
   upload: z.string().optional(),
+  uploadArchive: z.string().optional(),
   uploadAs: z.enum(['path', 'id']).optional(),
   uploadWhen: z.record(z.string(), z.unknown()).optional(),
   keepUpload: z.boolean().optional(),
@@ -392,13 +393,14 @@ export function formatHostActionUsage(name: string, entry: HostActionCatalogEntr
 export function buildHostActionParams(
   name: string,
   entry: HostActionCatalogEntry,
-  values: string[]
+  values: string[],
+  literalFrom = values.length
 ): Record<string, unknown> {
   const properties = hostActionProperties(entry);
   const params: Record<string, unknown> = {};
   const positional: string[] = [];
-  for (const value of values) {
-    const named = NAMED_VALUE.exec(value);
+  for (const [index, value] of values.entries()) {
+    const named = index < literalFrom ? NAMED_VALUE.exec(value) : null;
     if (!named || !properties.has(named[1])) {
       positional.push(value);
     } else if (Object.hasOwn(params, named[1])) {
