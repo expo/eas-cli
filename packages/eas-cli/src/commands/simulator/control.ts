@@ -88,7 +88,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     '$ eas simulator:control --import ./simulator-control.json',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
-    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control app.install ./MyApp.app',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
