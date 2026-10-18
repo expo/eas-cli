@@ -284,6 +284,11 @@ async function findLocalUploadAsync(
     return null;
   }
   const stat = await fs.stat(value).catch(() => null);
+  if (action === 'app.install' && stat?.isFile() && /\.(?:ipa|zip)$/i.test(value)) {
+    throw new Error(
+      'Simulator installs require a Simulator .app bundle or .tar.gz/.tgz archive. Device .ipa builds and .zip archives are not supported.'
+    );
+  }
   if (stat?.isDirectory()) {
     if (action !== 'app.install' || path.extname(path.resolve(value)) !== '.app') {
       throw new Error(

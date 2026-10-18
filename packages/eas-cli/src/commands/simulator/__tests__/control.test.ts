@@ -410,7 +410,7 @@ describe(SimulatorControl, () => {
   });
 
   it('uploads a local file for an action that takes one and removes it after', async () => {
-    const localFile = path.join(tmpDir, 'MyApp.ipa');
+    const localFile = path.join(tmpDir, 'MyApp.tgz');
     await fs.writeFile(localFile, 'app bytes');
     actionResult = ok('');
 
@@ -427,6 +427,22 @@ describe(SimulatorControl, () => {
       ['upload.remove', { uploadId }],
     ]);
   });
+
+  it.each(['Device.ipa', 'Device.IPA', 'Build.zip'])(
+    'rejects unsupported Simulator install input before uploading: %s',
+    async name => {
+      const file = path.join(tmpDir, name);
+      await fs.writeFile(file, 'unsupported archive');
+
+      await expect(
+        createCommand(['app.install', file, '--id', 'session-123']).runAsync()
+      ).rejects.toThrow(
+        'Simulator installs require a Simulator .app bundle or .tar.gz/.tgz archive.'
+      );
+      expect(actionRequests()).toEqual([]);
+      expect(close).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('sends the upload ID to an action that asks for it', async () => {
     const localFile = path.join(tmpDir, 'session.json');
