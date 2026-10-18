@@ -2788,8 +2788,8 @@ USAGE
   $ eas sim:control [ACTION...] [-h] [--id <value>] [--list] [--output <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before
-               values that start with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
+               positional literals, including text that starts with -- or name=.
 
 FLAGS
   -h, --help             Show command help, or usage for the selected action from the session.
@@ -3263,8 +3263,8 @@ USAGE
   $ eas simulator:control [ACTION...] [-h] [--id <value>] [--list] [--output <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before
-               values that start with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
+               positional literals, including text that starts with -- or name=.
 
 FLAGS
   -h, --help             Show command help, or usage for the selected action from the session.

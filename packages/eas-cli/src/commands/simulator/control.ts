@@ -53,7 +53,7 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=.',
     }),
   };
 
@@ -82,6 +82,21 @@ export default class SimulatorControl extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { args, argv, flags } = await this.parse(SimulatorControl);
+    let literalFrom = argv.length - 1;
+    for (let index = 0; index < this.argv.length; index++) {
+      const value = this.argv[index];
+      if (value === '--') {
+        literalFrom = argv.length - 1 - (this.argv.length - index - 1);
+        break;
+      }
+      // A standalone -- consumed as a flag value is not an argument separator.
+      const flag = value.startsWith('--')
+        ? SimulatorControl.flags[value.slice(2) as keyof typeof SimulatorControl.flags]
+        : undefined;
+      if (flag?.type === 'option') {
+        index++;
+      }
+    }
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -138,6 +153,7 @@ export default class SimulatorControl extends EasCommand {
         sessionId,
         action,
         values: argv.slice(1).map(String),
+        literalFrom,
         outputPath: flags.output,
         jsonFlag,
       });
@@ -178,6 +194,7 @@ export default class SimulatorControl extends EasCommand {
     Log.newLine();
     Log.log(`  ${chalk.bold('USAGE')}`);
     Log.log(`    eas simulator:control ${formatHostActionUsage(action, entry)}`);
+    Log.log('  Values after -- are positional literals.');
     const outputFlag = entry.output === 'base64' ? '--output <path>' : '[--output <path>]';
     Log.log(`      ${entry.output ? `${outputFlag} ` : ''}[--id <session-id>] [--json]`);
     Log.newLine();
@@ -208,17 +225,19 @@ export default class SimulatorControl extends EasCommand {
       sessionId,
       action,
       values,
+      literalFrom,
       outputPath,
       jsonFlag,
     }: {
       sessionId: string;
       action: string;
       values: string[];
+      literalFrom: number;
       outputPath: string | undefined;
       jsonFlag: boolean;
     }
   ): Promise<void> {
-    const params = buildHostActionParams(action, entry, values);
+    const params = buildHostActionParams(action, entry, values, literalFrom);
     await assertHostActionOutputAsync(action, entry, outputPath);
     const localFile = await findLocalUploadAsync(entry, params);
 

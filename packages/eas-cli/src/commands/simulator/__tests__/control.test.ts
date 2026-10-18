@@ -179,6 +179,53 @@ describe(SimulatorControl, () => {
     }
   });
 
+  it.each(['text=hello', '--', '--help'])(
+    'preserves the literal value after the separator: %s',
+    async value => {
+      served = {
+        ...catalog,
+        'clipboard.write': {
+          type: 'object',
+          properties: { udid: { type: 'string' }, text: { type: 'string' } },
+          required: ['udid', 'text'],
+        },
+      };
+      await createCommand(['clipboard.write', '--id', 'session-123', '--', value]).runAsync();
+      expect(actionRequests()).toEqual([['clipboard.write', { text: value }]]);
+    }
+  );
+
+  it('does not treat a flag value of -- as the literal separator', async () => {
+    served = {
+      ...catalog,
+      'clipboard.write': {
+        type: 'object',
+        properties: { udid: { type: 'string' }, text: { type: 'string' } },
+        required: ['udid', 'text'],
+      },
+    };
+    await createCommand(['clipboard.write', 'text=hello', '--id', '--']).runAsync();
+    expect(actionRequests()).toEqual([['clipboard.write', { text: 'hello' }]]);
+  });
+
+  it('keeps named arguments before the separator and positional values after it', async () => {
+    await createCommand([
+      'permissions.set',
+      'action=grant',
+      '--id',
+      'session-123',
+      '--',
+      'service=camera',
+      'bundleId=literal',
+    ]).runAsync();
+    expect(actionRequests()).toEqual([
+      [
+        'permissions.set',
+        { action: 'grant', service: 'service=camera', bundleId: 'bundleId=literal' },
+      ],
+    ]);
+  });
+
   it('runs an action from the catalog with its values and prints the output', async () => {
     await createCommand(['hardwareKeyboard.set', 'off', '--id', 'session-123']).runAsync();
 
