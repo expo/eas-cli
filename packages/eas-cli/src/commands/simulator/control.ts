@@ -15,6 +15,7 @@ import { ora } from '../../ora';
 import {
   ControlAction,
   executeControlActionAsync,
+  parseControlActionOutput,
   prepareControlActionAsync,
 } from '../../simulator/controlActions';
 import {
@@ -23,6 +24,7 @@ import {
   PreparedControlConfig,
   executeControlConfigAsync,
   prepareControlConfigAsync,
+  serializeControlConfigResults,
 } from '../../simulator/controlConfig';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -270,7 +272,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
             id: session.id,
             session,
             config: config.path,
-            results: configResultsJson(error.completed),
+            results: serializeControlConfigResults(error.completed),
             error: { step: error.step, action: error.action, message: error.message },
           });
           process.exitCode = 1;
@@ -294,7 +296,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
         id: session.id,
         session,
         config: config.path,
-        results: configResultsJson(results),
+        results: serializeControlConfigResults(results),
       });
     } else {
       Log.newLine();
@@ -308,7 +310,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     if (result.file) {
       Log.log(`  Saved: ${result.file}`);
     } else if (result.output) {
-      const output = parseJsonOutput(result.output);
+      const output = parseControlActionOutput(result.output);
       const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
       Log.log(
         text
@@ -426,7 +428,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
         id: session.id,
         session,
         action,
-        output: parseJsonOutput(output),
+        output: parseControlActionOutput(output),
         file: savedFile,
       });
       return;
@@ -445,12 +447,6 @@ function formatElapsed(startedAt: number): string {
 
 function formatActionCount(count: number): string {
   return `${count} action${count === 1 ? '' : 's'}`;
-}
-
-function configResultsJson(
-  results: readonly ControlConfigResult[]
-): { action: string; output: unknown; file: string | null }[] {
-  return results.map(result => ({ ...result, output: parseJsonOutput(result.output) }));
 }
 
 function assertControllableSession(
@@ -473,12 +469,4 @@ function assertControllableSession(
     );
   }
   return access;
-}
-
-function parseJsonOutput(output: string): unknown {
-  try {
-    return JSON.parse(output);
-  } catch {
-    return output;
-  }
 }
