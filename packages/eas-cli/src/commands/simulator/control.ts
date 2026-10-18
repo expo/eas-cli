@@ -96,7 +96,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
   static override args = {
     action: Args.string({
       description:
-        'Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting with --.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=.',
     }),
   };
 
@@ -137,6 +137,21 @@ Existing output files are overwritten. When saving to a directory, an existing f
 
   async runAsync(): Promise<void> {
     const { args, argv, flags } = await this.parse(SimulatorControl);
+    let literalFrom = argv.length - 1;
+    for (let index = 0; index < this.argv.length; index++) {
+      const value = this.argv[index];
+      if (value === '--') {
+        literalFrom = argv.length - 1 - (this.argv.length - index - 1);
+        break;
+      }
+      // A standalone -- consumed as a flag value is not an argument separator.
+      const flag = value.startsWith('--')
+        ? SimulatorControl.flags[value.slice(2) as keyof typeof SimulatorControl.flags]
+        : undefined;
+      if (flag?.type === 'option') {
+        index++;
+      }
+    }
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -256,7 +271,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
           catalog,
           {
             action: action!,
-            params: entry ? buildHostActionParams(action!, entry, argv.slice(1).map(String)) : {},
+            params: entry ? buildHostActionParams(action!, entry, argv.slice(1).map(String), literalFrom) : {},
             outputPath: flags.output,
           },
           { session: controlSession, jsonFlag }
@@ -410,6 +425,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     Log.newLine();
     Log.log(`  ${chalk.bold('USAGE')}`);
     Log.log(`    eas simulator:control ${formatHostActionUsage(action, entry)}`);
+    Log.log('  Values after -- are positional literals.');
     const outputFlag = entry.output === 'base64' ? '--output <path>' : '[--output <path>]';
     Log.log(`      ${entry.output ? `${outputFlag} ` : ''}[--id <session-id>] [--json]`);
     Log.newLine();

@@ -2868,8 +2868,8 @@ USAGE
     [--idle-timeout <value> --keep-alive] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting
-               with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
+               positional literals, including text that starts with -- or name=.
 
 FLAGS
   -h, --help                  Show help for this command or the selected action
@@ -3449,8 +3449,8 @@ USAGE
     [--idle-timeout <value> --keep-alive] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting
-               with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are
+               positional literals, including text that starts with -- or name=.
 
 FLAGS
   -h, --help                  Show help for this command or the selected action
