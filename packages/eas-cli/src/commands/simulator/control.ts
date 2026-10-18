@@ -290,9 +290,12 @@ async function findLocalUploadAsync(
     );
   }
   if (stat?.isDirectory()) {
-    if (action !== 'app.install' || path.extname(path.resolve(value)) !== '.app') {
+    if (action !== 'app.install') {
+      throw new Error(`${value} is a folder. Pass the path of a file.`);
+    }
+    if (path.extname(path.resolve(value)) !== '.app') {
       throw new Error(
-        `${value} is a folder. Pass the path of a file or an app.install .app bundle.`
+        `${value} is a folder. Pass a Simulator .app bundle or .tar.gz/.tgz archive.`
       );
     }
     if (uploadArchive !== 'tar.gz') {

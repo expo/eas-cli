@@ -405,7 +405,7 @@ describe(SimulatorControl, () => {
   it('continues rejecting unrelated folders', async () => {
     await expect(
       createCommand(['media.add', tmpDir, '--id', 'session-123']).runAsync()
-    ).rejects.toThrow('is a folder');
+    ).rejects.toThrow(`${tmpDir} is a folder. Pass the path of a file.`);
     expect(actionRequests()).toEqual([]);
   });
 
