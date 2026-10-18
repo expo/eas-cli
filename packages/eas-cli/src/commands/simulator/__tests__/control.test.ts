@@ -44,6 +44,10 @@ jest.mock('../../../ora', () => ({
   }),
 }));
 jest.mock('../../../utils/json');
+jest.mock('fs-extra', () => {
+  const actual = jest.requireActual<typeof import('fs-extra')>('fs-extra');
+  return { ...actual, stat: jest.fn(actual.stat) };
+});
 
 type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 
@@ -236,6 +240,16 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it('explains local and explicit host upload paths without running an action', async () => {
+    await createCommand(['media.add', '--help', '--id', 'session-123']).runAsync();
+
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '  File paths are local. Use host:/absolute/path for files on the simulator host.'
+    );
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('prints the host action schema as JSON for help', async () => {
     await createCommand(['app.install', '--help', '--json', '--id', 'session-123']).runAsync();
 
@@ -401,6 +415,29 @@ describe(SimulatorControl, () => {
       createCommand(['media.add', missing, '--id', 'session-123']).runAsync()
     ).rejects.toThrow('does not exist on this computer');
     expect(actionRequests()).toEqual([]);
+  });
+
+  it('preserves a local filesystem failure without sending an action', async () => {
+    const denied = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    const stat = jest
+      .mocked<(path: string) => Promise<fs.Stats>>(fs.stat)
+      .mockRejectedValueOnce(denied);
+    try {
+      await expect(
+        createCommand([
+          'media.add',
+          path.join(tmpDir, 'private.png'),
+          '--id',
+          'session-123',
+        ]).runAsync()
+      ).rejects.toBe(denied);
+      expect(actionRequests()).toEqual([]);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      stat
+        .mockReset()
+        .mockImplementation(jest.requireActual<typeof import('fs-extra')>('fs-extra').stat);
+    }
   });
 
   it('passes an explicit host path through without uploading a matching local file', async () => {
