@@ -517,7 +517,7 @@ describe(SimulatorControl, () => {
   );
 
   it('packages the contents of an app bundle reached through a local symlink', async () => {
-    const actual = path.join(tmpDir, 'Actual.app');
+    const actual = path.join(tmpDir, 'Actual');
     const link = path.join(tmpDir, 'Linked.app');
     await fs.mkdir(actual);
     await fs.writeFile(path.join(actual, 'Info.plist'), 'app plist');
@@ -538,7 +538,7 @@ describe(SimulatorControl, () => {
         entries.push(entry.path);
       },
     });
-    expect(entries).toContain('Actual.app/Info.plist');
+    expect(entries).toContain('Linked.app/Info.plist');
   });
 
   it('cleans a packaged bundle when uploading fails', async () => {

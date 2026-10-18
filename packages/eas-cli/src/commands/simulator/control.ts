@@ -337,9 +337,16 @@ async function findLocalUploadAsync(
       await fs.remove(directory);
     };
     try {
-      await tar.create({ cwd: path.dirname(bundle), file: archive, gzip: true, portable: true }, [
-        path.basename(bundle),
-      ]);
+      await tar.create(
+        {
+          cwd: bundle,
+          file: archive,
+          prefix: path.basename(path.resolve(value)),
+          gzip: true,
+          portable: true,
+        },
+        ['.']
+      );
       return { param, path: archive, cleanupAsync };
     } catch (error) {
       await cleanupAsync();
