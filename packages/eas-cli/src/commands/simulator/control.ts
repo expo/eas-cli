@@ -26,6 +26,9 @@ import {
   prepareControlConfigAsync,
   serializeControlConfigResults,
 } from '../../simulator/controlConfig';
+import { runControlMenuAsync } from '../../simulator/controlInteractive';
+import { ControlPromptCancelledError } from '../../simulator/controlPrompts';
+import { ControlSessionEndedError, watchControlSession } from '../../simulator/controlSession';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -60,7 +63,7 @@ export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
   static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
 
-Run without an action to list available actions. Use <action> --help for usage.
+Run without an action to open the menu, or use --list to see available actions. Use <action> --help for usage.
 
 Use --import to run saved actions from a JSON file:
 {
@@ -89,7 +92,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
   static override args = {
     action: Args.string({
       description:
-        'Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting with --.',
+        'Action name, followed by values or name=value pairs. Omit to open the menu. Use -- before values starting with --.',
     }),
   };
 
@@ -133,8 +136,16 @@ Existing output files are overwritten. When saving to a directory, an existing f
     if (importing && (args.action || flags.list || flags.output !== undefined)) {
       throw new Error('--import cannot be combined with an action, --list, or --output.');
     }
+    const interactive = !flags.list && !action && !importing;
     if (!action && flags.output) {
-      throw new Error('--output requires an action.');
+      throw new Error(
+        '--output requires an action. Choose an output path when selecting a file action in the interactive menu.'
+      );
+    }
+    if (interactive && (nonInteractive || !process.stdin.isTTY)) {
+      throw new Error(
+        'No action provided. Run `eas simulator:control --list` to see the actions, then `eas simulator:control <action> [values...]`.'
+      );
     }
 
     const {
@@ -168,7 +179,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
           project: `@${session.app.ownerAccount.name}/${session.app.slug}`,
           status: session.status,
           device:
-            importing || (jsonFlag && Boolean(action) && !flags.list && !flags.help)
+            interactive || importing || (jsonFlag && !flags.list && !flags.help)
               ? await fetchHostActionDeviceAsync(access, connection.udid)
               : { udid: connection.udid },
         };
@@ -177,7 +188,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
         spinner.fail(`Failed to connect to simulator session ${sessionId}`);
         throw err;
       }
-      if (!action && !importing) {
+      if (flags.list && !flags.help) {
         this.printCatalog(catalog, jsonFlag);
         return;
       }
@@ -191,23 +202,71 @@ Existing output files are overwritten. When saving to a directory, an existing f
         this.printActionHelp(action, entry, jsonFlag);
         return;
       }
-      if (importing) {
-        await this.importConfigAsync(connection, catalog, flags.import!, {
+      const activeConnection = connection;
+      const runActionAsync = async (selection: ControlAction): Promise<void> => {
+        await this.runActionAsync(activeConnection, catalog, selection, {
+          session: controlSession,
+          jsonFlag,
+          interactive,
+        });
+      };
+      if (interactive) {
+        this.printSessionHeader(controlSession);
+        const controller = new AbortController();
+        const onConnectionLost = (): void => {
+          controller.abort(activeConnection.signal.reason);
+        };
+        const onInterrupt = (): void => {
+          controller.abort(new ControlPromptCancelledError());
+        };
+        activeConnection.signal.addEventListener('abort', onConnectionLost, { once: true });
+        if (activeConnection.signal.aborted) {
+          onConnectionLost();
+        }
+        process.on('SIGINT', onInterrupt);
+        const session = watchControlSession(graphqlClient, sessionId, {
+          signal: controller.signal,
+        });
+        const detach = (): void => {
+          activeConnection.close();
+        };
+        session.signal.addEventListener('abort', detach, { once: true });
+        try {
+          await runControlMenuAsync({
+            catalog,
+            signal: session.signal,
+            runActionAsync,
+          });
+        } catch (error) {
+          const reason: unknown = session.signal.aborted ? session.signal.reason : error;
+          if (reason instanceof ControlPromptCancelledError) {
+            process.exitCode = 130;
+          } else if (reason instanceof ControlSessionEndedError) {
+            if (reason.failed) {
+              throw reason;
+            }
+            Log.log(reason.message);
+          } else {
+            throw reason;
+          }
+        } finally {
+          session.signal.removeEventListener('abort', detach);
+          session.dispose();
+          activeConnection.signal.removeEventListener('abort', onConnectionLost);
+          process.removeListener('SIGINT', onInterrupt);
+        }
+      } else if (importing) {
+        await this.importConfigAsync(activeConnection, catalog, flags.import!, {
           session: controlSession,
           jsonFlag,
         });
       } else {
         const entry = Object.hasOwn(catalog, action!) ? catalog[action!] : undefined;
-        await this.runActionAsync(
-          connection,
-          catalog,
-          {
-            action: action!,
-            params: entry ? buildHostActionParams(action!, entry, argv.slice(1).map(String)) : {},
-            outputPath: flags.output,
-          },
-          { session: controlSession, jsonFlag }
-        );
+        await runActionAsync({
+          action: action!,
+          params: entry ? buildHostActionParams(action!, entry, argv.slice(1).map(String)) : {},
+          outputPath: flags.output,
+        });
       }
     } finally {
       connection?.close();
@@ -408,18 +467,33 @@ Existing output files are overwritten. When saving to a directory, an existing f
     connection: HostActionConnection,
     catalog: HostActionCatalog,
     selection: ControlAction,
-    { session, jsonFlag }: { session: ControlSession; jsonFlag: boolean }
+    {
+      session,
+      jsonFlag,
+      interactive,
+    }: { session: ControlSession; jsonFlag: boolean; interactive: boolean }
   ): Promise<void> {
     const { action } = selection;
     const plan = await prepareControlActionAsync(catalog, selection);
-    const spinner = ora(`Running ${action} on simulator session ${session.id}`).start();
+    const startedAt = Date.now();
+    const spinner = ora(
+      interactive ? `Running ${action}` : `Running ${action} on simulator session ${session.id}`
+    ).start();
     let output: string;
     let savedFile: string | null;
     try {
       ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
-      spinner.succeed(`Ran ${action} on simulator session ${session.id}`);
+      spinner.succeed(
+        interactive
+          ? `${action} complete · ${formatElapsed(startedAt)}`
+          : `Ran ${action} on simulator session ${session.id}`
+      );
     } catch (err) {
-      spinner.fail(`Failed to run ${action} on simulator session ${session.id}`);
+      spinner.fail(
+        interactive
+          ? `${action} failed`
+          : `Failed to run ${action} on simulator session ${session.id}`
+      );
       throw err;
     }
 
@@ -433,10 +507,14 @@ Existing output files are overwritten. When saving to a directory, an existing f
       });
       return;
     }
+    if (interactive && plan.localFile?.path) {
+      Log.gray(`Source: ${plan.localFile.path}`);
+    }
     if (savedFile) {
       Log.log(`Saved ${savedFile}`);
     } else if (output) {
-      Log.log(output);
+      const parsed = parseControlActionOutput(output);
+      Log.log(interactive && typeof parsed !== 'string' ? JSON.stringify(parsed, null, 2) : output);
     }
   }
 }

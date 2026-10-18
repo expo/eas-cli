@@ -67,7 +67,7 @@ const PREVIEW_UNAVAILABLE_MESSAGE =
   'The simulator preview server is unavailable. The session may have ended or expired. Check it with `eas simulator:get`, or start a new session with `eas simulator:start`.';
 const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
 const NAMED_VALUE = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/s;
-const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+export const NUMBER_PATTERN = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 function previewEndpoint(apiUrl: string, endpoint: string): URL {
   const base = new URL(apiUrl);
@@ -418,7 +418,10 @@ function coerce(value: string, schemas: unknown[]): unknown {
       return value;
     }
   }
-  if (NUMBER.test(value) && schemas.some(schema => acceptsType(schema, ['number', 'integer']))) {
+  if (
+    NUMBER_PATTERN.test(value) &&
+    schemas.some(schema => acceptsType(schema, ['number', 'integer']))
+  ) {
     return Number(value);
   }
   if (
