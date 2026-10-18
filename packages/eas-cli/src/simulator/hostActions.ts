@@ -14,6 +14,8 @@ export type HostActionResult = {
 };
 
 export type HostActionConnection = {
+  readonly signal: AbortSignal;
+  readonly udid: string;
   requestAsync(action: string, params?: Record<string, unknown>): Promise<HostActionResult>;
   close(): void;
 };
@@ -42,6 +44,8 @@ const Catalog = z.record(z.string(), CatalogEntry);
 export type HostActionCatalog = z.infer<typeof Catalog>;
 export type HostActionCatalogEntry = z.infer<typeof CatalogEntry>;
 
+export type HostActionDevice = { udid: string; name?: string; runtime?: string };
+
 const PreviewConfig = z.object({ device: z.string().min(1) });
 
 const ReplyId = z.object({ id: z.number() });
@@ -59,6 +63,8 @@ const SocketMessage = z.union([
 
 const HOST_ACTION_TIMEOUT_MS = 130_000;
 const PREVIEW_API_TIMEOUT_MS = 30_000;
+const PREVIEW_UNAVAILABLE_MESSAGE =
+  'The simulator preview server is unavailable. The session may have ended or expired. Check it with `eas simulator:get`, or start a new session with `eas simulator:start`.';
 const UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
 const NAMED_VALUE = /^([A-Za-z][A-Za-z0-9]*)=(.*)$/s;
 const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
@@ -92,6 +98,9 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
     });
     text = await response.text();
   } catch (error) {
+    if (error instanceof RequestError && error.response.status === 404) {
+      throw new Error(PREVIEW_UNAVAILABLE_MESSAGE);
+    }
     if (error instanceof RequestError && [401, 403].includes(error.response.status)) {
       throw new Error(
         `The simulator preview server refused the session token (HTTP ${error.response.status}). Run \`eas simulator:get\` to check that the session still runs, then try again.`
@@ -115,6 +124,31 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
     );
   }
   return config.data.device;
+}
+
+/** Display metadata is optional on older preview servers and must not block device controls. */
+export async function fetchHostActionDeviceAsync(
+  { apiUrl, token }: PreviewApiAccess,
+  udid: string
+): Promise<HostActionDevice> {
+  try {
+    const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(3000),
+    });
+    const catalog = z
+      .object({
+        devices: z.array(
+          z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
+        ),
+      })
+      .parse(await response.json());
+    const device = catalog.devices.find(device => device.device === udid);
+    return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
+  } catch {
+    return { udid };
+  }
 }
 
 function refusedError(error: string): Error {
@@ -144,6 +178,7 @@ export async function connectHostActionsAsync(
     timer: NodeJS.Timeout;
   };
   const pending = new Map<number, Pending>();
+  const controller = new AbortController();
   let nextId = 1;
   let lost: Error | null = null;
   let ready = false;
@@ -158,28 +193,29 @@ export async function connectHostActionsAsync(
   }
 
   function loseConnection(error: Error): void {
-    lost ??= error;
+    if (lost) {
+      return;
+    }
+    lost = error;
+    controller.abort(error);
     for (const id of [...pending.keys()]) {
       settle(id)?.reject(error);
     }
+    ws.terminate();
   }
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(
+      fail(
         new Error(
           `The simulator preview server did not accept the connection within ${PREVIEW_API_TIMEOUT_MS / 1000} seconds. Check that the session still runs with \`eas simulator:get\`, then try again.`
         )
       );
-      ws.terminate();
     }, PREVIEW_API_TIMEOUT_MS);
     const fail = (error: Error): void => {
       clearTimeout(timer);
       reject(error);
       loseConnection(error);
-      if (!ready) {
-        ws.terminate();
-      }
     };
 
     ws.on('message', data => {
@@ -220,7 +256,9 @@ export async function connectHostActionsAsync(
       res.destroy();
       fail(
         new Error(
-          `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
+          res.statusCode === 404
+            ? PREVIEW_UNAVAILABLE_MESSAGE
+            : `The simulator preview server refused the connection (HTTP ${res.statusCode}). The session token may be out of date. Run \`eas simulator:get\` to check the session, then try again.`
         )
       );
     });
@@ -243,25 +281,36 @@ export async function connectHostActionsAsync(
   });
 
   return {
+    signal: controller.signal,
+    udid,
     async requestAsync(action, params = {}) {
       if (lost) {
         throw lost;
       }
       const id = nextId++;
+      const message = JSON.stringify({ id, action, params: { ...params, udid } });
       return await new Promise<HostActionResult>((resolve, reject) => {
         const timer = setTimeout(() => {
-          settle(id)?.reject(
+          loseConnection(
             new Error(
               `The simulator did not answer within ${Math.round(timeoutMs / 1000)} seconds. The action may still have run. Check the session with \`eas simulator:get\` and the current state before you try again.`
             )
           );
         }, timeoutMs);
         pending.set(id, { resolve, reject, timer });
-        ws.send(JSON.stringify({ id, action, params: { ...params, udid } }));
+        try {
+          ws.send(message, error => {
+            if (error) {
+              loseConnection(error);
+            }
+          });
+        } catch (error) {
+          loseConnection(error instanceof Error ? error : new Error(String(error)));
+        }
       });
     },
     close() {
-      ws.close();
+      loseConnection(new Error('The simulator action connection was closed.'));
     },
   };
 }
@@ -447,12 +496,16 @@ export async function assertHostActionOutputAsync(
   }
 }
 
+export function createHostActionUploadId(localPath: string): string {
+  return `eas-cli-${randomUUID()}${path.extname(localPath).replace(/[^A-Za-z0-9.]/g, '')}`;
+}
+
 export async function uploadFileAsync(
   connection: HostActionConnection,
   localPath: string,
   { chunkBytes = UPLOAD_CHUNK_BYTES }: { chunkBytes?: number } = {}
 ): Promise<{ uploadId: string; path: string }> {
-  const uploadId = `eas-cli-${randomUUID()}${path.extname(localPath).replace(/[^A-Za-z0-9.]/g, '')}`;
+  const uploadId = createHostActionUploadId(localPath);
   let remotePath = '';
   let first = true;
   try {
