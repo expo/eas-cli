@@ -43,7 +43,15 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control --id <session-id>',
     '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
-    "$ eas simulator:control clipboard.write -- 'text=hello'",
+    {
+      description:
+        'Write hello using the named text parameter (shell quotes do not change parsing):',
+      command: "$ eas simulator:control clipboard.write 'text=hello'",
+    },
+    {
+      description: 'Write the literal text=hello using --:',
+      command: "$ eas simulator:control clipboard.write -- 'text=hello'",
+    },
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
