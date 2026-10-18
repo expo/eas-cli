@@ -94,7 +94,8 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
       (remoteLinkedIds?.[CapabilityModel.type] ?? []).map(model => model.id)
     );
 
-    // A list of server IDs for linking.
+    // A list of server IDs for linking. The update replaces the linked identifiers,
+    // so this includes the ones that are already linked.
     const capabilityIdOpaqueIds: string[] = [];
 
     // Iterate through all the local IDs and see if they exist on the server.
@@ -106,8 +107,8 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
         if (!alreadyLinkedOpaqueIds.has(remoteIdModel.id)) {
           // Link the existing identifier to this bundle.
           linkedIds.push(remoteIdModel.attributes.identifier);
-          capabilityIdOpaqueIds.push(remoteIdModel.id);
         }
+        capabilityIdOpaqueIds.push(remoteIdModel.id);
         continue;
       }
 
@@ -133,7 +134,7 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
       capabilityIdOpaqueIds.push(remoteIdModel.id);
     }
 
-    if (capabilityIdOpaqueIds.length) {
+    if (capabilityIdOpaqueIds.some(id => !alreadyLinkedOpaqueIds.has(id))) {
       updateRequest.push({
         capabilityType: classifier.capability,
         option: CapabilityTypeOption.ON,
