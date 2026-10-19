@@ -3,6 +3,7 @@ import { vol } from 'memfs';
 import { writeFile } from 'node:fs/promises';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 
@@ -125,8 +126,16 @@ it('reports a metadata upload failure while keeping the video and uploading othe
       'other-recording.json',
     ])
   );
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'Could not upload device screen recording metadata',
+    expect.any(Error)
+  );
+  expect(Sentry.capture).not.toHaveBeenCalledWith(
+    'Could not upload device screen recording',
+    expect.any(Error)
+  );
   expect(logger.warn).toHaveBeenCalledWith(
     expect.objectContaining({ err: expect.any(Error) }),
-    expect.stringContaining('metadata')
+    `Could not upload screen recording metadata for ${recording.deviceName}.`
   );
 });

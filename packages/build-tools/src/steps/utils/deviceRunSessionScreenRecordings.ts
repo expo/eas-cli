@@ -186,28 +186,38 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
             openStream: () => createReadStream(recordingPath),
             attempts: 3,
           });
-          await uploadDeviceRunSessionArtifactAsync(ctx, {
-            deviceRunSessionId,
-            artifactId: `${recordingId}-metadata`,
-            name: `${displayName} metadata`,
-            filename: `${recordingId}.json`,
-            kind: 'screen-recording-metadata',
-            metadata: {
-              __eas_type: 'screen-recording-metadata',
-              recordingFilename: `${recordingId}.mp4`,
-              udid: recording.udid,
-            },
-            size: manifest.length,
-            openStream: () => Readable.from(manifest),
-            attempts: 3,
-          });
+          try {
+            await uploadDeviceRunSessionArtifactAsync(ctx, {
+              deviceRunSessionId,
+              artifactId: `${recordingId}-metadata`,
+              name: `${displayName} metadata`,
+              filename: `${recordingId}.json`,
+              kind: 'screen-recording-metadata',
+              metadata: {
+                __eas_type: 'screen-recording-metadata',
+                recordingFilename: `${recordingId}.mp4`,
+                udid: recording.udid,
+              },
+              size: manifest.length,
+              openStream: () => Readable.from(manifest),
+              attempts: 3,
+            });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            Sentry.capture('Could not upload device screen recording metadata', error);
+            logger.warn(
+              { err: error },
+              `Could not upload screen recording metadata for ${recording.deviceName}.`
+            );
+            return false;
+          }
           return true;
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not upload device screen recording or metadata', error);
+          Sentry.capture('Could not upload device screen recording', error);
           logger.warn(
             { err: error },
-            `Could not upload screen recording or its metadata for ${recording.deviceName}.`
+            `Could not upload screen recording for ${recording.deviceName}.`
           );
           return false;
         }
