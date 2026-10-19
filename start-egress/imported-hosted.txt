@@ -1,0 +1,3 @@
+Imported into a REAL EAS session!
+EAS CLI -> hosted worker -> serve-sim
+Unicode: café 日本語 👋

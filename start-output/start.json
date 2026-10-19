@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "start": {
+    "platform": "ios",
+    "type": "web-preview-only",
+    "device": "iPhone 17 Pro",
+    "name": "start-import-output-qa",
+    "package-version": "0.10.0-canary-20261017-a69693e",
+    "max-duration-minutes": 10
+  },
+  "actions": [
+    {
+      "action": "appearance.get"
+    },
+    {
+      "action": "tap",
+      "params": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "action": "hardwareKeyboard.get"
+    }
+  ]
+}

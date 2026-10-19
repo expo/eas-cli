@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "start": {
+    "platform": "ios",
+    "type": "web-preview-only",
+    "name": "Codex real interactive egress 20261017",
+    "device": "iPhone 17 Pro",
+    "max-duration-minutes": 20,
+    "package-version": "https://traitor-hankie-epidural.ngrok-free.dev/expo-serve-sim-0.9.0.tgz",
+    "tag": [
+      "qa-start-import-20261017"
+    ],
+    "egress": "local",
+    "egress-allow": [
+      "localhost:49783"
+    ],
+    "application-archive-url": "https://traitor-hankie-epidural.ngrok-free.dev/ControlQA-v2.app.tar.gz",
+    "launch-arg": [
+      "--saved-start"
+    ],
+    "public-link": true,
+    "network-capture": true,
+    "network-capture-field": [
+      "header"
+    ]
+  },
+  "actions": [
+    {
+      "action": "app.file.upload",
+      "file": "./imported-hosted.txt",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/imported.txt",
+        "overwrite": true
+      }
+    },
+    {
+      "action": "app.launch",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "launchArgs": [
+          "--after-ready"
+        ],
+        "openUrl": "easqa://probe?url=http%3A%2F%2F127.0.0.1%3A49783%2Fegress-proof"
+      }
+    },
+    {
+      "action": "gesture",
+      "params": {
+        "events": [
+          {
+            "type": "begin",
+            "x": 0.98,
+            "y": 0.1
+          },
+          {
+            "type": "move",
+            "x": 0.98,
+            "y": 0.1,
+            "delayMs": 1000
+          },
+          {
+            "type": "move",
+            "x": 0.98,
+            "y": 0.1,
+            "delayMs": 1000
+          },
+          {
+            "type": "move",
+            "x": 0.98,
+            "y": 0.1,
+            "delayMs": 1000
+          },
+          {
+            "type": "end",
+            "x": 0.98,
+            "y": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "action": "app.file.read",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/network.json"
+      },
+      "output": "./egress-network.json"
+    },
+    {
+      "action": "screenshot.capture",
+      "output": "./egress-app.png"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "actions": [
+    {
+      "action": "app.stop",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa"
+      }
+    },
+    {
+      "action": "appearance.set",
+      "params": {
+        "value": "dark"
+      }
+    },
+    {
+      "action": "app.file.upload",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/imported.txt",
+        "overwrite": true
+      },
+      "file": "./imported.txt"
+    },
+    {
+      "action": "app.file.read",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "relativePath": "Documents/imported.txt"
+      },
+      "output": "./readback.txt"
+    },
+    {
+      "action": "app.launch",
+      "params": {
+        "bundleId": "dev.expo.eas-control-qa",
+        "openUrl": "easqa://verified"
+      }
+    },
+    {
+      "action": "screenshot.capture",
+      "output": "./verified-in-app.png"
+    },
+    {
+      "action": "appearance.set",
+      "params": {
+        "value": "light"
+      }
+    }
+  ]
+}

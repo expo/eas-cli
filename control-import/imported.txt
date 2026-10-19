@@ -1,0 +1,3 @@
+Imported into the app!
+EAS CLI → Tart → serve-sim
+Verified file contents.
