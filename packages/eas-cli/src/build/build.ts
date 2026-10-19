@@ -56,9 +56,9 @@ import {
   maybeWarnAboutProjectTarballSize,
   reviewAndCommitChangesAsync,
 } from './utils/repository';
+import { getAccountBillingUrl } from './utils/url';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
 import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
@@ -706,7 +706,7 @@ async function handleSingleBuildProgressAsync(
       } else {
         updateSpinnerText(spinner, {
           text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-            formatAccountBillingUrl(accountName)
+            getAccountBillingUrl(accountName)
           )}.`,
         });
       }
@@ -729,7 +729,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
+          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
@@ -919,10 +919,6 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
     return `starting in about ${n}0 minutes...`;
   }
-}
-
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(

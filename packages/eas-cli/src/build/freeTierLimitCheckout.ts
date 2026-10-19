@@ -1,4 +1,4 @@
-import { getExpoWebsiteBaseUrl } from '../api';
+import { getAccountBillingUrl } from './utils/url';
 import { getAgentTelemetryContext } from '../analytics/agent';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { BillingClient } from '../billing/billingClient';
@@ -90,10 +90,6 @@ export async function resolveFreeTierLimitCheckoutVariantAsync(
     .getParam<FreeTierLimitCheckoutVariant>('variant', 'control');
 }
 
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
-}
-
 async function createCheckoutUrlAsync({
   authenticationInfo,
   accountId,
@@ -146,7 +142,7 @@ export async function maybeOfferFreeTierLimitCheckoutAsync(
       checkoutCreated = true;
       await openOrPrintUrlAsync(checkoutUrl, { label: 'Checkout page', open: true });
     } else {
-      Log.log(`Upgrade your plan at ${link(formatAccountBillingUrl(experiment.accountName))}`);
+      Log.log(`Upgrade your plan at ${link(getAccountBillingUrl(experiment.accountName))}`);
     }
   }
 
