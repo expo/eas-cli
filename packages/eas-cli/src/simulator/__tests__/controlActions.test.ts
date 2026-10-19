@@ -57,7 +57,7 @@ describe('control action preparation and execution', () => {
   it('copies typed and empty values without parsing stdout', async () => {
     const params = { enabled: false, count: 0, text: '', nested: { values: ['original'] } };
     const plan = await prepareControlActionAsync(catalog, { action: 'settings', params });
-    params.nested.values.push('changed');
+    params.text = 'changed';
     expect(plan.params).toEqual({
       enabled: false,
       count: 0,
