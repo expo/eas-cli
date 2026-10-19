@@ -48,6 +48,7 @@ const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
   setActor: jest.fn((): void => {}),
   flushAsync: jest.fn(async (): Promise<void> => {}),
+  getDeviceId: jest.fn((): string | null => null),
 };
 
 beforeEach(() => {
@@ -212,6 +213,30 @@ describe('EasCommand', () => {
 
         expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
         expect(logDebugSpy).toBeCalledWith(error);
+      });
+
+      it('skips the message when the command already printed it', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'error');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
+        const { EasCommandError } = require('../errors');
+        const Sentry = jest.requireMock('../../sentry').default;
+        Sentry.withScope.mockImplementation((cb: (scope: any) => void) => {
+          cb({ setTag: jest.fn(), setExtra: jest.fn() });
+        });
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const error = new EasCommandError('Already printed', { messageAlreadyPrinted: true });
+        runAsyncMock.mockImplementation(() => {
+          throw error;
+        });
+        try {
+          await TestEasCommand.run([], mockConfig);
+        } catch {}
+
+        expect(logErrorSpy).not.toHaveBeenCalled();
+        expect(logDebugSpy).toBeCalledWith(error);
+        expect(Sentry.captureException).toHaveBeenCalledWith(error);
       });
 
       it('logs the cleaned message if needed', async () => {

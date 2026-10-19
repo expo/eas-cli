@@ -172,8 +172,13 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
     throw Error('Did not find any installable apps inside tarball.');
   }
 
-  if (appFilePaths.length === 1) {
-    return path.join(outputDir, appFilePaths[0]);
+  // App Clips are nested inside their containing iOS app and cannot be run independently.
+  const installableAppPaths = appFilePaths.filter(
+    filePath => !appFilePaths.some(parentPath => filePath.startsWith(`${parentPath}/`))
+  );
+
+  if (installableAppPaths.length === 1) {
+    return path.join(outputDir, installableAppPaths[0]);
   }
 
   Log.newLine();
@@ -184,7 +189,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
     message: 'Select the app to run:',
     name: 'selectedFile',
     choices: [
-      ...appFilePaths.map(filePath => ({
+      ...installableAppPaths.map(filePath => ({
         title: filePath,
         value: filePath,
       })),

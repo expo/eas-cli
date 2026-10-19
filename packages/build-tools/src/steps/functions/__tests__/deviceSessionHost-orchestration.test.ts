@@ -16,7 +16,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../../utils/remoteDeviceRunSession';
-import { createStartAgentDeviceRemoteSessionBuildFunction } from '../startAgentDeviceRemoteSession';
+import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceSession';
 import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemoteSession';
 
 jest.mock('@expo/turtle-spawn');
@@ -27,6 +27,14 @@ jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceEvents');
 jest.mock('../../utils/appiumEvents');
 jest.mock('../../utils/agentDeviceArtifacts');
+// The agent-device session step boots the emulator itself; this test covers the session host.
+jest.mock('../startAndroidEmulator', () => ({
+  startAndroidEmulatorAsync: jest.fn().mockResolvedValue({
+    serialId: 'emulator-5554',
+    emulatorPromise: Promise.resolve(),
+    shouldAdjustAnimationScale: true,
+  }),
+}));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   spawnDetached: jest.fn(),
@@ -48,6 +56,15 @@ beforeEach(() => {
   jest.clearAllMocks();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+  // Only the emulator logcat folder: the Appium step writes into its own temp folder.
+  const mkdtemp = fs.promises.mkdtemp.bind(fs.promises);
+  jest
+    .spyOn(fs.promises, 'mkdtemp')
+    .mockImplementation(async prefix =>
+      String(prefix).includes('eas-android-emulator-logcat-')
+        ? '/tmp/eas-android-emulator-logcat-test'
+        : mkdtemp(prefix)
+    );
   jest.mocked(spawn).mockResolvedValue({ stdout: '{}' } as never);
   jest
     .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
@@ -89,9 +106,13 @@ afterEach(() => {
 
 describe.each([
   ['Appium', createStartAppiumRemoteSessionBuildFunction],
-  ['Agent Device', createStartAgentDeviceRemoteSessionBuildFunction],
+  ['Agent Device', createStartAgentDeviceSessionBuildFunction],
 ] as const)('%s host ownership', (name, createFunction) => {
-  async function runAsync() {
+  async function runAsync(
+    publicPreview?: boolean,
+    frameAncestors?: string[],
+    corsOrigins?: string[]
+  ) {
     const fn = createFunction({} as CustomBuildContext);
     await fn.fn!(
       {
@@ -99,10 +120,17 @@ describe.each([
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
-        inputs: {
-          package_version: { value: undefined },
-          max_idle_time_minutes: { value: undefined },
-        },
+        // Inputs a step does not get default to undefined, like in a real step call.
+        inputs: new Proxy(
+          {
+            public_preview: { value: publicPreview },
+            frame_ancestors: { value: frameAncestors },
+            cors_origins: { value: corsOrigins },
+          } as Record<string, { value: unknown }>,
+          {
+            get: (target, id: string) => target[id] ?? { value: undefined },
+          }
+        ),
         outputs: {},
         env: {
           DEVICE_RUN_SESSION_ID: 'session-id',
@@ -115,7 +143,7 @@ describe.each([
 
   it('holds the host until session completion', async () => {
     await runAsync();
-    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test' });
+    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test', authtoken: 'token' });
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
@@ -132,6 +160,59 @@ describe.each([
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopEvents).toHaveBeenCalledTimes(1);
     expect(stopTunnel).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens tunnels with the ngrok token but keeps it out of spawned processes', async () => {
+    await runAsync();
+    expect(startNgrokTunnelAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ authtoken: 'token' })
+    );
+    const spawnedEnvs = [
+      ...jest.mocked(spawn).mock.calls.map(([, , options]) => options?.env),
+      ...jest.mocked(spawnDetached).mock.calls.map(([options]) => options.env),
+      ...jest.mocked(startDeviceSessionHostAsync).mock.calls.map(([, options]) => options.env),
+    ];
+    expect(spawnedEnvs.length).toBeGreaterThan(0);
+    for (const env of spawnedEnvs) {
+      expect(env).toEqual(expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session-id' }));
+      expect(env).not.toHaveProperty('NGROK_AUTHTOKEN');
+    }
+  });
+
+  it.each([undefined, true, false])('maps public_preview=%s to the host', async publicPreview => {
+    await runAsync(publicPreview);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ disableShare: publicPreview === false })
+    );
+  });
+
+  it('maps frame_ancestors to the host and defaults to none', async () => {
+    await runAsync(undefined, ['https://embed.example.test']);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ frameAncestors: ['https://embed.example.test'] })
+    );
+    jest.mocked(startDeviceSessionHostAsync).mockClear();
+    await runAsync();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ frameAncestors: [] })
+    );
+  });
+
+  it('maps cors_origins to the host and defaults to none', async () => {
+    await runAsync(undefined, undefined, ['https://app.example.test']);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+    jest.mocked(startDeviceSessionHostAsync).mockClear();
+    await runAsync();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ corsOrigins: [] })
+    );
   });
 
   it('stops automation while recording finalization or upload is pending', async () => {
@@ -241,5 +322,78 @@ describe.each([
       expect.objectContaining({ message: 'recording cleanup failed' }),
       { level: 'warning' }
     );
+  });
+});
+
+describe('Appium ffmpeg setup', () => {
+  async function runAppiumAsync(): Promise<void> {
+    const fn = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+    await fn.fn!(
+      {
+        logger,
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: new Proxy({} as Record<string, { value: unknown }>, {
+          get: (target, id: string) => target[id] ?? { value: undefined },
+        }),
+        outputs: {},
+        env: {
+          DEVICE_RUN_SESSION_ID: 'session-id',
+          EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+          NGROK_AUTHTOKEN: 'token',
+        },
+      } as never
+    );
+  }
+
+  function holdFfmpegInstall({ appiumError }: { appiumError?: Error } = {}) {
+    let finish!: (outcome: 'installed' | 'failed') => void;
+    const install = new Promise((resolve, reject) => {
+      finish = outcome =>
+        outcome === 'installed' ? resolve({}) : reject(new Error('apt-get failed'));
+    });
+    jest.mocked(spawn).mockImplementation(((command: string, args: string[]) => {
+      if (command === 'ffmpeg') {
+        return Promise.reject(new Error('ffmpeg missing'));
+      }
+      if (args.includes('install') && args.includes('ffmpeg')) {
+        return install;
+      }
+      return command === 'npm' && appiumError
+        ? Promise.reject(appiumError)
+        : Promise.resolve({ stdout: '{}' });
+    }) as never);
+    return finish;
+  }
+
+  it.each(['installed', 'failed'] as const)(
+    'starts Appium after the ffmpeg install settles (%s)',
+    async outcome => {
+      const finishFfmpegInstall = holdFfmpegInstall();
+
+      const run = runAppiumAsync();
+      await new Promise(resolve => setImmediate(resolve));
+      expect(spawnDetached).not.toHaveBeenCalled();
+
+      finishFfmpegInstall(outcome);
+      await run;
+      expect(spawnDetached).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('waits for the ffmpeg install before failing on an Appium install error', async () => {
+    const appiumError = new Error('npm failed');
+    const finishFfmpegInstall = holdFfmpegInstall({ appiumError });
+
+    let settled = false;
+    const run = runAppiumAsync().finally(() => {
+      settled = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(settled).toBe(false);
+
+    finishFfmpegInstall('installed');
+    await expect(run).rejects.toBe(appiumError);
   });
 });

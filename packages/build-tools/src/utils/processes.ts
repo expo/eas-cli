@@ -6,6 +6,16 @@ export function isChildProcessAlive(child: ChildProcess): boolean {
   return child.exitCode === null && child.signalCode === null && !child.killed;
 }
 
+/** Whether any process in the group led by `pgid` exists. EPERM means it does. */
+export function isProcessGroupRunning(pgid: number): boolean {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch (error: any) {
+    return error?.code === 'EPERM';
+  }
+}
+
 /**
  * Kill a detached spawn's process group. Negated pid targets the group so bash/sleep
  * children cannot survive after the parent is gone (e.g. across upterm redial).

@@ -1,6 +1,7 @@
 import { CredentialsSource } from '@expo/eas-json';
 import { vol } from 'memfs';
 
+import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
 import { IosAppBuildCredentialsFragment, Role } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../project/ios/target';
@@ -58,7 +59,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             projectName: appLookupParams.projectName,
           },
@@ -102,7 +103,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
             projectName: appLookupParams.projectName,
           },

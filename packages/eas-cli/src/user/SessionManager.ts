@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 import { fetchSessionSecretAndUserFromBrowserAuthFlowAsync } from './fetchSessionSecretAndUserFromBrowserAuthFlow';
+import { fetchUserAsync } from './fetchUser';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
@@ -86,13 +87,23 @@ export default class SessionManager {
     await this.setSessionAsync(undefined);
   }
 
-  public async getUserAsync(): Promise<Actor | undefined> {
+  /**
+   * @param requestTimeoutMs caps the actor lookup when no actor is cached yet. Callers that must
+   * not delay a command past a deadline pass it; the default has no timeout. A capped lookup
+   * also skips the retry exchange, since a retry would double the wait.
+   */
+  public async getUserAsync({ requestTimeoutMs }: { requestTimeoutMs?: number } = {}): Promise<
+    Actor | undefined
+  > {
     if (!this.currentActor && (this.getAccessToken() || this.getSessionSecret())) {
       const authenticationInfo = {
         accessToken: this.getAccessToken(),
         sessionSecret: this.getSessionSecret(),
       };
-      const actor = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
+      const actor = await UserQuery.currentUserAsync(
+        createGraphqlClient(authenticationInfo, { requestTimeoutMs }),
+        { noRetry: requestTimeoutMs !== undefined }
+      );
       this.currentActor = actor ?? undefined;
       if (actor) {
         this.analytics.setActor(actor);
@@ -209,6 +220,18 @@ export default class SessionManager {
       username,
       currentConnection: 'Browser-Flow-Authentication',
     });
+  }
+
+  public async loginWithDeviceSessionAsync(sessionSecret: string): Promise<string> {
+    const { id, username } = await fetchUserAsync({ sessionSecret });
+    await this.setSessionAsync({
+      sessionSecret,
+      userId: id,
+      username,
+      currentConnection: 'Browser-Flow-Authentication',
+    });
+    this.currentActor = undefined;
+    return username;
   }
 
   private async loginAsync(input: {

@@ -27,18 +27,17 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'screenshots-test-'));
   uploaded = [];
   failedUploads = new Map();
-  jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementation(async (_ctx, { stream }) => {
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-      chunks.push(Buffer.from(chunk));
-    }
-    uploaded.push(Buffer.concat(chunks));
-  });
+  jest
+    .mocked(uploadDeviceRunSessionArtifactAsync)
+    .mockImplementation(async (_ctx, { openStream }) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of openStream()) {
+        chunks.push(Buffer.from(chunk));
+      }
+      uploaded.push(Buffer.concat(chunks));
+    });
 });
 afterEach(async () => {
-  for (const [, { stream }] of jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls) {
-    stream.destroy();
-  }
   await rm(directory, { recursive: true, force: true });
 });
 const flush = () =>

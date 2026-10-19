@@ -1,6 +1,5 @@
 node_modules/
 dist/
-bin/record-sim
 
 .secrets*
 !.secrets.example

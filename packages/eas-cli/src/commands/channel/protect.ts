@@ -13,7 +13,8 @@ import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ChannelProtect extends EasCommand {
-  static override description = 'protect a channel so only account admins can publish to it';
+  static override description =
+    'protect a channel so only Release Managers, Admins, and Owners can publish to it';
 
   static override args = {
     name: Args.string({

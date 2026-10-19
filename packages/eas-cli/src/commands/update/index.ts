@@ -57,6 +57,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from '../../update/active-rollout';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import {
   UpdatePublishPlatform,
@@ -114,6 +115,7 @@ type RawUpdateFlags = {
   'private-key-path'?: string;
   'emit-metadata': boolean;
   'rollout-percentage'?: number;
+  'force-end-active-rollout': boolean;
   'non-interactive': boolean;
   json: boolean;
   environment?: string;
@@ -134,6 +136,7 @@ type UpdateFlags = {
   privateKeyPath?: string;
   emitMetadata: boolean;
   rolloutPercentage?: number;
+  forceEndActiveRollout: boolean;
   json: boolean;
   nonInteractive: boolean;
   environment?: string;
@@ -193,6 +196,11 @@ export default class UpdatePublish extends EasCommand {
       min: 0,
       max: 100,
     }),
+    'force-end-active-rollout': Flags.boolean({
+      description:
+        'End an in-progress rollout on the runtime version being published, so this update supersedes it.',
+      default: false,
+    }),
     platform: Flags.option({
       char: 'p',
       options: Object.values(RequestedPlatform), // TODO: Add web when it's fully supported
@@ -241,6 +249,7 @@ export default class UpdatePublish extends EasCommand {
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
+      forceEndActiveRollout,
       environment: environmentFromFlags,
     } = this.sanitizeFlags(rawFlags);
 
@@ -614,10 +623,24 @@ export default class UpdatePublish extends EasCommand {
           };
         }
       );
+    const updateGroupsToPublish = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
+      graphqlClient,
+      updateGroups,
+      {
+        appId: projectId,
+        branchName: branch.name,
+        forceEndActiveRollout,
+        rolloutPercentage,
+      }
+    );
+
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+      newUpdates = await PublishMutation.publishUpdateGroupAsync(
+        graphqlClient,
+        updateGroupsToPublish
+      );
 
       if (codeSigningInfo) {
         Log.log('🔒 Signing updates');
@@ -822,6 +845,7 @@ export default class UpdatePublish extends EasCommand {
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
+      forceEndActiveRollout: flags['force-end-active-rollout'],
       nonInteractive,
       emitMetadata,
       json,

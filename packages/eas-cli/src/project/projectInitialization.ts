@@ -2,10 +2,7 @@ import { ConfigError, ExpoConfig, getProjectConfigDescription } from '@expo/conf
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import {
-  getAccountChoices,
-  getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
-} from './accountSelection';
+import { getAccountChoices } from './accountSelection';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from './expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { getProjectDashboardUrl } from '../build/utils/url';
@@ -17,7 +14,11 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { confirmAsync, promptAsync } from '../prompts';
-import { Actor, getCreatableAccountNames } from '../user/User';
+import {
+  Actor,
+  getCannotCreateProjectsOnAccountNameReason,
+  getCreatableAccountNames,
+} from '../user/User';
 
 export type InitializeMethodOptions = {
   force: boolean;
@@ -234,8 +235,6 @@ export async function initializeWithoutExplicitIDAsync(
   }
 
   const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPermissionsToCreateApp =
-    getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(actor);
 
   if (accountNameArgument) {
     // with --force, a conflicting "owner" field is rewritten after linking
@@ -244,9 +243,13 @@ export async function initializeWithoutExplicitIDAsync(
         `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Provide a matching --account or update the "owner" field.`
       );
     }
-    if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountNameArgument)) {
+    const cannotCreateReason = getCannotCreateProjectsOnAccountNameReason(
+      actor,
+      accountNameArgument
+    );
+    if (cannotCreateReason) {
       throw new Error(
-        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNames(
+        `${cannotCreateReason} Accounts you have permissions to create projects in: ${getCreatableAccountNames(
           actor
         ).join(', ')}`
       );
@@ -273,10 +276,7 @@ export async function initializeWithoutExplicitIDAsync(
       accountName = allAccounts[0].name;
       Log.log(`Using default account ${accountName} for non-interactive and force mode`);
     } else {
-      const choices = getAccountChoices(
-        actor,
-        accountNamesWhereUserHasSufficientPermissionsToCreateApp
-      );
+      const choices = getAccountChoices(actor);
 
       accountName = (
         await promptAsync({
@@ -328,9 +328,10 @@ export async function initializeWithoutExplicitIDAsync(
     return { projectId: existingProjectIdOnServer, status: 'linked' };
   }
 
-  if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountName)) {
+  const cannotCreateReason = getCannotCreateProjectsOnAccountNameReason(actor, accountName);
+  if (cannotCreateReason) {
     throw new Error(
-      `You don't have permission to create a new project on the ${accountName} account and no matching project already exists on the account.`
+      `No matching project exists on the ${accountName} account, and you can't create one. ${cannotCreateReason}`
     );
   }
 

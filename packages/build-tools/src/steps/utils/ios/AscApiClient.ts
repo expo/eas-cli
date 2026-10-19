@@ -5,6 +5,9 @@ import * as jose from 'jose';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
 
+import { isConnectFailure, isConnectionInterruptedError } from '../../../utils/networkErrors';
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
 const TOKEN_LIFETIME_SECONDS = 20 /* minutes */ * 60 /* seconds */;
 const TOKEN_REFRESH_MARGIN_SECONDS = 60 /* seconds */;
 
@@ -32,6 +35,27 @@ const AscErrorResponseSchema = z.object({
 });
 
 const GetApi = {
+  // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-buildbetadetail
+  '/v1/builds/:id/buildBetaDetail': {
+    path: z.object({ id: z.string() }),
+    request: z.object({}),
+    response: z.object({
+      data: z.object({
+        id: z.string(),
+        attributes: z.object({
+          internalBuildState: z.enum([
+            'PROCESSING',
+            'PROCESSING_EXCEPTION',
+            'MISSING_EXPORT_COMPLIANCE',
+            'READY_FOR_BETA_TESTING',
+            'IN_BETA_TESTING',
+            'EXPIRED',
+            'IN_EXPORT_COMPLIANCE_REVIEW',
+          ]),
+        }),
+      }),
+    }),
+  },
   // https://developer.apple.com/documentation/appstoreconnectapi/get-v1-builds-_id_-app
   '/v1/builds/:id/app': {
     path: z.object({ id: z.string() }),
@@ -538,7 +562,22 @@ export class AscApiClient {
     });
   }
 
-  private async sendRequestAsync({
+  private async sendRequestAsync(
+    args: Parameters<AscApiClient['sendRequestOnceAsync']>[0]
+  ): Promise<any> {
+    return await promiseRetryWithCondition(
+      () => this.sendRequestOnceAsync(args),
+      error =>
+        isConnectFailure(error) || (args.method === 'GET' && isConnectionInterruptedError(error)),
+      { retries: 3, factor: 2, minTimeout: 100 },
+      ({ attemptNumber, maxAttemptsCount, error }) =>
+        this.logger?.warn(
+          `Retrying Apple request (${args.method} ${args.path}, attempt ${attemptNumber}/${maxAttemptsCount}): ${String(error)}`
+        )
+    )();
+  }
+
+  private async sendRequestOnceAsync({
     path,
     method,
     body,

@@ -1,9 +1,8 @@
 import type { bunyan } from '@expo/logger';
-import { graphql } from 'gql.tada';
-import { z } from 'zod';
+import { BuildRuntimePlatform } from '@expo/steps';
 
 import type { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const SHORT_COMMIT_HASH_LENGTH = 7;
 const MAX_APP_SLUG_LENGTH = 80;
@@ -15,36 +14,15 @@ const LEADING_OR_TRAILING_DOTS_AND_HYPHENS = /^[.-]+|[.-]+$/g;
 // A full git commit hash: 40 hex characters for SHA-1 or 64 for SHA-256.
 const FULL_GIT_COMMIT_HASH = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i;
 
-const SCREENSHOT_SESSION_QUERY = graphql(`
-  query ScreenshotSession($deviceRunSessionId: ID!) {
-    deviceRunSessions {
-      byId(deviceRunSessionId: $deviceRunSessionId) {
-        platform
-        app { slug }
-        build {
-          id
-          gitCommitHash
-          app { slug }
-        }
-      }
-    }
-  }
-`);
-
-const AppSchema = z.object({ slug: z.string() });
-const ScreenshotSessionSchema = z.object({
-  platform: z.enum(['IOS', 'ANDROID']),
-  app: AppSchema,
-  build: z
-    .object({
-      id: z.string(),
-      gitCommitHash: z.string().nullable(),
-      app: AppSchema,
-    })
-    .nullable(),
-});
-
-export type ScreenshotSession = z.infer<typeof ScreenshotSessionSchema>;
+/**
+ * Session details used to name screenshots. `app` is always null: the device run session worker
+ * API does not return the app slug.
+ */
+export type ScreenshotSession = {
+  platform: 'IOS' | 'ANDROID';
+  app: { slug: string } | null;
+  build: { id: string; gitCommitHash: string | null; app: { slug: string } | null } | null;
+};
 
 export async function loadScreenshotSessionAsync(
   ctx: CustomBuildContext,
@@ -52,17 +30,23 @@ export async function loadScreenshotSessionAsync(
   logger: bunyan
 ): Promise<ScreenshotSession | null> {
   try {
-    const result = await ctx.graphqlClient
-      .query(
-        SCREENSHOT_SESSION_QUERY,
-        { deviceRunSessionId },
-        graphqlAbortContext(AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS))
-      )
-      .toPromise();
-    if (result.error) {
-      throw result.error;
-    }
-    return ScreenshotSessionSchema.parse(result.data?.deviceRunSessions.byId);
+    const signal = AbortSignal.timeout(SESSION_LOOKUP_TIMEOUT_MS);
+    const application = await requireDeviceRunSessionWorkerApi(ctx).getApplicationAsync({
+      signal,
+    });
+    return {
+      // www runs iOS sessions only on macOS workers and Android sessions only on Linux workers,
+      // so the worker API does not return the platform.
+      platform: ctx.runtimePlatform === BuildRuntimePlatform.DARWIN ? 'IOS' : 'ANDROID',
+      app: null,
+      build: application.build
+        ? {
+            id: application.build.id,
+            gitCommitHash: application.build.gitCommitHash,
+            app: null,
+          }
+        : null,
+    };
   } catch (err) {
     logger.warn(
       { err, deviceRunSessionId },
@@ -86,18 +70,20 @@ export function screenshotArtifactDetails(
   }
 
   const app = session.build?.app ?? session.app;
-  const appSlug =
-    app.slug
-      .replace(FILENAME_UNSAFE_RUN, '-')
-      .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
-      .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
   const platform = session.platform.toLowerCase();
-  const filenameParts = [appSlug, platform];
-  const metadata: Record<string, string> = {
-    __eas_type: 'screenshot',
-    appSlug: app.slug,
-    platform,
-  };
+  const filenameParts = [platform];
+  const metadata: Record<string, string> = { __eas_type: 'screenshot' };
+  // Without an app slug, the filename starts with the platform.
+  if (app) {
+    const appSlug =
+      app.slug
+        .replace(FILENAME_UNSAFE_RUN, '-')
+        .replace(LEADING_OR_TRAILING_DOTS_AND_HYPHENS, '')
+        .slice(0, MAX_APP_SLUG_LENGTH) || 'app';
+    filenameParts.unshift(appSlug);
+    metadata.appSlug = app.slug;
+  }
+  metadata.platform = platform;
 
   if (session.build) {
     metadata.buildId = session.build.id;

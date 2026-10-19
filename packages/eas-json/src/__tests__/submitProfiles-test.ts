@@ -639,7 +639,7 @@ test(`android config with releaseStatus ${AndroidReleaseStatus.inProgress} is va
   });
 });
 
-test.each([0, 1, 0.2, 0.75, 0.22])('rollout value %s is valid', async rollout => {
+test.each([1, 0.2, 0.75, 0.22])('rollout value %s is valid', async rollout => {
   await fs.writeJson('/project/eas.json', {
     submit: {
       production: {
@@ -669,7 +669,7 @@ test.each([0, 1, 0.2, 0.75, 0.22])('rollout value %s is valid', async rollout =>
   });
 });
 
-test.each([-5, 12, 1.2, 1.01, 99])('rollout value %s is invalid', async rollout => {
+test.each([0, -5, 12, 1.2, 1.01, 99])('rollout value %s is invalid', async rollout => {
   await fs.writeJson('/project/eas.json', {
     submit: {
       production: {

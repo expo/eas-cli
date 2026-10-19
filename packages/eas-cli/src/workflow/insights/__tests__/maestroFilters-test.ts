@@ -1,3 +1,5 @@
+import { Platform } from '@expo/eas-build-job';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import {
@@ -31,6 +33,7 @@ describe(resolveMaestroInsightsFiltersInputAsync, () => {
       workflow: ['e2e.yml'],
       status: ['PASSED', 'FLAKY', 'FAILED'],
       tag: ['smoke'],
+      platform: [Platform.IOS, Platform.ANDROID],
       'git-ref': 'main',
     });
 
@@ -38,6 +41,7 @@ describe(resolveMaestroInsightsFiltersInputAsync, () => {
       workflowIds: ['id-of-e2e.yml'],
       statuses: ['PASSED_CLEAN', 'FLAKY', 'FAILED'],
       tags: ['smoke'],
+      platforms: ['IOS', 'ANDROID'],
       gitRefs: ['refs/heads/main'],
     });
   });
@@ -51,16 +55,21 @@ describe(resolveMaestroHistoryFiltersInputAsync, () => {
     ]);
   });
 
-  it('resolves only the workflow and git ref filters', async () => {
+  it('resolves the workflow, git ref, and platform filters', async () => {
     await expect(
       resolveMaestroHistoryFiltersInputAsync(graphqlClient, 'app-1', {
         workflow: ['e2e.yml'],
         'git-ref': 'main',
+        platform: [Platform.ANDROID],
       })
-    ).resolves.toEqual({ workflowIds: ['id-of-e2e.yml'], gitRefs: ['refs/heads/main'] });
+    ).resolves.toEqual({
+      workflowIds: ['id-of-e2e.yml'],
+      gitRefs: ['refs/heads/main'],
+      platforms: ['ANDROID'],
+    });
   });
 
-  it('is undefined when neither is set', async () => {
+  it('is undefined when no filter is set', async () => {
     await expect(
       resolveMaestroHistoryFiltersInputAsync(graphqlClient, 'app-1', {})
     ).resolves.toBeUndefined();
@@ -74,7 +83,17 @@ describe(getAppliedMaestroInsightsFilters, () => {
 
   it('keeps the values as given, with the git ref normalized', () => {
     expect(
-      getAppliedMaestroInsightsFilters({ status: ['PASSED'], tag: ['smoke'], 'git-ref': 'main' })
-    ).toEqual({ statuses: ['PASSED'], tags: ['smoke'], gitRef: 'refs/heads/main' });
+      getAppliedMaestroInsightsFilters({
+        status: ['PASSED'],
+        tag: ['smoke'],
+        platform: [Platform.IOS],
+        'git-ref': 'main',
+      })
+    ).toEqual({
+      statuses: ['PASSED'],
+      tags: ['smoke'],
+      platforms: ['IOS'],
+      gitRef: 'refs/heads/main',
+    });
   });
 });

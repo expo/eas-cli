@@ -106,6 +106,8 @@ function isNotFoundError(error: unknown): boolean {
     const code = e?.extensions?.errorCode ?? e?.extensions?.code;
     return (
       code === 'ENTITY_NOT_FOUND' ||
+      code === 'BUILD_NOT_FOUND' ||
+      code === 'NOT_FOUND_ERROR' ||
       /Entity not found/i.test(e?.message ?? '') ||
       /not found/i.test(e?.message ?? '')
     );
