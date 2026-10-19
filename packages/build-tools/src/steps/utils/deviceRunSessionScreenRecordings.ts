@@ -5,6 +5,7 @@ import spawn from '@expo/turtle-spawn';
 import { createReadStream } from 'node:fs';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import limitFactory from 'promise-limit';
 import { z } from 'zod';
 
@@ -140,9 +141,8 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
     recordings.map(recording =>
       limit(async () => {
         try {
-          const metadata = RecordingManifestSchema.parse(
-            JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
-          );
+          const manifest = await readFile(path.join(recording.directory, 'session.json'));
+          const metadata = RecordingManifestSchema.parse(JSON.parse(manifest.toString('utf-8')));
           if (path.basename(metadata.recording) !== metadata.recording) {
             throw new Error('Recording filename must not contain a directory.');
           }
@@ -186,6 +186,31 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
             openStream: () => createReadStream(recordingPath),
             attempts: 3,
           });
+          try {
+            await uploadDeviceRunSessionArtifactAsync(ctx, {
+              deviceRunSessionId,
+              artifactId: `${recordingId}-metadata`,
+              name: `${displayName} metadata`,
+              filename: `${recordingId}.json`,
+              kind: 'screen-recording-metadata',
+              metadata: {
+                __eas_type: 'screen-recording-metadata',
+                recordingFilename: `${recordingId}.mp4`,
+                udid: recording.udid,
+              },
+              size: manifest.length,
+              openStream: () => Readable.from(manifest),
+              attempts: 3,
+            });
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            Sentry.capture('Could not upload device screen recording metadata', error);
+            logger.warn(
+              { err: error },
+              `Could not upload screen recording metadata for ${recording.deviceName}.`
+            );
+            return false;
+          }
           return true;
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
