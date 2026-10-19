@@ -88,10 +88,15 @@ export class DeviceRunSessionWorkerApiError extends Error {
   constructor(
     message: string,
     /** The HTTP status of the response, or undefined when no response arrived. */
-    readonly status: number | undefined
+    readonly status: number | undefined,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
     this.name = 'DeviceRunSessionWorkerApiError';
+  }
+
+  get isTransient(): boolean {
+    return this.status === undefined || this.status >= 500;
   }
 }
 
@@ -218,7 +223,8 @@ export class DeviceRunSessionWorkerApi {
         `${routeDescription} failed before www responded: ${
           reason instanceof Error ? reason.message : String(reason)
         }. Check the network connection of the worker.`,
-        undefined
+        undefined,
+        { cause: reason }
       );
     }
     const response = responseResult.value;
