@@ -56,8 +56,19 @@ type ControlSession = {
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
-  static override description =
-    '[EXPERIMENTAL] control a remote iOS simulator session on EAS. Run without an action to list supported actions, or use --import to run a JSON configuration.';
+  static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
+
+Run without an action to list available actions. Use <action> --help for usage.
+
+Use --import to run saved actions from a JSON file:
+{
+  "version": 1,
+  "actions": [{"action": "appearance.set", "params": {"value": "dark"}}]
+}
+
+The file is checked before any actions run. Actions run in order and stop on the first failure. Local paths are relative to the JSON file; paths in params refer to the simulator host.
+
+Existing output files are overwritten. When saving to a directory, an existing file with the generated name causes the action to fail.`;
   static override strict = false;
 
   static override examples = [
@@ -76,28 +87,26 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
+        'Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting with --.',
     }),
   };
 
   static override flags = {
     help: Flags.boolean({
       char: 'h',
-      description: 'Show command help, or usage for the selected action from the session.',
+      description: 'Show help for this command or the selected action',
     }),
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     list: Flags.boolean({
-      description: 'List the actions the session supports.',
+      description: 'List available actions',
     }),
     output: Flags.string({
-      description:
-        'Local filename or existing directory for a returned file. Omit to save with the generated filename when supported.',
+      description: 'Local file or existing directory for saved output',
     }),
     import: Flags.string({
-      description:
-        'Run a version 1 JSON configuration with an actions array. Validate all steps first, then run in order until a step fails. Local file/output paths are relative to the configuration file; params paths refer to the remote host. Explicit output files are overwritten without prompting; directory outputs use simulator filenames and fail if the file exists. Example: {"version":1,"actions":[{"action":"app.install","file":"./MyApp.ipa"}]}',
+      description: 'Run saved actions from a JSON file',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
