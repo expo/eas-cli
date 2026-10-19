@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { SubmitProfile } from '@expo/eas-json';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -46,6 +47,15 @@ export async function downloadMetadataAsync({
       Log.log(`Overwriting existing store config at "${path.relative(projectDir, filePath)}".`);
     } else {
       const filePathRelative = path.relative(projectDir, filePath);
+      // Common pitfall: this prompt is invisible-by-default when stdout is being
+      // piped (e.g. `eas metadata:pull | tee log`) and unanswerable when running
+      // inside a wrapper such as a CI pseudo-tty or an AI-agent integrated
+      // terminal. Print an explicit hint so a stuck invocation is self-explanatory.
+      Log.log(
+        chalk.dim(
+          `Tip: pass --non-interactive to auto-overwrite "${filePathRelative}" without prompting.`
+        )
+      );
       const overwrite = await confirmAsync({
         message: `Do you want to overwrite the existing "${filePathRelative}"?`,
       });
