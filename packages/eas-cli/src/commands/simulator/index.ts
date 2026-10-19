@@ -91,8 +91,20 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
 export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
-  static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in';
+  static override description = `[EXPERIMENTAL] start a remote simulator session on EAS
+
+Preview links require sign-in by default.
+
+Use --import to load saved start options and actions. CLI flags override saved options, including lists:
+{
+  "version": 1,
+  "start": {"platform": "ios"},
+  "actions": [{"action": "appearance.set", "params": {"value": "dark"}}]
+}
+
+The start object uses CLI flag names. Saved actions run after the session is ready. Local action paths are relative to the JSON file. If an action fails, the CLI tries to stop the new session. Android supports saved start options, but not actions yet.
+
+With local egress, actions wait for the connection and require interactive mode. In scripts, connect with simulator:egress, then run simulator:control --import separately.`;
 
   static override examples = [
     '$ eas simulator:start --import ./simulator.json',
@@ -101,8 +113,7 @@ export default class Simulator extends EasCommand {
 
   static override flags = {
     import: Flags.string({
-      description:
-        'Read version 1 JSON with start settings (using flag names) and optional actions. Explicit CLI values replace saved values, including arrays. Actions run after readiness and after interactive local egress connects. Actions with local egress require interactive mode; otherwise import them separately with simulator:control after connecting simulator:egress. Local action paths are relative to the file. Setup failure stops the newly created session. Example: {"version":1,"start":{"platform":"ios"},"actions":[{"action":"appearance.set","params":{"value":"dark"}}]}',
+      description: 'Load start options and actions from a JSON file',
     }),
     platform: Flags.option({
       char: 'p',
