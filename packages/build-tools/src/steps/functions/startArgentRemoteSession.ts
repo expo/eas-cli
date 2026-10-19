@@ -339,6 +339,7 @@ export function createStartArgentRemoteSessionBuildFunction(
               ? {
                   maxIdleTimeMinutes,
                   getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
                 }
               : undefined,
         });

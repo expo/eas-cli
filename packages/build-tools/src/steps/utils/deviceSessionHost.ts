@@ -48,6 +48,7 @@ import {
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
+import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createStartupTasks } from './startupTasks';
@@ -350,6 +351,8 @@ export type DeviceWebPreview = {
 
 export type DeviceSessionHost = {
   openPreviewAsync(options: { baseDomain: string; authtoken: string }): Promise<DeviceWebPreview>;
+  /** Last observed preview input. Always `undefined` on Android, which keeps no event log. */
+  getLastPreviewActivityAt(): Date | undefined;
   /**
    * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
    * and reported, so callers need no error handling around it.
@@ -577,6 +580,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
+  let previewActivity: ServeSimActivityPolling | null = null;
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain, authtoken }) {
@@ -634,6 +638,9 @@ async function startDeviceSessionHostInternalAsync(
       });
       return opening;
     },
+    getLastPreviewActivityAt() {
+      return previewActivity?.getLastActivityObservedAt();
+    },
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
@@ -642,6 +649,7 @@ async function startDeviceSessionHostInternalAsync(
           previewSetupController.abort();
           await previewSetupTask;
           await sessionPreview?.stopAsync();
+          await previewActivity?.stopAsync();
         },
         previewServer,
         screenshots,
@@ -769,6 +777,9 @@ async function startDeviceSessionHostInternalAsync(
     secrets.push(previewToken);
     if (!isAndroid) {
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
+      if (!finishTask) {
+        previewActivity = startServeSimActivityPolling({ port, token: previewToken, logger });
+      }
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.

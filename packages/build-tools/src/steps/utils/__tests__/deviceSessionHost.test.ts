@@ -13,6 +13,7 @@ import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
@@ -44,6 +45,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
+jest.mock('../serveSimActivity');
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('../serveSimMetricsRecorder', () => ({
@@ -450,6 +452,62 @@ it('starts the readiness budget after refusals that exceed the normal startup de
   expect(settled).toBe(false);
   await jest.advanceTimersByTimeAsync(1_000);
   await rejected;
+});
+
+it('reports preview activity from serve-sim on iOS and stops polling when finished', async () => {
+  const observedAt = new Date('2026-10-19T12:00:00Z');
+  const stopActivity = jest.fn().mockResolvedValue(undefined);
+  jest.mocked(startServeSimActivityPolling).mockReturnValue({
+    getLastActivityObservedAt: () => observedAt,
+    stopAsync: stopActivity,
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  const port = Number(
+    jest.mocked(spawnDetached).mock.calls[0][0].args[
+      jest.mocked(spawnDetached).mock.calls[0][0].args.indexOf('--port') + 1
+    ]
+  );
+
+  expect(startServeSimActivityPolling).toHaveBeenCalledWith({
+    port,
+    token: 'preview-token',
+    logger: expect.anything(),
+  });
+  expect(host.getLastPreviewActivityAt()).toBe(observedAt);
+
+  await host.finishAsync();
+  expect(stopActivity).toHaveBeenCalledTimes(1);
+});
+
+it('does not start polling preview activity when startup is cancelled', async () => {
+  const controller = new AbortController();
+  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockImplementation(async () => {
+    controller.abort(new Error('cancelled'));
+  });
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      iosSimulatorUdid: 'emulator-5554',
+      env,
+      logger,
+      timeoutMs: 10_000,
+      signal: controller.signal,
+    })
+  ).rejects.toThrow();
+  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
+});
+
+it('reports no preview activity on Android, where expo-device-hub keeps no event log', async () => {
+  const host = await startHostAsync();
+
+  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
+  expect(host.getLastPreviewActivityAt()).toBeUndefined();
+  await host.finishAsync();
 });
 
 it('stops a host that became ready on a different Simulator', async () => {

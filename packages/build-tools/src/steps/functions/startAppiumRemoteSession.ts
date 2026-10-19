@@ -240,6 +240,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
               ? {
                   maxIdleTimeMinutes,
                   getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
                 }
               : undefined,
         });

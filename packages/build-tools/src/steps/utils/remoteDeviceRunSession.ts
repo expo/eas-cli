@@ -126,6 +126,8 @@ export type DeviceRunSessionIdleTimeout = {
    * begins, so a session nobody ever connects to still times out.
    */
   getLastEventObservedAt: () => Date | undefined;
+  /** Last observed preview input, counted like a session event. */
+  getLastPreviewActivityAt?: () => Date | undefined;
 };
 
 export async function waitForDeviceRunSessionStoppedAsync({
@@ -179,9 +181,13 @@ export async function waitForDeviceRunSessionStoppedAsync({
 
     while (!signal.aborted) {
       if (idleTimeout) {
-        const lastEventObservedAt = idleTimeout.getLastEventObservedAt();
-        if (lastEventObservedAt && lastEventObservedAt > lastActivityAt) {
-          lastActivityAt = lastEventObservedAt;
+        for (const observedAt of [
+          idleTimeout.getLastEventObservedAt(),
+          idleTimeout.getLastPreviewActivityAt?.(),
+        ]) {
+          if (observedAt && observedAt > lastActivityAt) {
+            lastActivityAt = observedAt;
+          }
         }
         if (Date.now() - lastActivityAt.getTime() >= idleTimeout.maxIdleTimeMinutes * 60_000) {
           logger.info(
