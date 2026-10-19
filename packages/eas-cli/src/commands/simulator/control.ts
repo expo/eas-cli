@@ -78,6 +78,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
 
   static override examples = [
     '$ eas simulator:control',
+    '$ eas simulator:control --list',
     '$ eas simulator:control --id <session-id>',
     '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
