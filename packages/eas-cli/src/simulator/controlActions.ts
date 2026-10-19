@@ -27,15 +27,6 @@ export type PreparedControlAction = Readonly<{
   localFile?: Readonly<{ param: string; path: string }>;
 }>;
 
-function freeze<T>(value: T, seen = new WeakSet<object>()): T {
-  if (value && typeof value === 'object' && !seen.has(value)) {
-    seen.add(value);
-    Object.values(value).forEach(child => freeze(child, seen));
-    Object.freeze(value);
-  }
-  return value;
-}
-
 export async function prepareControlActionAsync(
   catalog: HostActionCatalog,
   action: ControlAction,
@@ -88,13 +79,13 @@ export async function prepareControlActionAsync(
       );
     }
   }
-  return freeze({
+  return {
     action: action.action,
     entry: structuredClone(entry),
     params,
     outputPath,
     ...(localFile ? { localFile } : {}),
-  });
+  };
 }
 
 async function assertLocalFileAsync(localPath: string): Promise<void> {

@@ -117,14 +117,14 @@ export async function prepareControlConfigAsync(
           plan.entry.uploadAs === 'id' ? uploadId : `/tmp/serve-sim-uploads/${uploadId}`;
       }
       validateParams(params);
-      actions.push(Object.freeze({ plan, validateParams }));
+      actions.push({ plan, validateParams });
     } catch (error) {
       throw new Error(`Config step ${index + 1} (${action.action}): ${errorMessage(error)}`, {
         cause: error,
       });
     }
   }
-  return Object.freeze({ path: absolutePath, udid, actions: Object.freeze(actions) });
+  return { path: absolutePath, udid, actions };
 }
 
 async function assertWritableOutputAsync(outputPath: string): Promise<void> {
