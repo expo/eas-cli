@@ -208,11 +208,12 @@ describe(fetchHostActionDeviceAsync, () => {
     );
   });
 
-  it('keeps the device ID when an older server has no metadata route', async () => {
-    jest.spyOn(fetchModule, 'default').mockRejectedValueOnce(new Error('Not found'));
+  it('propagates metadata lookup failures', async () => {
+    const error = new Error('Metadata request failed');
+    jest.spyOn(fetchModule, 'default').mockRejectedValueOnce(error);
     await expect(
       fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
-    ).resolves.toEqual({ udid: UDID });
+    ).rejects.toBe(error);
   });
 
   it('does not borrow metadata from another device', async () => {

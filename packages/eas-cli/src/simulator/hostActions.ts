@@ -126,29 +126,24 @@ async function fetchSimulatorUdidAsync({ apiUrl, token }: PreviewApiAccess): Pro
   return config.data.device;
 }
 
-/** Display metadata is optional on older preview servers and must not block device controls. */
 export async function fetchHostActionDeviceAsync(
   { apiUrl, token }: PreviewApiAccess,
   udid: string
 ): Promise<HostActionDevice> {
-  try {
-    const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: 'error',
-      signal: AbortSignal.timeout(3000),
-    });
-    const catalog = z
-      .object({
-        devices: z.array(
-          z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
-        ),
-      })
-      .parse(await response.json());
-    const device = catalog.devices.find(device => device.device === udid);
-    return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
-  } catch {
-    return { udid };
-  }
+  const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+    redirect: 'error',
+    signal: AbortSignal.timeout(3000),
+  });
+  const catalog = z
+    .object({
+      devices: z.array(
+        z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
+      ),
+    })
+    .parse(await response.json());
+  const device = catalog.devices.find(device => device.device === udid);
+  return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
 }
 
 function refusedError(error: string): Error {
