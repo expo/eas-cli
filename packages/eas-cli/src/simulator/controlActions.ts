@@ -41,7 +41,7 @@ export async function prepareControlActionAsync(
       `Unknown simulator action "${action.action}". Run \`eas simulator:control --list\` to see the actions.`
     );
   }
-  const params = structuredClone(action.params);
+  const params = { ...action.params };
   const resolveLocalPath = (value: string): string => {
     if (!baseDir) {
       return value;
@@ -71,7 +71,7 @@ export async function prepareControlActionAsync(
     const localPath = resolveLocalPath(value);
     const stat = await fs.stat(localPath).catch(() => null);
     if (stat) {
-      await assertLocalFileAsync(localPath);
+      await assertLocalFileAsync(localPath, stat);
       localFile = { param, path: localPath };
     } else if (!path.isAbsolute(value)) {
       throw new Error(
@@ -81,15 +81,15 @@ export async function prepareControlActionAsync(
   }
   return {
     action: action.action,
-    entry: structuredClone(entry),
+    entry,
     params,
     outputPath,
     ...(localFile ? { localFile } : {}),
   };
 }
 
-async function assertLocalFileAsync(localPath: string): Promise<void> {
-  const stat = await fs.stat(localPath).catch(() => null);
+async function assertLocalFileAsync(localPath: string, stats?: fs.Stats): Promise<void> {
+  const stat = stats ?? (await fs.stat(localPath).catch(() => null));
   if (!stat) {
     throw new Error(`${localPath} does not exist on this computer.`);
   }
@@ -111,7 +111,7 @@ export async function executeControlActionAsync(
   { validateParams }: { validateParams?: (params: Record<string, unknown>) => void } = {}
 ): Promise<ControlActionResult> {
   connection.signal.throwIfAborted();
-  const params: Record<string, unknown> = structuredClone(plan.params);
+  const params: Record<string, unknown> = { ...plan.params };
   let uploadId: string | undefined;
   let succeeded = false;
   try {

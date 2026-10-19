@@ -370,28 +370,25 @@ export default class SimulatorControl extends EasCommand {
       sanitizeTerminalText(
         stripVTControlCharacters(value).replace(/[\u202A-\u202E\u2066-\u2069]/g, '')
       );
-    const runtime = session.device.runtime?.replace(/^([A-Za-z]+)-/, '$1 ').replaceAll('-', '.');
+    const runtime = clean(session.device.runtime ?? '')
+      .replace(/^([A-Za-z]+)-/, '$1 ')
+      .replaceAll('-', '.');
     Log.newLine();
     Log.log(chalk.bold('Simulator controls'));
     Log.log(
-      formatFields(
-        [
-          { label: 'Session', value: truncate(clean(session.name ?? '') || 'Unnamed session', 80) },
-          { label: 'Project', value: session.project },
-          {
-            label: 'Device',
-            value: [truncate(clean(session.device.name ?? '') || 'iOS Simulator', 80), runtime]
-              .filter(Boolean)
-              .join(' · '),
-          },
-          { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
-          { label: 'Session ID', value: session.id },
-          { label: 'Device ID', value: session.device.udid },
-        ].map(field => ({
-          ...field,
-          value: clean(field.value),
-        }))
-      )
+      formatFields([
+        { label: 'Session', value: truncate(clean(session.name ?? '') || 'Unnamed session', 80) },
+        { label: 'Project', value: clean(session.project) },
+        {
+          label: 'Device',
+          value: [truncate(clean(session.device.name ?? '') || 'iOS Simulator', 80), runtime]
+            .filter(Boolean)
+            .join(' · '),
+        },
+        { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
+        { label: 'Session ID', value: clean(session.id) },
+        { label: 'Device ID', value: clean(session.device.udid) },
+      ])
     );
     Log.newLine();
   }
