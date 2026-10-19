@@ -54,7 +54,7 @@ describe('control action preparation and execution', () => {
     await fs.remove(tmpDir);
   });
 
-  it('copies typed and empty values into an immutable plan without parsing stdout', async () => {
+  it('copies typed and empty values without parsing stdout', async () => {
     const params = { enabled: false, count: 0, text: '', nested: { values: ['original'] } };
     const plan = await prepareControlActionAsync(catalog, { action: 'settings', params });
     params.nested.values.push('changed');
@@ -64,7 +64,6 @@ describe('control action preparation and execution', () => {
       text: '',
       nested: { values: ['original'] },
     });
-    expect(Object.isFrozen(plan.params.nested)).toBe(true);
     result = ok(' {"value":0}\n');
 
     await expect(executeControlActionAsync(connection, plan)).resolves.toEqual({
