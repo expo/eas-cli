@@ -14,6 +14,7 @@ import {
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
+  waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 
 import {
@@ -242,6 +243,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
         apiUrl: 'https://web-preview.tunnel.example.com',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: jest.fn(),
     });
   });
@@ -250,7 +252,10 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     jest.restoreAllMocks();
   });
 
-  async function runSessionAsync(logger: { info: jest.Mock; warn: jest.Mock }): Promise<void> {
+  async function runSessionAsync(
+    logger: { info: jest.Mock; warn: jest.Mock },
+    maxIdleTimeMinutes?: number
+  ): Promise<void> {
     await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
       {
         logger,
@@ -259,7 +264,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       {
         inputs: {
           package_version: { value: undefined },
-          max_idle_time_minutes: { value: undefined },
+          max_idle_time_minutes: { value: maxIdleTimeMinutes },
         },
         outputs: {},
         env: {
@@ -305,6 +310,21 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     await expect(runSessionAsync(logger)).rejects.toBe(collectionError);
     expectAppiumStoppedAndHomeRemoved(logger);
     expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+  });
+
+  it('resets the idle timer on preview input from the session host', async () => {
+    const previewInputAt = new Date('2026-10-19T12:00:00Z');
+    const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      {} as never,
+      {} as never
+    );
+    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
+
+    await expect(runSessionAsync({ info: jest.fn(), warn: jest.fn() }, 5)).rejects.toBe(stopError);
+
+    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(previewInputAt);
   });
 
   it('fails a finished session when Appium cannot be stopped', async () => {

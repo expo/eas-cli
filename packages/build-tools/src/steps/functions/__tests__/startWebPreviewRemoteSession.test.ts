@@ -81,6 +81,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         apiUrl: 'https://web-preview.example.test',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
@@ -97,6 +98,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         previewToken: 'tok-1',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopAsync,
     });
 
@@ -124,6 +126,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         apiUrl: 'https://web-preview.example.test',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopAsync,
     });
 
@@ -151,6 +154,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         apiUrl: 'https://web-preview.example.test',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopAsync,
     });
     await runAsync(BuildRuntimePlatform.DARWIN, { public_preview: { value: false } });
@@ -168,6 +172,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     if (phase === 'preview') {
       jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
         openPreviewAsync: jest.fn().mockRejectedValue(error),
+        getLastPreviewActivityAt: jest.fn(),
         finishAsync: stopAsync,
       });
     } else if (phase === 'config') {

@@ -104,6 +104,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         apiUrl: 'https://web-preview.tunnel.example.com',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
@@ -217,6 +218,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       if (phase === 'preview') {
         jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
           openPreviewAsync: jest.fn().mockRejectedValue(error),
+          getLastPreviewActivityAt: jest.fn(),
           finishAsync: mockPreviewStopAsync,
         });
       } else if (phase === 'config') {
@@ -505,6 +507,35 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(spawnDetached).toHaveBeenCalledTimes(1);
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets the idle timer on preview input from the session host', async () => {
+    const previewInputAt = new Date('2026-10-19T12:00:00Z');
+    const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      {} as never,
+      {} as never
+    );
+    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: 5 },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+
+    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(previewInputAt);
   });
 
   it('redacts startup credentials and registers the state token for later output', async () => {

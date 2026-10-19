@@ -1930,6 +1930,47 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     });
 
+    it('keeps the session alive while preview input keeps arriving', async () => {
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () => new Date(),
+        },
+      });
+
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
+    });
+
+    it('counts idle time from the later of automation and preview activity', async () => {
+      const ctx = createStatusCtxMock(manyInProgressStatuses());
+      const logger = createLoggerMock();
+      const previewInputAt = new Date(Date.now() + 30_000);
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () =>
+            Date.now() >= previewInputAt.getTime() ? previewInputAt : undefined,
+        },
+      });
+
+      // Idle from 30 s, so the stop comes at 90 s: 18 polls.
+      expect(workerApiCallCount('session')).toBe(18);
+      expect(workerApiCallCount('stop')).toBe(1);
+    });
+
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
         stopError: new Error('forbidden'),
