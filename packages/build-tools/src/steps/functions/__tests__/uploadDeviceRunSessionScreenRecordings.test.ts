@@ -140,9 +140,12 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
 
       await buildStep.executeAsync();
 
-      const names = jest
+      const uploads = jest
         .mocked(uploadDeviceRunSessionArtifactAsync)
-        .mock.calls.map(([, options]) => options.name);
+        .mock.calls.map(([, options]) => options);
+      const names = uploads
+        .filter(options => options.kind === 'screen-recording')
+        .map(options => options.name);
       expect(names).toEqual(
         expect.arrayContaining([
           'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
@@ -151,6 +154,12 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         ])
       );
       expect(new Set(names).size).toBe(3);
+      const metadata = uploads.filter(options => options.kind === 'screen-recording-metadata');
+      expect(metadata.map(options => options.name)).toEqual(
+        expect.arrayContaining(names.map(name => `${name} metadata`))
+      );
+      expect(metadata).toHaveLength(3);
+      expect(uploads).toHaveLength(6);
     } finally {
       await Promise.all(
         recordingDirectories.map(directory => fs.rm(directory, { recursive: true, force: true }))
