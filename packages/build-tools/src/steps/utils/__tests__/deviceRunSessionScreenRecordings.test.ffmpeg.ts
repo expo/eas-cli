@@ -206,7 +206,7 @@ it('recovers unlisted recordings from a killed host and flags the unfinished one
   });
   const manifests = creationBodies
     .map(body => JSON.parse(body))
-    .filter(input => input.kind === 'screen-recording-telemetry')
+    .filter(input => input.kind === 'screen-recording-metadata')
     .sort((a, b) => a.filename.localeCompare(b.filename));
   expect(manifests.map(input => input.filename)).toEqual(['cut.json', 'done.json', 'failed.json']);
   expect(manifests.map(input => input.metadata.recordingFilename)).toEqual([

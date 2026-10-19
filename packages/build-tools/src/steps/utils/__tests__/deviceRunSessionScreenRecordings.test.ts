@@ -76,9 +76,9 @@ it.each([
   expect(inputs[1]).toMatchObject({
     deviceRunSessionId: 'session-id',
     artifactId: 'recording-id-metadata',
-    kind: 'screen-recording-telemetry',
+    kind: 'screen-recording-metadata',
     metadata: {
-      __eas_type: 'screen-recording-telemetry',
+      __eas_type: 'screen-recording-metadata',
       recordingFilename: 'recording-id.mp4',
       udid: recording.udid,
     },

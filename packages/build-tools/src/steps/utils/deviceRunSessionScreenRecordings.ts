@@ -191,9 +191,9 @@ export async function uploadDeviceRunSessionScreenRecordingsAsync(
             artifactId: `${recordingId}-metadata`,
             name: `${displayName} metadata`,
             filename: `${recordingId}.json`,
-            kind: 'screen-recording-telemetry',
+            kind: 'screen-recording-metadata',
             metadata: {
-              __eas_type: 'screen-recording-telemetry',
+              __eas_type: 'screen-recording-metadata',
               recordingFilename: `${recordingId}.mp4`,
               udid: recording.udid,
             },
