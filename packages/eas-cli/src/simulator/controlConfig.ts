@@ -10,6 +10,7 @@ import {
   executeControlActionAsync,
   parseControlActionOutput,
   prepareControlActionAsync,
+  resolveControlActionPath,
 } from './controlActions';
 import { HostActionCatalog, HostActionConnection, createHostActionUploadId } from './hostActions';
 import { SimulatorSessionConfig, readSimulatorSessionConfigAsync } from './sessionConfig';
@@ -117,7 +118,9 @@ export async function preflightControlConfigFilesAsync(
         await assertLocalFileAsync(path.resolve(path.dirname(config.path), action.file));
       }
       if (action.output) {
-        await assertWritableOutputAsync(path.resolve(path.dirname(config.path), action.output));
+        await assertWritableOutputAsync(
+          resolveControlActionPath(action.output, path.dirname(config.path))
+        );
       }
     } catch (error) {
       throw new Error(`Config step ${index + 1} (${action.action}): ${errorMessage(error)}`, {
@@ -129,6 +132,9 @@ export async function preflightControlConfigFilesAsync(
 
 async function assertWritableOutputAsync(outputPath: string): Promise<void> {
   const stat = await fs.stat(outputPath).catch(() => null);
+  if ((outputPath.endsWith('/') || outputPath.endsWith(path.sep)) && !stat?.isDirectory()) {
+    throw new Error(`${outputPath} must be an existing directory.`);
+  }
   if (stat && !stat.isFile() && !stat.isDirectory()) {
     throw new Error(`${outputPath} must be a regular file or directory.`);
   }

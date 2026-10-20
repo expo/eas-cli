@@ -453,6 +453,7 @@ describe(Simulator, () => {
         jest
           .mocked(applyStartConfigAsync)
           .mockImplementationOnce(async (_access, _config, options) => {
+            expect(fs.writeFile).not.toHaveBeenCalled();
             const output = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
             const preview = output.findIndex(line => line.includes(deviceRunSessionPreviewUrl));
             const importing = output.findIndex(line => line.includes('Importing 1 action from'));
@@ -468,6 +469,10 @@ describe(Simulator, () => {
           configPath,
           ...(detached ? ['--non-interactive'] : []),
         ]).command.runAsync();
+        expect(fs.writeFile).toHaveBeenCalledWith(
+          simulatorDotenvPath,
+          expect.stringContaining(`${EAS_SIMULATOR_SESSION_ID}='session-123'`)
+        );
         const spinners = jest.mocked(ora).mock.results.map(result => result.value);
         expect(
           spinners.some(spinner =>
@@ -593,9 +598,13 @@ describe(Simulator, () => {
       }
     });
 
-    it.each([false, true])(
-      'stops JSON startup interrupted during its final dotenv write, imported=%s',
-      async imported => {
+    it.each([
+      { imported: false, jsonFlag: true },
+      { imported: true, jsonFlag: true },
+      { imported: true, jsonFlag: false },
+    ])(
+      'stops startup interrupted during its final dotenv write, imported=$imported, json=$jsonFlag',
+      async ({ imported, jsonFlag }) => {
         jest.spyOn(process, 'exit').mockImplementation(code => {
           throw new Error(`process.exit(${code})`);
         });
@@ -605,7 +614,11 @@ describe(Simulator, () => {
         });
         const listeners = process.listeners('SIGINT');
         await expect(
-          createCommand(['--import', configPath, '--json']).command.runAsync()
+          createCommand([
+            '--import',
+            configPath,
+            ...(jsonFlag ? ['--json'] : ['--non-interactive']),
+          ]).command.runAsync()
         ).rejects.toThrow('process.exit(130)');
         expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
           graphqlClient,
@@ -614,6 +627,69 @@ describe(Simulator, () => {
         expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
         expect(printJsonOnlyOutput).not.toHaveBeenCalled();
         expect(process.listeners('SIGINT')).toEqual(listeners);
+      }
+    );
+
+    it.each(
+      ['interactive', 'detached', 'json'].flatMap(mode =>
+        ['failure', 'interruption'].map(outcome => ({ mode, outcome }))
+      )
+    )(
+      'keeps previous session credentials after imported $outcome in $mode mode',
+      async ({ mode, outcome }) => {
+        config(undefined, [{ action: 'appearance.set' }]);
+        process.env[EAS_SIMULATOR_SESSION_ID] = 'previous-session';
+        const previous =
+          SIMULATOR_DOTENV_FILE_HEADER +
+          "EAS_SIMULATOR_SESSION_ID='previous-session'\nEAS_SIMULATOR_EGRESS_TOKEN='previous-token'\n";
+        let saved = previous;
+        jest.mocked(fs.readFile).mockImplementation(async () => saved as never);
+        jest.mocked(fs.writeFile).mockImplementation(async (_path, content) => {
+          saved = String(content);
+        });
+        mockResetSimulatorEnvAsync.mockImplementationOnce(
+          jest.requireActual('../../../simulator/env').resetSimulatorEnvAsync
+        );
+        jest
+          .mocked(applyStartConfigAsync)
+          .mockImplementationOnce(async (_access, _config, { signal }) => {
+            if (outcome === 'interruption') {
+              process.emit('SIGINT');
+              signal.throwIfAborted();
+            }
+            throw new Error('setup failed');
+          });
+        jest.spyOn(process, 'exit').mockImplementation(() => {
+          throw new Error('interrupted');
+        });
+        const priorExitCode = process.exitCode;
+        const listeners = process.listeners('SIGINT');
+        try {
+          const command = createCommand([
+            '--import',
+            configPath,
+            ...(mode === 'json' ? ['--json'] : mode === 'detached' ? ['--non-interactive'] : []),
+          ]).command;
+          if (mode === 'json' && outcome === 'failure') {
+            await command.runAsync();
+            expect(process.exitCode).toBe(1);
+          } else {
+            await expect(command.runAsync()).rejects.toThrow(
+              outcome === 'interruption' ? 'interrupted' : 'setup failed'
+            );
+          }
+          expect(saved).toBe(previous);
+          expect(fs.writeFile).not.toHaveBeenCalled();
+          expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+          expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+            graphqlClient,
+            'session-123'
+          );
+          expect(process.listeners('SIGINT')).toEqual(listeners);
+        } finally {
+          process.exitCode = priorExitCode;
+          jest.mocked(fs.readFile).mockReset();
+        }
       }
     );
 
