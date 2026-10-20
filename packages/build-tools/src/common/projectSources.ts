@@ -12,6 +12,10 @@ import { z } from 'zod';
 
 import { shallowCloneRepositoryAsync } from './git';
 import { BuildContext } from '../context';
+import {
+  SANDBOX_WORKER_TOKEN_HEADER,
+  getSandboxWorkerTokenFromEnvironmentSecrets,
+} from '../steps/utils/sandboxWorkerApi';
 import { turtleFetch } from '../utils/turtleFetch';
 
 export async function prepareProjectSourcesAsync<TJob extends Job>(
@@ -249,6 +253,9 @@ async function uploadProjectMetadataAsync(
 async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
   const taskId = nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
   const expoApiServerURL = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+  const sandboxWorkerToken = getSandboxWorkerTokenFromEnvironmentSecrets(
+    ctx.job.secrets?.environmentSecrets
+  );
   const robotAccessToken = nullthrows(
     ctx.job.secrets?.robotAccessToken,
     'robot access token is not set'
@@ -256,15 +263,19 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
 
   const response = await turtleFetch(
     new URL(
-      ctx.job.platform
-        ? `/v2/turtle-builds/${taskId}/download-project-archive`
-        : `/v2/turtle-job-runs/${taskId}/download-project-archive`,
+      sandboxWorkerToken
+        ? '/v2/sandbox-worker/project-archive'
+        : ctx.job.platform
+          ? `/v2/turtle-builds/${taskId}/download-project-archive`
+          : `/v2/turtle-job-runs/${taskId}/download-project-archive`,
       expoApiServerURL
     ).toString(),
     'POST',
     {
       headers: {
-        Authorization: `Bearer ${robotAccessToken}`,
+        ...(sandboxWorkerToken
+          ? { [SANDBOX_WORKER_TOKEN_HEADER]: sandboxWorkerToken }
+          : { Authorization: `Bearer ${robotAccessToken}` }),
       },
       timeout: 20000,
       retries: 3,

@@ -165,6 +165,29 @@ describe('BuildService Datadog setup', () => {
     expect(createBuildContextMock).toHaveBeenCalled();
   });
 
+  it('configures the sandbox router instead of general job metrics for sandbox jobs', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+    await (service as any).startBuildInternal({
+      job: {
+        secrets: {
+          robotAccessToken: 'sandbox-token',
+          environmentSecrets: [
+            { name: 'EAS_SANDBOX_WORKER_TOKEN', type: 'string', value: 'sandbox-token' },
+          ],
+        },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: expect.any(String),
+      sandboxWorkerToken: 'sandbox-token',
+      target: { kind: 'jobRun', turtleJobRunId: 'build-id' },
+    });
+  });
+
   it('configures the device run session target when the job has a device run session token', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});

@@ -1,3 +1,4 @@
+import { type SandboxWorkerApi } from './sandboxWorkerApi';
 import {
   type SandboxDaemonCommandParams,
   type SandboxDaemonCommandResult,
@@ -31,6 +32,7 @@ export function createSandboxCommandImplementations({
   env,
   signal,
   graphqlClient,
+  workerApi,
   sandboxId,
   logger,
 }: {
@@ -38,6 +40,7 @@ export function createSandboxCommandImplementations({
   env: NodeJS.ProcessEnv;
   signal: AbortSignal;
   graphqlClient: Client;
+  workerApi?: SandboxWorkerApi;
   sandboxId: string;
   logger: bunyan;
 }): {
@@ -47,6 +50,7 @@ export function createSandboxCommandImplementations({
   const sessions = new ShellSessionManager({ workingDirectory, env, signal });
   const artifactUploads = new SandboxArtifactUploadManager({
     graphqlClient,
+    workerApi,
     sandboxId,
     logger,
     signal,
