@@ -13,6 +13,8 @@ const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval'
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
 // adb closes the connection for longer shell commands (about 65.5 KB with adb 37 on API 35).
 const ANDROID_SHELL_COMMAND_MAX_BYTES = 65_000;
+// Room for ` <package>/<activity>` when the launch component is not known yet.
+const ANDROID_COMPONENT_RESERVED_BYTES = 512;
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -135,12 +137,36 @@ export async function launchApplicationAsync({
   }
 }
 
+// Checks Android launch inputs before the emulator boots. The launch component is only known once
+// the build is installed, so room is left for it; the launch itself checks the exact command.
+export function validateAndroidLaunchOptions({
+  launchArgs = [],
+  openUrl,
+}: {
+  launchArgs?: string[];
+  openUrl?: string;
+}): void {
+  quoteAndroidShellCommand(['am', 'start', ...launchArgs, '-n'], {
+    reservedBytes: ANDROID_COMPONENT_RESERVED_BYTES,
+  });
+  if (openUrl) {
+    quoteAndroidShellCommand(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl]);
+  }
+}
+
 // `adb shell` joins its arguments with spaces and the device shell parses the result again, so
 // each argument is quoted to reach the command as one literal word.
 async function spawnAndroidShellCommandAsync(
   command: string[],
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<void> {
+  await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
+}
+
+function quoteAndroidShellCommand(
+  command: string[],
+  { reservedBytes = 0 }: { reservedBytes?: number } = {}
+): string[] {
   if (command.some(argument => argument.includes('\0'))) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
@@ -148,13 +174,16 @@ async function spawnAndroidShellCommandAsync(
     );
   }
   const quotedCommand = command.map(quoteAndroidShellArgument);
-  if (Buffer.byteLength(quotedCommand.join(' ')) > ANDROID_SHELL_COMMAND_MAX_BYTES) {
+  if (
+    Buffer.byteLength(quotedCommand.join(' ')) + reservedBytes >
+    ANDROID_SHELL_COMMAND_MAX_BYTES
+  ) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
       `The Android launch command is longer than ${ANDROID_SHELL_COMMAND_MAX_BYTES} bytes after shell quoting. Shorten "launch_args" or "open_url".`
     );
   }
-  await spawn('adb', ['shell', ...quotedCommand], { env, logger });
+  return quotedCommand;
 }
 
 function quoteAndroidShellArgument(argument: string): string {

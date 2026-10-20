@@ -43,6 +43,7 @@ import {
   launchApplicationAsync,
   parseLaunchArgsInput,
   parseOpenUrlInput,
+  validateAndroidLaunchOptions,
 } from './launchApplication';
 import {
   getAgentDeviceRemoteSessionEnvOrThrow,
@@ -164,6 +165,8 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       }
       if (isIos) {
         validateServeSimLaunchOptions({ launchArgs, openUrl });
+      } else {
+        validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
