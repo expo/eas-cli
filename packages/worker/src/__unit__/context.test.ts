@@ -39,6 +39,7 @@ describe(createBuildContext.name, () => {
     buildId: 'build-id',
     buildLogger,
     addBuildLogMask: jest.fn(),
+    createLogMaskingStream: jest.fn(),
   };
 
   beforeEach(() => {
