@@ -871,7 +871,7 @@ describe('StaticWorkflowInterpolationContextZ', () => {
 });
 
 describe('GitHub context event payload passthrough', () => {
-  it('accepts arbitrary fields at all event levels', () => {
+  it('preserves webhook fields and validates documented pull request details', () => {
     const context = {
       after: {},
       needs: {},
@@ -895,7 +895,19 @@ describe('GitHub context event payload passthrough', () => {
           },
           pull_request: {
             number: 123,
+            title: 'Fix the build',
+            body: null,
+            state: 'open',
             draft: true,
+            merged: false,
+            html_url: 'https://github.com/expo/expo/pull/123',
+            user: { login: 'octocat', id: 1 },
+            labels: [{ name: 'bug', color: 'red' }],
+            head: { ref: 'fix-build', sha: 'abc123', repo: { name: 'expo' } },
+            base: { ref: 'main', sha: 'def456' },
+            created_at: '2026-10-01T00:00:00Z',
+            updated_at: '2026-10-02T00:00:00Z',
+            merged_at: null,
           },
           number: 123,
           schedule: '0 0 * * *',
@@ -921,6 +933,34 @@ describe('GitHub context event payload passthrough', () => {
     const parsed = StaticWorkflowInterpolationContextZ.parse(context);
 
     expect(parsed.github?.event).toMatchObject(context.github.event);
+    expect(() =>
+      StaticWorkflowInterpolationContextZ.parse({
+        ...context,
+        github: {
+          ...context.github,
+          event: {
+            ...context.github.event,
+            pull_request: { ...context.github.event.pull_request, title: 123 },
+          },
+        },
+      })
+    ).toThrow();
+  });
+
+  it.each([
+    { number: 123 },
+    { number: 123, body: null, user: null, merged: null, merged_at: null },
+  ])('accepts partial pull request payloads: %j', pullRequest => {
+    const github = {
+      event_name: 'pull_request',
+      sha: 'abc123',
+      ref: 'refs/heads/main',
+      ref_name: 'main',
+      ref_type: 'branch',
+      event: { pull_request: pullRequest },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.shape.github.parse(github)).toEqual(github);
   });
 });
 

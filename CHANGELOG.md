@@ -11,6 +11,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Let serve-sim boot, install and launch agent-device iOS sessions with the local-egress guard. ([#4544](https://github.com/expo/eas-cli/pull/4544) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas simulator:control` to run serve-sim actions, with file upload and download, on a remote iOS simulator session. ([#4641](https://github.com/expo/eas-cli/pull/4641) by [@gwdp](https://github.com/gwdp))
 
+- [eas-build-job] Add types and validation for documented GitHub workflow context fields. ([#4573](https://github.com/expo/eas-cli/pull/4573) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 - [eas-cli] Prepare authenticated simulator action transport and file transfers. ([#4642](https://github.com/expo/eas-cli/pull/4642) by [@gwdp](https://github.com/gwdp))
