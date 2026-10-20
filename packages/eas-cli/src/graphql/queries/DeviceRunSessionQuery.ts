@@ -45,42 +45,50 @@ export const DeviceRunSessionQuery = {
     );
     return data.deviceRunSessions.byId;
   },
-  /** Rejects with `signal.reason` and cancels the request when `signal` aborts. */
+  /**
+   * Best-effort lookup of why the session's job run failed. It doesn't retry or print errors, and it
+   * rejects with `signal.reason` and cancels the request when `signal` aborts.
+   */
   async jobRunErrorsByIdAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string,
     { signal }: { signal: AbortSignal }
   ): Promise<DeviceRunSessionJobRunErrorsByIdQuery['deviceRunSessions']['byId']['turtleJobRun']> {
-    const data = await withErrorHandlingAsync(
-      firstResultUntilAbortedAsync(
-        graphqlClient.query<
-          DeviceRunSessionJobRunErrorsByIdQuery,
-          DeviceRunSessionJobRunErrorsByIdQueryVariables
-        >(
-          gql`
-            query DeviceRunSessionJobRunErrorsByIdQuery($deviceRunSessionId: ID!) {
-              deviceRunSessions {
-                byId(deviceRunSessionId: $deviceRunSessionId) {
+    const { data, error } = await firstResultUntilAbortedAsync(
+      graphqlClient.query<
+        DeviceRunSessionJobRunErrorsByIdQuery,
+        DeviceRunSessionJobRunErrorsByIdQueryVariables
+      >(
+        gql`
+          query DeviceRunSessionJobRunErrorsByIdQuery($deviceRunSessionId: ID!) {
+            deviceRunSessions {
+              byId(deviceRunSessionId: $deviceRunSessionId) {
+                id
+                turtleJobRun {
                   id
-                  turtleJobRun {
-                    id
-                    errors {
-                      errorCode
-                      message
-                      docsUrl
-                    }
-                    logFileUrls
+                  errors {
+                    errorCode
+                    message
+                    docsUrl
                   }
+                  logFileUrls
                 }
               }
             }
-          `,
-          { deviceRunSessionId },
-          { requestPolicy: 'network-only' }
-        ),
-        signal
-      )
+          }
+        `,
+        { deviceRunSessionId },
+        // Retries would keep a timer alive after the caller gives up.
+        { requestPolicy: 'network-only', noRetry: true }
+      ),
+      signal
     );
+    if (error) {
+      throw error;
+    }
+    if (!data) {
+      throw new Error('Returned query result data is null!');
+    }
     return data.deviceRunSessions.byId.turtleJobRun;
   },
   async byIdAsync(
@@ -266,7 +274,7 @@ export const DeviceRunSessionQuery = {
   },
 };
 
-// Like `toPromise()`, but unsubscribing on abort makes urql cancel the request and any pending retry.
+// Like `toPromise()`, but unsubscribing on abort makes urql cancel the request.
 async function firstResultUntilAbortedAsync<T extends OperationResult>(
   source: OperationResultSource<T>,
   signal: AbortSignal

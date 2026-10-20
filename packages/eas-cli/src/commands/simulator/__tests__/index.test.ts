@@ -2106,19 +2106,22 @@ describe(Simulator, () => {
       );
     });
 
-    it('keeps the latest occurrence of repeated errors and at most three of them', async () => {
+    it('shows the first failed step, then only the error line of later failed steps', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
         errors: [unknownError],
         logFileUrls: [logFileUrl],
       });
-      mockLogFile(failedStepLogLines('step-001', 'Boot', ['A', 'B', 'C', 'D', 'A']));
+      mockLogFile([
+        ...failedStepLogLines('step-001', 'Boot', ['A', 'B']),
+        ...failedStepLogLines('step-002', 'Finish recordings', ['C', 'D']),
+      ]);
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
       await expect(command.runAsync()).rejects.toThrow(
         expect.objectContaining({
-          message: `${erroredSessionMessage}\nBoot: C\nBoot: D\nBoot: A`,
+          message: `${erroredSessionMessage}\nBoot: B\nFinish recordings: D`,
         })
       );
     });
@@ -2140,26 +2143,43 @@ describe(Simulator, () => {
       );
     });
 
-    it('uses error lines outside of steps for an unknown custom build error', async () => {
+    it('keeps the job run error when no step failed, ignoring errors that steps ignored', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
         errors: [
           {
-            errorCode: 'UNKNOWN_CUSTOM_BUILD_ERROR',
-            message: 'Unknown custom build error. See logs for more information.',
+            errorCode: 'UNKNOWN_ERROR',
+            message:
+              'Unknown error. See logs of the Complete job build phase for more information.',
             docsUrl: null,
           },
         ],
         logFileUrls: [logFileUrl],
       });
       mockLogFile([
-        { level: 50, msg: 'simctl boot failed', err: { message: 'simctl boot failed' } },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Upload artifact',
+          msg: 'Failed to upload screen-recording. Ignoring error.',
+          err: { message: 'upload failed' },
+        },
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'success',
+          msg: 'Finished',
+        },
+        { level: 50, phase: 'COMPLETE_JOB', msg: '', err: { message: 'upload outputs failed' } },
       ]);
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
       await expect(command.runAsync()).rejects.toThrow(
-        expect.objectContaining({ message: `${erroredSessionMessage}\nsimctl boot failed` })
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nUnknown error. See logs of the Complete job build phase for more information.`,
+        })
       );
     });
 

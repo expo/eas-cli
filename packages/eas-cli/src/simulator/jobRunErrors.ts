@@ -24,7 +24,7 @@ const UNKNOWN_ERROR_CODES = new Set(['UNKNOWN_ERROR', 'UNKNOWN_CUSTOM_BUILD_ERRO
 const DEFAULT_QUERY_TIMEOUT_MS = 10_000;
 const DEFAULT_LOG_DOWNLOAD_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_LOG_SIZE_BYTES = 20 * 1024 * 1024;
-const MAX_LOGGED_ERRORS = 3;
+const MAX_LOGGED_ERRORS = 4;
 const MAX_LOGGED_ERROR_LENGTH = 500;
 // Bunyan's "error" level.
 const ERROR_LOG_LEVEL = 50;
@@ -68,10 +68,14 @@ export async function fetchSimulatorSessionErrorsAsync(
       maxLogSizeBytes,
     });
     if (logErrors.length > 0) {
-      return logErrors.map(message => ({ errorCode: errors[0].errorCode, message }));
+      return logErrors.map(message => ({ errorCode: errors[0].errorCode, message, docsUrl: null }));
     }
   }
-  return errors.map(({ errorCode, message, docsUrl }) => ({ errorCode, message, docsUrl }));
+  return errors.map(({ errorCode, message, docsUrl }) => ({
+    errorCode,
+    message: truncate(message),
+    docsUrl,
+  }));
 }
 
 export function formatSimulatorSessionError(error: SimulatorSessionError): string {
@@ -98,56 +102,59 @@ async function fetchJobRunLogErrorsAsync(
     const { logLines } = parseLogLines(await response.text());
     return selectFailedStepErrors(logLines);
   } catch (err) {
-    Log.debug(`Failed to read simulator session logs: ${err}`);
+    // node-fetch's error messages include the signed log URL, so leave the message out.
+    Log.debug(
+      `Failed to read simulator session logs: ${err instanceof Error ? err.name : 'unknown error'}`
+    );
     return [];
   } finally {
     controller.abort();
   }
 }
 
-// Picks the error lines of the steps that failed, each preceded by the step's last stderr line that
-// looks like a cause, falling back to any error line. Uses the log message rather than err.message
-// because only the message has secrets masked.
+// Describes the steps that failed, the first one first: its last error line, preceded by the stderr
+// line that names the cause and the line after it. Later failed steps only add their error line.
+// Uses the log message rather than err.message because only the message has secrets masked.
 export function selectFailedStepErrors(logLines: JobRunLogLine[]): string[] {
-  const isErrorLine = (line: JobRunLogLine): boolean =>
-    !!line.err && (line.level ?? 0) >= ERROR_LOG_LEVEL && !!line.msg?.trim();
-  const failedStepIds = new Set(
-    logLines
-      .filter(line => line.marker === 'end-step' && line.result === 'fail' && line.buildStepId)
-      .map(line => line.buildStepId)
-  );
+  const failedStepIds = [
+    ...new Set(
+      logLines
+        .filter(line => line.marker === 'end-step' && line.result === 'fail' && line.buildStepId)
+        .map(line => line.buildStepId as string)
+    ),
+  ];
+  const messages = failedStepIds.flatMap((stepId, index) => {
+    const lines = selectStepFailureLines(logLines.filter(line => line.buildStepId === stepId));
+    return (index === 0 ? lines : lines.slice(-1)).map(formatLogLine);
+  });
+  return [...new Set(messages)].slice(0, MAX_LOGGED_ERRORS);
+}
 
-  const failedStepEntries: JobRunLogLine[] = [];
-  const lastStderrCauseByStepId = new Map<string, JobRunLogLine>();
-  for (const line of logLines) {
-    if (!line.buildStepId || !failedStepIds.has(line.buildStepId)) {
-      continue;
-    }
-    if (line.source === 'stderr' && STDERR_CAUSE_PATTERN.test(line.msg ?? '')) {
-      lastStderrCauseByStepId.set(line.buildStepId, line);
-    } else if (isErrorLine(line)) {
-      const stderrCause = lastStderrCauseByStepId.get(line.buildStepId);
-      if (stderrCause) {
-        failedStepEntries.push(stderrCause);
-        lastStderrCauseByStepId.delete(line.buildStepId);
+function selectStepFailureLines(stepLines: JobRunLogLine[]): JobRunLogLine[] {
+  let selected: JobRunLogLine[] = [];
+  let stderrCause: JobRunLogLine[] = [];
+  for (const [index, line] of stepLines.entries()) {
+    if (line.source === 'stderr') {
+      if (STDERR_CAUSE_PATTERN.test(line.msg ?? '')) {
+        stderrCause = [line];
+      } else if (stderrCause.length === 1 && stepLines[index - 1] === stderrCause[0]) {
+        stderrCause.push(line);
       }
-      failedStepEntries.push(line);
+    } else if (line.err && (line.level ?? 0) >= ERROR_LOG_LEVEL && line.msg?.trim()) {
+      selected = [...stderrCause, line];
+      stderrCause = [];
     }
   }
-  const selectedLines = failedStepEntries.some(isErrorLine)
-    ? failedStepEntries
-    : logLines.filter(isErrorLine);
-
-  // Keep the latest occurrence of each message, since the last failure is usually the cause.
-  const messages = selectedLines.map(formatLogLine);
-  const latestFirst = [...new Set([...messages].reverse())];
-  return latestFirst.slice(0, MAX_LOGGED_ERRORS).reverse();
+  return selected;
 }
 
 function formatLogLine(line: JobRunLogLine): string {
-  const message = line.buildStepDisplayName
-    ? `${line.buildStepDisplayName}: ${line.msg}`
-    : String(line.msg);
+  return truncate(
+    line.buildStepDisplayName ? `${line.buildStepDisplayName}: ${line.msg}` : String(line.msg)
+  );
+}
+
+function truncate(message: string): string {
   return message.length > MAX_LOGGED_ERROR_LENGTH
     ? `${message.slice(0, MAX_LOGGED_ERROR_LENGTH)}…`
     : message;

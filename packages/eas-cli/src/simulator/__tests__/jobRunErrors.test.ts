@@ -3,6 +3,7 @@ import { AddressInfo } from 'net';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
+import type LogType from '../../log';
 import type * as JobRunErrors from '../jobRunErrors';
 
 jest.mock('../../graphql/queries/DeviceRunSessionQuery');
@@ -18,10 +19,12 @@ const unknownError = {
 
 // src/fetch.ts reads https_proxy when it loads, so load it only after clearing the proxy.
 let jobRunErrors: typeof JobRunErrors;
+let Log: typeof LogType;
 beforeAll(() => {
   delete process.env.https_proxy;
   jest.isolateModules(() => {
     jobRunErrors = jest.requireActual('../jobRunErrors');
+    Log = jest.requireMock('../../log').default;
   });
 });
 
@@ -110,16 +113,102 @@ describe('selectFailedStepErrors', () => {
     expect(jobRunErrors.selectFailedStepErrors(phaseFailureLog)).toEqual([]);
   });
 
-  it('prints the masked message of an error logged outside a step', () => {
+  it('ignores errors outside of failed steps, such as errors a step ignored', () => {
     expect(
       jobRunErrors.selectFailedStepErrors([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Upload artifact',
+          msg: 'Failed to upload screen-recording. Ignoring error.',
+          err: { message: 'upload failed' },
+        },
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'success',
+          msg: 'Finished',
+        },
         {
           level: 50,
           msg: 'simctl boot failed for ********',
           err: { message: 'simctl boot failed for secret-udid' },
         },
       ])
-    ).toEqual(['simctl boot failed for ********']);
+    ).toEqual([]);
+  });
+
+  it('keeps the stderr line that continues the cause', () => {
+    expect(
+      jobRunErrors.selectFailedStepErrors([
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Boot simulator',
+          source: 'stderr',
+          msg: 'An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405):',
+        },
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Boot simulator',
+          source: 'stderr',
+          msg: 'Invalid device: iPhone 16 Pro',
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Boot simulator',
+          msg: 'xcrun simctl boot exited with non-zero code: 149',
+          err: { message: 'xcrun simctl boot exited with non-zero code: 149' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Boot simulator" failed',
+        },
+      ])
+    ).toEqual([
+      'Boot simulator: An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405):',
+      'Boot simulator: Invalid device: iPhone 16 Pro',
+      'Boot simulator: xcrun simctl boot exited with non-zero code: 149',
+    ]);
+  });
+
+  it('keeps the cause of the first failed step when later steps also fail', () => {
+    expect(
+      jobRunErrors.selectFailedStepErrors([
+        ...failedLaunchLog,
+        {
+          level: 30,
+          buildStepId: 'step-003',
+          buildStepDisplayName: 'Finish recordings',
+          source: 'stderr',
+          msg: 'Error: No devices are booted.',
+        },
+        {
+          level: 50,
+          buildStepId: 'step-003',
+          buildStepDisplayName: 'Finish recordings',
+          msg: 'xcrun simctl io recordVideo exited with non-zero code: 1',
+          err: { message: 'x' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-003',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Finish recordings" failed',
+        },
+      ])
+    ).toEqual([
+      'Launch application: Error: Activity not started, unable to resolve Intent { act=android.intent.action.MAIN pkg=world }',
+      'Launch application: adb shell am start -n dev.brent.euxy/.MainActivity exited with non-zero code: 1',
+      'Finish recordings: xcrun simctl io recordVideo exited with non-zero code: 1',
+    ]);
   });
 });
 
@@ -173,9 +262,30 @@ describe('fetchSimulatorSessionErrorsAsync', () => {
     await expect(
       jobRunErrors.fetchSimulatorSessionErrorsAsync(graphqlClient, 'session-123')
     ).resolves.toEqual([
-      expect.objectContaining({ message: expect.stringContaining('Activity not started') }),
-      expect.objectContaining({ message: expect.stringContaining('exited with non-zero code: 1') }),
+      {
+        errorCode: 'UNKNOWN_ERROR',
+        message: expect.stringContaining('Activity not started'),
+        docsUrl: null,
+      },
+      {
+        errorCode: 'UNKNOWN_ERROR',
+        message: expect.stringContaining('exited with non-zero code: 1'),
+        docsUrl: null,
+      },
     ]);
+  });
+
+  it('does not log the signed log URL when the download fails', async () => {
+    const logFileUrl = await startServerAsync((request, response) => {
+      request.socket.destroy();
+      response.end();
+    });
+    mockJobRun(`${logFileUrl}?X-Goog-Signature=secret-signature`);
+
+    await expect(
+      jobRunErrors.fetchSimulatorSessionErrorsAsync(graphqlClient, 'session-123')
+    ).resolves.toEqual([unknownError]);
+    expect(JSON.stringify(jest.mocked(Log.debug).mock.calls)).not.toContain('secret-signature');
   });
 
   it('falls back to the job run error when the log request fails', async () => {
