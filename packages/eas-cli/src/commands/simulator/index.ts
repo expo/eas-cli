@@ -656,6 +656,7 @@ With local egress, actions wait for the connection and require interactive mode.
       if (imported.config?.actions?.length) {
         const total = imported.config.actions.length;
         if (!jsonFlag) {
+          Log.newLine();
           Log.log(
             `Importing ${total} action${total === 1 ? '' : 's'} from ${imported.config.path}`
           );
