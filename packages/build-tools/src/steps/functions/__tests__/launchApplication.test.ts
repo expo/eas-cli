@@ -1,5 +1,6 @@
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import { spawnSync } from 'node:child_process';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -201,6 +202,190 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
+  it('quotes Android launch arguments and URLs for the device shell', async () => {
+    const logger = createMockLogger();
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'dev.example.app',
+      activityName: 'dev.example.app.MainActivity',
+      launchArgs: ['-d', 'euxy://tempo', '--es', 'probe', 'hello world', '--es', 'quote', "it's"],
+      openUrl: 'exp://example.test/path?a=1&b=2',
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      1,
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-d',
+        'euxy://tempo',
+        '--es',
+        'probe',
+        "'hello world'",
+        '--es',
+        'quote',
+        "'it'\\''s'",
+        '-n',
+        'dev.example.app/dev.example.app.MainActivity',
+      ],
+      { env: {}, logger }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      2,
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        "'exp://example.test/path?a=1&b=2'",
+      ],
+      { env: {}, logger }
+    );
+    expect(logger.info).toHaveBeenNthCalledWith(
+      1,
+      `Launching dev.example.app with arguments ${JSON.stringify(['-d', 'euxy://tempo', '--es', 'probe', 'hello world', '--es', 'quote', "it's"])}.`
+    );
+  });
+
+  it('passes iOS launch arguments with spaces unquoted', async () => {
+    await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      launchArgs: ['-name', 'hello world'],
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger: createMockLogger(),
+    });
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'xcrun',
+      ['simctl', 'launch', 'booted', 'com.example.app', '-name', 'hello world'],
+      expect.any(Object)
+    );
+  });
+
+  it('round-trips quoted Android arguments through a POSIX shell', async () => {
+    const component = 'dev.example.app/dev.example.app.MainActivity$Inner';
+    const launchArgs = [
+      '--es',
+      'text',
+      'hello world',
+      '--es',
+      'json',
+      '{"a":1,"b":2}',
+      '--es',
+      'shell',
+      '$(printf injected) `printf injected` $HOME ; & | < >',
+      '--es',
+      'glob',
+      '*',
+      '--es',
+      'home',
+      '~',
+      '--esa',
+      'list',
+      'a\\,b,c',
+      '--es',
+      'whitespace',
+      'one\ntwo\tthree',
+      '--es',
+      'unicode',
+      'héllo 🌍',
+      '--es',
+      'empty',
+      '',
+    ];
+    const openUrl = 'exp://example.test/path?a=1&b=2#fragment';
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'dev.example.app',
+      activityName: 'dev.example.app.MainActivity$Inner',
+      launchArgs,
+      openUrl,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: {},
+      logger: createMockLogger(),
+    });
+
+    // adb joins the words after `shell` with spaces and the device shell parses the result.
+    const parsedCommands = mockedSpawn.mock.calls.map(([, args]) => {
+      const { stdout } = spawnSync(
+        '/bin/sh',
+        ['-c', `am() { printf '%s\\0' "$@"; }; ${(args as string[]).slice(1).join(' ')}`],
+        { encoding: 'utf8' }
+      );
+      return stdout.split('\0').slice(0, -1);
+    });
+    expect(parsedCommands).toEqual([
+      ['start', ...launchArgs, '-n', component],
+      ['start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
+    ]);
+  });
+
+  it('accepts an empty Android extra value', async () => {
+    await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      activityName: 'com.example.app.MainActivity',
+      launchArgs: ['--es', 'key', ''],
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: {},
+      logger: createMockLogger(),
+    });
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '--es',
+        'key',
+        "''",
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+      expect.any(Object)
+    );
+  });
+
+  it.each([[['']], [['--ez', 'isTest', 'true', '']], [['--esn', 'key', '']]])(
+    'rejects an empty Android launch argument that is not an extra value (%j)',
+    async launchArgs => {
+      await expect(
+        launchApplicationAsync({
+          applicationIdentifier: 'com.example.app',
+          activityName: 'com.example.app.MainActivity',
+          launchArgs,
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          env: {},
+          logger: createMockLogger(),
+        })
+      ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects an Android launch command that is too long after quoting', async () => {
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs: ['--es', 'quotes', "'".repeat(20_000)],
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
   it('launches using application metadata passed to the build step', async () => {
     const launchApplication = createLaunchApplicationFunction();
     const buildStep = launchApplication.createBuildStepFromFunctionCall(
@@ -233,6 +418,36 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).toHaveBeenCalledWith(
       'adb',
       ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'exp://example.test'],
+      expect.any(Object)
+    );
+  });
+
+  it('quotes Android launch arguments passed to the build step', async () => {
+    const launchApplication = createLaunchApplicationFunction();
+    const buildStep = launchApplication.createBuildStepFromFunctionCall(
+      createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX }),
+      {
+        callInputs: {
+          application_identifier: 'com.example.app',
+          activity_name: 'com.example.app.MainActivity',
+          launch_args: ['--es', 'probe', 'hello world'],
+        },
+      }
+    );
+    await buildStep.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '--es',
+        'probe',
+        "'hello world'",
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
       expect.any(Object)
     );
   });
