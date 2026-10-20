@@ -133,7 +133,7 @@ export async function fetchHostActionDeviceAsync(
   const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
     headers: { Authorization: `Bearer ${token}` },
     redirect: 'error',
-    signal: AbortSignal.timeout(3000),
+    signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
   });
   const catalog = z
     .object({

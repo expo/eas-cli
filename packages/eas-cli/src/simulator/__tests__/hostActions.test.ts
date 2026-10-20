@@ -216,6 +216,28 @@ describe(fetchHostActionDeviceAsync, () => {
     ).rejects.toBe(error);
   });
 
+  it('allows a device catalog to take more than three seconds during cold startup', async () => {
+    let responseTimer: NodeJS.Timeout | undefined;
+    const server = http.createServer((_request, response) => {
+      responseTimer = setTimeout(() => {
+        response.end(JSON.stringify({ devices: [{ device: UDID, name: 'iPhone 17 Pro' }] }));
+      }, 3500);
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        fetchHostActionDeviceAsync({ apiUrl: `http://127.0.0.1:${port}`, token: TOKEN }, UDID)
+      ).resolves.toEqual({ udid: UDID, name: 'iPhone 17 Pro' });
+    } finally {
+      clearTimeout(responseTimer);
+      server.closeAllConnections();
+      server.close();
+      await once(server, 'close');
+    }
+  });
+
   it('does not borrow metadata from another device', async () => {
     jest
       .spyOn(fetchModule, 'default')
