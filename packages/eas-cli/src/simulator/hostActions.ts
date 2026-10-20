@@ -130,20 +130,25 @@ export async function fetchHostActionDeviceAsync(
   { apiUrl, token }: PreviewApiAccess,
   udid: string
 ): Promise<HostActionDevice> {
-  const response = await fetch(previewEndpoint(apiUrl, 'grid/api/catalog').toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-    redirect: 'error',
-    signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
-  });
-  const catalog = z
-    .object({
-      devices: z.array(
-        z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
-      ),
-    })
-    .parse(await response.json());
-  const device = catalog.devices.find(device => device.device === udid);
-  return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
+  const url = previewEndpoint(apiUrl, 'grid/api/catalog').toString();
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(PREVIEW_API_TIMEOUT_MS),
+    });
+    const catalog = z
+      .object({
+        devices: z.array(
+          z.object({ device: z.string(), name: z.string(), runtime: z.string().optional() })
+        ),
+      })
+      .parse(await response.json());
+    const device = catalog.devices.find(device => device.device === udid);
+    return device ? { udid, name: device.name, runtime: device.runtime } : { udid };
+  } catch {
+    return { udid };
+  }
 }
 
 function refusedError(error: string): Error {

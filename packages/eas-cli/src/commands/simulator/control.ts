@@ -401,7 +401,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
         { label: 'Project', value: clean(session.project) },
         {
           label: 'Device',
-          value: [truncate(clean(session.device.name ?? '') || 'iOS Simulator', 80), runtime]
+          value: [truncate(clean(session.device.name ?? '') || 'Unavailable', 80), runtime]
             .filter(Boolean)
             .join(' · '),
         },

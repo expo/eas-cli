@@ -208,12 +208,36 @@ describe(fetchHostActionDeviceAsync, () => {
     );
   });
 
-  it('propagates metadata lookup failures', async () => {
-    const error = new Error('Metadata request failed');
+  it.each([
+    new Error('Metadata request failed'),
+    new fetchModule.RequestError(
+      'Request failed: 404 (Not Found)',
+      new fetchModule.Response(undefined, { status: 404 })
+    ),
+    Object.assign(new Error('Request timed out'), { name: 'AbortError' }),
+  ])('keeps the connected device ID when metadata fails: %s', async error => {
     jest.spyOn(fetchModule, 'default').mockRejectedValueOnce(error);
     await expect(
       fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
-    ).rejects.toBe(error);
+    ).resolves.toEqual({ udid: UDID });
+  });
+
+  it.each(['not JSON', JSON.stringify({ devices: null })])(
+    'keeps the connected device ID when metadata is invalid: %s',
+    async body => {
+      jest.spyOn(fetchModule, 'default').mockResolvedValueOnce(new fetchModule.Response(body));
+      await expect(
+        fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+      ).resolves.toEqual({ udid: UDID });
+    }
+  );
+
+  it('rejects insecure metadata URLs before sending the session token', async () => {
+    const fetch = jest.spyOn(fetchModule, 'default');
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'http://sim.example.test', token: TOKEN }, UDID)
+    ).rejects.toThrow('Simulator actions require HTTPS');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('allows a device catalog to take more than three seconds during cold startup', async () => {

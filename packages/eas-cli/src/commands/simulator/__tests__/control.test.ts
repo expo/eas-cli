@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import * as fetchModule from '../../../fetch';
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -831,8 +832,50 @@ describe(SimulatorControl, () => {
     ]);
     await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unnamed session'));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iOS Simulator'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unavailable'));
   });
+
+  it.each([
+    { importing: true, jsonFlag: false },
+    { importing: true, jsonFlag: true },
+    { importing: false, jsonFlag: true },
+  ])(
+    'runs actions without display metadata (importing: $importing, json: $jsonFlag)',
+    async ({ importing, jsonFlag }) => {
+      jest
+        .mocked(fetchHostActionDeviceAsync)
+        .mockImplementationOnce(
+          jest.requireActual('../../../simulator/hostActions').fetchHostActionDeviceAsync
+        );
+      const fetch = jest
+        .spyOn(fetchModule, 'default')
+        .mockRejectedValueOnce(new Error('Metadata request failed'));
+      try {
+        const filePath = await writeImportAsync([
+          { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+        ]);
+        await createCommand([
+          ...(importing ? ['--import', filePath] : ['hardwareKeyboard.set', 'off']),
+          ...(jsonFlag ? ['--json'] : []),
+          '--id',
+          'session-123',
+        ]).runAsync();
+        expect(actionRequests()).toEqual([['hardwareKeyboard.set', { value: 'off' }]]);
+        expect(close).toHaveBeenCalledTimes(1);
+        if (jsonFlag) {
+          expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+            expect.objectContaining({
+              session: expect.objectContaining({ device: { udid: 'simulator-udid' } }),
+            })
+          );
+        } else {
+          expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unavailable'));
+        }
+      } finally {
+        fetch.mockRestore();
+      }
+    }
+  );
 
   it('requires a session ID before opening a connection', async () => {
     const previous = process.env[EAS_SIMULATOR_SESSION_ID];
