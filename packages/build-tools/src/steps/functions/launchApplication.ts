@@ -11,6 +11,8 @@ import spawn from '@expo/turtle-spawn';
 
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
+// adb closes the connection for longer shell commands (about 65.5 KB with adb 37 on API 35).
+const ANDROID_SHELL_COMMAND_MAX_BYTES = 65_000;
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -106,22 +108,60 @@ export async function launchApplicationAsync({
   logApplicationLaunch(logger, applicationIdentifier, launchArgs);
   // Android does not support process arguments like iOS. Pass raw `am start` Intent
   // arguments instead, such as `--es key value` or `--ez key true`.
-  await spawn(
-    'adb',
-    ['shell', 'am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
-    {
-      env,
-      logger,
+  try {
+    await spawnAndroidShellCommandAsync(
+      ['am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+      { env, logger }
+    );
+  } catch (err) {
+    // An empty argument that is not an option value reaches `am start` as an empty package, and
+    // `am start` then fails to resolve the Intent without saying why.
+    const emptyArgumentIndex = launchArgs.indexOf('');
+    if (emptyArgumentIndex === -1 || err instanceof UserError) {
+      throw err;
     }
-  );
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_FAILED',
+      `Launching ${applicationIdentifier} failed. Input "launch_args" has an empty argument at position ${emptyArgumentIndex + 1}, which Android passes to "am start" as an empty argument. Remove it unless it is an option value, such as "--es", "key", "".`,
+      { cause: err }
+    );
+  }
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
-    await spawn(
-      'adb',
-      ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
+    await spawnAndroidShellCommandAsync(
+      ['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
       { env, logger }
     );
   }
+}
+
+// `adb shell` joins its arguments with spaces and the device shell parses the result again, so
+// each argument is quoted to reach the command as one literal word.
+async function spawnAndroidShellCommandAsync(
+  command: string[],
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<void> {
+  if (command.some(argument => argument.includes('\0'))) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Android "launch_args" and "open_url" cannot contain NUL characters.'
+    );
+  }
+  const quotedCommand = command.map(quoteAndroidShellArgument);
+  if (Buffer.byteLength(quotedCommand.join(' ')) > ANDROID_SHELL_COMMAND_MAX_BYTES) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      `The Android launch command is longer than ${ANDROID_SHELL_COMMAND_MAX_BYTES} bytes after shell quoting. Shorten "launch_args" or "open_url".`
+    );
+  }
+  await spawn('adb', ['shell', ...quotedCommand], { env, logger });
+}
+
+function quoteAndroidShellArgument(argument: string): string {
+  if (/^[\w@%+=:,./-]+$/.test(argument)) {
+    return argument;
+  }
+  return `'${argument.replaceAll("'", `'\\''`)}'`;
 }
 
 async function preapproveIosUrlSchemeAsync({

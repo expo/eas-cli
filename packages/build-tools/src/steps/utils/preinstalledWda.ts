@@ -12,13 +12,16 @@ export async function preparePreinstalledWdaAsync({
   appiumBinPath,
   appiumEnv,
   logger,
+  signal,
 }: {
   runtimeIdentifier: string | undefined;
   appiumHome: string;
   appiumBinPath: string;
   appiumEnv: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<Record<string, unknown>> {
+  signal?.throwIfAborted();
   const iosMajor = /^com\.apple\.CoreSimulator\.SimRuntime\.iOS-(\d+)(?:-|$)/.exec(
     runtimeIdentifier ?? ''
   )?.[1];
@@ -52,10 +55,17 @@ export async function preparePreinstalledWdaAsync({
     // Appium's downloader inherits its pipes; killing only Appium leaves spawn's
     // close event pending. Kill the owned group, then await close before cleanup.
     const timeout = setTimeout(() => killProcessGroup(download.child, 'SIGKILL'), 60_000);
+    const abort = (): void => killProcessGroup(download.child, 'SIGKILL');
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) {
+      abort();
+    }
     try {
       await download;
+      signal?.throwIfAborted();
     } finally {
       clearTimeout(timeout);
+      signal?.removeEventListener('abort', abort);
     }
     if (!(await fs.promises.stat(runner)).isDirectory()) {
       throw new Error('The downloaded WebDriverAgent runner is not an app directory.');
@@ -67,6 +77,7 @@ export async function preparePreinstalledWdaAsync({
     };
   } catch (err) {
     await fs.promises.rm(outdir, { recursive: true, force: true });
+    signal?.throwIfAborted();
     logger.warn(
       { err },
       'Could not prepare preinstalled WebDriverAgent; using the default xcodebuild startup.'

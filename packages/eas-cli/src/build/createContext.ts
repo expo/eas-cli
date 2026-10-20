@@ -20,6 +20,7 @@ import { LazyExperimentationClient } from '../experimentation/LazyExperimentatio
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
 
@@ -48,6 +49,7 @@ export async function createBuildContextAsync<T extends Platform>({
   whatToTest,
   env,
   experimentation,
+  authenticationInfo,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -73,6 +75,7 @@ export async function createBuildContextAsync<T extends Platform>({
   whatToTest?: string;
   env: Env;
   experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
     env,
@@ -163,6 +166,7 @@ export async function createBuildContextAsync<T extends Platform>({
     env,
     whatToTest,
     experimentation,
+    authenticationInfo,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

@@ -7,8 +7,9 @@ import path from 'node:path';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
+import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
-import { isProcessDescendantOfAsync } from '../../../utils/processes';
+import { isProcessDescendantOfAsync, killProcessGroup } from '../../../utils/processes';
 import { pollArgentArtifactsForUploadAsync } from '../../utils/argentArtifacts';
 import { startArgentEventCollectionAsync } from '../../utils/argentEvents';
 import { createProcessOutput } from '../../utils/processOutput';
@@ -24,6 +25,7 @@ import {
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
+import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
@@ -38,13 +40,32 @@ jest.mock('node:os', () => {
 });
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../sentry');
-jest.mock('../../../utils/processes', () => ({ isProcessDescendantOfAsync: jest.fn() }));
+jest.mock('../../../utils/processes', () => ({
+  isProcessDescendantOfAsync: jest.fn(),
+  killProcessGroup: jest.fn(),
+}));
 jest.mock('../../utils/argentArtifacts', () => ({ pollArgentArtifactsForUploadAsync: jest.fn() }));
 jest.mock('../../utils/argentEvents', () => ({
   ...jest.requireActual('../../utils/argentEvents'),
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/iosAppArtifact', () => ({
+  ...jest.requireActual('../../utils/iosAppArtifact'),
+  readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
+}));
+jest.mock('../../../utils/IosSimulatorUtils', () => ({
+  IosSimulatorUtils: {
+    resolveUdidAsync: jest.fn().mockResolvedValue('selected-ios-udid'),
+    getAvailableDevicesAsync: jest
+      .fn()
+      .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
+  },
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
@@ -104,6 +125,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         apiUrl: 'https://web-preview.tunnel.example.com',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: mockPreviewStopAsync,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
@@ -217,6 +239,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       if (phase === 'preview') {
         jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
           openPreviewAsync: jest.fn().mockRejectedValue(error),
+          getLastPreviewActivityAt: jest.fn(),
           finishAsync: mockPreviewStopAsync,
         });
       } else if (phase === 'config') {
@@ -507,6 +530,35 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('resets the idle timer on preview input from the session host', async () => {
+    const previewInputAt = new Date('2026-10-19T12:00:00Z');
+    const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      {} as never,
+      {} as never
+    );
+    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: 5 },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+
+    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(previewInputAt);
+  });
+
   it('redacts startup credentials and registers the state token for later output', async () => {
     const token = 'tool/server "secret"';
     await fs.promises.writeFile(
@@ -591,6 +643,280 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         '["-EXDevMenuIsOnboardingFinished","1"], then open exp://127.0.0.1:8081.'
     );
   });
+
+  it('boots and prepares the downloaded app while Argent installation is pending, and closes the host if installation fails', async () => {
+    let rejectInstall!: (error: Error) => void;
+    let enteredInstall!: () => void;
+    const installEntered = new Promise<void>(resolve => {
+      enteredInstall = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce(() => {
+      enteredInstall();
+      return new Promise((_resolve, reject) => {
+        rejectInstall = reject;
+      }) as never;
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          device_identifier: { value: 'chosen-device' },
+          install_app_path: { value: '/tmp/App.app' },
+          launch_args: { value: ['--literal'] },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    await installEntered;
+    expect(
+      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(IosSimulatorUtils.resolveUdidAsync).mock.invocationCallOrder[0]);
+    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledWith({
+      artifactPath: '/tmp/App.app',
+      env: {},
+    });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        iosSimulatorUdid: 'SELECTED-IOS-UDID',
+        installAppPath: '/tmp/App.app',
+        launchAppIdentifier: 'dev.example.app',
+        launchArgs: ['--literal'],
+      })
+    );
+    const error = new Error('Argent install failed');
+    rejectInstall(error);
+    await expect(running).rejects.toBe(error);
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(['artifacts-list-endpoint', 'tool-server-event-log', 'video-watermark'])(
+    'stops and drains the pending %s command when the concurrent host fails',
+    async flag => {
+      const hostError = new Error('serve-sim startup failed');
+      const commandError = new Error('Argent command exited after cancellation');
+      let failHost!: (error: Error) => void;
+      let finishHostCleanup!: () => void;
+      jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(
+        async (_ctx, options) =>
+          await new Promise((_resolve, reject) => {
+            failHost = error => {
+              options.onStartupError?.(error);
+              finishHostCleanup = () => reject(error);
+            };
+          })
+      );
+      let failCommand!: (error: Error) => void;
+      let commandStarted!: () => void;
+      const commandEntered = new Promise<void>(resolve => {
+        commandStarted = resolve;
+      });
+      const child = { pid: 4242, kill: jest.fn() };
+      jest.mocked(spawn).mockImplementation((_command, args) => {
+        if (!args.includes(flag)) {
+          return Promise.resolve(undefined) as never;
+        }
+        const pending = new Promise((_resolve, reject) => {
+          failCommand = reject;
+        });
+        commandStarted();
+        return Object.assign(pending, { child }) as never;
+      });
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      const running = Promise.resolve(
+        buildFunction.fn!(
+          {
+            logger: { info: jest.fn(), warn: jest.fn() },
+            global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+              boot_simulator: { value: true },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      );
+      let settled = false;
+      void running
+        .finally(() => {
+          settled = true;
+        })
+        .catch(() => {});
+      try {
+        await commandEntered;
+        failHost(hostError);
+        await new Promise(resolve => setImmediate(resolve));
+        expect(killProcessGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+        expect(settled).toBe(false);
+        expect(spawnDetached).not.toHaveBeenCalled();
+        failCommand(commandError);
+        await new Promise(resolve => setImmediate(resolve));
+        expect(settled).toBe(false);
+        finishHostCleanup();
+        await expect(running).rejects.toBe(hostError);
+        expect(spawnDetached).not.toHaveBeenCalled();
+        expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+        expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      } finally {
+        failCommand?.(commandError);
+        finishHostCleanup?.();
+        await running.catch(() => {});
+      }
+    }
+  );
+
+  it('interrupts tool-server state polling and retains the original host error', async () => {
+    await fs.promises.rm(path.join(ARGENT_STATE_DIR, 'tool-server-orchestration.json'));
+    const hostError = new Error('serve-sim startup failed');
+    let failHost!: (error: Error) => void;
+    jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(
+      async () =>
+        await new Promise((_resolve, reject) => {
+          failHost = reject;
+        })
+    );
+    let pollingStarted!: () => void;
+    const pollingEntered = new Promise<void>(resolve => {
+      pollingStarted = resolve;
+    });
+    const getExitError = jest.fn<Error | undefined, []>(() => {
+      pollingStarted();
+      return undefined;
+    });
+    const stopServer = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(spawnDetached).mockReturnValueOnce({
+      pid: 4242,
+      getOutput: () => 'later controller diagnostic',
+      getExitError,
+      stopAsync: stopServer,
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = Promise.resolve(
+      buildFunction.fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    );
+    void running.catch(() => {});
+    try {
+      await pollingEntered;
+      failHost(hostError);
+      await new Promise(resolve => setImmediate(resolve));
+      const options = jest.mocked(startDeviceSessionHostAsync).mock.calls[0][1];
+      expect(options.signal?.aborted).toBe(true);
+      getExitError.mockReturnValue(new Error('later Argent exit'));
+      await expect(running).rejects.toBe(hostError);
+      expect(stopServer).toHaveBeenCalledTimes(1);
+      expect(startArgentEventCollectionAsync).not.toHaveBeenCalled();
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    } finally {
+      getExitError.mockReturnValue(new Error('stop pending state poll'));
+      await running.catch(() => {});
+    }
+  });
+
+  it('keeps Argent setup concurrent but waits for the iOS host before opening tools', async () => {
+    const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(
+      {} as CustomBuildContext,
+      {} as never
+    );
+    let releaseHost!: () => void;
+    jest.mocked(startDeviceSessionHostAsync).mockReturnValueOnce(
+      new Promise(resolve => {
+        releaseHost = () => resolve(host);
+      })
+    );
+    let stateReady!: () => void;
+    const stateRead = new Promise<void>(resolve => {
+      stateReady = resolve;
+    });
+    jest.mocked(isProcessDescendantOfAsync).mockImplementationOnce(async () => {
+      stateReady();
+      return true;
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+    const running = Promise.resolve(
+      buildFunction.fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    );
+    try {
+      await stateRead;
+      await new Promise(resolve => setImmediate(resolve));
+      expect(spawnDetached).toHaveBeenCalledTimes(1);
+      expect(startArgentEventCollectionAsync).not.toHaveBeenCalled();
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    } finally {
+      releaseHost();
+      await running;
+    }
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'keeps %s prepared setup commands outside the new cancellation path',
+    async runtimePlatform => {
+      const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
+      await buildFunction.fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      );
+      expect(spawn).toHaveBeenCalledTimes(3);
+      for (const [, , options] of jest.mocked(spawn).mock.calls) {
+        expect(options).not.toHaveProperty('detached');
+        expect(options).not.toHaveProperty('signal');
+      }
+      expect(killProcessGroup).not.toHaveBeenCalled();
+    }
+  );
 
   it('fails before starting anything when a launch is asked for on Android', async () => {
     const ctx = {} as unknown as CustomBuildContext;
