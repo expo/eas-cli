@@ -73,6 +73,11 @@ function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
           // Add logId to each log.
           logId: uuidv7(),
         };
+        // The serialized error's message and stack can contain secrets too. Bunyan shares the
+        // record with other streams, so mask a copy.
+        if ('err' in chunk) {
+          chunk.err = maskSecretsInValue(chunk.err, secretPatterns);
+        }
       }
 
       if (chunk && typeof chunk === 'object' && chunk.msg) {
@@ -99,6 +104,21 @@ function maskSecrets(message: string, secrets: Iterable<string>): string {
     }
   }
   return characters.join('');
+}
+
+function maskSecretsInValue(value: unknown, secrets: ReadonlySet<string>, depth = 0): unknown {
+  if (typeof value === 'string') {
+    return maskSecrets(value, secrets);
+  }
+  if (!value || typeof value !== 'object' || depth >= 5) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => maskSecretsInValue(item, secrets, depth + 1));
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, maskSecretsInValue(item, secrets, depth + 1)])
+  );
 }
 
 function createDiscardStream(): Writable {
