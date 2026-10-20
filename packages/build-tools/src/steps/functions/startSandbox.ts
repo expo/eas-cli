@@ -32,6 +32,11 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
       // The daemon needs this credential, but shell commands do not.
@@ -44,6 +49,18 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
       const sandboxId = String(inputs.sandbox_id.value);
+      const maxDurationSeconds = inputs.max_duration_seconds?.value;
+      if (
+        maxDurationSeconds !== undefined &&
+        (typeof maxDurationSeconds !== 'number' ||
+          !Number.isSafeInteger(maxDurationSeconds) ||
+          maxDurationSeconds <= 0 ||
+          maxDurationSeconds * 1000 > 2_147_483_647)
+      ) {
+        throw new SystemError(
+          'Sandbox maximum duration must be a positive whole number of seconds within the timer limit.'
+        );
+      }
       const daemon = await startSandboxDaemonAsync({
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
@@ -63,7 +80,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         stepCtx.logger.info('Sandbox daemon started.');
 
         await withLogPhaseAsync(stepCtx.logger, AWAIT_SANDBOX_STEP_NAME, async () => {
-          await waitForCancellationAsync(signal);
+          await waitForCompletionAsync(signal, maxDurationSeconds);
         });
       } finally {
         await daemon.stopAsync();
@@ -89,11 +106,23 @@ export async function markSandboxReadyAsync(
   }
 }
 
-async function waitForCancellationAsync(signal?: AbortSignal): Promise<void> {
+async function waitForCompletionAsync(
+  signal: AbortSignal | undefined,
+  maxDurationSeconds: number | undefined
+): Promise<void> {
   if (signal?.aborted) {
     return;
   }
   await new Promise<void>(resolve => {
-    signal?.addEventListener('abort', () => resolve(), { once: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const complete = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', complete);
+      resolve();
+    };
+    signal?.addEventListener('abort', complete, { once: true });
+    if (maxDurationSeconds !== undefined) {
+      timer = setTimeout(complete, maxDurationSeconds * 1000);
+    }
   });
 }

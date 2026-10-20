@@ -6,6 +6,58 @@ import * as sandboxDaemon from '../../utils/sandboxDaemon';
 import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
 
 describe('sandbox build functions', () => {
+  it.each(['duration', 'cancellation'] as const)(
+    'stops after %s and starts the duration timer only after readiness',
+    async completion => {
+      jest.useFakeTimers();
+      const controller = new AbortController();
+      let ready!: () => void;
+      const stopAsync = jest.fn(async () => {});
+      const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockResolvedValue({
+        ready: new Promise<void>(resolve => {
+          ready = resolve;
+        }),
+        stopAsync,
+      });
+      const mutation = jest.fn(() => ({ toPromise: async () => ({ data: {} }) }));
+      const logger = { info: jest.fn(), child: jest.fn() };
+      logger.child.mockReturnValue(logger);
+      const fn = createStartSandboxBuildFunction({
+        mcpServerUrl: 'ws://localhost:8787',
+        graphqlClient: { mutation },
+      } as any);
+      try {
+        const pending = fn.fn!({ logger } as any, {
+          inputs: {
+            sandbox_id: { value: 'sandbox-id' },
+            max_duration_seconds: { value: 60 },
+          },
+          outputs: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+          signal: controller.signal,
+        });
+        await jest.advanceTimersByTimeAsync(120_000);
+        expect(mutation).not.toHaveBeenCalled();
+        expect(stopAsync).not.toHaveBeenCalled();
+        ready();
+        await jest.advanceTimersByTimeAsync(59_999);
+        expect(mutation).toHaveBeenCalledTimes(1);
+        expect(stopAsync).not.toHaveBeenCalled();
+        if (completion === 'duration') {
+          await jest.advanceTimersByTimeAsync(1);
+        } else {
+          controller.abort();
+        }
+        await pending;
+        expect(stopAsync).toHaveBeenCalledTimes(1);
+        expect(jest.getTimerCount()).toBe(0);
+      } finally {
+        start.mockRestore();
+        jest.useRealTimers();
+      }
+    }
+  );
+
   it('aborts an active ready request and keeps its authentication headers', async () => {
     const controller = new AbortController();
     let requestStarted!: () => void;
