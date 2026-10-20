@@ -904,9 +904,8 @@ async function finishDeviceSessionHostAsync(
       logger,
     });
   }
-  await ServeSimCrashesRecorder.stopAsync().catch(() => {
-    logger.warn('Could not finish collecting simulator crashes before stopping the session host.');
-  });
+  // Crash reports are read from serve-sim, so collection finishes before it stops.
+  await ServeSimCrashesRecorder.stopAsync();
   let hostStopped = false;
   try {
     await previewServer.stopAsync();

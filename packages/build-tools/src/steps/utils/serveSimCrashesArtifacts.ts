@@ -1,39 +1,36 @@
 import { type bunyan } from '@expo/logger';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { type CollectedCrash } from './serveSimCrashesRecorder';
 
 export async function uploadServeSimCrashesFileAsync(
   ctx: CustomBuildContext,
   {
     deviceRunSessionId,
-    udid,
-    filePath,
+    crash: { udid, filePath, size, number, processName },
     logger,
     signal,
   }: {
     deviceRunSessionId: string;
-    udid: string;
-    filePath: string;
+    crash: CollectedCrash;
     logger: bunyan;
     signal?: AbortSignal;
   }
 ): Promise<void> {
+  const device = udid.slice(0, 8);
   try {
-    const { size } = await stat(filePath);
-    if (size === 0) {
-      return;
-    }
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
-      artifactId: `simulator-crashes-${udid}-${path.basename(filePath, '.ips')}`,
-      name: `Crash report (${udid.slice(0, 8)})`,
-      filename: path.basename(filePath),
-      kind: 'simulator-crashes',
-      metadata: { __eas_type: 'simulator-crashes', udid, source: 'serve-sim/crashes' },
+      artifactId: `simulator-crash-${udid}-${number}`,
+      name: processName
+        ? `Crash report ${number}: ${processName} (${device})`
+        : `Crash report ${number} (${device})`,
+      // Process names are not paths; keep separators out of the download name.
+      filename: `${(processName ?? 'crash').replace(/[/\\:\x00-\x1f]/g, '-')}-${number}.ips`,
+      kind: 'simulator-crash',
+      metadata: { __eas_type: 'simulator-crash', udid, source: 'serve-sim/crashes' },
       size,
       openStream: () => createReadStream(filePath),
       attempts: 3,

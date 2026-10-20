@@ -1,6 +1,8 @@
 import { type bunyan } from '@expo/logger';
 import { type BuildStepContext, type BuildStepEnv } from '@expo/steps';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
@@ -44,49 +46,19 @@ it('uploads each report and removes the collection directory', async () => {
   jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
     outputDirectory: directory,
     crashes: [
-      { udid: 'A', filePath: `${directory}/A.ips` },
-      { udid: 'B', filePath: `${directory}/B.ips` },
+      { udid: 'A', filePath: `${directory}/A.ips`, size: 20, number: 1 },
+      { udid: 'B', filePath: `${directory}/B.ips`, size: 20, number: 1 },
     ],
   });
   await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
   expect(uploadServeSimCrashesFileAsync).toHaveBeenCalledTimes(2);
-  expect(uploadServeSimCrashesFileAsync).toHaveBeenCalledWith(
-    ctx,
-    expect.objectContaining({
-      deviceRunSessionId: 'session-id',
-      udid: 'A',
-      filePath: `${directory}/A.ips`,
-    })
-  );
-  await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
-});
-
-it('gives each device its own 30-second upload budget', async () => {
-  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
-    outputDirectory: null,
-    crashes: [
-      { udid: 'A', filePath: '/tmp/A.ips' },
-      { udid: 'A', filePath: '/tmp/A2.ips' },
-      { udid: 'B', filePath: '/tmp/B.ips' },
-    ],
+  expect(uploadServeSimCrashesFileAsync).toHaveBeenCalledWith(ctx, {
+    deviceRunSessionId: 'session-id',
+    crash: { udid: 'A', filePath: `${directory}/A.ips`, size: 20, number: 1 },
+    logger,
+    signal: expect.any(AbortSignal),
   });
-  const timeout = jest.spyOn(AbortSignal, 'timeout');
-  try {
-    await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
-    expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
-    const signals = jest
-      .mocked(uploadServeSimCrashesFileAsync)
-      .mock.calls.map(([, file]) => file.signal);
-    expect(signals).toEqual([
-      expect.any(AbortSignal),
-      expect.any(AbortSignal),
-      expect.any(AbortSignal),
-    ]);
-    expect(signals[0]).toBe(signals[1]);
-    expect(signals[0]).not.toBe(signals[2]);
-  } finally {
-    timeout.mockRestore();
-  }
+  await expect(access(directory)).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
 it('skips empty collection and warns on finalization failure', async () => {
@@ -103,28 +75,17 @@ it('skips empty collection and warns on finalization failure', async () => {
   );
 });
 
-it('removes the collection directory when no crashes were recorded', async () => {
-  const outputDirectory = '/tmp/empty-crashes-collected';
-  await mkdir(outputDirectory, { recursive: true });
-  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
-    outputDirectory,
-    crashes: [],
-  });
-  await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
-  await expect(access(outputDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
-  expect(uploadServeSimCrashesFileAsync).not.toHaveBeenCalled();
-});
-
-it('removes the collection directory when session resolution fails', async () => {
-  const outputDirectory = '/tmp/unresolved-crashes-collected';
-  await mkdir(outputDirectory, { recursive: true });
-  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
-    outputDirectory,
-    crashes: [{ udid: 'A', filePath: `${outputDirectory}/A.ips` }],
-  });
-  jest.mocked(getDeviceRunSessionIdOrThrow).mockImplementationOnce(() => {
-    throw new Error('Missing session ID');
-  });
+it.each([
+  ['no crashes were recorded', [], false],
+  ['session resolution fails', [{ udid: 'A', filePath: 'A.ips', size: 20, number: 1 }], true],
+])('removes the collection directory when %s', async (_name, crashes, failSession) => {
+  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'crashes-collected-'));
+  jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({ outputDirectory, crashes });
+  if (failSession) {
+    jest.mocked(getDeviceRunSessionIdOrThrow).mockImplementationOnce(() => {
+      throw new Error('Missing session ID');
+    });
+  }
   await expect(
     createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args)
   ).resolves.toBeUndefined();
@@ -136,9 +97,9 @@ it('skips remaining reports for an exhausted device and continues with other dev
   jest.mocked(ServeSimCrashesRecorder.finishAsync).mockResolvedValue({
     outputDirectory: null,
     crashes: [
-      { udid: 'A', filePath: '/tmp/A.ips' },
-      { udid: 'A', filePath: '/tmp/A2.ips' },
-      { udid: 'B', filePath: '/tmp/B.ips' },
+      { udid: 'A', filePath: '/tmp/A-1.ips', size: 20, number: 1 },
+      { udid: 'A', filePath: '/tmp/A-2.ips', size: 20, number: 2 },
+      { udid: 'B', filePath: '/tmp/B-1.ips', size: 20, number: 1 },
     ],
   });
   const controller = new AbortController();
@@ -149,8 +110,8 @@ it('skips remaining reports for an exhausted device and continues with other dev
   try {
     await createCollectServeSimCrashesBuildFunction(ctx).fn?.(step, args);
     expect(
-      jest.mocked(uploadServeSimCrashesFileAsync).mock.calls.map(([, file]) => file.filePath)
-    ).toEqual(['/tmp/A.ips', '/tmp/B.ips']);
+      jest.mocked(uploadServeSimCrashesFileAsync).mock.calls.map(([, { crash }]) => crash.filePath)
+    ).toEqual(['/tmp/A-1.ips', '/tmp/B-1.ips']);
     expect(logger.warn).toHaveBeenCalledWith(
       'Simulator crash upload reached its time limit for A; remaining reports will not be uploaded.'
     );

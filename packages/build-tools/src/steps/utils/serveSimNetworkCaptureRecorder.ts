@@ -16,10 +16,17 @@ import { type DetachedProcessHandle, spawnDetached } from './remoteDeviceRunSess
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const POLL_INTERVAL_MS = 2_000;
-// While serve-sim runs, an exited follower (capture off, stream dropped) is replaced this often.
+// While serve-sim runs, an exited follower (stream dropped, capture off) is replaced after this long;
+// one that recorded nothing (usually capture off) waits longer, since it may stay off all session.
 const FOLLOWER_RESTART_INTERVAL_MS = 10_000;
-const FOLLOWER_STOP_GRACE_PERIOD_MS = 15_000;
+const IDLE_FOLLOWER_RESTART_INTERVAL_MS = 30_000;
+// On stop the follower rebuilds the whole HAR from its entry log; a shorter --flush-ms would not
+// shorten that last rebuild, so a large recording gets a longer grace before it is killed.
+const FOLLOWER_STOP_GRACE_PERIOD_MS = 60_000;
+// HARs holding requests, across the session.
 const MAX_RECORDINGS = 20;
+// Followers started for one serve-sim server; at the idle interval this covers about an hour.
+const MAX_FOLLOWER_STARTS = 120;
 const OUTPUT_TAIL_CHARS = 2_000;
 
 type Follower = {
@@ -34,14 +41,15 @@ type ServeSimNetworkCaptureSession = {
   stateDir: string;
   pollIntervalMs: number;
   restartIntervalMs: number;
+  idleRestartIntervalMs: number;
   outputDirectory: string;
   command: { command: string; args: string[] };
   env: BuildStepEnv;
   followers: Follower[];
   current: Map<string, Follower>;
-  spawnCounts: Map<string, number>;
+  followerStarts: Map<string, number>;
+  stoppedRetrying: Set<string>;
   fileCounts: Map<string, number>;
-  failedAt: Map<string, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
 };
@@ -59,6 +67,7 @@ export namespace ServeSimNetworkCaptureRecorder {
     stateDir = SERVE_SIM_STATE_DIR,
     pollIntervalMs = POLL_INTERVAL_MS,
     restartIntervalMs = FOLLOWER_RESTART_INTERVAL_MS,
+    idleRestartIntervalMs = IDLE_FOLLOWER_RESTART_INTERVAL_MS,
   }: {
     logger: bunyan;
     env: BuildStepEnv;
@@ -66,6 +75,7 @@ export namespace ServeSimNetworkCaptureRecorder {
     stateDir?: string;
     pollIntervalMs?: number;
     restartIntervalMs?: number;
+    idleRestartIntervalMs?: number;
   }): Promise<void> {
     if (activeSession) {
       logger.info('The serve-sim network capture recorder is already running.');
@@ -79,14 +89,15 @@ export namespace ServeSimNetworkCaptureRecorder {
       stateDir,
       pollIntervalMs,
       restartIntervalMs,
+      idleRestartIntervalMs,
       outputDirectory: await mkdtemp(path.join(os.tmpdir(), 'serve-sim-network-capture-')),
       command,
       env,
       followers: [],
       current: new Map(),
-      spawnCounts: new Map(),
+      followerStarts: new Map(),
+      stoppedRetrying: new Set(),
       fileCounts: new Map(),
-      failedAt: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
     };
@@ -115,13 +126,21 @@ export namespace ServeSimNetworkCaptureRecorder {
 
     session.abortController.abort();
     await session.pollingPromise;
+    // Stopped together, so the final HAR rebuilds share one grace period.
+    await Promise.all(
+      session.followers.map(follower =>
+        follower.handle.stopAsync().catch(err => {
+          logger.warn({ err }, `Could not stop the network capture follower for ${follower.udid}.`);
+        })
+      )
+    );
     const captures: RecordedNetworkCapture[] = [];
     for (const follower of session.followers) {
-      await follower.handle.stopAsync().catch(err => {
-        logger.warn({ err }, `Could not stop the network capture follower for ${follower.udid}.`);
-      });
-      const size = await recordedSizeAsync(follower);
-      if (size > 0) {
+      const size = await stat(follower.filePath).then(
+        stats => stats.size,
+        () => 0
+      );
+      if (size > 0 && (await hasEntriesAsync(follower))) {
         captures.push({ udid: follower.udid, filePath: follower.filePath, size });
       }
     }
@@ -141,19 +160,14 @@ async function pollServeSimServersAsync(session: ServeSimNetworkCaptureSession):
   const { abortController } = session;
   while (!abortController.signal.aborted) {
     for (const server of await readServeSimServersAsync(session.stateDir)) {
+      // serve-sim's capture routes require a token, so `capture har` refuses a server without one.
       if (!server.token) {
         continue;
       }
       const key = `${server.udid}\n${server.url}\n${server.token}`;
-      const failedAt = session.failedAt.get(key);
-      if (failedAt !== undefined && Date.now() - failedAt < session.restartIntervalMs) {
-        continue;
-      }
       try {
         await ensureFollowerAsync(session, key, server.udid);
-        session.failedAt.delete(key);
       } catch (err) {
-        session.failedAt.set(key, Date.now());
         session.logger.warn(
           { err },
           `Could not start the network capture follower for ${server.udid}; retrying.`
@@ -172,33 +186,36 @@ async function ensureFollowerAsync(
   udid: string
 ): Promise<void> {
   const previous = session.current.get(key);
-  // Drop an empty previous follower only once its replacement has spawned.
+  // A previous follower that recorded nothing is dropped once its replacement has spawned.
   let emptyPrevious: Follower | undefined;
   if (previous) {
-    const exited = previous.handle.getExitError() !== undefined;
-    if (!exited || Date.now() - previous.startedAt < session.restartIntervalMs) {
+    if (previous.handle.getExitError() === undefined) {
       return;
     }
-    if ((await recordedSizeAsync(previous)) === 0) {
+    const recorded = await hasEntriesAsync(previous);
+    const interval = recorded ? session.restartIntervalMs : session.idleRestartIntervalMs;
+    if (Date.now() - previous.startedAt < interval) {
+      return;
+    }
+    if (!recorded) {
       emptyPrevious = previous;
     }
   }
-  const listed = emptyPrevious ? session.followers.indexOf(emptyPrevious) : -1;
-  if (session.followers.length - (listed >= 0 ? 1 : 0) >= MAX_RECORDINGS) {
+  if (session.followers.length - (emptyPrevious ? 1 : 0) >= MAX_RECORDINGS) {
     return;
   }
-  const attempts = session.spawnCounts.get(key) ?? 0;
-  if (attempts >= MAX_RECORDINGS) {
-    if (attempts === MAX_RECORDINGS) {
+  const starts = session.followerStarts.get(key) ?? 0;
+  if (starts >= MAX_FOLLOWER_STARTS) {
+    if (!session.stoppedRetrying.has(key)) {
+      session.stoppedRetrying.add(key);
       session.logger.warn(
         { output: previous?.handle.getOutput().slice(-OUTPUT_TAIL_CHARS) || '<empty>' },
-        `Stopped retrying network capture for ${udid} after ${MAX_RECORDINGS} attempts; recorded captures will be retained.`
+        `Stopped retrying network capture for ${udid} after ${MAX_FOLLOWER_STARTS} attempts; recorded captures will be retained.`
       );
-      session.spawnCounts.set(key, attempts + 1);
     }
     return;
   }
-  session.spawnCounts.set(key, attempts + 1);
+  session.followerStarts.set(key, starts + 1);
   const count = (session.fileCounts.get(udid) ?? 0) + 1;
   session.fileCounts.set(udid, count);
   const filePath = path.join(session.outputDirectory, `${udid}-${count}.har`);
@@ -217,18 +234,16 @@ async function ensureFollowerAsync(
     }),
   };
   if (emptyPrevious) {
-    const index = session.followers.indexOf(emptyPrevious);
-    if (index >= 0) {
-      session.followers.splice(index, 1);
-    }
+    session.followers.splice(session.followers.indexOf(emptyPrevious), 1);
   }
   session.followers.push(follower);
   session.current.set(key, follower);
 }
 
-async function recordedSizeAsync(follower: Follower): Promise<number> {
-  return await stat(follower.filePath).then(
-    stats => stats.size,
-    () => 0
+/** serve-sim writes an empty HAR when recording begins; requests go to `<stem>.entries.ndjson`. */
+async function hasEntriesAsync(follower: Follower): Promise<boolean> {
+  return await stat(follower.filePath.replace(/\.har$/, '.entries.ndjson')).then(
+    stats => stats.size > 0,
+    () => false
   );
 }

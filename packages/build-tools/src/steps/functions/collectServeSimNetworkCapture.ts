@@ -3,8 +3,8 @@ import { rm } from 'node:fs/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { uploadNetworkCaptureHarsAsync } from '../utils/networkCaptureArtifacts';
 import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
+import { uploadServeSimNetworkCaptureFileAsync } from '../utils/serveSimNetworkCaptureArtifacts';
 import { ServeSimNetworkCaptureRecorder } from '../utils/serveSimNetworkCaptureRecorder';
 
 export function createCollectServeSimNetworkCaptureBuildFunction(
@@ -25,11 +25,21 @@ export function createCollectServeSimNetworkCaptureBuildFunction(
           logger.info('No network capture was recorded; skipping upload.');
           return;
         }
-        await uploadNetworkCaptureHarsAsync(ctx, {
-          deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
-          captures,
-          logger,
-        });
+        const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+        // A device's HARs are numbered parts, one per capture har run that recorded requests.
+        const parts = new Map<string, number>();
+        for (const { udid, filePath, size } of captures) {
+          const part = (parts.get(udid) ?? 0) + 1;
+          parts.set(udid, part);
+          await uploadServeSimNetworkCaptureFileAsync(ctx, {
+            deviceRunSessionId,
+            udid,
+            filePath,
+            size,
+            part,
+            logger,
+          });
+        }
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         Sentry.capture('Could not upload the network capture', error);

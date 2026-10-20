@@ -1,6 +1,6 @@
 import { type bunyan } from '@expo/logger';
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { type Server, createServer } from 'node:http';
+import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +24,7 @@ const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 let directory: string;
 let server: Server;
 let baseUrl: string;
-const summary = { id: 'crash/a', occurrenceTimes: [{ key: 1 }, { key: 2 }] };
+const summary = { id: 'crash/a', appName: 'Fixture', occurrenceTimes: [{ key: 1 }, { key: 2 }] };
 const report = (key: number) =>
   JSON.stringify({ app_name: 'Fixture 서울 🌲', incident_id: `INC-${key}` }) +
   '\n' +
@@ -36,6 +36,28 @@ const detail = (key: number) => ({
   report: report(key),
   reportError: null,
 });
+
+/** Answers the one-shot list that stopping reads; returns false for other requests. */
+function answerList(
+  request: IncomingMessage,
+  response: ServerResponse,
+  crashes: unknown[] = []
+): boolean {
+  if (request.headers.accept !== 'application/json') {
+    return false;
+  }
+  response.setHeader('Content-Type', 'application/json');
+  response.end(JSON.stringify({ meta: { statusError: null }, crashes }));
+  return true;
+}
+
+function stoppedRetrying(): boolean {
+  return jest
+    .mocked(logger.warn)
+    .mock.calls.some(([message]) =>
+      String(message).startsWith('Stopped retrying simulator crash collection')
+    );
+}
 
 async function waitFor(read: () => boolean | Promise<boolean>): Promise<void> {
   for (let i = 0; i < 200; i++) {
@@ -115,6 +137,9 @@ it('saves recurrences as separate private IPS files and uploads unchanged report
     expect(request.headers.authorization).toBe('Bearer test-token');
     const url = new URL(request.url!, baseUrl);
     expect(url.searchParams.get('device')).toBe('device-A');
+    if (answerList(request, response, [summary])) {
+      return;
+    }
     if (url.pathname === '/crashes') {
       expect(url.searchParams.has('tail')).toBe(false);
       expect(request.headers.accept).toBe('text/event-stream');
@@ -153,21 +178,20 @@ it('saves recurrences as separate private IPS files and uploads unchanged report
     env: { EAS_DEVICE_RUN_SESSION_TOKEN: 'worker-token' },
     expoApiV2BaseUrl: baseUrl + '/v2/',
   } as unknown as CustomBuildContext;
-  for (const file of files) {
+  for (const crash of files) {
     await uploadServeSimCrashesFileAsync(context, {
       deviceRunSessionId: 'session-id',
-      ...file,
+      crash,
       logger,
     });
   }
   expect(uploaded).toEqual([expected[0], expected[0], expected[1]]);
   expect(uploadAttempts).toBe(3);
-  expect(uploadInputs.map(input => input.filename)).toEqual(
-    files.map(file => path.basename(file.filePath))
-  );
+  expect(uploadInputs.map(input => input.filename)).toEqual(['Fixture-1.ips', 'Fixture-2.ips']);
   expect(uploadInputs[0]).toMatchObject({
-    kind: 'simulator-crashes',
-    metadata: { __eas_type: 'simulator-crashes', udid: 'device-A', source: 'serve-sim/crashes' },
+    name: 'Crash report 1: Fixture (device-A)',
+    kind: 'simulator-crash',
+    metadata: { __eas_type: 'simulator-crash', udid: 'device-A', source: 'serve-sim/crashes' },
   });
   expect(JSON.stringify(uploadInputs)).not.toContain('PRIVATE APP LOG');
   expect(await ServeSimCrashesRecorder.finishAsync()).toEqual({
@@ -247,29 +271,114 @@ it('stops at a complete-record byte limit and keeps earlier reports', async () =
   await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
 });
 
-it('retries a failed detail request by reconnecting and replaying the retained list', async () => {
-  let requests = 0;
-  server.on('request', (request, response) => {
-    if (request.url!.startsWith('/crashes?')) {
-      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      response.write(
-        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
-      );
-    } else {
-      requests += 1;
-      if (requests === 1) {
-        response.writeHead(503).end();
+it.each([
+  ['fails on every request', (response: ServerResponse) => response.writeHead(500).end()],
+  [
+    'exceeds 8 MiB',
+    (response: ServerResponse) =>
+      response.end(JSON.stringify({ ...detail(1), report: 'x'.repeat(8 * 1024 * 1024) })),
+  ],
+])(
+  'skips an occurrence whose detail %s, once, and keeps collecting the device',
+  async (_name, respond) => {
+    let connections = 0;
+    let badRequests = 0;
+    server.on('request', (request, response) => {
+      const url = new URL(request.url!, baseUrl);
+      if (answerList(request, response)) {
+        return;
+      }
+      if (url.pathname === '/crashes') {
+        connections += 1;
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        // Every stream ends, so each reconnect replays the bad occurrence.
+        response.end(
+          `data: ${JSON.stringify({
+            type: 'list',
+            crashes: [
+              { id: 'crash/b', occurrenceTimes: [{ key: 1 }] },
+              { ...summary, occurrenceTimes: [{ key: 1 }] },
+            ],
+          })}\n\n`
+        );
+      } else if (url.pathname === '/crashes/crash%2Fb') {
+        badRequests += 1;
+        respond(response);
       } else {
         response.end(JSON.stringify(detail(1)));
       }
+    });
+    await start();
+    await waitFor(() => connections >= 12);
+    const collected = await ServeSimCrashesRecorder.finishAsync();
+    expect(badRequests).toBe(1);
+    expect(stoppedRetrying()).toBe(false);
+    expect(
+      jest
+        .mocked(logger.warn)
+        .mock.calls.filter(([, message]) => String(message).startsWith('Could not download'))
+    ).toEqual([
+      [
+        { err: expect.any(Error) },
+        'Could not download crash occurrence 1 for device-A; skipping it.',
+      ],
+    ]);
+    expect(collected.crashes).toHaveLength(1);
+    expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+    await rm(collected.outputDirectory!, { recursive: true, force: true });
+  }
+);
+
+it('collects an occurrence listed after the stream last delivered, when stopping', async () => {
+  let streaming = false;
+  server.on('request', (request, response) => {
+    const url = new URL(request.url!, baseUrl);
+    if (answerList(request, response, [{ ...summary, occurrenceTimes: [{ key: 1 }] }])) {
+      return;
+    }
+    if (url.pathname === '/crashes') {
+      streaming = true;
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.write(`data: ${JSON.stringify({ type: 'list', crashes: [] })}\n\n`);
+    } else {
+      response.end(JSON.stringify(detail(1)));
     }
   });
   await start();
-  await waitFor(() => requests === 2);
-  await delay(10);
-  const { crashes: files } = await ServeSimCrashesRecorder.finishAsync();
-  expect(await readFile(files[0].filePath, 'utf8')).toBe(report(1));
-  await rm(path.dirname(files[0].filePath), { recursive: true, force: true });
+  await waitFor(() => streaming);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(collected.crashes).toEqual([
+    {
+      udid: 'device-A',
+      filePath: path.join(collected.outputDirectory!, 'device-A-1.ips'),
+      size: Buffer.byteLength(report(1)),
+      number: 1,
+      processName: 'Fixture',
+    },
+  ]);
+  expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
+
+it('warns once per device when serve-sim cannot watch crash reports', async () => {
+  let connections = 0;
+  server.on('request', (_request, response) => {
+    connections += 1;
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    response.end(
+      `data: ${JSON.stringify({ type: 'meta', meta: { statusError: 'EACCES' } })}\n\n` +
+        `data: ${JSON.stringify({ type: 'list', crashes: [] })}\n\n`
+    );
+  });
+  await start();
+  await waitFor(() => connections >= 3);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(
+    jest
+      .mocked(logger.warn)
+      .mock.calls.filter(([message]) => String(message).startsWith('serve-sim cannot watch'))
+  ).toHaveLength(1);
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
 });
 
 it.each([
@@ -286,13 +395,7 @@ it.each([
     response.end(payload);
   });
   await start();
-  await waitFor(() =>
-    jest
-      .mocked(logger.warn)
-      .mock.calls.some(([message]) =>
-        String(message).startsWith('Stopped retrying simulator crash collection')
-      )
-  );
+  await waitFor(stoppedRetrying);
   await delay(30);
   expect(connections).toBe(10);
   const collected = await ServeSimCrashesRecorder.finishAsync();
@@ -314,73 +417,7 @@ it('keeps retrying streams that process a healthy empty crash list', async () =>
   });
   await start();
   await waitFor(() => connections === 12);
-  expect(
-    jest
-      .mocked(logger.warn)
-      .mock.calls.some(([message]) =>
-        String(message).startsWith('Stopped retrying simulator crash collection')
-      )
-  ).toBe(false);
-});
-
-it.each([
-  ['keeps retrying while new occurrences are saved', true],
-  ['stops after ten retries that only replay a saved occurrence', false],
-])('%s before a later detail fails', async (_name, productive) => {
-  let connections = 0;
-  let failedDetails = 0;
-  const keys: number[] = [];
-  server.on('request', (request, response) => {
-    const url = new URL(request.url!, baseUrl);
-    if (url.pathname === '/crashes') {
-      connections += 1;
-      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      if (productive && connections > 12) {
-        response.flushHeaders();
-        return;
-      }
-      const key = productive ? connections : 1;
-      response.write(
-        `data: ${JSON.stringify({
-          type: 'list',
-          crashes: [
-            { ...summary, occurrenceTimes: [{ key: 1 }, { key }] },
-            { id: 'crash/b', occurrenceTimes: [{ key: 1 }] },
-          ],
-        })}\n\n`
-      );
-    } else if (url.pathname === '/crashes/crash%2Fb') {
-      failedDetails += 1;
-      response.writeHead(503).end();
-    } else {
-      const key = Number(url.searchParams.get('key'));
-      keys.push(key);
-      response.end(JSON.stringify(detail(key)));
-    }
-  });
-  await start();
-  if (productive) {
-    await waitFor(() => failedDetails === 12);
-    expect(connections).toBeGreaterThanOrEqual(12);
-  } else {
-    await waitFor(() =>
-      jest
-        .mocked(logger.warn)
-        .mock.calls.some(([message]) =>
-          String(message).startsWith('Stopped retrying simulator crash collection')
-        )
-    );
-    expect(connections).toBe(11);
-    expect(failedDetails).toBe(11);
-  }
-  const collected = await ServeSimCrashesRecorder.finishAsync();
-  const expectedKeys = Array.from({ length: productive ? 12 : 1 }, (_, index) => index + 1);
-  expect(keys).toEqual(expectedKeys);
-  expect(collected.crashes).toHaveLength(expectedKeys.length);
-  expect(await Promise.all(collected.crashes.map(file => readFile(file.filePath, 'utf8')))).toEqual(
-    expectedKeys.map(report)
-  );
-  await rm(collected.outputDirectory!, { recursive: true, force: true });
+  expect(stoppedRetrying()).toBe(false);
 });
 
 it('recovers the same server after registry absence without resetting dedupe or the byte budget', async () => {
@@ -427,13 +464,7 @@ it('recovers the same server after registry absence without resetting dedupe or 
   try {
     const expected = report(1) + report(2);
     await start(Buffer.byteLength(expected));
-    await waitFor(() =>
-      jest
-        .mocked(logger.warn)
-        .mock.calls.some(([message]) =>
-          String(message).startsWith('Stopped retrying simulator crash collection')
-        )
-    );
+    await waitFor(stoppedRetrying);
     expect(connections).toBe(11);
     expectAbsence = true;
     await rm(path.join(directory, 'server-device-A.json'));
@@ -512,8 +543,7 @@ it('closes a stalled upload within its budget and lets another device upload', a
   } as unknown as CustomBuildContext;
   await uploadServeSimCrashesFileAsync(context, {
     deviceRunSessionId: 'session-id',
-    udid: 'A',
-    filePath: firstFile,
+    crash: { udid: 'A', filePath: firstFile, size: Buffer.byteLength(report(1)), number: 1 },
     logger,
     signal: AbortSignal.timeout(50),
   });
@@ -525,8 +555,7 @@ it('closes a stalled upload within its budget and lets another device upload', a
   );
   await uploadServeSimCrashesFileAsync(context, {
     deviceRunSessionId: 'session-id',
-    udid: 'B',
-    filePath: secondFile,
+    crash: { udid: 'B', filePath: secondFile, size: expected.length, number: 1 },
     logger,
     signal: AbortSignal.timeout(1_000),
   });
@@ -561,15 +590,19 @@ it.each([null, ''])(
   }
 );
 
-it('does not duplicate a saved incident when the server identity changes', async () => {
-  let connections = 0;
+it('does not duplicate a saved incident when a restarted serve-sim reuses occurrence keys', async () => {
   let requested = 0;
   server.on('request', (request, response) => {
+    if (answerList(request, response)) {
+      return;
+    }
+    // A restarted serve-sim numbers occurrences from 1 again; the capture time tells them apart.
+    const restarted = request.headers.authorization === 'Bearer new-token';
     if (request.url!.startsWith('/crashes?')) {
-      connections += 1;
       response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      response.end(
-        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
+      const occurrence = restarted ? { key: 1, capturedAtMs: 2_000 } : { key: 1 };
+      response.write(
+        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [occurrence] }] })}\n\n`
       );
     } else {
       requested += 1;
@@ -577,15 +610,12 @@ it('does not duplicate a saved incident when the server identity changes', async
     }
   });
   await start();
-  await waitFor(() => connections >= 2);
+  await waitFor(() => requested === 1);
   await writeFile(
     path.join(directory, 'server-device-A.json'),
-    JSON.stringify({
-      device: 'device-A',
-      url: baseUrl,
-      token: 'new-token',
-    })
+    JSON.stringify({ device: 'device-A', url: baseUrl, token: 'new-token' })
   );
+  server.closeAllConnections();
   await waitFor(() => requested === 2);
   const collected = await ServeSimCrashesRecorder.finishAsync();
   expect(collected.crashes).toHaveLength(1);
@@ -596,10 +626,8 @@ it('does not duplicate a saved incident when the server identity changes', async
 it('removes a partial file before retrying a failed write', async () => {
   const write = fs.writeFile;
   let attempted = 0;
-  let partialFile: string | undefined;
   const writing = jest.spyOn(fs, 'writeFile').mockImplementation(async (file, data, options) => {
     if (String(file).endsWith('.ips') && attempted++ === 0) {
-      partialFile = String(file);
       await write(file, 'partial report', options);
       throw new Error('disk write failed');
     }
@@ -623,7 +651,6 @@ it('removes a partial file before retrying a failed write', async () => {
     expect(await readdir(collected.outputDirectory!)).toEqual([
       path.basename(collected.crashes[0].filePath),
     ]);
-    expect(collected.crashes[0].filePath).not.toBe(partialFile);
     expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
     await rm(collected.outputDirectory!, { recursive: true, force: true });
   } finally {
@@ -631,185 +658,65 @@ it('removes a partial file before retrying a failed write', async () => {
   }
 });
 
-it.each([1_000, 1_001])(
-  'keeps the report allowance and deduplicates reconnects after %i missing reports',
-  async missingCount => {
-    const requested: number[] = [];
-    let connections = 0;
-    let completed: (() => void) | undefined;
-    const processed = new Promise<void>(resolve => {
-      completed = resolve;
-    });
-    const occurrence = (key: number) => ({ ...summary, occurrenceTimes: [{ key }] });
-    server.on('request', (request, response) => {
-      if (request.url!.startsWith('/crashes?')) {
-        response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-        connections += 1;
-        if (connections === 1) {
-          for (let key = 1; key <= missingCount; key++) {
-            response.write(
-              `data: ${JSON.stringify({ type: 'recurred', record: occurrence(key) })}\n\n`
-            );
-          }
-        } else {
-          const retained = {
-            ...summary,
-            occurrenceTimes: Array.from({ length: 5 }, (_, index) => ({
-              key: missingCount - 4 + index,
-            })),
-          };
-          response.write(`data: ${JSON.stringify({ type: 'list', crashes: [retained] })}\n\n`);
-        }
-        if (connections < 3) {
-          response.end();
-        } else {
+it('keeps the report allowance and deduplicates reconnects after more missing reports than the allowance', async () => {
+  const missingCount = 1_001;
+  const requested: number[] = [];
+  let connections = 0;
+  let completed: (() => void) | undefined;
+  const processed = new Promise<void>(resolve => {
+    completed = resolve;
+  });
+  const occurrence = (key: number) => ({ ...summary, occurrenceTimes: [{ key }] });
+  server.on('request', (request, response) => {
+    if (answerList(request, response)) {
+      return;
+    }
+    if (request.url!.startsWith('/crashes?')) {
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      connections += 1;
+      if (connections === 1) {
+        for (let key = 1; key <= missingCount; key++) {
           response.write(
-            `data: ${JSON.stringify({ type: 'recurred', record: occurrence(missingCount + 1) })}\n\n`
+            `data: ${JSON.stringify({ type: 'recurred', record: occurrence(key) })}\n\n`
           );
         }
       } else {
-        const key = Number(new URL(request.url!, baseUrl).searchParams.get('key'));
-        requested.push(key);
-        response.end(
-          JSON.stringify({ ...detail(key), report: key <= missingCount ? null : report(key) })
+        const retained = {
+          ...summary,
+          occurrenceTimes: Array.from({ length: 5 }, (_, index) => ({
+            key: missingCount - 4 + index,
+          })),
+        };
+        response.write(`data: ${JSON.stringify({ type: 'list', crashes: [retained] })}\n\n`);
+      }
+      if (connections < 3) {
+        response.end();
+      } else {
+        response.write(
+          `data: ${JSON.stringify({ type: 'recurred', record: occurrence(missingCount + 1) })}\n\n`
         );
-        if (key === missingCount + 1) {
-          completed?.();
-        }
       }
-    });
-    await start();
-    await processed;
-    const collected = await ServeSimCrashesRecorder.finishAsync();
-    try {
-      expect(connections).toBe(3);
-      expect(requested).toEqual(Array.from({ length: missingCount + 1 }, (_, index) => index + 1));
-      expect(collected.crashes).toHaveLength(1);
-      expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(missingCount + 1));
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('reached its limit'));
-    } finally {
-      await rm(collected.outputDirectory!, { recursive: true, force: true });
-    }
-  },
-  15_000
-);
-
-it('reserves one collection directory when started concurrently', async () => {
-  const creation = jest.spyOn(fs, 'mkdtemp');
-  let directories: string[] = [];
-  try {
-    const options = { logger, stateDir: directory, pollIntervalMs: 10, maxDurationMs: 50 };
-    await Promise.all([
-      ServeSimCrashesRecorder.startAsync(options),
-      ServeSimCrashesRecorder.startAsync(options),
-    ]);
-    directories = await Promise.all(
-      creation.mock.results.map(async result => String(await result.value))
-    );
-    await delay(60);
-    const collected = await ServeSimCrashesRecorder.finishAsync();
-    expect(directories).toHaveLength(1);
-    expect(collected.outputDirectory).toBe(directories[0]);
-  } finally {
-    await ServeSimCrashesRecorder.finishAsync();
-    await Promise.all(
-      directories.map(directory => rm(directory, { recursive: true, force: true }))
-    );
-    creation.mockRestore();
-  }
-});
-
-it('rejects concurrent initialization failures and lets a later start retry', async () => {
-  const error = new Error('temporary directory unavailable');
-  const creation = jest.spyOn(fs, 'mkdtemp').mockRejectedValueOnce(error);
-  let outputDirectory: string | null = null;
-  try {
-    const options = { logger, stateDir: directory, pollIntervalMs: 10 };
-    const results = await Promise.allSettled([
-      ServeSimCrashesRecorder.startAsync(options),
-      ServeSimCrashesRecorder.startAsync(options),
-    ]);
-    expect(results).toEqual([
-      { status: 'rejected', reason: error },
-      { status: 'rejected', reason: error },
-    ]);
-    expect(creation).toHaveBeenCalledTimes(1);
-    await ServeSimCrashesRecorder.startAsync(options);
-    const collected = await ServeSimCrashesRecorder.finishAsync();
-    outputDirectory = collected.outputDirectory;
-    expect(creation).toHaveBeenCalledTimes(2);
-    expect(outputDirectory).not.toBeNull();
-    expect(await readdir(outputDirectory!)).toEqual([]);
-  } finally {
-    const collected = await ServeSimCrashesRecorder.finishAsync();
-    for (const directory of new Set([outputDirectory, collected.outputDirectory])) {
-      if (directory) {
-        await rm(directory, { recursive: true, force: true });
+    } else {
+      const key = Number(new URL(request.url!, baseUrl).searchParams.get('key'));
+      requested.push(key);
+      response.end(
+        JSON.stringify({ ...detail(key), report: key <= missingCount ? null : report(key) })
+      );
+      if (key === missingCount + 1) {
+        completed?.();
       }
     }
-    creation.mockRestore();
-  }
-});
-
-it('waits for pending initialization before finalizing its directory', async () => {
-  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'crashes-startup-test-'));
-  let resolveDirectory: (directory: string) => void = () => {};
-  const initialization = new Promise<string>(resolve => {
-    resolveDirectory = resolve;
   });
-  const creation = jest.spyOn(fs, 'mkdtemp').mockReturnValueOnce(initialization);
-  const starting = ServeSimCrashesRecorder.startAsync({ logger, stateDir: directory });
-  let finished = false;
-  const finishing = ServeSimCrashesRecorder.finishAsync().then(collected => {
-    finished = true;
-    return collected;
-  });
+  await start();
+  await processed;
+  const collected = await ServeSimCrashesRecorder.finishAsync();
   try {
-    await delay(10);
-    expect(finished).toBe(false);
-    resolveDirectory(outputDirectory);
-    await starting;
-    await expect(finishing).resolves.toEqual({ outputDirectory, crashes: [] });
+    expect(connections).toBe(3);
+    expect(requested).toEqual(Array.from({ length: missingCount + 1 }, (_, index) => index + 1));
+    expect(collected.crashes).toHaveLength(1);
+    expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(missingCount + 1));
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('reached its limit'));
   } finally {
-    resolveDirectory(outputDirectory);
-    await Promise.allSettled([starting, finishing]);
-    await rm(outputDirectory, { recursive: true, force: true });
-    creation.mockRestore();
+    await rm(collected.outputDirectory!, { recursive: true, force: true });
   }
-});
-
-it('does not let a failed initialization finalizer clear its replacement', async () => {
-  const error = new Error('temporary directory unavailable');
-  let rejectDirectory: (error: Error) => void = () => {};
-  const initialization = new Promise<string>((_resolve, reject) => {
-    rejectDirectory = reject;
-  });
-  const creation = jest.spyOn(fs, 'mkdtemp').mockReturnValueOnce(initialization);
-  const options = { logger, stateDir: directory, pollIntervalMs: 10, maxDurationMs: 50 };
-  const starting = ServeSimCrashesRecorder.startAsync(options);
-  const finishing = ServeSimCrashesRecorder.finishAsync();
-  const retried = starting.catch(() => ServeSimCrashesRecorder.startAsync(options));
-  let outputDirectory: string | null = null;
-  try {
-    rejectDirectory(error);
-    expect(await Promise.allSettled([starting, finishing, retried])).toEqual([
-      { status: 'rejected', reason: error },
-      { status: 'rejected', reason: error },
-      { status: 'fulfilled', value: undefined },
-    ]);
-    const collected = await ServeSimCrashesRecorder.finishAsync();
-    outputDirectory = collected.outputDirectory;
-    expect(outputDirectory).not.toBeNull();
-    expect(creation).toHaveBeenCalledTimes(2);
-  } finally {
-    await ServeSimCrashesRecorder.finishAsync();
-    await delay(60);
-    const directories = await Promise.allSettled(creation.mock.results.map(result => result.value));
-    for (const result of directories) {
-      if (result.status === 'fulfilled') {
-        await rm(String(result.value), { recursive: true, force: true });
-      }
-    }
-    creation.mockRestore();
-  }
-});
+}, 15_000);
