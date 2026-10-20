@@ -1934,7 +1934,7 @@ describe(Simulator, () => {
     });
 
     it('keeps the message unchanged when the job run has no errors', async () => {
-      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [], logFileUrls: [] });
+      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [] });
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -1958,9 +1958,7 @@ describe(Simulator, () => {
             docsUrl: 'https://docs.expo.dev/simulator',
           },
         ],
-        logFileUrls: ['https://logs.example.com/job-123'],
       });
-      const fetchSpy = jest.spyOn(global, 'fetch');
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -1969,10 +1967,9 @@ describe(Simulator, () => {
           message: `${erroredSessionMessage}\nNo available iOS Simulator is named "iPhone 16 Pro".\nThe build cannot be installed on a simulator. Learn more: https://docs.expo.dev/simulator`,
         })
       );
-      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('reads the failed step errors from the job run logs for an unknown error', async () => {
+    it('prints an unknown error as reported', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
         errors: [
@@ -1982,68 +1979,7 @@ describe(Simulator, () => {
             docsUrl: null,
           },
         ],
-        logFileUrls: ['https://logs.example.com/job-123'],
       });
-      const logs = [
-        { msg: 'Installing app', buildStepDisplayName: 'Install application' },
-        {
-          msg: 'adb shell am start exited with non-zero code: 1',
-          buildStepDisplayName: 'Launch application',
-          err: { message: 'adb shell am start exited with non-zero code: 1' },
-        },
-        { msg: 'Build step "Launch application" failed', marker: 'end-step', result: 'fail' },
-      ];
-      jest
-        .spyOn(global, 'fetch')
-        .mockResolvedValue(new Response(logs.map(line => JSON.stringify(line)).join('\n')));
-
-      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
-
-      await expect(command.runAsync()).rejects.toThrow(
-        expect.objectContaining({
-          message: `${erroredSessionMessage}\nLaunch application: adb shell am start exited with non-zero code: 1`,
-        })
-      );
-    });
-
-    it('reads the job run logs for an unknown custom build error', async () => {
-      mockJobRunErrorsByIdAsync.mockResolvedValue({
-        id: 'job-123',
-        errors: [
-          {
-            errorCode: 'UNKNOWN_CUSTOM_BUILD_ERROR',
-            message: 'Unknown custom build error. See logs for more information.',
-            docsUrl: null,
-          },
-        ],
-        logFileUrls: ['https://logs.example.com/job-123'],
-      });
-      jest
-        .spyOn(global, 'fetch')
-        .mockResolvedValue(
-          new Response(JSON.stringify({ msg: 'boom', err: { message: 'simctl boot failed' } }))
-        );
-
-      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
-
-      await expect(command.runAsync()).rejects.toThrow(
-        expect.objectContaining({ message: `${erroredSessionMessage}\nsimctl boot failed` })
-      );
-    });
-
-    it('falls back to the unknown error message when the job run logs cannot be read', async () => {
-      mockJobRunErrorsByIdAsync.mockResolvedValue({
-        id: 'job-123',
-        errors: [
-          {
-            errorCode: 'UNKNOWN_ERROR',
-            message: 'Unknown error. See logs for more information.',
-            docsUrl: null,
-          },
-        ],
-        logFileUrls: ['https://logs.example.com/job-123'],
-      });
-      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -2378,7 +2314,6 @@ describe(Simulator, () => {
           docsUrl: null,
         },
       ],
-      logFileUrls: [],
     });
 
     const { command } = createCommand(['--platform', 'ios']);

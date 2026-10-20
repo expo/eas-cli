@@ -12,7 +12,6 @@ import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../bui
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../commandUtils/errors';
-import { parseLogLines } from '../../commandUtils/logs/parseLogs';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
@@ -620,10 +619,6 @@ export default class Simulator extends EasCommand {
   }
 }
 
-// ErrorCode.UNKNOWN_ERROR and ErrorCode.UNKNOWN_CUSTOM_BUILD_ERROR from @expo/eas-build-job.
-const UNKNOWN_ERROR_CODES = new Set(['UNKNOWN_ERROR', 'UNKNOWN_CUSTOM_BUILD_ERROR']);
-const MAX_LOGGED_JOB_RUN_ERRORS = 3;
-
 // Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
 async function formatJobRunErrorsAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -636,36 +631,9 @@ async function formatJobRunErrorsAsync(
     Log.debug(`Failed to fetch simulator session errors: ${err}`);
     return '';
   }
-  const errors = jobRun?.errors ?? [];
-  // Uncategorized failures only say "Unknown error. See logs", so read the real cause from the job run logs.
-  const logFileUrl = jobRun?.logFileUrls[0];
-  if (logFileUrl && errors.every(error => UNKNOWN_ERROR_CODES.has(error.errorCode))) {
-    const logErrors = await fetchJobRunLogErrorsAsync(logFileUrl);
-    if (logErrors.length > 0) {
-      return logErrors.map(message => `\n${message}`).join('');
-    }
-  }
-  return errors
+  return (jobRun?.errors ?? [])
     .map(error => `\n${error.message}${error.docsUrl ? ` ${learnMore(error.docsUrl)}` : ''}`)
     .join('');
-}
-
-async function fetchJobRunLogErrorsAsync(logFileUrl: string): Promise<string[]> {
-  try {
-    const response = await fetch(logFileUrl);
-    const { logLines } = parseLogLines(await response.text());
-    const messages = logLines
-      .filter(line => typeof line.err?.message === 'string')
-      .map(line =>
-        line.buildStepDisplayName
-          ? `${line.buildStepDisplayName}: ${line.err.message}`
-          : line.err.message
-      );
-    return [...new Set(messages)].slice(-MAX_LOGGED_JOB_RUN_ERRORS);
-  } catch (err) {
-    Log.debug(`Failed to read simulator session logs: ${err}`);
-    return [];
-  }
 }
 
 async function resolvePlatformAsync(
