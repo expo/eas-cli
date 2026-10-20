@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { UserError, validateAndroidLaunchOptions } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -164,6 +164,8 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       }
       if (isIos) {
         validateServeSimLaunchOptions({ launchArgs, openUrl });
+      } else {
+        validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
