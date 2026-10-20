@@ -196,7 +196,7 @@ export namespace GooglePlayUtils {
             signal?.throwIfAborted();
             return isUploadStillProcessing(error);
           },
-          { retries: 5, factor: 2, minTimeout: 2000, maxTimeout: 32_000 },
+          { retries: 13, factor: 2, minTimeout: 2000, maxTimeout: 32_000 },
           ({ attemptNumber, maxAttemptsCount }) => {
             logger.warn(
               `Google Play is still processing the uploaded bundle. Retrying the same edit commit (attempt ${attemptNumber}/${maxAttemptsCount}).`
@@ -206,7 +206,7 @@ export namespace GooglePlayUtils {
       } catch (error) {
         if (isUploadStillProcessing(error)) {
           throw new SystemError(
-            `Google Play did not finish processing the uploaded bundle for ${packageName} after six commit attempts. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
+            `Google Play did not finish processing the uploaded bundle for ${packageName} within five minutes. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
             { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
