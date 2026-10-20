@@ -467,7 +467,9 @@ With local egress, actions wait for the connection and require interactive mode.
       );
       sessionInterrupt = registerSessionInterrupt(deviceRunSessionId);
       const simulatorEnvWritten =
-        !jsonFlag && flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
+        !jsonFlag &&
+        !imported.config?.actions?.length &&
+        flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
           ? await writeSimulatorEnvSafelyAsync(projectDir, {
               [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
             })
@@ -613,7 +615,7 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     };
     try {
-      if (!jsonFlag) {
+      if (!jsonFlag && !imported.config?.actions?.length) {
         await writeReadySimulatorEnvAsync();
       }
 
@@ -792,7 +794,7 @@ With local egress, actions wait for the connection and require interactive mode.
         }
       }
 
-      if (jsonFlag) {
+      if (jsonFlag || imported.config?.actions?.length) {
         // Keep the previous session's saved credentials until setup succeeds.
         await writeReadySimulatorEnvAsync();
         if (sessionInterrupt.signal.aborted) {
@@ -805,6 +807,8 @@ With local egress, actions wait for the connection and require interactive mode.
           });
           return;
         }
+      }
+      if (jsonFlag) {
         sessionInterrupt.dispose();
         printJsonOnlyOutput({
           id: deviceRunSessionId,

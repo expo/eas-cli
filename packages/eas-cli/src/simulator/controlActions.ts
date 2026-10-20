@@ -27,6 +27,14 @@ export type PreparedControlAction = Readonly<{
   localFile?: Readonly<{ param: string; path: string }>;
 }>;
 
+export function resolveControlActionPath(value: string, baseDir?: string): string {
+  if (!baseDir) {
+    return value;
+  }
+  const resolved = path.resolve(baseDir, value);
+  return value.endsWith('/') || value.endsWith(path.sep) ? `${resolved}${path.sep}` : resolved;
+}
+
 export async function prepareControlActionAsync(
   catalog: HostActionCatalog,
   action: ControlAction,
@@ -42,14 +50,9 @@ export async function prepareControlActionAsync(
     );
   }
   const params = { ...action.params };
-  const resolveLocalPath = (value: string): string => {
-    if (!baseDir) {
-      return value;
-    }
-    const resolved = path.resolve(baseDir, value);
-    return value.endsWith('/') || value.endsWith(path.sep) ? `${resolved}${path.sep}` : resolved;
-  };
-  const outputPath = action.outputPath ? resolveLocalPath(action.outputPath) : action.outputPath;
+  const outputPath = action.outputPath
+    ? resolveControlActionPath(action.outputPath, baseDir)
+    : action.outputPath;
   await assertHostActionOutputAsync(action.action, entry, outputPath);
 
   let localFile: PreparedControlAction['localFile'];
@@ -64,11 +67,11 @@ export async function prepareControlActionAsync(
     if (Object.hasOwn(params, param)) {
       throw new Error(`${param} and file cannot both be supplied for ${action.action}.`);
     }
-    localFile = { param, path: resolveLocalPath(action.file) };
+    localFile = { param, path: resolveControlActionPath(action.file, baseDir) };
     await assertLocalFileAsync(localFile.path);
   } else if (localFileMode === 'auto' && param && applies && typeof params[param] === 'string') {
     const value = params[param];
-    const localPath = resolveLocalPath(value);
+    const localPath = resolveControlActionPath(value, baseDir);
     const stat = await fs.stat(localPath).catch(() => null);
     if (stat) {
       await assertLocalFileAsync(localPath, stat);

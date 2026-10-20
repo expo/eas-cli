@@ -143,6 +143,26 @@ describe('simulator start configuration', () => {
     ).rejects.toThrow('remove params.udid');
   });
 
+  it.each(['./missing/', './file.txt/'])(
+    'rejects an output directory that does not exist: %s',
+    async output => {
+      await fs.writeFile(path.join(folder, 'file.txt'), 'existing file');
+      await expect(resolve({}, [], [{ action: 'screenshot.capture', output }])).rejects.toThrow(
+        'must be an existing directory'
+      );
+    }
+  );
+
+  it.each(['./screenshots/', './screen.png'])(
+    'accepts an existing output directory or a new file: %s',
+    async output => {
+      await fs.mkdir(path.join(folder, 'screenshots'));
+      await expect(
+        resolve({}, [], [{ action: 'screenshot.capture', output }])
+      ).resolves.toBeDefined();
+    }
+  );
+
   it('allows the same file in control import and resolves files relative to it', async () => {
     await fs.writeFile(path.join(folder, 'input.txt'), 'contents');
     const { config } = await resolve(
