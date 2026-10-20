@@ -309,6 +309,98 @@ describe(Simulator, () => {
       );
     });
 
+    it.each(
+      (['ios', 'android'] as const).flatMap(platform =>
+        (['attached', 'detached', 'json'] as const).flatMap(mode =>
+          (['env', 'dotenv'] as const).flatMap(output =>
+            [false, true].map(egress => ({ platform, mode, output, egress }))
+          )
+        )
+      )
+    )(
+      'preserves ordinary startup with saved settings: $platform/$mode/$output, egress=$egress',
+      async ({ platform, mode, output, egress }) => {
+        const listeners = process.listeners('SIGINT');
+        const start = {
+          platform,
+          type: 'web-preview-only',
+          name: 'Startup regression',
+          device: platform === 'ios' ? 'iPhone 17 Pro' : 'pixel_7',
+          'out-config-type': output,
+          ...(egress ? { egress: 'local' } : {}),
+        };
+        const ready = makeDeviceRunSession({
+          platform: platform === 'ios' ? AppPlatform.Ios : AppPlatform.Android,
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: 'https://expo.dev/preview',
+            previewApiUrl: 'https://sim.example.test',
+            previewToken: 'private-token',
+            ...(egress
+              ? {
+                  egressUrl: 'https://egress.example.com',
+                  egressToken: 'token',
+                  egressFingerprint: 'fp',
+                  egressPort: 8899,
+                }
+              : {}),
+          },
+        });
+        const runAsync = async (saved: boolean): Promise<object> => {
+          jest.clearAllMocks();
+          jest.mocked(fs.readJson).mockResolvedValue({ version: 1, start } as never);
+          mockByIdAsync
+            .mockReset()
+            .mockResolvedValueOnce(ready)
+            .mockResolvedValue({ ...ready, status: DeviceRunSessionStatus.Stopped });
+          jest.mocked(runLocalEgressAsync).mockImplementation(async ({ signal, onConnected }) => {
+            onConnected?.();
+            await new Promise<void>(resolve => {
+              signal.addEventListener(
+                'abort',
+                () => {
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+          });
+          const argv = saved
+            ? ['--import', configPath]
+            : Object.entries(start).flatMap(([name, value]) => [`--${name}`, value]);
+          if (mode !== 'attached') {
+            argv.push(mode === 'json' ? '--json' : '--non-interactive');
+          }
+          await createCommand(argv).command.runAsync();
+          expect(applyStartConfigAsync).not.toHaveBeenCalled();
+          expect(fs.readJson).toHaveBeenCalledTimes(saved ? 1 : 0);
+          expect(runLocalEgressAsync).toHaveBeenCalledTimes(egress && mode === 'attached' ? 1 : 0);
+          expect(fs.writeFile).toHaveBeenCalledTimes(
+            output === 'dotenv' ? (mode === 'json' ? 1 : 2) : 0
+          );
+          expect(process.listeners('SIGINT')).toEqual(listeners);
+          return {
+            create: mockCreateDeviceRunSessionAsync.mock.calls,
+            output: jest.mocked(Log.log).mock.calls,
+            warnings: jest.mocked(Log.warn).mock.calls,
+            newLines: jest.mocked(Log.newLine).mock.calls,
+            json: mockPrintJsonOnlyOutput.mock.calls,
+            writes: jest.mocked(fs.writeFile).mock.calls,
+            cleanup: mockResetSimulatorEnvAsync.mock.calls,
+            stop: mockEnsureDeviceRunSessionStoppedAsync.mock.calls,
+            egress: jest.mocked(runLocalEgressAsync).mock.calls.map(([options]) => ({
+              url: options.url,
+              port: options.port,
+              platform: options.platform,
+              aborted: options.signal.aborted,
+            })),
+          };
+        };
+        const ordinary = await runAsync(false);
+        expect(await runAsync(true)).toEqual(ordinary);
+      }
+    );
+
     it('applies actions after readiness and includes parsed setup results in one JSON object', async () => {
       config(undefined, [{ action: 'appearance.set', params: { value: 'dark' } }]);
       jest.mocked(applyStartConfigAsync).mockImplementationOnce(async () => {
@@ -412,6 +504,52 @@ describe(Simulator, () => {
           spinner.fail.mock.calls.some(([text]: [string]) => text === '[2/3] tap failed')
         )
       ).toBe(true);
+    });
+
+    it('prints imported text and saved files after the ready preview URL', async () => {
+      config(undefined, [{ action: 'appearance.get' }, { action: 'screenshot.capture' }]);
+      jest
+        .mocked(applyStartConfigAsync)
+        .mockImplementationOnce(async (_access, _config, options) => {
+          const results = [
+            { action: 'appearance.get', output: 'dark', file: null },
+            { action: 'screenshot.capture', output: '', file: '/test/screenshot.png' },
+          ];
+          for (const [index, result] of results.entries()) {
+            options.onProgress?.({
+              step: index + 1,
+              total: results.length,
+              action: result.action,
+              status: 'completed',
+              result,
+            });
+          }
+          return results;
+        });
+      await createCommand(['--import', configPath, '--non-interactive']).command.runAsync();
+      const output = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
+      const preview = output.findIndex(line => line.includes(deviceRunSessionPreviewUrl));
+      expect(preview).toBeGreaterThanOrEqual(0);
+      expect(output.indexOf('dark')).toBeGreaterThan(preview);
+      expect(output.indexOf('Saved /test/screenshot.png')).toBeGreaterThan(preview);
+    });
+
+    it('preserves the setup error when the stopped session dotenv cannot be cleaned up', async () => {
+      config(undefined, [{ action: 'appearance.get' }]);
+      jest.mocked(applyStartConfigAsync).mockRejectedValueOnce(new Error('native action refused'));
+      mockResetSimulatorEnvAsync.mockRejectedValueOnce(new Error('read-only file'));
+      const listeners = process.listeners('SIGINT');
+      await expect(
+        createCommand(['--import', configPath, '--non-interactive']).command.runAsync()
+      ).rejects.toThrow('native action refused');
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(Log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('could not be cleaned up: read-only file')
+      );
+      expect(process.listeners('SIGINT')).toEqual(listeners);
     });
 
     it('stops only the newly created session on setup failure and retains completed JSON results', async () => {
