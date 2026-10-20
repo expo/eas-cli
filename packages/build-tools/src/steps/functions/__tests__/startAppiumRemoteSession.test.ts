@@ -309,6 +309,34 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it.each([false, true])(
+    'preserves preview settings with Simulator startup %s',
+    async bootSimulator => {
+      stopAppium.mockResolvedValue(undefined);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+      await runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+        ...(bootSimulator
+          ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-device' } }
+          : {}),
+        public_preview: { value: false },
+        private_preview_url: { value: 'https://expo.dev/private-preview' },
+        frame_ancestors: { value: ['https://preview.example.com'] },
+        cors_origins: { value: ['https://api.example.com'] },
+      });
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          disableShare: true,
+          privatePreviewUrl: 'https://expo.dev/private-preview',
+          frameAncestors: ['https://preview.example.com'],
+          corsOrigins: ['https://api.example.com'],
+        })
+      );
+    }
+  );
+
   it('selects Xcode only once for an already-prepared iOS session', async () => {
     stopAppium.mockResolvedValue(undefined);
     jest.mocked(selectXcodeDeveloperDirectoryAsync).mockClear();
