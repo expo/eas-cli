@@ -6,7 +6,11 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { DeviceRunSessionByIdQuery, DeviceRunSessionStatus } from '../../graphql/generated';
+import {
+  DeviceRunSessionByIdQuery,
+  DeviceRunSessionStatus,
+  JobRunStatus,
+} from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -15,6 +19,11 @@ import {
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
+import {
+  SimulatorSessionError,
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
 import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
@@ -87,6 +96,11 @@ export default class SimulatorGet extends EasCommand {
       session.app.slug,
       session.id
     );
+    const errors: SimulatorSessionError[] =
+      session.status === DeviceRunSessionStatus.Errored ||
+      session.turtleJobRun?.status === JobRunStatus.Errored
+        ? await fetchSimulatorSessionErrorsAsync(graphqlClient, session.id)
+        : [];
 
     if (jsonFlag) {
       printJsonOnlyOutput({
@@ -109,12 +123,21 @@ export default class SimulatorGet extends EasCommand {
             )
           : session.remoteConfig,
         artifacts: session.artifacts,
+        errors,
       });
       return;
     }
 
     Log.newLine();
     Log.log(formatSessionFields(session, deviceRunSessionUrl));
+
+    if (errors.length > 0) {
+      Log.newLine();
+      Log.gray('Session errors:');
+      for (const error of errors) {
+        Log.error(`  ${formatSimulatorSessionError(error)}`);
+      }
+    }
 
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();

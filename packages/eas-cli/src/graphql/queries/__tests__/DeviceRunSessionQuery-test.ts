@@ -46,6 +46,7 @@ describe('DeviceRunSessionQuery.jobRunErrorsByIdAsync', () => {
     const turtleJobRun = {
       __typename: 'JobRun',
       id: 'job-123',
+      logFileUrls: ['https://logs.example.com/job-123'],
       errors: [
         {
           __typename: 'JobRunError',

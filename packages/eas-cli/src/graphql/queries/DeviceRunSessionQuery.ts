@@ -71,6 +71,7 @@ export const DeviceRunSessionQuery = {
                     message
                     docsUrl
                   }
+                  logFileUrls
                 }
               }
             }

@@ -27,7 +27,7 @@ import {
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
-import Log, { learnMore, link } from '../../log';
+import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
@@ -41,6 +41,10 @@ import {
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
+import {
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
 import {
   simulatorRequestFailureReason,
   simulatorRequestProperties,
@@ -634,37 +638,16 @@ export default class Simulator extends EasCommand {
   }
 }
 
-const JOB_RUN_ERRORS_TIMEOUT_MS = 10_000;
-const MAX_JOB_RUN_ERROR_LENGTH = 500;
-
-// Returns the reasons the session's job run failed, one per line, or an empty string when none are
-// available. Gives up after a deadline or when `signal` aborts, so it can't hold up stopping the session.
+// Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
 async function formatJobRunErrorsAsync(
   graphqlClient: ExpoGraphqlClient,
   deviceRunSessionId: string,
   signal: AbortSignal
 ): Promise<string> {
-  if (signal.aborted) {
-    return '';
-  }
-  let jobRun;
-  try {
-    jobRun = await DeviceRunSessionQuery.jobRunErrorsByIdAsync(graphqlClient, deviceRunSessionId, {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(JOB_RUN_ERRORS_TIMEOUT_MS)]),
-    });
-  } catch (err) {
-    Log.debug(`Failed to fetch simulator session errors: ${err}`);
-    return '';
-  }
-  return (jobRun?.errors ?? [])
-    .map(error => {
-      const message =
-        error.message.length > MAX_JOB_RUN_ERROR_LENGTH
-          ? `${error.message.slice(0, MAX_JOB_RUN_ERROR_LENGTH)}…`
-          : error.message;
-      return `\n${message}${error.docsUrl ? ` ${learnMore(error.docsUrl)}` : ''}`;
-    })
-    .join('');
+  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId, {
+    signal,
+  });
+  return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
 }
 
 async function resolvePlatformAsync(
