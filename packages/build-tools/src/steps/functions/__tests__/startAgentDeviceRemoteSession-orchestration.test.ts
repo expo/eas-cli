@@ -9,6 +9,7 @@ import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceA
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
+  DeviceRunSessionStoppedError,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -337,7 +338,8 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     type Device = Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]['device'];
     function startSession(
       device: Device | ((tasks: StartupTasks) => Device),
-      signal?: AbortSignal
+      signal?: AbortSignal,
+      onStarted?: () => Promise<void>
     ) {
       const logger = {
         info: jest.fn(),
@@ -365,6 +367,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         capture: NO_CAPTURE,
         tasks,
         device: sessionDevice,
+        onStarted,
       });
     }
 
@@ -638,6 +641,79 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       ).rejects.toThrow('cancelled');
       expect(spawn).not.toHaveBeenCalled();
       expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    });
+
+    it('drains resources and preserves the explicit startup Stop reason', async () => {
+      const stopped = new DeviceRunSessionStoppedError('stopped during startup');
+      let tasks!: StartupTasks;
+      const session = startSession(startup => {
+        tasks = startup;
+        return { booted: Promise.resolve(), ready: tasks.untilAborted(new Promise(() => {})) };
+      });
+      session.catch(() => {});
+      await flushAsync();
+      tasks.abort(stopped);
+      await expect(session).rejects.toBe(stopped);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not hide a teardown failure after an explicit startup Stop', async () => {
+      const stopped = new DeviceRunSessionStoppedError('stopped during startup');
+      const failed = new Error('daemon teardown failed');
+      let tasks!: StartupTasks;
+      const session = startSession(startup => {
+        tasks = startup;
+        return { booted: Promise.resolve(), ready: tasks.untilAborted(new Promise(() => {})) };
+      });
+      session.catch(() => {});
+      await flushAsync();
+      mockDaemonStopAsync.mockRejectedValueOnce(failed);
+      tasks.abort(stopped);
+      await expect(session).rejects.toBe(failed);
+    });
+
+    it('retires startup monitoring after reporting and before lifetime waiting', async () => {
+      const retired = deferred();
+      const retiring = jest.fn(() => retired.promise);
+      const session = startSession(
+        { booted: Promise.resolve(), ready: Promise.resolve() },
+        undefined,
+        retiring
+      );
+      await flushAsync();
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledTimes(1);
+      expect(retiring).toHaveBeenCalledTimes(1);
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      retired.resolve();
+      await session;
+      expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts a pending ready report when startup is stopped', async () => {
+      const stopped = new DeviceRunSessionStoppedError('stopped during startup');
+      let tasks!: StartupTasks;
+      jest.mocked(uploadRemoteSessionConfigAsync).mockImplementation(
+        async ({ signal }) =>
+          new Promise((_resolve, reject) => {
+            signal!.addEventListener('abort', () => reject(new Error('request aborted')), {
+              once: true,
+            });
+          })
+      );
+      const session = startSession(startup => {
+        tasks = startup;
+        return { booted: Promise.resolve(), ready: Promise.resolve() };
+      });
+      session.catch(() => {});
+      await flushAsync();
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ signal: tasks.signal })
+      );
+      tasks.abort(stopped);
+      await expect(session).rejects.toBe(stopped);
+      expect(startAgentDeviceEventCollectionAsync).not.toHaveBeenCalled();
     });
 
     it('starts the Android host before application readiness and waits before reporting ready', async () => {

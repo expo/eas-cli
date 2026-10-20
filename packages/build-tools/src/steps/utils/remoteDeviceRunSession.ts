@@ -128,6 +128,8 @@ export type DeviceRunSessionIdleTimeout = {
   getLastPreviewActivityAt?: () => Date | undefined;
 };
 
+export class DeviceRunSessionStoppedError extends Error {}
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
@@ -161,9 +163,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }, maxDurationSeconds * 1_000);
 
   try {
-    logger.info(
-      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-    );
+    logger.info(`Polling device run session ${deviceRunSessionId} until it is stopped.`);
     if (durationTimeout !== undefined) {
       logger.info(
         `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
@@ -209,6 +209,9 @@ export async function waitForDeviceRunSessionStoppedAsync({
       } catch (err) {
         if (err instanceof SystemError) {
           throw err;
+        }
+        if (signal.aborted) {
+          return;
         }
 
         const error = err instanceof Error ? err : new Error(String(err));
@@ -547,19 +550,23 @@ export async function uploadRemoteSessionConfigAsync({
   deviceRunSessionId,
   remoteConfig,
   logger,
+  signal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   remoteConfig: Record<string, unknown>;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
+  signal?.throwIfAborted();
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
   const workerApi = requireDeviceRunSessionWorkerApi(ctx);
   try {
-    await workerApi.startAsync({ remoteConfig });
+    await workerApi.startAsync({ remoteConfig }, { signal });
   } catch (err) {
+    signal?.throwIfAborted();
     throw new SystemError(
       `Failed to start device run session ${deviceRunSessionId}: ${
         err instanceof Error ? err.message : String(err)

@@ -15,6 +15,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
+import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
@@ -175,8 +176,17 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       );
 
       const tasks = createStartupTasks(logger, signal);
+      tasks.signal.throwIfAborted();
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId: sessionEnv.deviceRunSessionId,
+        logger,
+        startup: tasks,
+      });
       let downloaded: Promise<string> | undefined;
+      let booted: Promise<void> | undefined;
       let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
+      let sessionOwnsTeardown = false;
 
       try {
         if (isIos) {
@@ -199,7 +209,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           logger.info(`Selected iOS Simulator: ${iosSimulatorUdid}.`);
         }
 
-        const booted = iosSimulatorUdid
+        booted = iosSimulatorUdid
           ? undefined
           : tasks.run('Android Emulator boot', async taskLogger => {
               const logcatDirectory = await fs.promises.mkdtemp(
@@ -274,6 +284,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
             })
           : undefined;
 
+        sessionOwnsTeardown = true;
         await runAgentDeviceRemoteSessionAsync(ctx, {
           env,
           logger,
@@ -290,6 +301,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           tasks,
+          onStarted: () => startupWatch.completeAsync(),
           device: iosSimulatorUdid
             ? {
                 ...iosStartup,
@@ -301,9 +313,18 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
                 ready: applicationReady ?? tasks.untilAborted(booted!),
               },
         });
+      } catch (error) {
+        if (error !== startupWatch.stopped && (sessionOwnsTeardown || !startupWatch.isStopped())) {
+          throw error;
+        }
       } finally {
         tasks.abort(new Error('Agent-device session ended.'));
-        await Promise.allSettled([downloaded, applicationReady]);
+        await Promise.allSettled([
+          startupWatch.finishAsync(),
+          booted,
+          downloaded,
+          applicationReady,
+        ]);
       }
     }),
   });

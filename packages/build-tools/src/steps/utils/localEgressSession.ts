@@ -37,6 +37,7 @@ export async function uploadRemoteSessionConfigWithLocalEgressAsync({
   signal?.throwIfAborted();
   await uploadRemoteSessionConfigAsync({
     ...options,
+    signal,
     remoteConfig: { ...options.remoteConfig, ...buildEgressRemoteConfigFields(localEgress) },
   });
   if (localEgress && !signal?.aborted) {
