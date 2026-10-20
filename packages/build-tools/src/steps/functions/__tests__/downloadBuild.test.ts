@@ -129,13 +129,12 @@ describe('downloadBuild', () => {
       errorCode: 'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
       message:
         `Failed to download the application archive for build ${buildId} (HTTP ${status}). ` +
-        'The archive is no longer available; it may have expired or been deleted. ' +
-        'Select another build or provide an available application archive URL.',
+        'The archive is unavailable. Check that the archive still exists and try again.',
     });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each([404, 500])(
+  it.each([404, 410, 500])(
     'identifies the application URL without credentials on HTTP %s',
     async status => {
       const { Response: ActualResponse } =
@@ -151,8 +150,12 @@ describe('downloadBuild', () => {
         extensions: ['app'],
       });
 
+      const prefix = `Failed to download the archive at https://example.test/app.tar.gz (HTTP ${status})`;
       await expect(download).rejects.toThrow(
-        `Failed to download the application archive at https://example.test/app.tar.gz (HTTP ${status})`
+        status === 500
+          ? `${prefix}: download failed`
+          : `${prefix}. The archive is unavailable. ` +
+              'Check that the URL is correct and the archive still exists, then try again.'
       );
       await expect(download).rejects.not.toThrow(/password|secret|fragment/);
       expect(fetch).toHaveBeenCalledTimes(1);
