@@ -61,7 +61,7 @@ import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/sta
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
-import { createRecordServeSimNetworkCaptureBuildFunction } from './functions/recordServeSimNetworkCapture';
+import { createStartServeSimNetworkCaptureBuildFunction } from './functions/startServeSimNetworkCapture';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createCollectServeSimNetworkCaptureBuildFunction } from './functions/collectServeSimNetworkCapture';
@@ -129,7 +129,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartSandboxBuildFunction(ctx),
     createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
-    createRecordServeSimNetworkCaptureBuildFunction(),
+    createStartServeSimNetworkCaptureBuildFunction(),
     createCollectServeSimNetworkCaptureBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
     createInstallMitmproxyBuildFunction(),
