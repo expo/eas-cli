@@ -329,48 +329,121 @@ describe(launchApplicationAsync, () => {
     ]);
   });
 
-  it('accepts an empty Android extra value', async () => {
+  it.each([[['--es', 'key', '']], [['-e', 'key', '']], [['-d', '']]])(
+    'passes empty Android option values as empty arguments (%j)',
+    async launchArgs => {
+      await launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'adb',
+        [
+          'shell',
+          'am',
+          'start',
+          ...launchArgs.map(argument => (argument === '' ? "''" : argument)),
+          '-n',
+          'com.example.app/com.example.app.MainActivity',
+        ],
+        expect.any(Object)
+      );
+    }
+  );
+
+  it('explains an Android launch failure when a launch argument is empty', async () => {
+    const launchError = new Error('adb shell am start exited with non-zero code: 1');
+    mockedSpawn.mockRejectedValueOnce(launchError);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs: ['--ez', 'isTest', 'true', ''],
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_LAUNCH_APPLICATION_FAILED',
+      message: expect.stringContaining('empty argument at position 4'),
+      cause: launchError,
+    });
+  });
+
+  it('rethrows an Android launch failure unchanged when no launch argument is empty', async () => {
+    const launchError = new Error('adb shell am start exited with non-zero code: 1');
+    mockedSpawn.mockRejectedValueOnce(launchError);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs: ['--ez', 'isTest', 'true'],
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toBe(launchError);
+  });
+
+  it.each([
+    { launchArgs: ['--es', 'key', 'a\0b'] },
+    { launchArgs: [], openUrl: 'exp://example.test/a\0b' },
+  ])('rejects NUL characters on Android (%j)', async ({ launchArgs, openUrl }) => {
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs,
+        openUrl,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
+    expect(mockedSpawn).not.toHaveBeenCalledWith(
+      'adb',
+      expect.arrayContaining([expect.stringContaining('\0')]),
+      expect.any(Object)
+    );
+  });
+
+  it('accepts an Android launch command of exactly 65,000 bytes', async () => {
+    const fixedLength = 'am start --es key  -n com.example.app/com.example.app.MainActivity'.length;
+
     await launchApplicationAsync({
       applicationIdentifier: 'com.example.app',
       activityName: 'com.example.app.MainActivity',
-      launchArgs: ['--es', 'key', ''],
+      launchArgs: ['--es', 'key', 'a'.repeat(65_000 - fixedLength)],
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: {},
       logger: createMockLogger(),
     });
 
-    expect(mockedSpawn).toHaveBeenCalledWith(
-      'adb',
-      [
-        'shell',
-        'am',
-        'start',
-        '--es',
-        'key',
-        "''",
-        '-n',
-        'com.example.app/com.example.app.MainActivity',
-      ],
-      expect.any(Object)
-    );
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
   });
 
-  it.each([[['']], [['--ez', 'isTest', 'true', '']], [['--esn', 'key', '']]])(
-    'rejects an empty Android launch argument that is not an extra value (%j)',
-    async launchArgs => {
-      await expect(
-        launchApplicationAsync({
-          applicationIdentifier: 'com.example.app',
-          activityName: 'com.example.app.MainActivity',
-          launchArgs,
-          runtimePlatform: BuildRuntimePlatform.LINUX,
-          env: {},
-          logger: createMockLogger(),
-        })
-      ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
-      expect(mockedSpawn).not.toHaveBeenCalled();
-    }
-  );
+  it('rejects an Android URL command of 65,001 bytes', async () => {
+    const fixedLength = 'am start -a android.intent.action.VIEW -d exp://example.test/'.length;
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        openUrl: `exp://example.test/${'a'.repeat(65_001 - fixedLength)}`,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+  });
 
   it('rejects an Android launch command that is too long after quoting', async () => {
     await expect(

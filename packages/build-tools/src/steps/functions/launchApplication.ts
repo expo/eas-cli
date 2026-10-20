@@ -105,14 +105,27 @@ export async function launchApplicationAsync({
     );
   }
 
-  assertNoStrayEmptyAndroidLaunchArgument(launchArgs);
   logApplicationLaunch(logger, applicationIdentifier, launchArgs);
   // Android does not support process arguments like iOS. Pass raw `am start` Intent
   // arguments instead, such as `--es key value` or `--ez key true`.
-  await spawnAndroidShellCommandAsync(
-    ['am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
-    { env, logger }
-  );
+  try {
+    await spawnAndroidShellCommandAsync(
+      ['am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+      { env, logger }
+    );
+  } catch (err) {
+    // An empty argument that is not an option value reaches `am start` as an empty package, and
+    // `am start` then fails to resolve the Intent without saying why.
+    const emptyArgumentIndex = launchArgs.indexOf('');
+    if (emptyArgumentIndex === -1 || err instanceof UserError) {
+      throw err;
+    }
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_FAILED',
+      `Launching ${applicationIdentifier} failed. Input "launch_args" has an empty argument at position ${emptyArgumentIndex + 1}, which Android passes to "am start" as an empty argument. Remove it unless it is an option value, such as "--es", "key", "".`,
+      { cause: err }
+    );
+  }
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
     await spawnAndroidShellCommandAsync(
@@ -128,6 +141,12 @@ async function spawnAndroidShellCommandAsync(
   command: string[],
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<void> {
+  if (command.some(argument => argument.includes('\0'))) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Android "launch_args" and "open_url" cannot contain NUL characters.'
+    );
+  }
   const quotedCommand = command.map(quoteAndroidShellArgument);
   if (Buffer.byteLength(quotedCommand.join(' ')) > ANDROID_SHELL_COMMAND_MAX_BYTES) {
     throw new UserError(
@@ -143,20 +162,6 @@ function quoteAndroidShellArgument(argument: string): string {
     return argument;
   }
   return `'${argument.replaceAll("'", `'\\''`)}'`;
-}
-
-// An empty argument is only meaningful as an extra value, such as `--es key ''`. Anywhere else
-// `am start` reads it as an empty package and fails to resolve the Intent.
-function assertNoStrayEmptyAndroidLaunchArgument(launchArgs: string[]): void {
-  launchArgs.forEach((argument, index) => {
-    const option = launchArgs[index - 2];
-    if (argument === '' && !(option?.startsWith('--e') && option !== '--esn')) {
-      throw new UserError(
-        'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-        `Input "launch_args" has an empty argument at position ${index + 1}. On Android, an empty argument is only valid as an extra value, such as "--es", "key", "".`
-      );
-    }
-  });
 }
 
 async function preapproveIosUrlSchemeAsync({
