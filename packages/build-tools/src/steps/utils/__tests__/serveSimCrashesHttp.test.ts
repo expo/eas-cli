@@ -272,15 +272,16 @@ it('stops at a complete-record byte limit and keeps earlier reports', async () =
 });
 
 it.each([
-  ['fails on every request', (response: ServerResponse) => response.writeHead(500).end()],
+  ['fails on every request', 3, (response: ServerResponse) => response.writeHead(500).end()],
   [
     'exceeds 8 MiB',
+    1,
     (response: ServerResponse) =>
       response.end(JSON.stringify({ ...detail(1), report: 'x'.repeat(8 * 1024 * 1024) })),
   ],
 ])(
-  'skips an occurrence whose detail %s, once, and keeps collecting the device',
-  async (_name, respond) => {
+  'skips an occurrence whose detail %s after %i attempts and keeps collecting the device',
+  async (_name, attempts, respond) => {
     let connections = 0;
     let badRequests = 0;
     server.on('request', (request, response) => {
@@ -311,7 +312,7 @@ it.each([
     await start();
     await waitFor(() => connections >= 12);
     const collected = await ServeSimCrashesRecorder.finishAsync();
-    expect(badRequests).toBe(1);
+    expect(badRequests).toBe(attempts);
     expect(stoppedRetrying()).toBe(false);
     expect(
       jest
@@ -328,6 +329,41 @@ it.each([
     await rm(collected.outputDirectory!, { recursive: true, force: true });
   }
 );
+
+it('saves an occurrence whose detail fails once, without reconnecting', async () => {
+  let connections = 0;
+  let requests = 0;
+  server.on('request', (request, response) => {
+    if (answerList(request, response)) {
+      return;
+    }
+    if (request.url!.startsWith('/crashes?')) {
+      connections += 1;
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.write(
+        `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [{ key: 1 }] }] })}\n\n`
+      );
+    } else {
+      requests += 1;
+      if (requests === 1) {
+        response.writeHead(503).end();
+      } else {
+        response.end(JSON.stringify(detail(1)));
+      }
+    }
+  });
+  await start();
+  await waitFor(() => requests === 2);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(connections).toBe(1);
+  expect(collected.crashes).toHaveLength(1);
+  expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.stringContaining('Could not download')
+  );
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
 
 it('collects an occurrence listed after the stream last delivered, when stopping', async () => {
   let streaming = false;

@@ -13,6 +13,9 @@ const MAX_REPORTS_PER_DEVICE = 1_000;
 const MAX_CONSECUTIVE_FAILURES = 10;
 const MAX_FRAME_LENGTH = 1024 * 1024;
 const MAX_DETAIL_BYTES = 8 * 1024 * 1024;
+// A 5xx, timeout, or dropped connection is retried; a missing or unusable detail is not.
+const MAX_DETAIL_ATTEMPTS = 3;
+const DETAIL_RETRY_DELAY_MS = 500;
 // serve-sim lists a crash about 5 s after it happens, once ReportCrash has written the report,
 // so stopping checks each device once more for occurrences the stream had not delivered yet.
 const FINAL_PASS_TIMEOUT_MS = 10_000;
@@ -43,6 +46,9 @@ const DetailSchema = z.object({
   }),
   report: z.string().nullable(),
 });
+
+/** A detail that will not change on retry: mismatched, malformed, or over 8 MiB. */
+class UnusableDetailError extends Error {}
 
 type ServeSimServer = { udid: string; url: string; token?: string };
 export type CollectedCrash = {
@@ -365,9 +371,20 @@ async function saveOccurrencesAsync(
       }
       let detail: z.infer<typeof DetailSchema> | undefined;
       try {
-        detail = await readCrashDetailAsync(server, summary.id, occurrence.key, deadline);
+        for (let attempt = 1; ; attempt++) {
+          try {
+            detail = await readCrashDetailAsync(server, summary.id, occurrence.key, deadline);
+            break;
+          } catch (err) {
+            if (err instanceof UnusableDetailError || attempt >= MAX_DETAIL_ATTEMPTS) {
+              throw err;
+            }
+            await delay(DETAIL_RETRY_DELAY_MS, undefined, { signal: stop });
+          }
+        }
       } catch (err) {
-        if (deadline?.aborted) {
+        // Stopping leaves the occurrence unhandled, so the final pass can still save it.
+        if (stop.aborted || deadline?.aborted) {
           return;
         }
         device.handled.add(key);
@@ -459,11 +476,19 @@ async function readCrashDetailAsync(
     if (!response.ok) {
       throw new Error(`serve-sim crash detail responded ${response.status}`);
     }
-    const detail = DetailSchema.parse(await response.json());
-    if (detail.record.id !== id || detail.occurrence.key !== key) {
-      throw new Error('Crash detail does not match the requested occurrence');
+    const body = await response.json().catch(err => {
+      throw (err as { type?: string }).type === 'max-size'
+        ? new UnusableDetailError('Crash detail exceeds 8 MiB')
+        : err;
+    });
+    const detail = DetailSchema.safeParse(body);
+    if (!detail.success) {
+      throw new UnusableDetailError('Crash detail is not valid');
     }
-    return detail;
+    if (detail.data.record.id !== id || detail.data.occurrence.key !== key) {
+      throw new UnusableDetailError('Crash detail does not match the requested occurrence');
+    }
+    return detail.data;
   } finally {
     controller.abort();
   }
