@@ -6,6 +6,7 @@ import { GraphQLError } from 'graphql';
 import { SimulatorEvent, isAnalyticsOptedOutAsync } from '../../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../../analytics/agent';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import fetch from '../../../fetch';
 import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
@@ -44,6 +45,7 @@ jest.mock('../../../analytics/AnalyticsManager', () => ({
 jest.mock('../../../analytics/agent');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
+jest.mock('../../../fetch');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log', () => ({
   __esModule: true,
@@ -107,6 +109,7 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
+const mockFetch = jest.mocked(fetch);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockLogEvent = jest.fn();
 const mockFlushAsync = jest.fn(async () => {});
@@ -1926,6 +1929,51 @@ describe(Simulator, () => {
   describe('job run errors', () => {
     const erroredSessionMessage =
       'Simulator session session-123 errored before the agent-device session was ready. https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
+    const logFileUrl = 'https://logs.example.com/job-123';
+    const unknownError = {
+      errorCode: 'UNKNOWN_ERROR',
+      message: 'Unknown error. See logs for more information.',
+      docsUrl: null,
+    };
+
+    // Shaped like the worker's bunyan output: the failing call logs at error level with `err`,
+    // then the step runner logs an end-step marker with result "fail".
+    function failedStepLogLines(
+      stepId: string,
+      displayName: string,
+      messages: string[]
+    ): Record<string, unknown>[] {
+      return [
+        {
+          level: 30,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          marker: 'start-step',
+          msg: `Executing build step "${displayName}"`,
+        },
+        ...messages.map(msg => ({
+          level: 50,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          msg,
+          err: { message: msg },
+        })),
+        {
+          level: 50,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          marker: 'end-step',
+          result: 'fail',
+          msg: `Build step "${displayName}" failed`,
+        },
+      ];
+    }
+
+    function mockLogFile(logLines: Record<string, unknown>[]): void {
+      mockFetch.mockResolvedValue({
+        text: async () => logLines.map(line => JSON.stringify(line)).join('\n'),
+      } as unknown as Awaited<ReturnType<typeof fetch>>);
+    }
 
     beforeEach(() => {
       mockByIdAsync.mockResolvedValue(
@@ -1933,14 +1981,19 @@ describe(Simulator, () => {
       );
     });
 
-    it('keeps the message unchanged when the job run has no errors', async () => {
-      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [], logFileUrls: [] });
+    it('keeps the message unchanged without reading logs when the job run has no errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [],
+        logFileUrls: [logFileUrl],
+      });
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
       await expect(command.runAsync()).rejects.toThrow(
         expect.objectContaining({ message: erroredSessionMessage })
       );
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('lists each job run error on its own line with its docs link', async () => {
@@ -1958,9 +2011,8 @@ describe(Simulator, () => {
             docsUrl: 'https://docs.expo.dev/simulator',
           },
         ],
-        logFileUrls: ['https://logs.example.com/job-123'],
+        logFileUrls: [logFileUrl],
       });
-      const fetchSpy = jest.spyOn(global, 'fetch');
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -1969,33 +2021,45 @@ describe(Simulator, () => {
           message: `${erroredSessionMessage}\nNo available iOS Simulator is named "iPhone 16 Pro".\nThe build cannot be installed on a simulator. Learn more: https://docs.expo.dev/simulator`,
         })
       );
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('reads the failed step errors from the job run logs for an unknown error', async () => {
+    it('reads the failed step error from the job run logs for an unknown error', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
-        errors: [
-          {
-            errorCode: 'UNKNOWN_ERROR',
-            message: 'Unknown error. See logs for more information.',
-            docsUrl: null,
-          },
-        ],
-        logFileUrls: ['https://logs.example.com/job-123'],
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
       });
-      const logs = [
-        { msg: 'Installing app', buildStepDisplayName: 'Install application' },
+      mockLogFile([
         {
-          msg: 'adb shell am start exited with non-zero code: 1',
-          buildStepDisplayName: 'Launch application',
-          err: { message: 'adb shell am start exited with non-zero code: 1' },
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Install application',
+          msg: 'Retrying install',
+          err: { message: 'Retrying install' },
         },
-        { msg: 'Build step "Launch application" failed', marker: 'end-step', result: 'fail' },
-      ];
-      jest
-        .spyOn(global, 'fetch')
-        .mockResolvedValue(new Response(logs.map(line => JSON.stringify(line)).join('\n')));
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'success',
+          msg: 'Finished',
+        },
+        ...failedStepLogLines('step-002', 'Launch application', [
+          'adb shell am start exited with non-zero code: 1',
+        ]),
+        {
+          level: 20,
+          buildStepId: 'step-002',
+          msg: 'Getting value for output parameter "x" failed.',
+          err: { message: 'not set' },
+        },
+        {
+          level: 40,
+          msg: 'Could not stop the emulator during remote session teardown.',
+          err: { message: 'teardown' },
+        },
+      ]);
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -2004,9 +2068,79 @@ describe(Simulator, () => {
           message: `${erroredSessionMessage}\nLaunch application: adb shell am start exited with non-zero code: 1`,
         })
       );
+      expect(mockFetch).toHaveBeenCalledWith(
+        logFileUrl,
+        expect.objectContaining({ size: 20 * 1024 * 1024, signal: expect.any(AbortSignal) })
+      );
     });
 
-    it('reads the job run logs for an unknown custom build error', async () => {
+    it('prints the masked log message instead of the unmasked err.message', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Run script',
+          msg: 'curl -H "Authorization: ********" exited with non-zero code: 22',
+          err: { message: 'curl -H "Authorization: secret-token" exited with non-zero code: 22' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Run script" failed',
+        },
+      ]);
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nRun script: curl -H "Authorization: ********" exited with non-zero code: 22`,
+        })
+      );
+    });
+
+    it('keeps the latest occurrence of repeated errors and at most three of them', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile(failedStepLogLines('step-001', 'Boot', ['A', 'B', 'C', 'D', 'A']));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nBoot: C\nBoot: D\nBoot: A`,
+        })
+      );
+    });
+
+    it('truncates very long log errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile(failedStepLogLines('step-001', 'Boot', ['x'.repeat(2000)]));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\n${`Boot: ${'x'.repeat(2000)}`.slice(0, 500)}…`,
+        })
+      );
+    });
+
+    it('uses error lines outside of steps for an unknown custom build error', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
         errors: [
@@ -2016,13 +2150,11 @@ describe(Simulator, () => {
             docsUrl: null,
           },
         ],
-        logFileUrls: ['https://logs.example.com/job-123'],
+        logFileUrls: [logFileUrl],
       });
-      jest
-        .spyOn(global, 'fetch')
-        .mockResolvedValue(
-          new Response(JSON.stringify({ msg: 'boom', err: { message: 'simctl boot failed' } }))
-        );
+      mockLogFile([
+        { level: 50, msg: 'simctl boot failed', err: { message: 'simctl boot failed' } },
+      ]);
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
@@ -2034,16 +2166,10 @@ describe(Simulator, () => {
     it('falls back to the unknown error message when the job run logs cannot be read', async () => {
       mockJobRunErrorsByIdAsync.mockResolvedValue({
         id: 'job-123',
-        errors: [
-          {
-            errorCode: 'UNKNOWN_ERROR',
-            message: 'Unknown error. See logs for more information.',
-            docsUrl: null,
-          },
-        ],
-        logFileUrls: ['https://logs.example.com/job-123'],
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
       });
-      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+      mockFetch.mockRejectedValue(new Error('Request failed: 503 (Service Unavailable)'));
 
       const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 

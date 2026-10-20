@@ -450,7 +450,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -461,7 +461,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -626,9 +626,12 @@ export default class Simulator extends EasCommand {
 // Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
 async function formatJobRunErrorsAsync(
   graphqlClient: ExpoGraphqlClient,
-  deviceRunSessionId: string
+  deviceRunSessionId: string,
+  signal: AbortSignal
 ): Promise<string> {
-  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId);
+  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId, {
+    signal,
+  });
   return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
 }
 
@@ -714,7 +717,7 @@ async function waitForSessionEndOrInterruptAsync({
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
         throw new Error(
-          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId)}`
+          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
         );
       }
       if (

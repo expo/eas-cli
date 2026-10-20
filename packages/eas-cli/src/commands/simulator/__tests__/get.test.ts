@@ -191,7 +191,9 @@ describe(SimulatorGet, () => {
       const { command } = createCommand(['--id', 'session-123', '--json']);
       await command.runAsync();
 
-      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
+      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123', {
+        signal: expect.any(AbortSignal),
+      });
       expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           errors: [
