@@ -7,17 +7,39 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { EnvironmentSecretType } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 
+const CLEANUP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+
 let secretsDirectory: string | undefined;
+
+export function removeSecretsDirectory(): void {
+  if (secretsDirectory) {
+    fs.rmSync(secretsDirectory, { recursive: true, force: true });
+    secretsDirectory = undefined;
+  }
+}
+
+function onCleanupSignal(signal: NodeJS.Signals): void {
+  removeSecretsDirectory();
+  for (const cleanupSignal of CLEANUP_SIGNALS) {
+    process.removeListener(cleanupSignal, onCleanupSignal);
+  }
+  // A signal listener disables Node's default exit; re-raise the signal so the process
+  // still terminates unless another listener handles it.
+  if (process.listenerCount(signal) === 0) {
+    process.kill(process.pid, signal);
+  }
+}
 
 function getSecretsDirectory(): string {
   if (!secretsDirectory) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eas-environment-secrets-'));
+    secretsDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'eas-environment-secrets-'));
     // Keep the files for the whole command: `eas build --local` hands this env to the
     // local build plugin, which runs prebuild long after the config was evaluated.
-    process.once('exit', () => {
-      fs.rmSync(directory, { recursive: true, force: true });
-    });
-    secretsDirectory = directory;
+    // `exit` does not fire when the process is killed by a signal, so handle those too.
+    process.once('exit', removeSecretsDirectory);
+    for (const signal of CLEANUP_SIGNALS) {
+      process.once(signal, onCleanupSignal);
+    }
   }
   return secretsDirectory;
 }

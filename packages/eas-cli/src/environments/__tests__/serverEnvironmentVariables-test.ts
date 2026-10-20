@@ -7,7 +7,10 @@ import {
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
-import { fetchServerEnvironmentVariablesAsync } from '../serverEnvironmentVariables';
+import {
+  fetchServerEnvironmentVariablesAsync,
+  removeSecretsDirectory,
+} from '../serverEnvironmentVariables';
 
 jest.mock('fs');
 jest.mock('../../graphql/queries/EnvironmentVariablesQuery');
@@ -36,6 +39,10 @@ function variable(
 describe(fetchServerEnvironmentVariablesAsync, () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  afterEach(() => {
+    removeSecretsDirectory();
   });
 
   it('requests file contents', async () => {
@@ -101,4 +108,30 @@ describe(fetchServerEnvironmentVariablesAsync, () => {
 
     expect(env).toEqual({});
   });
+
+  it.each(['SIGINT', 'SIGTERM', 'SIGHUP'] as const)(
+    'removes the temporary files on %s',
+    async signal => {
+      jest.mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).mockResolvedValue([
+        variable({
+          name: 'GOOGLE_SERVICES_PLIST',
+          type: EnvironmentSecretType.FileBase64,
+          valueWithFileContent: Buffer.from('<plist />').toString('base64'),
+        }),
+      ]);
+      const env = await fetchServerEnvironmentVariablesAsync(graphqlClient, {
+        appId: 'app-id',
+        environment: 'development',
+      });
+      // Another listener handles the signal, so the process is not re-signalled.
+      const otherListener = jest.fn();
+      process.on(signal, otherListener);
+
+      process.emit(signal, signal);
+      process.removeListener(signal, otherListener);
+
+      expect(fs.existsSync(env.GOOGLE_SERVICES_PLIST)).toBe(false);
+      expect(otherListener).toHaveBeenCalled();
+    }
+  );
 });
