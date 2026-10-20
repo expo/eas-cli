@@ -51,9 +51,42 @@ describe('sandbox build functions', () => {
         await pending;
         expect(stopAsync).toHaveBeenCalledTimes(1);
         expect(jest.getTimerCount()).toBe(0);
+        const timeoutMessage = 'Sandbox reached its maximum runtime of 60 seconds. Stopping.';
+        if (completion === 'duration') {
+          expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
+        } else {
+          expect(logger.info).not.toHaveBeenCalledWith(timeoutMessage);
+        }
       } finally {
         start.mockRestore();
         jest.useRealTimers();
+      }
+    }
+  );
+
+  it.each([0, -1, 1.5, 2_147_484])(
+    'rejects invalid maximum duration %s before starting the daemon',
+    async duration => {
+      const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
+      const fn = createStartSandboxBuildFunction({
+        mcpServerUrl: 'ws://localhost:8787',
+      } as any);
+      try {
+        await expect(
+          fn.fn!({} as any, {
+            inputs: {
+              sandbox_id: { value: 'sandbox-id' },
+              max_duration_seconds: { value: duration },
+            },
+            outputs: {},
+            env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+          })
+        ).rejects.toThrow(
+          `Invalid sandbox maximum duration: ${duration}. Provide a whole number from 1 to 2147483 seconds, or omit max_duration_seconds.`
+        );
+        expect(start).not.toHaveBeenCalled();
+      } finally {
+        start.mockRestore();
       }
     }
   );

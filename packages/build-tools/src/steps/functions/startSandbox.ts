@@ -1,6 +1,7 @@
 import { SystemError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { graphql } from 'gql.tada';
+import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
@@ -19,6 +20,8 @@ const MARK_SANDBOX_READY_MUTATION = graphql(`
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
+const MAX_DURATION_SECONDS = Math.floor(2_147_483_647 / 1000);
+const MaxDurationSecondsZ = z.number().int().positive().max(MAX_DURATION_SECONDS).optional();
 
 export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -49,18 +52,14 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
       const sandboxId = String(inputs.sandbox_id.value);
-      const maxDurationSeconds = inputs.max_duration_seconds?.value;
-      if (
-        maxDurationSeconds !== undefined &&
-        (typeof maxDurationSeconds !== 'number' ||
-          !Number.isSafeInteger(maxDurationSeconds) ||
-          maxDurationSeconds <= 0 ||
-          maxDurationSeconds * 1000 > 2_147_483_647)
-      ) {
+      const durationResult = MaxDurationSecondsZ.safeParse(inputs.max_duration_seconds?.value);
+      if (!durationResult.success) {
         throw new SystemError(
-          'Sandbox maximum duration must be a positive whole number of seconds within the timer limit.'
+          `Invalid sandbox maximum duration: ${String(inputs.max_duration_seconds?.value)}. Provide a whole number from 1 to ${MAX_DURATION_SECONDS} seconds, or omit max_duration_seconds.`,
+          { cause: durationResult.error }
         );
       }
+      const maxDurationSeconds = durationResult.data;
       const daemon = await startSandboxDaemonAsync({
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
@@ -80,7 +79,25 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         stepCtx.logger.info('Sandbox daemon started.');
 
         await withLogPhaseAsync(stepCtx.logger, AWAIT_SANDBOX_STEP_NAME, async () => {
-          await waitForCompletionAsync(signal, maxDurationSeconds);
+          const timeoutController = new AbortController();
+          const timeout =
+            maxDurationSeconds === undefined
+              ? undefined
+              : setTimeout(() => {
+                  stepCtx.logger.info(
+                    `Sandbox reached its maximum runtime of ${maxDurationSeconds} seconds. Stopping.`
+                  );
+                  timeoutController.abort();
+                }, maxDurationSeconds * 1000);
+          try {
+            await waitForCompletionAsync(
+              signal
+                ? AbortSignal.any([signal, timeoutController.signal])
+                : timeoutController.signal
+            );
+          } finally {
+            clearTimeout(timeout);
+          }
         });
       } finally {
         await daemon.stopAsync();
@@ -106,23 +123,11 @@ export async function markSandboxReadyAsync(
   }
 }
 
-async function waitForCompletionAsync(
-  signal: AbortSignal | undefined,
-  maxDurationSeconds: number | undefined
-): Promise<void> {
-  if (signal?.aborted) {
+async function waitForCompletionAsync(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
     return;
   }
   await new Promise<void>(resolve => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const complete = (): void => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', complete);
-      resolve();
-    };
-    signal?.addEventListener('abort', complete, { once: true });
-    if (maxDurationSeconds !== undefined) {
-      timer = setTimeout(complete, maxDurationSeconds * 1000);
-    }
+    signal.addEventListener('abort', () => resolve(), { once: true });
   });
 }
