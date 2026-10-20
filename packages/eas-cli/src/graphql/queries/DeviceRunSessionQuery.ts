@@ -139,6 +139,11 @@ export const DeviceRunSessionQuery = {
                   turtleJobRun {
                     id
                     status
+                    errors {
+                      errorCode
+                      message
+                      docsUrl
+                    }
                   }
                 }
               }

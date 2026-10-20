@@ -27,7 +27,7 @@ import {
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
-import Log, { link } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
@@ -446,7 +446,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${formatJobRunErrors(session.turtleJobRun?.errors)}`
           );
         }
 
@@ -457,7 +457,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${formatJobRunErrors(session.turtleJobRun?.errors)}`
           );
         }
 
@@ -617,6 +617,14 @@ export default class Simulator extends EasCommand {
       throw egressError;
     }
   }
+}
+
+function formatJobRunErrors(
+  errors: { message: string; docsUrl?: string | null }[] | undefined
+): string {
+  return (errors ?? [])
+    .map(error => `\n${error.message}${error.docsUrl ? ` ${learnMore(error.docsUrl)}` : ''}`)
+    .join('');
 }
 
 async function resolvePlatformAsync(

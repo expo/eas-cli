@@ -16029,7 +16029,7 @@ export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSes
         | { __typename: 'ArgentRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null, webPreviewToken?: string | null, previewApiUrl?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null, previewApiUrl?: string | null }
         | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewApiUrl?: string | null, previewUrl: string, previewToken?: string | null }
-       | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+       | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string, docsUrl?: string | null }> } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

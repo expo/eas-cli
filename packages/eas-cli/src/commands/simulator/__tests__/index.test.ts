@@ -57,6 +57,7 @@ jest.mock('../../../log', () => ({
     withTick: jest.fn(),
   },
   link: jest.fn((url: string) => url),
+  learnMore: jest.fn((url: string) => `Learn more: ${url}`),
 }));
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
@@ -169,6 +170,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     turtleJobRun: {
       id: 'job-123',
       status: JobRunStatus.InProgress,
+      errors: [],
     },
     ...overrides,
   };
@@ -1478,7 +1480,7 @@ describe(Simulator, () => {
           if (elapsedMs < 20 * 60 * 1_000) {
             return makeDeviceRunSession({
               remoteConfig: null,
-              turtleJobRun: { id: 'job-123', status },
+              turtleJobRun: { id: 'job-123', status, errors: [] },
             });
           }
           expect(mockOra.mock.results[1].value.text).toContain(
@@ -1506,6 +1508,7 @@ describe(Simulator, () => {
           turtleJobRun: {
             id: 'job-123',
             status: elapsedMs < 20 * 60 * 1_000 ? JobRunStatus.InQueue : JobRunStatus.InProgress,
+            errors: [],
           },
         })
       );
@@ -1529,13 +1532,13 @@ describe(Simulator, () => {
           .mockResolvedValueOnce(
             makeDeviceRunSession({
               remoteConfig: null,
-              turtleJobRun: { id: 'job-123', status: JobRunStatus.InQueue },
+              turtleJobRun: { id: 'job-123', status: JobRunStatus.InQueue, errors: [] },
             })
           )
           .mockResolvedValueOnce(
             makeDeviceRunSession({
               remoteConfig: null,
-              turtleJobRun: { id: 'job-123', status },
+              turtleJobRun: { id: 'job-123', status, errors: [] },
             })
           );
         const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
@@ -1909,7 +1912,7 @@ describe(Simulator, () => {
     mockByIdAsync.mockResolvedValue(
       makeDeviceRunSession({
         remoteConfig: null,
-        turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored },
+        turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored, errors: [] },
       })
     );
 
@@ -1917,6 +1920,57 @@ describe(Simulator, () => {
 
     await expect(command.runAsync()).rejects.toThrow(
       /Turtle job run for simulator session .* errored before/
+    );
+  });
+
+  it('includes the job run error when the session errors before it becomes ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        status: DeviceRunSessionStatus.Errored,
+        remoteConfig: null,
+        turtleJobRun: {
+          id: 'job-123',
+          status: JobRunStatus.Errored,
+          errors: [
+            {
+              errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+              message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+              docsUrl: null,
+            },
+          ],
+        },
+      })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /session was ready\. .*\nNo available iOS Simulator is named "iPhone 16 Pro"\.$/
+    );
+  });
+
+  it('includes the job run error and docs link when the job run errors before the session is ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        remoteConfig: null,
+        turtleJobRun: {
+          id: 'job-123',
+          status: JobRunStatus.Errored,
+          errors: [
+            {
+              errorCode: 'EAS_SIMULATOR_BUILD_NOT_INSTALLABLE',
+              message: 'The build cannot be installed on a simulator.',
+              docsUrl: 'https://docs.expo.dev/simulator',
+            },
+          ],
+        },
+      })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /\nThe build cannot be installed on a simulator\. .*https:\/\/docs\.expo\.dev\/simulator/
     );
   });
 
@@ -2224,7 +2278,9 @@ describe(Simulator, () => {
       .mockResolvedValueOnce(makeDeviceRunSession())
       .mockResolvedValueOnce(makeDeviceRunSession())
       .mockResolvedValueOnce(
-        makeDeviceRunSession({ turtleJobRun: { id: 'job-123', status: JobRunStatus.Finished } })
+        makeDeviceRunSession({
+          turtleJobRun: { id: 'job-123', status: JobRunStatus.Finished, errors: [] },
+        })
       );
 
     const { command } = createCommand(['--platform', 'ios']);
