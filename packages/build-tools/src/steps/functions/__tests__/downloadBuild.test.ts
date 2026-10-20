@@ -162,6 +162,56 @@ afterEach(() => {
 });
 
 describe('downloadBuild', () => {
+  it.each([404, 410])('identifies the unavailable build on HTTP %s', async status => {
+    const buildId = randomUUID();
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(new ActualResponse('<Error>NoSuchKey</Error>', { status }));
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId,
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
+      message:
+        `Failed to download the application archive for build ${buildId} (HTTP ${status}). ` +
+        'The archive is no longer available; it may have expired or been deleted. ' +
+        'Select another build or provide an available application archive URL.',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([404, 500])(
+    'identifies the application URL without credentials on HTTP %s',
+    async status => {
+      const { Response: ActualResponse } =
+        jest.requireActual<typeof import('node-fetch')>('node-fetch');
+      jest.mocked(fetch).mockResolvedValue(new ActualResponse('download failed', { status }));
+
+      const download = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl:
+          'https://user:password@example.test/app.tar.gz?token=secret#fragment',
+        graphqlClient: createMockGraphqlClient({}),
+        robotAccessToken: null,
+        extensions: ['app'],
+      });
+
+      await expect(download).rejects.toThrow(
+        `Failed to download the application archive at https://example.test/app.tar.gz (HTTP ${status})`
+      );
+      await expect(download).rejects.not.toThrow(/password|secret|fragment/);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('downloads from applicationArchiveUrl returned by GraphQL', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({
