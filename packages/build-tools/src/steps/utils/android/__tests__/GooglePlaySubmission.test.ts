@@ -110,12 +110,12 @@ it.each([false, true])(
   }
 );
 
-it('stops waiting for bundle processing after six attempts', async () => {
+it('stops waiting for bundle processing after 14 attempts', async () => {
   mockToken();
   api()
     .post(`${editPath}:commit`)
     .query({})
-    .times(6)
+    .times(14)
     .reply(400, { error: { message: pendingUploadMessage } });
   const error = await commit().catch(error => error);
   expect(GooglePlayUtils.mapGooglePlayError(error, packageName)).toMatchObject({
