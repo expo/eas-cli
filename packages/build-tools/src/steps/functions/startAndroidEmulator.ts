@@ -94,6 +94,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           lcdWidth: inputs.lcd_width.value as number | undefined,
           lcdHeight: inputs.lcd_height.value as number | undefined,
           lcdDensity: inputs.lcd_density.value as number | undefined,
+          // Device run sessions show the device to a person, so they keep Android's default
+          // animation scales. Only test and build jobs disable animations.
+          adjustAnimationScale: !env.DEVICE_RUN_SESSION_ID,
           logcatDirectory,
           env,
           logger,
@@ -201,6 +204,7 @@ export async function startAndroidEmulatorAsync({
   lcdWidth,
   lcdHeight,
   lcdDensity,
+  adjustAnimationScale = true,
   logcatDirectory,
   env,
   logger,
@@ -211,6 +215,11 @@ export async function startAndroidEmulatorAsync({
   lcdWidth?: number;
   lcdHeight?: number;
   lcdDensity?: number;
+  /**
+   * Set the window and transition animation scales to 0 after boot. Defaults to true.
+   * $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE can still turn the adjustment off.
+   */
+  adjustAnimationScale?: boolean;
   logcatDirectory: string;
   env: BuildStepEnv;
   logger: bunyan;
@@ -237,10 +246,13 @@ export async function startAndroidEmulatorAsync({
   }
 
   const shouldAdjustAnimationScale =
+    adjustAnimationScale &&
     env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
     env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
 
-  if (!shouldAdjustAnimationScale) {
+  if (!adjustAnimationScale) {
+    logger.info('Keeping the default Android emulator animation scales.');
+  } else if (!shouldAdjustAnimationScale) {
     logger.info(
       'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
     );

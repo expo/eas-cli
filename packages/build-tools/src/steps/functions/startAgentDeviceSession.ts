@@ -213,6 +213,8 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
                 lcdWidth: inputs.lcd_width.value as number | undefined,
                 lcdHeight: inputs.lcd_height.value as number | undefined,
                 lcdDensity: inputs.lcd_density.value as number | undefined,
+                // Keep Android's default animation scales, so the session shows the real device.
+                adjustAnimationScale: false,
                 logcatDirectory,
                 env,
                 logger: taskLogger,

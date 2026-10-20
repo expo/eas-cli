@@ -377,6 +377,23 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
   });
 
+  it('disables animations outside a device run session', async () => {
+    await createStep().executeAsync();
+
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ serialId: 'emulator-default' })
+    );
+  });
+
+  it('keeps the default animation scales in a device run session', async () => {
+    const step = createStep({ count: 2 }, { DEVICE_RUN_SESSION_ID: 'session-id' });
+
+    await step.executeAsync();
+
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledTimes(3);
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
+  });
+
   it('fails early on Linux when emulator host support check fails', async () => {
     mockedSpawn.mockRejectedValueOnce(new Error('accel check failed') as any);
 

@@ -431,6 +431,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
         lcdWidth: 720,
         lcdHeight: 1600,
         lcdDensity: 300,
+        adjustAnimationScale: false,
       })
     );
     expect(downloadBuildAsync).toHaveBeenCalledWith(
