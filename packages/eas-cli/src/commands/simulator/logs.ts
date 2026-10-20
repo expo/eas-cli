@@ -126,7 +126,7 @@ export default class SimulatorLogs extends EasCommand {
     const preview = await resolveSimulatorPreviewAsync(session);
     if (flags.artifact !== undefined || flags.output !== undefined) {
       throw new Error(
-        '--artifact and --output are only available for stopped sessions. Use --follow to stream live logs.'
+        '--artifact and --output are only available for stopped sessions. To save live logs, follow them into a file: `eas simulator:logs --follow > logs.txt`.'
       );
     }
     const query = { scope: flags.scope, limit: String(flags.limit) };
