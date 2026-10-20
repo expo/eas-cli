@@ -105,6 +105,41 @@ describe('sandbox build functions', () => {
     }
   });
 
+  it('uses the worker token for the MCP connection without a separate daemon token', async () => {
+    const startupError = new Error('stop after checking the daemon credential');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      env: {},
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      mcpServerUrl: 'ws://localhost:8787',
+      job: {
+        secrets: {
+          environmentSecrets: [
+            {
+              name: 'EAS_SANDBOX_WORKER_TOKEN',
+              type: EnvironmentSecretType.STRING,
+              value: 'worker-token',
+            },
+          ],
+        },
+      },
+    } as any);
+    try {
+      await expect(
+        fn.fn!({ logger: {} } as any, {
+          inputs: { sandbox_id: { value: 'sandbox-id' } },
+          outputs: {},
+          env: {},
+        })
+      ).rejects.toBe(startupError);
+      expect(start.mock.calls[0][0].credential).toBe('worker-token');
+    } finally {
+      start.mockRestore();
+    }
+  });
+
   it('throws a system error when the sandbox token is missing', async () => {
     const fn = createStartSandboxBuildFunction({
       job: {},
