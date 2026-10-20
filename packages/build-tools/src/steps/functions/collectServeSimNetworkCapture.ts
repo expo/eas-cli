@@ -7,6 +7,9 @@ import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 import { uploadServeSimNetworkCaptureFileAsync } from '../utils/serveSimNetworkCaptureArtifacts';
 import { ServeSimNetworkCaptureRecorder } from '../utils/serveSimNetworkCaptureRecorder';
 
+// Each HAR may be up to 500 MiB, so one slow upload gets its own long limit.
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
 export function createCollectServeSimNetworkCaptureBuildFunction(
   ctx: CustomBuildContext
 ): BuildFunction {
@@ -38,6 +41,7 @@ export function createCollectServeSimNetworkCaptureBuildFunction(
             size,
             part,
             logger,
+            signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
           });
         }
       } catch (err) {

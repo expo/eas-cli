@@ -68,10 +68,11 @@ it('uploads each recorded HAR as a numbered part per device, then removes the di
     .mockResolvedValueOnce({ outputDirectory, captures });
   const { fn } = createCollectServeSimNetworkCaptureBuildFunction(ctx) as unknown as { fn: Fn };
   await runFn(fn, { env: { DEVICE_RUN_SESSION_ID: 'drs-id' } as BuildStepEnv });
+  const signal = expect.any(AbortSignal);
   expect(jest.mocked(uploadServeSimNetworkCaptureFileAsync).mock.calls).toEqual([
-    [ctx, { deviceRunSessionId: 'drs-id', ...captures[0], part: 1, logger }],
-    [ctx, { deviceRunSessionId: 'drs-id', ...captures[1], part: 1, logger }],
-    [ctx, { deviceRunSessionId: 'drs-id', ...captures[2], part: 2, logger }],
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[0], part: 1, logger, signal }],
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[1], part: 1, logger, signal }],
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[2], part: 2, logger, signal }],
   ]);
   await expect(access(outputDirectory)).rejects.toThrow();
 });

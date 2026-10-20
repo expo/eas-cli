@@ -150,6 +150,23 @@ it('stops every follower and returns only the HARs that hold requests', async ()
   );
 });
 
+it('stops followers in parallel', async () => {
+  let stopping = 0;
+  let mostAtOnce = 0;
+  stopFollower.mockImplementation(async () => {
+    stopping += 1;
+    mostAtOnce = Math.max(mostAtOnce, stopping);
+    await delay(20);
+    stopping -= 1;
+  });
+  await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+  await writeServerAsync('SIM-B', { url: 'http://127.0.0.1:4200', token: 'token-b' });
+  await ServeSimNetworkCaptureRecorder.startAsync({ logger, env, stateDir, pollIntervalMs: 10 });
+  await waitForFollowersAsync(2);
+  await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+  expect(mostAtOnce).toBe(2);
+});
+
 it('keeps collecting when a follower cannot be stopped', async () => {
   await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
   await ServeSimNetworkCaptureRecorder.startAsync({ logger, env, stateDir, pollIntervalMs: 10 });
@@ -254,6 +271,51 @@ describe('restarting followers', () => {
     await waitForFollowersAsync(2);
   });
 
+  it('drops an empty follower from an earlier serve-sim when serve-sim restarts', async () => {
+    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+    await ServeSimNetworkCaptureRecorder.startAsync({ logger, env, stateDir, pollIntervalMs: 10 });
+    await waitForFollowersAsync(1);
+    exits[0] = new Error('Process exited with code 1.');
+    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-restarted' });
+    await waitForFollowersAsync(2);
+
+    const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+    expect(captures).toEqual([]);
+    // Only the new follower is left to stop, and the device is reported once.
+    expect(stopFollower).toHaveBeenCalledTimes(1);
+    expect(
+      jest
+        .mocked(logger.info)
+        .mock.calls.filter(
+          ([, message]) => message === 'No network capture was recorded for SIM-A.'
+        )
+    ).toHaveLength(1);
+  });
+
+  it('waits 30 s by default before replacing a follower that recorded nothing', async () => {
+    const startedAt = Date.now();
+    const now = jest.spyOn(Date, 'now');
+    try {
+      await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+      await ServeSimNetworkCaptureRecorder.startAsync({
+        logger,
+        env,
+        stateDir,
+        pollIntervalMs: 10,
+        restartIntervalMs: 0,
+      });
+      await waitForFollowersAsync(1);
+      exits[0] = new Error('Process exited with code 1.');
+      now.mockReturnValue(startedAt + 29_000);
+      await delay(50);
+      expect(spawnDetached).toHaveBeenCalledTimes(1);
+      now.mockReturnValue(startedAt + 31_000);
+      await waitForFollowersAsync(2);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it('stops starting followers once 20 HARs hold requests', async () => {
     jest.mocked(spawnDetached).mockImplementation(({ args }) => {
       record(args[args.indexOf('-o') + 1], 1);
@@ -277,6 +339,10 @@ describe('restarting followers', () => {
     expect(spawnDetached).toHaveBeenCalledTimes(20);
     const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
     expect(captures).toHaveLength(20);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Network capture reached its limit of 20 recordings; recorded captures will be retained.'
+    );
   });
 });
 
