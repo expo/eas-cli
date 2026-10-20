@@ -8,6 +8,8 @@ import {
   DeviceRunSessionEventsByIdQuery,
   DeviceRunSessionEventsByIdQueryVariables,
   DeviceRunSessionFilterInput,
+  DeviceRunSessionJobRunErrorsByIdQuery,
+  DeviceRunSessionJobRunErrorsByIdQueryVariables,
   DeviceRunSessionsByAppIdQuery,
   DeviceRunSessionsByAppIdQueryVariables,
 } from '../generated';
@@ -41,6 +43,41 @@ export const DeviceRunSessionQuery = {
         .toPromise()
     );
     return data.deviceRunSessions.byId;
+  },
+  async jobRunErrorsByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string
+  ): Promise<DeviceRunSessionJobRunErrorsByIdQuery['deviceRunSessions']['byId']['turtleJobRun']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          DeviceRunSessionJobRunErrorsByIdQuery,
+          DeviceRunSessionJobRunErrorsByIdQueryVariables
+        >(
+          gql`
+            query DeviceRunSessionJobRunErrorsByIdQuery($deviceRunSessionId: ID!) {
+              deviceRunSessions {
+                byId(deviceRunSessionId: $deviceRunSessionId) {
+                  id
+                  turtleJobRun {
+                    id
+                    errors {
+                      errorCode
+                      message
+                      docsUrl
+                    }
+                    logFileUrls
+                  }
+                }
+              }
+            }
+          `,
+          { deviceRunSessionId },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSessions.byId.turtleJobRun;
   },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -139,11 +176,6 @@ export const DeviceRunSessionQuery = {
                   turtleJobRun {
                     id
                     status
-                    errors {
-                      errorCode
-                      message
-                      docsUrl
-                    }
                   }
                 }
               }

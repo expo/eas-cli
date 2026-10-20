@@ -81,7 +81,7 @@ function makeDeviceRunSession(
       previewToken: 'preview-token',
       previewApiUrl: 'https://sim.example.test',
     },
-    turtleJobRun: { id: 'job-123', status: JobRunStatus.InProgress, errors: [] },
+    turtleJobRun: { id: 'job-123', status: JobRunStatus.InProgress },
     ...overrides,
   };
 }
