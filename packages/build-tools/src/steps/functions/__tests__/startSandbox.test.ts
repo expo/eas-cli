@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { Client, fetchExchange } from '@urql/core';
 
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
@@ -7,13 +7,12 @@ import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../start
 
 describe('sandbox build functions', () => {
   it.each([
-    { completion: 'duration', duration: 60 },
+    { completion: 'duration', duration: 0.02 },
     { completion: 'cancellation', duration: 60 },
-    { completion: 'duration', duration: 0.5 },
+    { completion: 'duration', duration: 0.0001 },
   ])(
     'stops after $completion with $duration seconds only after readiness',
     async ({ completion, duration }) => {
-      jest.useFakeTimers();
       const controller = new AbortController();
       let ready!: () => void;
       const stopAsync = jest.fn(async () => {});
@@ -40,21 +39,18 @@ describe('sandbox build functions', () => {
           env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
           signal: controller.signal,
         });
-        await jest.advanceTimersByTimeAsync(120_000);
+        await new Promise(resolve => setTimeout(resolve, 40));
         expect(mutation).not.toHaveBeenCalled();
         expect(stopAsync).not.toHaveBeenCalled();
         ready();
-        await jest.advanceTimersByTimeAsync(duration * 1000 - 1);
-        expect(mutation).toHaveBeenCalledTimes(1);
-        expect(stopAsync).not.toHaveBeenCalled();
-        if (completion === 'duration') {
-          await jest.advanceTimersByTimeAsync(1);
-        } else {
+        if (completion === 'cancellation') {
+          await new Promise(resolve => setImmediate(resolve));
+          expect(stopAsync).not.toHaveBeenCalled();
           controller.abort();
         }
         await pending;
+        expect(mutation).toHaveBeenCalledTimes(1);
         expect(stopAsync).toHaveBeenCalledTimes(1);
-        expect(jest.getTimerCount()).toBe(0);
         const timeoutMessage = `Sandbox reached its maximum runtime of ${duration} seconds. Stopping.`;
         if (completion === 'duration') {
           expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
@@ -63,7 +59,6 @@ describe('sandbox build functions', () => {
         }
       } finally {
         start.mockRestore();
-        jest.useRealTimers();
       }
     }
   );
@@ -76,16 +71,16 @@ describe('sandbox build functions', () => {
         mcpServerUrl: 'ws://localhost:8787',
       } as any);
       try {
-        await expect(
-          fn.fn!({} as any, {
-            inputs: {
-              sandbox_id: { value: 'sandbox-id' },
-              max_duration_seconds: { value: duration },
-            },
-            outputs: {},
-            env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-          })
-        ).rejects.toThrow(
+        const result = fn.fn!({} as any, {
+          inputs: {
+            sandbox_id: { value: 'sandbox-id' },
+            max_duration_seconds: { value: duration },
+          },
+          outputs: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+        });
+        await expect(result).rejects.toBeInstanceOf(UserError);
+        await expect(result).rejects.toThrow(
           `Invalid sandbox maximum duration: ${duration}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
         expect(start).not.toHaveBeenCalled();

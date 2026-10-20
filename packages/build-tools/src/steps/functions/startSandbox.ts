@@ -1,7 +1,6 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { graphql } from 'gql.tada';
-import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
@@ -20,7 +19,6 @@ const MARK_SANDBOX_READY_MUTATION = graphql(`
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
-const MaxDurationSecondsZ = z.number().positive().optional();
 
 export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -51,14 +49,18 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
       const sandboxId = String(inputs.sandbox_id.value);
-      const durationResult = MaxDurationSecondsZ.safeParse(inputs.max_duration_seconds?.value);
-      if (!durationResult.success) {
-        throw new SystemError(
-          `Invalid sandbox maximum duration: ${String(inputs.max_duration_seconds?.value)}. Provide a finite number greater than zero, or omit max_duration_seconds.`,
-          { cause: durationResult.error }
+      const maxDurationSeconds = inputs.max_duration_seconds?.value;
+      if (
+        maxDurationSeconds !== undefined &&
+        (typeof maxDurationSeconds !== 'number' ||
+          !Number.isFinite(maxDurationSeconds) ||
+          maxDurationSeconds <= 0)
+      ) {
+        throw new UserError(
+          'EAS_SANDBOX_INVALID_DURATION',
+          `Invalid sandbox maximum duration: ${String(maxDurationSeconds)}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
       }
-      const maxDurationSeconds = durationResult.data;
       const daemon = await startSandboxDaemonAsync({
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
@@ -78,24 +80,20 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         stepCtx.logger.info('Sandbox daemon started.');
 
         await withLogPhaseAsync(stepCtx.logger, AWAIT_SANDBOX_STEP_NAME, async () => {
-          const timeoutController = new AbortController();
-          const timeout =
+          const timeoutSignal =
             maxDurationSeconds === undefined
               ? undefined
-              : setTimeout(() => timeoutController.abort(), maxDurationSeconds * 1000);
-          try {
-            await waitForCompletionAsync(
-              signal
-                ? AbortSignal.any([signal, timeoutController.signal])
-                : timeoutController.signal
+              : AbortSignal.timeout(Math.ceil(maxDurationSeconds * 1000));
+          await waitForCompletionAsync(
+            AbortSignal.any([
+              ...(signal ? [signal] : []),
+              ...(timeoutSignal ? [timeoutSignal] : []),
+            ])
+          );
+          if (timeoutSignal?.aborted) {
+            stepCtx.logger.info(
+              `Sandbox reached its maximum runtime of ${maxDurationSeconds} seconds. Stopping.`
             );
-            if (timeoutController.signal.aborted) {
-              stepCtx.logger.info(
-                `Sandbox reached its maximum runtime of ${maxDurationSeconds} seconds. Stopping.`
-              );
-            }
-          } finally {
-            clearTimeout(timeout);
           }
         });
       } finally {
