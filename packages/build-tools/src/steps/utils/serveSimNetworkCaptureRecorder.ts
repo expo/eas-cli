@@ -49,6 +49,7 @@ type ServeSimNetworkCaptureSession = {
   current: Map<string, Follower>;
   followerStarts: Map<string, number>;
   stoppedRetrying: Set<string>;
+  warnedRecordingLimit: boolean;
   fileCounts: Map<string, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -97,6 +98,7 @@ export namespace ServeSimNetworkCaptureRecorder {
       current: new Map(),
       followerStarts: new Map(),
       stoppedRetrying: new Set(),
+      warnedRecordingLimit: false,
       fileCounts: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -186,8 +188,6 @@ async function ensureFollowerAsync(
   udid: string
 ): Promise<void> {
   const previous = session.current.get(key);
-  // A previous follower that recorded nothing is dropped once its replacement has spawned.
-  let emptyPrevious: Follower | undefined;
   if (previous) {
     if (previous.handle.getExitError() === undefined) {
       return;
@@ -197,11 +197,27 @@ async function ensureFollowerAsync(
     if (Date.now() - previous.startedAt < interval) {
       return;
     }
-    if (!recorded) {
-      emptyPrevious = previous;
+  } else {
+    // serve-sim restarted with a new token; the old identity's follower is no longer current.
+    for (const [otherKey, other] of session.current) {
+      if (other.udid === udid) {
+        session.current.delete(otherKey);
+      }
     }
   }
-  if (session.followers.length - (emptyPrevious ? 1 : 0) >= MAX_RECORDINGS) {
+  // Exited followers that recorded nothing hold no capture, so they do not use a recording slot.
+  for (const follower of [...session.followers]) {
+    if (follower.handle.getExitError() !== undefined && !(await hasEntriesAsync(follower))) {
+      session.followers.splice(session.followers.indexOf(follower), 1);
+    }
+  }
+  if (session.followers.length >= MAX_RECORDINGS) {
+    if (!session.warnedRecordingLimit) {
+      session.warnedRecordingLimit = true;
+      session.logger.warn(
+        `Network capture reached its limit of ${MAX_RECORDINGS} recordings; recorded captures will be retained.`
+      );
+    }
     return;
   }
   const starts = session.followerStarts.get(key) ?? 0;
@@ -233,9 +249,6 @@ async function ensureFollowerAsync(
       stopGracePeriodMs: FOLLOWER_STOP_GRACE_PERIOD_MS,
     }),
   };
-  if (emptyPrevious) {
-    session.followers.splice(session.followers.indexOf(emptyPrevious), 1);
-  }
   session.followers.push(follower);
   session.current.set(key, follower);
 }
