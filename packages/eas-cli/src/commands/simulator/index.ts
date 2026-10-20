@@ -27,7 +27,7 @@ import {
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
-import Log, { link } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
@@ -461,7 +461,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -472,7 +472,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -634,6 +634,39 @@ export default class Simulator extends EasCommand {
   }
 }
 
+const JOB_RUN_ERRORS_TIMEOUT_MS = 10_000;
+const MAX_JOB_RUN_ERROR_LENGTH = 500;
+
+// Returns the reasons the session's job run failed, one per line, or an empty string when none are
+// available. Gives up after a deadline or when `signal` aborts, so it can't hold up stopping the session.
+async function formatJobRunErrorsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<string> {
+  if (signal.aborted) {
+    return '';
+  }
+  let jobRun;
+  try {
+    jobRun = await DeviceRunSessionQuery.jobRunErrorsByIdAsync(graphqlClient, deviceRunSessionId, {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(JOB_RUN_ERRORS_TIMEOUT_MS)]),
+    });
+  } catch (err) {
+    Log.debug(`Failed to fetch simulator session errors: ${err}`);
+    return '';
+  }
+  return (jobRun?.errors ?? [])
+    .map(error => {
+      const message =
+        error.message.length > MAX_JOB_RUN_ERROR_LENGTH
+          ? `${error.message.slice(0, MAX_JOB_RUN_ERROR_LENGTH)}…`
+          : error.message;
+      return `\n${message}${error.docsUrl ? ` ${learnMore(error.docsUrl)}` : ''}`;
+    })
+    .join('');
+}
+
 async function resolvePlatformAsync(
   platform: PlatformFlagValue | undefined,
   nonInteractive: boolean
@@ -715,7 +748,9 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Errored
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
-        throw new Error(`Simulator session ${deviceRunSessionId} errored.`);
+        throw new Error(
+          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
+        );
       }
       if (
         session.status === DeviceRunSessionStatus.Stopped ||

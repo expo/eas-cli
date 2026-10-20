@@ -57,6 +57,7 @@ jest.mock('../../../log', () => ({
     withTick: jest.fn(),
   },
   link: jest.fn((url: string) => url),
+  learnMore: jest.fn((url: string) => `Learn more: ${url}`),
 }));
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
@@ -105,6 +106,7 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 );
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
+const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockLogEvent = jest.fn();
 const mockFlushAsync = jest.fn(async () => {});
@@ -191,6 +193,7 @@ describe(Simulator, () => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
+    mockJobRunErrorsByIdAsync.mockResolvedValue(null);
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
@@ -1990,6 +1993,131 @@ describe(Simulator, () => {
     );
   });
 
+  describe('job run errors', () => {
+    const erroredSessionMessage =
+      'Simulator session session-123 errored before the agent-device session was ready. https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
+
+    beforeEach(() => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+    });
+
+    it('keeps the message unchanged when the job run has no errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [] });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+    });
+
+    it('lists each job run error on its own line with its docs link', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [
+          {
+            errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+            message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+            docsUrl: null,
+          },
+          {
+            errorCode: 'EAS_SIMULATOR_BUILD_NOT_INSTALLABLE',
+            message: 'The build cannot be installed on a simulator.',
+            docsUrl: 'https://docs.expo.dev/simulator',
+          },
+        ],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nNo available iOS Simulator is named "iPhone 16 Pro".\nThe build cannot be installed on a simulator. Learn more: https://docs.expo.dev/simulator`,
+        })
+      );
+    });
+
+    it('prints an unknown error as reported', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [
+          {
+            errorCode: 'UNKNOWN_ERROR',
+            message: 'Unknown error. See logs for more information.',
+            docsUrl: null,
+          },
+        ],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nUnknown error. See logs for more information.`,
+        })
+      );
+    });
+
+    it('keeps the message unchanged when the job run errors cannot be fetched', async () => {
+      mockJobRunErrorsByIdAsync.mockRejectedValue(new Error('graphql boom'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    });
+
+    it('looks up the job run errors with an abortable signal', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [] });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow();
+      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(expect.anything(), 'session-123', {
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('gives up on a job run error lookup that does not settle and still stops the session', async () => {
+      jest.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort(new Error('timed out')));
+      mockJobRunErrorsByIdAsync.mockImplementation(
+        async (_client, _id, { signal }) =>
+          await new Promise((_resolve, reject) => {
+            if (signal.aborted) {
+              reject(signal.reason);
+            }
+            signal.addEventListener('abort', () => {
+              reject(signal.reason);
+            });
+          })
+      );
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    });
+
+    it('truncates very long job run errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [{ errorCode: 'EAS_SIMULATOR_ERROR', message: 'x'.repeat(2000), docsUrl: null }],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: `${erroredSessionMessage}\n${'x'.repeat(500)}…` })
+      );
+    });
+  });
+
   it('keeps polling until the remote config appears', async () => {
     mockByIdAsync
       .mockResolvedValueOnce(makeDeviceRunSession({ remoteConfig: null }))
@@ -2287,6 +2415,30 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
 
     await expect(command.runAsync()).rejects.toThrow('Simulator session session-123 errored.');
+  });
+
+  it('includes the job run error when the session errors while it is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored }));
+    mockJobRunErrorsByIdAsync.mockResolvedValue({
+      id: 'job-123',
+      errors: [
+        {
+          errorCode: 'EAS_SIMULATOR_SESSION_CRASHED',
+          message: 'The simulator stopped responding.',
+          docsUrl: null,
+        },
+      ],
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Simulator session session-123 errored.\nThe simulator stopped responding.',
+      })
+    );
   });
 
   it('keeps waiting while the session is still in progress', async () => {
