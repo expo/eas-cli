@@ -5,7 +5,7 @@ import { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { Duplex } from 'node:stream';
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 import * as fetchModule from '../../fetch';
 import {
@@ -15,6 +15,7 @@ import {
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
+  fetchHostActionDeviceAsync,
   formatHostActionUsage,
   saveHostActionOutputAsync,
   uploadFileAsync,
@@ -173,6 +174,108 @@ describe(formatHostActionUsage, () => {
   });
 });
 
+describe(fetchHostActionDeviceAsync, () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('selects the connected device from the authenticated metadata catalog', async () => {
+    const fetch = jest.spyOn(fetchModule, 'default').mockResolvedValueOnce(
+      new fetchModule.Response(
+        JSON.stringify({
+          devices: [
+            { device: 'other-device', name: 'Other Simulator' },
+            { device: UDID, name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+          ],
+        })
+      )
+    );
+    await expect(
+      fetchHostActionDeviceAsync(
+        { apiUrl: 'https://sim.example.test/preview/', token: TOKEN },
+        UDID
+      )
+    ).resolves.toEqual({
+      udid: UDID,
+      name: 'iPhone 17 Pro',
+      runtime: 'iOS-26-4',
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      'https://sim.example.test/preview/grid/api/catalog',
+      expect.objectContaining({
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        redirect: 'error',
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it.each([
+    new Error('Metadata request failed'),
+    new fetchModule.RequestError(
+      'Request failed: 404 (Not Found)',
+      new fetchModule.Response(undefined, { status: 404 })
+    ),
+    Object.assign(new Error('Request timed out'), { name: 'AbortError' }),
+  ])('keeps the connected device ID when metadata fails: %s', async error => {
+    jest.spyOn(fetchModule, 'default').mockRejectedValueOnce(error);
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+    ).resolves.toEqual({ udid: UDID });
+  });
+
+  it.each(['not JSON', JSON.stringify({ devices: null })])(
+    'keeps the connected device ID when metadata is invalid: %s',
+    async body => {
+      jest.spyOn(fetchModule, 'default').mockResolvedValueOnce(new fetchModule.Response(body));
+      await expect(
+        fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+      ).resolves.toEqual({ udid: UDID });
+    }
+  );
+
+  it('rejects insecure metadata URLs before sending the session token', async () => {
+    const fetch = jest.spyOn(fetchModule, 'default');
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'http://sim.example.test', token: TOKEN }, UDID)
+    ).rejects.toThrow('Simulator actions require HTTPS');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('allows a device catalog to take more than three seconds during cold startup', async () => {
+    let responseTimer: NodeJS.Timeout | undefined;
+    const server = http.createServer((_request, response) => {
+      responseTimer = setTimeout(() => {
+        response.end(JSON.stringify({ devices: [{ device: UDID, name: 'iPhone 17 Pro' }] }));
+      }, 3500);
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        fetchHostActionDeviceAsync({ apiUrl: `http://127.0.0.1:${port}`, token: TOKEN }, UDID)
+      ).resolves.toEqual({ udid: UDID, name: 'iPhone 17 Pro' });
+    } finally {
+      clearTimeout(responseTimer);
+      server.closeAllConnections();
+      server.close();
+      await once(server, 'close');
+    }
+  });
+
+  it('does not borrow metadata from another device', async () => {
+    jest
+      .spyOn(fetchModule, 'default')
+      .mockResolvedValueOnce(
+        new fetchModule.Response(
+          JSON.stringify({ devices: [{ device: 'other-device', name: 'Other Simulator' }] })
+        )
+      );
+    await expect(
+      fetchHostActionDeviceAsync({ apiUrl: 'https://sim.example.test', token: TOKEN }, UDID)
+    ).resolves.toEqual({ udid: UDID });
+  });
+});
+
 describe('host action transport policy', () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -223,6 +326,7 @@ describe('host action connection', () => {
   let received: { id: number; action: string; params: Record<string, unknown> }[];
   let requests: (string | undefined)[];
   let apiBody: string;
+  let apiStatus: number;
   let uploads: Map<string, Buffer>;
   let reply: (message: {
     id: number;
@@ -232,6 +336,8 @@ describe('host action connection', () => {
   let tmpDir: string;
   let connection: HostActionConnection | undefined;
   let closeBeforeReady: boolean;
+  let sendReady: boolean;
+  let refuseUpgrade: boolean;
 
   function serveSim(message: {
     id: number;
@@ -266,13 +372,16 @@ describe('host action connection', () => {
     requests = [];
     uploads = new Map();
     apiBody = JSON.stringify({ device: UDID });
+    apiStatus = 200;
     reply = serveSim;
     closeBeforeReady = false;
+    sendReady = true;
+    refuseUpgrade = false;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'host-actions-'));
     server = http.createServer((req, res) => {
       requests.push(req.url);
       if (req.url === '/api' && req.headers.authorization === `Bearer ${TOKEN}`) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(apiStatus, { 'Content-Type': 'application/json' });
         res.end(apiBody);
         return;
       }
@@ -282,6 +391,7 @@ describe('host action connection', () => {
     wss = new WebSocketServer({
       server,
       path: '/exec-ws',
+      verifyClient: () => !refuseUpgrade,
       handleProtocols: offered =>
         offered.has(`serve-sim.token.${TOKEN}`) ? `serve-sim.token.${TOKEN}` : false,
     });
@@ -290,7 +400,9 @@ describe('host action connection', () => {
         ws.close();
         return;
       }
-      ws.send(JSON.stringify({ ready: true }));
+      if (sendReady) {
+        ws.send(JSON.stringify({ ready: true }));
+      }
       ws.on('message', data => {
         const message = JSON.parse(data.toString());
         received.push(message);
@@ -324,6 +436,8 @@ describe('host action connection', () => {
 
   it('sends several requests over one connection with the simulator udid', async () => {
     const hostActions = await connectAsync();
+    expect(hostActions.udid).toBe(UDID);
+    expect(hostActions.signal.aborted).toBe(false);
 
     const results = await Promise.all([
       hostActions.requestAsync('hardwareKeyboard.get'),
@@ -387,6 +501,69 @@ describe('host action connection', () => {
     );
   });
 
+  it('makes a timeout terminal, rejects every pending request and never sends another', async () => {
+    reply = () => null;
+    const hostActions = await connectAsync(50);
+    const requests = [
+      hostActions.requestAsync('memoryWarning'),
+      hostActions.requestAsync('hardwareKeyboard.get'),
+    ];
+    const results = await Promise.allSettled(requests);
+
+    expect(hostActions.signal.aborted).toBe(true);
+    expect(results).toEqual([
+      { status: 'rejected', reason: hostActions.signal.reason },
+      { status: 'rejected', reason: hostActions.signal.reason },
+    ]);
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(hostActions.signal.reason);
+    expect(received).toHaveLength(2);
+    await new Promise(resolve => setImmediate(resolve));
+    expect([...wss.clients].every(client => client.readyState !== 1)).toBe(true);
+  });
+
+  it('aborts when the server closes an idle connection', async () => {
+    const hostActions = await connectAsync();
+    const aborted = once(hostActions.signal, 'abort');
+    for (const client of wss.clients) {
+      client.terminate();
+    }
+    await aborted;
+
+    await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(hostActions.signal.reason);
+    expect(received).toEqual([]);
+  });
+
+  it('aborts and immediately rejects pending work when its owner closes it', async () => {
+    reply = () => null;
+    const hostActions = await connectAsync();
+    const request = hostActions.requestAsync('memoryWarning');
+    const rejected = expect(request).rejects.toThrow('closed');
+    hostActions.close();
+    expect(hostActions.signal.aborted).toBe(true);
+    await rejected;
+  });
+
+  it('makes a transport write failure terminal without retrying the request', async () => {
+    const hostActions = await connectAsync();
+    const failure = new Error('socket write failed');
+    const send = jest
+      .spyOn(WebSocket.prototype, 'send')
+      .mockImplementation((_data, callback: unknown) => {
+        if (typeof callback === 'function') {
+          callback(failure);
+        }
+      });
+    try {
+      await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(failure);
+      expect(hostActions.signal.aborted).toBe(true);
+      await expect(hostActions.requestAsync('memoryWarning')).rejects.toBe(failure);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(received).toEqual([]);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
   it('keeps a path on the API URL and drops its query', async () => {
     await expect(
       connectHostActionsAsync({ apiUrl: `${apiUrl}/preview?token=${TOKEN}`, token: TOKEN })
@@ -399,6 +576,29 @@ describe('host action connection', () => {
       'refused the session token (HTTP 401)'
     );
     expect(wss.clients.size).toBe(0);
+  });
+
+  it('explains an unavailable preview server instead of a raw HTTP 404', async () => {
+    apiStatus = 404;
+    await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'The simulator preview server is unavailable. The session may have ended or expired.'
+    );
+    expect(requests).toEqual(['/api']);
+    expect(wss.clients.size).toBe(0);
+  });
+
+  it('cleans up a WebSocket upgrade refused after the API accepted its token', async () => {
+    refuseUpgrade = true;
+    const upgraded = once(server, 'upgrade');
+    const rejected = expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+      'refused the connection (HTTP 401)'
+    );
+    const [, socket] = await upgraded;
+    const closed = once(socket, 'close');
+    await rejected;
+    await closed;
+    expect(wss.clients.size).toBe(0);
+    expect(requests).toEqual(['/api']);
   });
 
   it('does not send the session token to an API redirect target', async () => {
@@ -423,11 +623,30 @@ describe('host action connection', () => {
     closeBeforeReady = true;
 
     await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
-      /closed the connection during setup.*token.*eas simulator:get/
+      'closed the connection during setup'
     );
   });
 
-  it.each([401, 403])(
+  it('terminates its owned socket when setup never becomes ready', async () => {
+    sendReady = false;
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      const connected = once(wss, 'connection');
+      const rejected = expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
+        'did not accept the connection within 30 seconds'
+      );
+      const [client] = await connected;
+      const closed = once(client, 'close');
+      jest.advanceTimersByTime(30_000);
+      await rejected;
+      await closed;
+      expect(wss.clients.size).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it.each([401, 403, 404])(
     'closes a refused HTTP %i upgrade without waiting for its body',
     async status => {
       let rejectedSocket: Duplex | undefined;
@@ -446,7 +665,9 @@ describe('host action connection', () => {
 
       try {
         await expect(connectHostActionsAsync({ apiUrl, token: TOKEN })).rejects.toThrow(
-          `refused the connection (HTTP ${status})`
+          status === 404
+            ? 'The simulator preview server is unavailable. The session may have ended or expired.'
+            : `refused the connection (HTTP ${status})`
         );
         await Promise.race([
           closed,
