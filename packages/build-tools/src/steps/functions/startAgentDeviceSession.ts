@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { UserError, validateAndroidLaunchOptions } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -43,7 +43,6 @@ import {
   launchApplicationAsync,
   parseLaunchArgsInput,
   parseOpenUrlInput,
-  validateAndroidLaunchOptions,
 } from './launchApplication';
 import {
   getAgentDeviceRemoteSessionEnvOrThrow,

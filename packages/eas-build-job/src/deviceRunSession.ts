@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { UserError } from './errors';
+
 /**
  * Canonical record format for the activity events emitted during a remote device run (simulator)
  * session. Producers (e.g. the worker and agent-device) write these as NDJSON to the
@@ -45,4 +47,62 @@ export function parseDeviceRunSessionEvents(eventLog: string): DeviceRunSessionE
   return [...events.values()].sort(
     (left, right) => new Date(left.ts).getTime() - new Date(right.ts).getTime()
   );
+}
+
+// adb closes the connection for longer shell commands (about 65.5 KB with adb 37 on API 35).
+export const ANDROID_SHELL_COMMAND_MAX_BYTES = 65_000;
+// Room for ` <package>/<activity>` when the launch component is not known yet.
+const ANDROID_COMPONENT_RESERVED_BYTES = 512;
+
+/**
+ * Check Android launch inputs before a session starts. The launch component is only known once the
+ * build is installed, so room is left for it; the launch itself checks the exact command.
+ */
+export function validateAndroidLaunchOptions({
+  launchArgs = [],
+  openUrl,
+}: {
+  launchArgs?: string[];
+  openUrl?: string;
+}): void {
+  quoteAndroidShellCommand(['am', 'start', ...launchArgs, '-n'], {
+    reservedBytes: ANDROID_COMPONENT_RESERVED_BYTES,
+  });
+  if (openUrl) {
+    quoteAndroidShellCommand(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl]);
+  }
+}
+
+/**
+ * `adb shell` joins its arguments with spaces and the device shell parses the result again, so
+ * each argument is quoted to reach the command as one literal word.
+ */
+export function quoteAndroidShellCommand(
+  command: string[],
+  { reservedBytes = 0 }: { reservedBytes?: number } = {}
+): string[] {
+  if (command.some(argument => argument.includes('\0'))) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Android "launch_args" and "open_url" cannot contain NUL characters.'
+    );
+  }
+  const quotedCommand = command.map(quoteAndroidShellArgument);
+  if (
+    new TextEncoder().encode(quotedCommand.join(' ')).byteLength + reservedBytes >
+    ANDROID_SHELL_COMMAND_MAX_BYTES
+  ) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      `The Android launch command is longer than ${ANDROID_SHELL_COMMAND_MAX_BYTES} bytes after shell quoting. Shorten "launch_args" or "open_url".`
+    );
+  }
+  return quotedCommand;
+}
+
+function quoteAndroidShellArgument(argument: string): string {
+  if (/^[\w@%+=:,./-]+$/.test(argument)) {
+    return argument;
+  }
+  return `'${argument.replaceAll("'", `'\\''`)}'`;
 }

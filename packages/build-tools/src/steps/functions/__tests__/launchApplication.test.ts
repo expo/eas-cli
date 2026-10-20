@@ -4,11 +4,7 @@ import { spawnSync } from 'node:child_process';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import {
-  createLaunchApplicationFunction,
-  launchApplicationAsync,
-  validateAndroidLaunchOptions,
-} from '../launchApplication';
+import { createLaunchApplicationFunction, launchApplicationAsync } from '../launchApplication';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -447,21 +443,6 @@ describe(launchApplicationAsync, () => {
       })
     ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
     expect(mockedSpawn).toHaveBeenCalledTimes(1);
-  });
-
-  it('leaves room for the launch component when validating Android launch inputs early', () => {
-    const fixedLength = 'am start --es key  -n'.length;
-    const launchArgs = (valueLength: number) => ['--es', 'key', 'a'.repeat(valueLength)];
-
-    expect(() =>
-      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength) })
-    ).not.toThrow();
-    expect(() =>
-      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength + 1) })
-    ).toThrow(expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' }));
-    expect(() =>
-      validateAndroidLaunchOptions({ launchArgs: [], openUrl: 'exp://example.test/a\0b' })
-    ).toThrow(expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' }));
   });
 
   it('rejects an Android launch command that is too long after quoting', async () => {

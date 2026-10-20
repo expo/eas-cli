@@ -1,4 +1,9 @@
-import { DeviceRunSessionEvent, parseDeviceRunSessionEvents } from '../deviceRunSession';
+import {
+  DeviceRunSessionEvent,
+  parseDeviceRunSessionEvents,
+  quoteAndroidShellCommand,
+  validateAndroidLaunchOptions,
+} from '../deviceRunSession';
 
 describe('parseDeviceRunSessionEvents', () => {
   it('parses, deduplicates, and sorts events from the dedicated event log', () => {
@@ -30,6 +35,40 @@ describe('parseDeviceRunSessionEvents', () => {
         })}`
       ).map(({ eventId }) => eventId)
     ).toEqual(['valid']);
+  });
+});
+
+describe(quoteAndroidShellCommand, () => {
+  it('quotes only arguments the device shell would split or expand', () => {
+    expect(
+      quoteAndroidShellCommand(['am', 'start', '--es', 'text', 'hello world', "it's", '', '-n'])
+    ).toEqual(['am', 'start', '--es', 'text', "'hello world'", "'it'\\''s'", "''", '-n']);
+  });
+
+  it('rejects NUL characters', () => {
+    expect(() => quoteAndroidShellCommand(['am', 'start', 'a\0b'])).toThrow(
+      expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' })
+    );
+  });
+});
+
+describe(validateAndroidLaunchOptions, () => {
+  it('leaves room for the launch component', () => {
+    const fixedLength = 'am start --es key  -n'.length;
+    const launchArgs = (valueLength: number) => ['--es', 'key', 'a'.repeat(valueLength)];
+
+    expect(() =>
+      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength) })
+    ).not.toThrow();
+    expect(() =>
+      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength + 1) })
+    ).toThrow(expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' }));
+  });
+
+  it('checks the URL to open', () => {
+    expect(() => validateAndroidLaunchOptions({ openUrl: 'exp://example.test/a\0b' })).toThrow(
+      expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' })
+    );
   });
 });
 
