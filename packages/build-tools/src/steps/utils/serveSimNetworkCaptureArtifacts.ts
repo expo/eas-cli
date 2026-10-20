@@ -19,6 +19,7 @@ export async function uploadServeSimNetworkCaptureFileAsync(
     size,
     part,
     logger,
+    signal,
   }: {
     deviceRunSessionId: string;
     udid: string;
@@ -26,6 +27,7 @@ export async function uploadServeSimNetworkCaptureFileAsync(
     size: number;
     part: number;
     logger: bunyan;
+    signal?: AbortSignal;
   }
 ): Promise<void> {
   const label = part > 1 ? `, part ${part}` : '';
@@ -47,6 +49,7 @@ export async function uploadServeSimNetworkCaptureFileAsync(
       size,
       openStream: () => createReadStream(filePath),
       attempts: 3,
+      signal,
     });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));

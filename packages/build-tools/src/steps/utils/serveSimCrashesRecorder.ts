@@ -6,6 +6,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 
+import { Sentry } from '../../sentry';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const MAX_BYTES_PER_DEVICE = 20 * 1024 * 1024;
@@ -77,6 +78,7 @@ type Session = {
   outputDirectory: string;
   logger: bunyan;
   maxBytes: number;
+  finalPassTimeoutMs: number;
   controller: AbortController;
   timer: NodeJS.Timeout;
   polling: Promise<void>;
@@ -95,12 +97,14 @@ export namespace ServeSimCrashesRecorder {
     pollIntervalMs = 2_000,
     maxBytes = MAX_BYTES_PER_DEVICE,
     maxDurationMs = 30 * 60 * 1000,
+    finalPassTimeoutMs = FINAL_PASS_TIMEOUT_MS,
   }: {
     logger: bunyan;
     stateDir?: string;
     pollIntervalMs?: number;
     maxBytes?: number;
     maxDurationMs?: number;
+    finalPassTimeoutMs?: number;
   }): Promise<void> {
     if (activeSession) {
       return;
@@ -110,6 +114,7 @@ export namespace ServeSimCrashesRecorder {
       outputDirectory: await mkdtemp(path.join(os.tmpdir(), 'serve-sim-crashes-')),
       logger,
       maxBytes,
+      finalPassTimeoutMs,
       controller,
       timer: setTimeout(() => {
         logger.warn(
@@ -138,12 +143,13 @@ export namespace ServeSimCrashesRecorder {
           if (controller.signal.aborted) {
             break;
           }
+          const device = getDevice(session, server.udid);
+          // Kept current while a stream runs, so the final pass reads the latest address.
+          device.server = server;
           if (session.streams.has(server.udid)) {
             continue;
           }
-          const device = getDevice(session, server.udid);
           const identity = JSON.stringify([server.url, server.token]);
-          device.server = server;
           if (device.identity !== identity) {
             device.identity = identity;
             device.failures = 0;
@@ -168,8 +174,10 @@ export namespace ServeSimCrashesRecorder {
         await delay(pollIntervalMs, undefined, { signal: controller.signal }).catch(() => {});
       }
     })().catch(err => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture('serve-sim simulator crash poller failed', error);
       logger.warn(
-        { err },
+        { err: error },
         'Could not collect simulator crashes; collected reports will be retained.'
       );
       controller.abort();
@@ -309,7 +317,7 @@ async function streamServeSimCrashesAsync(
 
 /** One look at each device's crash list, for occurrences the stream had not delivered. */
 async function collectRemainingCrashesAsync(session: Session): Promise<void> {
-  const signal = AbortSignal.timeout(FINAL_PASS_TIMEOUT_MS);
+  const signal = AbortSignal.timeout(session.finalPassTimeoutMs);
   await Promise.all(
     [...session.devices.values()].map(async device => {
       const { server } = device;
@@ -354,9 +362,18 @@ async function saveOccurrencesAsync(
   { stop, deadline }: { stop: AbortSignal; deadline?: AbortSignal }
 ): Promise<void> {
   const { logger } = session;
+  // Each caller returns once this is true, so the deadline warning is logged once per pass.
+  const stopped = (): boolean => {
+    if (deadline?.aborted) {
+      logger.warn(
+        `Stopped checking ${server.udid} for crashes at the end-of-session deadline; collected reports will be retained.`
+      );
+    }
+    return stop.aborted || !!deadline?.aborted;
+  };
   for (const summary of summaries) {
     for (const occurrence of summary.occurrenceTimes) {
-      if (stop.aborted || device.limitReached) {
+      if (device.limitReached || stopped()) {
         return;
       }
       // Keys restart when serve-sim does; the capture time and report path tell such occurrences apart.
@@ -384,7 +401,7 @@ async function saveOccurrencesAsync(
         }
       } catch (err) {
         // Stopping leaves the occurrence unhandled, so the final pass can still save it.
-        if (stop.aborted || deadline?.aborted) {
+        if (stopped()) {
           return;
         }
         device.handled.add(key);
@@ -436,7 +453,7 @@ async function saveOccurrencesAsync(
       if (incidentId) {
         device.incidents.add(incidentId);
       }
-      const processName = summary.appName ?? summary.procName ?? undefined;
+      const processName = summary.appName || summary.procName || undefined;
       session.files.push({
         udid: server.udid,
         filePath,

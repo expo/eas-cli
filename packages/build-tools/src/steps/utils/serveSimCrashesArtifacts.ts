@@ -2,6 +2,7 @@ import { type bunyan } from '@expo/logger';
 import { createReadStream } from 'node:fs';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { type CollectedCrash } from './serveSimCrashesRecorder';
 
@@ -37,9 +38,11 @@ export async function uploadServeSimCrashesFileAsync(
       signal,
     });
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not upload a simulator crash report', error, { level: 'warning' });
     logger.warn(
-      { err },
-      `Could not upload simulator crashes for ${udid}; other artifacts will continue.`
+      { err: error },
+      `Could not upload crash report ${number} for ${udid}; other artifacts will continue.`
     );
   }
 }
