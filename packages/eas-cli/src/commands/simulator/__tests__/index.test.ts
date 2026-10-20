@@ -2000,6 +2000,52 @@ describe(Simulator, () => {
       );
       expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
     });
+
+    it('looks up the job run errors with an abortable signal', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({ id: 'job-123', errors: [] });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow();
+      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(expect.anything(), 'session-123', {
+        signal: expect.any(AbortSignal),
+      });
+    });
+
+    it('gives up on a job run error lookup that does not settle and still stops the session', async () => {
+      jest.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort(new Error('timed out')));
+      mockJobRunErrorsByIdAsync.mockImplementation(
+        async (_client, _id, { signal }) =>
+          await new Promise((_resolve, reject) => {
+            if (signal.aborted) {
+              reject(signal.reason);
+            }
+            signal.addEventListener('abort', () => {
+              reject(signal.reason);
+            });
+          })
+      );
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    });
+
+    it('truncates very long job run errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [{ errorCode: 'EAS_SIMULATOR_ERROR', message: 'x'.repeat(2000), docsUrl: null }],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: `${erroredSessionMessage}\n${'x'.repeat(500)}…` })
+      );
+    });
   });
 
   it('keeps polling until the remote config appears', async () => {
