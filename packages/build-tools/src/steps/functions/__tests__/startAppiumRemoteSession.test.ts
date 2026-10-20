@@ -1,6 +1,7 @@
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
+import * as timersPromises from 'node:timers/promises';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
@@ -19,6 +20,8 @@ import {
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
+import { watchDeviceRunSessionStartup } from '../../utils/deviceRunSessionStartup';
+import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
 
 import {
   createStartAppiumRemoteSessionBuildFunction,
@@ -27,6 +30,10 @@ import {
   resolveAppiumDeviceAsync,
 } from '../startAppiumRemoteSession';
 
+jest.mock('node:timers/promises', () => ({
+  ...jest.requireActual('node:timers/promises'),
+  setTimeout: jest.fn(jest.requireActual('node:timers/promises').setTimeout),
+}));
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: { getAttachedDevicesAsync: jest.fn() },
 }));
@@ -44,6 +51,9 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   spawnDetached: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
+}));
+jest.mock('../../utils/deviceRunSessionStartup', () => ({
+  watchDeviceRunSessionStartup: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../sentry');
@@ -227,6 +237,10 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   const stopEventCollection = jest.fn();
 
   beforeEach(() => {
+    jest
+      .mocked(timersPromises.setTimeout)
+      .mockImplementation(jest.requireActual('node:timers/promises').setTimeout);
+    jest.mocked(watchDeviceRunSessionStartup).mockImplementation(createStartupWatchMock);
     jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
     jest.mocked(preparePreinstalledWdaAsync).mockResolvedValue({});
     jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({
@@ -336,6 +350,94 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       );
     }
   );
+
+  it.each([
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.LINUX, false],
+    [BuildRuntimePlatform.DARWIN, true],
+  ])(
+    'handles Stop during %s setup, preserving teardown failure=%s',
+    async (runtimePlatform, teardownFails) => {
+      let setupEntered!: () => void;
+      const entered = new Promise<void>(resolve => {
+        setupEntered = resolve;
+      });
+      jest.mocked(ensureFfmpegInstalledOnceAsync).mockImplementationOnce(({ signal }) => {
+        setupEntered();
+        return new Promise<void>(resolve =>
+          signal!.addEventListener('abort', () => resolve(), { once: true })
+        );
+      });
+      const teardownError = new Error('host teardown failed');
+      const finishHost = jest.fn().mockImplementation(async () => {
+        if (teardownFails) {
+          throw teardownError;
+        }
+      });
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+          openPreviewAsync: jest.fn(),
+          finishAsync: finishHost,
+          getLastPreviewActivityAt: () => undefined,
+        });
+      }
+      const running = runSessionAsync(
+        { info: jest.fn(), warn: jest.fn() },
+        undefined,
+        runtimePlatform,
+        runtimePlatform === BuildRuntimePlatform.DARWIN
+          ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-ios-udid' } }
+          : {}
+      );
+      running.catch(() => {});
+      await entered;
+      const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+      watch.stop();
+      if (teardownFails) {
+        await expect(running).rejects.toBe(teardownError);
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
+      expect(spawnDetached).not.toHaveBeenCalled();
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(watch.finishAsync).toHaveBeenCalled();
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        expect(finishHost).toHaveBeenCalledTimes(1);
+      }
+    }
+  );
+
+  it('preserves an Android installer failure observed before a later Stop', async () => {
+    const failed = new Error('Appium install failed first');
+    let observedFailure!: () => void;
+    const installFailed = new Promise<void>(resolve => {
+      observedFailure = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce((() => {
+      observedFailure();
+      return Promise.reject(failed);
+    }) as never);
+    jest
+      .mocked(ensureFfmpegInstalledOnceAsync)
+      .mockImplementationOnce(
+        ({ signal }) =>
+          new Promise<void>(resolve =>
+            signal!.addEventListener('abort', () => resolve(), { once: true })
+          )
+      );
+    const running = runSessionAsync(
+      { info: jest.fn(), warn: jest.fn() },
+      undefined,
+      BuildRuntimePlatform.LINUX
+    );
+    running.catch(() => {});
+    await installFailed;
+    await new Promise(resolve => setImmediate(resolve));
+    const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+    watch.stop();
+    await expect(running).rejects.toBe(failed);
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
 
   it('selects Xcode only once for an already-prepared iOS session', async () => {
     stopAppium.mockResolvedValue(undefined);
@@ -651,9 +753,9 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   it('keeps the readiness error when Appium cannot be stopped', async () => {
     let now = Date.now();
     jest.spyOn(Date, 'now').mockImplementation(() => now);
-    jest.mocked(sleepAsync).mockImplementation(async ms => {
-      now += ms;
-    });
+    jest.mocked(timersPromises.setTimeout).mockImplementation((async ms => {
+      now += Number(ms ?? 0);
+    }) as typeof timersPromises.setTimeout);
     jest.mocked(turtleFetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
     const logger = { info: jest.fn(), warn: jest.fn() };
 
