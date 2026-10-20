@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
+import { fetchServerEnvironmentVariablesAsync } from '../../environments/serverEnvironmentVariables';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
@@ -196,22 +196,17 @@ export default class EnvExec extends EasCommand {
     environment: string;
     nonInteractive: boolean;
   }): Promise<Record<string, string>> {
-    const environmentVariablesQueryResult =
-      await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-        appId: projectId,
-        environment,
-      });
-
-    const nonSecretEnvironmentVariables = environmentVariablesQueryResult.filter(
-      ({ value }) => !!value
-    );
+    const environmentVariables = await fetchServerEnvironmentVariablesAsync(graphqlClient, {
+      appId: projectId,
+      environment,
+    });
 
     if (!nonInteractive) {
-      if (nonSecretEnvironmentVariables.length > 0) {
+      if (Object.keys(environmentVariables).length > 0) {
         Log.log(
-          `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${nonSecretEnvironmentVariables
-            .map(e => e.name)
-            .join(', ')}.`
+          `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${Object.keys(
+            environmentVariables
+          ).join(', ')}.`
         );
       } else {
         Log.log(
@@ -221,12 +216,6 @@ export default class EnvExec extends EasCommand {
       Log.newLine();
     }
 
-    const environmentVariables: Record<string, string> = {};
-    for (const { name, value } of nonSecretEnvironmentVariables) {
-      if (value) {
-        environmentVariables[name] = value;
-      }
-    }
     return environmentVariables;
   }
 }
