@@ -1,7 +1,12 @@
 export class EasCommandError extends Error {
-  // constructor is not useless, since the constructor for Error allows for optional `message`
-  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
-  constructor(message: string) {
+  /** True when the command already printed the message, so `EasCommand.catch` must not print it again. */
+  public readonly messageAlreadyPrinted: boolean;
+
+  constructor(
+    message: string,
+    { messageAlreadyPrinted = false }: { messageAlreadyPrinted?: boolean } = {}
+  ) {
     super(message);
+    this.messageAlreadyPrinted = messageAlreadyPrinted;
   }
 }

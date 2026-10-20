@@ -69,6 +69,7 @@ export enum BuildEvent {
   BUILD_REQUEST_ATTEMPT = 'build cli build request attempt',
   BUILD_REQUEST_SUCCESS = 'build cli build request success',
   BUILD_REQUEST_FAIL = 'build cli build request fail',
+  FREE_TIER_LIMIT_CHECKOUT_PROMPT = 'build cli free tier limit checkout prompt',
 
   BUILD_STATUS_COMMAND = 'build cli build status',
 

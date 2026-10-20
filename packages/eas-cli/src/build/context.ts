@@ -12,6 +12,7 @@ import { LazyExperimentationClient } from '../experimentation/LazyExperimentatio
 import { Target } from '../credentials/ios/types';
 import { BuildResourceClass } from '../graphql/generated';
 import { GradleBuildContext } from '../project/android/gradle';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
@@ -68,4 +69,5 @@ export interface BuildContext<T extends Platform> {
   whatToTest?: string;
   env: Env;
   experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }

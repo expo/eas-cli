@@ -265,6 +265,7 @@ export async function runAgentDeviceRemoteSessionAsync(
           ? {
               maxIdleTimeMinutes,
               getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+              getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
             }
           : undefined,
     });

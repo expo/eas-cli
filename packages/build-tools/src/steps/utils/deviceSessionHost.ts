@@ -40,6 +40,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
+import { LOCAL_EGRESS_PROXY_HOST, readLocalEgressHandoffAsync } from './localEgress';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   IosSimulatorRecordingUtils,
@@ -49,6 +50,7 @@ import { ServeSimCrashesRecorder } from './serveSimCrashesRecorder';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
+import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createStartupTasks } from './startupTasks';
@@ -137,6 +139,7 @@ export function createServeSimArgs({
   openUrl,
   networkCapture = false,
   networkCaptureFields = [],
+  networkCaptureProxy,
 }: {
   port: number;
   turnArgs?: string[];
@@ -150,6 +153,7 @@ export function createServeSimArgs({
   installAppPath?: string;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
+  networkCaptureProxy?: string;
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
@@ -189,6 +193,7 @@ export function createServeSimArgs({
           ...networkCaptureFields.flatMap(field => ['--network-capture-field', field]),
         ]
       : []),
+    ...(networkCaptureProxy !== undefined ? ['--network-capture-proxy', networkCaptureProxy] : []),
   ];
 }
 
@@ -351,6 +356,8 @@ export type DeviceWebPreview = {
 
 export type DeviceSessionHost = {
   openPreviewAsync(options: { baseDomain: string; authtoken: string }): Promise<DeviceWebPreview>;
+  /** Last observed preview input. Always `undefined` on Android, which keeps no event log. */
+  getLastPreviewActivityAt(): Date | undefined;
   /**
    * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
    * and reported, so callers need no error handling around it.
@@ -494,6 +501,7 @@ async function startDeviceSessionHostInternalAsync(
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
+  const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
   const previewExec = resolvePackageExec(
     resolveConfiguredPackageManager(env, PackageManager.NPM),
     isAndroid
@@ -523,6 +531,9 @@ async function startDeviceSessionHostInternalAsync(
           openUrl: iosSimulatorUdid ? undefined : openUrl,
           networkCapture,
           networkCaptureFields,
+          networkCaptureProxy: localEgress
+            ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}`
+            : undefined,
         })
   );
   logger.info(
@@ -578,6 +589,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
+  let previewActivity: ServeSimActivityPolling | null = null;
 
   const host: DeviceSessionHost = {
     openPreviewAsync({ baseDomain, authtoken }) {
@@ -635,6 +647,9 @@ async function startDeviceSessionHostInternalAsync(
       });
       return opening;
     },
+    getLastPreviewActivityAt() {
+      return previewActivity?.getLastActivityObservedAt();
+    },
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
       return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
@@ -643,6 +658,7 @@ async function startDeviceSessionHostInternalAsync(
           previewSetupController.abort();
           await previewSetupTask;
           await sessionPreview?.stopAsync();
+          await previewActivity?.stopAsync();
         },
         previewServer,
         screenshots,
@@ -770,6 +786,9 @@ async function startDeviceSessionHostInternalAsync(
     secrets.push(previewToken);
     if (!isAndroid) {
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
+      if (!finishTask) {
+        previewActivity = startServeSimActivityPolling({ port, token: previewToken, logger });
+      }
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.

@@ -18,6 +18,7 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import * as processes from '../../../utils/processes';
 import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
@@ -658,6 +659,14 @@ describe(createServeSimArgs, () => {
     expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
       '--network-capture'
     );
+  });
+
+  it('passes a capture proxy as one argument, including when capture will be enabled later', () => {
+    const proxy = 'http://user:p%40ss%20word@proxy.example:8899';
+    const args = createServeSimArgs({ port: 4321, networkCaptureProxy: proxy });
+    expect(args.slice(-2)).toEqual(['--network-capture-proxy', proxy]);
+    expect(args).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture-proxy');
   });
 
   it('appends --network-capture when enabled, which also covers an already booted simulator', () => {
@@ -1930,6 +1939,47 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     });
 
+    it('keeps the session alive while preview input keeps arriving', async () => {
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () => new Date(),
+        },
+      });
+
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
+    });
+
+    it('counts idle time from the later of automation and preview activity', async () => {
+      const ctx = createStatusCtxMock(manyInProgressStatuses());
+      const logger = createLoggerMock();
+      const previewInputAt = new Date(Date.now() + 30_000);
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () =>
+            Date.now() >= previewInputAt.getTime() ? previewInputAt : undefined,
+        },
+      });
+
+      // Idle from 30 s, so the stop comes at 90 s: 18 polls.
+      expect(workerApiCallCount('session')).toBe(18);
+      expect(workerApiCallCount('stop')).toBe(1);
+    });
+
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
         stopError: new Error('forbidden'),
@@ -2135,6 +2185,105 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     expect(spawnMock).toHaveBeenCalledTimes(3);
   });
 
+  it('retries one aborted FFmpeg install for two surviving shared callers after it drains', async () => {
+    const controller = new AbortController();
+    const error = new Error('Simulator startup failed');
+    const child = { pid: 12345, kill: jest.fn() };
+    let closeInstaller!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      Object.assign(
+        new Promise((_resolve, reject) => {
+          closeInstaller = reject;
+        }),
+        { child }
+      ) as never
+    );
+    let finishReplacement!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishReplacement = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const surviving = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
+    const settled = jest.fn();
+    const observed = owner.then(settled, settled);
+    const borrowersSettled = jest.fn();
+    const observedBorrowers = Promise.all(surviving).then(borrowersSettled, borrowersSettled);
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(error);
+      expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+      expect(settled).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      closeInstaller(new Error('brew interrupted'));
+      await expect(owner).rejects.toBe(error);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+      expect(borrowersSettled).not.toHaveBeenCalled();
+      finishReplacement();
+      await expect(Promise.all(surviving)).resolves.toEqual([undefined, undefined]);
+      expect(spawnMock).toHaveBeenCalledTimes(3);
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
+      expect(options.logger.warn).not.toHaveBeenCalled();
+    } finally {
+      closeInstaller?.(error);
+      finishReplacement();
+      await Promise.all([observed, observedBorrowers]);
+      killGroup.mockRestore();
+    }
+  });
+
+  it('stops an aborted shared waiter without cancelling the installer owner', async () => {
+    let finishInstall!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishInstall = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const controller = new AbortController();
+    const error = new Error('Appium startup failed');
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync(options);
+    let ownerFinished = false;
+    const observedOwner = owner.then(() => {
+      ownerFinished = true;
+    });
+    const waiter = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const observedWaiter = waiter.catch(() => {});
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(error);
+      await expect(waiter).rejects.toBe(error);
+      expect(ownerFinished).toBe(false);
+      expect(killGroup).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      finishInstall();
+      await expect(owner).resolves.toBeUndefined();
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
+    } finally {
+      finishInstall();
+      await Promise.all([observedOwner, observedWaiter]);
+      killGroup.mockRestore();
+    }
+  });
+
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
       .mockReturnValueOnce(spawnRejected()) // apt-get update
@@ -2170,6 +2319,30 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     expect(spawnMock).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('does not retry an ordinary shared FFmpeg install failure', async () => {
+    let failInstall!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failInstall = reject;
+      }) as never
+    );
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const callers = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
+    await new Promise<void>(resolve => setImmediate(resolve));
+    failInstall(new Error('Homebrew unavailable'));
+    await expect(Promise.all(callers)).resolves.toEqual([undefined, undefined, undefined]);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(options.logger.warn).toHaveBeenCalledTimes(1);
   });
 
   // The caller runs this with `void` and the worker installs no unhandledRejection

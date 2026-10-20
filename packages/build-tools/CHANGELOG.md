@@ -1,5 +1,11 @@
 # @expo/build-tools
 
+## 25.2.0
+
+### Minor Changes
+
+- Let serve-sim boot, install and launch agent-device iOS sessions with the local-egress guard. ([#4544](https://github.com/expo/eas-cli/pull/4544) by [@gwdp](https://github.com/gwdp))
+
 ## 25.1.1
 
 ### Patch Changes
