@@ -66,6 +66,7 @@ export default class SimulatorLogs extends EasCommand {
     follow: Flags.boolean({
       char: 'f',
       description: 'Stream new logs. Start following before performing actions to collect them.',
+      exclusive: ['json'],
     }),
     scope: Flags.option({
       description: 'Show user app logs or all device logs while the session runs.',
@@ -95,9 +96,6 @@ export default class SimulatorLogs extends EasCommand {
     }
     const { flags } = await this.parse(SimulatorLogs);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-    if (jsonFlag && flags.follow) {
-      throw new Error('Use either --json or --follow, not both.');
-    }
 
     const {
       projectDir,
