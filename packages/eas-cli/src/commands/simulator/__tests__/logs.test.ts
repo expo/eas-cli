@@ -324,7 +324,7 @@ describe(SimulatorLogs, () => {
 
   it('rejects JSON follow output before resolving a session', async () => {
     await expect(createCommand(['--json', '--follow']).runAsync()).rejects.toThrow(
-      'Use either --json or --follow, not both.'
+      '--json=true cannot also be provided when using --follow'
     );
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
