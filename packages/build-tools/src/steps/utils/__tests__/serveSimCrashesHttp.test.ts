@@ -272,16 +272,34 @@ it('stops at a complete-record byte limit and keeps earlier reports', async () =
 });
 
 it.each([
-  ['fails on every request', 3, (response: ServerResponse) => response.writeHead(500).end()],
+  [
+    'fails on every request',
+    3,
+    'Could not download crash occurrence 1 for device-A; skipping it.',
+    (response: ServerResponse) => response.writeHead(500).end(),
+  ],
   [
     'exceeds 8 MiB',
     1,
+    'Could not download crash occurrence 1 for device-A; skipping it.',
     (response: ServerResponse) =>
       response.end(JSON.stringify({ ...detail(1), report: 'x'.repeat(8 * 1024 * 1024) })),
   ],
+  [
+    'does not match the occurrence',
+    1,
+    'Could not download crash occurrence 1 for device-A; skipping it.',
+    (response: ServerResponse) => response.end(JSON.stringify(detail(2))),
+  ],
+  [
+    'is no longer kept',
+    1,
+    'Crash occurrence 1 is no longer available for device-A; earlier reports will be retained.',
+    (response: ServerResponse) => response.writeHead(404).end(),
+  ],
 ])(
   'skips an occurrence whose detail %s after %i attempts and keeps collecting the device',
-  async (_name, attempts, respond) => {
+  async (_name, attempts, warning, respond) => {
     let connections = 0;
     let badRequests = 0;
     server.on('request', (request, response) => {
@@ -314,16 +332,9 @@ it.each([
     const collected = await ServeSimCrashesRecorder.finishAsync();
     expect(badRequests).toBe(attempts);
     expect(stoppedRetrying()).toBe(false);
-    expect(
-      jest
-        .mocked(logger.warn)
-        .mock.calls.filter(([, message]) => String(message).startsWith('Could not download'))
-    ).toEqual([
-      [
-        { err: expect.any(Error) },
-        'Could not download crash occurrence 1 for device-A; skipping it.',
-      ],
-    ]);
+    expect(jest.mocked(logger.warn).mock.calls.filter(call => call.includes(warning))).toHaveLength(
+      1
+    );
     expect(collected.crashes).toHaveLength(1);
     expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
     await rm(collected.outputDirectory!, { recursive: true, force: true });
@@ -369,7 +380,8 @@ it('collects an occurrence listed after the stream last delivered, when stopping
   let streaming = false;
   server.on('request', (request, response) => {
     const url = new URL(request.url!, baseUrl);
-    if (answerList(request, response, [{ ...summary, occurrenceTimes: [{ key: 1 }] }])) {
+    const listed = { ...summary, appName: '', procName: 'FixtureProcess' };
+    if (answerList(request, response, [{ ...listed, occurrenceTimes: [{ key: 1 }] }])) {
       return;
     }
     if (url.pathname === '/crashes') {
@@ -389,10 +401,42 @@ it('collects an occurrence listed after the stream last delivered, when stopping
       filePath: path.join(collected.outputDirectory!, 'device-A-1.ips'),
       size: Buffer.byteLength(report(1)),
       number: 1,
-      processName: 'Fixture',
+      processName: 'FixtureProcess',
     },
   ]);
   expect(await readFile(collected.crashes[0].filePath, 'utf8')).toBe(report(1));
+  await rm(collected.outputDirectory!, { recursive: true, force: true });
+});
+
+it('stops the final pass at its deadline and warns', async () => {
+  let streaming = false;
+  server.on('request', (request, response) => {
+    if (answerList(request, response, [{ ...summary, occurrenceTimes: [{ key: 1 }] }])) {
+      return;
+    }
+    if (request.url!.startsWith('/crashes?')) {
+      streaming = true;
+      response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      response.write(`data: ${JSON.stringify({ type: 'list', crashes: [] })}\n\n`);
+    }
+    // The detail never answers.
+  });
+  await writeFile(
+    path.join(directory, 'server-device-A.json'),
+    JSON.stringify({ device: 'device-A', url: baseUrl, token: 'test-token' })
+  );
+  await ServeSimCrashesRecorder.startAsync({
+    logger,
+    stateDir: directory,
+    pollIntervalMs: 10,
+    finalPassTimeoutMs: 100,
+  });
+  await waitFor(() => streaming);
+  const collected = await ServeSimCrashesRecorder.finishAsync();
+  expect(collected.crashes).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'Stopped checking device-A for crashes at the end-of-session deadline; collected reports will be retained.'
+  );
   await rm(collected.outputDirectory!, { recursive: true, force: true });
 });
 
@@ -587,7 +631,7 @@ it('closes a stalled upload within its budget and lets another device upload', a
   expect(firstRequests).toBe(1);
   expect(logger.warn).toHaveBeenCalledWith(
     expect.any(Object),
-    'Could not upload simulator crashes for A; other artifacts will continue.'
+    'Could not upload crash report 1 for A; other artifacts will continue.'
   );
   await uploadServeSimCrashesFileAsync(context, {
     deviceRunSessionId: 'session-id',
@@ -636,7 +680,9 @@ it('does not duplicate a saved incident when a restarted serve-sim reuses occurr
     const restarted = request.headers.authorization === 'Bearer new-token';
     if (request.url!.startsWith('/crashes?')) {
       response.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      const occurrence = restarted ? { key: 1, capturedAtMs: 2_000 } : { key: 1 };
+      const occurrence = restarted
+        ? { key: 1, capturedAtMs: 2_000, rawPath: '/DiagnosticReports/Fixture-2.ips' }
+        : { key: 1, capturedAtMs: 1_000, rawPath: '/DiagnosticReports/Fixture-1.ips' };
       response.write(
         `data: ${JSON.stringify({ type: 'list', crashes: [{ ...summary, occurrenceTimes: [occurrence] }] })}\n\n`
       );
