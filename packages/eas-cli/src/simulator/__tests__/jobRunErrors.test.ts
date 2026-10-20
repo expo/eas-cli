@@ -210,6 +210,65 @@ describe('selectFailedStepErrors', () => {
       'Finish recordings: xcrun simctl io recordVideo exited with non-zero code: 1',
     ]);
   });
+
+  it('strips escape sequences and control characters from step names and messages', () => {
+    expect(
+      jobRunErrors.selectFailedStepErrors([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Boot\u001b[2J simulator',
+          msg: '\u001b[31mxcrun simctl boot\u001b[0m exited\r\nwith code: 149\u0007',
+          err: { message: 'x' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Boot simulator" failed',
+        },
+      ])
+    ).toEqual(['Boot simulator: xcrun simctl boot exited with code: 149']);
+  });
+
+  it('finds a colored stderr cause and skips error lines that are only escape sequences', () => {
+    expect(
+      jobRunErrors.selectFailedStepErrors([
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Launch application',
+          source: 'stderr',
+          msg: '\u001b[31mError\u001b[0m: Activity not started',
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Launch application',
+          msg: 'adb shell am start exited with non-zero code: 1',
+          err: { message: 'x' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Launch application',
+          msg: '\u001b[0m\u001b[K',
+          err: { message: 'x' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Launch application" failed',
+        },
+      ])
+    ).toEqual([
+      'Launch application: Error: Activity not started',
+      'Launch application: adb shell am start exited with non-zero code: 1',
+    ]);
+  });
 });
 
 describe('fetchSimulatorSessionErrorsAsync', () => {
@@ -286,6 +345,32 @@ describe('fetchSimulatorSessionErrorsAsync', () => {
       jobRunErrors.fetchSimulatorSessionErrorsAsync(graphqlClient, 'session-123')
     ).resolves.toEqual([unknownError]);
     expect(JSON.stringify(jest.mocked(Log.debug).mock.calls)).not.toContain('secret-signature');
+  });
+
+  it('strips escape sequences and control characters from job run error messages', async () => {
+    server = http.createServer();
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    mockJobRunErrorsByIdAsync.mockResolvedValue({
+      id: 'job-123',
+      errors: [
+        {
+          errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+          message: 'No available iOS Simulator is named "\u001b[2JiPhone\u001b]0;x\u0007\nFake"',
+          docsUrl: null,
+        },
+      ],
+      logFileUrls: [],
+    });
+
+    await expect(
+      jobRunErrors.fetchSimulatorSessionErrorsAsync(graphqlClient, 'session-123')
+    ).resolves.toEqual([
+      {
+        errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+        message: 'No available iOS Simulator is named "iPhone Fake"',
+        docsUrl: null,
+      },
+    ]);
   });
 
   it('falls back to the job run error when the log request fails', async () => {

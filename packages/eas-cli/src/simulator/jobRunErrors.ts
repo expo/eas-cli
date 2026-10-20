@@ -1,9 +1,12 @@
+import { stripVTControlCharacters } from 'util';
+
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { parseLogLines } from '../commandUtils/logs/parseLogs';
 import { RawLogLine } from '../commandUtils/logs/types';
 import fetch from '../fetch';
 import { DeviceRunSessionQuery } from '../graphql/queries/DeviceRunSessionQuery';
 import Log, { learnMore } from '../log';
+import { sanitizeTerminalText } from '../utils/terminalText';
 
 export type SimulatorSessionError = {
   errorCode: string;
@@ -73,7 +76,7 @@ export async function fetchSimulatorSessionErrorsAsync(
   }
   return errors.map(({ errorCode, message, docsUrl }) => ({
     errorCode,
-    message: truncate(message),
+    message: formatMessage(message),
     docsUrl,
   }));
 }
@@ -134,13 +137,14 @@ function selectStepFailureLines(stepLines: JobRunLogLine[]): JobRunLogLine[] {
   let selected: JobRunLogLine[] = [];
   let stderrCause: JobRunLogLine[] = [];
   for (const [index, line] of stepLines.entries()) {
+    const text = toPlainText(line.msg ?? '');
     if (line.source === 'stderr') {
-      if (STDERR_CAUSE_PATTERN.test(line.msg ?? '')) {
+      if (STDERR_CAUSE_PATTERN.test(text)) {
         stderrCause = [line];
       } else if (stderrCause.length === 1 && stepLines[index - 1] === stderrCause[0]) {
         stderrCause.push(line);
       }
-    } else if (line.err && (line.level ?? 0) >= ERROR_LOG_LEVEL && line.msg?.trim()) {
+    } else if (line.err && (line.level ?? 0) >= ERROR_LOG_LEVEL && text) {
       selected = [...stderrCause, line];
       stderrCause = [];
     }
@@ -149,13 +153,20 @@ function selectStepFailureLines(stepLines: JobRunLogLine[]): JobRunLogLine[] {
 }
 
 function formatLogLine(line: JobRunLogLine): string {
-  return truncate(
+  return formatMessage(
     line.buildStepDisplayName ? `${line.buildStepDisplayName}: ${line.msg}` : String(line.msg)
   );
 }
 
-function truncate(message: string): string {
-  return message.length > MAX_LOGGED_ERROR_LENGTH
-    ? `${message.slice(0, MAX_LOGGED_ERROR_LENGTH)}…`
-    : message;
+// Log text comes from commands run in the session, so strip escape sequences and control
+// characters that could clear the terminal or spoof output.
+function toPlainText(message: string): string {
+  return sanitizeTerminalText(stripVTControlCharacters(message));
+}
+
+function formatMessage(message: string): string {
+  const text = toPlainText(message);
+  return text.length > MAX_LOGGED_ERROR_LENGTH
+    ? `${text.slice(0, MAX_LOGGED_ERROR_LENGTH)}…`
+    : text;
 }
