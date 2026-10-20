@@ -18,6 +18,10 @@ export function getProjectPageUrl(
   return new URL(page ? `${projectPath}/${page}` : projectPath, getExpoWebsiteBaseUrl()).toString();
 }
 
+export function getAccountBillingUrl(accountName: string): string {
+  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
+}
+
 export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
   const { app } = build;
   const url = `/accounts/${app.ownerAccount.name}/projects/${app.slug}/builds/${build.id}${

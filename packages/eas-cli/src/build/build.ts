@@ -29,6 +29,11 @@ import {
   TurtleDeprecatedJobFormatError,
 } from './errors';
 import {
+  FreeTierLimitCheckoutExperiment,
+  getFreeTierLimitCheckoutExperiment,
+  maybeOfferFreeTierLimitCheckoutAsync,
+} from './freeTierLimitCheckout';
+import {
   FreeTierLimitAgentGuidanceExperiment,
   getFreeTierLimitAgentGuidanceExperiment,
   maybeAppendFreeTierLimitAgentGuidanceAsync,
@@ -51,9 +56,9 @@ import {
   maybeWarnAboutProjectTarballSize,
   reviewAndCommitChangesAsync,
 } from './utils/repository';
+import { getAccountBillingUrl } from './utils/url';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
 import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
@@ -228,7 +233,8 @@ export async function prepareBuildRequestForPlatformAsync<
           error,
           job.platform,
           ctx.accountName,
-          getFreeTierLimitAgentGuidanceExperiment(ctx)
+          getFreeTierLimitAgentGuidanceExperiment(ctx),
+          getFreeTierLimitCheckoutExperiment(ctx)
         );
       }
     } else {
@@ -254,7 +260,8 @@ export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
   accountName?: string,
-  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment
+  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment,
+  freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
 ): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
 
@@ -270,15 +277,19 @@ export async function handleBuildRequestErrorAsync(
     const isFreeTierLimitError =
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
-    throw new ErrorClass(
-      isFreeTierLimitError
-        ? await maybeAppendFreeTierLimitAgentGuidanceAsync(
-            `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
-            platform,
-            freeTierLimitAgentGuidanceExperiment
-          )
-        : message
+    if (!isFreeTierLimitError) {
+      throw new ErrorClass(message);
+    }
+    const limitMessage = await maybeAppendFreeTierLimitAgentGuidanceAsync(
+      `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
+      platform,
+      freeTierLimitAgentGuidanceExperiment
     );
+    const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
+      limitMessage,
+      freeTierLimitCheckoutExperiment
+    );
+    throw new ErrorClass(limitMessage, { messageAlreadyPrinted });
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -695,7 +706,7 @@ async function handleSingleBuildProgressAsync(
       } else {
         updateSpinnerText(spinner, {
           text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-            formatAccountBillingUrl(accountName)
+            getAccountBillingUrl(accountName)
           )}.`,
         });
       }
@@ -718,7 +729,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
+          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
@@ -908,10 +919,6 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
     return `starting in about ${n}0 minutes...`;
   }
-}
-
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(
