@@ -20,8 +20,7 @@ const MARK_SANDBOX_READY_MUTATION = graphql(`
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
-const MAX_DURATION_SECONDS = Math.floor(2_147_483_647 / 1000);
-const MaxDurationSecondsZ = z.number().int().positive().max(MAX_DURATION_SECONDS).optional();
+const MaxDurationSecondsZ = z.number().positive().optional();
 
 export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -55,7 +54,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       const durationResult = MaxDurationSecondsZ.safeParse(inputs.max_duration_seconds?.value);
       if (!durationResult.success) {
         throw new SystemError(
-          `Invalid sandbox maximum duration: ${String(inputs.max_duration_seconds?.value)}. Provide a whole number from 1 to ${MAX_DURATION_SECONDS} seconds, or omit max_duration_seconds.`,
+          `Invalid sandbox maximum duration: ${String(inputs.max_duration_seconds?.value)}. Provide a finite number greater than zero, or omit max_duration_seconds.`,
           { cause: durationResult.error }
         );
       }
@@ -83,18 +82,18 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
           const timeout =
             maxDurationSeconds === undefined
               ? undefined
-              : setTimeout(() => {
-                  stepCtx.logger.info(
-                    `Sandbox reached its maximum runtime of ${maxDurationSeconds} seconds. Stopping.`
-                  );
-                  timeoutController.abort();
-                }, maxDurationSeconds * 1000);
+              : setTimeout(() => timeoutController.abort(), maxDurationSeconds * 1000);
           try {
             await waitForCompletionAsync(
               signal
                 ? AbortSignal.any([signal, timeoutController.signal])
                 : timeoutController.signal
             );
+            if (timeoutController.signal.aborted) {
+              stepCtx.logger.info(
+                `Sandbox reached its maximum runtime of ${maxDurationSeconds} seconds. Stopping.`
+              );
+            }
           } finally {
             clearTimeout(timeout);
           }

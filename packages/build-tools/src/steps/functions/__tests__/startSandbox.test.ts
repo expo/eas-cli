@@ -6,9 +6,13 @@ import * as sandboxDaemon from '../../utils/sandboxDaemon';
 import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
 
 describe('sandbox build functions', () => {
-  it.each(['duration', 'cancellation'] as const)(
-    'stops after %s and starts the duration timer only after readiness',
-    async completion => {
+  it.each([
+    { completion: 'duration', duration: 60 },
+    { completion: 'cancellation', duration: 60 },
+    { completion: 'duration', duration: 0.5 },
+  ])(
+    'stops after $completion with $duration seconds only after readiness',
+    async ({ completion, duration }) => {
       jest.useFakeTimers();
       const controller = new AbortController();
       let ready!: () => void;
@@ -30,7 +34,7 @@ describe('sandbox build functions', () => {
         const pending = fn.fn!({ logger } as any, {
           inputs: {
             sandbox_id: { value: 'sandbox-id' },
-            max_duration_seconds: { value: 60 },
+            max_duration_seconds: { value: duration },
           },
           outputs: {},
           env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
@@ -40,7 +44,7 @@ describe('sandbox build functions', () => {
         expect(mutation).not.toHaveBeenCalled();
         expect(stopAsync).not.toHaveBeenCalled();
         ready();
-        await jest.advanceTimersByTimeAsync(59_999);
+        await jest.advanceTimersByTimeAsync(duration * 1000 - 1);
         expect(mutation).toHaveBeenCalledTimes(1);
         expect(stopAsync).not.toHaveBeenCalled();
         if (completion === 'duration') {
@@ -51,7 +55,7 @@ describe('sandbox build functions', () => {
         await pending;
         expect(stopAsync).toHaveBeenCalledTimes(1);
         expect(jest.getTimerCount()).toBe(0);
-        const timeoutMessage = 'Sandbox reached its maximum runtime of 60 seconds. Stopping.';
+        const timeoutMessage = `Sandbox reached its maximum runtime of ${duration} seconds. Stopping.`;
         if (completion === 'duration') {
           expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
         } else {
@@ -64,7 +68,7 @@ describe('sandbox build functions', () => {
     }
   );
 
-  it.each([0, -1, 1.5, 2_147_484])(
+  it.each([0, -1, Infinity, NaN])(
     'rejects invalid maximum duration %s before starting the daemon',
     async duration => {
       const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
@@ -82,7 +86,7 @@ describe('sandbox build functions', () => {
             env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
           })
         ).rejects.toThrow(
-          `Invalid sandbox maximum duration: ${duration}. Provide a whole number from 1 to 2147483 seconds, or omit max_duration_seconds.`
+          `Invalid sandbox maximum duration: ${duration}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
         expect(start).not.toHaveBeenCalled();
       } finally {
