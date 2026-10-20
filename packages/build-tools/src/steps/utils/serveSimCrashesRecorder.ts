@@ -491,12 +491,21 @@ async function readCrashDetailAsync(
       return undefined;
     }
     if (!response.ok) {
-      throw new Error(`serve-sim crash detail responded ${response.status}`);
+      // Other 4xx responses will not change on a retry; 408, 429 and 5xx can.
+      const permanent = response.status < 500 && response.status !== 408 && response.status !== 429;
+      throw new (permanent ? UnusableDetailError : Error)(
+        `serve-sim crash detail responded ${response.status}`
+      );
     }
     const body = await response.json().catch(err => {
-      throw (err as { type?: string }).type === 'max-size'
-        ? new UnusableDetailError('Crash detail exceeds 8 MiB')
-        : err;
+      const type = (err as { type?: string }).type;
+      if (type === 'max-size') {
+        throw new UnusableDetailError('Crash detail exceeds 8 MiB');
+      }
+      if (type === 'invalid-json') {
+        throw new UnusableDetailError('Crash detail is not valid JSON');
+      }
+      throw err;
     });
     const detail = DetailSchema.safeParse(body);
     if (!detail.success) {

@@ -279,6 +279,18 @@ it.each([
     (response: ServerResponse) => response.writeHead(500).end(),
   ],
   [
+    'is refused with a permanent 4xx',
+    1,
+    'Could not download crash occurrence 1 for device-A; skipping it.',
+    (response: ServerResponse) => response.writeHead(400).end(),
+  ],
+  [
+    'is not valid JSON',
+    1,
+    'Could not download crash occurrence 1 for device-A; skipping it.',
+    (response: ServerResponse) => response.end('{broken'),
+  ],
+  [
     'exceeds 8 MiB',
     1,
     'Could not download crash occurrence 1 for device-A; skipping it.',
