@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
-import { uploadNetworkCaptureHarsAsync } from '../../utils/networkCaptureArtifacts';
+import { uploadServeSimNetworkCaptureFileAsync } from '../../utils/serveSimNetworkCaptureArtifacts';
 import { ServeSimNetworkCaptureRecorder } from '../../utils/serveSimNetworkCaptureRecorder';
 import { createCollectServeSimNetworkCaptureBuildFunction } from '../collectServeSimNetworkCapture';
-import { createRecordServeSimNetworkCaptureBuildFunction } from '../recordServeSimNetworkCapture';
+import { createStartServeSimNetworkCaptureBuildFunction } from '../startServeSimNetworkCapture';
 
 jest.mock('../../../sentry');
-jest.mock('../../utils/networkCaptureArtifacts');
+jest.mock('../../utils/serveSimNetworkCaptureArtifacts');
 jest.mock('../../utils/serveSimNetworkCaptureRecorder');
 
 const ctx = {} as CustomBuildContext;
@@ -35,8 +35,8 @@ beforeEach(() => {
 });
 
 it('starts the recorder with the session package version and never fails the step', async () => {
-  const buildFunction = createRecordServeSimNetworkCaptureBuildFunction();
-  expect(buildFunction.id).toBe('record_serve_sim_network_capture');
+  const buildFunction = createStartServeSimNetworkCaptureBuildFunction();
+  expect(buildFunction.id).toBe('start_serve_sim_network_capture');
   const { fn } = buildFunction as unknown as { fn: Fn };
   const env = {} as BuildStepEnv;
   await runFn(fn, { env, inputs: { package_version: { value: '0.5.0' } } });
@@ -56,21 +56,23 @@ it('starts the recorder with the session package version and never fails the ste
   );
 });
 
-it('uploads the recorded HARs, then removes the recording directory', async () => {
+it('uploads each recorded HAR as a numbered part per device, then removes the directory', async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'serve-sim-network-capture-'));
   const captures = [
     { udid: 'SIM-A', filePath: path.join(outputDirectory, 'SIM-A-1.har'), size: 24 },
+    { udid: 'SIM-B', filePath: path.join(outputDirectory, 'SIM-B-1.har'), size: 25 },
+    { udid: 'SIM-A', filePath: path.join(outputDirectory, 'SIM-A-3.har'), size: 26 },
   ];
   jest
     .mocked(ServeSimNetworkCaptureRecorder.finishAsync)
     .mockResolvedValueOnce({ outputDirectory, captures });
   const { fn } = createCollectServeSimNetworkCaptureBuildFunction(ctx) as unknown as { fn: Fn };
   await runFn(fn, { env: { DEVICE_RUN_SESSION_ID: 'drs-id' } as BuildStepEnv });
-  expect(uploadNetworkCaptureHarsAsync).toHaveBeenCalledWith(ctx, {
-    deviceRunSessionId: 'drs-id',
-    captures,
-    logger,
-  });
+  expect(jest.mocked(uploadServeSimNetworkCaptureFileAsync).mock.calls).toEqual([
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[0], part: 1, logger }],
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[1], part: 1, logger }],
+    [ctx, { deviceRunSessionId: 'drs-id', ...captures[2], part: 2, logger }],
+  ]);
   await expect(access(outputDirectory)).rejects.toThrow();
 });
 
@@ -82,7 +84,7 @@ it('does not fail the step without a device run session, and still removes the d
   });
   const { fn } = createCollectServeSimNetworkCaptureBuildFunction(ctx) as unknown as { fn: Fn };
   await expect(runFn(fn, { env: {} as BuildStepEnv })).resolves.toBeUndefined();
-  expect(uploadNetworkCaptureHarsAsync).not.toHaveBeenCalled();
+  expect(uploadServeSimNetworkCaptureFileAsync).not.toHaveBeenCalled();
   expect(logger.warn).toHaveBeenCalledWith(
     { err: expect.any(Error) },
     'Could not upload the network capture.'
@@ -96,6 +98,6 @@ it('skips the upload when nothing was recorded', async () => {
     .mockResolvedValueOnce({ outputDirectory: null, captures: [] });
   const { fn } = createCollectServeSimNetworkCaptureBuildFunction(ctx) as unknown as { fn: Fn };
   await runFn(fn, { env: { DEVICE_RUN_SESSION_ID: 'drs-id' } as BuildStepEnv });
-  expect(uploadNetworkCaptureHarsAsync).not.toHaveBeenCalled();
+  expect(uploadServeSimNetworkCaptureFileAsync).not.toHaveBeenCalled();
   expect(logger.info).toHaveBeenCalledWith('No network capture was recorded; skipping upload.');
 });

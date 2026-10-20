@@ -1,5 +1,6 @@
 import { bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
+import { writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -31,12 +32,18 @@ async function writeServerAsync(udid: string, state: Record<string, unknown>): P
   );
 }
 
+/** Writes what `capture har` leaves: a HAR, and its entry log with one line per request. */
+function record(harPath: string, entries: number): void {
+  writeFileSync(harPath, JSON.stringify({ log: { entries: Array(entries).fill({}) } }));
+  writeFileSync(harPath.replace(/\.har$/, '.entries.ndjson'), '{}\n'.repeat(entries));
+}
+
 function followerArgs(): string[][] {
   return jest.mocked(spawnDetached).mock.calls.map(([options]) => options.args);
 }
 
 async function waitForFollowersAsync(count: number): Promise<void> {
-  for (let i = 0; i < 100 && jest.mocked(spawnDetached).mock.calls.length < count; i++) {
+  for (let i = 0; i < 300 && jest.mocked(spawnDetached).mock.calls.length < count; i++) {
     await delay(10);
   }
   expect(spawnDetached).toHaveBeenCalledTimes(count);
@@ -86,7 +93,7 @@ it('starts one capture har follower per serve-sim that can serve capture routes'
     '-d',
     'SIM-A',
   ]);
-  expect(options.stopGracePeriodMs).toBe(15_000);
+  expect(options.stopGracePeriodMs).toBe(60_000);
 });
 
 it('starts a new follower only when serve-sim restarts for the device', async () => {
@@ -117,13 +124,16 @@ it('starts a new follower only when serve-sim restarts for the device', async ()
   ]);
 });
 
-it('stops every follower and returns only the HARs that hold a recording', async () => {
+it('stops every follower and returns only the HARs that hold requests', async () => {
   await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
   await writeServerAsync('SIM-B', { url: 'http://127.0.0.1:4200', token: 'token-b' });
   await ServeSimNetworkCaptureRecorder.startAsync({ logger, env, stateDir, pollIntervalMs: 10 });
   await waitForFollowersAsync(2);
   const recorded = followerArgs().find(args => args.includes('SIM-A'))!;
-  await writeFile(recorded[recorded.indexOf('-o') + 1], '{"log":{"entries":[{}]}}');
+  record(recorded[recorded.indexOf('-o') + 1], 1);
+  // serve-sim writes an empty HAR when recording begins, before any request.
+  const empty = followerArgs().find(args => args.includes('SIM-B'))!;
+  record(empty[empty.indexOf('-o') + 1], 0);
 
   const { outputDirectory, captures } = await ServeSimNetworkCaptureRecorder.finishAsync({
     logger,
@@ -190,13 +200,13 @@ describe('restarting followers', () => {
       env,
       stateDir,
       pollIntervalMs: 10,
-      restartIntervalMs: 30,
+      idleRestartIntervalMs: 30,
     });
     await waitForFollowersAsync(1);
     exits[0] = new Error('Process exited with code 1.');
     await waitForFollowersAsync(2);
     expect(outPath(1)).toMatch(/SIM-A-2\.har$/);
-    await writeFile(outPath(1), '{"log":{"entries":[{}]}}');
+    record(outPath(1), 1);
 
     const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
     expect(captures).toEqual([{ udid: 'SIM-A', filePath: outPath(1), size: 24 }]);
@@ -213,10 +223,10 @@ describe('restarting followers', () => {
       restartIntervalMs: 30,
     });
     await waitForFollowersAsync(1);
-    await writeFile(outPath(0), '{"log":{"entries":[{},{}]}}');
+    record(outPath(0), 2);
     exits[0] = new Error('Process exited with code 1.');
     await waitForFollowersAsync(2);
-    await writeFile(outPath(1), '{"log":{"entries":[{}]}}');
+    record(outPath(1), 1);
 
     const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
     expect(captures).toEqual([
@@ -225,50 +235,52 @@ describe('restarting followers', () => {
     ]);
   });
 
-  it("keeps another device's follower when a device's restart fails to spawn", async () => {
-    await writeServerAsync('SIM-B', { url: 'http://127.0.0.1:4200', token: 'token-b' });
+  it('waits longer to replace a follower that recorded nothing than one that recorded requests', async () => {
+    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
     await ServeSimNetworkCaptureRecorder.startAsync({
       logger,
       env,
       stateDir,
       pollIntervalMs: 10,
       restartIntervalMs: 30,
-    });
-    await waitForFollowersAsync(1);
-    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
-    await waitForFollowersAsync(2);
-    const simA = followerArgs().findIndex(args => args.includes('SIM-A'));
-    await writeFile(outPath(simA), '{"log":{"entries":[{}]}}');
-    const simB = followerArgs().findIndex(args => args.includes('SIM-B'));
-    const spawnFollower = jest.mocked(spawnDetached).getMockImplementation()!;
-    jest.mocked(spawnDetached).mockImplementationOnce(() => {
-      throw new Error('spawn EAGAIN');
-    });
-    exits[simB] = new Error('Process exited with code 1.');
-    await waitForFollowersAsync(4);
-    expect(jest.mocked(spawnDetached).getMockImplementation()).toBe(spawnFollower);
-
-    const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
-    expect(captures).toEqual([{ udid: 'SIM-A', filePath: outPath(simA), size: 24 }]);
-  });
-
-  it('waits the restart interval before starting another follower', async () => {
-    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
-    await ServeSimNetworkCaptureRecorder.startAsync({
-      logger,
-      env,
-      stateDir,
-      pollIntervalMs: 10,
-      restartIntervalMs: 60_000,
+      idleRestartIntervalMs: 60_000,
     });
     await waitForFollowersAsync(1);
     exits[0] = new Error('Process exited with code 1.');
     await delay(100);
     expect(spawnDetached).toHaveBeenCalledTimes(1);
+
+    record(outPath(0), 1);
+    await waitForFollowersAsync(2);
+  });
+
+  it('stops starting followers once 20 HARs hold requests', async () => {
+    jest.mocked(spawnDetached).mockImplementation(({ args }) => {
+      record(args[args.indexOf('-o') + 1], 1);
+      return {
+        pid: 1234,
+        getOutput: () => '',
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopFollower,
+      };
+    });
+    await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+    await ServeSimNetworkCaptureRecorder.startAsync({
+      logger,
+      env,
+      stateDir,
+      pollIntervalMs: 1,
+      restartIntervalMs: 0,
+    });
+    await waitForFollowersAsync(20);
+    await delay(50);
+    expect(spawnDetached).toHaveBeenCalledTimes(20);
+    const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+    expect(captures).toHaveLength(20);
   });
 });
 
-it('keeps polling after a follower fails to start, and retries after the restart interval', async () => {
+it('keeps polling after a follower fails to start, and retries on the next poll', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(() => {
     throw new Error('spawn EAGAIN');
   });
@@ -278,7 +290,8 @@ it('keeps polling after a follower fails to start, and retries after the restart
     env,
     stateDir,
     pollIntervalMs: 10,
-    restartIntervalMs: 50,
+    restartIntervalMs: 60_000,
+    idleRestartIntervalMs: 60_000,
   });
   await waitForFollowersAsync(2);
   expect(logger.warn).toHaveBeenCalledWith(
@@ -288,7 +301,7 @@ it('keeps polling after a follower fails to start, and retries after the restart
   expect(followerArgs()[1]).toContainEqual(expect.stringMatching(/SIM-A-2\.har$/));
 });
 
-it('bounds repeated empty failures, warns once, and retries a new server identity', async () => {
+it('bounds followers that record nothing, warns once, and retries a new server identity', async () => {
   jest.mocked(spawnDetached).mockImplementation(() => ({
     pid: 1234,
     getOutput: () => 'npm error: the requested serve-sim package was not found',
@@ -301,11 +314,12 @@ it('bounds repeated empty failures, warns once, and retries a new server identit
     env,
     stateDir,
     pollIntervalMs: 1,
-    restartIntervalMs: 0,
+    idleRestartIntervalMs: 0,
   });
-  await waitForFollowersAsync(20);
+  // Runs that recorded nothing do not use up the 20 HARs that may hold requests.
+  await waitForFollowersAsync(120);
   await delay(50);
-  expect(spawnDetached).toHaveBeenCalledTimes(20);
+  expect(spawnDetached).toHaveBeenCalledTimes(120);
   const warnings = jest
     .mocked(logger.warn)
     .mock.calls.filter(([, message]) =>
@@ -314,7 +328,7 @@ it('bounds repeated empty failures, warns once, and retries a new server identit
   expect(warnings).toEqual([
     [
       { output: 'npm error: the requested serve-sim package was not found' },
-      'Stopped retrying network capture for SIM-A after 20 attempts; recorded captures will be retained.',
+      'Stopped retrying network capture for SIM-A after 120 attempts; recorded captures will be retained.',
     ],
   ]);
 
@@ -325,10 +339,10 @@ it('bounds repeated empty failures, warns once, and retries a new server identit
     stopAsync: stopFollower,
   }));
   await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'new-token' });
-  await waitForFollowersAsync(21);
+  await waitForFollowersAsync(121);
   await delay(50);
-  expect(spawnDetached).toHaveBeenCalledTimes(21);
-  expect(followerArgs()[20]).toContainEqual(expect.stringMatching(/SIM-A-21\.har$/));
+  expect(spawnDetached).toHaveBeenCalledTimes(121);
+  expect(followerArgs()[120]).toContainEqual(expect.stringMatching(/SIM-A-121\.har$/));
 });
 
 it('keeps a running empty follower waiting without spending more attempts', async () => {
@@ -339,6 +353,7 @@ it('keeps a running empty follower waiting without spending more attempts', asyn
     stateDir,
     pollIntervalMs: 1,
     restartIntervalMs: 0,
+    idleRestartIntervalMs: 0,
   });
   await waitForFollowersAsync(1);
   await delay(50);
