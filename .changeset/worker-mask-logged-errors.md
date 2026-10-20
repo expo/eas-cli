@@ -2,4 +2,4 @@
 '@expo/worker': patch
 ---
 
-Mask secrets in the error details of uploaded job logs, not only in log messages.
+Mask secrets in every field of uploaded job log records, such as logged errors, not only in log messages.

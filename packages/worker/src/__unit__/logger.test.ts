@@ -185,43 +185,98 @@ describe('logger', () => {
     expect(logs.map(log => log.msg)).toEqual(['token: ***************, prefix: ***']);
   });
 
-  it('obfuscates secrets in logged errors, including when the message is empty', async () => {
-    const { logger, outputStream, logBuffer } = await createBuildLoggerWithSecretsFilter({
-      environmentSecrets: [
-        { name: 'TOKEN', value: 'secret-token', type: EnvironmentSecretType.STRING },
-      ],
+  describe('structured fields', () => {
+    async function logWithSecretAsync(
+      log: (
+        logger: Awaited<ReturnType<typeof createBuildLoggerWithSecretsFilter>>['logger']
+      ) => void
+    ): Promise<any[]> {
+      const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({
+        environmentSecrets: [
+          { name: 'TOKEN', value: 'secret-token', type: EnvironmentSecretType.STRING },
+          { name: 'PIN', value: '123456789', type: EnvironmentSecretType.STRING },
+        ],
+      });
+      const logs: any[] = [];
+      outputStream.pipe(
+        new Writable({
+          objectMode: true,
+          write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+            logs.push(chunk);
+            callback(null, chunk);
+          },
+        })
+      );
+      log(logger);
+      await waitForStreamFlush();
+      // The upload streams send JSON.stringify(record).
+      for (const record of logs) {
+        expect(JSON.stringify(record)).not.toContain('secret-token');
+        expect(JSON.stringify(record)).not.toContain('123456789');
+      }
+      return logs;
+    }
+
+    it('masks errors, including when the message is empty', async () => {
+      const err = new Error('git clone https://secret-token@github.com/acme/app failed');
+      const logs = await logWithSecretAsync(logger => {
+        logger.error({ err }, '');
+        logger.error({ err });
+      });
+
+      expect(logs).toHaveLength(2);
+      for (const log of logs) {
+        expect(log.err.message).toBe('git clone https://************@github.com/acme/app failed');
+        expect(log.err.stack).toContain(
+          'git clone https://************@github.com/acme/app failed'
+        );
+      }
+      expect(logs[0].msg).toBe('');
+      expect(logs[1].msg).toBe('git clone https://************@github.com/acme/app failed');
     });
 
-    const logs: any[] = [];
-    outputStream.pipe(
-      new Writable({
-        objectMode: true,
-        write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
-          logs.push(chunk);
-          callback(null, chunk);
-        },
-      })
-    );
+    it('masks other fields, keys and numbers, and keeps metadata fields', async () => {
+      const job = { env: { TOKEN_COPY: 'secret-token', 'secret-token': 'key', PIN: 123456789 } };
+      const logs = await logWithSecretAsync(logger => {
+        logger.info({ job, source: 'stdout', buildStepId: 'step-1' }, 'Builder is ready');
+      });
 
-    const err = new Error('git clone https://secret-token@github.com/acme/app failed');
-    logger.error({ err }, '');
-    logger.error({ err });
-    logger.error({ err: 'raw secret-token value' }, 'non-error value');
+      expect(logs[0].job).toEqual({
+        env: { TOKEN_COPY: '************', '************': 'key', PIN: '*********' },
+      });
+      expect(logs[0].source).toBe('stdout');
+      expect(logs[0].buildStepId).toBe('step-1');
+      // The caller's object, which bunyan also hands to other streams, is not changed.
+      expect(job.env.TOKEN_COPY).toBe('secret-token');
+    });
 
-    await waitForStreamFlush();
+    it('masks what a toJSON method returns', async () => {
+      const logs = await logWithSecretAsync(logger => {
+        logger.error(
+          {
+            err: {
+              token: 'secret-token',
+              toJSON: () => ({ token: 'secret-token', at: new Date(0) }),
+            },
+          },
+          'failed'
+        );
+      });
 
-    expect(logs).toHaveLength(3);
-    for (const log of logs.slice(0, 2)) {
-      expect(log.err.message).toBe('git clone https://************@github.com/acme/app failed');
-      expect(log.err.stack).toContain('git clone https://************@github.com/acme/app failed');
-      expect(log.err.stack).not.toContain('secret-token');
-    }
-    expect(logs[0].msg).toBe('');
-    expect(logs[1].msg).toBe('git clone https://************@github.com/acme/app failed');
-    expect(logs[2].err).toBe('raw ************ value');
-    // The original error object is not mutated.
-    expect(err.message).toBe('git clone https://secret-token@github.com/acme/app failed');
-    expect(logBuffer.getLogs()).toEqual([]);
+      expect(logs[0].err).toEqual({ token: '************', at: '1970-01-01T00:00:00.000Z' });
+    });
+
+    it('truncates deeply nested values instead of uploading them unmasked', async () => {
+      let nested: any = { token: 'secret-token' };
+      for (let index = 0; index < 30; index++) {
+        nested = { nested };
+      }
+      const logs = await logWithSecretAsync(logger => {
+        logger.error({ err: nested }, 'failed');
+      });
+
+      expect(JSON.stringify(logs[0].err)).toContain('[Truncated]');
+    });
   });
 
   it('adds logId to each log', async () => {
