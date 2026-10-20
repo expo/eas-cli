@@ -28,7 +28,7 @@ export function createCollectServeSimCrashesBuildFunction(ctx: CustomBuildContex
         const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
         for (const udid of new Set(collected.crashes.map(crash => crash.udid))) {
           const signal = AbortSignal.timeout(UPLOAD_TIMEOUT_MS);
-          for (const { filePath } of collected.crashes.filter(crash => crash.udid === udid)) {
+          for (const crash of collected.crashes.filter(crash => crash.udid === udid)) {
             if (signal.aborted) {
               logger.warn(
                 `Simulator crash upload reached its time limit for ${udid}; remaining reports will not be uploaded.`
@@ -37,8 +37,7 @@ export function createCollectServeSimCrashesBuildFunction(ctx: CustomBuildContex
             }
             await uploadServeSimCrashesFileAsync(ctx, {
               deviceRunSessionId,
-              udid,
-              filePath,
+              crash,
               logger,
               signal,
             });

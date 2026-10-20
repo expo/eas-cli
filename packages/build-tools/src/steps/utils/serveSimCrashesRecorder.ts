@@ -1,6 +1,5 @@
 import { type bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
-import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,19 +10,31 @@ import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetrics
 
 const MAX_BYTES_PER_DEVICE = 20 * 1024 * 1024;
 const MAX_REPORTS_PER_DEVICE = 1_000;
-const MAX_SKIPPED_OCCURRENCES = 1_000;
 const MAX_CONSECUTIVE_FAILURES = 10;
 const MAX_FRAME_LENGTH = 1024 * 1024;
+const MAX_DETAIL_BYTES = 8 * 1024 * 1024;
+// serve-sim lists a crash about 5 s after it happens, once ReportCrash has written the report,
+// so stopping checks each device once more for occurrences the stream had not delivered yet.
+const FINAL_PASS_TIMEOUT_MS = 10_000;
 
 const SummarySchema = z.object({
   id: z.string(),
-  occurrenceTimes: z.array(z.object({ key: z.number().int().nonnegative() })),
+  appName: z.string().nullable().optional(),
+  procName: z.string().nullable().optional(),
+  occurrenceTimes: z.array(
+    z.object({
+      key: z.number().int().nonnegative(),
+      capturedAtMs: z.number().nullable().optional(),
+      rawPath: z.string().optional(),
+    })
+  ),
 });
 const FrameSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('meta'), meta: z.object({ statusError: z.string().nullable() }) }),
   z.object({ type: z.literal('list'), crashes: z.array(SummarySchema) }),
   z.object({ type: z.enum(['crash', 'recurred']), record: SummarySchema }),
 ]);
+const ListSchema = z.object({ crashes: z.array(SummarySchema) });
 const DetailSchema = z.object({
   record: z.object({ id: z.string() }),
   occurrence: z.object({
@@ -33,24 +44,38 @@ const DetailSchema = z.object({
   report: z.string().nullable(),
 });
 
-type CollectedCrash = { udid: string; filePath: string };
+type ServeSimServer = { udid: string; url: string; token?: string };
+export type CollectedCrash = {
+  udid: string;
+  filePath: string;
+  size: number;
+  number: number;
+  processName?: string;
+};
 type FinishedCrashes = { outputDirectory: string | null; crashes: CollectedCrash[] };
 type Device = {
-  identity: string;
-  seen: Set<string>;
-  skipped: Set<string>;
+  // The latest registry entry; unset while the server is absent, so its return counts as new.
+  server?: ServeSimServer;
+  identity?: string;
+  // Occurrences saved or skipped; reconnects replay the retained list and must not retry them.
+  handled: Set<string>;
   incidents: Set<string>;
   bytesWritten: number;
   reportsWritten: number;
   limitReached: boolean;
   failures: number;
+  stoppedRetrying: boolean;
+  warnedStatusError: boolean;
 };
 type Session = {
-  initialization: Promise<string>;
+  outputDirectory: string;
+  logger: bunyan;
+  maxBytes: number;
   controller: AbortController;
   timer: NodeJS.Timeout;
   polling: Promise<void>;
   streams: Map<string, Promise<void>>;
+  devices: Map<string, Device>;
   files: CollectedCrash[];
   stopping?: Promise<void>;
   finishing?: Promise<FinishedCrashes>;
@@ -72,12 +97,13 @@ export namespace ServeSimCrashesRecorder {
     maxDurationMs?: number;
   }): Promise<void> {
     if (activeSession) {
-      await activeSession.initialization;
       return;
     }
     const controller = new AbortController();
     const session: Session = {
-      initialization: mkdtemp(path.join(os.tmpdir(), 'serve-sim-crashes-')),
+      outputDirectory: await mkdtemp(path.join(os.tmpdir(), 'serve-sim-crashes-')),
+      logger,
+      maxBytes,
       controller,
       timer: setTimeout(() => {
         logger.warn(
@@ -87,29 +113,19 @@ export namespace ServeSimCrashesRecorder {
       }, maxDurationMs),
       polling: Promise.resolve(),
       streams: new Map(),
+      devices: new Map(),
       files: [],
     };
     session.timer.unref();
     activeSession = session;
-    let outputDirectory: string;
-    try {
-      outputDirectory = await session.initialization;
-    } catch (error) {
-      clearTimeout(session.timer);
-      controller.abort();
-      if (activeSession === session) {
-        activeSession = undefined;
-      }
-      throw error;
-    }
     session.polling = (async () => {
-      const devices = new Map<string, Device>();
       while (!controller.signal.aborted) {
         const servers = await readServeSimServersAsync(stateDir);
         const present = new Set(servers.map(server => server.udid));
-        for (const [udid, device] of devices) {
+        for (const [udid, device] of session.devices) {
           if (!present.has(udid)) {
-            device.failures = 0;
+            device.server = undefined;
+            device.identity = undefined;
           }
         }
         for (const server of servers) {
@@ -119,59 +135,43 @@ export namespace ServeSimCrashesRecorder {
           if (session.streams.has(server.udid)) {
             continue;
           }
+          const device = getDevice(session, server.udid);
           const identity = JSON.stringify([server.url, server.token]);
-          let device = devices.get(server.udid);
-          if (!device) {
-            device = {
-              identity,
-              seen: new Set(),
-              skipped: new Set(),
-              incidents: new Set(),
-              bytesWritten: 0,
-              reportsWritten: 0,
-              limitReached: false,
-              failures: 0,
-            };
-            devices.set(server.udid, device);
-          } else if (device.identity !== identity) {
+          device.server = server;
+          if (device.identity !== identity) {
             device.identity = identity;
-            device.seen.clear();
-            device.skipped.clear();
             device.failures = 0;
+            device.stoppedRetrying = false;
           }
-          if (device.limitReached) {
+          if (device.limitReached || device.stoppedRetrying) {
             continue;
           }
           if (device.failures >= MAX_CONSECUTIVE_FAILURES) {
-            if (device.failures === MAX_CONSECUTIVE_FAILURES) {
-              logger.warn(
-                `Stopped retrying simulator crash collection for ${server.udid} after ${MAX_CONSECUTIVE_FAILURES} failed connections; collected reports will be retained.`
-              );
-              device.failures += 1;
-            }
+            device.stoppedRetrying = true;
+            logger.warn(
+              `Stopped retrying simulator crash collection for ${server.udid} after ${MAX_CONSECUTIVE_FAILURES} failed connections; collected reports will be retained.`
+            );
             continue;
           }
           device.failures += 1;
-          const done = recordServeSimCrashesAsync({
-            server,
-            outputDirectory,
-            device,
-            signal: controller.signal,
-            logger,
-            maxBytes,
-            onRecorded: filePath => session.files.push({ udid: server.udid, filePath }),
-          }).finally(() => session.streams.delete(server.udid));
+          const done = streamServeSimCrashesAsync(session, server, device).finally(() =>
+            session.streams.delete(server.udid)
+          );
           session.streams.set(server.udid, done);
         }
         await delay(pollIntervalMs, undefined, { signal: controller.signal }).catch(() => {});
       }
-    })().catch(() => {
-      logger.warn('Could not collect simulator crashes; collected reports will be retained.');
+    })().catch(err => {
+      logger.warn(
+        { err },
+        'Could not collect simulator crashes; collected reports will be retained.'
+      );
       controller.abort();
     });
     logger.info('Started collecting simulator crashes (up to 20 MiB per device and 30 minutes).');
   }
 
+  /** Never rejects. */
   export async function stopAsync(): Promise<void> {
     const session = activeSession;
     if (!session) {
@@ -180,9 +180,9 @@ export namespace ServeSimCrashesRecorder {
     session.stopping ??= (async () => {
       clearTimeout(session.timer);
       session.controller.abort();
-      await session.initialization.catch(() => {});
       await session.polling;
       await Promise.all(session.streams.values());
+      await collectRemainingCrashesAsync(session);
     })();
     await session.stopping;
   }
@@ -195,7 +195,7 @@ export namespace ServeSimCrashesRecorder {
     }
     session.finishing = (async () => {
       await stopAsync();
-      return { outputDirectory: await session.initialization, crashes: session.files };
+      return { outputDirectory: session.outputDirectory, crashes: session.files };
     })();
     try {
       return await session.finishing;
@@ -207,23 +207,31 @@ export namespace ServeSimCrashesRecorder {
   }
 }
 
-async function recordServeSimCrashesAsync({
-  server,
-  outputDirectory,
-  device,
-  signal,
-  logger,
-  maxBytes,
-  onRecorded,
-}: {
-  server: { udid: string; url: string; token?: string };
-  outputDirectory: string;
-  device: Device;
-  signal: AbortSignal;
-  logger: bunyan;
-  maxBytes: number;
-  onRecorded: (filePath: string) => void;
-}): Promise<void> {
+function getDevice(session: Session, udid: string): Device {
+  let device = session.devices.get(udid);
+  if (!device) {
+    device = {
+      handled: new Set(),
+      incidents: new Set(),
+      bytesWritten: 0,
+      reportsWritten: 0,
+      limitReached: false,
+      failures: 0,
+      stoppedRetrying: false,
+      warnedStatusError: false,
+    };
+    session.devices.set(udid, device);
+  }
+  return device;
+}
+
+async function streamServeSimCrashesAsync(
+  session: Session,
+  server: ServeSimServer,
+  device: Device
+): Promise<void> {
+  const { logger } = session;
+  const signal = session.controller.signal;
   const controller = new AbortController();
   try {
     const url = new URL('/crashes', server.url);
@@ -241,11 +249,11 @@ async function recordServeSimCrashesAsync({
       !response.body ||
       !response.headers.get('content-type')?.includes('text/event-stream')
     ) {
-      throw new Error('Crash stream unavailable');
+      throw new Error(`serve-sim /crashes responded ${response.status}`);
     }
     const decoder = new TextDecoder();
     let buffer = '';
-    stream: for await (const chunk of response.body) {
+    for await (const chunk of response.body) {
       buffer += decoder.decode(chunk as Buffer, { stream: true });
       let newline: number;
       while ((newline = buffer.indexOf('\n')) !== -1) {
@@ -262,7 +270,8 @@ async function recordServeSimCrashesAsync({
           continue;
         }
         if (frame.data.type === 'meta') {
-          if (frame.data.meta.statusError) {
+          if (frame.data.meta.statusError && !device.warnedStatusError) {
+            device.warnedStatusError = true;
             logger.warn(
               'serve-sim cannot watch crash reports; crash collection will resume when the watcher recovers.'
             );
@@ -270,67 +279,9 @@ async function recordServeSimCrashesAsync({
           continue;
         }
         const summaries = frame.data.type === 'list' ? frame.data.crashes : [frame.data.record];
-        for (const summary of summaries) {
-          for (const occurrence of summary.occurrenceTimes) {
-            if (signal.aborted) {
-              break stream;
-            }
-            const key = JSON.stringify([summary.id, occurrence.key]);
-            if (device.seen.has(key) || device.skipped.has(key)) {
-              continue;
-            }
-            const detailUrl = new URL(`/crashes/${encodeURIComponent(summary.id)}`, server.url);
-            detailUrl.searchParams.set('device', server.udid);
-            detailUrl.searchParams.set('key', String(occurrence.key));
-            const detail = await readCrashDetailAsync(detailUrl, server.token);
-            if (!detail) {
-              logger.warn(
-                `Crash occurrence ${occurrence.key} is no longer available for ${server.udid}; earlier reports will be retained.`
-              );
-              continue;
-            }
-            if (detail.record.id !== summary.id || detail.occurrence.key !== occurrence.key) {
-              throw new Error('Crash detail does not match the requested occurrence');
-            }
-            const { incidentId } = detail.occurrence;
-            if (incidentId && device.incidents.has(incidentId)) {
-              rememberSkippedOccurrence(device.skipped, key);
-              continue;
-            }
-            const size = Buffer.byteLength(detail.report ?? '');
-            if (
-              device.bytesWritten + size > maxBytes ||
-              device.reportsWritten >= MAX_REPORTS_PER_DEVICE
-            ) {
-              device.limitReached = true;
-              logger.warn(
-                `Simulator crash collection reached its limit for ${server.udid}; collected reports will be retained.`
-              );
-              break stream;
-            }
-            if (!detail.report) {
-              rememberSkippedOccurrence(device.skipped, key);
-              logger.warn(
-                `Crash occurrence ${occurrence.key} has no native report for ${server.udid}; skipping its artifact.`
-              );
-              continue;
-            }
-            const filePath = path.join(outputDirectory, `${randomUUID()}.ips`);
-            try {
-              await writeFile(filePath, detail.report, { mode: 0o600, flag: 'wx' });
-            } catch (error) {
-              await rm(filePath, { force: true }).catch(() => {});
-              throw error;
-            }
-            device.bytesWritten += size;
-            device.reportsWritten += 1;
-            device.seen.add(key);
-            if (incidentId) {
-              device.incidents.add(incidentId);
-            }
-            device.failures = 0;
-            onRecorded(filePath);
-          }
+        await saveOccurrencesAsync(session, server, device, summaries, { stop: signal });
+        if (signal.aborted || device.limitReached) {
+          return;
         }
         device.failures = 0;
       }
@@ -338,41 +289,181 @@ async function recordServeSimCrashesAsync({
         throw new Error('Crash frame exceeded limit');
       }
     }
-  } catch {
+  } catch (err) {
     if (!signal.aborted) {
-      logger.warn(`Simulator crash stream for ${server.udid} ended; collection will be retried.`);
+      logger.warn(
+        { err },
+        `Simulator crash stream for ${server.udid} ended; collection will be retried.`
+      );
     }
   } finally {
     controller.abort();
   }
 }
 
-function rememberSkippedOccurrence(skipped: Set<string>, key: string): void {
-  skipped.add(key);
-  if (skipped.size > MAX_SKIPPED_OCCURRENCES) {
-    skipped.delete(skipped.values().next().value!);
+/** One look at each device's crash list, for occurrences the stream had not delivered. */
+async function collectRemainingCrashesAsync(session: Session): Promise<void> {
+  const signal = AbortSignal.timeout(FINAL_PASS_TIMEOUT_MS);
+  await Promise.all(
+    [...session.devices.values()].map(async device => {
+      const { server } = device;
+      if (!server || device.limitReached) {
+        return;
+      }
+      try {
+        const url = new URL('/crashes', server.url);
+        url.searchParams.set('device', server.udid);
+        const response = await fetch(url.toString(), {
+          redirect: 'error',
+          signal,
+          headers: {
+            Accept: 'application/json',
+            ...(server.token ? { Authorization: `Bearer ${server.token}` } : {}),
+          },
+        });
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
+          throw new Error(`serve-sim /crashes responded ${response.status}`);
+        }
+        const { crashes } = ListSchema.parse(await response.json());
+        await saveOccurrencesAsync(session, server, device, crashes, {
+          stop: signal,
+          deadline: signal,
+        });
+      } catch (err) {
+        session.logger.warn(
+          { err },
+          `Could not check ${server.udid} for crashes before the session ended; collected reports will be retained.`
+        );
+      }
+    })
+  );
+}
+
+async function saveOccurrencesAsync(
+  session: Session,
+  server: ServeSimServer,
+  device: Device,
+  summaries: z.infer<typeof SummarySchema>[],
+  // `stop` ends the loop between occurrences; `deadline` also aborts a download in progress.
+  { stop, deadline }: { stop: AbortSignal; deadline?: AbortSignal }
+): Promise<void> {
+  const { logger } = session;
+  for (const summary of summaries) {
+    for (const occurrence of summary.occurrenceTimes) {
+      if (stop.aborted || device.limitReached) {
+        return;
+      }
+      // Keys restart when serve-sim does; the capture time and report path tell such occurrences apart.
+      const key = JSON.stringify([
+        summary.id,
+        occurrence.key,
+        occurrence.capturedAtMs ?? null,
+        occurrence.rawPath ?? null,
+      ]);
+      if (device.handled.has(key)) {
+        continue;
+      }
+      let detail: z.infer<typeof DetailSchema> | undefined;
+      try {
+        detail = await readCrashDetailAsync(server, summary.id, occurrence.key, deadline);
+      } catch (err) {
+        if (deadline?.aborted) {
+          return;
+        }
+        device.handled.add(key);
+        logger.warn(
+          { err },
+          `Could not download crash occurrence ${occurrence.key} for ${server.udid}; skipping it.`
+        );
+        continue;
+      }
+      device.handled.add(key);
+      if (!detail) {
+        logger.warn(
+          `Crash occurrence ${occurrence.key} is no longer available for ${server.udid}; earlier reports will be retained.`
+        );
+        continue;
+      }
+      const { incidentId } = detail.occurrence;
+      if (incidentId && device.incidents.has(incidentId)) {
+        continue;
+      }
+      if (!detail.report) {
+        logger.warn(
+          `Crash occurrence ${occurrence.key} has no native report for ${server.udid}; skipping its artifact.`
+        );
+        continue;
+      }
+      const size = Buffer.byteLength(detail.report);
+      if (
+        device.bytesWritten + size > session.maxBytes ||
+        device.reportsWritten >= MAX_REPORTS_PER_DEVICE
+      ) {
+        device.limitReached = true;
+        logger.warn(
+          `Simulator crash collection reached its limit for ${server.udid}; collected reports will be retained.`
+        );
+        return;
+      }
+      const number = device.reportsWritten + 1;
+      const filePath = path.join(session.outputDirectory, `${server.udid}-${number}.ips`);
+      try {
+        await writeFile(filePath, detail.report, { mode: 0o600, flag: 'wx' });
+      } catch (error) {
+        device.handled.delete(key);
+        await rm(filePath, { force: true }).catch(() => {});
+        throw error;
+      }
+      device.bytesWritten += size;
+      device.reportsWritten = number;
+      if (incidentId) {
+        device.incidents.add(incidentId);
+      }
+      const processName = summary.appName ?? summary.procName ?? undefined;
+      session.files.push({
+        udid: server.udid,
+        filePath,
+        size,
+        number,
+        ...(processName ? { processName } : {}),
+      });
+    }
   }
 }
 
+/** Resolves `undefined` when serve-sim no longer keeps the occurrence. */
 async function readCrashDetailAsync(
-  url: URL,
-  token?: string
+  server: ServeSimServer,
+  id: string,
+  key: number,
+  deadline?: AbortSignal
 ): Promise<z.infer<typeof DetailSchema> | undefined> {
+  const url = new URL(`/crashes/${encodeURIComponent(id)}`, server.url);
+  url.searchParams.set('device', server.udid);
+  url.searchParams.set('key', String(key));
   const controller = new AbortController();
   try {
     const response = await fetch(url.toString(), {
       redirect: 'error',
-      size: 8 * 1024 * 1024,
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
-      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+      size: MAX_DETAIL_BYTES,
+      signal: AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(5_000),
+        ...(deadline ? [deadline] : []),
+      ]),
+      ...(server.token ? { headers: { Authorization: `Bearer ${server.token}` } } : {}),
     });
     if (response.status === 404) {
       return undefined;
     }
     if (!response.ok) {
-      throw new Error('Crash detail request failed');
+      throw new Error(`serve-sim crash detail responded ${response.status}`);
     }
-    return DetailSchema.parse(await response.json());
+    const detail = DetailSchema.parse(await response.json());
+    if (detail.record.id !== id || detail.occurrence.key !== key) {
+      throw new Error('Crash detail does not match the requested occurrence');
+    }
+    return detail;
   } finally {
     controller.abort();
   }
