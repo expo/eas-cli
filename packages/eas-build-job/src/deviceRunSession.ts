@@ -51,12 +51,11 @@ export function parseDeviceRunSessionEvents(eventLog: string): DeviceRunSessionE
 
 // adb closes the connection for longer shell commands (about 65.5 KB with adb 37 on API 35).
 export const ANDROID_SHELL_COMMAND_MAX_BYTES = 65_000;
-// Room for ` <package>/<activity>` when the launch component is not known yet.
-const ANDROID_COMPONENT_RESERVED_BYTES = 512;
 
 /**
  * Check Android launch inputs before a session starts. The launch component is only known once the
- * build is installed, so room is left for it; the launch itself checks the exact command.
+ * build is installed, so this rejects only commands that are too long without it; the launch itself
+ * checks the exact command.
  */
 export function validateAndroidLaunchOptions({
   launchArgs = [],
@@ -65,9 +64,7 @@ export function validateAndroidLaunchOptions({
   launchArgs?: string[];
   openUrl?: string;
 }): void {
-  quoteAndroidShellCommand(['am', 'start', ...launchArgs, '-n'], {
-    reservedBytes: ANDROID_COMPONENT_RESERVED_BYTES,
-  });
+  quoteAndroidShellCommand(['am', 'start', ...launchArgs, '-n']);
   if (openUrl) {
     quoteAndroidShellCommand(['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl]);
   }
@@ -77,10 +74,7 @@ export function validateAndroidLaunchOptions({
  * `adb shell` joins its arguments with spaces and the device shell parses the result again, so
  * each argument is quoted to reach the command as one literal word.
  */
-export function quoteAndroidShellCommand(
-  command: string[],
-  { reservedBytes = 0 }: { reservedBytes?: number } = {}
-): string[] {
+export function quoteAndroidShellCommand(command: string[]): string[] {
   if (command.some(argument => argument.includes('\0'))) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
@@ -89,8 +83,7 @@ export function quoteAndroidShellCommand(
   }
   const quotedCommand = command.map(quoteAndroidShellArgument);
   if (
-    new TextEncoder().encode(quotedCommand.join(' ')).byteLength + reservedBytes >
-    ANDROID_SHELL_COMMAND_MAX_BYTES
+    new TextEncoder().encode(quotedCommand.join(' ')).byteLength > ANDROID_SHELL_COMMAND_MAX_BYTES
   ) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',

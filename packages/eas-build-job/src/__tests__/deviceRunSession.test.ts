@@ -53,16 +53,32 @@ describe(quoteAndroidShellCommand, () => {
 });
 
 describe(validateAndroidLaunchOptions, () => {
-  it('leaves room for the launch component', () => {
+  it('rejects only commands that are too long without the launch component', () => {
     const fixedLength = 'am start --es key  -n'.length;
     const launchArgs = (valueLength: number) => ['--es', 'key', 'a'.repeat(valueLength)];
 
     expect(() =>
-      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength) })
+      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - fixedLength) })
     ).not.toThrow();
     expect(() =>
-      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - 512 - fixedLength + 1) })
+      validateAndroidLaunchOptions({ launchArgs: launchArgs(65_000 - fixedLength + 1) })
     ).toThrow(expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' }));
+  });
+
+  it('counts bytes, not characters', () => {
+    // "é" is two bytes in UTF-8 and is quoted, which adds two more.
+    const fixedLength = "am start --es key '' -n".length;
+    const launchArgs = (extraLength: number) => [
+      '--es',
+      'key',
+      'a'.repeat(extraLength) + 'é'.repeat(32_488),
+    ];
+
+    expect(fixedLength + 1 + 2 * 32_488).toBe(65_000);
+    expect(() => validateAndroidLaunchOptions({ launchArgs: launchArgs(1) })).not.toThrow();
+    expect(() => validateAndroidLaunchOptions({ launchArgs: launchArgs(2) })).toThrow(
+      expect.objectContaining({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' })
+    );
   });
 
   it('checks the URL to open', () => {
