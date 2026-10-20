@@ -242,7 +242,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
             '--allow-insecure',
             '*:session_discovery',
             '--default-capabilities',
-            JSON.stringify({ 'appium:eventTimings': true, ...wdaCapabilities }),
+            JSON.stringify({
+              'appium:eventTimings': true,
+              // Without it, XCUITest restarted the booted Simulator at session start, which
+              // closed the app serve-sim had launched. EAS VMs never show the Simulator window.
+              ...(device.platformName === 'iOS' ? { 'appium:isHeadless': true } : {}),
+              ...wdaCapabilities,
+            }),
           ],
           env: appiumEnv,
           logger,
