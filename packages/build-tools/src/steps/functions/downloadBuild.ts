@@ -315,13 +315,15 @@ export async function downloadBuildAsync(
           const archiveUrl = new URL(downloadUrl);
           const source = params.buildId
             ? `application archive for build ${params.buildId}`
-            : `application archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
+            : `archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
           if (response.status === 404 || response.status === 410) {
             throw new UserError(
               'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
               `Failed to download the ${source} (HTTP ${response.status}). ` +
-                'The archive is no longer available; it may have expired or been deleted. ' +
-                'Select another build or provide an available application archive URL.'
+                'The archive is unavailable. ' +
+                (params.buildId
+                  ? 'Check that the archive still exists and try again.'
+                  : 'Check that the URL is correct and the archive still exists, then try again.')
             );
           }
           throw new Error(
