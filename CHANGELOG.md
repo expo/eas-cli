@@ -11,6 +11,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Let serve-sim boot, install and launch agent-device iOS sessions with the local-egress guard. ([#4544](https://github.com/expo/eas-cli/pull/4544) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas simulator:control` to run serve-sim actions, with file upload and download, on a remote iOS simulator session. ([#4641](https://github.com/expo/eas-cli/pull/4641) by [@gwdp](https://github.com/gwdp))
 
+- [build-tools] Fix `eas build --local` for iOS on macOS 26 (Tahoe) where `Keychain.findIdentitiesByTeamId` falsely reported the dist certificate as not imported. The `-v` flag on `security find-identity` requires the full trust chain to resolve from the build keychain alone, but the build keychain only holds the cert + private key — Apple Root CA lives in `/Library/Keychains/System.keychain` and `find-identity` does not aggregate trust resolution across keychains. Dropped `-v`; presence check now works across macOS versions and codesign continues to resolve trust downstream via `Security.framework`. ([#3679](https://github.com/expo/eas-cli/pull/3679) by [@kearnsm293-afk](https://github.com/kearnsm293-afk))
+
 ### 🧹 Chores
 
 - [eas-cli] Prepare authenticated simulator action transport and file transfers. ([#4642](https://github.com/expo/eas-cli/pull/4642) by [@gwdp](https://github.com/gwdp))
