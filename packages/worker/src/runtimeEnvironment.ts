@@ -87,6 +87,13 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
+  if (
+    builderConfig.env?.EAS_BUILD_DISABLE_PACKAGE_MANAGER_VERSION_CHECKS === '1' &&
+    Object.keys(builderConfig).every(key => key === 'env' || key === 'image')
+  ) {
+    return;
+  }
+
   const currentYarnVersion = (
     await spawn('yarn', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
   ).stdout.trim();
