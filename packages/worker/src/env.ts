@@ -141,10 +141,7 @@ export function getBuildEnv({
     setEnv(env, 'EXPO_STAGING', '1');
   }
 
-  const isDeviceRunSession =
-    !job.platform && Boolean(job.builderEnvironment.env?.DEVICE_RUN_SESSION_ID);
-  // Device sessions do not upload to the App Store, so skip this Xcode 26.0 altool workaround.
-  if (!isDeviceRunSession) {
+  if (job.builderEnvironment?.env?.EAS_BUILD_DISABLE_XCODE_VERSION_CHECK !== '1') {
     const xcodeVersionResult = spawnSync('xcodebuild', ['-version'], { env });
     if (xcodeVersionResult.stdout?.includes('Xcode 26.0')) {
       setEnv(env, 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS', '--use-old-altool');
