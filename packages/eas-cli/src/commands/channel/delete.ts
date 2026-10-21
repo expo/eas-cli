@@ -13,7 +13,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJobReceiptAsync';
 
 export default class ChannelDelete extends EasCommand {
-  static override description = 'Delete a channel';
+  static override description = 'delete a channel';
 
   static override args = {
     name: Args.string({
