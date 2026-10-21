@@ -91,22 +91,12 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  if (
-    builderConfig.env?.EAS_BUILD_DISABLE_PACKAGE_MANAGER_VERSION_CHECKS === '1' &&
-    Object.keys(builderConfig).every(key => key === 'env' || key === 'image')
-  ) {
-    return;
-  }
-
-  const currentYarnVersion = (
-    await spawn('yarn', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentPnpmVersion = (
-    await spawn('pnpm', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentBunVersion = (
-    await spawn('bun', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
+  const [currentYarnVersion, currentPnpmVersion, currentBunVersion] = await Promise.all(
+    ['yarn', 'pnpm', 'bun'].map(async command => {
+      const result = await spawn(command, ['--version'], { stdio: 'pipe', cwd: os.tmpdir() });
+      return result.stdout.trim();
+    })
+  );
 
   if (builderConfig.node) {
     const installedNodeVersion = await installNode(ctx, builderConfig.node);
