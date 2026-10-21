@@ -16018,6 +16018,13 @@ export type DeviceRunSessionEventsByIdQueryVariables = Exact<{
 
 export type DeviceRunSessionEventsByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, downloadUrl: string, metadata?: any | null }> } } };
 
+export type DeviceRunSessionJobRunErrorsByIdQueryVariables = Exact<{
+  deviceRunSessionId: Scalars['ID']['input'];
+}>;
+
+
+export type DeviceRunSessionJobRunErrorsByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string, docsUrl?: string | null }> } | null } } };
+
 export type DeviceRunSessionByIdQueryVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];
 }>;

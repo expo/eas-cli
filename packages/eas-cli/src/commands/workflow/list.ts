@@ -9,7 +9,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class WorkflowList extends EasCommand {
   static override hidden = true;
 
-  static override description = 'List workflows for the current project';
+  static override description = 'list workflows for the current project';
 
   static override flags = {
     ...EasJsonOnlyFlag,
