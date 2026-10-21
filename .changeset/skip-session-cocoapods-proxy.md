@@ -2,4 +2,4 @@
 '@expo/worker': patch
 ---
 
-Skip installing the CocoaPods cache proxy for device sessions.
+Allow jobs to skip installing the CocoaPods cache proxy with EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN=1.
