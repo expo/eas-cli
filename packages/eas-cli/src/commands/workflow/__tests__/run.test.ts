@@ -32,118 +32,29 @@ describe(resolveWorkflowRunSshInput, () => {
 describe(resolveWorkflowRunGitRef, () => {
   const commitSha = '0e5c2f18c7e4d0e2f5a1b3c4d5e6f708192a3b4c';
 
-  it('passes a branch name through instead of the commit it points at', () => {
+  it('sends a confirmed branch ref instead of the commit it points at', () => {
     expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'my-branch',
-        symbolicFullName: 'refs/heads/my-branch',
-        commitSha,
-      })
-    ).toBe('my-branch');
-  });
-
-  it('passes a fully qualified branch name through', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'refs/heads/my-branch',
-        symbolicFullName: 'refs/heads/my-branch',
-        commitSha,
-      })
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/heads/my-branch', commitSha })
     ).toBe('refs/heads/my-branch');
   });
 
-  it('passes a branch name containing slashes through', () => {
+  it('sends a confirmed tag ref instead of the commit it points at', () => {
     expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'feat/my-branch',
-        symbolicFullName: 'refs/heads/feat/my-branch',
-        commitSha,
-      })
-    ).toBe('feat/my-branch');
-  });
-
-  it('passes a tag name through', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'v1.0.0',
-        symbolicFullName: 'refs/tags/v1.0.0',
-        commitSha,
-      })
-    ).toBe('v1.0.0');
-  });
-
-  it('passes a fully qualified tag name through', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'refs/tags/v1.0.0',
-        symbolicFullName: 'refs/tags/v1.0.0',
-        commitSha,
-      })
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/tags/v1.0.0', commitSha })
     ).toBe('refs/tags/v1.0.0');
   });
 
-  // HEAD resolves to the default branch server-side, so it has to stay a commit.
-  it('resolves HEAD to a commit', () => {
+  it('keeps a branch name containing slashes whole', () => {
     expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'HEAD',
-        symbolicFullName: 'refs/heads/main',
-        commitSha,
-      })
-    ).toBe(commitSha);
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/heads/feature/my-branch', commitSha })
+    ).toBe('refs/heads/feature/my-branch');
   });
 
-  it('resolves @ to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: '@',
-        symbolicFullName: 'refs/heads/main',
-        commitSha,
-      })
-    ).toBe(commitSha);
-  });
-
-  it('resolves a detached HEAD to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'HEAD',
-        symbolicFullName: 'HEAD',
-        commitSha,
-      })
-    ).toBe(commitSha);
-  });
-
-  it('resolves a revision expression to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({ requestedRef: 'HEAD~2', symbolicFullName: null, commitSha })
-    ).toBe(commitSha);
-  });
-
-  it('resolves a commit hash to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({ requestedRef: '0e5c2f1', symbolicFullName: null, commitSha })
-    ).toBe(commitSha);
-  });
-
-  // `origin/my-branch` is a local name for a remote branch; the server would not resolve it.
-  it('resolves a remote-tracking ref to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'origin/my-branch',
-        symbolicFullName: 'refs/remotes/origin/my-branch',
-        commitSha,
-      })
-    ).toBe(commitSha);
-  });
-
-  it('resolves a partially qualified branch name to a commit', () => {
-    expect(
-      resolveWorkflowRunGitRef({
-        requestedRef: 'heads/my-branch',
-        symbolicFullName: 'refs/heads/my-branch',
-        commitSha,
-      })
-    ).toBe(commitSha);
+  it('sends the commit when nothing named a ref', () => {
+    // `HEAD`, `@`, a detached `HEAD`, a revision expression such as `HEAD~2`, a commit
+    // hash, a remote-tracking ref, and a name whose casing the ref store rejected all
+    // arrive here the same way: the ref-name lookup could not confirm one.
+    expect(resolveWorkflowRunGitRef({ canonicalRefName: null, commitSha })).toBe(commitSha);
   });
 });
 

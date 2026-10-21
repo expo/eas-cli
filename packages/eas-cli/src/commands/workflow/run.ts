@@ -91,8 +91,6 @@ export function resolveWorkflowRunSshInput({
   return ssh ? { idleTimeoutSeconds } : null;
 }
 
-const PASSTHROUGH_REF_PREFIXES = ['refs/heads/', 'refs/tags/'];
-
 /**
  * Pick the value to send as `gitRef` when running a workflow from `--ref`.
  *
@@ -101,48 +99,69 @@ const PASSTHROUGH_REF_PREFIXES = ['refs/heads/', 'refs/tags/'];
  * filter. Resolving the ref to a commit locally before dispatching therefore throws
  * away the branch or tag name the user asked for.
  *
- * Branch and tag names are passed through untouched, whether they are given in short
- * (`my-branch`) or fully qualified (`refs/heads/my-branch`) form. Everything else keeps
- * being sent as the locally resolved commit, because it either has no meaning in the
- * remote repository or does not mean the same thing there: `HEAD` and `@` resolve to the
- * default branch server-side, revision expressions such as `HEAD~2` are not refs at all,
- * and remote-tracking refs like `origin/my-branch` are local names for remote branches.
+ * A ref is sent fully qualified (`refs/heads/my-branch`), which is the form the server
+ * already stores -- see `normalizeGitRef` in `workflow/insights/filters.ts`, which
+ * qualifies a bare name before filtering runs by it. It is also the form that says which
+ * ref was meant when a tag and a branch share a name. Anything that does not name a ref
+ * keeps being sent as the locally resolved commit, because it either has no meaning in
+ * the remote repository or does not mean the same thing there: `HEAD` and `@` resolve to
+ * the default branch server-side, revision expressions such as `HEAD~2` are not refs at
+ * all, and remote-tracking refs like `origin/my-branch` are local names for remote
+ * branches.
  */
 export function resolveWorkflowRunGitRef({
-  requestedRef,
-  symbolicFullName,
+  canonicalRefName,
   commitSha,
 }: {
-  requestedRef: string;
-  symbolicFullName: string | null;
+  canonicalRefName: string | null;
   commitSha: string;
 }): string {
-  const prefix = PASSTHROUGH_REF_PREFIXES.find(candidate =>
-    symbolicFullName?.startsWith(candidate)
-  );
-  if (!symbolicFullName || !prefix) {
-    return commitSha;
-  }
-  const shortName = symbolicFullName.slice(prefix.length);
-  return requestedRef === shortName || requestedRef === symbolicFullName ? requestedRef : commitSha;
+  return canonicalRefName ?? commitSha;
 }
 
 /**
- * Full ref name (e.g. `refs/heads/my-branch`) that `ref` points at, or null when it does
- * not name a ref (a commit hash, a revision expression, or a detached `HEAD`).
+ * The fully qualified ref name (e.g. `refs/heads/my-branch`) that `ref` points at, spelled
+ * the way the ref store spells it, or null when `ref` does not unambiguously name one.
+ *
+ * The name is confirmed against the ref store rather than trusted, because
+ * `git rev-parse --symbolic-full-name` echoes the casing the caller typed: on a
+ * case-insensitive filesystem `My-Branch` resolves to the loose ref for `my-branch` and
+ * comes back as `refs/heads/My-Branch`. Remote ref names are case-sensitive, so sending
+ * that would fail a run that used to work.
  */
-async function maybeResolveSymbolicFullNameAsync(
+async function maybeResolveCanonicalRefNameAsync(
   ref: string,
   projectDir: string
 ): Promise<string | null> {
+  let symbolicFullName: string;
   try {
     const { output } = await spawnAsync(
       'git',
       ['rev-parse', '--symbolic-full-name', '--verify', ref],
       { cwd: projectDir }
     );
-    return output[0].trim() || null;
-  } catch {
+    symbolicFullName = output[0].trim();
+  } catch (err) {
+    // `--verify` exits 0 with empty output for a revision expression, so this is a real
+    // git or environment failure rather than "not a ref". Falling back to the commit is
+    // still right, but it should not be silent.
+    Log.debug(`Could not resolve the full ref name for "${ref}": ${err}`);
+    return null;
+  }
+  if (!symbolicFullName) {
+    return null;
+  }
+  try {
+    const { output } = await spawnAsync(
+      'git',
+      ['for-each-ref', '--count=1', '--format=%(refname)', symbolicFullName],
+      { cwd: projectDir }
+    );
+    // `for-each-ref` matches a pattern up to a slash as well, so `refs/heads/feat` would
+    // report `refs/heads/feat/alpha`. Require the name back exactly.
+    return output[0].trim() === symbolicFullName ? symbolicFullName : null;
+  } catch (err) {
+    Log.debug(`Could not confirm "${symbolicFullName}" against the ref store: ${err}`);
     return null;
   }
 }
@@ -239,26 +258,25 @@ export default class WorkflowRun extends EasCommand {
     if (flags.ref) {
       // Run from git ref
       const fileName = path.basename(args.file);
-      // Find the real commit, make sure the ref is valid
-      const commitSha = (
-        await spawnAsync('git', ['rev-parse', flags.ref], {
+      // Find the real commit, make sure the ref is valid. The ref-name lookup swallows its
+      // own failures, so this can only reject from `rev-parse`, with the same error as before.
+      const [revParseResult, canonicalRefName] = await Promise.all([
+        spawnAsync('git', ['rev-parse', flags.ref], {
           cwd: projectDir,
-        })
-      ).output[0].trim();
+        }),
+        maybeResolveCanonicalRefNameAsync(flags.ref, projectDir),
+      ]);
+      const commitSha = revParseResult.output[0].trim();
       if (!commitSha) {
         throw new Error('Failed to resolve git reference');
       }
       // Send the branch or tag name the user asked for, so that the server records it as
       // the run's requested git ref instead of a bare commit hash.
-      gitRef = resolveWorkflowRunGitRef({
-        requestedRef: flags.ref,
-        symbolicFullName: await maybeResolveSymbolicFullNameAsync(flags.ref, projectDir),
-        commitSha,
-      });
+      gitRef = resolveWorkflowRunGitRef({ canonicalRefName, commitSha });
       Log.log(
         gitRef === commitSha
           ? `Using workflow file ${fileName} at ${gitRef}`
-          : `Using workflow file ${fileName} at ${gitRef} (${commitSha})`
+          : `Using workflow file ${fileName} at ${gitRef} (locally ${commitSha})`
       );
       let revisionResult: WorkflowRevision | undefined;
       try {
@@ -279,6 +297,19 @@ export default class WorkflowRun extends EasCommand {
       if (!revisionResult) {
         throw new Error(
           `Failed to find or create workflow revision for ${fileName} at ${flags.ref}`
+        );
+      }
+      // The server resolves the ref against the remote, so a ref name can land on a commit
+      // the user does not have locally -- unpushed work, or a branch that moved. Say so
+      // rather than letting the commit printed above be the only one they ever see.
+      if (
+        gitRef !== commitSha &&
+        revisionResult.commitSha &&
+        revisionResult.commitSha !== commitSha
+      ) {
+        Log.warn(
+          `${gitRef} is at ${commitSha} locally but ${revisionResult.commitSha} on the remote. ` +
+            'The run uses the remote commit; push your local commits first if you meant those.'
         );
       }
       yamlConfig = revisionResult.yamlConfig;
