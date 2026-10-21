@@ -38,7 +38,7 @@ import {
   parseLocalCompositeFunctionPath,
 } from './utils/localCompositeFunctions';
 
-type ValidatedHooks = ReadonlyMap<HookKey, { anchorId: HookAnchorId; steps: Step[] }>;
+type ValidatedHooks = ReadonlyMap<HookKey, Step[]>;
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
@@ -114,7 +114,6 @@ export class StepsConfigParser extends AbstractConfigParser {
     // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
-    const seenAnchorIds = new Set<HookAnchorId>();
 
     for (const stepConfig of validatedSteps) {
       const maybeFunctionGroup =
@@ -135,7 +134,6 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          seenAnchorIds.add(anchorId);
           const anchorHooks = await this.constructAnchorHooksAsync(
             anchorId,
             validatedHooks,
@@ -162,7 +160,6 @@ export class StepsConfigParser extends AbstractConfigParser {
           'Hook anchors are not supported on local composite function steps.'
         );
       }
-      seenAnchorIds.add(anchorId);
       const before = await this.constructHookSideEntriesAsync(
         anchorId,
         'before',
@@ -190,14 +187,6 @@ export class StepsConfigParser extends AbstractConfigParser {
       }
     }
 
-    for (const [hookKey, { anchorId }] of validatedHooks) {
-      if (!seenAnchorIds.has(anchorId)) {
-        this.ctx.baseLogger.warn(
-          `Ignoring "hooks.${hookKey}": this build does not run the "${anchorId}" step.`
-        );
-      }
-    }
-
     return {
       buildSteps,
       buildFunctionById,
@@ -206,14 +195,13 @@ export class StepsConfigParser extends AbstractConfigParser {
   }
 
   private validateHooks(): ValidatedHooks {
-    const validatedHooks = new Map<HookKey, { anchorId: HookAnchorId; steps: Step[] }>();
+    const validatedHooks = new Map<HookKey, Step[]>();
     for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
       // A worker must not fail on a hook key newer than itself, so unregistered
       // keys skip validation entirely (their steps may reference functions this
       // worker lacks).
       const parsed = parseHookKey(hookKey);
       if (parsed === null) {
-        this.ctx.baseLogger.warn(`Ignoring unknown hook key "${hookKey}".`);
         continue;
       }
       // An empty array is a deliberate no-op (e.g. opting out of a default);
@@ -223,10 +211,7 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
       try {
-        validatedHooks.set(`${parsed.side}_${parsed.anchorId}`, {
-          anchorId: parsed.anchorId,
-          steps: validateSteps(hookSteps),
-        });
+        validatedHooks.set(`${parsed.side}_${parsed.anchorId}`, validateSteps(hookSteps));
       } catch (err) {
         throw new BuildConfigError(
           `Invalid steps in "hooks.${hookKey}": ${err instanceof Error ? err.message : String(err)}`
@@ -286,7 +271,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     validatedHooks: ValidatedHooks,
     compositeFunctionExpander: CompositeFunctionExpander
   ): Promise<HookEntry[]> {
-    const hookSteps = validatedHooks.get(`${side}_${anchorId}`)?.steps;
+    const hookSteps = validatedHooks.get(`${side}_${anchorId}`);
     if (hookSteps === undefined) {
       return [];
     }
