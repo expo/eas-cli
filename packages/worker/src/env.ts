@@ -1,4 +1,4 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import { RuntimeSettings, getDeviceRunSessionTokenFromEnvironmentSecrets } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -141,9 +141,15 @@ export function getBuildEnv({
     setEnv(env, 'EXPO_STAGING', '1');
   }
 
-  const xcodeVersionResult = spawnSync('xcodebuild', ['-version'], { env });
-  if (xcodeVersionResult.stdout?.includes('Xcode 26.0')) {
-    setEnv(env, 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS', '--use-old-altool');
+  const isDeviceRunSession =
+    !job.platform &&
+    getDeviceRunSessionTokenFromEnvironmentSecrets(job.secrets?.environmentSecrets);
+  // Device sessions do not upload to the App Store, so skip this Xcode 26.0 altool workaround.
+  if (!isDeviceRunSession) {
+    const xcodeVersionResult = spawnSync('xcodebuild', ['-version'], { env });
+    if (xcodeVersionResult.stdout?.includes('Xcode 26.0')) {
+      setEnv(env, 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS', '--use-old-altool');
+    }
   }
 
   return env;

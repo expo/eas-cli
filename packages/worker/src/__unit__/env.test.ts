@@ -1,5 +1,6 @@
 import { RuntimeSettings } from '@expo/build-tools';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { EnvironmentSecretType, Platform, Workflow } from '@expo/eas-build-job';
+import childProcess from 'child_process';
 import os from 'os';
 import v8 from 'v8';
 
@@ -54,6 +55,50 @@ describe(getBuildEnv.name, () => {
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
+
+  it.each([
+    { name: 'device session', platform: undefined, token: 'session-token', skip: true },
+    { name: 'custom workflow', platform: undefined, token: undefined, skip: false },
+    { name: 'iOS build', platform: Platform.IOS, token: undefined, skip: false },
+    { name: 'iOS build with a session token', platform: Platform.IOS, token: 'token', skip: false },
+  ])(
+    'queries Xcode only for jobs that may upload to the App Store: $name',
+    ({ platform, token, skip }) => {
+      const spawnSync = jest.spyOn(childProcess, 'spawnSync').mockReturnValue({
+        stdout: Buffer.from('Xcode 26.0\nBuild version 17A324'),
+      } as ReturnType<typeof childProcess.spawnSync>);
+
+      const env = getBuildEnv({
+        job: {
+          platform,
+          type: Workflow.GENERIC,
+          builderEnvironment: { env: {} },
+          secrets: {
+            environmentSecrets: token
+              ? [
+                  {
+                    name: 'EAS_DEVICE_RUN_SESSION_TOKEN',
+                    type: EnvironmentSecretType.STRING,
+                    value: token,
+                  },
+                ]
+              : [],
+          },
+        } as any,
+        projectId: 'project-id',
+        metadata: {} as any,
+        buildId: 'build-id',
+      });
+
+      if (skip) {
+        expect(spawnSync).not.toHaveBeenCalledWith('xcodebuild', ['-version'], expect.anything());
+        expect(env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS).toBeUndefined();
+      } else {
+        expect(spawnSync).toHaveBeenCalledWith('xcodebuild', ['-version'], { env });
+        expect(env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS).toBe('--use-old-altool');
+      }
+    }
+  );
 
   it('passes the CLI sentry DSN to worker child processes', () => {
     config.sentry.dsn = 'https://public@example.ingest.sentry.io/1';
