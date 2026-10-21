@@ -362,7 +362,9 @@ describe('with a device run session token', () => {
         robotAccessToken: ROBOT_ACCESS_TOKEN,
         extensions: ['app'],
       })
-    ).rejects.toThrow('Unexpected response from server (500): stop here');
+    ).rejects.toThrow(
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+    );
 
     expectWorkerApiCall('application', 'GET');
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
@@ -587,7 +589,9 @@ describe('without a device run session token', () => {
         robotAccessToken: ROBOT_ACCESS_TOKEN,
         extensions: ['app'],
       })
-    ).rejects.toThrow('Unexpected response from server (500)');
+    ).rejects.toThrow(
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+    );
 
     expect(ctx.graphqlClient.query).toHaveBeenCalled();
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
