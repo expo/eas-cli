@@ -1,5 +1,20 @@
 # @expo/build-tools
 
+## 25.3.0
+
+### Minor Changes
+
+- Let serve-sim boot, install and launch Argent iOS sessions. ([#4602](https://github.com/expo/eas-cli/pull/4602) by [@gwdp](https://github.com/gwdp))
+- Let serve-sim boot, install and launch Appium iOS sessions. ([#4603](https://github.com/expo/eas-cli/pull/4603) by [@gwdp](https://github.com/gwdp))
+- Upload the screen recording session manifest as a JSON artifact alongside each video. ([#4689](https://github.com/expo/eas-cli/pull/4689) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Quote Android launch arguments and URLs for the device shell in simulator sessions, so values with spaces or shell characters reach `am start` as one argument; pass raw values and remove any shell quoting added as a workaround. ([#4695](https://github.com/expo/eas-cli/pull/4695) by [@brentvatne](https://github.com/brentvatne))
+- Wait up to five minutes for Google Play to finish processing an uploaded bundle before giving up on the edit commit. ([#4700](https://github.com/expo/eas-cli/pull/4700) by [@hSATAC](https://github.com/hSATAC))
+- Reset the device run session idle timer on iOS Simulator preview input. ([#4691](https://github.com/expo/eas-cli/pull/4691) by [@gwdp](https://github.com/gwdp))
+- Forward captured Simulator traffic through the local egress proxy. ([#4598](https://github.com/expo/eas-cli/pull/4598) by [@gwdp](https://github.com/gwdp))
+
 ## 25.2.0
 
 ### Minor Changes

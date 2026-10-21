@@ -59,30 +59,45 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   }
 }
 
+// Bunyan's own fields and fields that identify a log line, which never hold user data.
+const UNMASKED_FIELDS = new Set([
+  'name',
+  'pid',
+  'level',
+  'time',
+  'v',
+  'phase',
+  'source',
+  'marker',
+  'result',
+  'buildStepId',
+  'buildStepInternalId',
+]);
+const MAX_MASKED_DEPTH = 20;
+
 function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
     transform(_chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
-      let chunk = _chunk;
-      if (chunk && typeof chunk === 'object') {
-        // Remove hostname from logs since we don't need it.
-        const { hostname: _hostname, ...rest } = chunk;
-        chunk = {
-          ...rest,
-          // Add logId to each log.
-          logId: uuidv7(),
-        };
+      if (!_chunk || typeof _chunk !== 'object') {
+        callback(null, _chunk);
+        return;
       }
-
-      if (chunk && typeof chunk === 'object' && chunk.msg) {
-        callback(null, {
-          ...chunk,
-          msg: maskSecrets(chunk.msg as string, secretPatterns),
-        });
-      } else {
-        callback(null, chunk);
+      // Remove hostname from logs since we don't need it. Bunyan shares the record with other
+      // streams, so build a copy instead of changing it.
+      const { hostname: _hostname, ...rest } = _chunk;
+      const chunk: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(rest)) {
+        // Secrets can be in any field, such as a serialized error's message and stack.
+        chunk[key] =
+          secretPatterns.size === 0 || UNMASKED_FIELDS.has(key)
+            ? value
+            : maskSecretsInValue(value, secretPatterns);
       }
+      // Add logId to each log.
+      chunk.logId = uuidv7();
+      callback(null, chunk);
     },
   });
 }
@@ -99,6 +114,48 @@ function maskSecrets(message: string, secrets: Iterable<string>): string {
     }
   }
   return characters.join('');
+}
+
+function maskSecretsInValue(value: unknown, secrets: ReadonlySet<string>): unknown {
+  if (value === null || typeof value !== 'object') {
+    return maskSecretsInJsonValue(value, secrets, 0);
+  }
+  // Mask what the upload streams will serialize, so a toJSON method can't bring back the original.
+  let json: unknown;
+  try {
+    json = JSON.parse(JSON.stringify(value));
+  } catch {
+    return '[Unserializable]';
+  }
+  return maskSecretsInJsonValue(json, secrets, 0);
+}
+
+function maskSecretsInJsonValue(
+  value: unknown,
+  secrets: ReadonlySet<string>,
+  depth: number
+): unknown {
+  if (typeof value === 'string') {
+    return maskSecrets(value, secrets);
+  }
+  if (typeof value === 'number') {
+    return secrets.has(String(value)) ? maskSecrets(String(value), secrets) : value;
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (depth >= MAX_MASKED_DEPTH) {
+    return '[Truncated]';
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => maskSecretsInJsonValue(item, secrets, depth + 1));
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      maskSecrets(key, secrets),
+      maskSecretsInJsonValue(item, secrets, depth + 1),
+    ])
+  );
 }
 
 function createDiscardStream(): Writable {

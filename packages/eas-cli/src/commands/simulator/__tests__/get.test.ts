@@ -40,6 +40,7 @@ jest.mock('../../../utils/json');
 type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
+const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockLoadSimulatorEnvironmentVariablesAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -108,6 +109,7 @@ describe(SimulatorGet, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockJobRunErrorsByIdAsync.mockResolvedValue(null);
   });
 
   function createCommand(argv: string[]): {
@@ -162,6 +164,79 @@ describe(SimulatorGet, () => {
         previewApiUrl: null,
       },
       artifacts: session.artifacts,
+      errors: [],
+    });
+    expect(mockJobRunErrorsByIdAsync).not.toHaveBeenCalled();
+  });
+
+  describe('errored sessions', () => {
+    const jobRunErrors = {
+      id: 'job-123',
+      errors: [
+        {
+          errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+          message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+          docsUrl: null,
+        },
+      ],
+      logFileUrls: [],
+    };
+
+    it('includes the job run errors in JSON output', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+      mockJobRunErrorsByIdAsync.mockResolvedValue(jobRunErrors);
+
+      const { command } = createCommand(['--id', 'session-123', '--json']);
+      await command.runAsync();
+
+      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123', {
+        signal: expect.any(AbortSignal),
+      });
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          errors: [
+            {
+              errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+              message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+              docsUrl: null,
+            },
+          ],
+        })
+      );
+    });
+
+    it('prints the job run errors when only the job run errored', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          status: DeviceRunSessionStatus.Stopped,
+          remoteConfig: null,
+          turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored },
+        })
+      );
+      mockJobRunErrorsByIdAsync.mockResolvedValue(jobRunErrors);
+
+      const { command } = createCommand(['--id', 'session-123']);
+      await command.runAsync();
+
+      expect(Log.gray).toHaveBeenCalledWith('Session errors:');
+      expect(Log.error).toHaveBeenCalledWith(
+        '  No available iOS Simulator is named "iPhone 16 Pro".'
+      );
+    });
+
+    it('prints no errors section when the job run errors cannot be fetched', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+      mockJobRunErrorsByIdAsync.mockRejectedValue(new Error('graphql boom'));
+
+      const { command } = createCommand(['--id', 'session-123']);
+      await command.runAsync();
+
+      expect(Log.gray).not.toHaveBeenCalledWith('Session errors:');
+      expect(Log.error).not.toHaveBeenCalled();
     });
   });
 

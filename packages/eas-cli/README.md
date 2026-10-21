@@ -309,7 +309,7 @@ DESCRIPTION
   view the audit logs for an account
 ```
 
-_See code: [packages/eas-cli/src/commands/account/audit.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/account/audit.ts)_
+_See code: [packages/eas-cli/src/commands/account/audit.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/account/audit.ts)_
 
 ## `eas account:login`
 
@@ -341,7 +341,7 @@ EXAMPLES
   $ eas login --device --non-interactive --resume REQUEST_ID --match NUMBER_FROM_USER
 ```
 
-_See code: [packages/eas-cli/src/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/account/login.ts)_
+_See code: [packages/eas-cli/src/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/account/login.ts)_
 
 ## `eas account:logout`
 
@@ -358,7 +358,7 @@ ALIASES
   $ eas logout
 ```
 
-_See code: [packages/eas-cli/src/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/account/logout.ts)_
+_See code: [packages/eas-cli/src/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/account/logout.ts)_
 
 ## `eas account:usage [ACCOUNT_NAME]`
 
@@ -380,7 +380,7 @@ DESCRIPTION
   view account usage and billing for the current cycle
 ```
 
-_See code: [packages/eas-cli/src/commands/account/usage.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/account/usage.ts)_
+_See code: [packages/eas-cli/src/commands/account/usage.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/account/usage.ts)_
 
 ## `eas account:view`
 
@@ -397,7 +397,7 @@ ALIASES
   $ eas whoami
 ```
 
-_See code: [packages/eas-cli/src/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/account/view.ts)_
+_See code: [packages/eas-cli/src/commands/account/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/account/view.ts)_
 
 ## `eas analytics [STATUS]`
 
@@ -411,7 +411,7 @@ DESCRIPTION
   display or change analytics settings (disabling analytics also disables experiments)
 ```
 
-_See code: [packages/eas-cli/src/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/analytics.ts)_
+_See code: [packages/eas-cli/src/commands/analytics.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/analytics.ts)_
 
 ## `eas autocomplete [SHELL]`
 
@@ -462,7 +462,7 @@ DESCRIPTION
   manage billing for an account with an active paid EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/billing/manage.ts)_
+_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/billing/manage.ts)_
 
 ## `eas billing:subscribe [PLAN]`
 
@@ -485,7 +485,7 @@ DESCRIPTION
   subscribe a Free account to an EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/billing/subscribe.ts)_
+_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/billing/subscribe.ts)_
 
 ## `eas branch:create [NAME]`
 
@@ -506,7 +506,7 @@ DESCRIPTION
   create a branch
 ```
 
-_See code: [packages/eas-cli/src/commands/branch/create.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/branch/create.ts)_
+_See code: [packages/eas-cli/src/commands/branch/create.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/branch/create.ts)_
 
 ## `eas branch:delete [NAME]`
 
@@ -527,7 +527,7 @@ DESCRIPTION
   delete a branch
 ```
 
-_See code: [packages/eas-cli/src/commands/branch/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/branch/delete.ts)_
+_See code: [packages/eas-cli/src/commands/branch/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/branch/delete.ts)_
 
 ## `eas branch:list`
 
@@ -547,7 +547,7 @@ DESCRIPTION
   list all branches
 ```
 
-_See code: [packages/eas-cli/src/commands/branch/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/branch/list.ts)_
+_See code: [packages/eas-cli/src/commands/branch/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/branch/list.ts)_
 
 ## `eas branch:rename`
 
@@ -567,7 +567,7 @@ DESCRIPTION
   rename a branch
 ```
 
-_See code: [packages/eas-cli/src/commands/branch/rename.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/branch/rename.ts)_
+_See code: [packages/eas-cli/src/commands/branch/rename.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/branch/rename.ts)_
 
 ## `eas branch:view [NAME]`
 
@@ -590,7 +590,7 @@ DESCRIPTION
   view a branch
 ```
 
-_See code: [packages/eas-cli/src/commands/branch/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/branch/view.ts)_
+_See code: [packages/eas-cli/src/commands/branch/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/branch/view.ts)_
 
 ## `eas browse [PAGE]`
 
@@ -613,7 +613,7 @@ DESCRIPTION
   Transition from the terminal to the web browser to view and interact with your project on https://expo.dev
 ```
 
-_See code: [packages/eas-cli/src/commands/browse.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/browse.ts)_
+_See code: [packages/eas-cli/src/commands/browse.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/browse.ts)_
 
 ## `eas build`
 
@@ -654,7 +654,7 @@ DESCRIPTION
   start a build
 ```
 
-_See code: [packages/eas-cli/src/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/index.ts)_
+_See code: [packages/eas-cli/src/commands/build/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/index.ts)_
 
 ## `eas build:cancel [BUILD_ID]`
 
@@ -674,7 +674,7 @@ DESCRIPTION
   cancel a build
 ```
 
-_See code: [packages/eas-cli/src/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/cancel.ts)_
+_See code: [packages/eas-cli/src/commands/build/cancel.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/cancel.ts)_
 
 ## `eas build:configure`
 
@@ -692,7 +692,7 @@ DESCRIPTION
   configure the project to support EAS Build
 ```
 
-_See code: [packages/eas-cli/src/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/configure.ts)_
+_See code: [packages/eas-cli/src/commands/build/configure.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/configure.ts)_
 
 ## `eas build:delete [BUILD_ID]`
 
@@ -712,7 +712,7 @@ DESCRIPTION
   delete a build
 ```
 
-_See code: [packages/eas-cli/src/commands/build/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/delete.ts)_
+_See code: [packages/eas-cli/src/commands/build/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/delete.ts)_
 
 ## `eas build:dev`
 
@@ -737,7 +737,7 @@ DESCRIPTION
   run dev client simulator/emulator build with matching fingerprint or create a new one
 ```
 
-_See code: [packages/eas-cli/src/commands/build/dev.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/dev.ts)_
+_See code: [packages/eas-cli/src/commands/build/dev.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/dev.ts)_
 
 ## `eas build:download`
 
@@ -764,7 +764,7 @@ DESCRIPTION
   download a simulator/emulator build by build ID or fingerprint hash
 ```
 
-_See code: [packages/eas-cli/src/commands/build/download.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/download.ts)_
+_See code: [packages/eas-cli/src/commands/build/download.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/download.ts)_
 
 ## `eas build:inspect`
 
@@ -802,7 +802,7 @@ DESCRIPTION
   inspect the state of the project at specific build stages, useful for troubleshooting
 ```
 
-_See code: [packages/eas-cli/src/commands/build/inspect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/inspect.ts)_
+_See code: [packages/eas-cli/src/commands/build/inspect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/inspect.ts)_
 
 ## `eas build:list`
 
@@ -842,7 +842,7 @@ DESCRIPTION
   list all builds for your project
 ```
 
-_See code: [packages/eas-cli/src/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/list.ts)_
+_See code: [packages/eas-cli/src/commands/build/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/list.ts)_
 
 ## `eas build:resign`
 
@@ -872,7 +872,7 @@ DESCRIPTION
   re-sign a build archive
 ```
 
-_See code: [packages/eas-cli/src/commands/build/resign.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/resign.ts)_
+_See code: [packages/eas-cli/src/commands/build/resign.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/resign.ts)_
 
 ## `eas build:run`
 
@@ -900,7 +900,7 @@ DESCRIPTION
   run simulator/emulator builds from eas-cli
 ```
 
-_See code: [packages/eas-cli/src/commands/build/run.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/run.ts)_
+_See code: [packages/eas-cli/src/commands/build/run.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/run.ts)_
 
 ## `eas build:submit`
 
@@ -956,7 +956,7 @@ DESCRIPTION
   get the latest version from EAS servers
 ```
 
-_See code: [packages/eas-cli/src/commands/build/version/get.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/version/get.ts)_
+_See code: [packages/eas-cli/src/commands/build/version/get.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/version/get.ts)_
 
 ## `eas build:version:set`
 
@@ -974,7 +974,7 @@ DESCRIPTION
   update version of an app
 ```
 
-_See code: [packages/eas-cli/src/commands/build/version/set.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/version/set.ts)_
+_See code: [packages/eas-cli/src/commands/build/version/set.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/version/set.ts)_
 
 ## `eas build:version:sync`
 
@@ -992,7 +992,7 @@ DESCRIPTION
   update a version in native code with a value stored on EAS servers
 ```
 
-_See code: [packages/eas-cli/src/commands/build/version/sync.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/version/sync.ts)_
+_See code: [packages/eas-cli/src/commands/build/version/sync.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/version/sync.ts)_
 
 ## `eas build:view [BUILD_ID]`
 
@@ -1009,7 +1009,7 @@ DESCRIPTION
   view a build for your project
 ```
 
-_See code: [packages/eas-cli/src/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/build/view.ts)_
+_See code: [packages/eas-cli/src/commands/build/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/build/view.ts)_
 
 ## `eas channel:create [NAME]`
 
@@ -1030,7 +1030,7 @@ DESCRIPTION
   create a channel
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/create.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/create.ts)_
+_See code: [packages/eas-cli/src/commands/channel/create.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/create.ts)_
 
 ## `eas channel:delete [NAME]`
 
@@ -1051,7 +1051,7 @@ DESCRIPTION
   Delete a channel
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/delete.ts)_
+_See code: [packages/eas-cli/src/commands/channel/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/delete.ts)_
 
 ## `eas channel:edit [NAME]`
 
@@ -1073,7 +1073,7 @@ DESCRIPTION
   point a channel at a new branch
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/edit.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/edit.ts)_
+_See code: [packages/eas-cli/src/commands/channel/edit.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/edit.ts)_
 
 ## `eas channel:insights`
 
@@ -1097,7 +1097,7 @@ DESCRIPTION
   display adoption, crash, and unique-user insights for a channel + runtime version
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/insights.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/insights.ts)_
+_See code: [packages/eas-cli/src/commands/channel/insights.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/insights.ts)_
 
 ## `eas channel:list`
 
@@ -1117,7 +1117,7 @@ DESCRIPTION
   list all channels
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/list.ts)_
+_See code: [packages/eas-cli/src/commands/channel/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/list.ts)_
 
 ## `eas channel:pause [NAME]`
 
@@ -1139,7 +1139,7 @@ DESCRIPTION
   pause a channel to stop it from sending updates
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/pause.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/pause.ts)_
+_See code: [packages/eas-cli/src/commands/channel/pause.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/pause.ts)_
 
 ## `eas channel:protect [NAME]`
 
@@ -1160,7 +1160,7 @@ DESCRIPTION
   protect a channel so only Release Managers, Admins, and Owners can publish to it
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/protect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/protect.ts)_
+_See code: [packages/eas-cli/src/commands/channel/protect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/protect.ts)_
 
 ## `eas channel:resume [NAME]`
 
@@ -1182,7 +1182,7 @@ DESCRIPTION
   resume a channel to start sending updates
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/resume.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/resume.ts)_
+_See code: [packages/eas-cli/src/commands/channel/resume.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/resume.ts)_
 
 ## `eas channel:rollout [CHANNEL]`
 
@@ -1217,7 +1217,7 @@ DESCRIPTION
   Roll a new branch out on a channel incrementally.
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/rollout.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/rollout.ts)_
+_See code: [packages/eas-cli/src/commands/channel/rollout.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/rollout.ts)_
 
 ## `eas channel:unprotect [NAME]`
 
@@ -1238,7 +1238,7 @@ DESCRIPTION
   remove a channel's protected publishing restriction
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/unprotect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/unprotect.ts)_
+_See code: [packages/eas-cli/src/commands/channel/unprotect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/unprotect.ts)_
 
 ## `eas channel:view [NAME]`
 
@@ -1261,7 +1261,7 @@ DESCRIPTION
   view a channel
 ```
 
-_See code: [packages/eas-cli/src/commands/channel/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/channel/view.ts)_
+_See code: [packages/eas-cli/src/commands/channel/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/channel/view.ts)_
 
 ## `eas config`
 
@@ -1282,7 +1282,7 @@ DESCRIPTION
   display project configuration (app.json + eas.json)
 ```
 
-_See code: [packages/eas-cli/src/commands/config.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/config.ts)_
+_See code: [packages/eas-cli/src/commands/config.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/config.ts)_
 
 ## `eas credentials`
 
@@ -1299,7 +1299,7 @@ DESCRIPTION
   manage credentials
 ```
 
-_See code: [packages/eas-cli/src/commands/credentials/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/credentials/index.ts)_
+_See code: [packages/eas-cli/src/commands/credentials/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/credentials/index.ts)_
 
 ## `eas credentials:configure-build`
 
@@ -1317,7 +1317,7 @@ DESCRIPTION
   Set up credentials for building your project.
 ```
 
-_See code: [packages/eas-cli/src/commands/credentials/configure-build.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/credentials/configure-build.ts)_
+_See code: [packages/eas-cli/src/commands/credentials/configure-build.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/credentials/configure-build.ts)_
 
 ## `eas deploy [options]`
 
@@ -1349,7 +1349,7 @@ ALIASES
   $ eas worker:deploy
 ```
 
-_See code: [packages/eas-cli/src/commands/deploy/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/deploy/index.ts)_
+_See code: [packages/eas-cli/src/commands/deploy/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/deploy/index.ts)_
 
 ## `eas deploy:alias`
 
@@ -1374,7 +1374,7 @@ ALIASES
   $ eas deploy:promote
 ```
 
-_See code: [packages/eas-cli/src/commands/deploy/alias/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/deploy/alias/index.ts)_
+_See code: [packages/eas-cli/src/commands/deploy/alias/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/deploy/alias/index.ts)_
 
 ## `eas deploy:alias:delete [ALIAS_NAME]`
 
@@ -1395,7 +1395,7 @@ ALIASES
   $ eas worker:alias:delete
 ```
 
-_See code: [packages/eas-cli/src/commands/deploy/alias/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/deploy/alias/delete.ts)_
+_See code: [packages/eas-cli/src/commands/deploy/alias/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/deploy/alias/delete.ts)_
 
 ## `eas deploy:delete [DEPLOYMENT_ID]`
 
@@ -1416,7 +1416,7 @@ ALIASES
   $ eas worker:delete
 ```
 
-_See code: [packages/eas-cli/src/commands/deploy/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/deploy/delete.ts)_
+_See code: [packages/eas-cli/src/commands/deploy/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/deploy/delete.ts)_
 
 ## `eas deploy:promote`
 
@@ -1453,7 +1453,7 @@ DESCRIPTION
   register new Apple Devices to use for internal distribution
 ```
 
-_See code: [packages/eas-cli/src/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/device/create.ts)_
+_See code: [packages/eas-cli/src/commands/device/create.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/device/create.ts)_
 
 ## `eas device:delete`
 
@@ -1473,7 +1473,7 @@ DESCRIPTION
   remove a registered device from your account
 ```
 
-_See code: [packages/eas-cli/src/commands/device/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/device/delete.ts)_
+_See code: [packages/eas-cli/src/commands/device/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/device/delete.ts)_
 
 ## `eas device:list`
 
@@ -1494,7 +1494,7 @@ DESCRIPTION
   list all registered devices for your account
 ```
 
-_See code: [packages/eas-cli/src/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/device/list.ts)_
+_See code: [packages/eas-cli/src/commands/device/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/device/list.ts)_
 
 ## `eas device:rename`
 
@@ -1515,7 +1515,7 @@ DESCRIPTION
   rename a registered device
 ```
 
-_See code: [packages/eas-cli/src/commands/device/rename.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/device/rename.ts)_
+_See code: [packages/eas-cli/src/commands/device/rename.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/device/rename.ts)_
 
 ## `eas device:view [UDID]`
 
@@ -1529,7 +1529,7 @@ DESCRIPTION
   view a device for your project
 ```
 
-_See code: [packages/eas-cli/src/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/device/view.ts)_
+_See code: [packages/eas-cli/src/commands/device/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/device/view.ts)_
 
 ## `eas diagnostics`
 
@@ -1543,7 +1543,7 @@ DESCRIPTION
   display environment info
 ```
 
-_See code: [packages/eas-cli/src/commands/diagnostics.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/diagnostics.ts)_
+_See code: [packages/eas-cli/src/commands/diagnostics.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/diagnostics.ts)_
 
 ## `eas env:delete [ENVIRONMENT]`
 
@@ -1569,7 +1569,7 @@ DESCRIPTION
   delete an environment variable for the current project or account
 ```
 
-_See code: [packages/eas-cli/src/commands/env/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/delete.ts)_
+_See code: [packages/eas-cli/src/commands/env/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/delete.ts)_
 
 ## `eas env:exec ENVIRONMENT BASH_COMMAND`
 
@@ -1591,7 +1591,7 @@ DESCRIPTION
   execute a command with environment variables from the selected environment
 ```
 
-_See code: [packages/eas-cli/src/commands/env/exec.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/exec.ts)_
+_See code: [packages/eas-cli/src/commands/env/exec.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/exec.ts)_
 
 ## `eas env:get [ENVIRONMENT]`
 
@@ -1619,7 +1619,7 @@ DESCRIPTION
   view an environment variable for the current project or account
 ```
 
-_See code: [packages/eas-cli/src/commands/env/get.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/get.ts)_
+_See code: [packages/eas-cli/src/commands/env/get.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/get.ts)_
 
 ## `eas env:list [ENVIRONMENT]`
 
@@ -1647,7 +1647,7 @@ DESCRIPTION
   list environment variables for the current project or account
 ```
 
-_See code: [packages/eas-cli/src/commands/env/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/list.ts)_
+_See code: [packages/eas-cli/src/commands/env/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/list.ts)_
 
 ## `eas env:pull [ENVIRONMENT]`
 
@@ -1670,7 +1670,7 @@ DESCRIPTION
   pull environment variables for the selected environment to .env file
 ```
 
-_See code: [packages/eas-cli/src/commands/env/pull.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/pull.ts)_
+_See code: [packages/eas-cli/src/commands/env/pull.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/pull.ts)_
 
 ## `eas env:push [ENVIRONMENT]`
 
@@ -1692,7 +1692,7 @@ DESCRIPTION
   push environment variables from .env file to the selected environment
 ```
 
-_See code: [packages/eas-cli/src/commands/env/push.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/push.ts)_
+_See code: [packages/eas-cli/src/commands/env/push.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/push.ts)_
 
 ## `eas env:set [ENVIRONMENT]`
 
@@ -1724,7 +1724,7 @@ DESCRIPTION
   set (create or update) an environment variable on the current project or account
 ```
 
-_See code: [packages/eas-cli/src/commands/env/set.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/env/set.ts)_
+_See code: [packages/eas-cli/src/commands/env/set.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/env/set.ts)_
 
 ## `eas fingerprint:compare [HASH1] [HASH2]`
 
@@ -1768,7 +1768,7 @@ EXAMPLES
   $ eas fingerprint:compare <FINGERPRINT-HASH> --update-id <UPDATE-ID> 	 # Compare fingerprint from update against provided fingerprint
 ```
 
-_See code: [packages/eas-cli/src/commands/fingerprint/compare.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/fingerprint/compare.ts)_
+_See code: [packages/eas-cli/src/commands/fingerprint/compare.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/fingerprint/compare.ts)_
 
 ## `eas fingerprint:generate`
 
@@ -1799,7 +1799,7 @@ EXAMPLES
   $ eas fingerprint:generate --json --non-interactive --platform android  	 # Output fingerprint json to stdout
 ```
 
-_See code: [packages/eas-cli/src/commands/fingerprint/generate.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/fingerprint/generate.ts)_
+_See code: [packages/eas-cli/src/commands/fingerprint/generate.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/fingerprint/generate.ts)_
 
 ## `eas help [COMMAND]`
 
@@ -1874,7 +1874,7 @@ DESCRIPTION
   connect a project to an App Store Connect app
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/asc/connect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/asc/connect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/asc/connect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/asc/connect.ts)_
 
 ## `eas integrations:asc:disconnect`
 
@@ -1893,7 +1893,7 @@ DESCRIPTION
   disconnect the current project from its App Store Connect app
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/asc/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/asc/disconnect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/asc/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/asc/disconnect.ts)_
 
 ## `eas integrations:asc:status`
 
@@ -1911,7 +1911,7 @@ DESCRIPTION
   show the App Store Connect app link status for the current project
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/asc/status.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/asc/status.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/asc/status.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/asc/status.ts)_
 
 ## `eas integrations:convex:connect`
 
@@ -1933,7 +1933,7 @@ DESCRIPTION
   connect Convex to your Expo project
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/connect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/connect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/connect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/connect.ts)_
 
 ## `eas integrations:convex:dashboard`
 
@@ -1947,7 +1947,7 @@ DESCRIPTION
   open the Convex dashboard for the linked Convex project
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/dashboard.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/dashboard.ts)_
 
 ## `eas integrations:convex:project`
 
@@ -1961,7 +1961,7 @@ DESCRIPTION
   display the Convex project linked to the current Expo app
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/project.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/project.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/project.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/project.ts)_
 
 ## `eas integrations:convex:project:delete`
 
@@ -1979,7 +1979,7 @@ DESCRIPTION
   remove the Convex project link for the current Expo app from EAS servers
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/project/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/project/delete.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/project/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/project/delete.ts)_
 
 ## `eas integrations:convex:team`
 
@@ -1993,7 +1993,7 @@ DESCRIPTION
   display Convex teams linked to the current Expo app's owner account
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/team.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/team.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/team.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/team.ts)_
 
 ## `eas integrations:convex:team:delete [CONVEX_TEAM]`
 
@@ -2014,7 +2014,7 @@ DESCRIPTION
   remove a Convex team link from the current Expo app owner account's EAS servers
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/team/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/team/delete.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/team/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/team/delete.ts)_
 
 ## `eas integrations:convex:team:invite [CONVEX_TEAM]`
 
@@ -2034,7 +2034,7 @@ DESCRIPTION
   send a Convex team invitation to your verified email address
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/convex/team/invite.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/convex/team/invite.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/convex/team/invite.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/convex/team/invite.ts)_
 
 ## `eas integrations:posthog:connect`
 
@@ -2061,7 +2061,7 @@ DESCRIPTION
   connect PostHog to your Expo project
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/posthog/connect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/posthog/connect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/posthog/connect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/posthog/connect.ts)_
 
 ## `eas integrations:posthog:dashboard`
 
@@ -2081,7 +2081,7 @@ DESCRIPTION
   open the PostHog dashboard for the linked PostHog project
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/posthog/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/posthog/dashboard.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/posthog/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/posthog/dashboard.ts)_
 
 ## `eas integrations:posthog:disconnect`
 
@@ -2100,7 +2100,7 @@ DESCRIPTION
   remove the PostHog project link for the current Expo app from EAS servers
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/posthog/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/posthog/disconnect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/posthog/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/posthog/disconnect.ts)_
 
 ## `eas integrations:supabase:advisors`
 
@@ -2127,7 +2127,7 @@ EXAMPLES
   $ eas integrations:supabase:advisors --json --non-interactive
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/supabase/advisors.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/supabase/advisors.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/supabase/advisors.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/supabase/advisors.ts)_
 
 ## `eas integrations:supabase:connect`
 
@@ -2171,7 +2171,7 @@ EXAMPLES
   $ eas integrations:supabase:connect --reauth
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/supabase/connect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/supabase/connect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/supabase/connect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/supabase/connect.ts)_
 
 ## `eas integrations:supabase:dashboard`
 
@@ -2194,7 +2194,7 @@ EXAMPLES
   $ eas integrations:supabase:dashboard --non-interactive
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/supabase/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/supabase/dashboard.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/supabase/dashboard.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/supabase/dashboard.ts)_
 
 ## `eas integrations:supabase:disconnect`
 
@@ -2219,7 +2219,7 @@ EXAMPLES
   $ eas integrations:supabase:disconnect --yes
 ```
 
-_See code: [packages/eas-cli/src/commands/integrations/supabase/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/integrations/supabase/disconnect.ts)_
+_See code: [packages/eas-cli/src/commands/integrations/supabase/disconnect.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/integrations/supabase/disconnect.ts)_
 
 ## `eas login`
 
@@ -2282,7 +2282,7 @@ DESCRIPTION
   validate the local store configuration
 ```
 
-_See code: [packages/eas-cli/src/commands/metadata/lint.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/metadata/lint.ts)_
+_See code: [packages/eas-cli/src/commands/metadata/lint.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/metadata/lint.ts)_
 
 ## `eas metadata:pull`
 
@@ -2300,7 +2300,7 @@ DESCRIPTION
   generate the local store configuration from the app stores
 ```
 
-_See code: [packages/eas-cli/src/commands/metadata/pull.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/metadata/pull.ts)_
+_See code: [packages/eas-cli/src/commands/metadata/pull.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/metadata/pull.ts)_
 
 ## `eas metadata:push`
 
@@ -2318,7 +2318,7 @@ DESCRIPTION
   sync the local store configuration to the app stores
 ```
 
-_See code: [packages/eas-cli/src/commands/metadata/push.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/metadata/push.ts)_
+_See code: [packages/eas-cli/src/commands/metadata/push.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/metadata/push.ts)_
 
 ## `eas new [PATH]`
 
@@ -2378,7 +2378,7 @@ DESCRIPTION
   display error and exception issue groups (grouped by fingerprint) for the app
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/errors.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/errors.ts)_
+_See code: [packages/eas-cli/src/commands/observe/errors.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/errors.ts)_
 
 ## `eas observe:event ID`
 
@@ -2401,7 +2401,7 @@ DESCRIPTION
   flag is passed to `eas observe:session`, `eas observe:metrics`, or `eas observe:events`.
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/event.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/event.ts)_
+_See code: [packages/eas-cli/src/commands/observe/event.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/event.ts)_
 
 ## `eas observe:events [EVENTNAME]`
 
@@ -2442,7 +2442,7 @@ DESCRIPTION
   arguments, a list of the available event names and associated event counts is returned.
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/events.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/events.ts)_
+_See code: [packages/eas-cli/src/commands/observe/events.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/events.ts)_
 
 ## `eas observe:metrics [METRIC]`
 
@@ -2481,7 +2481,7 @@ DESCRIPTION
   display individual performance metric samples ordered by value
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/metrics.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/metrics.ts)_
+_See code: [packages/eas-cli/src/commands/observe/metrics.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/metrics.ts)_
 
 ## `eas observe:metrics-summary`
 
@@ -2514,7 +2514,7 @@ DESCRIPTION
   display aggregated performance metric statistics grouped by app version
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/metrics-summary.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/metrics-summary.ts)_
+_See code: [packages/eas-cli/src/commands/observe/metrics-summary.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/metrics-summary.ts)_
 
 ## `eas observe:routes`
 
@@ -2553,7 +2553,7 @@ DESCRIPTION
   display app navigation route metrics (Cold TTR, Warm TTR, TTI) grouped by route name
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/routes.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/routes.ts)_
+_See code: [packages/eas-cli/src/commands/observe/routes.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/routes.ts)_
 
 ## `eas observe:session [SESSIONID]`
 
@@ -2585,7 +2585,7 @@ DESCRIPTION
   display the timeline of metric and log events for a specific session
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/session.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/session.ts)_
+_See code: [packages/eas-cli/src/commands/observe/session.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/session.ts)_
 
 ## `eas observe:versions`
 
@@ -2611,7 +2611,7 @@ DESCRIPTION
   display app versions with build and update details
 ```
 
-_See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/observe/versions.ts)_
+_See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/observe/versions.ts)_
 
 ## `eas project:delete [NAME]`
 
@@ -2635,7 +2635,7 @@ DESCRIPTION
   delete a project
 ```
 
-_See code: [packages/eas-cli/src/commands/project/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/delete.ts)_
+_See code: [packages/eas-cli/src/commands/project/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/delete.ts)_
 
 ## `eas project:icon:set PATH`
 
@@ -2655,7 +2655,7 @@ DESCRIPTION
   set the project icon displayed on the EAS dashboard
 ```
 
-_See code: [packages/eas-cli/src/commands/project/icon/set.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/icon/set.ts)_
+_See code: [packages/eas-cli/src/commands/project/icon/set.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/icon/set.ts)_
 
 ## `eas project:info`
 
@@ -2669,7 +2669,7 @@ DESCRIPTION
   information about the current project
 ```
 
-_See code: [packages/eas-cli/src/commands/project/info.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/info.ts)_
+_See code: [packages/eas-cli/src/commands/project/info.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/info.ts)_
 
 ## `eas project:init`
 
@@ -2704,7 +2704,7 @@ EXAMPLES
   $ eas init --account my-account --json --non-interactive  	 # Same, and print the result as JSON to stdout
 ```
 
-_See code: [packages/eas-cli/src/commands/project/init.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/init.ts)_
+_See code: [packages/eas-cli/src/commands/project/init.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/init.ts)_
 
 ## `eas project:new [PATH]`
 
@@ -2729,7 +2729,7 @@ ALIASES
   $ eas new
 ```
 
-_See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/new.ts)_
+_See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/new.ts)_
 
 ## `eas project:status`
 
@@ -2758,7 +2758,7 @@ EXAMPLES
   $ eas status --json --limit 10 	 # Include more activity from each section
 ```
 
-_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/project/status.ts)_
+_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/project/status.ts)_
 
 ## `eas sim:availability`
 
@@ -2945,12 +2945,13 @@ ALIASES
 
 ```
 USAGE
-  $ eas sim:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--build-id <value> |
-    --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
-    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
-    [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
-    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
+  $ eas sim:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
+    <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
+    [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
+    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
+    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
+    [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3050,6 +3051,11 @@ FLAGS
 
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
+
+  --system-image=<value>
+      Android SDK system image package to use for the emulator (e.g.
+      "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner.
+      Only supported with --platform android.
 
   --tag=<value>...
       Label used to group simulator sessions, for example one per app variant. Repeat for multiple tags. Stored
@@ -3095,12 +3101,13 @@ ALIASES
 
 ```
 USAGE
-  $ eas simulator [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--build-id <value> |
-    --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
-    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
-    [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
-    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
+  $ eas simulator [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
+    <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
+    [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
+    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
+    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
+    [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3201,6 +3208,11 @@ FLAGS
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
 
+  --system-image=<value>
+      Android SDK system image package to use for the emulator (e.g.
+      "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner.
+      Only supported with --platform android.
+
   --tag=<value>...
       Label used to group simulator sessions, for example one per app variant. Repeat for multiple tags. Stored
       lowercased.
@@ -3219,7 +3231,7 @@ ALIASES
   $ eas sim:start
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/index.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/index.ts)_
 
 ## `eas simulator:availability`
 
@@ -3240,7 +3252,7 @@ ALIASES
   $ eas sim:availability
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/availability.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/availability.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/availability.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/availability.ts)_
 
 ## `eas simulator:control [ACTION]`
 
@@ -3291,7 +3303,7 @@ EXAMPLES
   $ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/control.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/control.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/control.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/control.ts)_
 
 ## `eas simulator:egress`
 
@@ -3314,7 +3326,7 @@ ALIASES
   $ eas sim:egress
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/egress.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/egress.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/egress.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/egress.ts)_
 
 ## `eas simulator:events`
 
@@ -3337,7 +3349,7 @@ ALIASES
   $ eas sim:events
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/events.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/events.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/events.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/events.ts)_
 
 ## `eas simulator:exec`
 
@@ -3354,7 +3366,7 @@ ALIASES
   $ eas sim:exec
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/exec.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/exec.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/exec.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/exec.ts)_
 
 ## `eas simulator:get`
 
@@ -3377,7 +3389,7 @@ ALIASES
   $ eas sim:get
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/get.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/get.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/get.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/get.ts)_
 
 ## `eas simulator:list`
 
@@ -3412,7 +3424,7 @@ ALIASES
   $ eas sim:list
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/list.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/list.ts)_
 
 ## `eas simulator:start`
 
@@ -3420,12 +3432,13 @@ _See code: [packages/eas-cli/src/commands/simulator/list.ts](https://github.com/
 
 ```
 USAGE
-  $ eas simulator:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--build-id <value> |
-    --build-fingerprint <value> | --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg
-    <value>...] [--open-url <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>]
-    [--network-capture-field <value>... --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes
-    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
-    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
+  $ eas simulator:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
+    <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
+    [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
+    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
+    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
+    [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3526,6 +3539,11 @@ FLAGS
   --sdk-version=<value>
       Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.
 
+  --system-image=<value>
+      Android SDK system image package to use for the emulator (e.g.
+      "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner.
+      Only supported with --platform android.
+
   --tag=<value>...
       Label used to group simulator sessions, for example one per app variant. Repeat for multiple tags. Stored
       lowercased.
@@ -3564,7 +3582,7 @@ ALIASES
   $ eas sim:stop
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/stop.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/simulator/stop.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/stop.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/simulator/stop.ts)_
 
 ## `eas status`
 
@@ -3628,7 +3646,7 @@ ALIASES
   $ eas build:submit
 ```
 
-_See code: [packages/eas-cli/src/commands/submit.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit.ts)_
+_See code: [packages/eas-cli/src/commands/submit.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit.ts)_
 
 ## `eas submit:cancel [SUBMISSION_ID]`
 
@@ -3647,7 +3665,7 @@ DESCRIPTION
   cancel a submission
 ```
 
-_See code: [packages/eas-cli/src/commands/submit/cancel.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit/cancel.ts)_
+_See code: [packages/eas-cli/src/commands/submit/cancel.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit/cancel.ts)_
 
 ## `eas submit:list`
 
@@ -3671,7 +3689,7 @@ DESCRIPTION
   list submissions for your project
 ```
 
-_See code: [packages/eas-cli/src/commands/submit/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit/list.ts)_
+_See code: [packages/eas-cli/src/commands/submit/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit/list.ts)_
 
 ## `eas submit:retry [SUBMISSION_ID]`
 
@@ -3691,7 +3709,7 @@ DESCRIPTION
   retry a failed submission
 ```
 
-_See code: [packages/eas-cli/src/commands/submit/retry.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit/retry.ts)_
+_See code: [packages/eas-cli/src/commands/submit/retry.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit/retry.ts)_
 
 ## `eas submit:status`
 
@@ -3726,7 +3744,7 @@ EXAMPLES
   $ eas submit:status --json --non-interactive  	 # machine-readable output
 ```
 
-_See code: [packages/eas-cli/src/commands/submit/status.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit/status.ts)_
+_See code: [packages/eas-cli/src/commands/submit/status.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit/status.ts)_
 
 ## `eas submit:view [SUBMISSION_ID]`
 
@@ -3745,7 +3763,7 @@ DESCRIPTION
   view a submission for your project
 ```
 
-_See code: [packages/eas-cli/src/commands/submit/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/submit/view.ts)_
+_See code: [packages/eas-cli/src/commands/submit/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/submit/view.ts)_
 
 ## `eas testflight:crashes [ID]`
 
@@ -3786,7 +3804,7 @@ EXAMPLES
   $ eas testflight:crashes ${{ app_store_connect.beta_feedback.url }} --json  	 # Look up whatever an EAS workflow trigger reported
 ```
 
-_See code: [packages/eas-cli/src/commands/testflight/crashes.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/testflight/crashes.ts)_
+_See code: [packages/eas-cli/src/commands/testflight/crashes.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/testflight/crashes.ts)_
 
 ## `eas testflight:feedback [ID]`
 
@@ -3828,7 +3846,7 @@ EXAMPLES
   $ eas testflight:feedback ${{ app_store_connect.beta_feedback.url }} --json  	 # Look up whatever an EAS workflow trigger reported
 ```
 
-_See code: [packages/eas-cli/src/commands/testflight/feedback.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/testflight/feedback.ts)_
+_See code: [packages/eas-cli/src/commands/testflight/feedback.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/testflight/feedback.ts)_
 
 ## `eas update`
 
@@ -3875,7 +3893,7 @@ DESCRIPTION
   publish an update group
 ```
 
-_See code: [packages/eas-cli/src/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/index.ts)_
+_See code: [packages/eas-cli/src/commands/update/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/index.ts)_
 
 ## `eas update:configure`
 
@@ -3896,7 +3914,7 @@ DESCRIPTION
   configure the project to support EAS Update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/configure.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/configure.ts)_
+_See code: [packages/eas-cli/src/commands/update/configure.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/configure.ts)_
 
 ## `eas update:delete GROUPID`
 
@@ -3917,7 +3935,7 @@ DESCRIPTION
   delete all the updates in an update group
 ```
 
-_See code: [packages/eas-cli/src/commands/update/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/delete.ts)_
+_See code: [packages/eas-cli/src/commands/update/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/delete.ts)_
 
 ## `eas update:edit [GROUPID]`
 
@@ -3942,7 +3960,7 @@ DESCRIPTION
   edit all the updates in an update group
 ```
 
-_See code: [packages/eas-cli/src/commands/update/edit.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/edit.ts)_
+_See code: [packages/eas-cli/src/commands/update/edit.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/edit.ts)_
 
 ## `eas update:embedded:delete ID`
 
@@ -3963,7 +3981,7 @@ DESCRIPTION
   delete an embedded update registered with EAS Update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/embedded/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/embedded/delete.ts)_
+_See code: [packages/eas-cli/src/commands/update/embedded/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/embedded/delete.ts)_
 
 ## `eas update:embedded:list`
 
@@ -3989,7 +4007,7 @@ DESCRIPTION
   list embedded updates registered with EAS Update for this project
 ```
 
-_See code: [packages/eas-cli/src/commands/update/embedded/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/embedded/list.ts)_
+_See code: [packages/eas-cli/src/commands/update/embedded/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/embedded/list.ts)_
 
 ## `eas update:embedded:upload`
 
@@ -4019,7 +4037,7 @@ EXAMPLES
   $ eas update:embedded:upload --platform android --bundle android/app/src/main/assets/index.android.bundle --manifest android/app/src/main/assets/app.manifest --channel production --build-id <BUILD-ID>
 ```
 
-_See code: [packages/eas-cli/src/commands/update/embedded/upload.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/embedded/upload.ts)_
+_See code: [packages/eas-cli/src/commands/update/embedded/upload.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/embedded/upload.ts)_
 
 ## `eas update:embedded:view ID`
 
@@ -4039,7 +4057,7 @@ DESCRIPTION
   view details of an embedded update registered with EAS Update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/embedded/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/embedded/view.ts)_
+_See code: [packages/eas-cli/src/commands/update/embedded/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/embedded/view.ts)_
 
 ## `eas update:insights GROUPID`
 
@@ -4066,7 +4084,7 @@ DESCRIPTION
   display launch, crash, unique-user, and size insights for an update group
 ```
 
-_See code: [packages/eas-cli/src/commands/update/insights.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/insights.ts)_
+_See code: [packages/eas-cli/src/commands/update/insights.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/insights.ts)_
 
 ## `eas update:list`
 
@@ -4093,7 +4111,7 @@ DESCRIPTION
   view the recent updates
 ```
 
-_See code: [packages/eas-cli/src/commands/update/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/list.ts)_
+_See code: [packages/eas-cli/src/commands/update/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/list.ts)_
 
 ## `eas update:republish`
 
@@ -4133,7 +4151,7 @@ DESCRIPTION
   roll back to an existing update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/republish.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/republish.ts)_
+_See code: [packages/eas-cli/src/commands/update/republish.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/republish.ts)_
 
 ## `eas update:revert-update-rollout`
 
@@ -4161,7 +4179,7 @@ DESCRIPTION
   revert a rollout update for a project
 ```
 
-_See code: [packages/eas-cli/src/commands/update/revert-update-rollout.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/revert-update-rollout.ts)_
+_See code: [packages/eas-cli/src/commands/update/revert-update-rollout.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/revert-update-rollout.ts)_
 
 ## `eas update:roll-back-to-embedded`
 
@@ -4193,7 +4211,7 @@ DESCRIPTION
   roll back to the embedded update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/roll-back-to-embedded.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/roll-back-to-embedded.ts)_
+_See code: [packages/eas-cli/src/commands/update/roll-back-to-embedded.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/roll-back-to-embedded.ts)_
 
 ## `eas update:rollback [GROUPID]`
 
@@ -4227,7 +4245,7 @@ DESCRIPTION
   roll back to an embedded update or an existing update
 ```
 
-_See code: [packages/eas-cli/src/commands/update/rollback.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/rollback.ts)_
+_See code: [packages/eas-cli/src/commands/update/rollback.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/rollback.ts)_
 
 ## `eas update:view GROUPID`
 
@@ -4251,7 +4269,7 @@ DESCRIPTION
   update group details
 ```
 
-_See code: [packages/eas-cli/src/commands/update/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/update/view.ts)_
+_See code: [packages/eas-cli/src/commands/update/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/update/view.ts)_
 
 ## `eas upload`
 
@@ -4272,7 +4290,7 @@ DESCRIPTION
   upload a local build and generate a sharable link
 ```
 
-_See code: [packages/eas-cli/src/commands/upload.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/upload.ts)_
+_See code: [packages/eas-cli/src/commands/upload.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/upload.ts)_
 
 ## `eas webhook:create`
 
@@ -4294,7 +4312,7 @@ DESCRIPTION
   create a webhook
 ```
 
-_See code: [packages/eas-cli/src/commands/webhook/create.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/webhook/create.ts)_
+_See code: [packages/eas-cli/src/commands/webhook/create.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/webhook/create.ts)_
 
 ## `eas webhook:delete [ID]`
 
@@ -4314,7 +4332,7 @@ DESCRIPTION
   delete a webhook
 ```
 
-_See code: [packages/eas-cli/src/commands/webhook/delete.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/webhook/delete.ts)_
+_See code: [packages/eas-cli/src/commands/webhook/delete.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/webhook/delete.ts)_
 
 ## `eas webhook:list`
 
@@ -4333,7 +4351,7 @@ DESCRIPTION
   list webhooks
 ```
 
-_See code: [packages/eas-cli/src/commands/webhook/list.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/webhook/list.ts)_
+_See code: [packages/eas-cli/src/commands/webhook/list.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/webhook/list.ts)_
 
 ## `eas webhook:update`
 
@@ -4356,7 +4374,7 @@ DESCRIPTION
   update a webhook
 ```
 
-_See code: [packages/eas-cli/src/commands/webhook/update.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/webhook/update.ts)_
+_See code: [packages/eas-cli/src/commands/webhook/update.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/webhook/update.ts)_
 
 ## `eas webhook:view ID`
 
@@ -4373,7 +4391,7 @@ DESCRIPTION
   view a webhook
 ```
 
-_See code: [packages/eas-cli/src/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/webhook/view.ts)_
+_See code: [packages/eas-cli/src/commands/webhook/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/webhook/view.ts)_
 
 ## `eas whoami`
 
@@ -4497,7 +4515,7 @@ DESCRIPTION
   to cancel.
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/cancel.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/cancel.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/cancel.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/cancel.ts)_
 
 ## `eas workflow:create [NAME]`
 
@@ -4519,7 +4537,7 @@ DESCRIPTION
   create a new workflow configuration YAML file
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/create.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/create.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/create.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/create.ts)_
 
 ## `eas workflow:insights`
 
@@ -4584,7 +4602,7 @@ DESCRIPTION
   display run counts, success rate, run durations, and per-workflow trends for a time range
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/insights/index.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/insights/index.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/insights/index.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/insights/index.ts)_
 
 ## `eas workflow:insights:maestro`
 
@@ -4627,7 +4645,7 @@ DESCRIPTION
   display Maestro test insights for a time range: pass and flake rates, per-flow stats, and a single flow's history
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/insights/maestro.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/insights/maestro.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/insights/maestro.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/insights/maestro.ts)_
 
 ## `eas workflow:logs [ID]`
 
@@ -4651,7 +4669,7 @@ DESCRIPTION
   If no ID is passed in, you will be prompted to select from recent workflow runs for the current project.
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/logs.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/logs.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/logs.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/logs.ts)_
 
 ## `eas workflow:run FILE`
 
@@ -4704,7 +4722,7 @@ FLAG DESCRIPTIONS
     Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/run.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/run.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/run.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/run.ts)_
 
 ## `eas workflow:runs`
 
@@ -4726,7 +4744,7 @@ DESCRIPTION
   list recent workflow runs for this project, with their IDs, statuses, and timestamps
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/runs.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/runs.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/runs.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/runs.ts)_
 
 ## `eas workflow:status [WORKFLOW_RUN_ID]`
 
@@ -4754,7 +4772,7 @@ FLAG DESCRIPTIONS
     Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/status.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/status.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/status.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/status.ts)_
 
 ## `eas workflow:validate PATH`
 
@@ -4774,7 +4792,7 @@ DESCRIPTION
   validate a workflow configuration yaml file
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/validate.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/validate.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/validate.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/validate.ts)_
 
 ## `eas workflow:view [ID]`
 
@@ -4796,5 +4814,5 @@ DESCRIPTION
   workflow runs for the current project.
 ```
 
-_See code: [packages/eas-cli/src/commands/workflow/view.ts](https://github.com/expo/eas-cli/blob/v25.2.0/packages/eas-cli/src/commands/workflow/view.ts)_
+_See code: [packages/eas-cli/src/commands/workflow/view.ts](https://github.com/expo/eas-cli/blob/v25.3.0/packages/eas-cli/src/commands/workflow/view.ts)_
 <!-- commandsstop -->
