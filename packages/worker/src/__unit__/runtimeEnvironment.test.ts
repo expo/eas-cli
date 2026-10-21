@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { RuntimeSettings } from '@expo/build-tools';
-import { Android, Ios, Job, Platform } from '@expo/eas-build-job';
+import { Android, Ios, Job } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import { mkdirp, pathExists } from 'fs-extra';
@@ -109,23 +109,25 @@ describe('prepareRuntimeEnvironment', () => {
   });
 
   it.each([
-    { name: 'device session', platform: undefined, sessionId: 'session-id', skip: true },
-    { name: 'custom workflow', platform: undefined, sessionId: undefined, skip: false },
-    {
-      name: 'iOS build with a session ID',
-      platform: Platform.IOS,
-      sessionId: 'session-id',
-      skip: false,
-    },
+    { name: 'default', flag: undefined, sessionId: undefined, skip: false },
+    { name: 'disabled', flag: '1', sessionId: undefined, skip: true },
+    { name: 'zero', flag: '0', sessionId: undefined, skip: false },
+    { name: 'other value', flag: 'true', sessionId: undefined, skip: false },
+    { name: 'session ID only', flag: undefined, sessionId: 'session-id', skip: false },
   ])(
-    'installs the CocoaPods proxy only outside device sessions: $name',
-    async ({ platform, sessionId, skip }) => {
+    'skips the CocoaPods proxy only with an explicit flag: $name',
+    async ({ flag, sessionId, skip }) => {
       mockProcessPlatform('darwin');
       jest.mocked(spawn).mockResolvedValue(spawnResult);
-      const builderEnvironment = { env: sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {} };
+      const builderEnvironment = {
+        env: {
+          ...(flag !== undefined ? { EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN: flag } : {}),
+          ...(sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {}),
+        },
+      };
 
       await prepareRuntimeEnvironment(
-        { ...ctx, job: { platform, builderEnvironment } },
+        { ...ctx, job: { builderEnvironment } },
         builderEnvironment,
         false /* skipIfTest */
       );

@@ -76,9 +76,10 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  const isDeviceRunSession =
-    !ctx.job.platform && Boolean(builderConfig?.env?.DEVICE_RUN_SESSION_ID);
-  if (process.platform === 'darwin' && !isDeviceRunSession) {
+  if (
+    process.platform === 'darwin' &&
+    builderConfig?.env?.EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN !== '1'
+  ) {
     await installCocoapodsCachePlugin();
   }
 
