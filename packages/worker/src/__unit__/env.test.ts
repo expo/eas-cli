@@ -1,5 +1,5 @@
 import { RuntimeSettings } from '@expo/build-tools';
-import { EnvironmentSecretType, Platform, Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import childProcess from 'child_process';
 import os from 'os';
 import v8 from 'v8';
@@ -57,13 +57,18 @@ describe(getBuildEnv.name, () => {
   });
 
   it.each([
-    { name: 'device session', platform: undefined, token: 'session-token', skip: true },
-    { name: 'custom workflow', platform: undefined, token: undefined, skip: false },
-    { name: 'iOS build', platform: Platform.IOS, token: undefined, skip: false },
-    { name: 'iOS build with a session token', platform: Platform.IOS, token: 'token', skip: false },
+    { name: 'device session', platform: undefined, sessionId: 'session-id', skip: true },
+    { name: 'custom workflow', platform: undefined, sessionId: undefined, skip: false },
+    { name: 'iOS build', platform: Platform.IOS, sessionId: undefined, skip: false },
+    {
+      name: 'iOS build with a session ID',
+      platform: Platform.IOS,
+      sessionId: 'session-id',
+      skip: false,
+    },
   ])(
     'queries Xcode only for jobs that may upload to the App Store: $name',
-    ({ platform, token, skip }) => {
+    ({ platform, sessionId, skip }) => {
       const spawnSync = jest.spyOn(childProcess, 'spawnSync').mockReturnValue({
         stdout: Buffer.from('Xcode 26.0\nBuild version 17A324'),
       } as ReturnType<typeof childProcess.spawnSync>);
@@ -72,18 +77,7 @@ describe(getBuildEnv.name, () => {
         job: {
           platform,
           type: Workflow.GENERIC,
-          builderEnvironment: { env: {} },
-          secrets: {
-            environmentSecrets: token
-              ? [
-                  {
-                    name: 'EAS_DEVICE_RUN_SESSION_TOKEN',
-                    type: EnvironmentSecretType.STRING,
-                    value: token,
-                  },
-                ]
-              : [],
-          },
+          builderEnvironment: { env: sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {} },
         } as any,
         projectId: 'project-id',
         metadata: {} as any,
