@@ -144,6 +144,37 @@ describe('prepareRuntimeEnvironment', () => {
     }
   );
 
+  it.each([
+    { name: 'default', flag: undefined, overrides: {}, skip: false },
+    { name: 'disabled', flag: '1', overrides: { image: 'session-image' }, skip: true },
+    { name: 'zero', flag: '0', overrides: {}, skip: false },
+    { name: 'other value', flag: 'true', overrides: {}, skip: false },
+    { name: 'Bun override', flag: '1', overrides: { bun: '1.0.0' }, skip: false },
+    { name: 'Corepack override', flag: '1', overrides: { corepack: true }, skip: false },
+  ])(
+    'skips unused version queries only when opted out without tool overrides: $name',
+    async ({ flag, overrides, skip }) => {
+      mockProcessPlatform('linux');
+      jest.mocked(spawn).mockResolvedValue({ ...spawnResult, stdout: '1.0.0' });
+      const builderEnvironment = {
+        ...overrides,
+        env: flag !== undefined ? { EAS_BUILD_DISABLE_PACKAGE_MANAGER_VERSION_CHECKS: flag } : {},
+      };
+
+      await prepareRuntimeEnvironment(ctx, builderEnvironment, false /* skipIfTest */);
+
+      const versionQueries = jest
+        .mocked(spawn)
+        .mock.calls.filter(
+          ([command, args]) => ['yarn', 'pnpm', 'bun'].includes(command) && args[0] === '--version'
+        );
+      expect(versionQueries).toHaveLength(skip ? 0 : 3);
+      if ('corepack' in overrides) {
+        expect(spawn).toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+      }
+    }
+  );
+
   describe('installNode', () => {
     describe('prepareRuntimeEnvironment', () => {
       beforeEach(() => {
@@ -166,7 +197,11 @@ describe('prepareRuntimeEnvironment', () => {
       it('should install the specified version of Node.js', async () => {
         const version = '16.20.1';
         builderConfig.node = version;
-        await prepareRuntimeEnvironment(ctx, builderConfig, false);
+        await prepareRuntimeEnvironment(
+          ctx,
+          { ...builderConfig, env: { EAS_BUILD_DISABLE_PACKAGE_MANAGER_VERSION_CHECKS: '1' } },
+          false /* skipIfTest */
+        );
         expect(spawn).toHaveBeenCalledWith(
           'bash',
           expect.arrayContaining([expect.stringContaining(`nvm install ${version}`)]),
@@ -177,7 +212,11 @@ describe('prepareRuntimeEnvironment', () => {
       it('handles non-semver version of node', async () => {
         const version = 'v16';
         builderConfig.node = version;
-        await prepareRuntimeEnvironment(ctx, builderConfig, false);
+        await prepareRuntimeEnvironment(
+          ctx,
+          { ...builderConfig, env: { EAS_BUILD_DISABLE_PACKAGE_MANAGER_VERSION_CHECKS: '1' } },
+          false /* skipIfTest */
+        );
         expect(spawn).toHaveBeenCalledWith(
           'bash',
           expect.arrayContaining([expect.stringContaining(`nvm install ${version}`)]),
