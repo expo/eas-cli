@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { Client, fetchExchange } from '@urql/core';
 
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
@@ -6,6 +6,90 @@ import * as sandboxDaemon from '../../utils/sandboxDaemon';
 import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
 
 describe('sandbox build functions', () => {
+  it.each([
+    { completion: 'duration', duration: 0.02 },
+    { completion: 'cancellation', duration: 60 },
+    { completion: 'duration', duration: 0.0001 },
+  ])(
+    'stops after $completion with $duration seconds only after readiness',
+    async ({ completion, duration }) => {
+      const controller = new AbortController();
+      let ready!: () => void;
+      const stopAsync = jest.fn(async () => {});
+      const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockResolvedValue({
+        ready: new Promise<void>(resolve => {
+          ready = resolve;
+        }),
+        stopAsync,
+      });
+      const mutation = jest.fn(() => ({ toPromise: async () => ({ data: {} }) }));
+      const logger = { info: jest.fn(), child: jest.fn() };
+      logger.child.mockReturnValue(logger);
+      const fn = createStartSandboxBuildFunction({
+        mcpServerUrl: 'ws://localhost:8787',
+        graphqlClient: { mutation },
+      } as any);
+      try {
+        const pending = fn.fn!({ logger } as any, {
+          inputs: {
+            sandbox_id: { value: 'sandbox-id' },
+            max_duration_seconds: { value: duration },
+          },
+          outputs: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+          signal: controller.signal,
+        });
+        await new Promise(resolve => setTimeout(resolve, 40));
+        expect(mutation).not.toHaveBeenCalled();
+        expect(stopAsync).not.toHaveBeenCalled();
+        ready();
+        if (completion === 'cancellation') {
+          await new Promise(resolve => setImmediate(resolve));
+          expect(stopAsync).not.toHaveBeenCalled();
+          controller.abort();
+        }
+        await pending;
+        expect(mutation).toHaveBeenCalledTimes(1);
+        expect(stopAsync).toHaveBeenCalledTimes(1);
+        const timeoutMessage = `Sandbox reached its maximum runtime of ${duration} seconds. Stopping.`;
+        if (completion === 'duration') {
+          expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
+        } else {
+          expect(logger.info).not.toHaveBeenCalledWith(timeoutMessage);
+        }
+      } finally {
+        start.mockRestore();
+      }
+    }
+  );
+
+  it.each([0, -1, Infinity, NaN])(
+    'rejects invalid maximum duration %s before starting the daemon',
+    async duration => {
+      const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
+      const fn = createStartSandboxBuildFunction({
+        mcpServerUrl: 'ws://localhost:8787',
+      } as any);
+      try {
+        const result = fn.fn!({} as any, {
+          inputs: {
+            sandbox_id: { value: 'sandbox-id' },
+            max_duration_seconds: { value: duration },
+          },
+          outputs: {},
+          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+        });
+        await expect(result).rejects.toBeInstanceOf(UserError);
+        await expect(result).rejects.toThrow(
+          `Invalid sandbox maximum duration: ${duration}. Provide a finite number greater than zero, or omit max_duration_seconds.`
+        );
+        expect(start).not.toHaveBeenCalled();
+      } finally {
+        start.mockRestore();
+      }
+    }
+  );
+
   it('aborts an active ready request and keeps its authentication headers', async () => {
     const controller = new AbortController();
     let requestStarted!: () => void;
