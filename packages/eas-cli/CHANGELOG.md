@@ -1,5 +1,12 @@
 # eas-cli
 
+## 25.3.0
+
+### Minor Changes
+
+- Add a Free plan build limit checkout experiment to `eas build` that offers to open the Starter plan checkout. ([#4633](https://github.com/expo/eas-cli/pull/4633) by [@williamgrosset](https://github.com/williamgrosset))
+- Add a `--system-image` flag to `eas simulator:start` to select the Android SDK system image for the emulator. ([#4500](https://github.com/expo/eas-cli/pull/4500) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
 ## 25.2.0
 
 ### Minor Changes

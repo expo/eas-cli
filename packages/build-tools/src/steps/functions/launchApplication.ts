@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { UserError, quoteAndroidShellCommand } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -11,8 +11,6 @@ import spawn from '@expo/turtle-spawn';
 
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
-// adb closes the connection for longer shell commands (about 65.5 KB with adb 37 on API 35).
-const ANDROID_SHELL_COMMAND_MAX_BYTES = 65_000;
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -135,33 +133,11 @@ export async function launchApplicationAsync({
   }
 }
 
-// `adb shell` joins its arguments with spaces and the device shell parses the result again, so
-// each argument is quoted to reach the command as one literal word.
 async function spawnAndroidShellCommandAsync(
   command: string[],
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<void> {
-  if (command.some(argument => argument.includes('\0'))) {
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-      'Android "launch_args" and "open_url" cannot contain NUL characters.'
-    );
-  }
-  const quotedCommand = command.map(quoteAndroidShellArgument);
-  if (Buffer.byteLength(quotedCommand.join(' ')) > ANDROID_SHELL_COMMAND_MAX_BYTES) {
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-      `The Android launch command is longer than ${ANDROID_SHELL_COMMAND_MAX_BYTES} bytes after shell quoting. Shorten "launch_args" or "open_url".`
-    );
-  }
-  await spawn('adb', ['shell', ...quotedCommand], { env, logger });
-}
-
-function quoteAndroidShellArgument(argument: string): string {
-  if (/^[\w@%+=:,./-]+$/.test(argument)) {
-    return argument;
-  }
-  return `'${argument.replaceAll("'", `'\\''`)}'`;
+  await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
 }
 
 async function preapproveIosUrlSchemeAsync({
