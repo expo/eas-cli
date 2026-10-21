@@ -556,6 +556,8 @@ describe(createServeSimArgs, () => {
       '10000000',
       '--video-fps',
       '60',
+      '--slim-simulator',
+      'default',
       '--turn-url',
       'turns:turn.example.test:443',
     ]);
@@ -743,6 +745,9 @@ describe(createServeSimArgs, () => {
 });
 
 describe(createExpoDeviceHubArgs, () => {
+  it('does not slim the Android emulator', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321 })).not.toContain('--slim-simulator');
+  });
   it('opts in to recording only when a directory is provided', () => {
     expect(createExpoDeviceHubArgs({ port: 4321 })).not.toContain('--android-recording-directory');
     expect(
