@@ -749,8 +749,8 @@ async function startDeviceSessionHostInternalAsync(
         signal?.throwIfAborted();
         await action('app.install', { udid: iosSimulatorUdid, path: staged.path });
       }
-      (await beforeLaunch)?.enforceValue();
       if (app.launchAppIdentifier) {
+        (await beforeLaunch)?.enforceValue();
         signal?.throwIfAborted();
         await action('app.launch', {
           udid: iosSimulatorUdid,

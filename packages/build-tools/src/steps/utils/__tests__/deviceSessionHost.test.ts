@@ -1413,7 +1413,7 @@ it('does not read the iOS egress handoff for an Android host', async () => {
 });
 
 it.each([true, false])(
-  'waits for setup before launch or boot-only readiness (app: %s)',
+  'runs setup in parallel and waits only before app launch (app: %s)',
   async hasApp => {
     const setup = deferred<void>();
     const prepared = deferred<ServeSimApplicationOptions | void>();
@@ -1485,12 +1485,22 @@ it.each([true, false])(
         await new Promise(resolve => setImmediate(resolve));
       }
       await new Promise(resolve => setImmediate(resolve));
-      expect(reported).toBe(false);
-      expect(runServeSimActionAsync).not.toHaveBeenCalled();
-      setup.resolve();
-      const host = await starting;
-      expect(runServeSimActionAsync).not.toHaveBeenCalled();
-      await host.finishAsync();
+      try {
+        expect(reported).toBe(true);
+        expect(runServeSimActionAsync).not.toHaveBeenCalled();
+        const host = await starting;
+        let finished = false;
+        const finishing = host.finishAsync().then(() => {
+          finished = true;
+        });
+        await new Promise(resolve => setImmediate(resolve));
+        expect(finished).toBe(false);
+        setup.resolve();
+        await finishing;
+      } finally {
+        setup.resolve();
+        await (await starting).finishAsync();
+      }
       return;
     }
     while (!jest.mocked(runServeSimActionAsync).mock.calls.length) {
