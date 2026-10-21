@@ -1,325 +1,208 @@
-import { randomBytes } from 'crypto';
-import fetch, { RequestInit, Response } from 'node-fetch';
-import { Readable } from 'stream';
+import { type IncomingMessage, type ServerResponse, createServer } from 'node:http';
+import { performance } from 'node:perf_hooks';
+import { Readable } from 'node:stream';
 
-import { type SignedUrl, uploadWithSignedUrl } from '../uploadWithSignedUrl';
+import {
+  SignedUrlUploadApiError,
+  SignedUrlUploadNetworkError,
+  uploadWithSignedUrl,
+} from '../uploadWithSignedUrl';
 
-jest.mock('node-fetch');
+jest.unmock('node-fetch');
 
-class ErrorWithCode extends Error {
-  protected readonly _code: string | undefined;
+let handle: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>;
+let server: ReturnType<typeof createServer>;
+let origin: string;
+let signedUrl: { url: string; headers: Record<string, string> };
+let requests: number;
 
-  constructor(message: string, code?: string) {
-    super(message);
-    if (code) {
-      this._code = code;
-    }
+async function readBodyAsync(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
   }
-
-  public get code(): string | undefined {
-    return this._code;
-  }
+  return Buffer.concat(chunks).toString();
 }
 
-class DNSError extends ErrorWithCode {
-  protected readonly _code: 'ENOTFOUND' | 'EAI_AGAIN' = 'ENOTFOUND';
-}
-
-const TEST_BUCKET = 'turtle-v2-test';
-
-function createSignedUrl(key: string, contentType: string): SignedUrl {
-  return {
-    url: `https://storage.googleapis.com/${TEST_BUCKET}/${key}?signature=test`,
-    headers: { 'content-type': contentType },
+function respondWithStatuses(statuses: number[]): void {
+  handle = async (request, response) => {
+    await readBodyAsync(request);
+    response.statusCode = statuses[requests - 1];
+    response.end();
   };
 }
 
-describe('signed URL uploader', () => {
-  describe('uploadWithSignedUrl', () => {
-    it('should throw an error if upload fails', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: false,
-        status: 500,
-      } as Response;
+beforeEach(async () => {
+  requests = 0;
+  server = createServer((request, response) => {
+    requests++;
+    void handle(request, response);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Missing test server address');
+  }
+  origin = `http://127.0.0.1:${address.port}`;
+  signedUrl = { url: `${origin}/bucket/object?signature=secret-signature`, headers: {} };
+});
 
-      const key = 'cat.jpg';
+afterEach(async () => {
+  server.closeAllConnections();
+  await new Promise<void>(resolve => server.close(() => resolve()));
+});
 
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
+describe(uploadWithSignedUrl, () => {
+  it('sends the full body on every attempt', async () => {
+    const bodies: string[] = [];
+    handle = async (request, response) => {
+      bodies.push(await readBodyAsync(request));
+      response.statusCode = bodies.length === 1 ? 503 : 200;
+      response.end();
+    };
+    const payload = '*'.repeat(128 * 1024);
 
-      fetchMock.mockImplementation(async () => res);
-      await expect(
-        uploadWithSignedUrl({
-          signedUrl,
-          srcGeneratorAsync: async () => Readable.from('image'),
-          retryIntervalMs: 0,
-        })
-      ).rejects.toThrow();
+    await uploadWithSignedUrl(
+      { signedUrl, srcGeneratorAsync: async () => Readable.from([Buffer.from(payload)]) },
+      { retryIntervalMs: 0 }
+    );
+
+    expect(bodies).toEqual([payload, payload]);
+  });
+
+  it('waits longer after each failed attempt', async () => {
+    respondWithStatuses([503, 503, 200]);
+    const startedAt = performance.now();
+
+    await uploadWithSignedUrl(
+      { signedUrl, srcGeneratorAsync: async () => Readable.from(['body']) },
+      { retryIntervalMs: 100 }
+    );
+
+    expect(requests).toBe(3);
+    expect(performance.now() - startedAt).toBeGreaterThanOrEqual(290);
+  });
+
+  it('does not retry a client error', async () => {
+    handle = async (request, response) => {
+      await readBodyAsync(request);
+      response.statusCode = 403;
+      response.end('<Error><Code>AccessDenied</Code></Error>');
+    };
+
+    const error = await uploadWithSignedUrl(
+      { signedUrl, srcGeneratorAsync: async () => Readable.from(['body']) },
+      { retryIntervalMs: 0 }
+    ).catch(err => err);
+
+    expect(error).toBeInstanceOf(SignedUrlUploadApiError);
+    expect(error).toMatchObject({
+      status: 403,
+      reason: 'HTTP 403 Forbidden',
+      message: 'Signed URL upload failed: HTTP 403 Forbidden.',
     });
+    expect(requests).toBe(1);
+  });
 
-    it('should return stripped URL if successful', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      fetchMock.mockImplementation(async () => res);
-      const result = await uploadWithSignedUrl({
-        signedUrl,
-        srcGeneratorAsync: async () => Readable.from('image'),
-        retryIntervalMs: 0,
-      });
-      expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
-    });
-
-    it('should retry upload on DNS error up to 2 times', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      fetchMock
-        .mockImplementationOnce(async () => {
-          throw new DNSError('failed once');
-        })
-        .mockImplementationOnce(async () => {
-          throw new DNSError('failed twice', 'EAI_AGAIN');
-        })
-        .mockImplementation(async () => res);
-      const result = await uploadWithSignedUrl({
-        signedUrl,
-        srcGeneratorAsync: async () => Readable.from('image'),
-        retryIntervalMs: 0,
-      });
-      expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('should retry upload on retriable status codes error up to 2 times', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      fetchMock
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 503,
-          } as Response;
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 408,
-          } as Response;
-        })
-        .mockImplementation(async () => res);
-      const result = await uploadWithSignedUrl({
-        signedUrl,
-        srcGeneratorAsync: async () => Readable.from('image'),
-        retryIntervalMs: 0,
-      });
-      expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('should retry upload on retriable status codes and DNS errors error up to 2 times', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      fetchMock
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 503,
-          } as Response;
-        })
-        .mockImplementationOnce(async () => {
-          throw new DNSError('failed once');
-        })
-        .mockImplementation(async () => res);
-      const result = await uploadWithSignedUrl({
-        signedUrl,
-        srcGeneratorAsync: async () => Readable.from('image'),
-        retryIntervalMs: 0,
-      });
-      expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('should not retry upload on DNS error more than 2 times', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      const lastDNSError = new DNSError('failed thrice');
-      fetchMock
-        .mockImplementationOnce(async () => {
-          throw new DNSError('failed once');
-        })
-        .mockImplementationOnce(async () => {
-          throw new DNSError('failed twice', 'EAI_AGAIN');
-        })
-        .mockImplementationOnce(async () => {
-          throw lastDNSError;
-        })
-        .mockImplementation(async () => res);
-      await expect(
-        uploadWithSignedUrl({
-          signedUrl,
-          srcGeneratorAsync: async () => Readable.from('image'),
-          retryIntervalMs: 0,
-        })
-      ).rejects.toThrow(lastDNSError);
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('should not retry upload on retriable status code more than 2 times', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      fetchMock
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 503,
-          } as Response;
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 408,
-          } as Response;
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            ok: false,
-            status: 504,
-          } as Response;
-        })
-        .mockImplementation(async () => res);
-      await expect(
-        uploadWithSignedUrl({
-          signedUrl,
-          srcGeneratorAsync: async () => Readable.from('image'),
-          retryIntervalMs: 0,
-        })
-      ).rejects.toThrow();
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('should not retry upload on other error codes', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const res = {
-        ok: true,
-        status: 200,
-      } as Response;
-
-      const key = 'cat.jpg';
-
-      const signedUrl = createSignedUrl(key, 'image/jpeg');
-
-      const nonDNSError = new ErrorWithCode('failed once', 'A_DIFFERENT_CODE');
-      fetchMock
-        .mockImplementationOnce(async () => {
-          throw nonDNSError;
-        })
-        .mockImplementation(async () => res);
-      await expect(
-        uploadWithSignedUrl({
-          signedUrl,
-          srcGeneratorAsync: async () => Readable.from('image'),
-          retryIntervalMs: 0,
-        })
-      ).rejects.toThrow(nonDNSError);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('retries upload with full stream', async () => {
-      const fetchMock = jest.mocked(fetch);
-      const receivedBodies: Buffer[] = [];
-      const recordBody = async (request: RequestInit | undefined): Promise<void> => {
-        let body = Buffer.from([]);
-        for await (const chunk of request!.body as Readable) {
-          body = Buffer.concat([body, chunk]);
-        }
-        receivedBodies.push(body);
-      };
-      fetchMock
-        .mockImplementationOnce(async (_path, request) => {
-          await recordBody(request);
-          return {
-            ok: false,
-            status: 503,
-          } as Response;
-        })
-        .mockImplementationOnce(async (_path, request) => {
-          await recordBody(request);
-          throw new DNSError('failed once');
-        })
-        .mockImplementation(async (_path, request) => {
-          await recordBody(request);
-          return {
-            ok: true,
-            status: 201,
-          } as Response;
-        });
-
-      const signedUrl = createSignedUrl('text.txt', 'text/plain');
-
-      const bufferToUpload = randomBytes(16);
-
-      const result = await uploadWithSignedUrl({
-        signedUrl,
-        srcGeneratorAsync: async () => Readable.from(bufferToUpload),
-        retryIntervalMs: 0,
-      });
-      expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/text.txt');
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(receivedBodies.length).toBe(3);
-      for (const body of receivedBodies) {
-        // Here we're testing that each body received in every retry is the same.
-        // If we passed the same body instance to each of the retries
-        // each retry would consume a chunk of the same stream,
-        // causing the uploaded file to be corrupted (missing first bytes).
-        expect(body).toStrictEqual(bufferToUpload);
+  it('retries a dropped connection', async () => {
+    handle = async (request, response) => {
+      if (requests === 1) {
+        request.socket.destroy();
+        return;
       }
+      await readBodyAsync(request);
+      response.end();
+    };
+    const srcGeneratorAsync = jest.fn(async () => Readable.from(['body']));
+
+    await uploadWithSignedUrl({ signedUrl, srcGeneratorAsync }, { retryIntervalMs: 0 });
+
+    expect(srcGeneratorAsync).toHaveBeenCalledTimes(2);
+    expect(requests).toBe(2);
+  });
+
+  it('retries a refused connection and keeps the signed URL out of the error', async () => {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    const srcGeneratorAsync = jest.fn(async () => Readable.from(['body']));
+
+    const error = await uploadWithSignedUrl(
+      { signedUrl, srcGeneratorAsync },
+      { retries: 1, retryIntervalMs: 0 }
+    ).catch(err => err);
+
+    expect(error).toBeInstanceOf(SignedUrlUploadNetworkError);
+    expect(error).toMatchObject({ code: 'ECONNREFUSED' });
+    expect(error.message).not.toContain('secret-signature');
+    expect(srcGeneratorAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a network error outside the retryable codes', async () => {
+    const srcGeneratorAsync = jest.fn(async () => Readable.from(['body']));
+
+    const error = await uploadWithSignedUrl(
+      {
+        signedUrl: { ...signedUrl, url: signedUrl.url.replace('http:', 'https:') },
+        srcGeneratorAsync,
+      },
+      { retryIntervalMs: 0 }
+    ).catch(err => err);
+
+    expect(error).toBeInstanceOf(SignedUrlUploadNetworkError);
+    expect(error).toMatchObject({ code: 'EPROTO' });
+    expect(srcGeneratorAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates a source error without retrying, even with a retryable code', async () => {
+    const sourceError = Object.assign(new Error('read failed'), { code: 'ECONNRESET' });
+    const srcGeneratorAsync = jest.fn(async (): Promise<Readable> => {
+      throw sourceError;
     });
+
+    await expect(
+      uploadWithSignedUrl({ signedUrl, srcGeneratorAsync }, { retryIntervalMs: 0 })
+    ).rejects.toBe(sourceError);
+    expect(srcGeneratorAsync).toHaveBeenCalledTimes(1);
+    expect(requests).toBe(0);
+  });
+
+  it('retries an attempt that stalls past the stall timeout', async () => {
+    handle = async (request, response) => {
+      await readBodyAsync(request);
+      if (requests > 1) {
+        response.end();
+      }
+    };
+    const streams: Readable[] = [];
+    const srcGeneratorAsync = async (): Promise<Readable> => {
+      const stream = Readable.from(['body']);
+      streams.push(stream);
+      return stream;
+    };
+
+    await uploadWithSignedUrl(
+      { signedUrl, srcGeneratorAsync },
+      { retryIntervalMs: 0, stallTimeoutMs: 100 }
+    );
+
+    expect(requests).toBe(2);
+    expect(streams.every(stream => stream.destroyed)).toBe(true);
+  });
+
+  it('stops waiting for the next attempt when aborted', async () => {
+    const controller = new AbortController();
+    handle = async (request, response) => {
+      await readBodyAsync(request);
+      response.statusCode = 503;
+      response.end();
+      setTimeout(() => controller.abort(), 50);
+    };
+
+    await expect(
+      uploadWithSignedUrl(
+        { signedUrl, srcGeneratorAsync: async () => Readable.from(['body']) },
+        { signal: controller.signal, retryIntervalMs: 60_000 }
+      )
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(requests).toBe(1);
   });
 });

@@ -2,14 +2,15 @@ import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
-import fetch from 'node-fetch';
 import { createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { killProcessGroup } from '../../utils/processes';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
@@ -17,31 +18,6 @@ const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
 const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
-/**
- * node-fetch includes the request URL in its error messages, and this URL is a signed upload URL
- * that is valid for the whole session. Replace such errors with one that names only the failure.
- */
-async function putPreviewAsync(
-  uploadSession: { url: string; headers: Record<string, string> },
-  { image, signal }: { image: Buffer; signal: AbortSignal }
-): Promise<Awaited<ReturnType<typeof fetch>>> {
-  try {
-    return await fetch(uploadSession.url, {
-      method: 'PUT',
-      headers: uploadSession.headers,
-      body: image,
-      signal,
-      timeout: 30_000,
-    });
-  } catch (err) {
-    const { name, type, code } = err as { name?: unknown; type?: unknown; code?: unknown };
-    const details = Object.entries({ name, type, code })
-      .filter(([, value]) => typeof value === 'string' && value.length > 0)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(', ');
-    throw new Error(`Session preview upload request failed (${details || 'unknown error'}).`);
-  }
-}
 
 export function startDeviceRunSessionPreview({
   ctx,
@@ -75,10 +51,16 @@ export function startDeviceRunSessionPreview({
       if (controller.signal.aborted) {
         return;
       }
-      const response = await putPreviewAsync(uploadSession, { image, signal });
-      if (!response.ok) {
-        throw new Error(`Session preview upload failed: ${response.status} ${response.statusText}`);
-      }
+      await uploadWithSignedUrl(
+        {
+          signedUrl: {
+            url: uploadSession.url,
+            headers: { ...uploadSession.headers, 'content-length': String(image.length) },
+          },
+          srcGeneratorAsync: async () => Readable.from([image]),
+        },
+        { signal, retries: 0, stallTimeoutMs: 30_000 }
+      );
     } catch (err) {
       if (!controller.signal.aborted) {
         logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');

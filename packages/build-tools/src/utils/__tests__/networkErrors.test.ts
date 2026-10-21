@@ -8,6 +8,7 @@ it.each([
   'ENETDOWN',
   'ENETUNREACH',
   'ENOTFOUND',
+  'ERR_SOCKET_CONNECTION_TIMEOUT',
 ])('recognizes wrapped %s as a connection establishment failure', code => {
   const error = new Error('Request failed', {
     cause: new TypeError('fetch failed', {
@@ -18,7 +19,7 @@ it.each([
   expect(isConnectionInterruptedError(error)).toBe(false);
 });
 
-it.each(['ECONNRESET', 'UND_ERR_SOCKET'])(
+it.each(['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_SOCKET'])(
   'requires caller-specific recovery for wrapped %s',
   code => {
     const error = new Error('Request failed', {
@@ -29,7 +30,7 @@ it.each(['ECONNRESET', 'UND_ERR_SOCKET'])(
   }
 );
 
-it.each(['ETIMEDOUT', 'CERT_HAS_EXPIRED', undefined])('does not automatically retry %s', code => {
+it.each(['CERT_HAS_EXPIRED', undefined])('does not automatically retry %s', code => {
   const error = Object.assign(new Error('Request failed'), { code });
   expect(isConnectFailure(error)).toBe(false);
   expect(isConnectionInterruptedError(error)).toBe(false);

@@ -18,9 +18,7 @@ jest.mock('@expo/build-tools', () => {
       MockRemoteLoggerStream.instances.push(this);
     }
 
-    public async init(): Promise<string> {
-      return 'https://gcs.expo.test/logs';
-    }
+    public async init(): Promise<void> {}
 
     public async cleanUp(): Promise<void> {}
 

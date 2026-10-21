@@ -5,13 +5,14 @@ import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs/promises';
 import { graphql } from 'gql.tada';
-import fetch from 'node-fetch';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import { Readable } from 'stream';
 import { z } from 'zod';
 
 import { shallowCloneRepositoryAsync } from './git';
 import { BuildContext } from '../context';
+import { uploadWithSignedUrl } from '../storage/uploadWithSignedUrl';
 import { turtleFetch } from '../utils/turtleFetch';
 
 export async function prepareProjectSourcesAsync<TJob extends Job>(
@@ -208,10 +209,13 @@ async function uploadProjectMetadataAsync(
     headers: Record<string, string>;
   };
 
-  await fetch(uploadSession.url, {
-    method: 'PUT',
-    body: JSON.stringify({ archiveContent: sortedFiles }),
-    headers: uploadSession.headers,
+  const body = JSON.stringify({ archiveContent: sortedFiles });
+  await uploadWithSignedUrl({
+    signedUrl: {
+      url: uploadSession.url,
+      headers: { ...uploadSession.headers, 'content-length': String(Buffer.byteLength(body)) },
+    },
+    srcGeneratorAsync: async () => Readable.from([body]),
   });
 
   const updateMetadataResult = await ctx.graphqlClient

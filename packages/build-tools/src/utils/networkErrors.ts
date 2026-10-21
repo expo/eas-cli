@@ -6,6 +6,14 @@ const CONNECT_FAILURE_CODES = new Set([
   'ENETDOWN',
   'ENETUNREACH',
   'ENOTFOUND',
+  'ERR_SOCKET_CONNECTION_TIMEOUT',
+]);
+
+const CONNECTION_INTERRUPTED_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'UND_ERR_SOCKET',
 ]);
 
 export function isConnectFailure(error: unknown): boolean {
@@ -24,7 +32,11 @@ export function isConnectFailure(error: unknown): boolean {
 // The server may already have applied a request. The caller must decide whether repetition is safe.
 export function isConnectionInterruptedError(error: unknown): boolean {
   for (let current = error; current instanceof Error; current = current.cause) {
-    if ('code' in current && (current.code === 'ECONNRESET' || current.code === 'UND_ERR_SOCKET')) {
+    if (
+      'code' in current &&
+      typeof current.code === 'string' &&
+      CONNECTION_INTERRUPTED_CODES.has(current.code)
+    ) {
       return true;
     }
   }

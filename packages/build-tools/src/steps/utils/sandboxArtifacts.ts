@@ -14,12 +14,8 @@ import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { SignedUrlUploadApiError, uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import {
-  ArtifactPutError,
-  type ArtifactUploadSession,
-  putArtifactWithRetriesAsync,
-} from './artifactPut';
 
 const CREATE_SANDBOX_ARTIFACT_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateSandboxArtifactUploadSession(
@@ -238,18 +234,23 @@ async function putSandboxArtifactAsync({
 }: {
   filePath: string;
   size: number;
-  uploadSession: ArtifactUploadSession;
+  uploadSession: { url: string; headers: unknown };
   signal: AbortSignal;
 }): Promise<void> {
-  const openStream = (): Readable =>
-    size === 0 ? Readable.from([]) : createReadStream(filePath, { start: 0, end: size - 1 });
   try {
-    await putArtifactWithRetriesAsync(
-      { uploadSession, source: { openStream }, signal },
-      { attempts: 3 }
+    await uploadWithSignedUrl(
+      {
+        signedUrl: {
+          url: uploadSession.url,
+          headers: uploadSession.headers as Record<string, string>,
+        },
+        srcGeneratorAsync: async () =>
+          size === 0 ? Readable.from([]) : createReadStream(filePath, { start: 0, end: size - 1 }),
+      },
+      { signal, retries: 2, retryIntervalMs: 500 }
     );
   } catch (error) {
-    if (!(error instanceof ArtifactPutError && error.status === 412)) {
+    if (!(error instanceof SignedUrlUploadApiError && error.status === 412)) {
       throw error;
     }
   }
