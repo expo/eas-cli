@@ -1,5 +1,6 @@
 import { Sentry } from './sentry';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from './steps/utils/deviceRunSessionWorkerApi';
+import { SANDBOX_WORKER_TOKEN_HEADER } from './steps/utils/sandboxWorkerApi';
 import { turtleFetch } from './utils/turtleFetch';
 
 type MetricsTarget =
@@ -9,6 +10,11 @@ type MetricsTarget =
   | { kind: 'deviceRunSession' };
 
 type DatadogSetupOptions =
+  | {
+      expoApiV2BaseUrl: string;
+      sandboxWorkerToken: string;
+      target: Extract<MetricsTarget, { kind: 'jobRun' }>;
+    }
   | {
       expoApiV2BaseUrl: string;
       robotAccessToken: string;
@@ -35,6 +41,12 @@ function getMetricsRequest(options: DatadogSetupOptions): {
   path: string;
   headers: Record<string, string>;
 } {
+  if ('sandboxWorkerToken' in options) {
+    return {
+      path: 'sandbox-worker/metrics',
+      headers: { [SANDBOX_WORKER_TOKEN_HEADER]: options.sandboxWorkerToken },
+    };
+  }
   if ('deviceRunSessionToken' in options) {
     return {
       path: 'device-run-session-worker/metrics',
@@ -86,8 +98,8 @@ export const Datadog = {
   },
 
   log(message: string, tags: Record<string, string> = {}): void {
-    // The device run session worker API has no logs route, and the session token is not a bearer
-    // credential, so a device run session job does not report these logs.
+    // Worker routers have no diagnostic logs route. Restricted worker tokens cannot use
+    // the general API. Job output still goes directly to the logs service.
     if (!setupOptions || !('robotAccessToken' in setupOptions)) {
       return;
     }

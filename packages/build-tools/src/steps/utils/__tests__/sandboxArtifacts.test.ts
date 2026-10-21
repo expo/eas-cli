@@ -15,6 +15,7 @@ import { type Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { inspect } from 'node:util';
 
+import { SandboxWorkerApi } from '../sandboxWorkerApi';
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
 
 const { AbortError, FetchError, Response } = jest.requireActual(
@@ -70,6 +71,46 @@ describe('sandbox artifact uploads', () => {
 
   afterEach(async () => {
     await fs.rm(directory, { recursive: true, force: true });
+  });
+
+  it('creates, uploads, and finalizes through the dedicated router without a GraphQL call', async () => {
+    const requests: string[] = [];
+    jest.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      requests.push(url);
+      if (url === SIGNED_URL) {
+        expect(
+          (init?.headers as Record<string, string>)?.['expo-sandbox-worker-token']
+        ).toBeUndefined();
+        return new Response('', { status: 200 });
+      }
+      expect(init?.headers).toMatchObject({ 'expo-sandbox-worker-token': 'worker-token' });
+      expect(init?.headers).not.toHaveProperty('Authorization');
+      return new Response(
+        JSON.stringify({
+          data: url.endsWith('/artifact-upload-sessions')
+            ? { artifact: { id: ARTIFACT_ID }, uploadSession: { url: SIGNED_URL, headers: {} } }
+            : { id: ARTIFACT_ID, downloadUrl: DOWNLOAD_URL },
+        }),
+        { status: 200 }
+      );
+    });
+    const upload = await startSandboxArtifactUploadAsync({
+      graphqlClient,
+      workerApi: new SandboxWorkerApi('https://api.expo.test/v2/', 'worker-token'),
+      sandboxId: 'sandbox-id',
+      logger: logger as unknown as bunyan,
+      filePath,
+      name: 'result',
+      signal: new AbortController().signal,
+    });
+    expect(await upload.completed).toEqual({ status: 'uploaded', downloadUrl: DOWNLOAD_URL });
+    expect(mutation).not.toHaveBeenCalled();
+    expect(requests).toEqual([
+      'https://api.expo.test/v2/sandbox-worker/artifact-upload-sessions',
+      SIGNED_URL,
+      `https://api.expo.test/v2/sandbox-worker/artifacts/${ARTIFACT_ID}/finalize`,
+    ]);
   });
 
   it('returns the artifact id before the PUT completes', async () => {

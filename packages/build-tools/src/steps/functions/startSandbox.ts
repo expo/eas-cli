@@ -5,6 +5,10 @@ import { graphql } from 'gql.tada';
 import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
+import {
+  getSandboxWorkerApi,
+  getSandboxWorkerTokenFromEnvironmentSecrets,
+} from '../utils/sandboxWorkerApi';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
 
 const MARK_SANDBOX_READY_MUTATION = graphql(`
@@ -35,9 +39,17 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
       // The daemon needs this credential, but shell commands do not.
-      const { __EAS_SANDBOX_MCP_TOKEN: sandboxToken, ...commandEnv } = env;
+      const { __EAS_SANDBOX_MCP_TOKEN: envSandboxToken, ...commandEnv } = env;
+      const sandboxToken =
+        getSandboxWorkerTokenFromEnvironmentSecrets(ctx.job.secrets?.environmentSecrets) ??
+        [...(ctx.job.secrets?.environmentSecrets ?? [])]
+          .reverse()
+          .find(({ name }) => name === '__EAS_SANDBOX_MCP_TOKEN')?.value ??
+        envSandboxToken;
       if (!sandboxToken) {
-        throw new SystemError('__EAS_SANDBOX_MCP_TOKEN is required to start the sandbox daemon.');
+        throw new SystemError(
+          'A sandbox worker token or legacy MCP token is required to start the sandbox daemon.'
+        );
       }
       const mcpServerUrl = ctx.mcpServerUrl;
       if (!mcpServerUrl) {
@@ -53,6 +65,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         workingDirectory: stepCtx.workingDirectory,
         env: commandEnv,
         graphqlClient: ctx.graphqlClient,
+        workerApi: getSandboxWorkerApi(ctx) ?? undefined,
         sandboxId,
       });
       try {
@@ -78,6 +91,11 @@ export async function markSandboxReadyAsync(
   signal?: AbortSignal
 ): Promise<void> {
   signal?.throwIfAborted();
+  const workerApi = getSandboxWorkerApi(ctx);
+  if (workerApi) {
+    await workerApi.markReadyAsync(signal);
+    return;
+  }
   const result = await ctx.graphqlClient
     .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
     .toPromise();

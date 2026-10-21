@@ -1,3 +1,4 @@
+import { type SandboxWorkerApi, SandboxWorkerApiError } from './sandboxWorkerApi';
 import {
   type SandboxDaemonCommandResult,
   SandboxDaemonError,
@@ -65,6 +66,7 @@ export class SandboxArtifactUploadManager {
   public constructor(
     private readonly options: {
       graphqlClient: Client;
+      workerApi?: SandboxWorkerApi;
       sandboxId: string;
       logger: bunyan;
       signal: AbortSignal;
@@ -119,6 +121,7 @@ export class SandboxArtifactUploadManager {
 
 export async function startSandboxArtifactUploadAsync({
   graphqlClient,
+  workerApi,
   sandboxId,
   logger,
   filePath,
@@ -126,6 +129,7 @@ export async function startSandboxArtifactUploadAsync({
   signal,
 }: {
   graphqlClient: Client;
+  workerApi?: SandboxWorkerApi;
   sandboxId: string;
   logger: bunyan;
   filePath: string;
@@ -163,7 +167,8 @@ export async function startSandboxArtifactUploadAsync({
   } = await createSandboxArtifactUploadSessionAsync(
     graphqlClient,
     { sandboxId, name, filename: path.basename(filePath), size },
-    AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+    AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    workerApi
   );
   const completed = (async (): Promise<SandboxArtifactUploadOutcome> => {
     logger.info(`Uploading sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
@@ -175,7 +180,12 @@ export async function startSandboxArtifactUploadAsync({
     }
     let downloadUrl: string;
     try {
-      downloadUrl = await finalizeSandboxArtifactAsync(graphqlClient, artifactId, signal);
+      downloadUrl = await finalizeSandboxArtifactAsync(
+        graphqlClient,
+        artifactId,
+        signal,
+        workerApi
+      );
     } catch (error) {
       logger.error(
         { err: error },
@@ -197,8 +207,25 @@ async function createSandboxArtifactUploadSessionAsync(
     filename,
     size,
   }: { sandboxId: string; name: string; filename: string; size: number },
-  signal: AbortSignal
+  signal: AbortSignal,
+  workerApi?: SandboxWorkerApi
 ) {
+  if (workerApi) {
+    try {
+      return await workerApi.createArtifactUploadSessionAsync({ name, filename, size }, signal);
+    } catch (error) {
+      if (
+        error instanceof SandboxWorkerApiError &&
+        error.status !== undefined &&
+        [400, 401, 403].includes(error.status)
+      ) {
+        throw new SandboxDaemonError(SandboxDaemonErrorCode.BAD_REQUEST, error.message, {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+  }
   const result = await graphqlClient
     .mutation(
       CREATE_SANDBOX_ARTIFACT_UPLOAD_SESSION_MUTATION,
@@ -258,12 +285,16 @@ async function putSandboxArtifactAsync({
 async function finalizeSandboxArtifactAsync(
   graphqlClient: Client,
   artifactId: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  workerApi?: SandboxWorkerApi
 ): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     const timeoutSignal = AbortSignal.timeout(15_000);
     const finalizeSignal = AbortSignal.any([signal, timeoutSignal]);
     try {
+      if (workerApi) {
+        return await workerApi.finalizeArtifactAsync(artifactId, finalizeSignal);
+      }
       const result = await graphqlClient
         .mutation(
           FINALIZE_SANDBOX_ARTIFACT_MUTATION,
@@ -283,7 +314,10 @@ async function finalizeSandboxArtifactAsync(
     } catch (error) {
       signal.throwIfAborted();
       const retryable =
-        timeoutSignal.aborted || (error instanceof CombinedError && isTransientGraphqlError(error));
+        timeoutSignal.aborted ||
+        (error instanceof CombinedError && isTransientGraphqlError(error)) ||
+        (error instanceof SandboxWorkerApiError &&
+          (error.status === undefined || error.status >= 500));
       if (!retryable || attempt >= FINALIZE_ATTEMPTS) {
         throw error;
       }

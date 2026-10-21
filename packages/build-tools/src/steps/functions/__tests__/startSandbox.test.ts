@@ -1,6 +1,7 @@
-import { SystemError } from '@expo/eas-build-job';
+import { EnvironmentSecretType, SystemError } from '@expo/eas-build-job';
 import { Client, fetchExchange } from '@urql/core';
 
+import { turtleFetch } from '../../../utils/turtleFetch';
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
 
 import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
@@ -26,7 +27,7 @@ describe('sandbox build functions', () => {
     });
     try {
       const pending = markSandboxReadyAsync(
-        { graphqlClient } as any,
+        { graphqlClient, job: {} } as any,
         'sandbox-id',
         controller.signal
       );
@@ -51,6 +52,7 @@ describe('sandbox build functions', () => {
     const mutation = jest.fn();
     const fn = createStartSandboxBuildFunction({
       env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+      job: {},
       mcpServerUrl: 'ws://localhost:8787',
       graphqlClient: { mutation },
     } as any);
@@ -81,6 +83,7 @@ describe('sandbox build functions', () => {
       .mockRejectedValue(startupError);
     const fn = createStartSandboxBuildFunction({
       env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
+      job: {},
       mcpServerUrl: 'ws://localhost:8787',
     } as any);
     try {
@@ -97,6 +100,41 @@ describe('sandbox build functions', () => {
         EXPO_TOKEN: 'expo-token',
       });
       expect(env.__EAS_SANDBOX_MCP_TOKEN).toBe('token');
+    } finally {
+      start.mockRestore();
+    }
+  });
+
+  it('uses the worker token for the MCP connection without a separate daemon token', async () => {
+    const startupError = new Error('stop after checking the daemon credential');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      env: {},
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      mcpServerUrl: 'ws://localhost:8787',
+      job: {
+        secrets: {
+          environmentSecrets: [
+            {
+              name: 'EAS_SANDBOX_WORKER_TOKEN',
+              type: EnvironmentSecretType.STRING,
+              value: 'worker-token',
+            },
+          ],
+        },
+      },
+    } as any);
+    try {
+      await expect(
+        fn.fn!({ logger: {} } as any, {
+          inputs: { sandbox_id: { value: 'sandbox-id' } },
+          outputs: {},
+          env: {},
+        })
+      ).rejects.toBe(startupError);
+      expect(start.mock.calls[0][0].credential).toBe('worker-token');
     } finally {
       start.mockRestore();
     }
@@ -133,12 +171,51 @@ describe('sandbox build functions', () => {
     ).rejects.toThrow('MCP server URL is required to start the sandbox daemon.');
   });
 
+  it('marks a sandbox ready through the worker router without GraphQL', async () => {
+    const fetchMock = jest
+      .spyOn(require('../../../utils/turtleFetch'), 'turtleFetch')
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { id: '00000000-0000-4000-8000-000000000001' } }),
+      });
+    const mutation = jest.fn();
+    try {
+      await markSandboxReadyAsync(
+        {
+          job: {
+            secrets: {
+              environmentSecrets: [
+                {
+                  name: 'EAS_SANDBOX_WORKER_TOKEN',
+                  value: 'worker-token',
+                  type: EnvironmentSecretType.STRING,
+                },
+              ],
+            },
+          },
+          expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+          env: {},
+          graphqlClient: { mutation },
+        } as any,
+        'sandbox-id'
+      );
+      expect(turtleFetch).toHaveBeenCalledWith(
+        'https://api.expo.test/v2/sandbox-worker/ready',
+        'POST',
+        expect.objectContaining({ headers: { 'expo-sandbox-worker-token': 'worker-token' } })
+      );
+      expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('marks the sandbox as ready', async () => {
     const mutation = jest.fn(() => ({
       toPromise: async () => ({ data: { sandbox: { markSandboxReady: { id: 'sandbox-id' } } } }),
     }));
 
-    await markSandboxReadyAsync({ graphqlClient: { mutation } } as any, 'sandbox-id');
+    await markSandboxReadyAsync({ job: {}, graphqlClient: { mutation } } as any, 'sandbox-id');
 
     expect(mutation).toHaveBeenCalledWith(
       expect.anything(),
@@ -153,7 +230,7 @@ describe('sandbox build functions', () => {
     }));
 
     await expect(
-      markSandboxReadyAsync({ graphqlClient: { mutation } } as any, 'sandbox-id')
+      markSandboxReadyAsync({ job: {}, graphqlClient: { mutation } } as any, 'sandbox-id')
     ).rejects.toThrow('Failed to mark sandbox sandbox-id as ready.');
   });
 });

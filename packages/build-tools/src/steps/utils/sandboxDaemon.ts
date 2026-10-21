@@ -1,3 +1,4 @@
+import { type SandboxWorkerApi } from './sandboxWorkerApi';
 import {
   type SandboxDaemonCommandResult,
   SandboxDaemonCommands,
@@ -27,6 +28,7 @@ export interface SandboxDaemonOptions {
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
   graphqlClient: Client;
+  workerApi?: SandboxWorkerApi;
   sandboxId: string;
 }
 
@@ -50,6 +52,7 @@ export async function startSandboxDaemonAsync(
       env: options.env,
       signal: abortController.signal,
       graphqlClient: options.graphqlClient,
+      workerApi: options.workerApi,
       sandboxId: options.sandboxId,
       logger: options.logger,
     });

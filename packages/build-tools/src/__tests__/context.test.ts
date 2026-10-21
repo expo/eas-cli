@@ -2,6 +2,7 @@ import {
   BuildPhase,
   BuildPhaseResult,
   BuildTrigger,
+  EnvironmentSecretType,
   Job,
   Metadata,
   Platform,
@@ -29,6 +30,52 @@ describe('BuildContext', () => {
     vol.reset();
     jest.clearAllMocks();
     (fs.readdir as unknown as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('keeps sandbox credentials out of command environments, including inherited Expo tokens', () => {
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        secrets: {
+          robotAccessToken: 'sandbox-worker-token',
+          environmentSecrets: [
+            {
+              name: 'EAS_SANDBOX_WORKER_TOKEN',
+              value: 'sandbox-worker-token',
+              type: EnvironmentSecretType.STRING,
+            },
+            {
+              name: '__EAS_SANDBOX_MCP_TOKEN',
+              value: 'sandbox-connection-token',
+              type: EnvironmentSecretType.STRING,
+            },
+          ],
+        },
+      } as Job,
+      {
+        env: {
+          __API_SERVER_URL: 'https://api.expo.test',
+          EXPO_TOKEN: 'inherited-account-token',
+          KEEP: 'value',
+        },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+    expect(ctx.env.EXPO_TOKEN).toBeUndefined();
+    expect(ctx.env.EAS_SANDBOX_WORKER_TOKEN).toBeUndefined();
+    expect(ctx.env.__EAS_SANDBOX_MCP_TOKEN).toBeUndefined();
+    expect(ctx.env.KEEP).toBe('value');
+    ctx.updateEnv({
+      EXPO_TOKEN: 'new-token',
+      EAS_SANDBOX_WORKER_TOKEN: 'worker-token',
+      __EAS_SANDBOX_MCP_TOKEN: 'mcp-token',
+    });
+    expect(ctx.env.EXPO_TOKEN).toBeUndefined();
+    expect(ctx.env.EAS_SANDBOX_WORKER_TOKEN).toBeUndefined();
+    expect(ctx.env.__EAS_SANDBOX_MCP_TOKEN).toBeUndefined();
   });
 
   it('should merge secrets', async () => {

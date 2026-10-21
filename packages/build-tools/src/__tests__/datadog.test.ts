@@ -22,6 +22,22 @@ describe('Datadog singleton', () => {
     Datadog.setup(null);
   });
 
+  it('sends sandbox metrics with only the sandbox credential', async () => {
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      sandboxWorkerToken: 'sandbox-token',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-id' },
+    });
+    Datadog.distribution('eas.build.phase_duration', 12);
+    await Datadog.flushAsync();
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/sandbox-worker/metrics',
+      'POST',
+      expect.objectContaining({ headers: { 'expo-sandbox-worker-token': 'sandbox-token' } })
+    );
+  });
+
   it('POSTs distribution metrics to the turtle build metrics endpoint for build targets', () => {
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 

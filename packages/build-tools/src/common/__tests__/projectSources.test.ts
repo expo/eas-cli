@@ -2,6 +2,7 @@ import {
   ArchiveSourceType,
   BuildMode,
   BuildTrigger,
+  EnvironmentSecretType,
   ErrorCode,
   Job,
   Platform,
@@ -47,73 +48,98 @@ describe('projectSources', () => {
     expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
   });
 
-  it.each([true, false])('uses the refreshed URL (legacy URL: %s)', async includeRepositoryUrl => {
-    const robotAccessToken = randomUUID();
-    const buildId = randomUUID();
-    await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
+  it.each([
+    [true, false],
+    [false, false],
+    [false, true],
+  ])(
+    'uses the refreshed URL (legacy URL: %s, sandbox: %s)',
+    async (includeRepositoryUrl, sandbox) => {
+      const robotAccessToken = randomUUID();
+      const buildId = randomUUID();
+      await vol.promises.mkdir('/workingdir/environment-secrets/', { recursive: true });
 
-    const gitCommitHash = randomBytes(20).toString('hex');
+      const gitCommitHash = randomBytes(20).toString('hex');
 
-    const ctx = new BuildContext(
-      {
-        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
-        type: Workflow.MANAGED,
-        mode: BuildMode.BUILD,
-        initiatingUserId: randomUUID(),
-        appId: randomUUID(),
-        projectArchive: {
-          type: ArchiveSourceType.GIT,
-          ...(includeRepositoryUrl
-            ? { repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git' }
-            : {}),
-          gitRef: 'refs/heads/main',
-          gitCommitHash,
-        },
-        platform: Platform.IOS,
-        secrets: {
-          robotAccessToken,
-          environmentSecrets: [],
-        },
-      } as Job,
-      {
-        env: {
-          __API_SERVER_URL: 'https://api.expo.dev',
-          EXPO_TOKEN: robotAccessToken,
-          EAS_BUILD_ID: buildId,
-          EAS_BUILD_RUNNER: 'eas-build',
-        },
-        workingdir: '/workingdir',
-        logger: createMockLogger(),
-        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-        uploadArtifact: jest.fn(),
+      const ctx = new BuildContext(
+        {
+          triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+          type: Workflow.MANAGED,
+          mode: BuildMode.BUILD,
+          initiatingUserId: randomUUID(),
+          appId: randomUUID(),
+          projectArchive: {
+            type: ArchiveSourceType.GIT,
+            ...(includeRepositoryUrl
+              ? { repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git' }
+              : {}),
+            gitRef: 'refs/heads/main',
+            gitCommitHash,
+          },
+          platform: Platform.IOS,
+          secrets: {
+            robotAccessToken,
+            environmentSecrets: sandbox
+              ? [
+                  {
+                    name: 'EAS_SANDBOX_WORKER_TOKEN',
+                    value: robotAccessToken,
+                    type: EnvironmentSecretType.STRING,
+                  },
+                ]
+              : [],
+          },
+        } as Job,
+        {
+          env: {
+            __API_SERVER_URL: 'https://api.expo.dev',
+            EXPO_TOKEN: robotAccessToken,
+            EAS_BUILD_ID: buildId,
+            EAS_BUILD_RUNNER: 'eas-build',
+          },
+          workingdir: '/workingdir',
+          logger: createMockLogger(),
+          logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+          uploadArtifact: jest.fn(),
+        }
+      );
+      const fetchMock = jest.mocked(fetch);
+      fetchMock.mockImplementation(
+        async () =>
+          ({
+            ok: true,
+            json: async () => ({
+              data: {
+                gitRef: 'refs/heads/main',
+                gitCommitHash,
+                repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
+                type: ArchiveSourceType.GIT,
+              },
+            }),
+          }) as Response
+      );
+
+      await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+      if (sandbox) {
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://api.expo.dev/v2/sandbox-worker/project-archive',
+          expect.objectContaining({
+            headers: expect.objectContaining({ 'expo-sandbox-worker-token': robotAccessToken }),
+          })
+        );
+        expect(fetchMock.mock.calls.at(-1)?.[1]?.headers).not.toHaveProperty('Authorization');
       }
-    );
-    const fetchMock = jest.mocked(fetch);
-    fetchMock.mockImplementation(
-      async () =>
-        ({
-          ok: true,
-          json: async () => ({
-            data: {
-              gitRef: 'refs/heads/main',
-              gitCommitHash,
-              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
-              type: ArchiveSourceType.GIT,
-            },
-          }),
-        }) as Response
-    );
 
-    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
-    expect(shallowCloneRepositoryAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        archiveSource: {
-          ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
-        },
-      })
-    );
-  });
+      expect(shallowCloneRepositoryAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          archiveSource: {
+            ...ctx.job.projectArchive,
+            repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
+          },
+        })
+      );
+    }
+  );
 
   it.each(['http', 'network', 'json', 'schema', 'missing-url', 'PATH', 'GCS', 'R2'])(
     'throws a system error if refresh fails (%s)',
