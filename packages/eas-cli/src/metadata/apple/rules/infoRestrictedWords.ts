@@ -13,6 +13,11 @@ const RESTRICTED_WORDS = {
   beta: 'Apple restricts the word "beta" and synonyms implying incomplete functionality.',
 };
 
+const RESTRICTED_WORD_PATTERNS = Object.entries(RESTRICTED_WORDS).map(([word, description]) => ({
+  pattern: new RegExp(`\\b${word}\\b`, 'i'),
+  description,
+}));
+
 /**
  * Apple restricts certain words from being used in name, description, or keywords.
  * Using these words likely result in a rejection.
@@ -49,10 +54,8 @@ export const infoRestrictedWords: IssueRule = {
 };
 
 function getDescriptionForFirstMatch(value: string): string | null {
-  const sanitized = value.toLowerCase();
-
-  for (const [word, description] of Object.entries(RESTRICTED_WORDS)) {
-    if (sanitized.includes(word)) {
+  for (const { pattern, description } of RESTRICTED_WORD_PATTERNS) {
+    if (pattern.test(value)) {
       return description;
     }
   }
