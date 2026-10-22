@@ -125,6 +125,31 @@ describe(resolveBuildPhaseErrorAsync, () => {
     expect(err.trackingCode).toBeUndefined();
   });
 
+  it('explains that the pnpm version needs a newer Node.js than the build runs', async () => {
+    const fakeError = new Error();
+    const err = await resolveBuildPhaseErrorAsync(
+      fakeError,
+      [
+        'Running "pnpm install --frozen-lockfile" in /home/expo/workingdir/build directory',
+        'warn: This version of pnpm requires at least Node.js v22.13',
+        'warn: The current version of Node.js is v20.19.4',
+        'warn: Visit https://r.pnpm.io/comp to see the list of past pnpm versions with respective Node.js version support.',
+        'Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite',
+      ],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe('EAS_BUILD_PNPM_UNSUPPORTED_NODE_VERSION_ERROR');
+    expect(err.message).toBe(
+      'Your project uses a pnpm version that requires Node.js 22.13.0 or newer, but this build runs Node.js 20.19.4. You can fix it by either:\n- setting "node" to "22.13.0" or a newer version in the build profile in eas.json\n- using a pnpm version that supports Node.js 20.19.4: change "packageManager" in package.json if your project sets it, otherwise set "pnpm" in the build profile in eas.json'
+    );
+    expect(err.docsUrl).toBe('https://docs.expo.dev/eas/json/');
+  });
+
   it('detects xcode line error', async () => {
     vol.fromJSON({
       '/path/to/xcodelogs.log': originalFs.readFileSync(

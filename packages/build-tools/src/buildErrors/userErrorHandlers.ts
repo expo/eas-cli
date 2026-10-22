@@ -1,4 +1,6 @@
 import { BuildMode, BuildPhase, Platform, Workflow, errors } from '@expo/eas-build-job';
+import nullthrows from 'nullthrows';
+import semver from 'semver';
 
 import { ErrorHandler, XCODE_BUILD_PHASE } from './errors.types';
 
@@ -209,6 +211,22 @@ You are seeing this error because either:
         );
       }
       return undefined;
+    },
+  },
+  {
+    // example log: "warn: This version of pnpm requires at least Node.js v22.13" followed by "warn: The current version of Node.js is v20.19.4"
+    regexp:
+      /This version of pnpm requires at least Node\.js v([\d.]+)\n.*The current version of Node\.js is v([\d.]+)/,
+    createError: (matchResult: RegExpMatchArray) => {
+      const [, requiredNodeVersion, currentNodeVersion] = matchResult;
+      const minimumNodeVersion = nullthrows(semver.coerce(requiredNodeVersion)).version;
+      return new UserError(
+        'EAS_BUILD_PNPM_UNSUPPORTED_NODE_VERSION_ERROR',
+        `Your project uses a pnpm version that requires Node.js ${minimumNodeVersion} or newer, but this build runs Node.js ${currentNodeVersion}. You can fix it by either:
+- setting "node" to "${minimumNodeVersion}" or a newer version in the build profile in eas.json
+- using a pnpm version that supports Node.js ${currentNodeVersion}: change "packageManager" in package.json if your project sets it, otherwise set "pnpm" in the build profile in eas.json`,
+        { docsUrl: 'https://docs.expo.dev/eas/json/' }
+      );
     },
   },
   {
