@@ -225,7 +225,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     tasks.signal.throwIfAborted();
     logger.info(tasks.summary());
 
-    await uploadRemoteSessionConfigWithLocalEgressAsync({
+    const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
       env,
       signal,
       ctx,
@@ -239,6 +239,9 @@ export async function runAgentDeviceRemoteSessionAsync(
       },
       logger,
     });
+    if (sessionStart === 'stopped') {
+      return;
+    }
     tasks.signal.throwIfAborted();
     void pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId,

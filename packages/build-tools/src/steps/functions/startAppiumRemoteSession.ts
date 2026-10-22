@@ -278,7 +278,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           authtoken: ngrokAuthtoken,
         });
 
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
+        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
           ctx,
@@ -296,6 +296,9 @@ export function createStartAppiumRemoteSessionBuildFunction(
           },
           logger,
         });
+        if (sessionStart === 'stopped') {
+          return;
+        }
 
         await waitForDeviceRunSessionStoppedAsync({
           ctx,

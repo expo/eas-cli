@@ -128,7 +128,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       getLastPreviewActivityAt: jest.fn(),
       finishAsync: mockPreviewStopAsync,
     });
-    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
 
     // The (real) tool-server state wait reads this file from the redirected ~/.argent.

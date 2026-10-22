@@ -165,7 +165,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
       getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopPreview,
     });
-    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
       expect(lifetime.aborted).toBe(false);
       expect(monitorLocalEgressAsync).toHaveBeenCalledTimes(1);
@@ -174,6 +174,16 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   afterEach(async () => {
     await stopLocalEgressResourcesAsync(logger);
     jest.restoreAllMocks();
+  });
+
+  it('releases resources without monitoring when the session stopped during startup', async () => {
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValueOnce('stopped');
+    await run();
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    expect(monitorLocalEgressAsync).not.toHaveBeenCalled();
+    expect(stopPreview).toHaveBeenCalledTimes(1);
+    expect(stopEgress).toHaveBeenCalledTimes(1);
+    expect(lifetime.aborted).toBe(true);
   });
 
   it('reports credentials and starts monitoring before waiting, then releases resources', async () => {
