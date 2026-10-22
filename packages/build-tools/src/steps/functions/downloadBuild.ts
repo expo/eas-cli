@@ -7,7 +7,7 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import { Client } from '@urql/core';
+import { Client, CombinedError } from '@urql/core';
 import contentDisposition from 'content-disposition';
 import { glob } from 'fast-glob';
 import { graphql } from 'gql.tada';
@@ -26,8 +26,18 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
+import {
+  describeError,
+  isTransferFailure,
+  isTransientGraphqlError,
+} from '../../utils/networkErrors';
+import { retryOnNetworkFailureAsync } from '../../utils/retryOnNetworkFailure';
 import { pluralize } from '../../utils/strings';
+import {
+  type DeviceRunSessionWorkerApi,
+  DeviceRunSessionWorkerApiError,
+  getDeviceRunSessionWorkerApi,
+} from '../utils/deviceRunSessionWorkerApi';
 
 const streamPipeline = promisify(stream.pipeline);
 
@@ -118,6 +128,7 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         logger,
         ...source,
         graphqlClient: ctx.graphqlClient,
+        deviceRunSessionWorkerApi: buildId ? getDeviceRunSessionWorkerApi(ctx) : null,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
         signal,
@@ -131,28 +142,50 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 async function fetchApplicationArchiveUrlAsync({
   buildId,
   graphqlClient,
+  deviceRunSessionWorkerApi,
   signal,
 }: {
   buildId: string;
   graphqlClient: Client;
+  deviceRunSessionWorkerApi?: DeviceRunSessionWorkerApi | null;
   signal?: AbortSignal;
 }): Promise<string> {
   signal?.throwIfAborted();
-  const result = await graphqlClient
-    .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
-    .toPromise();
+  if (deviceRunSessionWorkerApi) {
+    return await fetchDeviceRunSessionApplicationArchiveUrlAsync({
+      buildId,
+      deviceRunSessionWorkerApi,
+      signal,
+    });
+  }
+  let data;
+  try {
+    data = await retryOnNetworkFailureAsync(
+      async () => {
+        const queryResult = await graphqlClient
+          .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
+          .toPromise();
+        if (queryResult.error) {
+          throw queryResult.error;
+        }
+        return queryResult.data;
+      },
+      {
+        operation: 'download_build.build_lookup',
+        signal,
+        isRetryable: error => error instanceof CombinedError && isTransientGraphqlError(error),
+      }
+    );
+  } catch (error) {
+    signal?.throwIfAborted();
+    const message = `Could not fetch build ${buildId}: ${describeError(error)}`;
+    throw error instanceof CombinedError && !isTransientGraphqlError(error)
+      ? new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: error })
+      : new SystemError(message, { cause: error });
+  }
   signal?.throwIfAborted();
 
-  if (result.error) {
-    const { error } = result;
-    const message = `Could not fetch build ${buildId}: ${error.message}`;
-
-    throw error.networkError || result.error.response?.status >= 500
-      ? new SystemError(message, { cause: error })
-      : new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: error });
-  }
-
-  const applicationArchiveUrl = result.data?.builds.byId?.artifacts?.applicationArchiveUrl;
+  const applicationArchiveUrl = data?.builds.byId?.artifacts?.applicationArchiveUrl;
   if (!applicationArchiveUrl) {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_NO_APPLICATION_ARCHIVE',
@@ -163,17 +196,76 @@ async function fetchApplicationArchiveUrlAsync({
   return applicationArchiveUrl;
 }
 
+/**
+ * A device run session token can read only the build of its own session, so the build comes from
+ * `GET /v2/device-run-session-worker/application` instead of the builds GraphQL query.
+ *
+ * Only device run session jobs, whose steps www generates from the session, reach this path, so
+ * every failure here is a system error: neither the request nor `build_id` comes from the user.
+ */
+async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
+  buildId,
+  deviceRunSessionWorkerApi,
+  signal,
+}: {
+  buildId: string;
+  deviceRunSessionWorkerApi: DeviceRunSessionWorkerApi;
+  signal?: AbortSignal;
+}): Promise<string> {
+  let application;
+  try {
+    application = await retryOnNetworkFailureAsync(
+      () => deviceRunSessionWorkerApi.getApplicationAsync({ signal }),
+      {
+        operation: 'download_build.session_build_lookup',
+        signal,
+        isRetryable: error => error instanceof DeviceRunSessionWorkerApiError && error.isTransient,
+      }
+    );
+  } catch (err) {
+    signal?.throwIfAborted();
+    throw new SystemError(
+      `Could not fetch build ${buildId} for this device run session: ${describeError(err)}`,
+      { cause: err }
+    );
+  }
+  signal?.throwIfAborted();
+
+  if (application.build?.id !== buildId) {
+    throw new SystemError(
+      `Could not fetch build ${buildId}: this device run session runs ${
+        application.build ? `build ${application.build.id}` : 'no build'
+      }, and its session token can read only that build. www generates this step from the ` +
+        'session, so the two should always match. Start a new session, and contact support if ' +
+        'it happens again.'
+    );
+  }
+  if (!application.build.applicationArchiveUrl) {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_NO_APPLICATION_ARCHIVE',
+      'Build does not have an application archive url'
+    );
+  }
+  return application.build.applicationArchiveUrl;
+}
+
 export async function downloadBuildAsync(
   params: DownloadBuildSource & {
     logger: bunyan;
     graphqlClient: Client;
+    /**
+     * Set in a device run session job that has a session token. The build lookup then uses the
+     * device run session worker API instead of GraphQL.
+     */
+    deviceRunSessionWorkerApi?: DeviceRunSessionWorkerApi | null;
     robotAccessToken: string | null;
     extensions: string[];
     /** Stops the build lookup, the request and the file write when aborted, and skips the rest. */
     signal?: AbortSignal;
   }
 ): Promise<{ artifactPath: string }> {
-  const { logger, graphqlClient, robotAccessToken, extensions, signal } = params;
+  const { logger, graphqlClient, deviceRunSessionWorkerApi, robotAccessToken, extensions, signal } =
+    params;
 
   let downloadUrl: string;
   let headers: { Authorization: string } | undefined;
@@ -188,8 +280,19 @@ export async function downloadBuildAsync(
     headers = undefined;
   } else if (params.buildId) {
     const buildId = z.string().uuid().parse(params.buildId);
-    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient, signal });
-    headers = robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined;
+    downloadUrl = await fetchApplicationArchiveUrlAsync({
+      buildId,
+      graphqlClient,
+      deviceRunSessionWorkerApi,
+      signal,
+    });
+    // The archive URL from the device run session worker API points to an artifact route that
+    // needs no auth. After www stops minting EXPO_TOKEN for session jobs, robotAccessToken is the
+    // session token, and www rejects it as a bearer credential on every route.
+    headers =
+      robotAccessToken && !deviceRunSessionWorkerApi
+        ? { Authorization: `Bearer ${robotAccessToken}` }
+        : undefined;
   } else {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
@@ -202,18 +305,34 @@ export async function downloadBuildAsync(
   );
 
   signal?.throwIfAborted();
-  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers, signal });
-
-  if (!response.ok) {
-    const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+  let archivePath: string;
+  try {
+    archivePath = await retryOnNetworkFailureAsync(
+      async () => {
+        const response = await fetch(downloadUrl, { headers, signal });
+        if (!response.ok) {
+          const textResult = await asyncResult(response.text());
+          throw new Error(
+            `Unexpected response from server (${response.status}): ${textResult.value}`
+          );
+        }
+        const archiveFilename = resolveArchiveFilename({ response, extensions });
+        const attemptArchivePath = path.join(downloadDestinationDirectory, archiveFilename);
+        // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
+        await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
+        return attemptArchivePath;
+      },
+      { operation: 'download_build.archive_download', signal, isRetryable: isTransferFailure }
+    );
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (params.buildId && isTransferFailure(error)) {
+      throw new SystemError(`Could not download the application archive: ${describeError(error)}`, {
+        cause: error,
+      });
+    }
+    throw error;
   }
-
-  const archiveFilename = resolveArchiveFilename({ response, extensions });
-  const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
-
-  // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
-  await streamPipeline(response.body, fs.createWriteStream(archivePath));
   signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(archivePath);

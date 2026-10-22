@@ -39,9 +39,10 @@ export const AccountQuery = {
                 byName(accountName: $accountName) {
                   id
                   name
-                  viewerUserPermission {
+                  viewerUserPermission2 {
                     id
                     permissions
+                    effectivePermissions
                   }
                 }
               }
@@ -145,6 +146,31 @@ export const AccountQuery = {
                     EAS_UPDATE: byBillingPeriod(date: $currentDate, service: UPDATES) {
                       id
                       ...UsageMetricTotalFragment
+                    }
+                    EAS_SIMULATOR: byBillingPeriod(date: $currentDate, service: SIMULATOR) {
+                      unavailableServiceUsageMetrics {
+                        service
+                      }
+                      id
+                      ...UsageMetricTotalFragment
+                    }
+                    IOS_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "ios" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    ANDROID_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "android" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
                     }
                   }
                 }

@@ -23,7 +23,7 @@ interface RawDeployDeleteFlags {
 }
 
 export default class WorkerDelete extends EasCommand {
-  static override description = 'Delete a deployment.';
+  static override description = 'delete a deployment';
   static override aliases = ['worker:delete'];
   static override state = 'preview';
 

@@ -1,9 +1,13 @@
+import { Platform } from '@expo/eas-build-job';
+
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  AppPlatform,
   WorkflowDeviceTestCaseHistoryFiltersInput,
   WorkflowDeviceTestCaseInsightsFiltersInput,
   WorkflowDeviceTestCaseStatusFilter,
 } from '../../graphql/generated';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { normalizeGitRef, resolveWorkflowIdsAsync } from './filters';
 
 /** Statuses as the dashboard names them; `PASSED` means passed on the first attempt. */
@@ -20,15 +24,16 @@ export interface MaestroInsightsFilterFlags {
   workflow?: string[];
   status?: MaestroStatusOption[];
   tag?: string[];
+  platform?: Platform[];
   search?: string;
   'git-ref'?: string;
 }
 
-/** The filters as the user typed them, before workflow file names are resolved to IDs. */
 export interface AppliedMaestroInsightsFilters {
   workflows?: string[];
   statuses?: MaestroStatusOption[];
   tags?: string[];
+  platforms?: AppPlatform[];
   search?: string;
   gitRef?: string;
 }
@@ -36,7 +41,7 @@ export interface AppliedMaestroInsightsFilters {
 export async function resolveMaestroHistoryFiltersInputAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
-  flags: Pick<MaestroInsightsFilterFlags, 'workflow' | 'git-ref'>
+  flags: Pick<MaestroInsightsFilterFlags, 'workflow' | 'git-ref' | 'platform'>
 ): Promise<WorkflowDeviceTestCaseHistoryFiltersInput | undefined> {
   const input: WorkflowDeviceTestCaseHistoryFiltersInput = {};
   if (flags.workflow?.length) {
@@ -44,6 +49,9 @@ export async function resolveMaestroHistoryFiltersInputAsync(
   }
   if (flags['git-ref']) {
     input.gitRefs = [normalizeGitRef(flags['git-ref'])];
+  }
+  if (flags.platform?.length) {
+    input.platforms = flags.platform.map(toAppPlatform);
   }
   return Object.keys(input).length === 0 ? undefined : input;
 }
@@ -72,6 +80,7 @@ export function getAppliedMaestroInsightsFilters(
     ...(flags.workflow?.length ? { workflows: flags.workflow } : {}),
     ...(flags.status?.length ? { statuses: flags.status } : {}),
     ...(flags.tag?.length ? { tags: flags.tag } : {}),
+    ...(flags.platform?.length ? { platforms: flags.platform.map(toAppPlatform) } : {}),
     ...(flags.search ? { search: flags.search } : {}),
     ...(flags['git-ref'] ? { gitRef: normalizeGitRef(flags['git-ref']) } : {}),
   };

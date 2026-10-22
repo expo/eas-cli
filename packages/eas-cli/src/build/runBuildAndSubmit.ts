@@ -30,6 +30,8 @@ import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import {
   AppPlatform,
   BuildFragment,
@@ -57,7 +59,6 @@ import {
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
-  validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
   ensureAppVersionSourceIsSetAsync,
@@ -119,6 +120,8 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
   envOverride,
+  experimentation,
+  authenticationInfo,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -129,6 +132,10 @@ export async function runBuildAndSubmitAsync({
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
   envOverride?: Env;
+  /** Enables the Free plan limit experiments on the build request error path. */
+  experimentation?: LazyExperimentationClient;
+  /** Lets the Free plan limit checkout experiment create a checkout session. */
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -241,6 +248,8 @@ export async function runBuildAndSubmitAsync({
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
+      experimentation,
+      authenticationInfo,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -379,6 +388,8 @@ async function prepareAndStartBuildAsync({
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
+  experimentation,
+  authenticationInfo,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -393,6 +404,8 @@ async function prepareAndStartBuildAsync({
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -418,6 +431,8 @@ async function prepareAndStartBuildAsync({
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     whatToTest: flags.whatToTest,
     env,
+    experimentation,
+    authenticationInfo,
   });
 
   if (!lockfileChecked && !flags.localBuildOptions.localBuildMode) {
@@ -481,7 +496,6 @@ async function prepareAndStartBuildAsync({
     }
   }
 
-  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (
     easJsonCliConfig?.appVersionSource === undefined &&
     buildProfile.profile.autoIncrement !== 'version'

@@ -12,7 +12,10 @@ import { AccountFragmentNode } from '../types/Account';
 import { MeActorFragmentNode } from '../types/Actor';
 
 export const UserQuery = {
-  async currentUserAsync(graphqlClient: ExpoGraphqlClient): Promise<CurrentUserQuery['meActor']> {
+  async currentUserAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { noRetry = false }: { noRetry?: boolean } = {}
+  ): Promise<CurrentUserQuery['meActor']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<CurrentUserQuery>(
@@ -29,6 +32,7 @@ export const UserQuery = {
           {},
           {
             additionalTypenames: ['User', 'SSOUser'],
+            noRetry,
           }
         )
         .toPromise()

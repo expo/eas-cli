@@ -2,10 +2,12 @@ import { constants } from 'os';
 import prompts, { Answers, Choice, Options, prompts as PromptElements, PromptType } from 'prompts';
 
 import { Question, easMultiselect } from './easMultiselect';
-export { PromptType, Question, Choice };
+import { SelectChoice, easSelect } from './easSelect';
+export { PromptType, Question, Choice, SelectChoice };
 
 if (PromptElements) {
   PromptElements.multiselect = easMultiselect;
+  PromptElements.select = easSelect;
 }
 
 export interface ExpoChoice<T> extends Choice {

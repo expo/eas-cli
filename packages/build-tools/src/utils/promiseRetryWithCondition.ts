@@ -3,7 +3,13 @@ import promiseRetry from 'promise-retry';
 export function promiseRetryWithCondition<TFn extends (...args: any[]) => Promise<any>>(
   fn: TFn,
   retryConditionFn: (error: any) => boolean,
-  options: { retries: number; factor?: number; minTimeout?: number; maxTimeout?: number } = {
+  options: {
+    retries: number;
+    factor?: number;
+    minTimeout?: number;
+    maxTimeout?: number;
+    randomize?: boolean;
+  } = {
     retries: 3,
     factor: 2,
   },

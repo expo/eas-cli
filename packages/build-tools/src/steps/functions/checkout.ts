@@ -58,7 +58,11 @@ export function createCheckoutBuildFunction(): BuildFunction {
         });
       }
 
-      stepsCtx.global.markAsCheckedOut(stepsCtx.logger);
+      const previousWorkingDirectory = stepsCtx.global.defaultWorkingDirectory;
+      stepsCtx.global.markAsCheckedOut();
+      stepsCtx.logger.info(
+        `Changing default working directory to ${stepsCtx.global.defaultWorkingDirectory} (was ${previousWorkingDirectory})`
+      );
     },
   });
 }

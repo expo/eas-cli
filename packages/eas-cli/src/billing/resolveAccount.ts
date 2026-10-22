@@ -1,5 +1,7 @@
+import chalk from 'chalk';
+
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { Permission, Role } from '../graphql/generated';
+import { Permission } from '../graphql/generated';
 import { AccountQuery, type AccountSubscriptionInfo } from '../graphql/queries/AccountQuery';
 import { hasPaidSubscription } from './plans';
 import { Actor } from '../user/User';
@@ -13,16 +15,56 @@ export type BillingAccount = {
 
 type SubscriptionFilter = 'subscribed' | 'unsubscribed';
 
+type ViewerPermissions = {
+  permissions: readonly Permission[];
+  effectivePermissions: readonly Permission[];
+};
+
 function billingPermissionError(accountName: string): Error {
   return new Error(`You must be an Owner or Admin of account "${accountName}" to manage billing.`);
 }
 
-function hasBillingRole(actor: Actor, account: Actor['accounts'][number]): boolean {
-  if (account.ownerUserActor?.id === actor.id) {
-    return true;
+/**
+ * @param accounts which accounts the viewer is an Owner or Admin of, e.g. `account "name"`
+ */
+function scopedCredentialBillingPermissionError(accounts: string): Error {
+  return new Error(
+    `You are an Owner or Admin of ${accounts}, but the permissions granted during authentication do not allow you to manage billing. Run ${chalk.bold(
+      'eas whoami'
+    )} to check your permission grant, and ${chalk.bold('eas login')} to change it.`
+  );
+}
+
+function hasBillingPermission(permissions: readonly Permission[]): boolean {
+  return permissions.includes(Permission.Admin) || permissions.includes(Permission.Own);
+}
+
+/**
+ * Whether the viewer can manage billing on the account with the credential used for this command.
+ * The scopes of a scoped credential cap `effectivePermissions`.
+ */
+export function canManageBilling(account: { viewerUserPermission2: ViewerPermissions }): boolean {
+  return hasBillingPermission(account.viewerUserPermission2.effectivePermissions);
+}
+
+/**
+ * Whether the viewer's role on the account allows billing, regardless of the scopes of the
+ * credential used for this command.
+ */
+function hasBillingRole(account: { viewerUserPermission2: ViewerPermissions }): boolean {
+  return hasBillingPermission(account.viewerUserPermission2.permissions);
+}
+
+function assertCanManageBilling(account: {
+  name: string;
+  viewerUserPermission2: ViewerPermissions;
+}): void {
+  if (canManageBilling(account)) {
+    return;
   }
-  const { role } = account.viewerUserPermission;
-  return role === Role.Admin || role === Role.Owner || role === Role.HasAdmin;
+  throw hasBillingRole(account)
+    ? scopedCredentialBillingPermissionError(`account "${account.name}"`)
+    : billingPermissionError(account.name);
 }
 
 async function getAccountWithSubscriptionAsync(
@@ -50,16 +92,14 @@ async function resolveNamedAccountAsync(
 ): Promise<{ id: string; name: string }> {
   const ownAccount = actor.accounts.find(account => account.name === accountName);
   if (ownAccount) {
-    if (!hasBillingRole(actor, ownAccount)) {
-      throw billingPermissionError(ownAccount.name);
-    }
+    assertCanManageBilling(ownAccount);
     return ownAccount;
   }
 
   const account = await AccountQuery.getByNameAsync(graphqlClient, accountName).catch(() => null);
   if (!account) {
     const availableAccounts = actor.accounts
-      .filter(candidate => hasBillingRole(actor, candidate))
+      .filter(canManageBilling)
       .map(candidate => candidate.name)
       .join(', ');
     throw new Error(
@@ -67,10 +107,7 @@ async function resolveNamedAccountAsync(
     );
   }
 
-  const { permissions } = account.viewerUserPermission;
-  if (!permissions.includes(Permission.Admin) && !permissions.includes(Permission.Own)) {
-    throw billingPermissionError(account.name);
-  }
+  assertCanManageBilling(account);
   return account;
 }
 
@@ -98,8 +135,11 @@ export async function resolveBillingAccountAsync({
     return account;
   }
 
-  const billingAccounts = actor.accounts.filter(account => hasBillingRole(actor, account));
+  const billingAccounts = actor.accounts.filter(canManageBilling);
   if (billingAccounts.length === 0) {
+    if (actor.accounts.some(hasBillingRole)) {
+      throw scopedCredentialBillingPermissionError('at least one account');
+    }
     throw new Error('You must be an Owner or Admin of at least one account to manage billing.');
   }
 

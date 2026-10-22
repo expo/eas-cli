@@ -1,7 +1,14 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import {
+  AnalyticsEventProperties,
+  AnalyticsWithOrchestration,
+  SimulatorEvent,
+  isAnalyticsOptedOutAsync,
+} from '../../analytics/AnalyticsManager';
+import { getAgentTelemetryContext } from '../../analytics/agent';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../commandUtils/errors';
@@ -12,6 +19,7 @@ import {
 import {
   AppPlatform,
   DeviceRunSessionEgress,
+  DeviceRunSessionRequestOrigin,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -20,9 +28,10 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
-import { ora } from '../../ora';
+import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
+import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -32,6 +41,14 @@ import {
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
+import {
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
+import {
+  simulatorRequestFailureReason,
+  simulatorRequestProperties,
+} from '../../simulator/requestAnalytics';
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
@@ -66,7 +83,7 @@ export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in';
 
   static override flags = {
     platform: Flags.option({
@@ -86,6 +103,10 @@ export default class Simulator extends EasCommand {
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+    }),
+    'system-image': Flags.string({
+      description:
+        'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
@@ -165,6 +186,16 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['egress'],
     }),
+    'cors-origin': Flags.string({
+      description:
+        'Origin of a page that may call the simulator preview API cross-origin, for example to render the device with @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview URL and its token.',
+      multiple: true,
+    }),
+    'frame-ancestor': Flags.string({
+      description:
+        'Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries the session token, so anyone who can read that page can also control the simulator.',
+      multiple: true,
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -176,6 +207,10 @@ export default class Simulator extends EasCommand {
       options: Object.values(OUT_CONFIG_TYPE_VALUES),
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
+    'public-link': Flags.boolean({
+      description:
+        'Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -183,6 +218,7 @@ export default class Simulator extends EasCommand {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -197,6 +233,7 @@ export default class Simulator extends EasCommand {
       projectId,
       projectDir,
       loggedIn: { actor, graphqlClient },
+      analytics,
     } = await this.getContextAsync(Simulator, {
       nonInteractive,
     });
@@ -219,6 +256,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const systemImagePackage = flags['system-image']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -262,9 +300,24 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (systemImagePackage && platform !== AppPlatform.Android) {
+      throw new EasCommandError('--system-image is only supported with --platform android.');
+    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    let frameAncestors: string[] = [];
+    try {
+      frameAncestors = parseFrameAncestorList(flags['frame-ancestor'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    let corsOrigins: string[] = [];
+    try {
+      corsOrigins = parseCorsOriginList(flags['cors-origin'] ?? []);
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
@@ -296,38 +349,75 @@ export default class Simulator extends EasCommand {
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
+    let deviceRunSessionPreviewUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
-      const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
-        appId: projectId,
-        name,
-        ...(tags?.length ? { tags } : {}),
+      const agentIdentity = await agentIdentityInputAsync();
+      const requestProperties = simulatorRequestProperties({
+        projectId,
+        type: flags.type,
         platform,
-        type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+        hasBuildId: !!buildId || !!buildFingerprint,
+        hasArchiveUrl: !!applicationArchiveUrlFromFlag,
+        expoGo: !!expoGoSdkVersion,
         packageVersion: flags['package-version'],
-        networkCapture: flags['network-capture'],
-        ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-        ...(deviceIdentifier
-          ? platform === AppPlatform.Ios
-            ? { ios: { deviceIdentifier } }
-            : { android: { deviceIdentifier } }
-          : {}),
-        ...(buildId ? { buildId } : {}),
-        ...(buildFingerprint ? { buildFingerprint } : {}),
-        ...(applicationArchiveUrlFromFlag
-          ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
-          : {}),
-        ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
-        ...(launchArgs?.length ? { launchArgs } : {}),
-        ...(openUrl ? { openUrl } : {}),
-        ...(resourceClass ? { resourceClass } : {}),
-        ...(egress ? { egress } : {}),
-        maxRunTimeMinutes: flags['max-duration-minutes'],
-        maxIdleTimeMinutes: flags['max-idle-time-minutes'],
+        nonInteractive,
       });
+      const session = await withSimulatorRequestAnalyticsAsync(
+        analytics,
+        requestProperties,
+        createSpinner,
+        () =>
+          DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
+            appId: projectId,
+            name,
+            ...(tags?.length ? { tags } : {}),
+            platform,
+            type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+            publicPreview: flags['public-link'] ?? false,
+            packageVersion: flags['package-version'],
+            networkCapture: flags['network-capture'],
+            ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
+            ...(platform === AppPlatform.Ios
+              ? deviceIdentifier
+                ? { ios: { deviceIdentifier } }
+                : {}
+              : deviceIdentifier || systemImagePackage
+                ? {
+                    android: {
+                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                      ...(systemImagePackage ? { systemImagePackage } : {}),
+                    },
+                  }
+                : {}),
+            ...(buildId ? { buildId } : {}),
+            ...(buildFingerprint ? { buildFingerprint } : {}),
+            ...(applicationArchiveUrlFromFlag
+              ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+              : {}),
+            ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
+            ...(launchArgs?.length ? { launchArgs } : {}),
+            ...(openUrl ? { openUrl } : {}),
+            ...(resourceClass ? { resourceClass } : {}),
+            ...(egress ? { egress } : {}),
+            ...(frameAncestors.length ? { frameAncestors } : {}),
+            ...(corsOrigins.length ? { corsOrigins } : {}),
+            requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
+            ...agentIdentity,
+            maxRunTimeMinutes: flags['max-duration-minutes'],
+            maxIdleTimeMinutes: flags['max-idle-time-minutes'],
+          }),
+        createdSession =>
+          stopDeviceRunSessionCreatedAfterCancelAsync(graphqlClient, createdSession.id)
+      );
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
       deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        deviceRunSessionId
+      );
+      deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
         session.app.ownerAccount.name,
         session.app.slug,
         deviceRunSessionId
@@ -375,7 +465,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -386,7 +476,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -461,7 +551,12 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
+        remoteConfig: sanitizeRemoteConfigForJson(
+          remoteConfig,
+          deviceRunSessionPreviewUrl,
+          flags['public-link'],
+          { frameAncestors, corsOrigins }
+        ),
       });
       return;
     }
@@ -472,6 +567,10 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        privatePreviewUrl: deviceRunSessionPreviewUrl,
+        publicLink: flags['public-link'],
+        frameAncestors,
+        corsOrigins,
         platform,
       })
     );
@@ -537,6 +636,18 @@ export default class Simulator extends EasCommand {
       throw egressError;
     }
   }
+}
+
+// Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
+async function formatJobRunErrorsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<string> {
+  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId, {
+    signal,
+  });
+  return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
 }
 
 async function resolvePlatformAsync(
@@ -620,7 +731,9 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Errored
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
-        throw new Error(`Simulator session ${deviceRunSessionId} errored.`);
+        throw new Error(
+          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
+        );
       }
       if (
         session.status === DeviceRunSessionStatus.Stopped ||
@@ -729,6 +842,23 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   process.exit(130);
 }
 
+async function stopDeviceRunSessionCreatedAfterCancelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string
+): Promise<void> {
+  const spinner = ora(
+    `Stopping simulator session ${deviceRunSessionId}, which the request created after Ctrl+C`
+  ).start();
+  const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+  if (stopped) {
+    spinner.succeed(`Simulator session ${deviceRunSessionId} stopped`);
+  } else {
+    spinner.fail(
+      `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+  }
+}
+
 async function resetSimulatorEnvVerboseAsync(
   projectDir: string,
   deviceRunSessionId: string
@@ -760,4 +890,117 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
     );
     return false;
   }
+}
+
+/**
+ * How long Ctrl+C waits for analytics to flush. The analytics client has no request timeout, so
+ * without a limit a hung network would make Ctrl+C look ignored.
+ */
+const CANCEL_FLUSH_TIMEOUT_MS = 1_000;
+
+/**
+ * How long Ctrl+C then waits for the create request. The server can still create the session after
+ * the client stops waiting, and nothing else stops that session before its maximum duration.
+ */
+const CANCEL_CREATE_WAIT_MS = 5_000;
+
+const SESSION_MAY_BE_RUNNING_WARNING =
+  'A simulator session may still be running. Run `eas simulator:list` to check for a running session, and `eas simulator:stop --id <id>` to stop it.';
+
+class SimulatorRequestCancelledError extends Error {}
+
+/**
+ * Runs the create request and logs the client-side funnel events around it: "request sent" before
+ * it leaves, "request cancelled" on Ctrl+C before an answer, and "request failed" when no answer
+ * arrives. "Request cancelled" means the client stopped waiting; the server can still create the
+ * session. So Ctrl+C stops the spinner, flushes analytics, and waits a bounded time for the
+ * request: a session that comes back goes to `stopCreatedAsync`, and otherwise the user is told how
+ * to check for one. Then it exits with 130, like the session's own Ctrl+C handler: going through
+ * the command's error handling would print the exit as an error and report it to Sentry. A second
+ * Ctrl+C exits at once.
+ */
+async function withSimulatorRequestAnalyticsAsync<T>(
+  analytics: AnalyticsWithOrchestration,
+  properties: AnalyticsEventProperties,
+  spinner: Ora,
+  createAsync: () => Promise<T>,
+  stopCreatedAsync: (created: T) => Promise<void>
+): Promise<T> {
+  let cancelRequested = false;
+  let onSigint: (() => void) | undefined;
+  const cancelled = new Promise<never>((_, reject) => {
+    onSigint = () => {
+      if (cancelRequested) {
+        Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
+        process.exit(130);
+      }
+      cancelRequested = true;
+      reject(new SimulatorRequestCancelledError());
+    };
+  });
+  process.on('SIGINT', onSigint!);
+  analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
+  let createPromise: Promise<T> | undefined;
+  try {
+    createPromise = createAsync();
+    return await Promise.race([createPromise, cancelled]);
+  } catch (error) {
+    if (error instanceof SimulatorRequestCancelledError) {
+      analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
+      spinner.fail('Simulator session request canceled');
+      const flushTimeout = new AbortController();
+      await Promise.race([
+        analytics.flushAsync(),
+        sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
+      ]);
+      flushTimeout.abort();
+      await stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync);
+      process.exit(130);
+    }
+    const reason = simulatorRequestFailureReason(error);
+    if (reason) {
+      analytics.logEvent(SimulatorEvent.REQUEST_FAILED, { ...properties, reason });
+    }
+    throw error;
+  } finally {
+    process.removeListener('SIGINT', onSigint!);
+  }
+}
+
+async function stopSessionCreatedAfterCancelAsync<T>(
+  createPromise: Promise<T> | undefined,
+  stopCreatedAsync: (created: T) => Promise<void>
+): Promise<void> {
+  if (!createPromise) {
+    // Ctrl+C came before the request was sent, so no session can have been created.
+    return;
+  }
+  Log.log(
+    `Waiting up to ${CANCEL_CREATE_WAIT_MS / 1_000} seconds for the request to finish, so a session it created can be stopped. Press Ctrl+C again to exit now.`
+  );
+  const waitTimeout = new AbortController();
+  const created = await Promise.race([
+    createPromise.then(
+      value => ({ value }),
+      () => undefined
+    ),
+    sleepAsync(CANCEL_CREATE_WAIT_MS, waitTimeout.signal).then(() => undefined),
+  ]);
+  waitTimeout.abort();
+  if (created) {
+    await stopCreatedAsync(created.value);
+  } else {
+    Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
+  }
+}
+
+async function agentIdentityInputAsync(): Promise<{ agentId?: string; agentSessionId?: string }> {
+  if (await isAnalyticsOptedOutAsync()) {
+    return {};
+  }
+  const agent = getAgentTelemetryContext();
+  if (!agent) {
+    return {};
+  }
+  return { agentId: agent.id, ...(agent.sessionId ? { agentSessionId: agent.sessionId } : {}) };
 }

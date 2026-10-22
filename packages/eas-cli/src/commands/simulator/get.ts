@@ -1,12 +1,16 @@
 import { Flags } from '@oclif/core';
 
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { DeviceRunSessionByIdQuery, DeviceRunSessionStatus } from '../../graphql/generated';
+import {
+  DeviceRunSessionByIdQuery,
+  DeviceRunSessionStatus,
+  JobRunStatus,
+} from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -15,6 +19,11 @@ import {
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
+import {
+  SimulatorSessionError,
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
 import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
@@ -30,7 +39,7 @@ type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 export default class SimulatorGet extends EasCommand {
   static override aliases = ['sim:get'];
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
+    "[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference";
 
   static override flags = {
     id: Flags.string({
@@ -82,6 +91,16 @@ export default class SimulatorGet extends EasCommand {
       session.app.slug,
       session.id
     );
+    const deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
+      session.app.ownerAccount.name,
+      session.app.slug,
+      session.id
+    );
+    const errors: SimulatorSessionError[] =
+      session.status === DeviceRunSessionStatus.Errored ||
+      session.turtleJobRun?.status === JobRunStatus.Errored
+        ? await fetchSimulatorSessionErrorsAsync(graphqlClient, session.id)
+        : [];
 
     if (jsonFlag) {
       printJsonOnlyOutput({
@@ -97,9 +116,14 @@ export default class SimulatorGet extends EasCommand {
         updatedAt: session.updatedAt,
         deviceRunSessionUrl,
         remoteConfig: session.remoteConfig
-          ? sanitizeRemoteConfigForJson(session.remoteConfig)
+          ? sanitizeRemoteConfigForJson(
+              session.remoteConfig,
+              deviceRunSessionPreviewUrl,
+              session.publicPreview
+            )
           : session.remoteConfig,
         artifacts: session.artifacts,
+        errors,
       });
       return;
     }
@@ -107,12 +131,22 @@ export default class SimulatorGet extends EasCommand {
     Log.newLine();
     Log.log(formatSessionFields(session, deviceRunSessionUrl));
 
+    if (errors.length > 0) {
+      Log.newLine();
+      Log.gray('Session errors:');
+      for (const error of errors) {
+        Log.error(`  ${formatSimulatorSessionError(error)}`);
+      }
+    }
+
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();
       if (session.remoteConfig) {
         Log.log(
           formatRemoteSessionInstructions(session.remoteConfig, 'env', {
             sessionUrl: deviceRunSessionUrl,
+            privatePreviewUrl: deviceRunSessionPreviewUrl,
+            publicLink: session.publicPreview,
             platform: session.platform,
           })
         );

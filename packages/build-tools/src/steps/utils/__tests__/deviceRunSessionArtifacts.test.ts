@@ -2,46 +2,56 @@ import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../../customBuildContext';
+import { turtleFetch } from '../../../utils/turtleFetch';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 
 jest.mock('node-fetch');
+jest.mock('../../../utils/turtleFetch');
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+const TOKEN = 'device-run-session-token-value';
+
+function jsonResponse(body: unknown): InstanceType<typeof Response> {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function createCtx(): CustomBuildContext {
+  return {
+    env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+  } as unknown as CustomBuildContext;
+}
 
 describe(uploadDeviceRunSessionArtifactAsync, () => {
   beforeEach(() => {
     jest.mocked(fetch).mockReset();
+    jest.mocked(turtleFetch).mockReset();
   });
 
   it('streams an artifact through a signed upload URL', async () => {
     const stream = Readable.from(Buffer.from('artifact-data'));
     const reportedSize = 1024;
-    const mutation = jest.fn().mockReturnValue({
-      toPromise: async () => ({
+    jest.mocked(turtleFetch).mockResolvedValueOnce(
+      jsonResponse({
         data: {
-          deviceRunSession: {
-            createArtifactUploadSession: {
-              uploadSession: {
-                url: 'https://uploads.expo.test/artifact',
-                headers: {
-                  'Content-Length': String(reportedSize),
-                  'Content-Type': 'application/octet-stream',
-                },
-              },
+          uploadSession: {
+            url: 'https://uploads.expo.test/artifact',
+            headers: {
+              'Content-Length': String(reportedSize),
+              'Content-Type': 'application/octet-stream',
             },
           },
         },
-      }),
-    });
-    const ctx = {
-      graphqlClient: {
-        mutation,
-      },
-    } as unknown as CustomBuildContext;
-
+      })
+    );
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
 
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
+    await uploadDeviceRunSessionArtifactAsync(createCtx(), {
       deviceRunSessionId: 'drs-id',
       artifactId: 'artifact-id',
       name: 'Artifact report.json (artifact-id)',
@@ -49,22 +59,23 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       kind: 'agent-device-test-report',
       metadata: { firstFrameRecordAt: 'test-time' },
       size: reportedSize,
-      stream,
+      openStream: () => stream,
     });
 
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/device-run-session-worker/artifact-upload-sessions',
+      'POST',
       expect.objectContaining({
-        deviceRunSessionId: 'drs-id',
-        input: {
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN },
+        json: {
           name: 'Artifact report.json (artifact-id)',
           filename: 'report.json',
           kind: 'agent-device-test-report',
           metadata: { firstFrameRecordAt: 'test-time' },
           size: reportedSize,
         },
-      }),
-      { fetch: expect.any(Function) }
+        signal: expect.any(AbortSignal),
+      })
     );
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
       'https://uploads.expo.test/artifact',
@@ -77,49 +88,32 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
 
   it('forwards cancellation through upload allocation and skips PUT when allocation aborts', async () => {
     const controller = new AbortController();
-    const mutation = jest.fn().mockReturnValue({
-      toPromise: async () => {
-        controller.abort();
-        return {
-          data: {
-            deviceRunSession: {
-              createArtifactUploadSession: {
-                uploadSession: {
-                  url: 'https://uploads.expo.test/artifact',
-                  headers: {},
-                },
-              },
-            },
+    jest.mocked(turtleFetch).mockImplementationOnce(async () => {
+      controller.abort();
+      return jsonResponse({
+        data: {
+          uploadSession: {
+            url: 'https://uploads.expo.test/artifact',
+            headers: {},
           },
-        };
-      },
+        },
+      });
     });
-    const ctx = { graphqlClient: { mutation } } as unknown as CustomBuildContext;
     await expect(
-      uploadDeviceRunSessionArtifactAsync(ctx, {
+      uploadDeviceRunSessionArtifactAsync(createCtx(), {
         deviceRunSessionId: 'session',
         artifactId: 'id',
         name: 'Logs',
         filename: 'logs.ndjson',
         kind: 'simulator-log',
         size: 0,
-        stream: Readable.from([]),
+        openStream: () => Readable.from([]),
         signal: controller.signal,
       })
     ).rejects.toThrow();
     expect(fetch).not.toHaveBeenCalled();
-    const allocationFetch = mutation.mock.calls[0][2].fetch;
-    const mockFetch = jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('aborted'));
-    try {
-      await expect(allocationFetch('https://api.expo.test/graphql', {})).rejects.toThrow('aborted');
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.expo.test/graphql',
-        expect.objectContaining({
-          signal: expect.objectContaining({ aborted: true }),
-        })
-      );
-    } finally {
-      mockFetch.mockRestore();
-    }
+    const allocationSignal = jest.mocked(turtleFetch).mock.calls[0][2].signal;
+    expect(allocationSignal).toBeInstanceOf(AbortSignal);
+    expect(allocationSignal?.aborted).toBe(true);
   });
 });

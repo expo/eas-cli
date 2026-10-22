@@ -93,6 +93,28 @@ describe(startAgentDeviceDaemonAsync, () => {
     }) as never);
   });
 
+  it.each([false, true])(
+    'shares the daemon secret list through git fallback=%s',
+    async fallback => {
+      if (fallback) {
+        jest.mocked(spawn).mockResolvedValue({ stdout: '' } as never);
+      }
+      const secrets: string[] = [];
+      const handle = await startAgentDeviceDaemonAsync({
+        packageVersion: '1.2.3',
+        env: {},
+        logger,
+        secrets,
+      });
+      const options = jest.mocked(spawnDetached).mock.calls[0][0];
+      expect(options.command).toBe(fallback ? 'bun' : 'node');
+      expect(options.secrets).toBe(secrets);
+      secrets.push('learned-daemon-token');
+      expect(options.secrets).toContain('learned-daemon-token');
+      await handle.stopAsync();
+    }
+  );
+
   it('installs with bun add by default and launches the published daemon', async () => {
     const handle = await startAgentDeviceDaemonAsync({
       packageVersion: '1.2.3',
@@ -108,6 +130,8 @@ describe(startAgentDeviceDaemonAsync, () => {
     const addCwd = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
     expect(spawnDetached).toHaveBeenCalledWith({
       command: 'node',
+      logger,
+      secrets: undefined,
       args: [path.join(addCwd, 'node_modules/agent-device/dist/src/internal/daemon.js')],
       env: expect.objectContaining({
         AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
@@ -118,6 +142,20 @@ describe(startAgentDeviceDaemonAsync, () => {
     });
 
     await handle.stopAsync();
+    await expect(fs.promises.access(addCwd)).rejects.toThrow();
+  });
+
+  it('removes the install directory when the daemon cannot be stopped', async () => {
+    const stopError = new Error('drain timed out');
+    stopAsync.mockRejectedValueOnce(stopError);
+    const handle = await startAgentDeviceDaemonAsync({
+      packageVersion: '1.2.3',
+      env: {},
+      logger,
+    });
+    const addCwd = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
+
+    await expect(handle.stopAsync()).rejects.toBe(stopError);
     await expect(fs.promises.access(addCwd)).rejects.toThrow();
   });
 
@@ -136,10 +174,15 @@ describe(startAgentDeviceDaemonAsync, () => {
   });
 
   it('kills the install and does not fall back to git when aborted', async () => {
+    let installStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      installStarted = resolve;
+    });
     jest.mocked(spawn).mockImplementation(
       ((_command: string, _args: string[], options?: { signal?: AbortSignal }) =>
         new Promise((_resolve, reject) => {
           options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason));
+          installStarted();
         })) as never
     );
     const controller = new AbortController();
@@ -151,7 +194,7 @@ describe(startAgentDeviceDaemonAsync, () => {
       logger,
       signal: controller.signal,
     });
-    await new Promise(resolve => setImmediate(resolve));
+    await started;
     controller.abort(failure);
 
     await expect(daemon).rejects.toBe(failure);
@@ -199,6 +242,8 @@ describe(startAgentDeviceDaemonAsync, () => {
     );
     expect(spawnDetached).toHaveBeenCalledWith({
       command: 'bun',
+      logger,
+      secrets: undefined,
       args: ['run', 'src/daemon.ts'],
       cwd: '/tmp/agent-device-src',
       env: expect.objectContaining({

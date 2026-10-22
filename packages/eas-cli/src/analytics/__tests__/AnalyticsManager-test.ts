@@ -1,7 +1,7 @@
 import RudderAnalytics from '@expo/rudder-sdk-node';
 
 import UserSettings from '../../user/UserSettings';
-import { CommandEvent, createAnalyticsAsync } from '../AnalyticsManager';
+import { CommandEvent, createAnalyticsAsync, isAnalyticsOptedOutAsync } from '../AnalyticsManager';
 import { getAgentTelemetryContext } from '../agent';
 import { getSandboxTelemetryContext } from '../sandbox';
 
@@ -121,4 +121,74 @@ it('adds detected sandbox context to analytics events', async () => {
       }),
     })
   );
+});
+
+describe(isAnalyticsOptedOutAsync, () => {
+  it('is false by default', async () => {
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(false);
+  });
+
+  it('is true when DISABLE_EAS_ANALYTICS is set', async () => {
+    process.env.DISABLE_EAS_ANALYTICS = '1';
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(true);
+  });
+
+  it('is true when analytics were turned off with eas analytics off', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsEnabled' ? false : defaultValue
+    );
+    await expect(isAnalyticsOptedOutAsync()).resolves.toBe(true);
+  });
+});
+
+describe('getDeviceId', () => {
+  // Backs UserSettings with an in-memory store so a value written by createAnalyticsAsync is read back.
+  function useInMemoryUserSettings(initial: Record<string, unknown>): void {
+    const stored: Record<string, unknown> = { ...initial };
+    (userSettingsMock.setAsync as jest.Mock).mockImplementation(
+      async (key: string, value: unknown) => {
+        stored[key] = value;
+        return {};
+      }
+    );
+    (userSettingsMock.getAsync as jest.Mock).mockImplementation(
+      async (key: string, defaultValue: unknown) => (key in stored ? stored[key] : defaultValue)
+    );
+  }
+
+  it('returns the persisted analytics device ID', async () => {
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBe('persistent-device-id');
+  });
+
+  it('creates and persists a device ID when none is stored', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsDeviceId' ? null : defaultValue
+    );
+    const analytics = await createAnalyticsAsync();
+    const deviceId = analytics.getDeviceId();
+    expect(deviceId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(userSettingsMock.setAsync).toHaveBeenCalledWith('analyticsDeviceId', deviceId);
+  });
+
+  it('is null when DISABLE_EAS_ANALYTICS is set', async () => {
+    useInMemoryUserSettings({ analyticsDeviceId: 'persistent-device-id' });
+    process.env.DISABLE_EAS_ANALYTICS = '1';
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
+
+  it('is null when running behind https_proxy', async () => {
+    process.env.https_proxy = 'http://proxy.local:8080';
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
+
+  it('is null when analytics were turned off with eas analytics off', async () => {
+    userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) =>
+      key === 'analyticsEnabled' ? false : defaultValue
+    );
+    const analytics = await createAnalyticsAsync();
+    expect(analytics.getDeviceId()).toBeNull();
+  });
 });

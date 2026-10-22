@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 
+import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
 import { getEASUpdateURL } from '../../../api';
 import { AppFragment, Role } from '../../../graphql/generated';
 import { easCliVersion } from '../../../utils/easCli';
@@ -63,7 +64,7 @@ describe('projectFiles', () => {
       ownerAccount: {
         id: 'testowner-account-id',
         name: 'testowner',
-        viewerUserPermission: { role: Role.Owner },
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       },
       ...overrides,
     });
@@ -127,7 +128,7 @@ describe('projectFiles', () => {
         ownerAccount: {
           id: 'test-owner-account-id',
           name: 'test-owner',
-          viewerUserPermission: { role: Role.Owner },
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
         },
       });
 
@@ -152,7 +153,7 @@ describe('projectFiles', () => {
         ownerAccount: {
           id: 'test-owner-123-account-id',
           name: 'test-owner-123',
-          viewerUserPermission: { role: Role.Owner },
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
         },
       });
 

@@ -7,6 +7,7 @@ import nullthrows from 'nullthrows';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import DynamicLoggedInContextField from './context/DynamicLoggedInContextField';
+import ExperimentationContextField from './context/ExperimentationContextField';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -148,6 +149,14 @@ export default abstract class EasCommand extends Command {
     ProjectId: {
       projectId: new ProjectIdContextField(),
     },
+    /**
+     * Experimentation client for user, account, and device experiments.
+     * Declare a login field first so user experiments see the actor.
+     * Account experiments take the account ID from the command.
+     */
+    Experimentation: {
+      experimentation: new ExperimentationContextField(),
+    },
   };
 
   /**
@@ -262,7 +271,9 @@ export default abstract class EasCommand extends Command {
     const commandId = this.id ?? 'unknown';
     let baseMessage = `${commandId} command failed.`;
     if (err instanceof EasCommandError) {
-      Log.error(err.message);
+      if (!err.messageAlreadyPrinted) {
+        Log.error(err.message);
+      }
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
@@ -274,23 +285,34 @@ export default abstract class EasCommand extends Command {
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
           if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
-            if (defaultMsg.includes('ScopedAccountActorViewerContext') && process.env.EAS_BUILD) {
-              // We're in EAS, authenticated with a scoped account actor access token.
-              // We may have not added the scoped actor privacy rule to the right place yet.
-              return `${chalk.bold(
-                `You don't have the required permissions to perform this operation.`
-              )}\n\nWe are in the process of migrating EAS to a more granular permissioning system. If you believe what you're doing is a legitimate operation you should be able to perform, report this to us at ${link(
-                'https://expo.dev/contact'
-              )}\n\nOriginal error message: ${defaultMsg}`;
+            if (defaultMsg.includes('ScopedAccountActorViewerContext')) {
+              if (process.env.EAS_BUILD) {
+                // We're within an EAS job, authenticated with our minted scoped account actor access token.
+                // There's a chance that this operation should be allowed, so we want to provide a way for the user to report this to us.
+                return `${chalk.bold(
+                  `You don't have the required permissions to perform this operation.`
+                )}\n\nWe are in the process of migrating EAS to a more granular permissioning system. If you believe what you're doing is a legitimate operation you should be able to perform, report this to us at ${link(
+                  'https://expo.dev/contact'
+                )}\n\nOriginal error message: ${defaultMsg}`;
+              } else {
+                // We're not in EAS, authenticated with a scoped account actor access token.
+                return `${chalk.bold(
+                  `You don't have the required permissions to perform this operation.`
+                )}\n\nThis can sometimes happen if you are logged in as incorrect user or if the permissions granted during authentication are insufficient to perform the operation.\nRun ${chalk.bold(
+                  'eas whoami'
+                )} to check the user you are logged in as and your permission grant.\nRun ${chalk.bold(
+                  'eas login'
+                )} to change the user or permission grant.\n\nOriginal error message: ${defaultMsg}`;
+              }
             }
 
             return `${chalk.bold(
               `You don't have the required permissions to perform this operation.`
             )}\n\nThis can sometimes happen if you are logged in as incorrect user.\nRun ${chalk.bold(
               'eas whoami'
-            )} to check the username you are logged in as.\nRun ${chalk.bold(
+            )} to check the user you are logged in as.\nRun ${chalk.bold(
               'eas login'
-            )} to change the account.\n\nOriginal error message: ${defaultMsg}`;
+            )} to change users.\n\nOriginal error message: ${defaultMsg}`;
           }
 
           return defaultMsg;
