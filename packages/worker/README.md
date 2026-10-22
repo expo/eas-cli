@@ -42,3 +42,18 @@ Github action builds a docker image for every PR with any change in `infra/eas-b
 ### VM template
 
 Github action builds a new vm template for every PR with any change in `infra/eas-build-worker-images/ios/{{ templateName }}`.
+
+### Packaged startup
+
+Existing services run `src/services/worker/dist/main.js`. In the worker archive,
+that path points to `bin/bootstrap.cjs`. The bootstrap loads only Node built-ins
+and starts `bin/start-worker.sh`. The shell then uses `exec` to start the normal
+worker with the original Node binary, options, and arguments.
+
+Put setup that must precede worker imports or Node startup options in the shell.
+The bootstrap forwards SIGINT, SIGTERM, IPC messages, and the worker exit status.
+It remains the supervised parent process; test service shutdown on both platforms
+before deployment. A failure in the startup shell prevents the worker from
+loading. Direct execution of `packages/worker/dist/main.js` bypasses this hook.
+
+Run `yarn workspace @expo/worker test:startup` for the process-level checks.

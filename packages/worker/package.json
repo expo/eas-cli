@@ -11,11 +11,12 @@
     "compile": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "test": "yarn test:unit",
-    "test:unit": "./resources/jest --config jest.config.unit.ts",
+    "test:unit": "yarn test:startup && ./resources/jest --config jest.config.unit.ts",
     "test:unit:watch": "./resources/jest --config jest.config.unit.ts --watch",
     "test:integration": "./resources/jest --runInBand --config jest.config.integration.ts",
     "test:integration:watch": "./resources/jest --runInBand --config jest.config.integration.ts --watchAll",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test:startup": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@babel/core": "7.24.7",
