@@ -1,8 +1,8 @@
 import {
-  GenericArtifactType,
   Job,
   ManagedArtifactType,
-  isGenericArtifact,
+  WorkflowArtifactType,
+  isWorkflowArtifact,
 } from '@expo/eas-build-job';
 import {
   BuildFunction,
@@ -33,7 +33,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
           ManagedArtifactType.APPLICATION_ARCHIVE,
           ManagedArtifactType.BUILD_ARTIFACTS,
           ...Object.keys(artifactTypeInputToManagedArtifactType),
-          ...Object.values(GenericArtifactType),
+          ...Object.values(WorkflowArtifactType),
         ],
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -126,7 +126,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         paths: artifactPaths,
         name: (inputs.name.value || inputs.key.value) as string,
       };
-      const artifact = isGenericArtifact(artifactSpec)
+      const artifact = isWorkflowArtifact(artifactSpec)
         ? {
             ...artifactSpec,
             metadata: inputs.metadata.value as Record<string, unknown> | undefined,
@@ -158,7 +158,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
  * values. This makes sure we support all:
  * - kebab-case managed artifact types (the original)
  * - snake-caps-case managed artifact types (the mistake)
- * - generic artifact types.
+ * - workflow artifact types.
  */
 function parseArtifactTypeInput({
   inputValue,
@@ -166,10 +166,10 @@ function parseArtifactTypeInput({
 }: {
   inputValue: string;
   platform: Job['platform'];
-}): GenericArtifactType | ManagedArtifactType {
+}): WorkflowArtifactType | ManagedArtifactType {
   if (!inputValue) {
     // In build jobs the default artifact type is application-archive.
-    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : GenericArtifactType.OTHER;
+    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : WorkflowArtifactType.OTHER;
   }
 
   // Step's allowedValues ensures input is either
@@ -180,5 +180,5 @@ function parseArtifactTypeInput({
     return translatedManagedArtifactType;
   }
 
-  return inputValue as GenericArtifactType | ManagedArtifactType;
+  return inputValue as WorkflowArtifactType | ManagedArtifactType;
 }

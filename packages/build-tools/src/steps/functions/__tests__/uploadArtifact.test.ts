@@ -126,7 +126,7 @@ describe(createUploadArtifactBuildFunction, () => {
     const metadata = { kind: 'screen-recording', startedAtMs: '123', device: 'emulator-5554' };
     const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
       callInputs: {
-        // Generic ('other') artifact: only generic artifacts persist metadata in the worker
+        // Workflow ('other') artifact: only workflow artifacts persist metadata in the worker
         // (the managed-type upload paths drop it), so that's the type metadata is meant for.
         type: 'other',
         key: 'Screen Recording',

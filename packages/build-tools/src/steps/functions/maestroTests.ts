@@ -1,4 +1,4 @@
-import { GenericArtifactType, SystemError, UserError } from '@expo/eas-build-job';
+import { SystemError, UserError, WorkflowArtifactType } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -631,7 +631,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         try {
           await ctx.runtimeApi.uploadArtifact({
             artifact: {
-              type: GenericArtifactType.OTHER,
+              type: WorkflowArtifactType.OTHER,
               name: selectedReport.name,
               paths: [selectedReport.artifactPath],
             },
@@ -738,7 +738,7 @@ async function uploadFailureScreenshotsAsync({
         await fs.copyFile(shot.fileAbsPath, safePath);
         await ctx.runtimeApi.uploadArtifact({
           artifact: {
-            type: GenericArtifactType.OTHER,
+            type: WorkflowArtifactType.OTHER,
             name: shot.displayName,
             paths: [safePath],
             metadata: shot.metadata,

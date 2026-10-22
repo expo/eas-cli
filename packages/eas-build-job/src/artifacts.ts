@@ -8,7 +8,7 @@ export enum ManagedArtifactType {
   XCODE_BUILD_LOGS = 'XCODE_BUILD_LOGS',
 }
 
-export enum GenericArtifactType {
+export enum WorkflowArtifactType {
   ANDROID_APK = 'android-apk',
   ANDROID_AAB = 'android-aab',
 
@@ -18,12 +18,12 @@ export enum GenericArtifactType {
   OTHER = 'other',
 }
 
-export const isGenericArtifact = <
-  TSpec extends { type: GenericArtifactType | ManagedArtifactType },
+export const isWorkflowArtifact = <
+  TSpec extends { type: WorkflowArtifactType | ManagedArtifactType },
 >(
   artifactSpec: TSpec
-): artifactSpec is TSpec & { type: GenericArtifactType } => {
-  if (Object.values(GenericArtifactType).includes(artifactSpec.type as GenericArtifactType)) {
+): artifactSpec is TSpec & { type: WorkflowArtifactType } => {
+  if (Object.values(WorkflowArtifactType).includes(artifactSpec.type as WorkflowArtifactType)) {
     return true;
   }
   return false;

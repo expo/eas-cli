@@ -1,4 +1,4 @@
-import { GenericArtifactType, SystemError, UserError } from '@expo/eas-build-job';
+import { SystemError, UserError, WorkflowArtifactType } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs/promises';
 import os from 'os';
@@ -305,7 +305,7 @@ describe('createMaestroTestsBuildFunction', () => {
       expect(mockUploadArtifact).toHaveBeenCalledWith(
         expect.objectContaining({
           artifact: expect.objectContaining({
-            type: GenericArtifactType.OTHER,
+            type: WorkflowArtifactType.OTHER,
             name:
               format === 'html' ? 'Maestro Runner HTML Report' : 'Maestro Runner Allure Results',
             paths: [
@@ -1091,7 +1091,7 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledWith(
       expect.objectContaining({
         artifact: expect.objectContaining({
-          type: GenericArtifactType.OTHER,
+          type: WorkflowArtifactType.OTHER,
           name: 'Maestro HTML Report',
           paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
         }),
@@ -1420,7 +1420,7 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledWith(
       expect.objectContaining({
         artifact: expect.objectContaining({
-          type: GenericArtifactType.OTHER,
+          type: WorkflowArtifactType.OTHER,
           name: shot.displayName,
           metadata: shot.metadata,
         }),
