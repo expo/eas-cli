@@ -330,7 +330,8 @@ describe(DeviceRunSessionWorkerApi, () => {
   });
 
   it('reports a request that failed before www responded', async () => {
-    jest.mocked(turtleFetch).mockRejectedValueOnce(new Error('socket hang up'));
+    const reason = new Error('socket hang up');
+    jest.mocked(turtleFetch).mockRejectedValueOnce(reason);
 
     const error = await createApi()
       .getSessionAsync()
@@ -338,6 +339,7 @@ describe(DeviceRunSessionWorkerApi, () => {
 
     expect(error).toBeInstanceOf(DeviceRunSessionWorkerApiError);
     expect(error.status).toBeUndefined();
+    expect(error.cause).toBe(reason);
     expect(error.message).toContain('failed before www responded: socket hang up');
   });
 
