@@ -28,6 +28,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
           ManagedArtifactType.APPLICATION_ARCHIVE,
           ManagedArtifactType.BUILD_ARTIFACTS,
           ...Object.keys(artifactTypeInputToManagedArtifactType),
+          // Keep accepting these legacy artifact types for compatibility.
           'android-apk',
           'android-aab',
           'ios-simulator-app',
