@@ -141,7 +141,7 @@ describe(createBuildContext.name, () => {
     const metadata = { kind: 'maestro-report' };
 
     const result = await ctx.uploadArtifact({
-      artifact: { name: 'Report', paths: ['/workingdir/report'], metadata },
+      artifact: { type: null, name: 'Report', paths: ['/workingdir/report'], metadata },
       logger: childLogger,
     });
 

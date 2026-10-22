@@ -142,7 +142,7 @@ describe(createUploadArtifactBuildFunction, () => {
 
       expect(contextUploadArtifact).toHaveBeenCalledWith(
         expect.objectContaining({
-          artifact: expect.objectContaining({ metadata }),
+          artifact: expect.objectContaining({ type: null, metadata }),
         })
       );
     }

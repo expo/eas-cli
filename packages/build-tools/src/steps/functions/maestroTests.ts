@@ -631,6 +631,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         try {
           await ctx.runtimeApi.uploadArtifact({
             artifact: {
+              type: null,
               name: selectedReport.name,
               paths: [selectedReport.artifactPath],
             },
@@ -737,6 +738,7 @@ async function uploadFailureScreenshotsAsync({
         await fs.copyFile(shot.fileAbsPath, safePath);
         await ctx.runtimeApi.uploadArtifact({
           artifact: {
+            type: null,
             name: shot.displayName,
             paths: [safePath],
             metadata: shot.metadata,

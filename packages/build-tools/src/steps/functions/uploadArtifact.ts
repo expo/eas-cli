@@ -7,6 +7,7 @@ import {
 } from '@expo/steps';
 import assert from 'assert';
 
+import { ArtifactToUpload } from '../../context';
 import { CustomBuildContext } from '../../customBuildContext';
 import { FindArtifactsError, findArtifacts } from '../../utils/artifacts';
 
@@ -121,9 +122,10 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         platform: ctx.job.platform,
         inputValue: `${inputs.type.value ?? ''}`,
       });
-      const artifact = type
+      const artifact: ArtifactToUpload = type
         ? { type, paths: artifactPaths }
         : {
+            type: null,
             name: (inputs.name.value || inputs.key.value) as string,
             paths: artifactPaths,
             metadata: inputs.metadata.value as Record<string, unknown> | undefined,

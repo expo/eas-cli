@@ -46,7 +46,7 @@ export async function createBuildContext<TJob extends Job>({
   const env = getBuildEnv({ job, projectId, metadata, buildId });
 
   const uploadArtifact: BuildContextOptions['uploadArtifact'] = async ({ artifact, logger }) => {
-    if ('name' in artifact) {
+    if (artifact.type === null) {
       return await uploadWithAnalyticsAsync(
         () =>
           uploadWorkflowArtifactAsync(ctx, {
