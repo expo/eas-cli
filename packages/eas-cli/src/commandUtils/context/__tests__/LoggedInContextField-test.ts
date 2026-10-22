@@ -33,6 +33,7 @@ describe(LoggedInContextField, () => {
       logEvent: jest.fn(),
       setActor: jest.fn(),
       flushAsync: jest.fn(),
+      getDeviceId: jest.fn(() => null),
     };
     const sessionManager = new SessionManager(analytics);
     jest.spyOn(sessionManager, 'ensureLoggedInAsync').mockResolvedValue({

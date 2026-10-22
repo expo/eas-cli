@@ -5,7 +5,10 @@ import path from 'path';
 import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
-import { createGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { UserQuery } from '../../graphql/queries/UserQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -114,6 +117,10 @@ describe(SessionManager, () => {
   });
 
   describe('getGraphqlClient', () => {
+    beforeEach(() => {
+      jest.mocked(createGraphqlClient).mockImplementation(() => ({}) as ExpoGraphqlClient);
+    });
+
     it('returns the same client for the same credential', () => {
       const sessionManager = new SessionManager(analytics);
       const client = sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: null });
