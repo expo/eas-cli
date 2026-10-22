@@ -1,9 +1,4 @@
-import {
-  Job,
-  ManagedArtifactType,
-  WorkflowArtifactType,
-  isWorkflowArtifact,
-} from '@expo/eas-build-job';
+import { Job, ManagedArtifactType } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepInput,
@@ -33,7 +28,11 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
           ManagedArtifactType.APPLICATION_ARCHIVE,
           ManagedArtifactType.BUILD_ARTIFACTS,
           ...Object.keys(artifactTypeInputToManagedArtifactType),
-          ...Object.values(WorkflowArtifactType),
+          'android-apk',
+          'android-aab',
+          'ios-simulator-app',
+          'ios-ipa',
+          'other',
         ],
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -126,12 +125,13 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         paths: artifactPaths,
         name: (inputs.name.value || inputs.key.value) as string,
       };
-      const artifact = isWorkflowArtifact(artifactSpec)
-        ? {
-            ...artifactSpec,
-            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
-          }
-        : artifactSpec;
+      const artifact =
+        artifactSpec.type === 'workflow'
+          ? {
+              ...artifactSpec,
+              metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+            }
+          : artifactSpec;
 
       try {
         const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
@@ -166,10 +166,10 @@ function parseArtifactTypeInput({
 }: {
   inputValue: string;
   platform: Job['platform'];
-}): WorkflowArtifactType | ManagedArtifactType {
+}): 'workflow' | ManagedArtifactType {
   if (!inputValue) {
     // In build jobs the default artifact type is application-archive.
-    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : WorkflowArtifactType.OTHER;
+    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : 'workflow';
   }
 
   // Step's allowedValues ensures input is either
@@ -180,5 +180,7 @@ function parseArtifactTypeInput({
     return translatedManagedArtifactType;
   }
 
-  return inputValue as WorkflowArtifactType | ManagedArtifactType;
+  return Object.values(ManagedArtifactType).includes(inputValue as ManagedArtifactType)
+    ? (inputValue as ManagedArtifactType)
+    : 'workflow';
 }

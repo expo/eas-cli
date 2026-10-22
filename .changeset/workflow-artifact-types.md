@@ -3,4 +3,4 @@
 '@expo/build-tools': major
 ---
 
-Use workflow artifact types for workflow uploads and Maestro reports while preserving existing upload type values.
+Remove legacy artifact type exports and route workflow uploads through workflow storage without file-type categories. Preserve workflow uploads and Maestro reports.
