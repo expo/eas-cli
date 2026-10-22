@@ -21,6 +21,10 @@ describe(getBuildEnv.name, () => {
     EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
     NPM_CONFIG_REGISTRY: process.env.NPM_CONFIG_REGISTRY,
     NODE_OPTIONS: process.env.NODE_OPTIONS,
+    SSL_CERT_FILE: process.env.SSL_CERT_FILE,
+    SSL_CERT_DIR: process.env.SSL_CERT_DIR,
+    CURL_CA_BUNDLE: process.env.CURL_CA_BUNDLE,
+    REQUESTS_CA_BUNDLE: process.env.REQUESTS_CA_BUNDLE,
   };
 
   beforeEach(() => {
@@ -51,6 +55,10 @@ describe(getBuildEnv.name, () => {
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
     restoreEnv('NPM_CONFIG_REGISTRY', originalCacheUrls.NPM_CONFIG_REGISTRY);
     restoreEnv('NODE_OPTIONS', originalCacheUrls.NODE_OPTIONS);
+    restoreEnv('SSL_CERT_FILE', originalCacheUrls.SSL_CERT_FILE);
+    restoreEnv('SSL_CERT_DIR', originalCacheUrls.SSL_CERT_DIR);
+    restoreEnv('CURL_CA_BUNDLE', originalCacheUrls.CURL_CA_BUNDLE);
+    restoreEnv('REQUESTS_CA_BUNDLE', originalCacheUrls.REQUESTS_CA_BUNDLE);
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
@@ -331,8 +339,15 @@ describe(getBuildEnv.name, () => {
     expect(getNodeMemoryOptions()).toBeUndefined();
   });
 
-  it('keeps Node.js options inherited from the worker environment in override position', () => {
-    process.env.NODE_OPTIONS = '--max-old-space-size=2048 --enable-source-maps';
+  it('keeps worker trust settings and inherited Node.js options', () => {
+    process.env.NODE_OPTIONS = '--max-old-space-size=2048 --enable-source-maps --use-openssl-ca';
+    const trust = {
+      SSL_CERT_FILE: '/worker/bin/tls/ca.pem',
+      SSL_CERT_DIR: '/worker/bin/tls/empty',
+      CURL_CA_BUNDLE: '/worker/bin/tls/ca.pem',
+      REQUESTS_CA_BUNDLE: '/worker/bin/tls/ca.pem',
+    };
+    Object.assign(process.env, trust);
     jest.spyOn(process, 'constrainedMemory').mockReturnValue(6 * 1024 ** 3);
     jest.spyOn(v8, 'getHeapStatistics').mockReturnValue({
       heap_size_limit: 2 * 1024 ** 3,
@@ -357,8 +372,9 @@ describe(getBuildEnv.name, () => {
     });
 
     expect(env.NODE_OPTIONS).toBe(
-      '--max-old-space-size=3072 --max-old-space-size=2048 --enable-source-maps'
+      '--max-old-space-size=3072 --max-old-space-size=2048 --enable-source-maps --use-openssl-ca'
     );
+    expect(env).toEqual(expect.objectContaining(trust));
   });
 });
 

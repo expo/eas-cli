@@ -26,6 +26,7 @@ function archive(t, main, shell) {
 function launch(t, entry, args = []) {
   const child = spawn(process.execPath, [entry, ...args], {
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    env: { ...process.env, ENVIRONMENT: 'test' },
   });
   t.after(() => {
     if (child.exitCode === null && child.signalCode === null) {
@@ -85,7 +86,10 @@ test('runs without IPC and retains stdout, stderr, and exit code', { timeout: 10
     t,
     'console.log("worker output"); console.error("worker error"); process.exit(9);'
   );
-  const child = spawn(process.execPath, [entry], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [entry], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, ENVIRONMENT: 'test' },
+  });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', data => {
