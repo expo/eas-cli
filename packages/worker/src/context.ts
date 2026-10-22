@@ -46,19 +46,6 @@ export async function createBuildContext<TJob extends Job>({
   const env = getBuildEnv({ job, projectId, metadata, buildId });
 
   const uploadArtifact: BuildContextOptions['uploadArtifact'] = async ({ artifact, logger }) => {
-    if (artifact.type === null) {
-      return await uploadWithAnalyticsAsync(
-        () =>
-          uploadWorkflowArtifactAsync(ctx, {
-            artifactPaths: artifact.paths,
-            logger,
-            name: artifact.name,
-            metadata: artifact.metadata,
-          }),
-        analytics
-      );
-    }
-
     const { paths, type } = artifact;
 
     switch (type) {
@@ -87,6 +74,18 @@ export async function createBuildContext<TJob extends Job>({
         assert(job.platform, 'Uploading source maps outside of builds is not supported.');
         return await uploadWithAnalyticsAsync(
           () => uploadSourceMapAsync(ctx, { sourceMapPath: paths[0], buildId, logger }),
+          analytics
+        );
+      }
+      default: {
+        return await uploadWithAnalyticsAsync(
+          () =>
+            uploadWorkflowArtifactAsync(ctx, {
+              artifactPaths: paths,
+              logger,
+              name: artifact.name,
+              metadata: artifact.metadata,
+            }),
           analytics
         );
       }

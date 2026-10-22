@@ -7,7 +7,6 @@ import {
 } from '@expo/steps';
 import assert from 'assert';
 
-import { ArtifactToUpload } from '../../context';
 import { CustomBuildContext } from '../../customBuildContext';
 import { FindArtifactsError, findArtifacts } from '../../utils/artifacts';
 
@@ -118,18 +117,21 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         throw result.reason;
       });
 
-      const type = parseArtifactTypeInput({
-        platform: ctx.job.platform,
-        inputValue: `${inputs.type.value ?? ''}`,
-      });
-      const artifact: ArtifactToUpload = type
-        ? { type, paths: artifactPaths }
-        : {
-            type: null,
-            name: (inputs.name.value || inputs.key.value) as string,
-            paths: artifactPaths,
-            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
-          };
+      const artifactSpec = {
+        type: parseArtifactTypeInput({
+          platform: ctx.job.platform,
+          inputValue: `${inputs.type.value ?? ''}`,
+        }),
+        paths: artifactPaths,
+        name: (inputs.name.value || inputs.key.value) as string,
+      };
+      const artifact =
+        artifactSpec.type === null
+          ? {
+              ...artifactSpec,
+              metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+            }
+          : artifactSpec;
 
       try {
         const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
@@ -164,21 +166,15 @@ function parseArtifactTypeInput({
 }: {
   inputValue: string;
   platform: Job['platform'];
-}): ManagedArtifactType | undefined {
+}): ManagedArtifactType | null {
   if (!inputValue) {
     // In build jobs the default artifact type is application-archive.
-    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : undefined;
+    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : null;
   }
 
-  // Step's allowedValues ensures input is either
-  // a key of artifactTypeInputToManagedArtifactType
-  // or a value of an artifact type.
-  const translatedManagedArtifactType = artifactTypeInputToManagedArtifactType[inputValue];
-  if (translatedManagedArtifactType) {
-    return translatedManagedArtifactType;
-  }
-
-  return Object.values(ManagedArtifactType).includes(inputValue as ManagedArtifactType)
-    ? (inputValue as ManagedArtifactType)
-    : undefined;
+  return (
+    artifactTypeInputToManagedArtifactType[inputValue] ??
+    Object.values(ManagedArtifactType).find(type => type === inputValue) ??
+    null
+  );
 }
