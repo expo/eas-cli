@@ -305,7 +305,6 @@ describe('createMaestroTestsBuildFunction', () => {
       expect(mockUploadArtifact).toHaveBeenCalledWith(
         expect.objectContaining({
           artifact: expect.objectContaining({
-            type: 'workflow',
             name:
               format === 'html' ? 'Maestro Runner HTML Report' : 'Maestro Runner Allure Results',
             paths: [
@@ -1091,7 +1090,6 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledWith(
       expect.objectContaining({
         artifact: expect.objectContaining({
-          type: 'workflow',
           name: 'Maestro HTML Report',
           paths: ['/home/expo/.maestro/tests/android-maestro-html.html'],
         }),
@@ -1420,7 +1418,6 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockUploadArtifact).toHaveBeenCalledWith(
       expect.objectContaining({
         artifact: expect.objectContaining({
-          type: 'workflow',
           name: shot.displayName,
           metadata: shot.metadata,
         }),

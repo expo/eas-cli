@@ -142,7 +142,7 @@ describe(createUploadArtifactBuildFunction, () => {
 
       expect(contextUploadArtifact).toHaveBeenCalledWith(
         expect.objectContaining({
-          artifact: expect.objectContaining({ type: 'workflow', metadata }),
+          artifact: expect.objectContaining({ metadata }),
         })
       );
     }

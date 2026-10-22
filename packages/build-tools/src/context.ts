@@ -40,7 +40,6 @@ export type ArtifactToUpload =
       paths: string[];
     }
   | {
-      type: 'workflow';
       name: string;
       paths: string[];
       metadata?: Record<string, unknown>;
@@ -239,7 +238,7 @@ export class BuildContext<TJob extends Job = Job> {
     logger: bunyan;
   }): Promise<{ artifactId: string | null }> {
     const result = await this._uploadArtifact({ artifact, logger });
-    if (result.filename && artifact.type !== 'workflow') {
+    if (result.filename && 'type' in artifact) {
       this.artifacts[artifact.type] = result.filename;
     }
     return { artifactId: result.artifactId ?? null };

@@ -5,7 +5,7 @@ import config from '../config';
 import { createBuildContext } from '../context';
 import { getBuildEnv } from '../env';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
-import { uploadSourceMapAsync } from '../upload';
+import { uploadSourceMapAsync, uploadWorkflowArtifactAsync } from '../upload';
 
 jest.mock('../env', () => ({
   getBuildEnv: jest.fn(() => ({
@@ -18,6 +18,7 @@ jest.mock('../runtimeEnvironment', () => ({
 }));
 jest.mock('../upload', () => ({
   ...jest.requireActual('../upload'),
+  uploadWorkflowArtifactAsync: jest.fn(async () => ({ artifactId: 'artifact-id' })),
   uploadSourceMapAsync: jest.fn(async () => ({ filename: null })),
   uploadWithAnalyticsAsync: jest.fn(async fn => await fn()),
 }));
@@ -128,5 +129,29 @@ describe(createBuildContext.name, () => {
       buildId: baseOptions.buildId,
       logger: childLogger,
     });
+  });
+  it('uploads named artifacts to workflow storage and returns their ID', async () => {
+    const ctx = await createBuildContext({
+      ...baseOptions,
+      job: {
+        type: Workflow.GENERIC,
+        secrets: { environmentSecrets: [] },
+      } as any,
+    });
+    const metadata = { kind: 'maestro-report' };
+
+    const result = await ctx.uploadArtifact({
+      artifact: { name: 'Report', paths: ['/workingdir/report'], metadata },
+      logger: childLogger,
+    });
+
+    expect(uploadWorkflowArtifactAsync).toHaveBeenCalledWith(ctx, {
+      artifactPaths: ['/workingdir/report'],
+      name: 'Report',
+      metadata,
+      logger: childLogger,
+    });
+    expect(result).toEqual({ artifactId: 'artifact-id' });
+    expect(ctx.artifacts).toEqual({});
   });
 });

@@ -23,9 +23,9 @@ export async function buildIosAsync(
     logger,
     logBuffer,
     uploadArtifact: async ({ artifact, logger }) => {
-      if (artifact.type === ManagedArtifactType.APPLICATION_ARCHIVE) {
+      if ('type' in artifact && artifact.type === ManagedArtifactType.APPLICATION_ARCHIVE) {
         return await prepareArtifacts(artifact.paths, logger);
-      } else if (artifact.type === ManagedArtifactType.BUILD_ARTIFACTS) {
+      } else if ('type' in artifact && artifact.type === ManagedArtifactType.BUILD_ARTIFACTS) {
         return await prepareArtifacts(artifact.paths, logger);
       } else {
         return { filename: null };

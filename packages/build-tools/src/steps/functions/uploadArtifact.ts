@@ -117,21 +117,17 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         throw result.reason;
       });
 
-      const artifactSpec = {
-        type: parseArtifactTypeInput({
-          platform: ctx.job.platform,
-          inputValue: `${inputs.type.value ?? ''}`,
-        }),
-        paths: artifactPaths,
-        name: (inputs.name.value || inputs.key.value) as string,
-      };
-      const artifact =
-        artifactSpec.type === 'workflow'
-          ? {
-              ...artifactSpec,
-              metadata: inputs.metadata.value as Record<string, unknown> | undefined,
-            }
-          : artifactSpec;
+      const type = parseArtifactTypeInput({
+        platform: ctx.job.platform,
+        inputValue: `${inputs.type.value ?? ''}`,
+      });
+      const artifact = type
+        ? { type, paths: artifactPaths }
+        : {
+            name: (inputs.name.value || inputs.key.value) as string,
+            paths: artifactPaths,
+            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+          };
 
       try {
         const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
@@ -141,7 +137,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         }
       } catch (error) {
         if (inputs.ignore_error.value) {
-          logger.error({ err: error }, `Failed to upload ${artifact.type}. Ignoring error.`);
+          logger.error({ err: error }, 'Failed to upload artifact. Ignoring error.');
           // Ignoring error.
           return;
         }
@@ -166,10 +162,10 @@ function parseArtifactTypeInput({
 }: {
   inputValue: string;
   platform: Job['platform'];
-}): 'workflow' | ManagedArtifactType {
+}): ManagedArtifactType | undefined {
   if (!inputValue) {
     // In build jobs the default artifact type is application-archive.
-    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : 'workflow';
+    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : undefined;
   }
 
   // Step's allowedValues ensures input is either
@@ -182,5 +178,5 @@ function parseArtifactTypeInput({
 
   return Object.values(ManagedArtifactType).includes(inputValue as ManagedArtifactType)
     ? (inputValue as ManagedArtifactType)
-    : 'workflow';
+    : undefined;
 }
