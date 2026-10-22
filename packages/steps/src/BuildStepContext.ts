@@ -202,11 +202,8 @@ export class BuildStepGlobalContext {
     return new BuildStepContext(this, options);
   }
 
-  public markAsCheckedOut(logger: bunyan): void {
+  public markAsCheckedOut(): void {
     this.didCheckOut = true;
-    logger.info(
-      `Changing default working directory to ${this.defaultWorkingDirectory} (was ${this.projectTargetDirectory})`
-    );
   }
 
   public get hasAnyPreviousStepFailed(): boolean {

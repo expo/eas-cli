@@ -44,9 +44,8 @@ export async function runHookableBuildPhaseAsync<TJob extends BuildJob, T>({
     if (hooks) {
       try {
         await runHookEntriesAsync({ ctx, hooks, timing: 'after', anchor, anchorFailed: true });
-      } catch (hookError) {
-        // The phase error wins; still surface the after-hook failure in the log.
-        ctx.logger.error({ err: hookError }, `after_${anchor} hook failed`);
+      } catch {
+        // The phase error wins.
       }
     }
     throw phaseError;

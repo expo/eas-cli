@@ -16,11 +16,13 @@ function createCtx(
   { workingdir = '/tmp/wd' }: { workingdir?: string } = {}
 ): {
   ctx: BuildContext<Ios.Job>;
+  info: jest.Mock;
   warn: jest.Mock;
 } {
+  const info = jest.fn();
   const warn = jest.fn();
   const logger = {
-    info: jest.fn(),
+    info,
     debug: jest.fn(),
     error: jest.fn(),
     warn,
@@ -36,7 +38,7 @@ function createCtx(
       workingdir,
     }
   );
-  return { ctx, warn };
+  return { ctx, info, warn };
 }
 
 // Project checkout lives at <workingdir>/build (job projectRootDirectory is '.').
@@ -79,22 +81,31 @@ describe(parseJobHooksAsync, () => {
     });
   });
 
-  it('treats an unknown hook key as inert and warns', async () => {
-    const { ctx, warn } = createCtx({
+  it('writes nothing to the build log while parsing', async () => {
+    const { ctx, info, warn } = createCtx({
+      before_install_node_modules: [{ run: 'echo hi' }],
+      before_submit: [{ run: 'echo hi' }],
+      before_bogus: [{ run: 'echo hi' }],
+    });
+    await parseJobHooksAsync(ctx, INSTALL);
+    expect(info).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('treats an unknown hook key as inert', async () => {
+    const { ctx } = createCtx({
       before_bogus: [{ run: 'echo hi' }],
     });
     const parsed = await parseJobHooksAsync(ctx, INSTALL);
     expect(parsed!.hookEntriesByKey).toEqual({});
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unknown hook key "before_bogus"'));
   });
 
-  it('shape-checks a registered-but-unwrapped key, then warns and skips it', async () => {
-    const { ctx, warn } = createCtx({
+  it('shape-checks a registered-but-unwrapped key, then skips it', async () => {
+    const { ctx } = createCtx({
       before_submit: [{ run: 'echo hi' }],
     });
     const parsed = await parseJobHooksAsync(ctx, INSTALL);
     expect(parsed!.hookEntriesByKey.before_submit).toBeUndefined();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('hooks.before_submit'));
   });
 
   it('shape-validates a registered-but-unwrapped key even though it is skipped', async () => {
@@ -192,10 +203,9 @@ describe(parseJobHooksAsync, () => {
   });
 
   it('never loads a composite function referenced under a registered-but-unwrapped key', async () => {
-    const { ctx, warn } = createCtx({ before_submit: [{ uses: './.eas/functions/missing' }] });
+    const { ctx } = createCtx({ before_submit: [{ uses: './.eas/functions/missing' }] });
     const parsed = await parseJobHooksAsync(ctx, INSTALL);
     expect(parsed!.hookEntriesByKey).toEqual({});
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('hooks.before_submit'));
   });
 
   it('wraps a cross-key duplicate step id in the aggregate error', async () => {
