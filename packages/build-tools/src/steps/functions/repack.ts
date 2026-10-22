@@ -16,14 +16,14 @@ import {
   spawnAsync,
 } from '@expo/steps';
 import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
+import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import resolveFrom from 'resolve-from';
 
 import { COMMON_FASTLANE_ENV } from '../../common/fastlane';
 import IosCredentialsManager from '../utils/ios/credentials/manager';
-import { resolvePackageVersionAsync } from '../../utils/packageManager';
+import { installIsolatedNpmPackageAsync } from '../../utils/installIsolatedNpmPackageAsync';
 
 export function createRepackBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -121,18 +121,12 @@ export function createRepackBuildFunction(): BuildFunction {
         : undefined;
       const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
-      const resolvedRepackVersion =
-        (await resolvePackageVersionAsync({
-          logger: stepsCtx.logger,
-          packageName: inputs.repack_package.value as string,
-          distTag: inputs.repack_version.value as string,
-        })) ?? (inputs.repack_version.value as string);
-      stepsCtx.logger.info(
-        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value} (${resolvedRepackVersion})`
-      );
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
-        version: resolvedRepackVersion,
+        versionSpec: inputs.repack_version.value as string,
+        pathEnv: env.PATH,
+        npmCacheUrl: env.EAS_BUILD_NPM_CACHE_URL,
+        logger: stepsCtx.logger,
       });
       const { repackAppIosAsync, repackAppAndroidAsync } = repackApp;
 
@@ -226,16 +220,29 @@ function createOutputPath({
  */
 async function installAndImportRepackAsync({
   packageName,
-  version,
+  versionSpec,
+  pathEnv,
+  npmCacheUrl,
+  logger,
 }: {
   packageName: string;
-  version: string;
+  versionSpec: string;
+  pathEnv: string | undefined;
+  npmCacheUrl: string | undefined;
+  logger: bunyan;
 }): Promise<typeof import('@expo/repack-app')> {
   const sandbox = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-package-root-`));
-  await spawnAsync('yarn', ['add', `${packageName}@${version}`], {
-    stdio: 'inherit',
-    cwd: sandbox,
+  await installIsolatedNpmPackageAsync({
+    packageSpec: `${packageName}@${versionSpec}`,
+    directory: sandbox,
+    npmCacheUrl,
+    pathEnv,
+    logger,
   });
+  const { version } = await fs.readJson(
+    path.join(sandbox, 'node_modules', packageName, 'package.json')
+  );
+  logger.info(`Using repack from: ${packageName}@${versionSpec} (${version})`);
   return require(resolveFrom(sandbox, packageName));
 }
 
