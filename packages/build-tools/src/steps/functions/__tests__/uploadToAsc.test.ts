@@ -1,6 +1,14 @@
+import { UserError } from '@expo/eas-build-job';
+import fs from 'fs-extra';
+
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
+import { AscApiClient } from '../../utils/ios/AscApiClient';
+import { AscApiUtils } from '../../utils/ios/AscApiUtils';
 import {
+  createUploadToAscBuildFunction,
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
+  isMissingAppIconsError,
   isMissingPurposeStringError,
   isSdkVersionIssueError,
   parseMissingUsageDescriptionKeys,
@@ -73,6 +81,23 @@ describe(isSdkVersionIssueError, () => {
   });
 });
 
+describe(isMissingAppIconsError, () => {
+  it.each([['90391', '90713', '90713'], ['90713', '90022', '90023'], ['90022'], ['90023']])(
+    'recognizes missing-icon validation codes %j',
+    (...codes) => {
+      expect(isMissingAppIconsError(codes.map(code => ({ code })))).toBe(true);
+    }
+  );
+
+  it('returns false when any other error code is present', () => {
+    expect(isMissingAppIconsError([{ code: '90391' }, { code: '90771' }])).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(isMissingAppIconsError([])).toBe(false);
+  });
+});
+
 describe(parseMissingUsageDescriptionKeys, () => {
   it('extracts missing UsageDescription keys from ASC messages', () => {
     expect(
@@ -108,5 +133,59 @@ describe(parseMissingUsageDescriptionKeys, () => {
     expect(
       parseMissingUsageDescriptionKeys([{ description: 'Some other upload validation error.' }])
     ).toEqual([]);
+  });
+});
+
+describe(createUploadToAscBuildFunction, () => {
+  it('keeps Apple validation details in the public error and the full state as its cause', async () => {
+    const state = {
+      state: 'FAILED',
+      errors: [{ code: '90713', description: 'Missing CFBundleIconName in Watch.app.' }],
+      warnings: [{ code: 'WARNING', description: 'Apple warning.' }],
+      infos: [{ code: 'INFO', description: 'Apple information.' }],
+    };
+    await fs.writeFile('/app.ipa', 'ipa');
+    await fs.writeFile('/key.json', '{}');
+    jest.spyOn(AscApiUtils, 'loadApiKeyAsync').mockResolvedValue({} as never);
+    jest.spyOn(AscApiUtils, 'getAppInfoAsync').mockResolvedValue({
+      data: { attributes: { name: 'App', bundleId: 'com.example.app' } },
+    } as never);
+    jest.spyOn(AscApiUtils, 'createBuildUploadAsync').mockResolvedValue({
+      data: { id: 'upload-id' },
+    } as never);
+    jest.spyOn(AscApiUtils, 'commitBuildUploadFileAsync').mockResolvedValue(undefined as never);
+    jest.spyOn(AscApiClient.prototype, 'postAsync').mockResolvedValue({
+      data: { id: 'file-id', attributes: { uploadOperations: [] } },
+    } as never);
+    jest
+      .spyOn(AscApiClient.prototype, 'getAsync')
+      .mockResolvedValueOnce({
+        data: { attributes: { assetDeliveryState: { state: 'COMPLETE' } } },
+      } as never)
+      .mockResolvedValueOnce({ data: { attributes: { state } } } as never);
+    try {
+      const step = createUploadToAscBuildFunction().createBuildStepFromFunctionCall(
+        createGlobalContextMock({ staticContextContent: { job: {} } }),
+        {
+          callInputs: {
+            ipa_path: '/app.ipa',
+            asc_api_key_path: '/key.json',
+            apple_app_identifier: 'app-id',
+            bundle_version: '1',
+            bundle_short_version: '1.0',
+            wait_for_processing: true,
+          },
+        }
+      );
+      const error = await step.executeAsync().catch(error => error);
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_UPLOAD_TO_ASC_MISSING_APP_ICONS');
+      expect(error.cause).toEqual(state);
+      expect(error.toExternalExpoError().message).toContain(
+        'Missing CFBundleIconName in Watch.app. (90713)'
+      );
+    } finally {
+      jest.restoreAllMocks();
+    }
   });
 });
