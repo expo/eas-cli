@@ -106,6 +106,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
+        preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
         signal,
         packageVersion,
         disableShare: inputs.public_preview?.value === false,
@@ -120,10 +121,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       });
 
       try {
-        const webPreview = await sessionHost.openPreviewAsync({
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-        });
+        const webPreview = await sessionHost.openPreviewAsync();
         logger.info(
           webPreview.sharePageUrl
             ? `Preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`

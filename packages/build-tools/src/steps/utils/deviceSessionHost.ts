@@ -354,12 +354,13 @@ export type DeviceWebPreview = {
 };
 
 export type DeviceSessionHost = {
-  openPreviewAsync(options: { baseDomain: string; authtoken: string }): Promise<DeviceWebPreview>;
+  /** The preview tunnel opened during startup, or a new one after closeAsync. */
+  openPreviewAsync(): Promise<DeviceWebPreview>;
   /** Last observed preview input. Always `undefined` on Android, which keeps no event log. */
   getLastPreviewActivityAt(): Date | undefined;
   /**
-   * Terminal and idempotent. Never rejects: a failed finalization, host stop or upload is logged
-   * and reported, so callers need no error handling around it.
+   * Terminal and idempotent. Finalization, host-stop and upload failures are logged and reported.
+   * Warm preview-tunnel cleanup can reject when retirement cannot be confirmed.
    */
   finishAsync(): Promise<void>;
 };
@@ -371,11 +372,13 @@ type AndroidSessionRecording = {
   env: BuildStepEnv;
 };
 
-type DeviceSessionHostOptions = {
+export type DeviceSessionHostOptions = {
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
   timeoutMs: number;
+  /** The host opens this preview tunnel while the server starts. */
+  preview: { baseDomain: string; authtoken: string };
   separateLogPhase?: boolean;
   startupTimeoutMs?: number;
   signal?: AbortSignal;
@@ -395,12 +398,68 @@ type DeviceSessionHostOptions = {
   networkCaptureFields?: string[];
 } & ServeSimLaunchOptions;
 
+export type DeviceSessionServerLaunch = {
+  command: string;
+  args: string[];
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+  /** Redacted from server output. The host adds the preview token after launch. */
+  secrets: string[];
+  stopGracePeriodMs: number;
+};
+
+/**
+ * The server process behind a session host. A cold server is launched for this session; a warm
+ * server was prepared before the job and is adopted. The host runs the same readiness, app
+ * actions and finalization for both.
+ */
+export type DeviceSessionServer = {
+  port: number;
+  turnArgs: Promise<string[]>;
+  /** The Simulator is booted before startAsync, so Simulator setup overlaps server startup. */
+  simulatorBooted: boolean;
+  /** Another session can start on this machine, so an unconfirmed tunnel close fails cleanup. */
+  requiresPreviewRetirement: boolean;
+  startAsync(launch: DeviceSessionServerLaunch): Promise<DetachedProcessHandle>;
+  /** Stops the server after startAsync failed. Finalization stops the returned handle. */
+  stopAsync(): Promise<void>;
+};
+
+/** Fetches TURN before the host starts its collectors. */
+async function createColdDeviceSessionServerAsync(
+  ctx: CustomBuildContext,
+  { logger }: { logger: bunyan }
+): Promise<DeviceSessionServer> {
+  const port = await findAvailablePortAsync();
+  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
+  return {
+    port,
+    turnArgs: Promise.resolve(turnArgs),
+    simulatorBooted: false,
+    requiresPreviewRetirement: false,
+    async startAsync({ command, args, env, logger, secrets, stopGracePeriodMs }) {
+      return spawnDetached({ command, args, env, logger, secrets, stopGracePeriodMs });
+    },
+    // A cold launch either returns its handle or starts no process.
+    async stopAsync() {},
+  };
+}
+
+/** Without a server, the host launches a cold one. */
 export async function startDeviceSessionHostAsync(
   ctx: CustomBuildContext,
-  options: DeviceSessionHostOptions
+  options: DeviceSessionHostOptions,
+  server?: DeviceSessionServer
 ): Promise<DeviceSessionHost> {
   if (!options.separateLogPhase) {
-    return await startDeviceSessionHostInternalAsync(ctx, options, () => {}, options.logger);
+    return await startDeviceSessionHostInternalAsync(
+      ctx,
+      options,
+      () => {},
+      options.logger,
+      server
+    );
   }
   const phase = startLogPhase(options.logger, 'Simulator preview');
   let ready = false;
@@ -410,7 +469,8 @@ export async function startDeviceSessionHostAsync(
       { ...options, logger: phase.logger },
       successful =>
         phase.end(ready && successful ? BuildPhaseResult.SUCCESS : BuildPhaseResult.FAIL),
-      options.logger
+      options.logger,
+      server
     );
     ready = true;
     return host;
@@ -444,9 +504,11 @@ async function startDeviceSessionHostInternalAsync(
     networkCapture = false,
     networkCaptureFields = [],
     bootEnv = {},
+    preview,
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
-  artifactLogger: bunyan
+  artifactLogger: bunyan,
+  providedServer?: DeviceSessionServer
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
@@ -494,94 +556,24 @@ async function startDeviceSessionHostInternalAsync(
   const subdomainId = randomBytes(16).toString('hex');
   const previewPageUrl = simulatorPreviewPageUrl(env, subdomainId);
   const sharePageUrl = disableShare ? privatePreviewUrl : previewPageUrl;
-  const port = await findAvailablePortAsync();
+  const server = providedServer ?? (await createColdDeviceSessionServerAsync(ctx, { logger }));
+  const port = server.port;
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
-  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
-  const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
-  const previewExec = resolvePackageExec(
-    resolveConfiguredPackageManager(env, PackageManager.NPM),
-    isAndroid
-      ? createExpoDeviceHubArgs({
-          port,
-          turnArgs,
-          packageVersion,
-          recordingDirectory: recording?.directory,
-          websiteArgs: websiteOriginArgs(env),
-          frameAncestorArgs: frameAncestorArgs(frameAncestors),
-          corsOriginArgs: corsOriginArgs(corsOrigins),
-        })
-      : createServeSimArgs({
-          port,
-          turnArgs,
-          packageVersion,
-          iosSimulatorUdid,
-          websiteArgs: websiteOriginArgs(env),
-          frameAncestorArgs: frameAncestorArgs(frameAncestors),
-          corsOriginArgs: corsOriginArgs(corsOrigins),
-          // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
-          shareUrl: disableShare ? undefined : previewPageUrl,
-          disableShare,
-          installAppPath: iosSimulatorUdid ? undefined : installAppPath,
-          launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
-          launchArgs: iosSimulatorUdid ? [] : launchArgs,
-          openUrl: iosSimulatorUdid ? undefined : openUrl,
-          networkCapture,
-          networkCaptureFields,
-          networkCaptureProxy: localEgress
-            ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}`
-            : undefined,
-        })
-  );
-  logger.info(
-    `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
-  );
-  // Redact these credentials before forwarding process output to build logs.
-  const secrets = [
-    ...turnArgs.filter((_, index) => turnArgs[index - 1] === '--turn-credential'),
-    ...(recording ? [recording.controlToken] : []),
-  ];
+  const turnArgsResult = asyncResult(server.turnArgs);
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
     logger: artifactLogger,
   });
-  let previewServer: DetachedProcessHandle;
-  try {
-    signal?.throwIfAborted();
-    previewServer = spawnDetached({
-      command: previewExec.command,
-      args: previewExec.args,
-      env: {
-        ...env,
-        ...bootEnv,
-        ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
-        EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
-        ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
-        // The Hub would resolve its state directory from the step's env, which may set its own
-        // TMPDIR or state directory, so it writes its token where the host reads it below.
-        ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
-      },
-      // Only an Android host records through expo-device-hub; serve-sim records on iOS.
-      stopGracePeriodMs: recording
-        ? RECORDING_STOP_GRACE_PERIOD_MS
-        : SERVE_SIM_STOP_GRACE_PERIOD_MS,
-      logger,
-      secrets,
-    });
-  } catch (error) {
-    // Nothing was spawned, so nothing can still write into the directory.
-    await screenshots.finishAsync(true);
-    throw error;
-  }
-
   let stagedAppDirectory: string | undefined;
   let beforeLaunch: ReturnType<typeof asyncResult<void>> | undefined;
   const readinessController = new AbortController();
   const readinessSignal = AbortSignal.any([startup.signal, readinessController.signal]);
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
+  const previewRetirementErrors: unknown[] = [];
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
@@ -590,85 +582,237 @@ async function startDeviceSessionHostInternalAsync(
   let previewFailed = false;
   let previewActivity: ServeSimActivityPolling | null = null;
 
-  const host: DeviceSessionHost = {
-    openPreviewAsync({ baseDomain, authtoken }) {
-      if (finishTask) {
-        return Promise.reject(
-          new SystemError('Cannot open a preview after session host finalization.')
-        );
-      }
-      if (previewTask) {
-        return previewTask;
-      }
-      const opening = (async (): Promise<DeviceWebPreview> => {
-        const tunnel = await startNgrokTunnelAsync({
-          port,
-          subdomainPrefix: 'web-preview',
-          subdomainId,
-          baseDomain,
-          authtoken,
-          logger,
-        });
-        if (finishTask) {
-          await withDeviceRunSessionTimeoutAsync(
-            { name: 'Late preview tunnel close', timeoutMs: 5_000 },
-            async () => await tunnel.stopAsync()
-          ).catch(err => logger.warn({ err }, 'Could not close a late preview tunnel.'));
-          throw new SystemError('Session host finalized while the preview was opening.');
-        }
-        let closeTask: Promise<void> | null = null;
-        previewFailed = false;
-        return {
-          previewPageUrl,
-          sharePageUrl,
-          apiUrl: tunnel.url,
-          previewToken,
-          closeAsync() {
-            return (closeTask ??= (async () => {
-              try {
-                await tunnel.stopAsync();
-              } finally {
-                if (previewTask === opening) {
-                  previewTask = null;
-                }
-              }
-            })());
-          },
-        };
-      })();
-      previewTask = opening;
-      // A failed tunnel may be retried without restarting capture.
-      void opening.catch(() => {
-        previewFailed = true;
-        if (previewTask === opening) {
-          previewTask = null;
-        }
+  function openPreviewAsync(): Promise<DeviceWebPreview> {
+    if (finishTask) {
+      return Promise.reject(
+        new SystemError('Cannot open a preview after session host finalization.')
+      );
+    }
+    if (previewTask) {
+      return previewTask;
+    }
+    const opening = (async (): Promise<DeviceWebPreview> => {
+      const tunnel = await startNgrokTunnelAsync({
+        port,
+        subdomainPrefix: 'web-preview',
+        subdomainId,
+        baseDomain: preview.baseDomain,
+        authtoken: preview.authtoken,
+        logger,
       });
-      return opening;
-    },
+      if (finishTask) {
+        await withDeviceRunSessionTimeoutAsync(
+          { name: 'Late preview tunnel close', timeoutMs: 5_000 },
+          async () => await tunnel.stopAsync()
+        ).catch(err => {
+          if (server.requiresPreviewRetirement) {
+            previewRetirementErrors.push(err);
+          }
+          logger.warn({ err }, 'Could not close a late preview tunnel.');
+        });
+        throw new SystemError('Session host finalized while the preview was opening.');
+      }
+      let closeTask: Promise<void> | null = null;
+      previewFailed = false;
+      return {
+        previewPageUrl,
+        sharePageUrl,
+        apiUrl: tunnel.url,
+        get previewToken() {
+          return previewToken;
+        },
+        closeAsync() {
+          return (closeTask ??= (async () => {
+            try {
+              await tunnel.stopAsync();
+            } catch (error) {
+              if (server.requiresPreviewRetirement) {
+                previewRetirementErrors.push(error);
+              }
+              throw error;
+            } finally {
+              if (previewTask === opening) {
+                previewTask = null;
+              }
+            }
+          })());
+        },
+      };
+    })();
+    previewTask = opening;
+    // A failed tunnel may be retried without restarting capture.
+    void opening.catch(() => {
+      previewFailed = true;
+      if (previewTask === opening) {
+        previewTask = null;
+      }
+    });
+    return opening;
+  }
+  function startSimulatorSetup(): Promise<void> {
+    return startup.run('Simulator setup', async taskLogger => {
+      try {
+        await IosSimulatorUtils.disableApsdAsync({
+          udid: iosSimulatorUdid as IosSimulatorUuid,
+          env,
+        });
+      } catch (err) {
+        startup.signal.throwIfAborted();
+        taskLogger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+      }
+      startup.signal.throwIfAborted();
+    });
+  }
+  if (server.simulatorBooted && iosSimulatorUdid) {
+    beforeLaunch = asyncResult(startSimulatorSetup());
+  }
+  const earlyPreview = asyncResult(
+    openPreviewAsync().catch(error => {
+      startup.abort(error);
+      throw error;
+    })
+  );
+  const secrets: string[] = [];
+  let previewServer: DetachedProcessHandle;
+  try {
+    const turnArgs = (await turnArgsResult).enforceValue();
+    const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
+    const previewExec = resolvePackageExec(
+      resolveConfiguredPackageManager(env, PackageManager.NPM),
+      isAndroid
+        ? createExpoDeviceHubArgs({
+            port,
+            turnArgs,
+            packageVersion,
+            recordingDirectory: recording?.directory,
+            websiteArgs: websiteOriginArgs(env),
+            frameAncestorArgs: frameAncestorArgs(frameAncestors),
+            corsOriginArgs: corsOriginArgs(corsOrigins),
+          })
+        : createServeSimArgs({
+            port,
+            turnArgs,
+            packageVersion,
+            iosSimulatorUdid,
+            websiteArgs: websiteOriginArgs(env),
+            frameAncestorArgs: frameAncestorArgs(frameAncestors),
+            corsOriginArgs: corsOriginArgs(corsOrigins),
+            // serve-sim adds its bearer token to --share-url; private links are for worker logs only.
+            shareUrl: disableShare ? undefined : previewPageUrl,
+            disableShare,
+            installAppPath: iosSimulatorUdid ? undefined : installAppPath,
+            launchAppIdentifier: iosSimulatorUdid ? undefined : launchAppIdentifier,
+            launchArgs: iosSimulatorUdid ? [] : launchArgs,
+            openUrl: iosSimulatorUdid ? undefined : openUrl,
+            networkCapture,
+            networkCaptureFields,
+            networkCaptureProxy: localEgress
+              ? `http://${LOCAL_EGRESS_PROXY_HOST}:${localEgress.port}`
+              : undefined,
+          })
+    );
+    logger.info(
+      `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
+    );
+    // Redact these credentials before forwarding process output to build logs.
+    secrets.push(
+      ...turnArgs.filter((_, index) => turnArgs[index - 1] === '--turn-credential'),
+      ...(recording ? [recording.controlToken] : [])
+    );
+    startup.signal.throwIfAborted();
+    const launchOptions = {
+      command: previewExec.command,
+      args: previewExec.args,
+      env: {
+        ...env,
+        ...bootEnv,
+        ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
+        EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
+        ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
+        // The Hub must write its token in the directory read by this host.
+        ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
+      },
+      logger,
+    };
+    previewServer = await server.startAsync({
+      ...launchOptions,
+      signal: startup.signal,
+      secrets,
+      // Only an Android host records through expo-device-hub; serve-sim records on iOS.
+      stopGracePeriodMs: recording
+        ? RECORDING_STOP_GRACE_PERIOD_MS
+        : SERVE_SIM_STOP_GRACE_PERIOD_MS,
+    });
+  } catch (error) {
+    startup.abort(error);
+    // Mark the opening tunnel as retired; its late-open path closes it.
+    finishTask = Promise.resolve();
+    await Promise.allSettled([beforeLaunch, earlyPreview]);
+    await earlyPreview
+      .then(result => (result.ok ? result.value.closeAsync() : undefined))
+      .catch(err =>
+        logger.warn({ err }, 'Could not close the preview tunnel after startup failed.')
+      );
+    let hostStopped = true;
+    try {
+      await server.stopAsync();
+    } catch (stopError) {
+      hostStopped = false;
+      logger.warn({ err: stopError }, 'Could not stop the session server after startup failed.');
+    }
+    // A warm server may already be writing here even if its adoption command failed.
+    await screenshots.finishAsync(hostStopped);
+    if (previewRetirementErrors.length) {
+      throw new AggregateError(
+        [error, ...previewRetirementErrors],
+        'The warm Simulator preview tunnel could not be closed. Another session cannot start safely.'
+      );
+    }
+    throw error;
+  }
+
+  const host: DeviceSessionHost = {
+    openPreviewAsync,
     getLastPreviewActivityAt() {
       return previewActivity?.getLastActivityObservedAt();
     },
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
-      return (finishTask ??= finishDeviceSessionHostAsync(ctx, {
-        previewTask,
-        stopSessionPreviewAsync: async () => {
-          previewSetupController.abort();
-          await previewSetupTask;
-          await sessionPreview?.stopAsync();
-          await previewActivity?.stopAsync();
-        },
-        previewServer,
-        screenshots,
-        serverName,
-        port,
-        // A host that never answered /readyz has nothing to finalize or upload.
-        recording: hostReady ? recording : null,
-        logger,
-        artifactLogger,
-        onStopped: successful => onFinished(successful && !previewFailed),
-      })
+      return (finishTask ??= (async () => {
+        if (server.simulatorBooted) {
+          await beforeLaunch;
+        }
+        if (server.requiresPreviewRetirement) {
+          // Confirm the tunnel is closed before stop, so the next session cannot reach this one.
+          await earlyPreview
+            .then(result => (result.ok ? result.value.closeAsync() : undefined))
+            .catch(err => logger.warn({ err }, 'Could not close the warm preview tunnel.'));
+        }
+        await finishDeviceSessionHostAsync(ctx, {
+          previewTask,
+          stopSessionPreviewAsync: async () => {
+            previewSetupController.abort();
+            await previewSetupTask;
+            await sessionPreview?.stopAsync();
+            await previewActivity?.stopAsync();
+          },
+          previewServer,
+          screenshots,
+          serverName,
+          port,
+          // A host that never answered /readyz has nothing to finalize or upload.
+          recording: hostReady ? recording : null,
+          logger,
+          artifactLogger,
+          onStopped: successful => onFinished(successful && !previewFailed),
+        });
+        if (previewRetirementErrors.length) {
+          throw new AggregateError(
+            previewRetirementErrors,
+            'The warm Simulator preview tunnel could not be closed. Another session cannot start safely.'
+          );
+        }
+      })()
         .finally(async () => {
           await beforeLaunch;
           if (stagedAppDirectory) {
@@ -678,6 +822,12 @@ async function startDeviceSessionHostInternalAsync(
         .catch(err => {
           artifactLogger.warn({ err }, 'Could not finish the simulator preview.');
           onFinished(false);
+          if (previewRetirementErrors.length) {
+            throw new AggregateError(
+              [err, ...previewRetirementErrors],
+              'The warm Simulator preview tunnel could not be closed. Another session cannot start safely.'
+            );
+          }
         }));
     },
   };
@@ -711,22 +861,7 @@ async function startDeviceSessionHostInternalAsync(
         );
       }
       signal?.throwIfAborted();
-      beforeLaunch = asyncResult(
-        startup.untilAborted(
-          startup.run('Simulator setup', async taskLogger => {
-            try {
-              await IosSimulatorUtils.disableApsdAsync({
-                udid: iosSimulatorUdid as IosSimulatorUuid,
-                env,
-              });
-            } catch (err) {
-              startup.signal.throwIfAborted();
-              taskLogger.warn({ err }, 'Failed to disable apsd in the Simulator.');
-            }
-            startup.signal.throwIfAborted();
-          })
-        )
-      );
+      beforeLaunch ??= asyncResult(startup.untilAborted(startSimulatorSetup()));
       const app = (application ? await startup.untilAborted(application) : undefined) ?? {
         installAppPath,
         launchAppIdentifier,
@@ -749,7 +884,10 @@ async function startDeviceSessionHostInternalAsync(
         signal?.throwIfAborted();
         await action('app.install', { udid: iosSimulatorUdid, path: staged.path });
       }
-      (await beforeLaunch)?.enforceValue();
+      if (!server.simulatorBooted) {
+        (await beforeLaunch)?.enforceValue();
+      }
+      startup.signal.throwIfAborted();
       if (app.launchAppIdentifier) {
         signal?.throwIfAborted();
         await action('app.launch', {
@@ -818,6 +956,7 @@ async function startDeviceSessionHostInternalAsync(
         logger.warn({ err }, 'Could not start refreshing the session preview.');
       }
     });
+    (await earlyPreview).enforceValue();
     signal?.throwIfAborted();
     return host;
   } catch (error) {

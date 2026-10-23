@@ -588,7 +588,7 @@ export function isProcessRunning(pid: number): boolean {
   }
 }
 
-async function stopDetachedProcessAsync(
+export async function stopDetachedProcessAsync(
   pid: number | undefined,
   gracePeriodMs = 5_000
 ): Promise<void> {
