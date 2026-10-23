@@ -43,6 +43,15 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control --id <session-id>',
     '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
+    {
+      description:
+        'Write hello using the named text parameter (shell quotes do not change parsing):',
+      command: "$ eas simulator:control clipboard.write 'text=hello'",
+    },
+    {
+      description: 'Write the literal text=hello using --:',
+      command: "$ eas simulator:control clipboard.write -- 'text=hello'",
+    },
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -53,7 +62,7 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
+        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not disable name=value parsing.',
     }),
   };
 
@@ -81,7 +90,28 @@ export default class SimulatorControl extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, argv, flags } = await this.parse(SimulatorControl);
+    const { args, raw, flags } = await this.parse(SimulatorControl);
+    // oclif's argv sorts repeated values by their first occurrence in the input.
+    // Raw arg tokens preserve their actual order, including literals after --.
+    const values = raw
+      .filter(token => token.type === 'arg')
+      .map(token => token.input)
+      .slice(1);
+    let literalFrom = values.length;
+    for (let index = 0; index < this.argv.length; index++) {
+      const value = this.argv[index];
+      if (value === '--') {
+        literalFrom = Math.max(0, values.length - (this.argv.length - index - 1));
+        break;
+      }
+      // A standalone -- consumed as a flag value is not an argument separator.
+      const flag = value.startsWith('--')
+        ? SimulatorControl.flags[value.slice(2) as keyof typeof SimulatorControl.flags]
+        : undefined;
+      if (flag?.type === 'option') {
+        index++;
+      }
+    }
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -137,7 +167,8 @@ export default class SimulatorControl extends EasCommand {
       await this.runActionAsync(connection, entry, {
         sessionId,
         action,
-        values: argv.slice(1).map(String),
+        values,
+        literalFrom,
         outputPath: flags.output,
         jsonFlag,
       });
@@ -181,6 +212,8 @@ export default class SimulatorControl extends EasCommand {
     const outputFlag = entry.output === 'base64' ? '--output <path>' : '[--output <path>]';
     Log.log(`      ${entry.output ? `${outputFlag} ` : ''}[--id <session-id>] [--json]`);
     Log.newLine();
+    Log.log('  Values after -- are positional literals.');
+    Log.newLine();
     Log.log(`  ${chalk.bold('OPTIONS')}`);
     Log.log(`    --id <session-id>  Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`);
     Log.log('    --json             Print the action schema as JSON. Implies --non-interactive.');
@@ -208,17 +241,19 @@ export default class SimulatorControl extends EasCommand {
       sessionId,
       action,
       values,
+      literalFrom,
       outputPath,
       jsonFlag,
     }: {
       sessionId: string;
       action: string;
       values: string[];
+      literalFrom: number;
       outputPath: string | undefined;
       jsonFlag: boolean;
     }
   ): Promise<void> {
-    const params = buildHostActionParams(action, entry, values);
+    const params = buildHostActionParams(action, entry, values, literalFrom);
     await assertHostActionOutputAsync(action, entry, outputPath);
     const localFile = await findLocalUploadAsync(entry, params);
 
