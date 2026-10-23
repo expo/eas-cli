@@ -109,6 +109,37 @@ it('preserves cancellation before commit is sent', async () => {
 });
 const pendingUploadMessage = 'Some of the Android App Bundle uploads are not completed yet.';
 
+it.each([
+  [false, pendingUploadMessage, {}],
+  [true, 'The query parameter changesNotSentForReview must not be set', {}],
+  [
+    false,
+    'Please set the query parameter changesNotSentForReview to true',
+    { changesNotSentForReview: 'true' },
+  ],
+] as const)(
+  'recovers from a wrapped rejection: %s %s',
+  async (changesNotSentForReview, message, retryQuery) => {
+    mockToken();
+    const query = changesNotSentForReview ? { changesNotSentForReview: 'true' } : {};
+    api().post(`${editPath}:commit`).query(query).reply(503);
+    api().post(`${editPath}:commit`).query(query).reply(400, { error: { message } });
+    api().post(`${editPath}:commit`).query(retryQuery).reply(200, { id: 'edit' });
+    await expect(commit({ changesNotSentForReview })).resolves.toBeUndefined();
+  }
+);
+
+it('keeps an uncertain outcome when processing recovery ends in another rejection', async () => {
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(503);
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  api().post(`${editPath}:commit`).query({}).reply(404);
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
+});
+
 it.each([false, true])(
   'waits for bundle processing without changing review settings (%s)',
   async changesNotSentForReview => {
@@ -126,6 +157,17 @@ it.each([false, true])(
     );
   }
 );
+
+it('preserves uncertainty when wrapped processing retries are exhausted', async () => {
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(503);
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .times(14)
+    .reply(400, { error: { message: pendingUploadMessage } });
+  await expect(commit()).rejects.toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
+});
 
 it('stops waiting for bundle processing after 14 attempts', async () => {
   mockToken();
@@ -287,4 +329,20 @@ it('does not keep the upload session query or a non-JSON response', async () => 
     googlePlayRequestPath: '/upload/session',
     googlePlayErrorResponse: undefined,
   });
+});
+
+it('preserves an uncertain commit if processing recovery is cancelled', async () => {
+  const controller = new AbortController();
+  const reason = new Error('cancelled after uncertain commit');
+  const logger = createMockLogger();
+  jest.spyOn(logger, 'warn').mockImplementation(() => controller.abort(reason));
+  mockToken();
+  api().post(`${editPath}:commit`).query({}).reply(503);
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
+  await expect(commit({ signal: controller.signal, logger })).rejects.toBeInstanceOf(
+    GooglePlayCommitOutcomeUnknownError
+  );
 });

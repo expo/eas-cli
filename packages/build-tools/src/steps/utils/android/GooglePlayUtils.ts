@@ -144,6 +144,16 @@ export namespace GooglePlayUtils {
       signal?: AbortSignal;
     }
   ): Promise<void> {
+    let uncertainCommitError: GooglePlayCommitOutcomeUnknownError | undefined;
+    const lastCommitError = (error: unknown): unknown => {
+      while (
+        error instanceof GooglePlayCommitOutcomeUnknownError ||
+        error instanceof AggregateError
+      ) {
+        error = error.cause;
+      }
+      return error;
+    };
     const sendCommitAsync = async ({
       changesNotSentForReview,
     }: {
@@ -165,10 +175,18 @@ export namespace GooglePlayUtils {
           throw error;
         }
         if (
+          uncertainCommitError ||
           !(error instanceof GooglePlayApiError) ||
           GooglePlayApiError.isRetryableStatus(error.status)
         ) {
-          const lastError = error instanceof AggregateError ? error.cause : undefined;
+          const cause = uncertainCommitError
+            ? new AggregateError(
+                [uncertainCommitError, error],
+                'Google Play commit attempts failed.',
+                { cause: error }
+              )
+            : error;
+          const lastError = lastCommitError(error);
           const lastResponse =
             lastError instanceof GooglePlayApiError &&
             lastError.status >= 400 &&
@@ -176,12 +194,13 @@ export namespace GooglePlayUtils {
             !GooglePlayApiError.isRetryableStatus(lastError.status)
               ? `Google Play returned HTTP ${lastError.status} for the last commit attempt${lastError.apiMessage ? `: ${lastError.apiMessage}` : '.'}\n`
               : '';
-          throw new GooglePlayCommitOutcomeUnknownError(
+          uncertainCommitError = new GooglePlayCommitOutcomeUnknownError(
             lastResponse
               ? `${lastResponse}An earlier commit attempt failed with a temporary error, so Google Play may still have saved the release for ${packageName}. Check its release status at https://play.google.com/console/. If the release is not there, fix the problem above and submit again.`
               : `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
-            { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
+            { cause, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
+          throw uncertainCommitError;
         }
         throw error;
       }
@@ -193,10 +212,14 @@ export namespace GooglePlayUtils {
     };
     // Google can accept the bundle upload before the edit is ready to commit.
     // Retry only this explicit rejection, not other HTTP 400 preconditions.
-    const isUploadStillProcessing = (error: unknown): boolean =>
-      error instanceof GooglePlayApiError &&
-      error.status === 400 &&
-      error.apiMessage === 'Some of the Android App Bundle uploads are not completed yet.';
+    const isUploadStillProcessing = (error: unknown): boolean => {
+      const lastError = lastCommitError(error);
+      return (
+        lastError instanceof GooglePlayApiError &&
+        lastError.status === 400 &&
+        lastError.apiMessage === 'Some of the Android App Bundle uploads are not completed yet.'
+      );
+    };
 
     const commitAsync = async (options: { changesNotSentForReview?: boolean }): Promise<void> => {
       try {
@@ -214,7 +237,21 @@ export namespace GooglePlayUtils {
           }
         )(options);
       } catch (error) {
-        if (isUploadStillProcessing(error)) {
+        if (uncertainCommitError && !(error instanceof GooglePlayCommitOutcomeUnknownError)) {
+          // Cancellation or a later authentication failure cannot establish the earlier outcome.
+          throw new GooglePlayCommitOutcomeUnknownError(uncertainCommitError.message, {
+            cause: new AggregateError(
+              [uncertainCommitError, error],
+              'Google Play commit recovery stopped.',
+              { cause: error }
+            ),
+            metadata: uncertainCommitError.metadata,
+          });
+        }
+        if (
+          isUploadStillProcessing(error) &&
+          !(error instanceof GooglePlayCommitOutcomeUnknownError)
+        ) {
           throw new SystemError(
             `Google Play did not finish processing the uploaded bundle for ${packageName} within five minutes. Wait a few minutes, then check the release at https://play.google.com/console/ before submitting again.`,
             { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
@@ -228,13 +265,14 @@ export namespace GooglePlayUtils {
       // reject its presence, even when false. True saves changes for review in Console.
       await commitAsync({ changesNotSentForReview: changesNotSentForReview || undefined });
     } catch (error) {
-      if (!(error instanceof GooglePlayApiError) || error.status !== 400) {
+      const lastError = lastCommitError(error);
+      if (!(lastError instanceof GooglePlayApiError) || lastError.status !== 400) {
         throw error;
       }
       // Like Fastlane, retry only an explicit rejection of the review setting.
       if (
         changesNotSentForReview &&
-        error.apiMessage.includes('The query parameter changesNotSentForReview must not be set')
+        lastError.apiMessage.includes('The query parameter changesNotSentForReview must not be set')
       ) {
         logger.warn(
           'Google does not allow changesNotSentForReview for this app right now. Retrying commit once without it. The changes will be sent for review.'
@@ -242,7 +280,9 @@ export namespace GooglePlayUtils {
         await commitAsync({});
       } else if (
         !changesNotSentForReview &&
-        error.apiMessage.includes('Please set the query parameter changesNotSentForReview to true')
+        lastError.apiMessage.includes(
+          'Please set the query parameter changesNotSentForReview to true'
+        )
       ) {
         logger.warn(
           'Google requires changesNotSentForReview=true. Retrying commit once. Send the saved changes for review from Play Console.'
