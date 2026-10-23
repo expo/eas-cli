@@ -47,6 +47,7 @@ import {
   logSourceForBuild,
 } from './logs';
 import { collectMetadataAsync } from './metadata';
+import { resolveJobExpoTokenRole } from './utils/expoTokenRole';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
@@ -130,6 +131,7 @@ function resolveBuildParamsInput<T extends Platform>(
     resourceClass: ctx.resourceClass,
     sdkVersion: metadata.sdkVersion,
     reactNativeVersion: metadata.reactNativeVersion,
+    expoTokenRole: resolveJobExpoTokenRole(ctx.buildProfile),
   };
 }
 
