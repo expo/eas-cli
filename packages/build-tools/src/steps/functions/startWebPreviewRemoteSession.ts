@@ -58,6 +58,11 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'max_idle_time_minutes',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_duration_seconds',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -68,6 +73,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
       const env = omitNgrokAuthtoken(stepEnv);
+      const maxIdleTimeMinutes = inputs.max_idle_time_minutes?.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
@@ -154,6 +160,14 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           logger,
           maxDurationSeconds,
           signal,
+          idleTimeout:
+            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+              ? {
+                  maxIdleTimeMinutes,
+                  getLastEventObservedAt: () => undefined,
+                  getLastPreviewActivityAt: () => sessionHost.getLastPreviewActivityAt(),
+                }
+              : undefined,
         });
       } finally {
         await sessionHost.finishAsync();

@@ -89,6 +89,30 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     stopAsync.mockResolvedValue(undefined);
   });
 
+  it('uses preview activity to reset the configured idle timeout', async () => {
+    await runAsync(BuildRuntimePlatform.DARWIN, { max_idle_time_minutes: { value: 5 } });
+    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+    expect(idleTimeout?.getLastEventObservedAt()).toBeUndefined();
+    const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
+    const observedAt = new Date();
+    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(observedAt);
+    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(observedAt);
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([undefined, 0])('leaves the idle timer disabled for %s', async maxIdleTimeMinutes => {
+    await runAsync(BuildRuntimePlatform.DARWIN, {
+      max_idle_time_minutes: { value: maxIdleTimeMinutes },
+    });
+    expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idleTimeout: undefined,
+        maxDurationSeconds: 120,
+      })
+    );
+  });
+
   it('reports the session token when serve-sim minted one', async () => {
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
@@ -268,6 +292,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'frame_ancestors',
       'cors_origins',
       'package_version',
+      'max_idle_time_minutes',
       'max_duration_seconds',
     ]);
   });
