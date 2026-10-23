@@ -267,9 +267,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
               `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
                 'App Store Connect requires unique build numbers within each app version (version train). ' +
-                'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+                'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.' +
+                `\n\nApp Store Connect errors:\n${itemizeMessages(errors)}`,
               {
                 docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+                cause: state,
               }
             );
           }
