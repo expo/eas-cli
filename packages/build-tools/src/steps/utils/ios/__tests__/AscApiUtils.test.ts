@@ -175,6 +175,44 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
+    it.each(['single', 'aggregate', 'mixed', 'other-pointer'])(
+      'handles only invalid app relationships (%s)',
+      async kind => {
+        const relationshipError = new AscApiRequestError('Invalid relationship', 409, {
+          code: 'ENTITY_ERROR.RELATIONSHIP.INVALID',
+          source: {
+            pointer:
+              kind === 'other-pointer'
+                ? '/data/relationships/build/data/id'
+                : '/data/relationships/app/data/id',
+          },
+        });
+        const original =
+          kind === 'aggregate'
+            ? new AggregateError([relationshipError, relationshipError])
+            : kind === 'mixed'
+              ? new AggregateError([relationshipError, new Error('other')])
+              : relationshipError;
+        const client = { postAsync: jest.fn().mockRejectedValue(original) };
+        const result = AscApiUtils.createBuildUploadAsync({
+          client,
+          appleAppIdentifier: '1234567890',
+          bundleShortVersion: '1.2.3',
+          bundleVersion: '42',
+          platform: 'IOS',
+        });
+        if (kind === 'mixed' || kind === 'other-pointer') {
+          await expect(result).rejects.toBe(original);
+        } else {
+          await expect(result).rejects.toMatchObject({
+            errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
+            cause: original,
+            docsUrl: 'https://expo.fyi/asc-app-id',
+          });
+        }
+      }
+    );
+
     it.each([false, true])('explains duplicate versions (aggregate: %s)', async aggregate => {
       const payload = {
         errors: [

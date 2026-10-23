@@ -256,6 +256,33 @@ export namespace AscApiUtils {
       });
     } catch (error) {
       const errors = error instanceof AggregateError ? error.errors : [error];
+      const isInvalidAppRelationshipError =
+        errors.length > 0 &&
+        errors.every(item => {
+          if (
+            !(item instanceof AscApiRequestError) ||
+            item.status !== 409 ||
+            item.code !== 'ENTITY_ERROR.RELATIONSHIP.INVALID'
+          ) {
+            return false;
+          }
+          const source = item.responseJson.source;
+          return (
+            typeof source === 'object' &&
+            source !== null &&
+            'pointer' in source &&
+            source.pointer === '/data/relationships/app/data/id'
+          );
+        });
+      if (isInvalidAppRelationshipError) {
+        throw new UserError(
+          'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
+          `App Store Connect rejected Apple app identifier ${appleAppIdentifier} while creating the build upload. ` +
+            'Check the Apple app identifier in the submit profile and make sure the API key can access that app. ' +
+            'Select the correct submit profile or update the Apple app identifier, then submit again.',
+          { cause: error, docsUrl: 'https://expo.fyi/asc-app-id' }
+        );
+      }
       const isDuplicateVersionError =
         errors.length > 0 &&
         errors.every(
