@@ -2,6 +2,7 @@ import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
+import * as tar from 'tar';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -22,6 +23,10 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorControl from '../control';
 
+jest.mock('tar', () => {
+  const actual = jest.requireActual<typeof import('tar')>('tar');
+  return { ...actual, create: jest.fn(actual.create) };
+});
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log');
 jest.mock('../../../simulator/env', () => ({
@@ -269,8 +274,156 @@ describe(SimulatorControl, () => {
     });
   });
 
+  it.each([false, true])(
+    'packages a local app bundle and cleans it after failure=%s',
+    async fails => {
+      const bundle = path.join(tmpDir, 'My App.app');
+      await fs.mkdir(bundle);
+      await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+      served = {
+        ...catalog,
+        'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' },
+      };
+      const directories = await fs.readdir(os.tmpdir());
+      actionResult = fails ? { stdout: '', stderr: 'install rejected', exitCode: 1 } : ok('');
+      const command = createCommand([
+        'app.install',
+        `${bundle}/`,
+        '--id',
+        'session-123',
+      ]).runAsync();
+      if (fails) {
+        await expect(command).rejects.toThrow('install rejected');
+      } else {
+        await command;
+      }
+      const requests = actionRequests();
+      expect(requests.map(([action]) => action)).toEqual([
+        'upload.append',
+        'app.install',
+        'upload.remove',
+      ]);
+      const data = Buffer.concat(
+        requests
+          .filter(([action]) => action === 'upload.append')
+          .map(([, params]) => Buffer.from(String(params?.data), 'base64'))
+      );
+      const file = path.join(tmpDir, 'received.tgz');
+      await fs.writeFile(file, data);
+      const entries: string[] = [];
+      await tar.list({
+        file,
+        onReadEntry: entry => {
+          entries.push(entry.path);
+        },
+      });
+      expect(entries).toContain('My App.app/Info.plist');
+      const newDirectories = (await fs.readdir(os.tmpdir())).filter(
+        name => name.startsWith('eas-simulator-app-') && !directories.includes(name)
+      );
+      expect(newDirectories).toEqual([]);
+    }
+  );
+
+  it('packages the contents of an app bundle reached through a local symlink', async () => {
+    const actual = path.join(tmpDir, 'Actual');
+    const link = path.join(tmpDir, 'Linked.app');
+    await fs.mkdir(actual);
+    await fs.writeFile(path.join(actual, 'Info.plist'), 'app plist');
+    await fs.symlink(actual, link);
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    await createCommand(['app.install', link, '--id', 'session-123']).runAsync();
+    const data = Buffer.concat(
+      actionRequests()
+        .filter(([action]) => action === 'upload.append')
+        .map(([, params]) => Buffer.from(String(params?.data), 'base64'))
+    );
+    const file = path.join(tmpDir, 'received.tgz');
+    await fs.writeFile(file, data);
+    const entries: string[] = [];
+    await tar.list({
+      file,
+      onReadEntry: entry => {
+        entries.push(entry.path);
+      },
+    });
+    expect(entries).toContain('Linked.app/Info.plist');
+  });
+
+  it('cleans a packaged bundle when uploading fails', async () => {
+    const bundle = path.join(tmpDir, 'Upload.app');
+    await fs.mkdir(bundle);
+    await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    const before = await fs.readdir(os.tmpdir());
+    requestAsync
+      .mockResolvedValueOnce(ok(JSON.stringify(served)))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'upload rejected', exitCode: 1 });
+    await expect(
+      createCommand(['app.install', bundle, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('upload rejected');
+    expect(actionRequests().map(([action]) => action)).toEqual(['upload.append', 'upload.remove']);
+    expect(
+      (await fs.readdir(os.tmpdir())).filter(
+        name => name.startsWith('eas-simulator-app-') && !before.includes(name)
+      )
+    ).toEqual([]);
+  });
+
+  it('removes the temporary archive directory when packaging fails', async () => {
+    const bundle = path.join(tmpDir, 'Broken.app');
+    await fs.mkdir(bundle);
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    const before = await fs.readdir(os.tmpdir());
+    const packaging = jest.mocked(tar.create).mockRejectedValueOnce(new Error('packaging failed'));
+    try {
+      await expect(
+        createCommand(['app.install', bundle, '--id', 'session-123']).runAsync()
+      ).rejects.toThrow('packaging failed');
+      expect(actionRequests()).toEqual([]);
+      expect(
+        (await fs.readdir(os.tmpdir())).filter(
+          name => name.startsWith('eas-simulator-app-') && !before.includes(name)
+        )
+      ).toEqual([]);
+    } finally {
+      packaging
+        .mockReset()
+        .mockImplementation(jest.requireActual<typeof import('tar')>('tar').create);
+    }
+  });
+
+  it('refuses bundle upload to a host that does not advertise app archives', async () => {
+    const bundle = path.join(tmpDir, 'My.app');
+    await fs.mkdir(bundle);
+    await expect(
+      createCommand(['app.install', bundle, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('does not support app archives');
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it.each(['Old.tar.gz', 'Old.tgz'])(
+    'rejects an archive before upload when the host lacks support: %s',
+    async name => {
+      const archive = path.join(tmpDir, name);
+      await fs.writeFile(archive, 'archive bytes');
+      await expect(
+        createCommand(['app.install', archive, '--id', 'session-123']).runAsync()
+      ).rejects.toThrow('does not support app archives');
+      expect(actionRequests()).toEqual([]);
+    }
+  );
+
+  it('continues rejecting unrelated folders', async () => {
+    await expect(
+      createCommand(['media.add', tmpDir, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow(`${tmpDir} is a folder. Pass the path of a file.`);
+    expect(actionRequests()).toEqual([]);
+  });
+
   it('uploads a local file for an action that takes one and removes it after', async () => {
-    const localFile = path.join(tmpDir, 'MyApp.ipa');
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
+    const localFile = path.join(tmpDir, 'MyApp.tgz');
     await fs.writeFile(localFile, 'app bytes');
     actionResult = ok('');
 
@@ -287,6 +440,22 @@ describe(SimulatorControl, () => {
       ['upload.remove', { uploadId }],
     ]);
   });
+
+  it.each(['Device.ipa', 'Device.IPA', 'Build.zip'])(
+    'rejects unsupported Simulator install input before uploading: %s',
+    async name => {
+      const file = path.join(tmpDir, name);
+      await fs.writeFile(file, 'unsupported archive');
+
+      await expect(
+        createCommand(['app.install', file, '--id', 'session-123']).runAsync()
+      ).rejects.toThrow(
+        'Simulator installs require a Simulator .app bundle or .tar.gz/.tgz archive.'
+      );
+      expect(actionRequests()).toEqual([]);
+      expect(close).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('sends the upload ID to an action that asks for it', async () => {
     const localFile = path.join(tmpDir, 'session.json');
