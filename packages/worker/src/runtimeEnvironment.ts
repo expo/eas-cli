@@ -142,7 +142,10 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
         env: ctx.env,
       });
     };
-    const { stdout } = await installAsync().catch(async err => {
+    let result;
+    try {
+      result = await installAsync();
+    } catch (err) {
       if (!ctx.env.NVM_NODEJS_ORG_MIRROR) {
         throw err;
       }
@@ -153,9 +156,10 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
       );
       // Keep the failed mirror disabled for the rest of this build.
       delete ctx.env.NVM_NODEJS_ORG_MIRROR;
-      return await installAsync();
-    });
+      result = await installAsync();
+    }
 
+    const { stdout } = result;
     sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
     await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
       logger: ctx.logger,
