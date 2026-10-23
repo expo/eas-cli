@@ -84,9 +84,17 @@ it.each([408, 429, 503])('retries a transient HTTP %s commit on the same edit', 
   api().post(`${editPath}:commit`).query({}).reply(200, { id: 'edit' });
   await expect(commit()).resolves.toBeUndefined();
 });
-it('shows the final rejection after a transient commit failure without claiming the outcome is known', async () => {
+it('shows failed commit attempts in order across processing, HTTP, and network retries', async () => {
   mockToken();
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .reply(400, { error: { message: pendingUploadMessage } });
   api().post(`${editPath}:commit`).query({}).reply(503);
+  api()
+    .post(`${editPath}:commit`)
+    .query({})
+    .replyWithError(Object.assign(new Error('Lost commit response'), { code: 'ECONNRESET' }));
   const message = 'You must let us know whether your app includes any health features.';
   api().post(`${editPath}:commit`).query({}).reply(403, { error: { message } });
   const error = await commit().catch(error => error);
@@ -99,7 +107,17 @@ it('shows the final rejection after a transient commit failure without claiming 
     metadata: { googlePlayErrorResponse: JSON.stringify({ error: { message } }) },
     cause: expect.any(AggregateError),
   });
-  expect(((mapped as Error).cause as AggregateError).errors).toHaveLength(2);
+  const attempts = (mapped as Error).message.split('Commit attempts:\n')[1]?.split('\n');
+  expect(attempts).toEqual([
+    `1. Google Play request failed (HTTP 400): ${pendingUploadMessage}`,
+    '2. Google Play request failed (HTTP 503).',
+    '3. Google Play request failed before a response was received.',
+    `4. Google Play request failed (HTTP 403): ${message}`,
+  ]);
+  expect(((mapped as Error).cause as AggregateError).errors).toHaveLength(3);
+  expect(((mapped as Error).cause as AggregateError).errors[1]).toMatchObject({
+    cause: { code: 'ECONNRESET' },
+  });
 });
 it('preserves cancellation before commit is sent', async () => {
   const controller = new AbortController();
