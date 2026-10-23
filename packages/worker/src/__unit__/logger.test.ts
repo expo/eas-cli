@@ -1,4 +1,5 @@
-import { TransformCallback, Writable } from 'node:stream';
+import { Readable, Transform, TransformCallback, Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { EnvironmentSecretType } from '@expo/eas-build-job';
 import z from 'zod';
 
@@ -354,5 +355,101 @@ describe('logger', () => {
     await waitForStreamFlush();
 
     expect(outputStream.readableLength).toBe(0);
+  });
+});
+
+describe('createLogMaskingStream', () => {
+  async function maskAsync(stream: Transform, chunks: Buffer[]): Promise<Buffer> {
+    const output: Buffer[] = [];
+    await pipeline(
+      Readable.from(chunks),
+      stream,
+      new Writable({
+        write(chunk: Buffer, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+          output.push(chunk);
+          callback();
+        },
+      })
+    );
+    return Buffer.concat(output);
+  }
+
+  it('masks secrets, secrets as Xcode prints them in build settings, and decoded secrets', async () => {
+    const { createLogMaskingStream } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'API_KEY', value: 'ab cd=ef$gh', type: EnvironmentSecretType.STRING },
+        {
+          name: 'ANOTHER_SECRET_BASE64',
+          value: 'YW5vdGhlclNlY3JldA==',
+          type: EnvironmentSecretType.STRING,
+        },
+      ],
+    });
+    const log = [
+      '    export API_KEY\\=ab\\ cd\\=ef\\$gh',
+      'token is ab cd=ef$gh',
+      'decoded anotherSecret here',
+      '',
+    ].join('\n');
+
+    const masked = await maskAsync(createLogMaskingStream(), [Buffer.from(log)]);
+
+    expect(masked.toString()).toBe(
+      [
+        `    export API_KEY\\=${'*'.repeat(14)}`,
+        `token is ${'*'.repeat(11)}`,
+        `decoded ${'*'.repeat(13)} here`,
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('masks secrets split across chunks, including masks added after the logger was created', async () => {
+    const { createLogMaskingStream, addBuildLogMask } = await createBuildLoggerWithSecretsFilter(
+      {}
+    );
+    addBuildLogMask('leased-token');
+
+    const masked = await maskAsync(createLogMaskingStream(), [
+      Buffer.from('first line leased-'),
+      Buffer.from('token\nsecond '),
+      Buffer.from('leased-token without a newline'),
+    ]);
+
+    expect(masked.toString()).toBe(
+      `first line ${'*'.repeat(12)}\nsecond ${'*'.repeat(12)} without a newline`
+    );
+  });
+
+  it('keeps everything except secrets byte for byte, including multibyte and invalid UTF-8', async () => {
+    const { createLogMaskingStream } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'PASSWORD', value: 'pässwörd', type: EnvironmentSecretType.STRING },
+      ],
+    });
+    const log = Buffer.concat([
+      Buffer.from('✓ Compiling café.swift\r\n'),
+      Buffer.from([0xff, 0xfe, 0x0a]),
+      Buffer.from('password: pässwörd\n'),
+    ]);
+    // Split inside the multibyte characters.
+    const chunks = [
+      log.subarray(0, 1),
+      log.subarray(1, 20),
+      log.subarray(20, 40),
+      log.subarray(40),
+    ];
+
+    const masked = await maskAsync(createLogMaskingStream(), chunks);
+
+    const passwordBytes = Buffer.byteLength('pässwörd');
+    expect(masked).toEqual(
+      Buffer.concat([
+        Buffer.from('✓ Compiling café.swift\r\n'),
+        Buffer.from([0xff, 0xfe, 0x0a]),
+        Buffer.from(`password: ${'*'.repeat(passwordBytes)}\n`),
+      ])
+    );
+    expect(masked.length).toBe(log.length);
   });
 });

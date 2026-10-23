@@ -115,6 +115,7 @@ describe('BuildService Datadog setup', () => {
     createBuildLoggerWithSecretsFilterMock.mockResolvedValue({
       logger: buildLogger,
       addBuildLogMask: jest.fn(),
+      createLogMaskingStream: jest.fn(),
       cleanUp: jest.fn(async () => {}),
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] } as any,
       outputStream: {} as any,
