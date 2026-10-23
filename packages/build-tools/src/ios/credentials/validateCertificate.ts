@@ -127,11 +127,10 @@ export async function ensureCertificateImportedAsync({
     explanation =
       'The diagnostic queries could not determine why the identity is unavailable. Give Expo support the query failure details and build URL, or check keychain access if building locally. Do not infer that the certificate or private key is absent from a failed query.';
   }
-  // Keep the original prefix for existing error consumers, and include guidance
-  // in the exception as well as logs so callers without a logger can use it.
+  // Include guidance in the exception as well as logs for callers without a logger.
   throw new errors.UserError(
     errors.ErrorCode.UNKNOWN_ERROR,
-    `Distribution certificate with fingerprint ${fingerprint} hasn't been imported successfully. ${explanation}`,
+    `Signing identity validation failed for distribution certificate with fingerprint ${fingerprint}. ${explanation}`,
     {
       trackingCode: 'IOS_SIGNING_IDENTITY_VALIDATION_FAILED',
       metadata: {

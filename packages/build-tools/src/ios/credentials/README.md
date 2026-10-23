@@ -80,3 +80,20 @@ an established root cause.
 Keep passwords, PKCS#12 files, private keys, and raw Fastlane process errors out
 of tickets and public logs. Extra queries run only after failure and each has a
 10-second timeout. These diagnostics do not modify trust or retry builds.
+
+## Native validation
+
+Run the disposable-keychain tests on macOS:
+
+```sh
+yarn --cwd packages/build-tools jest-integration --runInBand src/ios/credentials/__integration-tests__/validateCertificate.test.ts
+```
+
+These tests generate credentials and check the real command output for an empty
+keychain, a certificate without its private key, an identity with a missing
+issuer, and an expired identity. They delete their temporary keychains and do
+not install trusted roots. All four cases passed on macOS 27.0.1 (26A434).
+
+This verifies these diagnostic cases on that macOS version. It does not verify
+every EAS image, the codesigning/basic policy mismatch case, or recovery in a
+complete signed build.
