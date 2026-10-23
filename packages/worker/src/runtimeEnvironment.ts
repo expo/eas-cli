@@ -147,13 +147,8 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
       result = await installAsync();
     } catch (err) {
       const mirror = ctx.env.NVM_NODEJS_ORG_MIRROR;
-      // Only bypass a worker-provided mirror, never an explicit user choice.
-      if (
-        !mirror ||
-        mirror !== RuntimeSettings.getNodeJsCacheUrl() ||
-        ctx.job.builderEnvironment?.env?.NVM_NODEJS_ORG_MIRROR !== undefined ||
-        ctx.job.secrets?.environmentSecrets?.some(({ name }) => name === 'NVM_NODEJS_ORG_MIRROR')
-      ) {
+      // Only bypass the internal mirror enabled by the runtime settings.
+      if (!mirror || mirror !== RuntimeSettings.getNodeJsCacheUrl()) {
         throw err;
       }
 

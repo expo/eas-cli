@@ -181,44 +181,15 @@ describe('prepareRuntimeEnvironment', () => {
           attempts: ['https://node.example'],
           succeeds: false,
         },
-        ...['https://private.example', 'https://node.example'].flatMap(mirror => [
-          {
-            mirror,
-            userEnv: { NVM_NODEJS_ORG_MIRROR: mirror },
-            failures: 1,
-            attempts: [mirror],
-            succeeds: false,
-          },
-          {
-            mirror,
-            environmentSecrets: [{ name: 'NVM_NODEJS_ORG_MIRROR', type: 'string', value: mirror }],
-            failures: 1,
-            attempts: [mirror],
-            succeeds: false,
-          },
-        ]),
         { mirror: undefined, failures: 1, attempts: [undefined], succeeds: false },
         { mirror: '', failures: 1, attempts: [''], succeeds: false },
       ])(
         'handles Node.js install with mirror=$mirror and failures=$failures',
-        async ({
-          mirror,
-          failures,
-          attempts,
-          succeeds,
-          cacheUrl = 'https://node.example',
-          userEnv,
-          environmentSecrets,
-        }) => {
+        async ({ mirror, failures, attempts, succeeds, cacheUrl = 'https://node.example' }) => {
           jest.mocked(RuntimeSettings.getNodeJsCacheUrl).mockReturnValue(cacheUrl);
           const buildContext = {
             ...ctx,
             env: { ...ctx.env, PATH: '/usr/bin', NVM_NODEJS_ORG_MIRROR: mirror },
-            job: {
-              ...ctx.job,
-              builderEnvironment: { node: 'v16', env: userEnv },
-              secrets: { environmentSecrets },
-            },
           };
           const installMirrors: (string | undefined)[] = [];
           jest.mocked(spawn).mockImplementation(async (cmd, args, opts) => {
