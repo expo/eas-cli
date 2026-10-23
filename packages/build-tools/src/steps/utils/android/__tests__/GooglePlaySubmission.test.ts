@@ -92,8 +92,8 @@ it('shows the final rejection after a transient commit failure without claiming 
   const error = await commit().catch(error => error);
   const mapped = GooglePlayUtils.mapGooglePlayError(error, packageName);
   expect(mapped).toBeInstanceOf(GooglePlayCommitOutcomeUnknownError);
-  expect((mapped as Error).message).toContain(`HTTP 403 for the last commit attempt: ${message}`);
-  expect((mapped as Error).message).toContain('may still have saved');
+  expect((mapped as Error).message).toContain(`Google Play request failed (HTTP 403): ${message}`);
+  expect((mapped as Error).message).toContain('Could not confirm whether Google Play saved');
   expect((mapped as Error).message).toContain('https://play.google.com/console/');
   expect(mapped).toMatchObject({
     metadata: { googlePlayErrorResponse: JSON.stringify({ error: { message } }) },
@@ -268,7 +268,7 @@ it('keeps the last Google Play error response when the commit outcome is unknown
     .times(6)
     .reply(503, { error: { message: 'Backend error' } });
   const error = await commit().catch(error => error);
-  expect(error.message).not.toContain('last commit attempt');
+  expect(error.message).toContain('Google Play request failed (HTTP 503): Backend error');
   expect(error).toMatchObject({
     metadata: {
       googlePlayRequestPath: `${editPath}:commit`,

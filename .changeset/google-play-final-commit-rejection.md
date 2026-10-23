@@ -2,4 +2,4 @@
 '@expo/build-tools': patch
 ---
 
-Show the final Google Play rejection when a retried release commit has an uncertain outcome.
+Include the last Google Play API error when a release commit has an uncertain outcome.

@@ -168,18 +168,11 @@ export namespace GooglePlayUtils {
           !(error instanceof GooglePlayApiError) ||
           GooglePlayApiError.isRetryableStatus(error.status)
         ) {
-          const lastError = error instanceof AggregateError ? error.cause : undefined;
+          const lastError = error instanceof AggregateError ? error.cause : error;
           const lastResponse =
-            lastError instanceof GooglePlayApiError &&
-            lastError.status >= 400 &&
-            lastError.status < 500 &&
-            !GooglePlayApiError.isRetryableStatus(lastError.status)
-              ? `Google Play returned HTTP ${lastError.status} for the last commit attempt${lastError.apiMessage ? `: ${lastError.apiMessage}` : '.'}\n`
-              : '';
+            lastError instanceof GooglePlayApiError ? `\n\n${lastError.message}` : '';
           throw new GooglePlayCommitOutcomeUnknownError(
-            lastResponse
-              ? `${lastResponse}An earlier commit attempt failed with a temporary error, so Google Play may still have saved the release for ${packageName}. Check its release status at https://play.google.com/console/. If the release is not there, fix the problem above and submit again.`
-              : `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.`,
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.${lastResponse}`,
             { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
