@@ -1,10 +1,12 @@
 import { errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
+import { findCertificateFingerprintsAsync, findIdentitiesAsync } from './security';
 import { runFastlane } from '../fastlane';
 
 // Do not log raw fastlane output or spawn errors: they can contain passwords,
@@ -148,7 +150,8 @@ export default class Keychain {
     const identities = await this.findIdentitiesByTeamId(teamId);
     if (!identities.includes(fingerprint)) {
       // Diagnostics must not change the existing pass/fail check or mask its failure.
-      const explanation = await this.diagnoseMissingIdentity(fingerprint, logger).catch(() => '');
+      const diagnosticResult = await asyncResult(this.diagnoseMissingIdentity(fingerprint, logger));
+      const explanation = diagnosticResult.ok ? diagnosticResult.value : '';
       throw new Error(
         `Signing identity validation failed for distribution certificate with fingerprint ${fingerprint}.${explanation ? ` ${explanation}` : ''}`
       );
@@ -206,33 +209,23 @@ export default class Keychain {
   }
 
   private async diagnoseMissingIdentity(fingerprint: string, logger?: bunyan): Promise<string> {
-    const [certificates, identities] = await Promise.all(
-      [['find-certificate', '-a', '-Z'], ['find-identity']].map(args =>
-        spawn('security', [...args, this.keychainPath], { stdio: 'pipe', timeout: 10000 })
-          .then(result => result.stdout)
-          .catch(() => null)
-      )
-    );
+    const [certificates, identities] = await Promise.all([
+      asyncResult(findCertificateFingerprintsAsync(this.keychainPath)),
+      asyncResult(findIdentitiesAsync(this.keychainPath)),
+    ]);
     const expectedFingerprint = fingerprint.toUpperCase();
-    const certificatePresent =
-      certificates === null
-        ? null
-        : [...certificates.matchAll(/^SHA-1 hash:\s*([A-Fa-f0-9]{40})\s*$/gm)].some(
-            match => match[1].toUpperCase() === expectedFingerprint
-          );
-    const identityEntries =
-      identities === null
-        ? null
-        : [...identities.matchAll(/^\s*\d+\)\s+([A-Fa-f0-9]{40})\s+"([^\n]*)/gm)].filter(
-            match => match[1].toUpperCase() === expectedFingerprint
-          );
-    const identityPresent = identityEntries === null ? null : identityEntries.length > 0;
+    const certificatePresent = certificates.ok
+      ? certificates.value.includes(expectedFingerprint)
+      : null;
+    const matchingIdentities = identities.ok
+      ? identities.value.filter(identity => identity.fingerprint === expectedFingerprint)
+      : null;
+    const identityPresent = matchingIdentities === null ? null : matchingIdentities.length > 0;
     const trustErrors = [
       ...new Set(
-        (identityEntries ?? []).flatMap(match => {
-          const error = match[2].match(/"\s+\((CSSMERR_[A-Z0-9_]+)\)\s*$/)?.[1];
-          return error ? [error] : [];
-        })
+        (matchingIdentities ?? []).flatMap(identity =>
+          identity.trustError ? [identity.trustError] : []
+        )
       ),
     ];
 
