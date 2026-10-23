@@ -831,7 +831,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               runtimePlatform,
-              device,
+              device: singleDevice ?? device,
               env,
               signal,
             }),

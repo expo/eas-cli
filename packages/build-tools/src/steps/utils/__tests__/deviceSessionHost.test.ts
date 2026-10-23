@@ -24,6 +24,7 @@ import {
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
 import {
+  captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
@@ -68,6 +69,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionPreview', () => ({
   ...jest.requireActual('../deviceRunSessionPreview'),
+  captureDeviceRunSessionPreviewAsync: jest.fn(),
   ensureMacosPreviewEncoderInstalledAsync: jest.fn(),
   startDeviceRunSessionPreview: jest.fn(),
 }));
@@ -254,6 +256,30 @@ it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
     await host.finishAsync();
   }
 );
+
+it('uses the pinned Android serial for thumbnails when Hub reports no device identity', async () => {
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: 'no-device-id' }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    singleDevice: 'emulator-5556',
+  });
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    const { captureAsync } = jest.mocked(startDeviceRunSessionPreview).mock.calls[0][0];
+    await captureAsync(new AbortController().signal);
+    expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ device: 'emulator-5556' })
+    );
+  } finally {
+    await host.finishAsync();
+  }
+});
 
 it('stops serve-sim if readiness reports a different device than the pinned one', async () => {
   await expect(
