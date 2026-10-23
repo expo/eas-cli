@@ -148,7 +148,11 @@ export default class SimulatorControl extends EasCommand {
 
   private printCatalog(catalog: HostActionCatalog, jsonFlag: boolean): void {
     if (jsonFlag) {
-      printJsonOnlyOutput(catalog);
+      printJsonOnlyOutput(
+        Object.fromEntries(
+          Object.entries(catalog).map(([name, entry]) => [name, withUploadPathHelp(entry)])
+        )
+      );
       return;
     }
     const names = Object.keys(catalog).sort();
@@ -167,7 +171,7 @@ export default class SimulatorControl extends EasCommand {
 
   private printActionHelp(action: string, entry: HostActionCatalogEntry, jsonFlag: boolean): void {
     if (jsonFlag) {
-      printJsonOnlyOutput({ ...entry, action });
+      printJsonOnlyOutput({ ...withUploadPathHelp(entry), action });
       return;
     }
     Log.newLine();
@@ -184,9 +188,6 @@ export default class SimulatorControl extends EasCommand {
     Log.log(`  ${chalk.bold('OPTIONS')}`);
     Log.log(`    --id <session-id>  Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`);
     Log.log('    --json             Print the action schema as JSON. Implies --non-interactive.');
-    if (entry.upload) {
-      Log.log('  File paths are local. Use host:/absolute/path for files on the simulator host.');
-    }
     if (entry.output) {
       Log.log(
         entry.output === 'base64'
@@ -200,6 +201,11 @@ export default class SimulatorControl extends EasCommand {
       Log.log(
         '  Action arguments refer to the simulator host. Use --output for the local filename.'
       );
+    }
+    const uploadHelp = uploadPathHelp(entry);
+    if (uploadHelp) {
+      Log.newLine();
+      Log.log(`  ${uploadHelp}`);
     }
     Log.newLine();
   }
@@ -273,8 +279,24 @@ export default class SimulatorControl extends EasCommand {
   }
 }
 
+function uploadPathHelp(entry: HostActionCatalogEntry): string | undefined {
+  if (!entry.upload) {
+    return undefined;
+  }
+  return entry.uploadAs === 'id'
+    ? 'This action requires a local file to upload. host: paths are not supported.'
+    : 'File paths are local. Use host:/absolute/path for files on the simulator host.';
+}
+
+function withUploadPathHelp(entry: HostActionCatalogEntry): HostActionCatalogEntry {
+  const help = uploadPathHelp(entry);
+  return help
+    ? { ...entry, description: [entry.description, help].filter(Boolean).join('\n\n') }
+    : entry;
+}
+
 async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
+  { upload: param, uploadWhen = {}, uploadAs }: HostActionCatalogEntry,
   params: Record<string, unknown>
 ): Promise<{ param: string; path: string } | null> {
   const value = param ? params[param] : undefined;
@@ -283,9 +305,16 @@ async function findLocalUploadAsync(
     return null;
   }
   if (value.startsWith('host:')) {
+    if (uploadAs === 'id') {
+      throw new Error(
+        'This action requires a local file to upload; host: paths are not supported.'
+      );
+    }
     const hostPath = value.slice('host:'.length);
     if (!path.posix.isAbsolute(hostPath)) {
-      throw new Error('A host: path must be absolute, for example host:/tmp/app.tar.gz.');
+      throw new Error(
+        `A host: path must be absolute, for example host:/tmp/app.tar.gz. For a local filename beginning with host:, use ./${value}.`
+      );
     }
     params[param] = hostPath;
     return null;
