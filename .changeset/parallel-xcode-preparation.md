@@ -2,4 +2,4 @@
 '@expo/worker': patch
 ---
 
-Run the Xcode version check alongside worker tool preparation, keeping the Xcode 26.0 App Store upload workaround available before builds and workflow steps start.
+Start the Xcode version check in the background during worker tool preparation. Apply the Xcode 26.0 upload workaround when the query finishes, without delaying job startup.

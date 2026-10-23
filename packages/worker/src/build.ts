@@ -54,12 +54,10 @@ export async function build({
       { doNotMarkStart: true }
     );
     await ctx.runBuildPhase(BuildPhase.INSTALL_CUSTOM_TOOLS, async () => {
-      await Promise.all([
-        prepareXcodeBuildEnvAsync(ctx),
-        ctx.job.builderEnvironment
-          ? prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment)
-          : Promise.resolve(),
-      ]);
+      void prepareXcodeBuildEnvAsync(ctx.env);
+      if (ctx.job.builderEnvironment) {
+        await prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment);
+      }
     });
 
     if (TurtleSshSession.isSshEnabled(ctx.job)) {
