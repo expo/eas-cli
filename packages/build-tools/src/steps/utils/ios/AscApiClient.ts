@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import * as jose from 'jose';
@@ -625,6 +625,14 @@ export class AscApiClient {
                 'If the key is stored in EAS credentials, replace or reconfigure it. ' +
                 'For a local key, check `key_id` and `key`, and `issuer_id` for a team key. Then try again.',
               { cause: ascError, docsUrl: 'https://docs.expo.dev/submit/ios/' }
+            );
+          }
+          if (response.status === 500 && ascError.code === 'UNEXPECTED_ERROR') {
+            return new SystemError(
+              'App Store Connect returned an unexpected server error. ' +
+                'Check the build status in App Store Connect before submitting again. ' +
+                'If the error continues, try again later or contact Apple Developer Support.',
+              { cause: ascError, trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR' }
             );
           }
           if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
