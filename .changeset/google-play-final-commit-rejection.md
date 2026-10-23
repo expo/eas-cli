@@ -2,4 +2,4 @@
 '@expo/build-tools': patch
 ---
 
-Include the last Google Play API error when a release commit has an uncertain outcome.
+List failed Google Play commit attempts in order, including network failures, when the outcome is uncertain.

@@ -144,6 +144,7 @@ export namespace GooglePlayUtils {
       signal?: AbortSignal;
     }
   ): Promise<void> {
+    const attempts: unknown[] = [];
     const sendCommitAsync = async ({
       changesNotSentForReview,
     }: {
@@ -161,6 +162,7 @@ export namespace GooglePlayUtils {
           throw new SystemError('Google did not confirm the committed edit.');
         }
       } catch (error) {
+        attempts.push(...(error instanceof AggregateError ? error.errors : [error]));
         if (error instanceof GooglePlayAuthRequestError) {
           throw error;
         }
@@ -168,11 +170,14 @@ export namespace GooglePlayUtils {
           !(error instanceof GooglePlayApiError) ||
           GooglePlayApiError.isRetryableStatus(error.status)
         ) {
-          const lastError = error instanceof AggregateError ? error.cause : error;
-          const lastResponse =
-            lastError instanceof GooglePlayApiError ? `\n\n${lastError.message}` : '';
+          const attemptMessages = attempts
+            .map(
+              (attempt, index) =>
+                `${index + 1}. ${attempt instanceof Error ? attempt.message : String(attempt)}`
+            )
+            .join('\n');
           throw new GooglePlayCommitOutcomeUnknownError(
-            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.${lastResponse}`,
+            `Could not confirm whether Google Play saved the release for ${packageName}. Check its release status at https://play.google.com/console/ before submitting again.\n\nCommit attempts:\n${attemptMessages}`,
             { cause: error, metadata: GooglePlayApiError.getErrorMetadata(error) }
           );
         }
