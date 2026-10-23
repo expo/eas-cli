@@ -8,6 +8,7 @@ import config from './config';
 import { getBuildEnv } from './env';
 import { Analytics } from './external/analytics';
 import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
+import { maybeStopWarmSimulatorAsync } from './warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
 import sentry from './sentry';
 import {
@@ -42,6 +43,7 @@ export async function createBuildContext<TJob extends Job>({
     environment: config.env,
     env: job.builderEnvironment?.env,
   });
+  await maybeStopWarmSimulatorAsync(job);
   await prepareRuntimeEnvironmentConfigFiles();
   const env = getBuildEnv({ job, projectId, metadata, buildId });
 

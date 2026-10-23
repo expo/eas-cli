@@ -26,7 +26,11 @@ export {
   SkipNativeBuildError,
 } from './context';
 
-export { PackageManager } from './utils/packageManager';
+export {
+  PackageManager,
+  resolveConfiguredPackageManager,
+  resolvePackageExec,
+} from './utils/packageManager';
 
 export * as TurtleSshSession from './utils/turtleSshSession';
 export { formatSecondsForLog } from './utils/formatDuration';
