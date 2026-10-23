@@ -5,7 +5,7 @@ import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { maybeFindAndUploadBuildArtifacts } from '../../utils/artifacts';
-import { runHookIfPresent } from '../../utils/hooks';
+import { Hook, runHookIfPresent } from '../../utils/hooks';
 import { uploadJobOutputsFromBuildContextAsync } from '../../utils/outputs';
 import { runBuilderWithHooksAsync } from '../common';
 
@@ -29,7 +29,7 @@ const uploadJobOutputsFromBuildContextAsyncMock = jest.mocked(
 
 describe(runBuilderWithHooksAsync, () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     vol.fromJSON(
       {
         '/workingdir/env/.gitkeep': '',
@@ -73,24 +73,35 @@ describe(runBuilderWithHooksAsync, () => {
     expect(runHookIfPresentMock).toHaveBeenCalled();
   });
 
-  it('attempts to upload job outputs after a finalization failure', async () => {
-    const ctx = createBuildContext({
-      outputs: {
-        failed: '${{ failure() }}',
-      },
-    });
-    const buildAsync = jest.fn().mockResolvedValue(undefined);
-    maybeFindAndUploadBuildArtifactsMock.mockRejectedValue(new Error('artifact upload failed'));
+  it.each(['artifact upload', 'completion hook'])(
+    'attempts to upload job outputs after a %s failure',
+    async failure => {
+      const ctx = createBuildContext({
+        outputs: {
+          failed: '${{ failure() }}',
+        },
+      });
+      const buildAsync = jest.fn().mockResolvedValue(undefined);
+      if (failure === 'completion hook') {
+        runHookIfPresentMock.mockImplementation(async (_ctx, hook) => {
+          if (hook === Hook.ON_BUILD_COMPLETE) {
+            throw new Error('completion hook failed');
+          }
+        });
+      } else {
+        maybeFindAndUploadBuildArtifactsMock.mockRejectedValue(new Error('artifact upload failed'));
+      }
 
-    await expect(runBuilderWithHooksAsync(ctx, buildAsync)).rejects.toThrow(
-      'Upload build artifacts'
-    );
+      await expect(runBuilderWithHooksAsync(ctx, buildAsync)).rejects.toThrow(
+        failure === 'completion hook' ? 'Build complete hook' : 'Upload build artifacts'
+      );
 
-    expect(uploadJobOutputsFromBuildContextAsyncMock).toHaveBeenCalledWith(ctx, {
-      logger: expect.anything(),
-      buildSucceeded: false,
-    });
-  });
+      expect(uploadJobOutputsFromBuildContextAsyncMock).toHaveBeenCalledWith(ctx, {
+        logger: expect.anything(),
+        buildSucceeded: false,
+      });
+    }
+  );
 });
 
 function createBuildContext(jobOverrides: Partial<Android.Job> = {}): BuildContext<Android.Job> {

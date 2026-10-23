@@ -25,16 +25,16 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
       });
       throw err;
     } finally {
-      await ctx.runBuildPhase(BuildPhase.ON_BUILD_COMPLETE_HOOK, async () => {
-        await runHookIfPresent(ctx, Hook.ON_BUILD_COMPLETE, {
-          extraEnvs: {
-            EAS_BUILD_STATUS: buildSuccess ? 'finished' : 'errored',
-          },
-        });
-      });
-
       let finalizationError: any;
       try {
+        await ctx.runBuildPhase(BuildPhase.ON_BUILD_COMPLETE_HOOK, async () => {
+          await runHookIfPresent(ctx, Hook.ON_BUILD_COMPLETE, {
+            extraEnvs: {
+              EAS_BUILD_STATUS: buildSuccess ? 'finished' : 'errored',
+            },
+          });
+        });
+
         if (ctx.job.platform === Platform.IOS) {
           await findAndUploadXcodeBuildLogsAsync(ctx as BuildContext<Ios.Job>, {
             logger: ctx.logger,
