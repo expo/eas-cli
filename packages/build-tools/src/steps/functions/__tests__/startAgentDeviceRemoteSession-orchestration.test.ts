@@ -74,11 +74,18 @@ const NO_CAPTURE: CaptureInputs = { networkCapture: false, networkCaptureFields:
 async function runAsync(
   logger: { info: jest.Mock; warn: jest.Mock; child: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
-  capture: CaptureInputs = NO_CAPTURE,
-  disableShare = false,
-  privatePreviewUrl?: string,
-  maxIdleTimeMinutes?: number,
-  singleDevice?: string
+  {
+    capture = NO_CAPTURE,
+    disableShare = false,
+    privatePreviewUrl,
+    maxIdleTimeMinutes,
+    singleDevice,
+  }: Partial<
+    Pick<
+      Parameters<typeof runAgentDeviceRemoteSessionAsync>[1],
+      'capture' | 'disableShare' | 'privatePreviewUrl' | 'maxIdleTimeMinutes' | 'singleDevice'
+    >
+  > = {}
 ): Promise<void> {
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
@@ -109,15 +116,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     'passes the pinned device through the %s orchestration',
     async runtimePlatform => {
       const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-      await runAsync(
-        logger,
-        runtimePlatform,
-        NO_CAPTURE,
-        false,
-        undefined,
-        undefined,
-        'pinned-device'
-      );
+      await runAsync(logger, runtimePlatform, { singleDevice: 'pinned-device' });
       expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
         ctx,
         expect.objectContaining({ singleDevice: 'pinned-device' })
@@ -234,7 +233,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     } as never);
     jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
 
-    await runAsync(logger, BuildRuntimePlatform.LINUX, NO_CAPTURE, false, undefined, 5);
+    await runAsync(logger, BuildRuntimePlatform.LINUX, { maxIdleTimeMinutes: 5 });
 
     const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
     expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
@@ -245,8 +244,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await runAsync(logger, BuildRuntimePlatform.DARWIN, {
-      networkCapture: true,
-      networkCaptureFields: ['header'],
+      capture: { networkCapture: true, networkCaptureFields: ['header'] },
     });
 
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
@@ -257,13 +255,10 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
 
   it('hands a private preview choice to the session host', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-    await runAsync(
-      logger,
-      BuildRuntimePlatform.DARWIN,
-      NO_CAPTURE,
-      true,
-      'https://expo.dev/private-preview'
-    );
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      disableShare: true,
+      privatePreviewUrl: 'https://expo.dev/private-preview',
+    });
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
