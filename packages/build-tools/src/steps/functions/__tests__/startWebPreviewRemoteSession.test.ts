@@ -101,16 +101,33 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it.each([undefined, 0])('leaves the idle timer disabled for %s', async maxIdleTimeMinutes => {
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'leaves the idle timer disabled when omitted on %s',
+    async runtimePlatform => {
+      await runAsync(runtimePlatform);
+      expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ idleTimeout: undefined, maxDurationSeconds: 120 })
+      );
+    }
+  );
+
+  it('leaves the idle timer disabled for zero', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, {
-      max_idle_time_minutes: { value: maxIdleTimeMinutes },
+      max_idle_time_minutes: { value: 0 },
     });
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        idleTimeout: undefined,
-        maxDurationSeconds: 120,
-      })
+      expect.objectContaining({ idleTimeout: undefined, maxDurationSeconds: 120 })
     );
+  });
+
+  it('rejects an Android idle timeout before starting the host', async () => {
+    await expect(
+      runAsync(BuildRuntimePlatform.LINUX, {
+        max_idle_time_minutes: { value: 5 },
+      })
+    ).rejects.toThrow('Omit max_idle_time_minutes for Android sessions.');
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it('reports the session token when serve-sim minted one', async () => {
