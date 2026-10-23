@@ -262,6 +262,17 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               }
             );
           }
+          if (isMissingAppIconsError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_MISSING_APP_ICONS',
+              'Build upload was rejected by App Store Connect because required app icons are missing or misconfigured in one of the iOS bundles. ' +
+                'In an Expo project, check your icon config (`expo.icon`, `ios.icon`) and any custom native targets or plugins that create extra bundles, such as watch extensions. ' +
+                'Make sure the affected target has the required icon assets and Info.plist icon keys (for example `CFBundleIconName` / `CFBundleIconFiles`), then rebuild and submit again.',
+              {
+                docsUrl: 'https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -342,6 +353,12 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
 
 export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
   return messages.length > 0 && messages.every(message => message.code === '90725');
+}
+
+export function isMissingAppIconsError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 && messages.every(message => ['90391', '90713'].includes(message.code))
+  );
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
