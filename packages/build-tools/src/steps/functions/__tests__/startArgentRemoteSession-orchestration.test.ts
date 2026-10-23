@@ -493,6 +493,30 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     );
   });
 
+  it('passes single_device to the session host', async () => {
+    const ctx = {} as CustomBuildContext;
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx);
+    await buildFunction.fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          single_device: { value: 'emulator-5554' },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ singleDevice: 'emulator-5554' })
+    );
+  });
+
   it('continues the session when disabling the video watermark fails', async () => {
     const error = new Error('bun x failed');
     jest
@@ -957,6 +981,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         'launch_args',
         'open_url',
         'public_preview',
+        'single_device',
         'private_preview_url',
       ])
     );

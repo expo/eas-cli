@@ -46,6 +46,7 @@ import {
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
+  createSingleDeviceInputProvider,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   finishRemoteSessionAsync,
@@ -84,6 +85,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
       createPublicPreviewInputProvider(),
+      createSingleDeviceInputProvider(),
       createPrivatePreviewUrlInputProvider(),
       createFrameAncestorsInputProvider(),
       createCorsOriginsInputProvider(),
@@ -162,6 +164,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
           disableShare: inputs.public_preview?.value === false,
+          singleDevice: inputs.single_device?.value as string | undefined,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
@@ -266,8 +269,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
-        // expo-device-hub has no serial-selection flag. Device run session workflows must expose
-        // a single booted Android emulator so the Hub and Appium resolve the same device.
+        // Without single_device, workflows must expose one booted Android emulator so
+        // the Hub and Appium resolve the same device.
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
           logger.info(launchDescription);

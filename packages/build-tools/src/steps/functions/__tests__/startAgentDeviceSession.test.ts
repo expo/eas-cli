@@ -120,6 +120,7 @@ function runStep(
       'network_capture',
       'network_capture_fields',
       'public_preview',
+      'single_device',
       'private_preview_url',
       'frame_ancestors',
       'cors_origins',
@@ -624,6 +625,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'network_capture',
       'network_capture_fields',
       'public_preview',
+      'single_device',
       'private_preview_url',
       'frame_ancestors',
       'cors_origins',
@@ -667,6 +669,16 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
+    );
+  });
+
+  it('passes single_device to the session host', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, {
+      single_device: 'session-udid',
+    });
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ singleDevice: 'session-udid' })
     );
   });
 

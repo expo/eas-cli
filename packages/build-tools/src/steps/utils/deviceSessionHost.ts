@@ -131,6 +131,7 @@ export function createServeSimArgs({
   shareUrl,
   disableShare = false,
   packageVersion,
+  singleDevice,
   iosSimulatorUdid,
   installAppPath,
   launchAppIdentifier,
@@ -148,6 +149,7 @@ export function createServeSimArgs({
   shareUrl?: string;
   disableShare?: boolean;
   packageVersion?: string;
+  singleDevice?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
   networkCapture?: boolean;
@@ -156,6 +158,7 @@ export function createServeSimArgs({
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
+    ...(singleDevice !== undefined ? ['--single-device', singleDevice] : []),
     ...(iosSimulatorUdid ? [iosSimulatorUdid] : []),
     '--port',
     String(port),
@@ -203,6 +206,7 @@ export function createExpoDeviceHubArgs({
   frameAncestorArgs: frameArgs = [],
   corsOriginArgs: corsArgs = [],
   packageVersion,
+  singleDevice,
   recordingDirectory,
 }: {
   port: number;
@@ -211,10 +215,12 @@ export function createExpoDeviceHubArgs({
   frameAncestorArgs?: string[];
   corsOriginArgs?: string[];
   packageVersion?: string;
+  singleDevice?: string;
   recordingDirectory?: string;
 }): string[] {
   return [
     createExpoDeviceHubPackageSpec(packageVersion),
+    ...(singleDevice !== undefined ? ['--single-device', singleDevice] : []),
     '--port',
     String(port),
     '--host',
@@ -380,6 +386,7 @@ type DeviceSessionHostOptions = {
   startupTimeoutMs?: number;
   signal?: AbortSignal;
   packageVersion?: string;
+  singleDevice?: string;
   disableShare?: boolean;
   privatePreviewUrl?: string;
   /** Origins allowed to embed the preview host, in addition to the website origins. */
@@ -430,6 +437,7 @@ async function startDeviceSessionHostInternalAsync(
     startupTimeoutMs,
     signal,
     packageVersion,
+    singleDevice,
     iosSimulatorUdid,
     installAppPath,
     application,
@@ -450,6 +458,18 @@ async function startDeviceSessionHostInternalAsync(
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
+  if (
+    singleDevice !== undefined &&
+    !isAndroid &&
+    iosSimulatorUdid &&
+    singleDevice.toUpperCase() !== iosSimulatorUdid.toUpperCase()
+  ) {
+    throw new UserError(
+      'EAS_SINGLE_DEVICE_INVALID_INPUT',
+      'single_device must match the selected iOS Simulator UDID.'
+    );
+  }
+
   if (
     Object.keys(bootEnv).length > 0 &&
     (runtimePlatform !== BuildRuntimePlatform.DARWIN || !iosSimulatorUdid)
@@ -508,6 +528,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           turnArgs,
           packageVersion,
+          singleDevice,
           recordingDirectory: recording?.directory,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
@@ -517,6 +538,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           turnArgs,
           packageVersion,
+          singleDevice,
           iosSimulatorUdid,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
@@ -762,9 +784,11 @@ async function startDeviceSessionHostInternalAsync(
     }
     logger.info(`Waiting for ${serverName} to become ready.`);
     const device = (await readiness).enforceValue();
-    if (iosSimulatorUdid && device.toLowerCase() !== iosSimulatorUdid.toLowerCase()) {
+    // Hub reports server readiness with "no-device-id", not an emulator identity.
+    const expectedDevice = iosSimulatorUdid ?? (isAndroid ? undefined : singleDevice);
+    if (expectedDevice && device.toLowerCase() !== expectedDevice.toLowerCase()) {
       throw new SystemError(
-        `serve-sim became ready on ${device}, but this session requested ${iosSimulatorUdid}.`
+        `${serverName} became ready on ${device}, but this session requested ${expectedDevice}.`
       );
     }
     hostReady = true;

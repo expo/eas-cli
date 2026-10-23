@@ -29,6 +29,7 @@ import {
 } from '../deviceRunSessionPreview';
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
+  createExpoDeviceHubArgs,
   createServeSimArgs,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
@@ -198,6 +199,74 @@ it('targets the selected Simulator in the serve-sim invocation', () => {
     '--port',
     '4321',
   ]);
+});
+
+it('adds the single-device option to either host without changing the default', () => {
+  for (const createArgs of [createServeSimArgs, createExpoDeviceHubArgs]) {
+    expect(createArgs({ port: 4321 })).not.toContain('--single-device');
+    expect(createArgs({ port: 4321, singleDevice: 'pinned-device' }).slice(1, 3)).toEqual([
+      '--single-device',
+      'pinned-device',
+    ]);
+    // An explicit empty value must reach host validation, not silently enable multiple devices.
+    expect(createArgs({ port: 4321, singleDevice: '' }).slice(1, 3)).toEqual([
+      '--single-device',
+      '',
+    ]);
+  }
+});
+
+it('rejects a pinned target that conflicts with the selected Simulator before starting anything', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      iosSimulatorUdid: 'selected-udid',
+      singleDevice: 'other-udid',
+    })
+  ).rejects.toThrow('single_device must match');
+  expect(spawnDetached).not.toHaveBeenCalled();
+});
+
+it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+  'passes the pinned device to the %s host',
+  async runtimePlatform => {
+    if (runtimePlatform === BuildRuntimePlatform.LINUX) {
+      jest.mocked(turtleFetch).mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ready', device: 'no-device-id' }),
+      } as Awaited<ReturnType<typeof turtleFetch>>);
+    }
+
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      singleDevice: 'emulator-5554',
+    });
+    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    expect(
+      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+    ).toEqual(['--single-device', 'emulator-5554']);
+    await host.finishAsync();
+  }
+);
+
+it('stops serve-sim if readiness reports a different device than the pinned one', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      singleDevice: 'other-device',
+    })
+  ).rejects.toThrow('but this session requested other-device');
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
 });
 
 it('merges Simulator boot variables into the inherited serve-sim environment', async () => {

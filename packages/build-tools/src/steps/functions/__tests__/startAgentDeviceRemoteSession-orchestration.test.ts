@@ -77,7 +77,8 @@ async function runAsync(
   capture: CaptureInputs = NO_CAPTURE,
   disableShare = false,
   privatePreviewUrl?: string,
-  maxIdleTimeMinutes?: number
+  maxIdleTimeMinutes?: number,
+  singleDevice?: string
 ): Promise<void> {
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
@@ -93,6 +94,7 @@ async function runAsync(
     maxDurationSeconds: undefined,
     capture,
     disableShare,
+    singleDevice,
     privatePreviewUrl,
     tasks: createStartupTasks(logger as never),
     device:
@@ -103,6 +105,26 @@ async function runAsync(
 }
 
 describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'passes the pinned device through the %s orchestration',
+    async runtimePlatform => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+      await runAsync(
+        logger,
+        runtimePlatform,
+        NO_CAPTURE,
+        false,
+        undefined,
+        undefined,
+        'pinned-device'
+      );
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({ singleDevice: 'pinned-device' })
+      );
+    }
+  );
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
