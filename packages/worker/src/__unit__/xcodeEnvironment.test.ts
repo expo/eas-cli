@@ -76,7 +76,7 @@ it.each(['Xcode 26.0', 'Xcode 26.0.1', 'Xcode 26.6', 'Xcode 27.0'])(
   async version => {
     jest.mocked(spawn).mockResolvedValue({ ...result, stdout: version });
     const ctx = createContext(Platform.IOS);
-    await prepareXcodeBuildEnvAsync(ctx);
+    await prepareXcodeBuildEnvAsync(ctx.env);
     expect(ctx.env[key]).toBe(version.includes('Xcode 26.0') ? '--use-old-altool' : undefined);
     expect(spawn).toHaveBeenCalledWith('xcodebuild', ['-version'], {
       env: expect.objectContaining({ PATH: expect.any(String) }),
@@ -89,14 +89,14 @@ it.each([undefined, Platform.IOS, Platform.ANDROID])(
   'queries Xcode for jobs with platform %s',
   async platform => {
     const ctx = createContext(platform);
-    await prepareXcodeBuildEnvAsync(ctx);
+    await prepareXcodeBuildEnvAsync(ctx.env);
     expect(spawn).toHaveBeenCalledTimes(1);
   }
 );
 
 it.each(['--custom-upload-option', ''])('preserves an explicit job override %p', async value => {
   const ctx = createContext(Platform.IOS, { [key]: value });
-  await prepareXcodeBuildEnvAsync(ctx);
+  await prepareXcodeBuildEnvAsync(ctx.env);
   expect(ctx.env[key]).toBe(value);
 });
 
@@ -112,32 +112,30 @@ it('preserves an environment secret override', async () => {
       },
     }
   );
-  await prepareXcodeBuildEnvAsync(ctx);
+  await prepareXcodeBuildEnvAsync(ctx.env);
   expect(ctx.env[key]).toBe('--secret-option');
 });
 
-it('replaces an inherited worker value with the Xcode default', async () => {
+it('preserves an existing worker value', async () => {
   const ctx = createContext(Platform.IOS);
   ctx.env[key] = '--inherited';
-  await prepareXcodeBuildEnvAsync(ctx);
-  expect(ctx.env[key]).toBe('--use-old-altool');
+  await prepareXcodeBuildEnvAsync(ctx.env);
+  expect(ctx.env[key]).toBe('--inherited');
 });
 
 it.each([
   new Error('ENOENT'),
   Object.assign(new Error('exit 1'), { stdout: 'not Xcode' }),
   Object.assign(new Error('exit 1'), { stdout: 'Xcode 26.0' }),
-])('keeps query errors nonfatal and uses available stdout', async error => {
+])('keeps query errors nonfatal', async error => {
   jest.mocked(spawn).mockRejectedValue(error);
   const ctx = createContext();
-  await expect(prepareXcodeBuildEnvAsync(ctx)).resolves.toBeUndefined();
-  expect(ctx.env[key]).toBe(
-    'stdout' in error && error.stdout === 'Xcode 26.0' ? '--use-old-altool' : undefined
-  );
+  await expect(prepareXcodeBuildEnvAsync(ctx.env)).resolves.toBeUndefined();
+  expect(ctx.env[key]).toBeUndefined();
 });
 
 it.each([undefined, Platform.IOS, Platform.ANDROID])(
-  'overlaps tool preparation and joins before the %s builder snapshots env',
+  'starts the Xcode query without blocking the %s builder',
   async platform => {
     const xcode = deferred<SpawnResult>();
     const tools = deferred<void>();
@@ -163,20 +161,23 @@ it.each([undefined, Platform.IOS, Platform.ANDROID])(
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(prepareRuntimeEnvironment).toHaveBeenCalledTimes(1);
     tools.resolve();
-    await new Promise(resolve => setImmediate(resolve));
-    expect(consume).not.toHaveBeenCalled();
-    expect(spawn).toHaveBeenCalledWith(
-      'xcodebuild',
-      ['-version'],
-      expect.objectContaining({
-        env: expect.objectContaining({ PATH: expect.not.stringContaining('/custom/bin') }),
-      })
-    );
-    xcode.resolve(result);
     await building;
-    expect(snapshot).toEqual(
-      expect.objectContaining({ [key]: '--use-old-altool', PATH: '/custom/bin' })
+    expect(consume).toHaveBeenCalled();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ job: expect.anything() }),
+      'Builder is ready, starting build'
     );
+    expect(ctx.runBuildPhase).toHaveBeenCalledWith(
+      BuildPhase.SPIN_UP_BUILDER,
+      expect.any(Function),
+      { doNotMarkStart: true }
+    );
+    expect(snapshot?.[key]).toBeUndefined();
+    xcode.resolve(result);
+    await new Promise(resolve => setImmediate(resolve));
+    expect(ctx.env[key]).toBe('--use-old-altool');
+    expect(snapshot?.[key]).toBeUndefined();
+    expect(snapshot?.PATH).toBe('/custom/bin');
     expect(ctx.runBuildPhase).toHaveBeenCalledWith(
       BuildPhase.INSTALL_CUSTOM_TOOLS,
       expect.any(Function)
