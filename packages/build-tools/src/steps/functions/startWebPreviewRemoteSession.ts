@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -58,6 +59,11 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
+        id: 'max_idle_time_minutes',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_duration_seconds',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -68,9 +74,20 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
       const env = omitNgrokAuthtoken(stepEnv);
+      const maxIdleTimeMinutes = inputs.max_idle_time_minutes?.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
+      if (
+        maxIdleTimeMinutes !== undefined &&
+        maxIdleTimeMinutes > 0 &&
+        runtimePlatform !== BuildRuntimePlatform.DARWIN
+      ) {
+        throw new UserError(
+          'UNSUPPORTED_WEB_PREVIEW_IDLE_TIMEOUT',
+          'Web preview idle timeouts require iOS preview activity reporting. Omit max_idle_time_minutes for Android sessions.'
+        );
+      }
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
@@ -154,6 +171,14 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           logger,
           maxDurationSeconds,
           signal,
+          idleTimeout:
+            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+              ? {
+                  maxIdleTimeMinutes,
+                  getLastEventObservedAt: () => undefined,
+                  getLastPreviewActivityAt: () => sessionHost.getLastPreviewActivityAt(),
+                }
+              : undefined,
         });
       } finally {
         await sessionHost.finishAsync();
