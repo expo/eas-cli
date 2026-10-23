@@ -21,9 +21,8 @@ import { bunyan } from '@expo/logger';
 import omit from 'lodash/omit';
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
-import { prepareXcodeBuildEnvAsync } from './env';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
-import { prepareRuntimeEnvironment } from './runtimeEnvironment';
+import { prepareRuntimeEnvironment, prepareXcodeBuildEnvAsync } from './runtimeEnvironment';
 import { startSshSessionPhaseAsync } from './sshSession';
 import { cleanUpWorkingdir } from './workingdir';
 

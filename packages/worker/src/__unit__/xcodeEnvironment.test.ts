@@ -3,11 +3,13 @@ import { BuildPhase, EnvironmentSecretType, Platform, Workflow } from '@expo/eas
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 
 import { build } from '../build';
-import { prepareXcodeBuildEnvAsync } from '../env';
-import { prepareRuntimeEnvironment } from '../runtimeEnvironment';
+import { prepareRuntimeEnvironment, prepareXcodeBuildEnvAsync } from '../runtimeEnvironment';
 
 jest.mock('@expo/turtle-spawn');
-jest.mock('../runtimeEnvironment');
+jest.mock('../runtimeEnvironment', () => ({
+  ...jest.requireActual('../runtimeEnvironment'),
+  prepareRuntimeEnvironment: jest.fn(),
+}));
 jest.mock('../displayRuntimeInfo');
 jest.mock('../external/analytics', () => ({
   Event: {},

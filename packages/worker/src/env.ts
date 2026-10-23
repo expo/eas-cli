@@ -1,6 +1,5 @@
 import { RuntimeSettings } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
-import spawn from '@expo/turtle-spawn';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
 import os from 'os';
@@ -143,17 +142,6 @@ export function getBuildEnv({
   }
 
   return env;
-}
-
-export async function prepareXcodeBuildEnvAsync(env: Env): Promise<void> {
-  try {
-    const { stdout } = await spawn('xcodebuild', ['-version'], { env, stdio: 'pipe' });
-    if (stdout.includes('Xcode 26.0')) {
-      env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS ??= '--use-old-altool';
-    }
-  } catch {
-    // Best effort: workers without Xcode must still run jobs.
-  }
 }
 
 function getFilteredEnv(): Env {
