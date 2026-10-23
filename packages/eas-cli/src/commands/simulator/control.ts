@@ -478,7 +478,16 @@ Existing output files are overwritten. When saving to a directory, an existing f
     let output: string;
     let savedFile: string | null;
     try {
-      ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
+      ({ output, file: savedFile } = await executeControlActionAsync(connection, plan, {
+        onProgress: phase => {
+          spinner.text =
+            phase === 'packaging'
+              ? 'Packaging app'
+              : phase === 'uploading'
+                ? `Uploading ${plan.localFile!.path}`
+                : `Running ${action} on simulator session ${session.id}`;
+        },
+      }));
       spinner.succeed(`Ran ${action} on simulator session ${session.id}`);
     } catch (err) {
       spinner.fail(`Failed to run ${action} on simulator session ${session.id}`);
