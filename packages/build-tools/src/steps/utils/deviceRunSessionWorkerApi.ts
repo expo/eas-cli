@@ -1,9 +1,11 @@
 import { type EnvironmentSecret, EnvironmentSecretType, SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
+import { FetchError } from 'node-fetch';
 import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { promiseRetryWithCondition } from '../../utils/promiseRetryWithCondition';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 /**
@@ -75,7 +77,7 @@ type RequestOptions = {
   signal?: AbortSignal;
   /** node-fetch timeout of each attempt, in milliseconds. */
   timeoutMs?: number;
-  /** Additional attempts after a failed one. Defaults to none, so each call sends one request. */
+  /** Additional attempts for transient failures. Defaults to none; critical callers opt in. */
   retries?: number;
   logger?: bunyan;
 };
@@ -192,13 +194,41 @@ export class DeviceRunSessionWorkerApi {
     method: 'GET' | 'POST',
     route: string,
     dataSchema: z.ZodType<T>,
+    { retries = 0, ...options }: RequestOptions & { json?: Record<string, unknown> }
+  ): Promise<T> {
+    const request = () => {
+      options.signal?.throwIfAborted();
+      return this.requestOnceAsync(method, route, dataSchema, options);
+    };
+    if (retries === 0) {
+      return await request();
+    }
+    return await promiseRetryWithCondition(
+      request,
+      error =>
+        !options.signal?.aborted &&
+        error instanceof DeviceRunSessionWorkerApiError &&
+        (error.status === undefined || error.status === 429 || error.status >= 500),
+      { retries, factor: 2, minTimeout: 1000 },
+      ({ attemptNumber, maxAttemptsCount }) =>
+        options.logger?.warn(
+          `Retrying ${method} /v2/${DEVICE_RUN_SESSION_WORKER_PATH}${route} (attempt ${attemptNumber}/${maxAttemptsCount}).`
+        )
+    )();
+  }
+
+  private async requestOnceAsync<T>(
+    method: 'GET' | 'POST',
+    route: string,
+    dataSchema: z.ZodType<T>,
     {
       signal,
       timeoutMs,
-      retries = 0,
       logger,
       json,
-    }: RequestOptions & { json?: Record<string, unknown> }
+    }: Omit<RequestOptions, 'retries'> & {
+      json?: Record<string, unknown>;
+    }
   ): Promise<T> {
     const routeDescription = `${method} /v2/${DEVICE_RUN_SESSION_WORKER_PATH}${route}`;
     const url = new URL(
@@ -212,7 +242,7 @@ export class DeviceRunSessionWorkerApi {
         ...(json ? { json } : {}),
         ...(signal ? { signal } : {}),
         ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),
-        retries,
+        retries: 0,
         shouldThrowOnNotOk: false,
         logger,
       })
@@ -241,6 +271,15 @@ export class DeviceRunSessionWorkerApi {
       );
     }
     if (!bodyResult.ok) {
+      if (
+        bodyResult.reason instanceof FetchError &&
+        ['system', 'body-timeout'].includes(bodyResult.reason.type)
+      ) {
+        throw new DeviceRunSessionWorkerApiError(
+          `${routeDescription} failed while reading the response body.`,
+          undefined
+        );
+      }
       throw new DeviceRunSessionWorkerApiError(
         `${routeDescription} returned a response that is not JSON.`,
         response.status
