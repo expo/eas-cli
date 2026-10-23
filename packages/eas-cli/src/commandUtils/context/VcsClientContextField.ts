@@ -13,6 +13,6 @@ export default class VcsClientContextField extends ContextField<Client> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
-    return resolveVcsClient(config?.requireCommit);
+    return resolveVcsClient(config?.requireCommit, projectDir);
   }
 }
