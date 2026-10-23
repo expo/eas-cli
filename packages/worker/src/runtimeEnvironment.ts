@@ -76,7 +76,10 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  if (process.platform === 'darwin') {
+  if (
+    process.platform === 'darwin' &&
+    builderConfig?.env?.EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN !== '1'
+  ) {
     await installCocoapodsCachePlugin();
   }
 
