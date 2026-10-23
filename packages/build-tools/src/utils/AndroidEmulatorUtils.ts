@@ -156,8 +156,7 @@ export namespace AndroidEmulatorUtils {
 
       // API 35 needs more headroom for guest VSOCK packet allocations during ADB transfers.
       const ramSize =
-        env.DEVICE_RUN_SESSION_ID ||
-        systemImagePackage === 'system-images;android-35;google_apis;x86_64'
+        env.DEVICE_RUN_SESSION_ID || systemImagePackage.startsWith('system-images;android-35')
           ? 4096
           : 2048;
       logger.info(`Setting hw.ramSize to ${ramSize}.`);
