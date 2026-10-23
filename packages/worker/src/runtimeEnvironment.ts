@@ -136,14 +136,24 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
   let sanitizedVersion = version.startsWith('v') ? version.slice(1) : version;
   try {
     ctx.logger.info(`Installing node v${sanitizedVersion}`);
-    const { stdout } = await spawn(
-      'bash',
-      ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`],
-      {
+    const installAsync = () =>
+      spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`], {
         logger: ctx.logger,
         env: ctx.env,
+      });
+    const { stdout } = await installAsync().catch(async err => {
+      if (!ctx.env.NVM_NODEJS_ORG_MIRROR) {
+        throw err;
       }
-    );
+
+      ctx.logger.warn(
+        { err },
+        'Failed to install Node.js using the mirror. Retrying without the mirror.'
+      );
+      // Keep the failed mirror disabled for the rest of this build.
+      delete ctx.env.NVM_NODEJS_ORG_MIRROR;
+      return await installAsync();
+    });
 
     sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
     await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
