@@ -154,8 +154,12 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      // Give interactive sessions more headroom for guest VSOCK packet allocations.
-      const ramSize = env.DEVICE_RUN_SESSION_ID ? 4096 : 2048;
+      // API 35 needs more headroom for guest VSOCK packet allocations during ADB transfers.
+      const ramSize =
+        env.DEVICE_RUN_SESSION_ID ||
+        systemImagePackage === 'system-images;android-35;google_apis;x86_64'
+          ? 4096
+          : 2048;
       logger.info(`Setting hw.ramSize to ${ramSize}.`);
       configIniFileContent = `${configIniFileContent}\nhw.ramSize=${ramSize}\n`;
 
