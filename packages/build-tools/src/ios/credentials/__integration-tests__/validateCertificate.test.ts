@@ -1,11 +1,11 @@
-import { errors } from '@expo/eas-build-job';
+import { createLogger } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import forge from 'node-forge';
 import os from 'os';
 import path from 'path';
 
-import { ensureCertificateImportedAsync } from '../validateCertificate';
+import Keychain from '../keychain';
 
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -17,6 +17,9 @@ jest.setTimeout(60000);
 // Exercise the native command/output contract with disposable credentials only.
 // Do not install a trusted root or change the user's trust settings.
 (process.platform === 'darwin' ? describe : describe.skip)('native identity diagnostics', () => {
+  let keychain: Keychain;
+  const logger = createLogger({ name: 'native-identity-test' });
+  const logError = jest.spyOn(logger, 'error').mockImplementation();
   let directory: string;
   let keychainPath: string;
   let certificate: forge.pki.Certificate;
@@ -31,7 +34,8 @@ jest.setTimeout(60000);
 
   beforeEach(async () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-identity-test-'));
-    keychainPath = path.join(directory, 'test.keychain-db');
+    keychain = new Keychain();
+    keychainPath = keychain.data.path;
     await spawn('security', ['create-keychain', '-p', password, keychainPath]);
     await spawn('security', ['unlock-keychain', '-p', password, keychainPath]);
     certificate = forge.pki.createCertificate();
@@ -66,15 +70,18 @@ jest.setTimeout(60000);
       .toUpperCase();
   }
 
-  async function diagnose(): Promise<errors.UserError> {
-    const result = await ensureCertificateImportedAsync({
-      keychainPath,
-      fingerprint: fingerprint(),
-      teamId: 'TEST',
-    }).catch(error => error);
-    expect(result).toBeInstanceOf(errors.UserError);
+  async function diagnose(): Promise<Error> {
+    const result = await keychain
+      .ensureCertificateImported({
+        logger,
+        fingerprint: fingerprint(),
+        teamId: 'TEST',
+      })
+      .catch(error => error);
+    expect(result).toBeInstanceOf(Error);
     expect(result.message).toContain('Signing identity validation failed');
     expect(result.message).not.toContain("hasn't been imported successfully");
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('Disposable signing test');
     return result;
   }
 
@@ -89,14 +96,14 @@ jest.setTimeout(60000);
 
   it('reports absent credentials in an empty keychain', async () => {
     const failure = await diagnose();
-    expect(failure.metadata).toMatchObject({
-      certificatePresent: false,
-      identityPresent: false,
-      codesigningValid: false,
-      validIdentityQuerySucceeded: true,
-      queryFailures: [],
-    });
-    expect(failure.message).toContain('did not find the expected certificate or identity');
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        certificatePresent: false,
+        identityPresent: false,
+      }),
+      expect.any(String)
+    );
+    expect(failure.message).toContain('Read the certificate import logs');
   });
 
   it('reports a certificate without its matching private key identity', async () => {
@@ -104,12 +111,13 @@ jest.setTimeout(60000);
     await fs.writeFile(file, forge.pki.certificateToPem(certificate));
     await spawn('security', ['import', file, '-k', keychainPath]);
     const failure = await diagnose();
-    expect(failure.metadata).toMatchObject({
-      certificatePresent: true,
-      identityPresent: false,
-      codesigningValid: false,
-      queryFailures: [],
-    });
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        certificatePresent: true,
+        identityPresent: false,
+      }),
+      expect.any(String)
+    );
     expect(failure.message).toContain(
       'Check that the PKCS#12 file contains the matching private key'
     );
@@ -118,14 +126,15 @@ jest.setTimeout(60000);
   it('reports an imported identity with an absent issuer without blaming import', async () => {
     await importIdentity();
     const failure = await diagnose();
-    expect(failure.metadata).toMatchObject({
-      certificatePresent: true,
-      identityPresent: true,
-      codesigningValid: false,
-      trustErrors: ['CSSMERR_TP_NOT_TRUSTED'],
-      queryFailures: [],
-    });
-    expect(failure.message).toContain('repair the trust chain on the build machine');
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        certificatePresent: true,
+        identityPresent: true,
+        trustErrors: ['CSSMERR_TP_NOT_TRUSTED'],
+      }),
+      expect.any(String)
+    );
+    expect(failure.message).toContain('Check certificate dates and trust errors');
   });
 
   it('reports an expired imported identity and directs users to check certificate dates', async () => {
@@ -134,12 +143,13 @@ jest.setTimeout(60000);
     certificate.sign(issuerKeys.privateKey, forge.md.sha256.create());
     await importIdentity();
     const failure = await diagnose();
-    expect(failure.metadata).toMatchObject({
-      certificatePresent: true,
-      identityPresent: true,
-      codesigningValid: false,
-      queryFailures: [],
-    });
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        certificatePresent: true,
+        identityPresent: true,
+      }),
+      expect.any(String)
+    );
     expect(failure.message).toContain('Check certificate dates');
   });
 });

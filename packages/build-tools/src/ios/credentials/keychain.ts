@@ -5,7 +5,6 @@ import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
-import { ensureCertificateImportedAsync } from './validateCertificate';
 import { runFastlane } from '../fastlane';
 
 // Do not log raw fastlane output or spawn errors: they can contain passwords,
@@ -146,12 +145,14 @@ export default class Keychain {
     teamId: string;
     fingerprint: string;
   }): Promise<void> {
-    await ensureCertificateImportedAsync({
-      keychainPath: this.keychainPath,
-      teamId,
-      fingerprint,
-      logger,
-    });
+    const identities = await this.findIdentitiesByTeamId(teamId);
+    if (!identities.includes(fingerprint)) {
+      // Diagnostics must not change the existing pass/fail check or mask its failure.
+      const explanation = await this.diagnoseMissingIdentity(fingerprint, logger).catch(() => '');
+      throw new Error(
+        `Signing identity validation failed for distribution certificate with fingerprint ${fingerprint}.${explanation ? ` ${explanation}` : ''}`
+      );
+    }
   }
 
   public async destroy({
@@ -191,5 +192,64 @@ export default class Keychain {
     for (const turtleKeychainPath of turtleKeychainList) {
       await this.destroy({ logger, keychainPath: turtleKeychainPath });
     }
+  }
+
+  private async findIdentitiesByTeamId(teamId: string): Promise<string> {
+    const { output } = await spawn(
+      'security',
+      ['find-identity', '-v', '-s', `(${teamId})`, this.keychainPath],
+      {
+        stdio: 'pipe',
+      }
+    );
+    return output.join('');
+  }
+
+  private async diagnoseMissingIdentity(fingerprint: string, logger?: bunyan): Promise<string> {
+    const [certificates, identities] = await Promise.all(
+      [['find-certificate', '-a', '-Z'], ['find-identity']].map(args =>
+        spawn('security', [...args, this.keychainPath], { stdio: 'pipe', timeout: 10000 })
+          .then(result => result.stdout)
+          .catch(() => null)
+      )
+    );
+    const expectedFingerprint = fingerprint.toUpperCase();
+    const certificatePresent =
+      certificates === null
+        ? null
+        : [...certificates.matchAll(/^SHA-1 hash:\s*([A-Fa-f0-9]{40})\s*$/gm)].some(
+            match => match[1].toUpperCase() === expectedFingerprint
+          );
+    const identityEntries =
+      identities === null
+        ? null
+        : [...identities.matchAll(/^\s*\d+\)\s+([A-Fa-f0-9]{40})\s+"([^\n]*)/gm)].filter(
+            match => match[1].toUpperCase() === expectedFingerprint
+          );
+    const identityPresent = identityEntries === null ? null : identityEntries.length > 0;
+    const trustErrors = [
+      ...new Set(
+        (identityEntries ?? []).flatMap(match => {
+          const error = match[2].match(/"\s+\((CSSMERR_[A-Z0-9_]+)\)\s*$/)?.[1];
+          return error ? [error] : [];
+        })
+      ),
+    ];
+
+    // Never log raw command output, certificate names, or process errors.
+    logger?.error(
+      { certificatePresent, identityPresent, trustErrors },
+      `iOS signing identity diagnostics: certificatePresent=${certificatePresent}, identityPresent=${identityPresent}, trustErrors=${trustErrors.join(',') || 'none reported'} (null means the diagnostic query failed)`
+    );
+    if (identityPresent) {
+      return 'The identity is present, but macOS did not report it as valid. Check certificate dates and trust errors on the build machine.';
+    }
+    if (certificatePresent && identityPresent === false) {
+      return 'The certificate is present, but macOS did not list a matching private key identity. Check that the PKCS#12 file contains the matching private key.';
+    }
+    if (certificatePresent === false && identityPresent === false) {
+      return 'macOS did not find the expected certificate or identity. Read the certificate import logs.';
+    }
+    return 'A diagnostic query failed. Certificate or identity presence is unknown.';
   }
 }
