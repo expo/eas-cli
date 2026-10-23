@@ -3200,6 +3200,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@expo/vm-tools@workspace:packages/vm-tools":
+  version: 0.0.0-use.local
+  resolution: "@expo/vm-tools@workspace:packages/vm-tools"
+  dependencies:
+    "@types/jest": "npm:^29.5.12"
+    "@types/node": "npm:22.20.5"
+    "@vercel/ncc": "npm:^0.38.1"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.4.12"
+    typescript: "npm:^6.0.3"
+  bin:
+    vm-tools: bin/vm-tools
+  languageName: unknown
+  linkType: soft
+
 "@expo/worker@workspace:packages/worker":
   version: 0.0.0-use.local
   resolution: "@expo/worker@workspace:packages/worker"
