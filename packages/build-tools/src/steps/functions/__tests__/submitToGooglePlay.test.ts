@@ -201,7 +201,7 @@ it('does not delete the edit or publish outputs when commit outcome is unknown',
   const error = await task.run().catch(error => error);
   expect(error).toBeInstanceOf(SystemError);
   expect((error as Error).message).toContain('HTTP 404');
-  expect((error as Error).message).toContain('may still have saved');
+  expect((error as Error).message).toContain('Could not confirm whether Google Play saved');
   expect(deleted).toBe(false);
   expect(task.setters.every(set => set.mock.calls.length === 0)).toBe(true);
 });
