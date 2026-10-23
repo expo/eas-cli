@@ -3122,6 +3122,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/simulator-launcher@workspace:packages/simulator-launcher":
+  version: 0.0.0-use.local
+  resolution: "@expo/simulator-launcher@workspace:packages/simulator-launcher"
+  dependencies:
+    "@types/jest": "npm:^29.5.12"
+    "@types/node": "npm:22.20.5"
+    "@vercel/ncc": "npm:^0.38.1"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.4.12"
+    typescript: "npm:^6.0.3"
+    zod: "npm:^4.3.5"
+  bin:
+    simulator-launcher: bin/simulator-launcher
+  languageName: unknown
+  linkType: soft
+
 "@expo/spawn-async@npm:1.7.2, @expo/spawn-async@npm:^1.7.2":
   version: 1.7.2
   resolution: "@expo/spawn-async@npm:1.7.2"
