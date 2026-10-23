@@ -103,8 +103,12 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
   });
   logUserProvidedCustomFunctions(workflow);
   try {
+    let workflowFailed = false;
     try {
       await workflow.executeAsync();
+    } catch (err) {
+      workflowFailed = true;
+      throw err;
     } finally {
       if (!ctx.artifacts.XCODE_BUILD_LOGS && ctx.job.platform === Platform.IOS) {
         try {
@@ -122,7 +126,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
         }),
         customBuildCtx.drainPendingMetricUploads(),
       ]);
-      if (results[0].status === 'rejected') {
+      if (results[0].status === 'rejected' && !workflowFailed) {
         throw results[0].reason;
       }
     }

@@ -62,7 +62,10 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
           });
         });
       } catch (err: any) {
-        finalizationError ??= err;
+        // The upload must not replace an existing build or finalization error.
+        if (buildSuccess) {
+          finalizationError ??= err;
+        }
       }
 
       if (finalizationError) {

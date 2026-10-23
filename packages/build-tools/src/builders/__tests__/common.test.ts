@@ -73,6 +73,23 @@ describe(runBuilderWithHooksAsync, () => {
     expect(runHookIfPresentMock).toHaveBeenCalled();
   });
 
+  it.each([true, false])(
+    'preserves the build result when outputs fail (build failed: %s)',
+    async buildFailed => {
+      const ctx = createBuildContext({ outputs: { failed: '${{ failure() }}' } });
+      uploadJobOutputsFromBuildContextAsyncMock.mockRejectedValue(new Error('outputs failed'));
+      const buildAsync = jest.fn().mockImplementation(async () => {
+        if (buildFailed) {
+          throw new Error('build failed');
+        }
+      });
+
+      await expect(runBuilderWithHooksAsync(ctx, buildAsync)).rejects.toThrow(
+        buildFailed ? 'build failed' : 'Complete job'
+      );
+    }
+  );
+
   it.each(['artifact upload', 'completion hook'])(
     'attempts to upload job outputs after a %s failure',
     async failure => {

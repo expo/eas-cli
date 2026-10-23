@@ -249,6 +249,28 @@ describe(runCustomBuildAsync, () => {
     });
   });
 
+  it.each([true, false])(
+    'preserves the workflow result when outputs fail (workflow failed: %s)',
+    async workflowFailed => {
+      ctx.job.outputs = { failed: '${{ failure() }}' };
+      uploadJobOutputsToWwwAsyncMock.mockRejectedValueOnce(new Error('outputs failed'));
+      const executeSpy = jest
+        .spyOn(BuildWorkflow.prototype, 'executeAsync')
+        .mockImplementation(async () => {
+          if (workflowFailed) {
+            throw new Error('workflow failed');
+          }
+        });
+      try {
+        await expect(runCustomBuildAsync(ctx)).rejects.toThrow(
+          workflowFailed ? 'workflow failed' : 'outputs failed'
+        );
+      } finally {
+        executeSpy.mockRestore();
+      }
+    }
+  );
+
   it('attempts to upload job outputs when workflow execution throws', async () => {
     ctx.job.outputs = {
       ios_build_type: '${{ failure() }}',
