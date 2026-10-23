@@ -2948,10 +2948,10 @@ USAGE
   $ eas sim:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-recording
+    --network-capture] [--network-capture-field <value>... ] [--max-duration-minutes <value>] [--max-idle-time-minutes
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3024,12 +3024,15 @@ FLAGS
       Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.
 
   --network-capture
-      Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in
-      cleartext and certificate-pinned apps fail to connect.
+      Capture HTTP(S) traffic from apps on the device for live inspection (iOS only). HTTPS is decrypted, so captured
+      traffic can contain credentials in cleartext and certificate-pinned apps fail to connect.
 
   --network-capture-field=<value>...
       What a recording may keep beyond method, URL, status, timing and size: header, query, request-body, response-body.
       Repeatable or comma-separated. Defaults to none of them, because each can carry credentials.
+
+  --network-capture-recording
+      Save network capture as HAR artifacts for access after the session ends.
 
   --non-interactive
       Run the command in non-interactive mode.
@@ -3104,10 +3107,10 @@ USAGE
   $ eas simulator [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-recording
+    --network-capture] [--network-capture-field <value>... ] [--max-duration-minutes <value>] [--max-idle-time-minutes
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3180,12 +3183,15 @@ FLAGS
       Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.
 
   --network-capture
-      Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in
-      cleartext and certificate-pinned apps fail to connect.
+      Capture HTTP(S) traffic from apps on the device for live inspection (iOS only). HTTPS is decrypted, so captured
+      traffic can contain credentials in cleartext and certificate-pinned apps fail to connect.
 
   --network-capture-field=<value>...
       What a recording may keep beyond method, URL, status, timing and size: header, query, request-body, response-body.
       Repeatable or comma-separated. Defaults to none of them, because each can carry credentials.
+
+  --network-capture-recording
+      Save network capture as HAR artifacts for access after the session ends.
 
   --non-interactive
       Run the command in non-interactive mode.
@@ -3435,10 +3441,10 @@ USAGE
   $ eas simulator:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-recording
+    --network-capture] [--network-capture-field <value>... ] [--max-duration-minutes <value>] [--max-idle-time-minutes
+    <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...]
+    [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
@@ -3511,12 +3517,15 @@ FLAGS
       Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.
 
   --network-capture
-      Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in
-      cleartext and certificate-pinned apps fail to connect.
+      Capture HTTP(S) traffic from apps on the device for live inspection (iOS only). HTTPS is decrypted, so captured
+      traffic can contain credentials in cleartext and certificate-pinned apps fail to connect.
 
   --network-capture-field=<value>...
       What a recording may keep beyond method, URL, status, timing and size: header, query, request-body, response-body.
       Repeatable or comma-separated. Defaults to none of them, because each can carry credentials.
+
+  --network-capture-recording
+      Save network capture as HAR artifacts for access after the session ends.
 
   --non-interactive
       Run the command in non-interactive mode.
