@@ -146,13 +146,20 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
     try {
       result = await installAsync();
     } catch (err) {
-      if (!ctx.env.NVM_NODEJS_ORG_MIRROR) {
+      const mirror = ctx.env.NVM_NODEJS_ORG_MIRROR;
+      // Only bypass a worker-provided mirror, never an explicit user choice.
+      if (
+        !mirror ||
+        mirror !== RuntimeSettings.getNodeJsCacheUrl() ||
+        ctx.job.builderEnvironment?.env?.NVM_NODEJS_ORG_MIRROR !== undefined ||
+        ctx.job.secrets?.environmentSecrets?.some(({ name }) => name === 'NVM_NODEJS_ORG_MIRROR')
+      ) {
         throw err;
       }
 
       ctx.logger.warn(
         { err },
-        'Failed to install Node.js using the mirror. Removing NVM_NODEJS_ORG_MIRROR from the build environment for the rest of this build and retrying with the default download source.'
+        'Failed to install Node.js using the worker mirror. Removing NVM_NODEJS_ORG_MIRROR from the build environment for the rest of this build and retrying with the default download source.'
       );
       // Keep the failed mirror disabled for the rest of this build.
       delete ctx.env.NVM_NODEJS_ORG_MIRROR;
