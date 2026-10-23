@@ -90,12 +90,18 @@ export default class SimulatorControl extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, argv, flags } = await this.parse(SimulatorControl);
-    let literalFrom = argv.length - 1;
+    const { args, raw, flags } = await this.parse(SimulatorControl);
+    // oclif's argv sorts repeated values by their first occurrence in the input.
+    // Raw arg tokens preserve their actual order, including literals after --.
+    const values = raw
+      .filter(token => token.type === 'arg')
+      .map(token => token.input)
+      .slice(1);
+    let literalFrom = values.length;
     for (let index = 0; index < this.argv.length; index++) {
       const value = this.argv[index];
       if (value === '--') {
-        literalFrom = argv.length - 1 - (this.argv.length - index - 1);
+        literalFrom = Math.max(0, values.length - (this.argv.length - index - 1));
         break;
       }
       // A standalone -- consumed as a flag value is not an argument separator.
@@ -161,7 +167,7 @@ export default class SimulatorControl extends EasCommand {
       await this.runActionAsync(connection, entry, {
         sessionId,
         action,
-        values: argv.slice(1).map(String),
+        values,
         literalFrom,
         outputPath: flags.output,
         jsonFlag,
@@ -203,9 +209,10 @@ export default class SimulatorControl extends EasCommand {
     Log.newLine();
     Log.log(`  ${chalk.bold('USAGE')}`);
     Log.log(`    eas simulator:control ${formatHostActionUsage(action, entry)}`);
-    Log.log('  Values after -- are positional literals.');
     const outputFlag = entry.output === 'base64' ? '--output <path>' : '[--output <path>]';
     Log.log(`      ${entry.output ? `${outputFlag} ` : ''}[--id <session-id>] [--json]`);
+    Log.newLine();
+    Log.log('  Values after -- are positional literals.');
     Log.newLine();
     Log.log(`  ${chalk.bold('OPTIONS')}`);
     Log.log(`    --id <session-id>  Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`);

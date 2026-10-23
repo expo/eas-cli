@@ -179,7 +179,7 @@ describe(SimulatorControl, () => {
     }
   });
 
-  it.each(['text=hello', '--', '--help'])(
+  it.each(['text=hello', '--', '--help', ''])(
     'preserves the literal value after the separator: %s',
     async value => {
       served = {
@@ -194,6 +194,44 @@ describe(SimulatorControl, () => {
       expect(actionRequests()).toEqual([['clipboard.write', { text: value }]]);
     }
   );
+
+  it.each([
+    {
+      argv: ['permissions.set', '--id', 's', 'action=grant', '--', 's', 'camera'],
+      params: { action: 'grant', service: 's', bundleId: 'camera' },
+    },
+    {
+      argv: ['permissions.set', '--id', 's', '--', 'grant', '--', 'com.app'],
+      params: { action: 'grant', service: '--', bundleId: 'com.app' },
+    },
+    {
+      argv: ['permissions.set', '--id', 's', '--', 'grant', 'permissions.set', 'com.app'],
+      params: { action: 'grant', service: 'permissions.set', bundleId: 'com.app' },
+    },
+    {
+      argv: ['permissions.set', '--id', 'camera', 'grant', 'microphone', 'camera'],
+      params: { action: 'grant', service: 'microphone', bundleId: 'camera' },
+    },
+  ])(
+    'preserves input order when positional tokens repeat earlier input: $argv',
+    async ({ argv, params }) => {
+      await createCommand(argv).runAsync();
+      expect(actionRequests()).toEqual([['permissions.set', params]]);
+    }
+  );
+
+  it('treats values as literal when the separator precedes the action', async () => {
+    served = {
+      ...catalog,
+      'clipboard.write': {
+        type: 'object',
+        properties: { udid: { type: 'string' }, text: { type: 'string' } },
+        required: ['udid', 'text'],
+      },
+    };
+    await createCommand(['--id', 'session-123', '--', 'clipboard.write', 'text=hello']).runAsync();
+    expect(actionRequests()).toEqual([['clipboard.write', { text: 'text=hello' }]]);
+  });
 
   it('does not treat a flag value of -- as the literal separator', async () => {
     served = {
@@ -259,6 +297,12 @@ describe(SimulatorControl, () => {
     expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
       '    eas simulator:control permissions.set <action> <service> <bundleId>'
     );
+    const lines = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
+    const usage = lines.indexOf(
+      '    eas simulator:control permissions.set <action> <service> <bundleId>'
+    );
+    expect(lines[usage + 1]).toBe('      [--id <session-id>] [--json]');
+    expect(lines.indexOf('  Values after -- are positional literals.')).toBeGreaterThan(usage + 1);
     expect(actionRequests()).toEqual([]);
     expect(close).toHaveBeenCalledTimes(1);
   });
