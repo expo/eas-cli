@@ -167,6 +167,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       subdomainPrefix: 'agent-device',
       baseDomain: ngrokTunnelDomain,
       authtoken: ngrokAuthtoken,
+      healthCheck: { path: '/health' },
       logger: taskLogger,
     });
     tasks.signal.throwIfAborted();
