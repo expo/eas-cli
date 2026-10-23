@@ -129,7 +129,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             ? `Preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
             : 'Private preview URL unavailable for this session.'
         );
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
+        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
           ctx,
@@ -147,6 +147,9 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           },
           logger,
         });
+        if (sessionStart === 'stopped') {
+          return;
+        }
 
         await waitForDeviceRunSessionStoppedAsync({
           ctx,

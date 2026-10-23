@@ -91,7 +91,8 @@ export class DeviceRunSessionWorkerApiError extends Error {
     message: string,
     /** The HTTP status of the response, or undefined when no response arrived. */
     readonly status: number | undefined,
-    options?: ErrorOptions
+    options?: ErrorOptions,
+    readonly code?: string
   ) {
     super(message, options);
     this.name = 'DeviceRunSessionWorkerApiError';
@@ -267,7 +268,9 @@ export class DeviceRunSessionWorkerApi {
         : response.statusText;
       throw new DeviceRunSessionWorkerApiError(
         `${routeDescription} failed with status ${response.status}: ${apiErrorMessage}`,
-        response.status
+        response.status,
+        undefined,
+        apiError?.success ? apiError.data.errors[0]?.code : undefined
       );
     }
     if (!bodyResult.ok) {
