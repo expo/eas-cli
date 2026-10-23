@@ -2,4 +2,4 @@
 '@expo/build-tools': patch
 ---
 
-Use 4 GiB of emulator RAM for Android 35 and 36 system images to reduce ADB disconnects during large transfers. Keep the RAM defaults for other images and preserve explicit emulator configuration overrides.
+Default Android emulators to 4 GiB of RAM to reduce ADB disconnects during large transfers. Retain the 2 GiB default for API 34 and below outside interactive device sessions, and preserve explicit emulator configuration overrides.

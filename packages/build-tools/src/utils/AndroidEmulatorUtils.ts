@@ -154,13 +154,9 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      // API 35 and 36 need more headroom for guest VSOCK packet allocations during ADB transfers.
-      const ramSize =
-        env.DEVICE_RUN_SESSION_ID ||
-        systemImagePackage.startsWith('system-images;android-35') ||
-        systemImagePackage.startsWith('system-images;android-36')
-          ? 4096
-          : 2048;
+      // Keep the lower RAM default for older images; newer guests need more headroom for ADB.
+      const apiLevel = systemImagePackage.match(/^system-images;android-(\d+)/)?.[1];
+      const ramSize = !env.DEVICE_RUN_SESSION_ID && apiLevel && Number(apiLevel) < 35 ? 2048 : 4096;
       logger.info(`Setting hw.ramSize to ${ramSize}.`);
       configIniFileContent = `${configIniFileContent}\nhw.ramSize=${ramSize}\n`;
 
