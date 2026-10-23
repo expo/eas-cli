@@ -391,7 +391,9 @@ describe('commitBuildUploadFileAsync', () => {
       .reply(status, { errors: [{ code }] });
     await expect(
       AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
-    ).rejects.toMatchObject({ status, code });
+    ).rejects.toMatchObject(
+      code === 'NOT_AUTHORIZED' ? { errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_AUTH' } : { status, code }
+    );
   });
 
   it('does not commit when the initial state read fails', async () => {
