@@ -302,6 +302,28 @@ export namespace GooglePlayUtils {
       code = 'EAS_GOOGLE_PLAY_DRAFT_APP';
       detail =
         'This app is still a draft in Play Console. Submit a draft release without a rollout, or complete the app setup in Play Console before submitting a release to testers. Use releaseStatus: "draft" in eas.json, or release_status: "draft" in a workflow.';
+    } else if (/must declare the use of advertising ID/i.test(message)) {
+      code = 'EAS_GOOGLE_PLAY_ADVERTISING_ID_DECLARATION_REQUIRED';
+      detail =
+        'Google Play requires an advertising ID declaration for this app. Complete the declaration in Play Console so it matches the app and its SDKs, then submit again.';
+    } else if (
+      /must let us know whether your app uses any Foreground Service permissions/i.test(message)
+    ) {
+      code = 'EAS_GOOGLE_PLAY_FOREGROUND_SERVICE_DECLARATION_REQUIRED';
+      detail =
+        'Google Play requires a foreground service declaration for this app. Complete the declaration in Play Console for the permissions used by the app, then submit again.';
+    } else if (
+      /Google Play Android Developer API has not been used in project .* before or it is disabled/i.test(
+        message
+      )
+    ) {
+      code = 'EAS_GOOGLE_PLAY_API_DISABLED';
+      detail =
+        'The Google Play Android Developer API is not enabled for the Google Cloud project used by this service account. Enable the API in that project, wait for the change to take effect, then submit again.';
+    } else if (/upload certificate.*not yet valid.*recently reset/i.test(message)) {
+      code = 'EAS_GOOGLE_PLAY_UPLOAD_CERTIFICATE_NOT_YET_VALID';
+      detail =
+        'Google Play has not activated the upload certificate after its reset. Check the activation time in Play Console or the reset confirmation, wait until the certificate is active, then submit again. Do not reset the key again to resolve this wait.';
     } else if (error.status === 409 || /edit.*(?:expired|invalid|not found)/i.test(message)) {
       code = 'EAS_GOOGLE_PLAY_EDIT_INVALID';
       detail =

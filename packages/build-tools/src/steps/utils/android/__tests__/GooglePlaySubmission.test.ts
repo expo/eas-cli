@@ -194,6 +194,48 @@ it.each([
     expect((mapped as Error).message).toContain('releaseStatus: "draft" in eas.json');
   }
 });
+it.each([
+  [
+    400,
+    'Your app targets Android 13 (API 33) or above. You must declare the use of advertising ID in Play Console.',
+    'EAS_GOOGLE_PLAY_ADVERTISING_ID_DECLARATION_REQUIRED',
+    'advertising ID declaration',
+  ],
+  [
+    403,
+    'You must let us know whether your app uses any Foreground Service permissions.',
+    'EAS_GOOGLE_PLAY_FOREGROUND_SERVICE_DECLARATION_REQUIRED',
+    'foreground service declaration',
+  ],
+  [
+    403,
+    'Google Play Android Developer API has not been used in project 123 before or it is disabled. Enable it by visiting https://console.developers.google.com/',
+    'EAS_GOOGLE_PLAY_API_DISABLED',
+    'Google Cloud project',
+  ],
+  [
+    403,
+    'The upload certificate this APK is signed with is not yet valid because it has been recently reset.',
+    'EAS_GOOGLE_PLAY_UPLOAD_CERTIFICATE_NOT_YET_VALID',
+    'activation time',
+  ],
+] as const)('gives a specific app-setup remedy for %s %s', (status, message, code, remedy) => {
+  const original = new GooglePlayApiError(status, message, [], {
+    requestPath: '/example',
+    responseBody: 'diagnostic',
+  });
+  const mapped = GooglePlayUtils.mapGooglePlayError(original, packageName);
+  expect(mapped).toMatchObject({
+    errorCode: code,
+    cause: original,
+    metadata: { googlePlayRequestPath: '/example', googlePlayErrorResponse: 'diagnostic' },
+  });
+  expect((mapped as Error).message).toContain(remedy);
+  expect((mapped as Error).message).toContain(`App: ${packageName}`);
+  expect((mapped as Error).message).toContain('https://play.google.com/console/');
+  expect((mapped as Error).message).not.toContain('Check the track');
+});
+
 it('maps a rejected OAuth key to a credential error', () => {
   const original = new GooglePlayAuthRequestError(400, 'invalid_grant');
   expect(GooglePlayUtils.mapGooglePlayError(original, packageName)).toMatchObject({
