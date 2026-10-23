@@ -31,7 +31,7 @@ const CatalogEntry = SchemaNode.extend({
   description: z.string().optional(),
   args: z.array(z.string()).optional(),
   upload: z.string().optional(),
-  uploadArchive: z.string().optional(),
+  uploadArchive: z.unknown().optional(),
   uploadAs: z.enum(['path', 'id']).optional(),
   uploadWhen: z.record(z.string(), z.unknown()).optional(),
   keepUpload: z.boolean().optional(),

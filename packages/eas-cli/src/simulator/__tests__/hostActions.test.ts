@@ -346,6 +346,25 @@ describe('host action connection', () => {
     await expect(fetchHostActionCatalogAsync(hostActions)).resolves.toEqual(catalog);
   });
 
+  it.each([42, null, {}])(
+    'keeps other actions usable with an unknown archive capability: %j',
+    async capability => {
+      const hostActions = await connectAsync();
+      reply = message => ({
+        id: message.id,
+        stdout: JSON.stringify({
+          ...catalog,
+          'app.install': { ...catalog['app.install'], uploadArchive: capability },
+        }),
+        stderr: '',
+        exitCode: 0,
+      });
+      const described = await fetchHostActionCatalogAsync(hostActions);
+      expect(described['hardwareKeyboard.set']).toEqual(catalog['hardwareKeyboard.set']);
+      expect(described['app.install'].uploadArchive).toEqual(capability);
+    }
+  );
+
   it('explains that an old serve-sim does not have the catalog', async () => {
     reply = message => ({ id: message.id, error: 'unknown action actions.describe' });
     const hostActions = await connectAsync();

@@ -402,6 +402,18 @@ describe(SimulatorControl, () => {
     expect(actionRequests()).toEqual([]);
   });
 
+  it.each(['Old.tar.gz', 'Old.tgz'])(
+    'rejects an archive before upload when the host lacks support: %s',
+    async name => {
+      const archive = path.join(tmpDir, name);
+      await fs.writeFile(archive, 'archive bytes');
+      await expect(
+        createCommand(['app.install', archive, '--id', 'session-123']).runAsync()
+      ).rejects.toThrow('does not support app archives');
+      expect(actionRequests()).toEqual([]);
+    }
+  );
+
   it('continues rejecting unrelated folders', async () => {
     await expect(
       createCommand(['media.add', tmpDir, '--id', 'session-123']).runAsync()
@@ -410,6 +422,7 @@ describe(SimulatorControl, () => {
   });
 
   it('uploads a local file for an action that takes one and removes it after', async () => {
+    served = { ...catalog, 'app.install': { ...catalog['app.install'], uploadArchive: 'tar.gz' } };
     const localFile = path.join(tmpDir, 'MyApp.tgz');
     await fs.writeFile(localFile, 'app bytes');
     actionResult = ok('');
