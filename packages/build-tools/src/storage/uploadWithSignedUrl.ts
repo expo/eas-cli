@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import fetch, { FetchError } from 'node-fetch';
-import type { Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -57,6 +57,27 @@ export async function uploadWithSignedUrl(
       await finished(stream).catch(() => {});
     }
   }
+}
+
+export async function uploadContentWithSignedUrl(
+  { signedUrl, content }: { signedUrl: SignedUrl; content: string | Buffer },
+  options?: UploadWithSignedUrlOptions
+): Promise<void> {
+  const headers = { ...signedUrl.headers };
+  const headerNames = Object.keys(headers).map(name => name.toLowerCase());
+  if (!headerNames.includes('content-length')) {
+    headers['content-length'] = String(Buffer.byteLength(content));
+  }
+  if (typeof content === 'string' && !headerNames.includes('content-type')) {
+    headers['content-type'] = 'text/plain;charset=UTF-8';
+  }
+  await uploadWithSignedUrl(
+    {
+      signedUrl: { url: signedUrl.url, headers },
+      srcGeneratorAsync: async () => Readable.from([content]),
+    },
+    options
+  );
 }
 
 const RETRYABLE_STATUSES = [408, 429, 500, 502, 503, 504];

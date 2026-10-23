@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import {
   SignedUrlUploadApiError,
   SignedUrlUploadNetworkError,
+  uploadContentWithSignedUrl,
   uploadWithSignedUrl,
 } from '../uploadWithSignedUrl';
 
@@ -204,5 +205,50 @@ describe(uploadWithSignedUrl, () => {
       )
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect(requests).toBe(1);
+  });
+});
+
+describe(uploadContentWithSignedUrl, () => {
+  let received: IncomingMessage | undefined;
+  let body: string;
+
+  beforeEach(() => {
+    received = undefined;
+    handle = async (request, response) => {
+      received = request;
+      body = await readBodyAsync(request);
+      response.end();
+    };
+  });
+
+  it('counts the content length in bytes', async () => {
+    await uploadContentWithSignedUrl({ signedUrl, content: 'zażółć' });
+
+    expect(received?.headersDistinct['content-length']).toEqual(['10']);
+    expect(body).toBe('zażółć');
+  });
+
+  it('keeps a content length that the signed headers already set', async () => {
+    signedUrl.headers = { 'Content-Length': '5' };
+
+    await uploadContentWithSignedUrl({ signedUrl, content: 'hello' });
+
+    expect(received?.headersDistinct['content-length']).toEqual(['5']);
+  });
+
+  it('labels only string content as plain text', async () => {
+    await uploadContentWithSignedUrl({ signedUrl, content: 'hello' });
+    expect(received?.headersDistinct['content-type']).toEqual(['text/plain;charset=UTF-8']);
+
+    await uploadContentWithSignedUrl({ signedUrl, content: Buffer.from('hello') });
+    expect(received?.headersDistinct['content-type']).toBeUndefined();
+  });
+
+  it('keeps a content type that the signed headers already set', async () => {
+    signedUrl.headers = { 'Content-Type': 'application/json' };
+
+    await uploadContentWithSignedUrl({ signedUrl, content: '{}' });
+
+    expect(received?.headersDistinct['content-type']).toEqual(['application/json']);
   });
 });

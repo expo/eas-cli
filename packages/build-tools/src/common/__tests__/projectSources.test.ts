@@ -421,7 +421,11 @@ describe('projectSources', () => {
         'https://storage.example.com/upload',
         expect.objectContaining({
           method: 'PUT',
-          headers: { 'x-custom-header': 'value', 'content-length': '63' },
+          headers: {
+            'x-custom-header': 'value',
+            'content-length': '63',
+            'content-type': 'text/plain;charset=UTF-8',
+          },
         })
       );
       expect(uploadedBody).toBe('{"archiveContent":["project/README.md","project/package.json"]}');

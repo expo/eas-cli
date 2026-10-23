@@ -3,14 +3,13 @@ import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import { createWriteStream } from 'node:fs';
-import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
-import { uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
+import { uploadContentWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { killProcessGroup } from '../../utils/processes';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
@@ -51,14 +50,8 @@ export function startDeviceRunSessionPreview({
       if (controller.signal.aborted) {
         return;
       }
-      await uploadWithSignedUrl(
-        {
-          signedUrl: {
-            url: uploadSession.url,
-            headers: { ...uploadSession.headers, 'content-length': String(image.length) },
-          },
-          srcGeneratorAsync: async () => Readable.from([image]),
-        },
+      await uploadContentWithSignedUrl(
+        { signedUrl: uploadSession, content: image },
         { signal, retries: 0, stallTimeoutMs: 30_000 }
       );
     } catch (err) {

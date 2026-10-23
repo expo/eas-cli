@@ -7,12 +7,11 @@ import fs from 'fs/promises';
 import { graphql } from 'gql.tada';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import { Readable } from 'stream';
 import { z } from 'zod';
 
 import { shallowCloneRepositoryAsync } from './git';
 import { BuildContext } from '../context';
-import { uploadWithSignedUrl } from '../storage/uploadWithSignedUrl';
+import { uploadContentWithSignedUrl } from '../storage/uploadWithSignedUrl';
 import { turtleFetch } from '../utils/turtleFetch';
 
 export async function prepareProjectSourcesAsync<TJob extends Job>(
@@ -209,13 +208,9 @@ async function uploadProjectMetadataAsync(
     headers: Record<string, string>;
   };
 
-  const body = JSON.stringify({ archiveContent: sortedFiles });
-  await uploadWithSignedUrl({
-    signedUrl: {
-      url: uploadSession.url,
-      headers: { ...uploadSession.headers, 'content-length': String(Buffer.byteLength(body)) },
-    },
-    srcGeneratorAsync: async () => Readable.from([body]),
+  await uploadContentWithSignedUrl({
+    signedUrl: uploadSession,
+    content: JSON.stringify({ archiveContent: sortedFiles }),
   });
 
   const updateMetadataResult = await ctx.graphqlClient
