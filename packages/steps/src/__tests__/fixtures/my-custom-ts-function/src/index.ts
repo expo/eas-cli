@@ -10,12 +10,14 @@ interface MyTsFunctionInputs {
   name: BuildStepInput<BuildStepInputValueTypeName.STRING, true>;
   num: BuildStepInput<BuildStepInputValueTypeName.NUMBER, true>;
   obj: BuildStepInput<BuildStepInputValueTypeName.JSON, true>;
+  __proto__: BuildStepInput<BuildStepInputValueTypeName.STRING, true>;
 }
 
 interface MyTsFunctionOutputs {
   name: BuildStepOutput<true>;
   num: BuildStepOutput<true>;
   obj: BuildStepOutput<true>;
+  __proto__: BuildStepOutput<true>;
 }
 
 async function myTsFunctionAsync(
@@ -45,6 +47,7 @@ async function myTsFunctionAsync(
   outputs.name.set('Brent');
   outputs.num.set('123');
   outputs.obj.set(JSON.stringify({ foo: 'bar' })); // TODO: add support for other types of outputs then string
+  outputs.__proto__.set(inputs.__proto__.value);
 
   ctx.logger.info('Setting env vars');
   env['MY_ENV_VAR'] = 'my-value';

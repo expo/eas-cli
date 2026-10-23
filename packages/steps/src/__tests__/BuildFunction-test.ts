@@ -310,6 +310,37 @@ describe(BuildFunction, () => {
         b: 2,
       });
     });
+    it('handles __proto__ as an input name', () => {
+      const ctx = createGlobalContextMock();
+      const func = new BuildFunction({
+        id: 'test1',
+        command: 'echo test',
+        inputProviders: [
+          BuildStepInput.createProvider({
+            id: '__proto__',
+            defaultValue: 'default',
+            required: true,
+            allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+          }),
+        ],
+      });
+
+      const stepWithoutValue = func.createBuildStepFromFunctionCall(ctx);
+      expect(
+        stepWithoutValue.inputs?.[0].getValue({
+          interpolationContext: ctx.getInterpolationContext(),
+        })
+      ).toBe('default');
+
+      const stepWithValue = func.createBuildStepFromFunctionCall(ctx, {
+        callInputs: Object.fromEntries([['__proto__', 'provided']]),
+      });
+      expect(
+        stepWithValue.inputs?.[0].getValue({
+          interpolationContext: ctx.getInterpolationContext(),
+        })
+      ).toBe('provided');
+    });
     it('passes env to build step', () => {
       const ctx = createGlobalContextMock();
       const func = new BuildFunction({
