@@ -1,5 +1,6 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import { BuildContext, RuntimeSettings } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
 import os from 'os';
@@ -141,14 +142,36 @@ export function getBuildEnv({
     setEnv(env, 'EXPO_STAGING', '1');
   }
 
-  if (job.builderEnvironment?.env?.EAS_BUILD_DISABLE_XCODE_VERSION_CHECK !== '1') {
-    const xcodeVersionResult = spawnSync('xcodebuild', ['-version'], { env });
-    if (xcodeVersionResult.stdout?.includes('Xcode 26.0')) {
-      setEnv(env, 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS', '--use-old-altool');
-    }
+  return env;
+}
+
+// Join this preparation before a builder or workflow snapshots the context environment.
+export async function prepareXcodeBuildEnvAsync(
+  ctx: Pick<BuildContext<Job>, 'env' | 'job'>
+): Promise<void> {
+  let stdout: string | undefined;
+  try {
+    ({ stdout } = await spawn('xcodebuild', ['-version'], {
+      env: { ...ctx.env },
+      stdio: 'pipe',
+    }));
+  } catch (error: any) {
+    // spawnSync also used stdout on nonzero exits and ignored missing xcodebuild.
+    stdout = error.stdout;
+  }
+  if (!stdout?.includes('Xcode 26.0')) {
+    return;
   }
 
-  return env;
+  const key = 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS';
+  // BuildContext previously merged these overrides after the worker's Xcode default.
+  if (
+    key in (ctx.job.builderEnvironment?.env ?? {}) ||
+    ctx.job.secrets?.environmentSecrets?.some(secret => secret.name === key)
+  ) {
+    return;
+  }
+  ctx.env[key] = '--use-old-altool';
 }
 
 function getFilteredEnv(): Env {

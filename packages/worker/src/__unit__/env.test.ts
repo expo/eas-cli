@@ -1,6 +1,5 @@
 import { RuntimeSettings } from '@expo/build-tools';
 import { Platform, Workflow } from '@expo/eas-build-job';
-import childProcess from 'child_process';
 import os from 'os';
 import v8 from 'v8';
 
@@ -55,43 +54,6 @@ describe(getBuildEnv.name, () => {
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
-
-  it.each([
-    { name: 'default', flag: undefined, sessionId: undefined, skip: false },
-    { name: 'disabled', flag: '1', sessionId: undefined, skip: true },
-    { name: 'zero', flag: '0', sessionId: undefined, skip: false },
-    { name: 'other value', flag: 'true', sessionId: undefined, skip: false },
-    { name: 'session ID only', flag: undefined, sessionId: 'session-id', skip: false },
-  ])(
-    'skips the Xcode version query only with an explicit flag: $name',
-    ({ flag, sessionId, skip }) => {
-      const spawnSync = jest.spyOn(childProcess, 'spawnSync').mockReturnValue({
-        stdout: Buffer.from('Xcode 26.0\nBuild version 17A324'),
-      } as ReturnType<typeof childProcess.spawnSync>);
-
-      const env = getBuildEnv({
-        job: {
-          builderEnvironment: {
-            env: {
-              ...(flag !== undefined ? { EAS_BUILD_DISABLE_XCODE_VERSION_CHECK: flag } : {}),
-              ...(sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {}),
-            },
-          },
-        } as any,
-        projectId: 'project-id',
-        metadata: {} as any,
-        buildId: 'build-id',
-      });
-
-      if (skip) {
-        expect(spawnSync).not.toHaveBeenCalledWith('xcodebuild', ['-version'], expect.anything());
-        expect(env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS).toBeUndefined();
-      } else {
-        expect(spawnSync).toHaveBeenCalledWith('xcodebuild', ['-version'], { env });
-        expect(env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS).toBe('--use-old-altool');
-      }
-    }
-  );
 
   it('passes the CLI sentry DSN to worker child processes', () => {
     config.sentry.dsn = 'https://public@example.ingest.sentry.io/1';
