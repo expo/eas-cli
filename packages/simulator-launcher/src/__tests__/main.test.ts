@@ -402,6 +402,56 @@ for (const engine of ['serve-sim', 'agent-device', 'argent']) {
   });
 }
 
+for (const outcome of ['success', 'failure', 'stop']) {
+  test(`Appium claim fences warmed runners before WDA: ${outcome}`, async () => {
+    const [completion] = await beginSession();
+    await status('ready');
+    const drain = deferred<void>();
+    jest.mocked(processes.stopProcessAndDescendantsAsync).mockImplementation(async () => {
+      await drain.promise;
+    });
+    const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+    jest
+      .mocked(commands.runAsync)
+      .mockImplementation((file, args, signal) =>
+        args.includes('daemon') ? drain.promise.then(() => '') : original(file, args, signal)
+      );
+    jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+    const claiming = claimAsync(boot, 'appium').catch(error => error);
+    try {
+      await status('claiming');
+      await until(
+        () => jest.mocked(processes.stopProcessAndDescendantsAsync).mock.calls.length > 0
+      );
+      expect((await readLauncherStateAsync(boot))?.status).toBe('claiming');
+      if (outcome === 'stop') {
+        process.emit('SIGTERM', 'SIGTERM');
+      }
+      if (outcome === 'failure') {
+        drain.reject(new Error('runner drain failed'));
+      } else {
+        drain.resolve();
+      }
+      const result = await claiming;
+      if (outcome === 'success') {
+        expect(result).toBe(0);
+        await stopAsync(boot);
+      } else {
+        expect(result).toBeInstanceOf(Error);
+      }
+      const error = await completion;
+      expect((await readLauncherStateAsync(boot))?.status).toBe(
+        outcome === 'failure' ? 'stopping' : 'disabled'
+      );
+      if (outcome === 'failure') {
+        expect(error).toBeInstanceOf(Error);
+      }
+    } finally {
+      drain.resolve();
+    }
+  });
+}
+
 test('stop during replacement prevents a late claimed result and drains newly owned work', async () => {
   const [completion] = await beginSession();
   await status('ready');

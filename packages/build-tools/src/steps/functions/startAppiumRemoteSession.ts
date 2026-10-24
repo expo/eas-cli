@@ -21,7 +21,11 @@ import {
   uploadRemoteSessionConfigWithLocalEgressAsync,
   withLocalEgressSession,
 } from '../utils/localEgressSession';
-import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import {
+  type DeviceSessionHost,
+  type DeviceSessionHostOptions,
+  startDeviceSessionHostAsync,
+} from '../utils/deviceSessionHost';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
@@ -39,6 +43,17 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
+import { readLocalEgressHandoffAsync } from '../utils/localEgress';
+import { resolveLocalEgressServeSimBootEnvironmentAsync } from '../utils/localEgressGuard';
+import {
+  type WarmIosSession,
+  stopWarmIosSessionAsync,
+  tryClaimWarmIosSessionAsync,
+} from '../utils/warmIosSession';
+import {
+  WarmSessionAdoptionError,
+  startWarmDeviceSessionHostAsync,
+} from '../utils/warmDeviceSessionHost';
 import {
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
@@ -48,6 +63,7 @@ import {
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
+  fetchWebPreviewTurnArgsAsync,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -74,11 +90,25 @@ const AppiumInstalledDriversSchema = z.record(
 export function createStartAppiumRemoteSessionBuildFunction(
   ctx: CustomBuildContext
 ): BuildFunction {
+  return createAppiumRemoteSessionBuildFunction(ctx, /* useWarmSimulator */ false);
+}
+
+export function createStartWarmAppiumRemoteSessionBuildFunction(
+  ctx: CustomBuildContext
+): BuildFunction {
+  return createAppiumRemoteSessionBuildFunction(ctx, /* useWarmSimulator */ true);
+}
+
+function createAppiumRemoteSessionBuildFunction(
+  ctx: CustomBuildContext,
+  useWarmSimulator: boolean
+): BuildFunction {
+  const id = useWarmSimulator ? 'start_warm_appium_remote_session' : 'start_appium_remote_session';
   return new BuildFunction({
     namespace: 'eas',
-    id: 'start_appium_remote_session',
+    id,
     name: 'Start Appium remote session',
-    __metricsId: 'eas/start_appium_remote_session',
+    __metricsId: `eas/${id}`,
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createIosSessionStartupInputProviders(),
@@ -98,7 +128,10 @@ export function createStartAppiumRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env: stepEnv, signal }) => {
+    fn: withLocalEgressSession(async (stepsCtx, args) => {
+      const { logger, global } = stepsCtx;
+      const { inputs, env: stepEnv, signal } = args;
+      const fallback = () => createStartAppiumRemoteSessionBuildFunction(ctx).fn!(stepsCtx, args);
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(stepEnv);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
@@ -106,21 +139,20 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const packageVersion = inputs.package_version.value as string | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
+      if (
+        useWarmSimulator &&
+        (runtimePlatform !== BuildRuntimePlatform.DARWIN ||
+          stepEnv.EAS_USE_WARM_SIMULATOR !== '1' ||
+          (await readLocalEgressHandoffAsync()) ||
+          Object.keys((await resolveLocalEgressServeSimBootEnvironmentAsync()) ?? {}).length > 0)
+      ) {
+        await stopWarmIosSessionAsync(logger, env);
+        return fallback();
+      }
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
-      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-        runtimePlatform,
-        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
-        installAppPath: inputs.install_app_path?.value as string | undefined,
-        launchAppIdentifier: inputs.launch_app_identifier?.value,
-        launchArgs: inputs.launch_args?.value,
-        openUrl: inputs.open_url?.value,
-        env,
-        logger,
-        signal,
-      });
+      const versionSpec = resolveAppium3VersionSpec(packageVersion);
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
@@ -128,7 +160,47 @@ export function createStartAppiumRemoteSessionBuildFunction(
         },
         { runtimePlatform }
       );
-      const versionSpec = resolveAppium3VersionSpec(packageVersion);
+      let warm: WarmIosSession | undefined;
+      let turnArgs: string[] = [];
+      if (useWarmSimulator) {
+        const [claim, turn] = await Promise.all([
+          asyncResult(
+            tryClaimWarmIosSessionAsync({
+              engine: 'appium',
+              requestedDevice: inputs.device_identifier?.value as string | undefined,
+              env,
+              logger,
+              signal,
+            })
+          ),
+          asyncResult(fetchWebPreviewTurnArgsAsync(ctx, { logger })),
+        ]);
+        warm = claim.enforceValue();
+        turnArgs = turn.ok ? turn.value : [];
+        if (!warm) {
+          return fallback();
+        }
+      }
+      const startup = await asyncResult(
+        resolveIosSessionStartupAsync({
+          runtimePlatform,
+          bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+          deviceIdentifier:
+            warm?.device.udid ?? (inputs.device_identifier?.value as string | undefined),
+          installAppPath: inputs.install_app_path?.value as string | undefined,
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
+          env,
+          logger,
+          signal,
+        })
+      );
+      if (!startup.ok) {
+        await warm?.process.stopAsync();
+        throw startup.reason;
+      }
+      const { launch, iosStartup } = startup.value;
 
       logger.info(
         `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
@@ -153,8 +225,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
       let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
       let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
       let sessionFailed = false;
-      const startHost = () =>
-        startDeviceSessionHostAsync(ctx, {
+      const startHost = () => {
+        const options: DeviceSessionHostOptions = {
           ...iosStartup,
           separateLogPhase: true,
           runtimePlatform,
@@ -171,20 +243,39 @@ export function createStartAppiumRemoteSessionBuildFunction(
           ...launch,
           networkCapture,
           networkCaptureFields,
-        }).catch(error => {
+        };
+        return (
+          warm
+            ? startWarmDeviceSessionHostAsync(ctx, options, warm, {
+                turnArgs: Promise.resolve(turnArgs),
+              })
+            : startDeviceSessionHostAsync(ctx, options)
+        ).catch(error => {
           if (iosStartup) {
             startupAbortController.abort(error);
           }
           throw error;
         });
+      };
+      if (warm) {
+        try {
+          hostStartup = asyncResult(startHost());
+          sessionHost = (await hostStartup).enforceValue();
+        } catch (error) {
+          await warm.process.stopAsync();
+          if (error instanceof WarmSessionAdoptionError) {
+            signal?.throwIfAborted();
+            return fallback();
+          }
+          throw error;
+        }
+      }
       try {
-        if (iosStartup) {
+        if (iosStartup && !hostStartup) {
           hostStartup = asyncResult(startHost());
         }
-        // Appium's startRecordingScreen runs ffmpeg on this host: XCUITest encodes the
-        // simulator stream with it, and UiAutomator2 merges long recordings with it. The
-        // macOS session image does not ship ffmpeg, so install it concurrently with Appium.
-        // Both owned installs settle before proceeding; a shared FFmpeg install keeps its owner.
+        // Appium recording retries missing FFmpeg even if optional launcher warmup failed.
+        // Drain both setup tasks without taking ownership of a shared FFmpeg install.
         const [appiumInstall] = await Promise.all([
           asyncResult(
             installAppiumAsync({
@@ -314,10 +405,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
         throw setupSignal?.aborted ? setupSignal.reason : error;
       } finally {
         startupAbortController.abort(new Error('Appium session ended.'));
-        await finishRemoteSessionAsync({
-          logger,
-          sessionFailed,
-          teardown: [
+        try {
+          const teardown: [string, Promise<unknown> | undefined][] = [
             ['Appium tunnel', appiumTunnel?.stopAsync()],
             [
               'Appium server',
@@ -335,9 +424,24 @@ export function createStartAppiumRemoteSessionBuildFunction(
                 }
               })(),
             ],
-            ['session host', hostStartup?.then(result => result.value?.finishAsync())],
-          ],
-        });
+          ];
+          if (!warm) {
+            teardown.push([
+              'session host',
+              hostStartup?.then(result => result.value?.finishAsync()),
+            ]);
+          }
+          await finishRemoteSessionAsync({ logger, sessionFailed, teardown });
+        } finally {
+          if (warm) {
+            try {
+              await sessionHost?.finishAsync();
+            } finally {
+              // Host finalization logs failures; the job still requires the positive controller ack.
+              await warm.process.stopAsync();
+            }
+          }
+        }
       }
     }),
   });

@@ -13,7 +13,7 @@ export const SimulatorDeviceSchema = z.object({
   name: NonBlankStringSchema,
 });
 export const ClaimInputSchema = z.object({
-  engine: z.enum(['serve-sim', 'agent-device', 'argent']),
+  engine: z.enum(['serve-sim', 'agent-device', 'argent', 'appium']),
   requestedDevice: NonBlankStringSchema.optional(),
 });
 export const WarmSessionInfoSchema = z.object({

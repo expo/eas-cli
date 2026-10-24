@@ -200,7 +200,7 @@ export async function tryClaimWarmIosSessionAsync({
   logger,
   signal,
 }: {
-  engine: 'serve-sim' | 'agent-device' | 'argent';
+  engine: 'serve-sim' | 'agent-device' | 'argent' | 'appium';
   requestedDevice?: string;
   packageVersion?: string;
   env: BuildStepEnv;
