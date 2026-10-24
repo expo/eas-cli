@@ -10,6 +10,7 @@ import { mainAsync } from '../main';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { type ChildProcessHandle, commands } from '../utils/processes';
 import * as processes from '../utils/processes';
+import * as serveSim from '../utils/serveSim';
 import {
   LAUNCHER_STATE_FILE,
   readLauncherStateAsync,
@@ -128,6 +129,7 @@ beforeEach(async () => {
     return job;
   });
   jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
+  jest.spyOn(serveSim, 'waitForServeSimReadyAsync').mockResolvedValue();
 });
 afterEach(async () => {
   if (active.length) {

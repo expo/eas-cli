@@ -20,7 +20,7 @@ import {
   commands,
   stopProcessAndDescendantsAsync,
 } from '../utils/processes';
-import { startServeSim } from '../utils/serveSim';
+import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
 import {
   ClaimInputSchema,
   type LauncherState,
@@ -209,6 +209,9 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   }
 }
 
+type WarmTool = 'agent-device' | 'argent';
+type WarmToolStartup = { controller: AbortController; ready: Promise<void> };
+
 /** Own resources before preparation starts so every partial attempt can be stopped. */
 export function createWarmSimulatorSession({
   signal,
@@ -222,8 +225,9 @@ export function createWarmSimulatorSession({
   onBackgroundFailure(error: unknown): void;
 }): WarmSimulatorSession {
   const serviceProcesses = new Set<ChildProcessHandle>();
-  // Track the attempted device for cleanup; publish currentDevice only after startup succeeds.
-  let ownedSimulatorUdid: string | undefined;
+  // Track attempted devices for cleanup; publish currentDevice only after startup succeeds.
+  const ownedSimulatorUdids = new Set<string>();
+  const toolStartups = new Map<WarmTool, WarmToolStartup>();
   let currentDevice: SimulatorDevice;
   let availableDevices: SimulatorDevice[];
   let agentDevicePrepareProcess: ChildProcessHandle | undefined;
@@ -273,51 +277,96 @@ export function createWarmSimulatorSession({
     }
   }
 
-  async function bootSimulatorAndStartServicesAsync(device: SimulatorDevice): Promise<void> {
+  /** Starts a tool after `servicesAllowed`; a failure before claim fails the warm session closed. */
+  function startTool(tool: WarmTool, udid: string, servicesAllowed: Promise<unknown>): void {
+    const controller = new AbortController();
+    const toolSignal = AbortSignal.any([signal, controller.signal]);
+    const aborted = new Promise<never>((_resolve, reject) => {
+      const abort = (): void => reject(toolSignal.reason);
+      toolSignal.addEventListener('abort', abort, { once: true });
+      if (toolSignal.aborted) {
+        abort();
+      }
+    });
+    void aborted.catch(() => {});
+    const ready =
+      tool === 'agent-device'
+        ? servicesAllowed.then(async () => {
+            agentDevicePrepareProcess = startAgentDevicePreparation(udid, toolSignal);
+            serviceProcesses.add(agentDevicePrepareProcess);
+            await Promise.race([agentDevicePrepareProcess.resultPromise, aborted]);
+          })
+        : Promise.all([servicesAllowed, prepareArgentEnvironmentAsync(toolSignal)]).then(() => {
+            argentProcess = startArgentServer(toolSignal);
+            serviceProcesses.add(argentProcess);
+          });
+    void ready.catch(error => {
+      if (!controller.signal.aborted) {
+        onPreparationFailure(error);
+      }
+    });
+    toolStartups.set(tool, { controller, ready });
+  }
+
+  /** Stops a tool even while it is still starting, then releases its native state. */
+  async function stopToolAsync(tool: WarmTool): Promise<void> {
+    const startup = toolStartups.get(tool);
+    toolStartups.delete(tool);
+    startup?.controller.abort();
+    await startup?.ready.catch(() => {});
+    if (tool === 'agent-device') {
+      if (agentDevicePrepareProcess) {
+        await stopProcessAndDescendantsAsync(agentDevicePrepareProcess, true);
+        serviceProcesses.delete(agentDevicePrepareProcess);
+        agentDevicePrepareProcess = undefined;
+      }
+      await stopAgentDeviceDaemonAsync();
+    } else if (argentProcess) {
+      await stopProcessAndDescendantsAsync(argentProcess);
+      serviceProcesses.delete(argentProcess);
+      argentProcess = undefined;
+    }
+  }
+
+  /**
+   * Boots the device, then starts serve-sim and the given tools once `servicesAllowed` settles.
+   * Resolves when serve-sim is ready; tools keep starting and report through their startups.
+   */
+  async function bootSimulatorAndStartServicesAsync(
+    device: SimulatorDevice,
+    tools: WarmTool[],
+    servicesAllowed: Promise<unknown> = Promise.resolve()
+  ): Promise<void> {
     await throwIfStoppingAsync();
-    ownedSimulatorUdid = device.udid;
+    const udid = device.udid;
+    ownedSimulatorUdids.add(udid);
     const simulatorBootPromise = commands
-      .runAsync('xcrun', ['simctl', 'bootstatus', ownedSimulatorUdid, '-b'], signal)
+      .runAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], signal)
       .catch(async () => {
         signal.throwIfAborted();
-        await commands.runAsync('xcrun', ['simctl', 'bootstatus', ownedSimulatorUdid!], signal);
+        await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid], signal);
       });
     if (!expoGoPreinstall) {
-      expoGoPreinstall = startExpoGoPreinstall(device.udid, simulatorBootPromise, signal);
+      expoGoPreinstall = startExpoGoPreinstall(udid, simulatorBootPromise, signal);
       void expoGoPreinstall.resultPromise.catch(onBackgroundFailure);
     }
-    const argentPreparationPromise = prepareArgentEnvironmentAsync(signal);
-    const serveSimPromise = simulatorBootPromise.then(() => {
-      serviceProcesses.add(startServeSim(ownedSimulatorUdid!, signal));
-    });
-    const agentDevicePromise = simulatorBootPromise.then(async () => {
-      agentDevicePrepareProcess = startAgentDevicePreparation(ownedSimulatorUdid!, signal);
-      serviceProcesses.add(agentDevicePrepareProcess);
-      await Promise.race([
-        agentDevicePrepareProcess.resultPromise,
-        new Promise<never>((_resolve, reject) => {
-          const aborted = (): void => reject(signal.reason);
-          signal.addEventListener('abort', aborted, { once: true });
-          if (signal.aborted) {
-            aborted();
-          }
-        }),
-      ]);
-    });
-    const argentPromise = Promise.all([simulatorBootPromise, argentPreparationPromise]).then(() => {
-      argentProcess = startArgentServer(signal);
-      serviceProcesses.add(argentProcess);
+    const servicesReady = Promise.all([simulatorBootPromise, servicesAllowed]);
+    for (const tool of tools) {
+      startTool(tool, udid, servicesReady);
+    }
+    const serveSimPromise = servicesReady.then(async () => {
+      const serveSim = startServeSim(udid, signal);
+      serviceProcesses.add(serveSim);
+      await waitForServeSimReadyAsync(udid, serveSim, signal);
     });
     try {
-      await Promise.all([serveSimPromise, agentDevicePromise, argentPromise]);
+      await serveSimPromise;
     } catch (error) {
       onPreparationFailure(error);
       await Promise.allSettled([
         simulatorBootPromise,
-        argentPreparationPromise,
-        serveSimPromise,
-        agentDevicePromise,
-        argentPromise,
+        servicesAllowed,
+        ...[...toolStartups.values()].map(startup => startup.ready),
       ]);
       throw error;
     }
@@ -337,7 +386,8 @@ export function createWarmSimulatorSession({
           'Could not read the Simulator launcher process start time; the warm session cannot be verified.'
         );
       }
-      await bootSimulatorAndStartServicesAsync(selectedDevice);
+      // Claimable once serve-sim is ready; the tools keep warming until a claim selects one.
+      await bootSimulatorAndStartServicesAsync(selectedDevice, ['agent-device', 'argent']);
       currentDevice = selectedDevice;
       return {
         device: currentDevice,
@@ -356,31 +406,35 @@ export function createWarmSimulatorSession({
         request.requestedDevice.toLowerCase() === currentDevice.udid.toLowerCase()
           ? currentDevice
           : await resolveSimulatorDeviceAsync(request.requestedDevice, /* refreshOnMiss */ true);
+      const requestedTool = (['agent-device', 'argent'] as const).find(
+        tool => tool === request.engine
+      );
       if (device.udid.toLowerCase() !== currentDevice.udid.toLowerCase()) {
-        // Replacement drains the old native resources without completing terminal shutdown.
-        await stopServicesAndShutdownSimulatorAsync(
-          serviceProcesses,
-          ownedSimulatorUdid,
-          agentDevicePrepareProcess
+        // Release the old device while the new one boots; services start after the release.
+        const previousUdid = currentDevice.udid;
+        const release = (async () => {
+          await Promise.all([...toolStartups.keys()].map(tool => stopToolAsync(tool)));
+          await stopServicesAndShutdownSimulatorAsync(
+            serviceProcesses,
+            previousUdid,
+            agentDevicePrepareProcess
+          );
+          ownedSimulatorUdids.delete(previousUdid);
+          agentDevicePrepareProcess = undefined;
+          argentProcess = undefined;
+          await throwIfStoppingAsync();
+        })();
+        await bootSimulatorAndStartServicesAsync(
+          device,
+          requestedTool ? [requestedTool] : [],
+          release
         );
-        ownedSimulatorUdid = undefined;
-        agentDevicePrepareProcess = undefined;
-        argentProcess = undefined;
-        await throwIfStoppingAsync();
-        await bootSimulatorAndStartServicesAsync(device);
         currentDevice = device;
       }
-      const unusedTools: Promise<void>[] = [];
-      if (request.engine !== 'argent') {
-        unusedTools.push(
-          stopProcessAndDescendantsAsync(argentProcess!).then(() => {
-            serviceProcesses.delete(argentProcess!);
-          })
-        );
-      }
-      if (request.engine !== 'agent-device') {
-        unusedTools.push(stopAgentDeviceDaemonAsync());
-      }
+      // Unselected tools stop now, even mid-startup, so they do not compete with the job.
+      const unusedTools = [...toolStartups.keys()]
+        .filter(tool => tool !== requestedTool)
+        .map(tool => stopToolAsync(tool));
       unusedToolsCleanup = Promise.allSettled(
         unusedTools.map(cleanup =>
           cleanup.catch(error => {
@@ -389,6 +443,9 @@ export function createWarmSimulatorSession({
           })
         )
       );
+      if (requestedTool) {
+        await toolStartups.get(requestedTool)!.ready;
+      }
       return currentDevice;
     },
 
@@ -398,14 +455,28 @@ export function createWarmSimulatorSession({
         unusedToolsCleanup,
         Promise.allSettled([expoGoPreinstall?.stopAsync()]),
       ]);
-      await stopServicesAndShutdownSimulatorAsync(
-        serviceProcesses,
-        ownedSimulatorUdid,
-        agentDevicePrepareProcess
-      );
+      for (const startup of toolStartups.values()) {
+        startup.controller.abort();
+      }
+      await Promise.allSettled([...toolStartups.values()].map(startup => startup.ready));
+      const cleanupErrors: unknown[] = [];
+      for (const udid of ownedSimulatorUdids.size ? [...ownedSimulatorUdids] : [undefined]) {
+        try {
+          await stopServicesAndShutdownSimulatorAsync(
+            serviceProcesses,
+            udid,
+            agentDevicePrepareProcess
+          );
+        } catch (error) {
+          cleanupErrors.push(error);
+        }
+      }
       const warmupErrors = [...unusedToolsResults, ...expoGoResults].flatMap(result =>
         result.status === 'rejected' ? [result.reason] : []
       );
+      if (cleanupErrors.length) {
+        throw cleanupErrors[0];
+      }
       if (warmupErrors.length) {
         throw new AggregateError(
           warmupErrors,
