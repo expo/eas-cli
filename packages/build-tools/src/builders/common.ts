@@ -4,6 +4,7 @@ import { Artifacts, BuildContext } from '../context';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { maybeFindAndUploadBuildArtifacts } from '../utils/artifacts';
 import { Hook, runHookIfPresent } from '../utils/hooks';
+import { uploadJobOutputsFromBuildContextAsync } from '../utils/outputs';
 import { maybeUploadSourceMapAsync } from '../utils/sourceMaps';
 
 export async function runBuilderWithHooksAsync<T extends BuildJob>(
@@ -24,28 +25,52 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
       });
       throw err;
     } finally {
-      await ctx.runBuildPhase(BuildPhase.ON_BUILD_COMPLETE_HOOK, async () => {
-        await runHookIfPresent(ctx, Hook.ON_BUILD_COMPLETE, {
-          extraEnvs: {
-            EAS_BUILD_STATUS: buildSuccess ? 'finished' : 'errored',
-          },
+      let finalizationError: any;
+      try {
+        await ctx.runBuildPhase(BuildPhase.ON_BUILD_COMPLETE_HOOK, async () => {
+          await runHookIfPresent(ctx, Hook.ON_BUILD_COMPLETE, {
+            extraEnvs: {
+              EAS_BUILD_STATUS: buildSuccess ? 'finished' : 'errored',
+            },
+          });
         });
-      });
 
-      if (ctx.job.platform === Platform.IOS) {
-        await findAndUploadXcodeBuildLogsAsync(ctx as BuildContext<Ios.Job>, {
-          logger: ctx.logger,
+        if (ctx.job.platform === Platform.IOS) {
+          await findAndUploadXcodeBuildLogsAsync(ctx as BuildContext<Ios.Job>, {
+            logger: ctx.logger,
+          });
+        }
+
+        await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
+          if (buildSuccess) {
+            await maybeUploadSourceMapAsync(ctx);
+          }
+          await maybeFindAndUploadBuildArtifacts(ctx, {
+            logger: ctx.logger,
+          });
         });
+      } catch (err: any) {
+        buildSuccess = false;
+        finalizationError = err;
       }
 
-      await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
-        if (buildSuccess) {
-          await maybeUploadSourceMapAsync(ctx);
-        }
-        await maybeFindAndUploadBuildArtifacts(ctx, {
-          logger: ctx.logger,
+      try {
+        await ctx.runBuildPhase(BuildPhase.COMPLETE_JOB, async () => {
+          await uploadJobOutputsFromBuildContextAsync(ctx, {
+            logger: ctx.logger,
+            buildSucceeded: buildSuccess,
+          });
         });
-      });
+      } catch (err: any) {
+        // The upload must not replace an existing build or finalization error.
+        if (buildSuccess) {
+          finalizationError ??= err;
+        }
+      }
+
+      if (finalizationError) {
+        throw finalizationError;
+      }
     }
   } catch (err: any) {
     err.artifacts = ctx.artifacts;
