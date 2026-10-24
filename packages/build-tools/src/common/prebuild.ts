@@ -1,6 +1,5 @@
 import { BuildJob } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { SpawnOptions } from '@expo/turtle-spawn';
 
 import {
   installDependenciesWithNpmCacheFallbackAsync,
@@ -17,7 +16,7 @@ export async function prebuildAsync<TJob extends BuildJob>(
   ctx: BuildContext<TJob>,
   { logger, workingDir, options }: { logger: bunyan; workingDir: string; options?: PrebuildOptions }
 ): Promise<void> {
-  const spawnOptions: SpawnOptions = {
+  const spawnOptions = {
     cwd: workingDir,
     logger,
     env: {

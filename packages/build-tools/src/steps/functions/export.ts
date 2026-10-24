@@ -89,7 +89,6 @@ export function createEasExportBuildFunction(): BuildFunction {
             cwd: stepsCtx.workingDirectory,
             env,
             logger: stepsCtx.logger,
-            stdio: 'pipe',
           },
         });
         outputs.export_dir.set(outputDir);
