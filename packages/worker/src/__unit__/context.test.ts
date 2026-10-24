@@ -4,9 +4,11 @@ import { ManagedArtifactType, Platform, Workflow } from '@expo/eas-build-job';
 import config from '../config';
 import { createBuildContext } from '../context';
 import { getBuildEnv } from '../env';
+import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
 import { uploadSourceMapAsync, uploadWorkflowArtifactAsync } from '../upload';
 
+jest.mock('../warmSimulator');
 jest.mock('../env', () => ({
   getBuildEnv: jest.fn(() => ({
     __API_SERVER_URL: 'http://api.expo.test',
@@ -44,11 +46,43 @@ describe(createBuildContext.name, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(maybeStopWarmSimulatorAsync).mockReset().mockResolvedValue(undefined);
     jest.spyOn(RuntimeSettings, 'loadAsync').mockResolvedValue();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('awaits the stop decision after runtime settings and before preparing config files', async () => {
+    let finishStop!: () => void;
+    const stopping = new Promise<void>(resolve => {
+      finishStop = resolve;
+    });
+    jest.mocked(maybeStopWarmSimulatorAsync).mockReturnValue(stopping);
+    const job = { platform: Platform.IOS } as any;
+    const creating = createBuildContext({ ...baseOptions, job });
+    await Promise.resolve();
+    expect(RuntimeSettings.loadAsync).toHaveBeenCalledTimes(1);
+    expect(maybeStopWarmSimulatorAsync).toHaveBeenCalledWith(job);
+    expect(jest.mocked(RuntimeSettings.loadAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(maybeStopWarmSimulatorAsync).mock.invocationCallOrder[0]
+    );
+    expect(prepareRuntimeEnvironmentConfigFiles).not.toHaveBeenCalled();
+    finishStop();
+    await creating;
+    expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prepare runtime config files or build env when stopping fails', async () => {
+    const error = new Error('Simulator stop acknowledgement failed');
+    jest.mocked(maybeStopWarmSimulatorAsync).mockRejectedValue(error);
+    await expect(
+      createBuildContext({ ...baseOptions, job: { platform: Platform.IOS } as any })
+    ).rejects.toBe(error);
+    expect(RuntimeSettings.loadAsync).toHaveBeenCalledTimes(1);
+    expect(prepareRuntimeEnvironmentConfigFiles).not.toHaveBeenCalled();
+    expect(getBuildEnv).not.toHaveBeenCalled();
   });
 
   it('loads runtime settings with the job environment before creating build env', async () => {
