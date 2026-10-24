@@ -16,6 +16,7 @@ import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import { isExpoGoVersionInstalledAsync } from '../iosAppArtifact';
 import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { Sentry } from '../../../sentry';
@@ -55,6 +56,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
+jest.mock('../iosAppArtifact', () => ({ isExpoGoVersionInstalledAsync: jest.fn() }));
 jest.mock('../serveSimActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
@@ -155,6 +157,7 @@ beforeEach(() => {
     .mockResolvedValue({} as never);
   jest.mocked(stopDetachedProcessAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
+  jest.mocked(isExpoGoVersionInstalledAsync).mockReset().mockResolvedValue(false);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
   stopSessionPreview.mockResolvedValue(undefined);
@@ -595,6 +598,42 @@ it('installs and launches through the API for the selected Simulator', async () 
   expect(args[args.indexOf('@expo/serve-sim@latest') + 1]).toBe('emulator-5554');
   await host.finishAsync();
 });
+
+it.each([
+  { server: 'warm', installed: true, installs: false },
+  { server: 'warm', installed: false, installs: true },
+  { server: 'cold', installed: true, installs: true },
+])(
+  'installs Expo Go on a $server Simulator unless the same version is preinstalled ($installed)',
+  async ({ server, installed, installs }) => {
+    jest.mocked(isExpoGoVersionInstalledAsync).mockResolvedValue(installed);
+    jest
+      .mocked(stageServeSimAppAsync)
+      .mockResolvedValue({ directory: '/staged', path: '/staged/Expo Go.app' });
+    jest.mocked(spawn).mockResolvedValueOnce({ stdout: '{}' } as never);
+    const options = {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      iosSimulatorUdid: 'emulator-5554',
+      installAppPath: '/tmp/Expo Go.app',
+      launchAppIdentifier: 'host.exp.Exponent',
+    } as const;
+    const host =
+      server === 'warm'
+        ? await startWarmDeviceSessionHostAsync(ctx, options, warmSimulator(), {
+            turnArgs: Promise.resolve([]),
+          })
+        : await startDeviceSessionHostAsync(ctx, options);
+    const actions = jest.mocked(runServeSimActionAsync).mock.calls.map(([call]) => call.action);
+    expect(actions).toEqual(installs ? ['app.install', 'app.launch'] : ['app.launch']);
+    expect(stageServeSimAppAsync).toHaveBeenCalledTimes(installs ? 1 : 0);
+    expect(isExpoGoVersionInstalledAsync).toHaveBeenCalledTimes(server === 'warm' ? 1 : 0);
+    await host.finishAsync();
+  }
+);
 
 it('preserves startup CLI flags for already-prepared workflows', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {

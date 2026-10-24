@@ -49,6 +49,7 @@ import {
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
+import { isExpoGoVersionInstalledAsync } from './iosAppArtifact';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -874,7 +875,17 @@ async function startDeviceSessionHostInternalAsync(
           timeoutMs: startupTimeoutMs ?? timeoutMs,
           signal: startup.signal,
         });
-      if (app.installAppPath) {
+      if (
+        app.installAppPath &&
+        server.simulatorPrepared &&
+        (await isExpoGoVersionInstalledAsync({
+          udid: iosSimulatorUdid,
+          appPath: app.installAppPath,
+          env,
+        }))
+      ) {
+        logger.info('This Expo Go version is already installed on the Simulator.');
+      } else if (app.installAppPath) {
         const staged = await stageServeSimAppAsync(app.installAppPath, serveSimTmpdir);
         stagedAppDirectory = staged.directory;
         signal?.throwIfAborted();
