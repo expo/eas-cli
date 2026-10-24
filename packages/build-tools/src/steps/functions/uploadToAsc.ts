@@ -55,6 +55,12 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         defaultValue: false,
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
+      BuildStepInput.createProvider({
+        id: 'wait_processing_timeout_seconds',
+        required: false,
+        defaultValue: 30 * 60,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -73,6 +79,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const bundleVersion = z.string().parse(inputs.bundle_version.value);
       const bundleShortVersion = z.string().parse(inputs.bundle_short_version.value);
       const waitForProcessing = Boolean(inputs.wait_for_processing.value);
+      const processingTimeoutSeconds = z
+        .number()
+        .int()
+        .positive()
+        .parse(inputs.wait_processing_timeout_seconds.value);
 
       const ipaPath = path.resolve(stepsCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
@@ -213,7 +224,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const waitingLogIntervalMs = 10 * 1000;
       let lastWaitLogTime = 0;
       let lastWaitLogState: string | null = null;
-      while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
+      while (Date.now() - waitingForBuildStartedAt < processingTimeoutSeconds * 1000) {
         const {
           data: {
             attributes: { state },
@@ -322,9 +333,14 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
         } else if (state.state === 'COMPLETE') {
           stepsCtx.logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
+          return;
         }
-        break;
       }
+      throw new UserError(
+        'EAS_UPLOAD_TO_ASC_PROCESSING_TIMEOUT',
+        `Apple did not finish processing build upload ${buildUploadId} within ${processingTimeoutSeconds} seconds. ` +
+          'The binary was uploaded. Check its status in App Store Connect before uploading it again, or increase wait_processing_timeout_seconds.'
+      );
     },
   });
 }
