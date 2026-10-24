@@ -13,6 +13,31 @@ jest.mock('@expo/require-utils', () => {
   const actual = jest.requireActual('@expo/require-utils');
   return {
     ...actual,
+    resolveFrom: (
+      fromDirectory: string,
+      moduleId: string,
+      options?: { extensions?: string[] }
+    ): string | null => {
+      if (!moduleId.startsWith('./')) {
+        return actual.resolveFrom(fromDirectory, moduleId, options);
+      }
+
+      const fs = require('fs');
+      const path = require('path');
+      const basePath = path.resolve(fromDirectory, moduleId);
+      const candidates = options?.extensions?.length
+        ? options.extensions.map((extension: string) => `${basePath}${extension}`)
+        : [basePath];
+
+      for (const candidate of candidates) {
+        try {
+          if (fs.statSync(candidate).isFile()) {
+            return candidate;
+          }
+        } catch {}
+      }
+      return null;
+    },
     loadModuleSync: (filename: string) => {
       const fs = require('fs');
       const content = fs.readFileSync(filename, 'utf-8');

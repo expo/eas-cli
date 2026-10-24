@@ -1,4 +1,3 @@
-import { Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -500,10 +499,7 @@ export default class UpdatePublish extends EasCommand {
       exp,
       platforms: realizedPlatforms,
       projectDir,
-      workflows: {
-        ...workflows,
-        web: Workflow.UNKNOWN,
-      },
+      workflows,
       env: maybeServerEnv,
     });
     const runtimeToPlatformsAndFingerprintInfoMapping =
