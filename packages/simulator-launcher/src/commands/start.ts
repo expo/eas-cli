@@ -210,6 +210,45 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
 }
 
 type WarmTool = 'agent-device' | 'argent';
+
+/** Push notifications are not used in warm sessions, and apsd's work competes with app installs. */
+async function disableApsdAsync(udid: string, signal: AbortSignal): Promise<void> {
+  let lastError: unknown;
+  for (const domain of ['user/foreground', 'system']) {
+    const service = `${domain}/com.apple.apsd`;
+    try {
+      await commands.runAsync(
+        'xcrun',
+        ['simctl', 'spawn', udid, 'launchctl', 'disable', service],
+        signal
+      );
+      // bootout fails when apsd is already gone; the list check below decides.
+      await commands
+        .runAsync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', service], signal)
+        .catch(error => {
+          lastError = error;
+        });
+      const loaded = await commands
+        .runAsync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list', 'com.apple.apsd'], signal)
+        .then(
+          () => true,
+          error => {
+            if (error.code === 113) {
+              return false;
+            }
+            throw error;
+          }
+        );
+      if (!loaded) {
+        return;
+      }
+    } catch (error) {
+      signal.throwIfAborted();
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error('apsd is still loaded in the Simulator.');
+}
 type WarmToolStartup = { controller: AbortController; ready: Promise<void> };
 
 /** Own resources before preparation starts so every partial attempt can be stopped. */
@@ -359,12 +398,20 @@ export function createWarmSimulatorSession({
       serviceProcesses.add(serveSim);
       await waitForServeSimReadyAsync(udid, serveSim, signal);
     });
+    // The job launches apps right after its claim, so apsd is settled before the device is ready.
+    const apsdPromise = simulatorBootPromise.then(() =>
+      disableApsdAsync(udid, signal).catch(error => {
+        signal.throwIfAborted();
+        process.stderr.write(`Could not disable apsd on ${udid}; continuing: ${error}\n`);
+      })
+    );
     try {
-      await serveSimPromise;
+      await Promise.all([serveSimPromise, apsdPromise]);
     } catch (error) {
       onPreparationFailure(error);
       await Promise.allSettled([
         simulatorBootPromise,
+        apsdPromise,
         servicesAllowed,
         ...[...toolStartups.values()].map(startup => startup.ready),
       ]);

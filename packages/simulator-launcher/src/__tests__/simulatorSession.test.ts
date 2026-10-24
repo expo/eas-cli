@@ -66,13 +66,14 @@ beforeEach(() => {
   controller = new AbortController();
   onPreparationFailure = jest.fn(error => controller.abort(error));
   onBackgroundFailure = jest.fn(error => controller.abort(error));
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation(async (_file, args) =>
-      args.includes('list')
-        ? JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } })
-        : 'native-start-time'
-    );
+  jest.mocked(commands.runAsync).mockImplementation(async (_file, args) => {
+    if (args.includes('launchctl') && args.includes('list')) {
+      throw Object.assign(new Error('apsd is not loaded'), { code: 113 });
+    }
+    return args.includes('devices')
+      ? JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } })
+      : 'native-start-time';
+  });
   jest.mocked(startServeSim).mockReturnValue(serveSim);
   jest.mocked(startAgentDevicePreparation).mockReturnValue(agent);
   jest.mocked(startArgentServer).mockReturnValue(argent);
@@ -111,6 +112,58 @@ it('creates an idle owner synchronously and stops services acquired before a too
   } finally {
     argentPreparation.reject(failure);
   }
+});
+
+it('disables apsd after boot and before the device is reported ready', async () => {
+  const apsdBootout = deferred<string>();
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      args.includes('bootout') && args.includes('user/foreground/com.apple.apsd')
+        ? apsdBootout.promise
+        : original(file, args, signal)
+    );
+  const session = createSession();
+  let ready = false;
+  const preparing = session.prepareAsync().then(info => {
+    ready = true;
+    return info;
+  });
+  try {
+    await until(() =>
+      jest.mocked(commands.runAsync).mock.calls.some(([, args]) => args.includes('bootout'))
+    );
+    const calls = jest.mocked(commands.runAsync).mock.calls.map(([, args]) => args.join(' '));
+    expect(calls.findIndex(call => call.includes('bootstatus PHONE'))).toBeLessThan(
+      calls.indexOf('simctl spawn PHONE launchctl disable user/foreground/com.apple.apsd')
+    );
+    await new Promise(resolve => setImmediate(resolve));
+    expect(ready).toBe(false);
+    apsdBootout.resolve('');
+    await preparing;
+    expect(calls).toContain('simctl spawn PHONE launchctl disable user/foreground/com.apple.apsd');
+  } finally {
+    apsdBootout.resolve('');
+  }
+});
+
+it('keeps the warm session when apsd cannot be disabled', async () => {
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation(async (file, args, signal) =>
+      args.includes('launchctl') && args.includes('disable')
+        ? Promise.reject(new Error('launchctl unavailable'))
+        : original(file, args, signal)
+    );
+  const stderr = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const session = createSession();
+  expect(await session.prepareAsync()).toMatchObject({ device: { udid: 'PHONE' } });
+  expect(stderr).toHaveBeenCalledWith(
+    expect.stringContaining('Could not disable apsd on PHONE; continuing')
+  );
+  expect(onPreparationFailure).not.toHaveBeenCalled();
 });
 
 it('serve-sim claim during agent-device prepare stops it and returns without waiting', async () => {
@@ -178,8 +231,9 @@ it('claim waits only for the requested tool and stops the other one mid-start', 
 
 it('replacement boots the new device while the old one is released, then starts only the requested tool', async () => {
   const release = deferred<void>();
-  jest.mocked(commands.runAsync).mockImplementation(async (_file, args) =>
-    args.includes('list')
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
+    args.includes('devices')
       ? JSON.stringify({
           devices: {
             ios: [
@@ -188,7 +242,7 @@ it('replacement boots the new device while the old one is released, then starts 
             ],
           },
         })
-      : 'native-start-time'
+      : original(file, args, signal)
   );
   jest.mocked(stopServicesAndShutdownSimulatorAsync).mockReturnValueOnce(release.promise);
   const session = createSession();
@@ -213,6 +267,11 @@ it('replacement boots the new device while the old one is released, then starts 
     release.resolve();
     expect(await claiming).toEqual({ udid: 'PRO', name: 'iPhone 17 Pro' });
     expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
+    expect(commands.runAsync).toHaveBeenCalledWith(
+      'xcrun',
+      ['simctl', 'spawn', 'PRO', 'launchctl', 'disable', 'user/foreground/com.apple.apsd'],
+      controller.signal
+    );
     expect(startAgentDevicePreparation).toHaveBeenCalledWith('PRO', expect.anything());
     expect(startArgentServer).not.toHaveBeenCalled();
   } finally {

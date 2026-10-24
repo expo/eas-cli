@@ -110,8 +110,11 @@ beforeEach(async () => {
     if (args.includes('lstart=')) {
       return 'Thu Oct 22 10:00:00 2026';
     }
-    if (args.includes('list')) {
+    if (args.includes('devices')) {
       return JSON.stringify(deviceList);
+    }
+    if (args.includes('launchctl') && args.includes('list')) {
+      throw Object.assign(new Error('apsd is not loaded'), { code: 113 });
     }
     return '';
   });
@@ -327,7 +330,7 @@ for (const selector of [undefined, 'phone', 'iPhone 17 Pro']) {
     });
     expect(result.agentDeviceStateDir).toBeTruthy();
     expect(
-      jest.mocked(commands.runAsync).mock.calls.filter(([, args]) => args.includes('list'))
+      jest.mocked(commands.runAsync).mock.calls.filter(([, args]) => args.includes('devices'))
     ).toHaveLength(1);
     if (replacement) {
       const calls = jest.mocked(commands.runAsync).mock.calls;
@@ -346,7 +349,7 @@ test('a device snapshot miss refreshes once to select a newly available device',
   let lists = 0;
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest.mocked(commands.runAsync).mockImplementation((file, args, signal) =>
-    args.includes('list')
+    args.includes('devices')
       ? Promise.resolve(
           JSON.stringify({
             devices: {
