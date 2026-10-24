@@ -24,7 +24,7 @@ const api = () => nock('https://api.appstoreconnect.apple.com');
 const logger = createMockLogger();
 const globalContext = () => createGlobalContextMock({ projectTargetDirectory: '/project', logger });
 
-async function waitAsync(diagnostics: Record<string, string> = {}): Promise<void> {
+async function waitAsync(diagnostics: Record<string, string | number> = {}): Promise<void> {
   const fn = getEasFunctions(createCustomBuildContextMock()).find(
     fn => fn.getFullId() === 'eas/wait_for_asc_build_processing'
   )!;
@@ -139,6 +139,18 @@ it('polls an existing upload through awaiting and processing states until comple
   await expect(waitAsync()).resolves.toBeUndefined();
 });
 
+it('reports a processing timeout instead of success when Apple is still processing', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  jest.mocked(setTimeout).mockImplementation(async () => {
+    now += 2000;
+  });
+  mockProcessing('PROCESSING');
+  await expect(waitAsync({ wait_processing_timeout_seconds: 1 })).rejects.toMatchObject({
+    errorCode: 'EAS_UPLOAD_TO_ASC_PROCESSING_TIMEOUT',
+  });
+});
+
 it('uses the supplied bundle identifier in mismatch errors without an IPA', async () => {
   mockProcessing(
     'FAILED',
@@ -226,7 +238,7 @@ it.each([undefined, false, true])(
 );
 
 it.each(['upload', 'wait'])(
-  'preserves the successful timeout return for the %s step',
+  'reports the default processing timeout for the %s step',
   async step => {
     mockProcessing('PROCESSING');
     const start = Date.now();
@@ -234,6 +246,8 @@ it.each(['upload', 'wait'])(
     jest.mocked(setTimeout).mockImplementationOnce(async () => {
       jest.spyOn(Date, 'now').mockReturnValue(start + 30 * 60 * 1000);
     });
-    await expect(step === 'upload' ? uploadAsync(true) : waitAsync()).resolves.toBeUndefined();
+    await expect(step === 'upload' ? uploadAsync(true) : waitAsync()).rejects.toMatchObject({
+      errorCode: 'EAS_UPLOAD_TO_ASC_PROCESSING_TIMEOUT',
+    });
   }
 );

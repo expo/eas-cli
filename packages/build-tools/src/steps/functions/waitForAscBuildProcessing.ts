@@ -16,6 +16,12 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
     __metricsId: 'eas/wait_for_asc_build_processing',
     inputProviders: [
       BuildStepInput.createProvider({
+        id: 'wait_processing_timeout_seconds',
+        required: false,
+        defaultValue: 30 * 60,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
         id: 'asc_api_key_path',
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -46,6 +52,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         .object({
           asc_api_key_path: z.string(),
           build_upload_id: z.string(),
+          wait_processing_timeout_seconds: z.number().finite().positive(),
           bundle_identifier: z.string().optional(),
           apple_app_identifier: z.string().optional(),
           bundle_short_version: z.string().optional(),
@@ -53,6 +60,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         .parse({
           asc_api_key_path: inputs.asc_api_key_path.value,
           build_upload_id: inputs.build_upload_id.value,
+          wait_processing_timeout_seconds: inputs.wait_processing_timeout_seconds.value,
           bundle_identifier: inputs.bundle_identifier.value,
           apple_app_identifier: inputs.apple_app_identifier.value,
           bundle_short_version: inputs.bundle_short_version.value,
@@ -63,6 +71,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
       await waitForAscBuildProcessingAsync({
         client,
         buildUploadId: parsedInputs.build_upload_id,
+        processingTimeoutSeconds: parsedInputs.wait_processing_timeout_seconds,
         logger: ctx.logger,
         ipaBundleIdentifier: parsedInputs.bundle_identifier,
         appleAppIdentifier: parsedInputs.apple_app_identifier,
@@ -81,6 +90,7 @@ export async function waitForAscBuildProcessingAsync({
   appleAppIdentifier,
   ascAppBundleIdentifier,
   bundleShortVersion,
+  processingTimeoutSeconds = 30 * 60,
 }: {
   client: AscApiClient;
   buildUploadId: string;
@@ -89,13 +99,14 @@ export async function waitForAscBuildProcessingAsync({
   appleAppIdentifier: string | undefined;
   ascAppBundleIdentifier: string | undefined;
   bundleShortVersion: string | undefined;
+  processingTimeoutSeconds?: number;
 }): Promise<void> {
   logger.info('Checking build upload status...');
   const waitingForBuildStartedAt = Date.now();
   const waitingLogIntervalMs = 10 * 1000;
   let lastWaitLogTime = 0;
   let lastWaitLogState: string | null = null;
-  while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
+  while (Date.now() - waitingForBuildStartedAt < processingTimeoutSeconds * 1000) {
     const {
       data: {
         attributes: { state },
@@ -205,9 +216,14 @@ export async function waitForAscBuildProcessingAsync({
       throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
     } else if (state.state === 'COMPLETE') {
       logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
+      return;
     }
-    break;
   }
+  throw new UserError(
+    'EAS_UPLOAD_TO_ASC_PROCESSING_TIMEOUT',
+    `Apple did not finish processing build upload ${buildUploadId} within ${processingTimeoutSeconds} seconds. ` +
+      'The binary was uploaded. Check its status in App Store Connect before uploading it again, or increase wait_processing_timeout_seconds.'
+  );
 }
 
 function isClosedVersionTrainError(messages: { code: string }[]): boolean {
