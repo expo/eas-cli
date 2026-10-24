@@ -50,6 +50,11 @@ import { createRunAgentBuildFunction } from './functions/runAgent';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
+import {
+  createStartWarmAgentDeviceSessionBuildFunction,
+  createStartWarmArgentRemoteSessionBuildFunction,
+  createStartWarmWebPreviewRemoteSessionBuildFunction,
+} from './functions/startWarmIosSimulatorSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
 import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
@@ -111,7 +116,9 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
     createStartAgentDeviceSessionBuildFunction(ctx),
+    createStartWarmAgentDeviceSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartWarmArgentRemoteSessionBuildFunction(ctx),
     createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
@@ -121,6 +128,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
+    createStartWarmWebPreviewRemoteSessionBuildFunction(ctx),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),

@@ -757,7 +757,7 @@ export function createIosSessionStartupInputProviders(): ReturnType<
 }
 
 export type ServeSimApplicationOptions = ServeSimLaunchOptions & {
-  installAppPath: string;
+  installAppPath?: string;
   launchAppIdentifier: string;
 };
 
