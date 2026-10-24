@@ -57,7 +57,10 @@ import {
 } from './functions/startWarmIosSimulatorSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
-import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
+import {
+  createStartAppiumRemoteSessionBuildFunction,
+  createStartWarmAppiumRemoteSessionBuildFunction,
+} from './functions/startAppiumRemoteSession';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
@@ -120,6 +123,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartArgentRemoteSessionBuildFunction(ctx),
     createStartWarmArgentRemoteSessionBuildFunction(ctx),
     createStartAppiumRemoteSessionBuildFunction(ctx),
+    createStartWarmAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),

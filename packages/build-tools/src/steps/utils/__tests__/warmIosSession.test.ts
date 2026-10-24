@@ -815,3 +815,44 @@ it('rejects Argent outside the recorded controller even when serve-sim has valid
     expect.anything()
   );
 });
+
+it('claims Appium with authoritative serve-sim preflight and leaves Appium version setup to the job', async () => {
+  const warm = await tryClaimWarmIosSessionAsync({
+    engine: 'appium',
+    requestedDevice: UDID,
+    env,
+    logger,
+  });
+  expect(warm?.device.udid).toBe(UDID);
+  expect(warm?.tools).toBeUndefined();
+  expect(spawn).toHaveBeenCalledWith(
+    process.execPath,
+    [SCRIPT, 'claim', 'appium', UDID],
+    expect.anything()
+  );
+  expect(turtleFetch).toHaveBeenCalledWith(
+    'http://127.0.0.1:3200/readyz',
+    'GET',
+    expect.objectContaining({ headers: { Authorization: 'Bearer serve-secret' } })
+  );
+  expect(listAgentDeviceArtifactsAsync).not.toHaveBeenCalled();
+});
+
+it('rejects a foreign warm serve-sim process for Appium before handing off', async () => {
+  const original = jest.mocked(spawn).getMockImplementation()!;
+  jest
+    .mocked(spawn)
+    .mockImplementation((command, args, options) =>
+      command === 'ps'
+        ? (Promise.resolve({ stdout: '1\n' }) as ReturnType<typeof spawn>)
+        : original(command, args, options)
+    );
+  expect(await tryClaimWarmIosSessionAsync({ engine: 'appium', env, logger })).toBeUndefined();
+  expect(spawn).toHaveBeenCalledWith('ps', expect.anything(), expect.anything());
+  expect(turtleFetch).not.toHaveBeenCalled();
+  expect(spawn).toHaveBeenCalledWith(
+    'bun',
+    ['x', '@expo/simulator-launcher@latest', 'stop'],
+    expect.anything()
+  );
+});

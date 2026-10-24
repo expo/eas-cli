@@ -13,7 +13,7 @@ exec bunx @expo/simulator-launcher@latest start
 
 - `start`: boot the selected Simulator and launch the tools in the foreground.
 - `claim ENGINE [DEVICE]`: hand the warm device to one job. Engines: `serve-sim`, `agent-device`,
-  `argent`. Omit DEVICE to reuse it, or pass an exact name or UDID to select another.
+  `argent`, `appium`. Omit DEVICE to reuse it, or pass an exact name or UDID to select another.
   Replacement cleans up the old session before starting the requested device.
 - `stop`: disable preparation for this VM boot and wait for owned resources to be cleaned up.
 
@@ -52,6 +52,7 @@ The startup script owns Node/Bun/PATH setup and these optional overrides:
   the tools and performs serve-sim's private `--adopt` handoff before app actions.
 - One start attempt and one accepted claim per VM boot. Stop is permanent for that boot;
   a failed replacement cannot skip cleanup and start another device.
+- Appium claim waits for unused tools to stop before the job starts its own WDA.
 - Warmup also tries to preinstall the latest stable Expo Go and install missing ffmpeg with Homebrew.
   Ordinary failures warn. Claim prevents a late Expo Go install, waiting only if native install already
   started; the job's requested app remains authoritative.

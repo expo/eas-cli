@@ -493,6 +493,10 @@ export function createWarmSimulatorSession({
       if (requestedTool) {
         await toolStartups.get(requestedTool)!.ready;
       }
+      if (request.engine === 'appium') {
+        // WDA must not share the Simulator with the warmed agent-device XCTest runner.
+        await unusedToolsCleanup;
+      }
       return currentDevice;
     },
 
