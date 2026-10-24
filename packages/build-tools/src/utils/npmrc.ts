@@ -1,23 +1,45 @@
-import { Job } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
+import os from 'os';
 import path from 'path';
 
 import { findPackagerRootDir } from './packageManager';
-import { BuildContext } from '../context';
-import { NpmrcTemplate } from '../templates/npmrc';
+import { NpmrcAuthTokenLine, NpmrcTemplate } from '../templates/npmrc';
 
-export async function setUpNpmrcAsync(ctx: BuildContext<Job>, logger: bunyan): Promise<void> {
-  if (ctx.env.NPM_TOKEN) {
-    await createNpmrcIfNotExistsAsync(ctx, logger);
+export async function setUpNpmrcAsync({
+  projectTargetDirectory,
+  workingDirectory,
+  env,
+  logger,
+}: {
+  projectTargetDirectory: string;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  logger: bunyan;
+}): Promise<void> {
+  if (!env.NPM_TOKEN) {
+    await logIfNpmrcExistsAsync(projectTargetDirectory, workingDirectory, logger);
+    return;
+  }
+  logger.info('We detected that you set the NPM_TOKEN environment variable');
+  // pnpm 10.34.2+ and 11.5.3+ ignore ${NPM_TOKEN} placeholders in a project-level .npmrc but expand them in ~/.npmrc
+  if (env.EAS_BUILD_RUNNER === 'eas-build') {
+    await addNpmTokenToHomeNpmrcAsync(logger);
   } else {
-    await logIfNpmrcExistsAsync(ctx, logger);
+    await createProjectNpmrcIfNotExistsAsync(projectTargetDirectory, logger);
   }
 }
 
-async function createNpmrcIfNotExistsAsync(ctx: BuildContext<Job>, logger: bunyan): Promise<void> {
-  logger.info('We detected that you set the NPM_TOKEN environment variable');
-  const projectNpmrcPath = path.join(ctx.buildDirectory, '.npmrc');
+async function addNpmTokenToHomeNpmrcAsync(logger: bunyan): Promise<void> {
+  logger.info(`Adding "${NpmrcAuthTokenLine}" to ~/.npmrc`);
+  await fs.appendFile(path.join(os.homedir(), '.npmrc'), `\n${NpmrcAuthTokenLine}\n`);
+}
+
+async function createProjectNpmrcIfNotExistsAsync(
+  projectTargetDirectory: string,
+  logger: bunyan
+): Promise<void> {
+  const projectNpmrcPath = path.join(projectTargetDirectory, '.npmrc');
   if (await fs.pathExists(projectNpmrcPath)) {
     logger.info('.npmrc already exists in your project directory, skipping generation');
   } else {
@@ -27,12 +49,13 @@ async function createNpmrcIfNotExistsAsync(ctx: BuildContext<Job>, logger: bunya
   }
 }
 
-async function logIfNpmrcExistsAsync(ctx: BuildContext<Job>, logger: bunyan): Promise<void> {
-  const projectNpmrcPath = path.join(
-    findPackagerRootDir(ctx.getReactNativeProjectDirectory()),
-    '.npmrc'
-  );
+async function logIfNpmrcExistsAsync(
+  projectTargetDirectory: string,
+  workingDirectory: string,
+  logger: bunyan
+): Promise<void> {
+  const projectNpmrcPath = path.join(findPackagerRootDir(workingDirectory), '.npmrc');
   if (await fs.pathExists(projectNpmrcPath)) {
-    logger.info(`.npmrc found at ${path.relative(ctx.buildDirectory, projectNpmrcPath)}`);
+    logger.info(`.npmrc found at ${path.relative(projectTargetDirectory, projectNpmrcPath)}`);
   }
 }
