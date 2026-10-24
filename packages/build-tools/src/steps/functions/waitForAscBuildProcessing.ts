@@ -130,7 +130,7 @@ export async function waitForAscBuildProcessingAsync({
     }
 
     if (state.state === 'FAILED') {
-      if (AscApiUtils.isSdkVersionIssueError(errors)) {
+      if (isSdkVersionIssueError(errors)) {
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
           'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
@@ -141,7 +141,7 @@ export async function waitForAscBuildProcessingAsync({
           }
         );
       }
-      if (AscApiUtils.isInvalidBundleIdentifierError(errors)) {
+      if (isInvalidBundleIdentifierError(errors)) {
         if (!ascAppBundleIdentifier && appleAppIdentifier) {
           try {
             const app = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
@@ -173,8 +173,8 @@ export async function waitForAscBuildProcessingAsync({
           }
         );
       }
-      if (AscApiUtils.isMissingPurposeStringError(errors)) {
-        const missingUsageDescriptionKeys = AscApiUtils.parseMissingUsageDescriptionKeys(errors);
+      if (isMissingPurposeStringError(errors)) {
+        const missingUsageDescriptionKeys = parseMissingUsageDescriptionKeys(errors);
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
           `Build upload was rejected by App Store Connect because Info.plist is missing one or more privacy purpose strings.\n\n` +
@@ -193,7 +193,7 @@ export async function waitForAscBuildProcessingAsync({
           }
         );
       }
-      if (AscApiUtils.isClosedVersionTrainError(errors)) {
+      if (isClosedVersionTrainError(errors)) {
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
           `Build upload was rejected by App Store Connect because the ${bundleShortVersion ?? 'selected'} app version is not accepted for new build submissions. ` +
@@ -207,4 +207,38 @@ export async function waitForAscBuildProcessingAsync({
     }
     break;
   }
+}
+
+function isClosedVersionTrainError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 &&
+    messages.every(message => ['90062', '90186', '90478'].includes(message.code))
+  );
+}
+
+function isSdkVersionIssueError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90725');
+}
+
+function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 && messages.every(message => ['90054', '90055'].includes(message.code))
+  );
+}
+
+function isMissingPurposeStringError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90683');
+}
+
+function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
+  const usageDescriptionKeyRegex = /\b(\w+UsageDescription)\b/g;
+  const keys = new Set<string>();
+  for (const message of messages) {
+    const matches = message.description.matchAll(usageDescriptionKeyRegex);
+    for (const match of matches) {
+      keys.add(match[1]);
+    }
+  }
+
+  return [...keys];
 }

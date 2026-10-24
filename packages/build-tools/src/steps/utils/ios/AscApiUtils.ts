@@ -306,38 +306,4 @@ export namespace AscApiUtils {
   export function itemizeMessages(messages: { description: string; code: string }[]): string {
     return `- ${messages.map(m => `${m.description} (${m.code})`).join('\n- ')}`;
   }
-
-  export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
-    return (
-      messages.length > 0 &&
-      messages.every(message => ['90062', '90186', '90478'].includes(message.code))
-    );
-  }
-
-  export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
-    return messages.length > 0 && messages.every(message => message.code === '90725');
-  }
-
-  export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
-    return (
-      messages.length > 0 && messages.every(message => ['90054', '90055'].includes(message.code))
-    );
-  }
-
-  export function isMissingPurposeStringError(messages: { code: string }[]): boolean {
-    return messages.length > 0 && messages.every(message => message.code === '90683');
-  }
-
-  export function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
-    const usageDescriptionKeyRegex = /\b(\w+UsageDescription)\b/g;
-    const keys = new Set<string>();
-    for (const message of messages) {
-      const matches = message.description.matchAll(usageDescriptionKeyRegex);
-      for (const match of matches) {
-        keys.add(match[1]);
-      }
-    }
-
-    return [...keys];
-  }
 }

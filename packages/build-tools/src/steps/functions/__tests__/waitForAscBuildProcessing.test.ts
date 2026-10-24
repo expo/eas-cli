@@ -140,7 +140,10 @@ it('polls an existing upload through awaiting and processing states until comple
 });
 
 it('uses the supplied bundle identifier in mismatch errors without an IPA', async () => {
-  mockProcessing('FAILED', [{ code: '90054', description: 'Bundle mismatch' }]);
+  mockProcessing(
+    'FAILED',
+    ['90054', '90055'].map(code => ({ code, description: 'Bundle mismatch' }))
+  );
   mockApp();
   api().get('/v1/apps').query(true).reply(200, { data: [] });
   await expect(
@@ -153,9 +156,56 @@ it('uses the supplied bundle identifier in mismatch errors without an IPA', asyn
   });
 });
 
-it('fails for an unclassified Apple processing error', async () => {
-  mockProcessing('FAILED', [{ code: 'OTHER', description: 'Rejected' }]);
+it.each<[string, string[], string]>([
+  ['SDK version', ['90725'], 'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE'],
+  ['closed version train', ['90062', '90186', '90478'], 'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN'],
+])('reports a %s processing error', async (_label, codes, errorCode) => {
+  mockProcessing(
+    'FAILED',
+    codes.map(code => ({ code, description: 'Rejected' }))
+  );
+  await expect(waitAsync()).rejects.toMatchObject({ errorCode });
+});
+
+it.each(
+  [
+    [],
+    ['OTHER'],
+    ['90725', 'OTHER'],
+    ['90062', 'OTHER'],
+    ['90054', 'OTHER'],
+    ['90683', 'OTHER'],
+  ].map(codes => ({ codes }))
+)('keeps unclassified or mixed processing errors generic: $codes', async ({ codes }) => {
+  mockProcessing(
+    'FAILED',
+    codes.map(code => ({ code, description: 'Rejected' }))
+  );
   await expect(waitAsync()).rejects.toThrow('Build upload (ID: upload) failed.');
+});
+
+it('reports missing privacy keys once each', async () => {
+  mockProcessing('FAILED', [
+    {
+      code: '90683',
+      description: 'Missing NSCameraUsageDescription and NSPhotoLibraryUsageDescription.',
+    },
+    { code: '90683', description: 'Missing NSCameraUsageDescription.' },
+  ]);
+  await expect(waitAsync()).rejects.toMatchObject({
+    errorCode: 'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
+    message: expect.stringContaining(
+      'Missing keys reported by App Store Connect:\n- NSCameraUsageDescription\n- NSPhotoLibraryUsageDescription\n\n'
+    ),
+  });
+});
+
+it('reports missing privacy purpose strings when Apple does not name a key', async () => {
+  mockProcessing('FAILED', [{ code: '90683', description: 'Missing purpose string.' }]);
+  await expect(waitAsync()).rejects.toMatchObject({
+    errorCode: 'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
+    message: expect.not.stringContaining('Missing keys reported by App Store Connect:'),
+  });
 });
 
 it.each([undefined, false, true])(
