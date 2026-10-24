@@ -39,23 +39,31 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
       }),
     ],
     fn: async (ctx, { inputs }) => {
-      const keyPath = path.resolve(
-        ctx.workingDirectory,
-        z.string().parse(inputs.asc_api_key_path.value)
-      );
-      const buildUploadId = z.string().parse(inputs.build_upload_id.value);
-      const ipaBundleIdentifier = z.string().optional().parse(inputs.bundle_identifier.value);
-      const appleAppIdentifier = z.string().optional().parse(inputs.apple_app_identifier.value);
-      const bundleShortVersion = z.string().optional().parse(inputs.bundle_short_version.value);
+      const parsedInputs = z
+        .object({
+          asc_api_key_path: z.string(),
+          build_upload_id: z.string(),
+          bundle_identifier: z.string().optional(),
+          apple_app_identifier: z.string().optional(),
+          bundle_short_version: z.string().optional(),
+        })
+        .parse({
+          asc_api_key_path: inputs.asc_api_key_path.value,
+          build_upload_id: inputs.build_upload_id.value,
+          bundle_identifier: inputs.bundle_identifier.value,
+          apple_app_identifier: inputs.apple_app_identifier.value,
+          bundle_short_version: inputs.bundle_short_version.value,
+        });
+      const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
       const key = await AscApiUtils.loadApiKeyAsync({ keyPath });
       const client = new AscApiClient({ key, logger: ctx.logger });
       await AscApiUtils.waitForAscBuildProcessingAsync({
         client,
-        buildUploadId,
+        buildUploadId: parsedInputs.build_upload_id,
         logger: ctx.logger,
-        ipaBundleIdentifier,
-        appleAppIdentifier,
-        bundleShortVersion,
+        ipaBundleIdentifier: parsedInputs.bundle_identifier,
+        appleAppIdentifier: parsedInputs.apple_app_identifier,
+        bundleShortVersion: parsedInputs.bundle_short_version,
       });
     },
   });
