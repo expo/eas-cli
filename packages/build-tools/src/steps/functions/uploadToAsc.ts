@@ -13,7 +13,6 @@ import { z } from 'zod';
 
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
-import { itemizeMessages, waitForAscBuildProcessingAsync } from '../utils/ios/ascBuildProcessing';
 import { readIpaInfoAsync } from './readIpaInfo';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
@@ -184,10 +183,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         const { errors = [], warnings = [] } = assetDeliveryState;
         if (warnings.length > 0) {
-          stepsCtx.logger.warn(`Warnings:\n${itemizeMessages(warnings)}\n`);
+          stepsCtx.logger.warn(`Warnings:\n${AscApiUtils.itemizeMessages(warnings)}\n`);
         }
         if (errors.length > 0) {
-          stepsCtx.logger.error(`Errors:\n${itemizeMessages(errors)}\n`);
+          stepsCtx.logger.error(`Errors:\n${AscApiUtils.itemizeMessages(errors)}\n`);
         }
 
         if (assetDeliveryState.state === 'FAILED') {
@@ -208,11 +207,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         return;
       }
 
-      await waitForAscBuildProcessingAsync({
+      await AscApiUtils.waitForAscBuildProcessingAsync({
         client,
         buildUploadId,
         logger: stepsCtx.logger,
-        ipaPath,
+        ipaBundleIdentifier: ipaInfoResult.ok ? ipaInfoResult.value.bundleIdentifier : undefined,
         ascAppBundleIdentifier,
         bundleShortVersion,
       });

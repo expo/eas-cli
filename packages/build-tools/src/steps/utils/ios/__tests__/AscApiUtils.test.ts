@@ -431,3 +431,124 @@ describe('commitBuildUploadFileAsync', () => {
     15_000
   );
 });
+
+describe(AscApiUtils.isClosedVersionTrainError, () => {
+  it('returns true when all errors are closed-version-train codes', () => {
+    expect(
+      AscApiUtils.isClosedVersionTrainError([
+        { code: '90062' },
+        { code: '90186' },
+        { code: '90478' },
+        { code: '90062' },
+      ])
+    ).toBe(true);
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(
+      AscApiUtils.isClosedVersionTrainError([
+        { code: '90062' },
+        { code: '90186' },
+        { code: '12345' },
+      ])
+    ).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(AscApiUtils.isClosedVersionTrainError([])).toBe(false);
+  });
+});
+
+describe(AscApiUtils.isInvalidBundleIdentifierError, () => {
+  it('returns true when all errors are invalid-bundle-id codes', () => {
+    expect(
+      AscApiUtils.isInvalidBundleIdentifierError([
+        { code: '90054' },
+        { code: '90055' },
+        { code: '90055' },
+      ])
+    ).toBe(true);
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(AscApiUtils.isInvalidBundleIdentifierError([{ code: '90055' }, { code: '90713' }])).toBe(
+      false
+    );
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(AscApiUtils.isInvalidBundleIdentifierError([])).toBe(false);
+  });
+});
+
+describe(AscApiUtils.isMissingPurposeStringError, () => {
+  it('returns true when all errors are missing-purpose-string codes', () => {
+    expect(AscApiUtils.isMissingPurposeStringError([{ code: '90683' }, { code: '90683' }])).toBe(
+      true
+    );
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(AscApiUtils.isMissingPurposeStringError([{ code: '90683' }, { code: '90054' }])).toBe(
+      false
+    );
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(AscApiUtils.isMissingPurposeStringError([])).toBe(false);
+  });
+});
+
+describe(AscApiUtils.isSdkVersionIssueError, () => {
+  it('returns true when all errors are SDK-version-issue codes', () => {
+    expect(AscApiUtils.isSdkVersionIssueError([{ code: '90725' }, { code: '90725' }])).toBe(true);
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(AscApiUtils.isSdkVersionIssueError([{ code: '90725' }, { code: '90062' }])).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(AscApiUtils.isSdkVersionIssueError([])).toBe(false);
+  });
+});
+
+describe(AscApiUtils.parseMissingUsageDescriptionKeys, () => {
+  it('extracts missing UsageDescription keys from ASC messages', () => {
+    expect(
+      AscApiUtils.parseMissingUsageDescriptionKeys([
+        {
+          description:
+            'The Info.plist file should contain a NSPhotoLibraryUsageDescription key with a user-facing purpose string. (90683)',
+        },
+        {
+          description:
+            'The Info.plist file should contain a NSCameraUsageDescription key with a user-facing purpose string. (90683)',
+        },
+      ])
+    ).toEqual(['NSPhotoLibraryUsageDescription', 'NSCameraUsageDescription']);
+  });
+
+  it('deduplicates repeated keys', () => {
+    expect(
+      AscApiUtils.parseMissingUsageDescriptionKeys([
+        {
+          description:
+            'The Info.plist file should contain a NSCameraUsageDescription key with a user-facing purpose string. (90683)',
+        },
+        {
+          description:
+            'The Info.plist file should contain a NSCameraUsageDescription key with a user-facing purpose string. (90683)',
+        },
+      ])
+    ).toEqual(['NSCameraUsageDescription']);
+  });
+
+  it('returns an empty array when no usage description key is present', () => {
+    expect(
+      AscApiUtils.parseMissingUsageDescriptionKeys([
+        { description: 'Some other upload validation error.' },
+      ])
+    ).toEqual([]);
+  });
+});

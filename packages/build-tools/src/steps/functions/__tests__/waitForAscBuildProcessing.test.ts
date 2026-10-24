@@ -99,13 +99,6 @@ beforeEach(async () => {
     key_id: 'TESTKEY',
     key: privateKey.export({ type: 'pkcs8', format: 'pem' }),
   });
-  await fs.outputFile('/project/app.ipa', 'ipa');
-  jest.mocked(readIpaInfoAsync).mockResolvedValue({
-    bundleIdentifier: 'com.test.ipa',
-    bundleVersion: '1',
-    bundleShortVersion: '1.0',
-    dtPlatformName: 'iphoneos',
-  });
   jest.mocked(setTimeout).mockResolvedValue(undefined);
 });
 afterEach(() => {
@@ -124,19 +117,18 @@ it('polls an existing upload through awaiting and processing states until comple
   await expect(waitAsync()).resolves.toBeUndefined();
 });
 
-it('includes optional IPA and selected app details in bundle mismatch errors', async () => {
+it('uses the supplied bundle identifier in mismatch errors without an IPA', async () => {
   mockProcessing('FAILED', [{ code: '90054', description: 'Bundle mismatch' }]);
   mockApp();
   api().get('/v1/apps').query(true).reply(200, { data: [] });
   await expect(
-    waitAsync({ ipa_path: 'app.ipa', apple_app_identifier: 'app' })
+    waitAsync({ bundle_identifier: 'com.test.ipa', apple_app_identifier: 'app' })
   ).rejects.toMatchObject({
     errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
     message: expect.stringContaining(
       'IPA bundle identifier: com.test.ipa\nApp Store Connect app bundle identifier: com.test.app'
     ),
   });
-  expect(readIpaInfoAsync).toHaveBeenCalledWith('/project/app.ipa');
 });
 
 it('fails for an unclassified Apple processing error', async () => {
@@ -159,6 +151,13 @@ it('fails when processing does not complete within 30 minutes', async () => {
 it.each([undefined, false, true])(
   'keeps upload wait_for_processing=%s compatible',
   async waitForProcessing => {
+    await fs.outputFile('/project/app.ipa', 'ipa');
+    jest.mocked(readIpaInfoAsync).mockResolvedValue({
+      bundleIdentifier: 'com.test.ipa',
+      bundleVersion: '1',
+      bundleShortVersion: '1.0',
+      dtPlatformName: 'iphoneos',
+    });
     mockUpload();
     if (waitForProcessing) {
       mockProcessing('PROCESSING');

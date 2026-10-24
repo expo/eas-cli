@@ -4,7 +4,6 @@ import { z } from 'zod';
 
 import { AscApiClient } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
-import { waitForAscBuildProcessingAsync } from '../utils/ios/ascBuildProcessing';
 
 export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -24,7 +23,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'ipa_path',
+        id: 'bundle_identifier',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
@@ -45,16 +44,16 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         z.string().parse(inputs.asc_api_key_path.value)
       );
       const buildUploadId = z.string().parse(inputs.build_upload_id.value);
-      const ipaPath = z.string().optional().parse(inputs.ipa_path.value);
+      const ipaBundleIdentifier = z.string().optional().parse(inputs.bundle_identifier.value);
       const appleAppIdentifier = z.string().optional().parse(inputs.apple_app_identifier.value);
       const bundleShortVersion = z.string().optional().parse(inputs.bundle_short_version.value);
       const key = await AscApiUtils.loadApiKeyAsync({ keyPath });
       const client = new AscApiClient({ key, logger: ctx.logger });
-      await waitForAscBuildProcessingAsync({
+      await AscApiUtils.waitForAscBuildProcessingAsync({
         client,
         buildUploadId,
         logger: ctx.logger,
-        ipaPath: ipaPath ? path.resolve(ctx.workingDirectory, ipaPath) : undefined,
+        ipaBundleIdentifier,
         appleAppIdentifier,
         bundleShortVersion,
       });
