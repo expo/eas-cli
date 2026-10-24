@@ -31,6 +31,7 @@ import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/que
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import {
   AppPlatform,
   BuildFragment,
@@ -118,8 +119,9 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
   experimentation,
+  authenticationInfo,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -129,9 +131,11 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
-  /** Enables the Free plan limit guidance experiment for builds driven by a coding agent. */
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
+  /** Enables the Free plan limit experiments on the build request error path. */
   experimentation?: LazyExperimentationClient;
+  /** Lets the Free plan limit checkout experiment create a checkout session. */
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -220,15 +224,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : { env: envOverride };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -240,11 +244,13 @@ export async function runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
-      getDynamicPrivateProjectConfigAsync,
+      exp,
+      projectId,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
       experimentation,
+      authenticationInfo,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -379,11 +385,13 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
   experimentation,
+  authenticationInfo,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -394,11 +402,13 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
   experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -416,7 +426,8 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     vcsClient,
-    getDynamicPrivateProjectConfigAsync,
+    exp,
+    projectId,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
@@ -425,6 +436,7 @@ async function prepareAndStartBuildAsync({
     whatToTest: flags.whatToTest,
     env,
     experimentation,
+    authenticationInfo,
   });
 
   if (!lockfileChecked && !flags.localBuildOptions.localBuildMode) {

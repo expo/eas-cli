@@ -111,6 +111,7 @@ describe('prepareRuntimeEnvironment', () => {
   describe('installNode', () => {
     describe('prepareRuntimeEnvironment', () => {
       beforeEach(() => {
+        jest.spyOn(RuntimeSettings, 'getNodeJsCacheUrl').mockReturnValue('https://node.example');
         jest.mocked(pathExists).mockResolvedValue(true);
 
         jest.mocked(spawn).mockImplementation((cmd, _args, opts) => {
@@ -146,6 +147,104 @@ describe('prepareRuntimeEnvironment', () => {
           expect.arrayContaining([expect.stringContaining(`nvm install ${version}`)]),
           expect.anything()
         );
+      });
+
+      it.each([
+        {
+          mirror: 'https://node.example',
+          failures: 0,
+          attempts: ['https://node.example'],
+          succeeds: true,
+        },
+        {
+          mirror: 'https://node.example',
+          failures: 1,
+          attempts: ['https://node.example', undefined],
+          succeeds: true,
+        },
+        {
+          mirror: 'https://node.example',
+          failures: 2,
+          attempts: ['https://node.example', undefined],
+          succeeds: false,
+        },
+        {
+          mirror: 'https://private.example',
+          failures: 1,
+          attempts: ['https://private.example'],
+          succeeds: false,
+        },
+        {
+          mirror: 'https://node.example',
+          cacheUrl: null,
+          failures: 1,
+          attempts: ['https://node.example'],
+          succeeds: false,
+        },
+        { mirror: undefined, failures: 1, attempts: [undefined], succeeds: false },
+        { mirror: '', failures: 1, attempts: [''], succeeds: false },
+      ])(
+        'handles Node.js install with mirror=$mirror and failures=$failures',
+        async ({ mirror, failures, attempts, succeeds, cacheUrl = 'https://node.example' }) => {
+          jest.mocked(RuntimeSettings.getNodeJsCacheUrl).mockReturnValue(cacheUrl);
+          const buildContext = {
+            ...ctx,
+            env: { ...ctx.env, PATH: '/usr/bin', NVM_NODEJS_ORG_MIRROR: mirror },
+          };
+          const installMirrors: (string | undefined)[] = [];
+          jest.mocked(spawn).mockImplementation(async (cmd, args, opts) => {
+            if (cmd === 'bash' && args[1].includes('nvm install')) {
+              installMirrors.push(opts?.env?.NVM_NODEJS_ORG_MIRROR);
+              if (installMirrors.length <= failures) {
+                throw new Error('Node.js download failed');
+              }
+              return { ...spawnResult, stdout: 'Now using node v16.20.1 (npm v8.19.4)' };
+            }
+            return spawnResult;
+          });
+
+          const preparation = prepareRuntimeEnvironment(buildContext, { node: 'v16' }, false);
+          if (succeeds) {
+            await preparation;
+            expect(buildContext.env.PATH).toMatch(
+              /\/\.nvm\/versions\/node\/v16\.20\.1\/bin:\/usr\/bin$/
+            );
+            expect(spawn).toHaveBeenCalledWith(
+              'bash',
+              ['-c', 'source ~/.nvm/nvm.sh && nvm alias default 16.20.1'],
+              expect.anything()
+            );
+            expect(ctx.logger.error).not.toHaveBeenCalled();
+          } else {
+            await expect(preparation).rejects.toThrow('Failed to install Node.js.');
+            expect(buildContext.env.PATH).toBe('/usr/bin');
+          }
+          expect(installMirrors).toStrictEqual(attempts);
+          expect(buildContext.env.NVM_NODEJS_ORG_MIRROR).toBe(attempts[attempts.length - 1]);
+        }
+      );
+
+      it('does not retry Node.js installation when setting the default alias fails', async () => {
+        const buildContext = {
+          ...ctx,
+          env: { ...ctx.env, NVM_NODEJS_ORG_MIRROR: 'https://node.example' },
+        };
+        let installCount = 0;
+        jest.mocked(spawn).mockImplementation(async (cmd, args) => {
+          if (cmd === 'bash' && args[1].includes('nvm install')) {
+            installCount++;
+          }
+          if (cmd === 'bash' && args[1].includes('nvm alias')) {
+            throw new Error('Cannot write default alias');
+          }
+          return spawnResult;
+        });
+
+        await expect(
+          prepareRuntimeEnvironment(buildContext, { node: '16.20.1' }, false)
+        ).rejects.toThrow('Failed to install Node.js.');
+        expect(installCount).toBe(1);
+        expect(buildContext.env.NVM_NODEJS_ORG_MIRROR).toBe('https://node.example');
       });
 
       it('installs Bun when a specified version is different from installed version', async () => {

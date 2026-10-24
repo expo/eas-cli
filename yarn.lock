@@ -2515,24 +2515,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/build-tools@npm:25.2.0, @expo/build-tools@workspace:packages/build-tools":
+"@expo/build-tools@npm:25.3.0, @expo/build-tools@workspace:packages/build-tools":
   version: 0.0.0-use.local
   resolution: "@expo/build-tools@workspace:packages/build-tools"
   dependencies:
     "@expo/config": "npm:55.0.10"
     "@expo/config-plugins": "npm:55.0.7"
-    "@expo/downloader": "npm:25.2.0"
-    "@expo/eas-build-job": "npm:25.2.0"
+    "@expo/downloader": "npm:25.3.0"
+    "@expo/eas-build-job": "npm:25.3.0"
     "@expo/env": "npm:^0.4.0"
-    "@expo/logger": "npm:25.2.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/package-manager": "npm:1.9.10"
     "@expo/plist": "npm:^0.3.5"
     "@expo/repack-app": "npm:~0.9.0"
     "@expo/results": "npm:^1.0.0"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:25.2.0"
-    "@expo/template-file": "npm:25.2.0"
-    "@expo/turtle-spawn": "npm:25.2.0"
+    "@expo/steps": "npm:25.3.0"
+    "@expo/template-file": "npm:25.3.0"
+    "@expo/turtle-spawn": "npm:25.3.0"
     "@expo/xcpretty": "npm:^4.3.1"
     "@ngrok/ngrok": "npm:1.7.0"
     "@sentry/node": "npm:7.77.0"
@@ -2642,7 +2642,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/config-plugins@npm:56.0.16, @expo/config-plugins@npm:~56.0.16":
+"@expo/config-plugins@npm:56.0.16":
   version: 56.0.16
   resolution: "@expo/config-plugins@npm:56.0.16"
   dependencies:
@@ -2682,6 +2682,27 @@ __metadata:
     xcode: "npm:^3.0.1"
     xml2js: "npm:0.6.0"
   checksum: 10c0/4049c2c6dc2589ce0dc840ef971bcdd4215ca74e5057fc92c07004a877c9198dc78bd07b91d3ba908242e70e683faa6fb516f07ec42c2328cbe8e661a65591d0
+  languageName: node
+  linkType: hard
+
+"@expo/config-plugins@npm:~56.0.16, @expo/config-plugins@npm:~56.0.17":
+  version: 56.0.17
+  resolution: "@expo/config-plugins@npm:56.0.17"
+  dependencies:
+    "@expo/config-types": "npm:^56.0.7"
+    "@expo/json-file": "npm:~10.2.0"
+    "@expo/plist": "npm:^0.7.0"
+    "@expo/require-utils": "npm:^56.1.8"
+    "@expo/sdk-runtime-versions": "npm:^1.0.0"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.5"
+    getenv: "npm:^2.0.0"
+    glob: "npm:^13.0.0"
+    semver: "npm:^7.5.4"
+    slugify: "npm:^1.6.6"
+    xcode: "npm:^4.0.0"
+    xml2js: "npm:0.6.0"
+  checksum: 10c0/444793cb27008555b0b82bc83f594e62d9e40e3600daa41671a6d54e0faeb4b2fb7714ca34a602db043c52da3cda04a6d20c584d3c0a68ddbcac0f125baed812
   languageName: node
   linkType: hard
 
@@ -2746,7 +2767,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/config@npm:56.0.14, @expo/config@npm:~56.0.14":
+"@expo/config@npm:56.0.14":
   version: 56.0.14
   resolution: "@expo/config@npm:56.0.14"
   dependencies:
@@ -2764,7 +2785,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/downloader@npm:25.2.0, @expo/downloader@workspace:packages/downloader":
+"@expo/config@npm:~56.0.14":
+  version: 56.0.15
+  resolution: "@expo/config@npm:56.0.15"
+  dependencies:
+    "@expo/config-plugins": "npm:~56.0.17"
+    "@expo/config-types": "npm:^56.0.7"
+    "@expo/json-file": "npm:^10.2.0"
+    "@expo/require-utils": "npm:^56.1.8"
+    deepmerge: "npm:^4.3.1"
+    getenv: "npm:^2.0.0"
+    glob: "npm:^13.0.0"
+    resolve-workspace-root: "npm:^2.0.0"
+    semver: "npm:^7.6.0"
+    slugify: "npm:^1.3.4"
+  checksum: 10c0/4e15e7400d6ea22e3eb98653cf6512598eb86d414f28b2ebec6f9dbcb898d9467492f5c1bfff912227415c3c9a2b47f8cd0a7c9e781c4b1b293a3c1f2b98e0eb
+  languageName: node
+  linkType: hard
+
+"@expo/downloader@npm:25.3.0, @expo/downloader@workspace:packages/downloader":
   version: 0.0.0-use.local
   resolution: "@expo/downloader@workspace:packages/downloader"
   dependencies:
@@ -2780,13 +2819,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-build-job@npm:25.2.0, @expo/eas-build-job@workspace:packages/eas-build-job":
+"@expo/eas-build-job@npm:25.3.0, @expo/eas-build-job@workspace:packages/eas-build-job":
   version: 0.0.0-use.local
   resolution: "@expo/eas-build-job@workspace:packages/eas-build-job"
   dependencies:
-    "@expo/logger": "npm:25.2.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/results": "npm:1.0.0"
-    "@expo/turtle-spawn": "npm:25.2.0"
+    "@expo/turtle-spawn": "npm:25.3.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:22.20.5"
     jest: "npm:^29.7.0"
@@ -2799,12 +2838,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-json@npm:25.2.0, @expo/eas-json@workspace:packages/eas-json":
+"@expo/eas-json@npm:25.3.0, @expo/eas-json@workspace:packages/eas-json":
   version: 0.0.0-use.local
   resolution: "@expo/eas-json@workspace:packages/eas-json"
   dependencies:
     "@babel/code-frame": "npm:7.23.5"
-    "@expo/eas-build-job": "npm:25.2.0"
+    "@expo/eas-build-job": "npm:25.3.0"
     "@tsconfig/node22": "npm:22.0.6"
     "@types/babel__code-frame": "npm:7.0.3"
     "@types/fs-extra": "npm:11.0.4"
@@ -2860,17 +2899,17 @@ __metadata:
   linkType: hard
 
 "@expo/image-utils@npm:^0.10.5":
-  version: 0.10.5
-  resolution: "@expo/image-utils@npm:0.10.5"
+  version: 0.10.6
+  resolution: "@expo/image-utils@npm:0.10.6"
   dependencies:
-    "@expo/require-utils": "npm:^56.1.7"
+    "@expo/require-utils": "npm:^56.1.8"
     "@expo/spawn-async": "npm:^1.8.0"
     chalk: "npm:^4.0.0"
     getenv: "npm:^2.0.0"
     jimp-compact: "npm:0.16.1"
     parse-png: "npm:^2.1.0"
     semver: "npm:^7.6.0"
-  checksum: 10c0/99b95e63eeef8033334cab8f44598e6a905ed47041a089a233c1f5efa2be1a4e17328b12112667939ff1b1b94aae5fab5e364f3033e9b03202b8ef9f337357ce
+  checksum: 10c0/e7c96406c6769dc2c64397e05ccf8069b4449bb8732614bf606cfe91eaacd9d0a4cfbf90e938988cb20e3e50f13486991cad4d93ad5c130bdfbad6539b3fdbd8
   languageName: node
   linkType: hard
 
@@ -2925,7 +2964,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/logger@npm:25.2.0, @expo/logger@workspace:packages/logger":
+"@expo/logger@npm:25.3.0, @expo/logger@workspace:packages/logger":
   version: 0.0.0-use.local
   resolution: "@expo/logger@workspace:packages/logger"
   dependencies:
@@ -3098,9 +3137,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/require-utils@npm:^56.1.7":
-  version: 56.1.7
-  resolution: "@expo/require-utils@npm:56.1.7"
+"@expo/require-utils@npm:^56.1.7, @expo/require-utils@npm:^56.1.8":
+  version: 56.1.8
+  resolution: "@expo/require-utils@npm:56.1.8"
   dependencies:
     "@babel/code-frame": "npm:^7.20.0"
     "@babel/core": "npm:^7.25.2"
@@ -3110,7 +3149,7 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10c0/cd3efd5f78692cdf938b450448267508308e4d0a1d78a3c2d8212c892df62ae89bdd4130347d0c958a65e0b2bcfa0c462a7fcf3b6326e869d662208ccd3f754c
+  checksum: 10c0/9a1cfe23afd80eb96bb1868a82fb5e8f7736301a08c65860dffa8e58e3904c6b2e6f694299744c0fdd1d546e8593fe62146fb2a17190a23bd03839eb2f2a3cab
   languageName: node
   linkType: hard
 
@@ -3161,12 +3200,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/steps@npm:25.2.0, @expo/steps@workspace:packages/steps":
+"@expo/steps@npm:25.3.0, @expo/steps@workspace:packages/steps":
   version: 0.0.0-use.local
   resolution: "@expo/steps@workspace:packages/steps"
   dependencies:
-    "@expo/eas-build-job": "npm:25.2.0"
-    "@expo/logger": "npm:25.2.0"
+    "@expo/eas-build-job": "npm:25.3.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
@@ -3192,7 +3231,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/template-file@npm:25.2.0, @expo/template-file@workspace:packages/template-file":
+"@expo/template-file@npm:25.3.0, @expo/template-file@workspace:packages/template-file":
   version: 0.0.0-use.local
   resolution: "@expo/template-file@workspace:packages/template-file"
   dependencies:
@@ -3215,11 +3254,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/turtle-spawn@npm:25.2.0, @expo/turtle-spawn@workspace:packages/turtle-spawn":
+"@expo/turtle-spawn@npm:25.3.0, @expo/turtle-spawn@workspace:packages/turtle-spawn":
   version: 0.0.0-use.local
   resolution: "@expo/turtle-spawn@workspace:packages/turtle-spawn"
   dependencies:
-    "@expo/logger": "npm:25.2.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:22.20.5"
@@ -3235,17 +3274,17 @@ __metadata:
   resolution: "@expo/worker@workspace:packages/worker"
   dependencies:
     "@babel/core": "npm:7.24.7"
-    "@expo/build-tools": "npm:25.2.0"
+    "@expo/build-tools": "npm:25.3.0"
     "@expo/config-plugins": "npm:55.0.7"
     "@expo/config-types": "npm:55.0.5"
-    "@expo/eas-build-job": "npm:25.2.0"
-    "@expo/logger": "npm:25.2.0"
+    "@expo/eas-build-job": "npm:25.3.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:25.2.0"
-    "@expo/template-file": "npm:25.2.0"
-    "@expo/turtle-spawn": "npm:25.2.0"
+    "@expo/steps": "npm:25.3.0"
+    "@expo/template-file": "npm:25.3.0"
+    "@expo/turtle-spawn": "npm:25.3.0"
     "@hapi/boom": "npm:10.0.1"
     "@types/babel__core": "npm:7.20.5"
     "@types/fs-extra": "npm:11.0.4"
@@ -8962,6 +9001,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bplist-creator@npm:0.1.1":
+  version: 0.1.1
+  resolution: "bplist-creator@npm:0.1.1"
+  dependencies:
+    stream-buffers: "npm:2.2.x"
+  checksum: 10c0/427ec37263ce0e8c68a83f595fc9889a9cbf2e6fda2de18e1f8ef7f0c6ce68c0cdbb7c9c1f3bb3f2d217407af8cffbdf254bf0f71c99f2186175d07752f08a47
+  languageName: node
+  linkType: hard
+
 "bplist-parser@npm:0.3.1":
   version: 0.3.1
   resolution: "bplist-parser@npm:0.3.1"
@@ -10136,7 +10184,7 @@ __metadata:
   resolution: "create-eas-build-function@workspace:packages/create-eas-build-function"
   dependencies:
     "@expo/package-manager": "npm:1.9.10"
-    "@expo/steps": "npm:25.2.0"
+    "@expo/steps": "npm:25.3.0"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:22.20.5"
@@ -10713,12 +10761,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "eas-cli-local-build-plugin@workspace:packages/local-build-plugin"
   dependencies:
-    "@expo/build-tools": "npm:25.2.0"
+    "@expo/build-tools": "npm:25.3.0"
     "@expo/bunyan": "npm:^4.0.1"
-    "@expo/eas-build-job": "npm:25.2.0"
-    "@expo/logger": "npm:25.2.0"
+    "@expo/eas-build-job": "npm:25.3.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/spawn-async": "npm:^1.7.2"
-    "@expo/turtle-spawn": "npm:25.2.0"
+    "@expo/turtle-spawn": "npm:25.3.0"
     "@types/fs-extra": "npm:^11.0.4"
     "@types/hapi__joi": "npm:^17.1.14"
     "@types/lodash": "npm:^4.17.4"
@@ -10772,12 +10820,12 @@ __metadata:
     "@expo/code-signing-certificates": "npm:0.0.5"
     "@expo/config": "npm:56.0.14"
     "@expo/config-plugins": "npm:56.0.16"
-    "@expo/eas-build-job": "npm:25.2.0"
-    "@expo/eas-json": "npm:25.2.0"
+    "@expo/eas-build-job": "npm:25.3.0"
+    "@expo/eas-json": "npm:25.3.0"
     "@expo/env": "npm:^1.0.0"
     "@expo/experimentation": "npm:0.0.5"
     "@expo/json-file": "npm:8.3.3"
-    "@expo/logger": "npm:25.2.0"
+    "@expo/logger": "npm:25.3.0"
     "@expo/multipart-body-parser": "npm:2.0.0"
     "@expo/osascript": "npm:2.1.4"
     "@expo/package-manager": "npm:1.9.10"
@@ -10789,7 +10837,7 @@ __metadata:
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:25.2.0"
+    "@expo/steps": "npm:25.3.0"
     "@expo/timeago.js": "npm:1.0.0"
     "@graphql-codegen/cli": "npm:6.3.1"
     "@graphql-codegen/introspection": "npm:5.0.2"
@@ -11349,16 +11397,16 @@ __metadata:
   linkType: hard
 
 "expo-modules-autolinking@npm:~56.0.23":
-  version: 56.0.23
-  resolution: "expo-modules-autolinking@npm:56.0.23"
+  version: 56.0.24
+  resolution: "expo-modules-autolinking@npm:56.0.24"
   dependencies:
-    "@expo/require-utils": "npm:^56.1.7"
+    "@expo/require-utils": "npm:^56.1.8"
     "@expo/spawn-async": "npm:^1.8.0"
     chalk: "npm:^4.1.0"
     commander: "npm:^7.2.0"
   bin:
     expo-modules-autolinking: bin/expo-modules-autolinking.js
-  checksum: 10c0/4817715ab0790a44af2cfc1390f5c979921c00395b4151e725822d18058397ed27698386fa4d2db802dcbcf20d1cd45bcb0a60456c42f4d1e6e774a2df594b53
+  checksum: 10c0/e0c5588c35cc5e0ddf4ea3d6c36728523068a68a1713c09d7de01d03ca0b45e1d9f634377bac00ed6844e688b162893047a8a85e59d15adc9eecf67292312253
   languageName: node
   linkType: hard
 
@@ -18285,6 +18333,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"simple-plist@npm:^1.3.1":
+  version: 1.4.0
+  resolution: "simple-plist@npm:1.4.0"
+  dependencies:
+    bplist-creator: "npm:0.1.1"
+    bplist-parser: "npm:0.3.2"
+    plist: "npm:^3.0.5"
+  checksum: 10c0/226c283492d8518d715e4133d94bdbd15c0619561bcde583b4807b36cde106c0078c615b9b4e25c0e8758a4ae4e79ed5dd76e57cd528d8b7001ecab5ad35e343
+  languageName: node
+  linkType: hard
+
 "sisteransi@npm:^1.0.4, sisteransi@npm:^1.0.5":
   version: 1.0.5
   resolution: "sisteransi@npm:1.0.5"
@@ -20329,6 +20388,15 @@ __metadata:
     simple-plist: "npm:^1.1.0"
     uuid: "npm:^7.0.3"
   checksum: 10c0/51bf35cee52909aeb18f868ecf9828f93b8042fadf968159320f9f11e757a52e43f6563a53b586986cfe5a34d576f3300c4c0cf1e14300084344ae206eaa53c3
+  languageName: node
+  linkType: hard
+
+"xcode@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "xcode@npm:4.0.0"
+  dependencies:
+    simple-plist: "npm:^1.3.1"
+  checksum: 10c0/cbb3510eda03636a1594476978f48eebea88a9d8c8ba506df0366c007581774551bb45ca8b511c6a41fc4b6b564958e765c89ad31d8aabec4e4f8f993c8a7fc6
   languageName: node
   linkType: hard
 

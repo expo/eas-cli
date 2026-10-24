@@ -151,10 +151,11 @@ describe('with a device run session token', () => {
     expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
-  it('starts the session through the worker API', async () => {
+  it('retries a transient failure when starting the session through the worker API', async () => {
     const ctx = createCtx({ withToken: true });
     jest
       .mocked(turtleFetch)
+      .mockResolvedValueOnce(jsonResponse({ errors: [{ message: 'Service unavailable' }] }, 503))
       .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'in-progress' } }));
 
     await uploadRemoteSessionConfigAsync({
@@ -165,6 +166,7 @@ describe('with a device run session token', () => {
     });
 
     expectWorkerApiCall('start', 'POST', { json: { remoteConfig: { type: 'agent-device' } } });
+    expect(turtleFetch).toHaveBeenCalledTimes(2);
     expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
@@ -213,7 +215,7 @@ describe('with a device run session token', () => {
       '--turn-credential',
       'credential',
     ]);
-    expectWorkerApiCall('turn-ice-servers', 'POST', { timeout: 5000, retries: 1 });
+    expectWorkerApiCall('turn-ice-servers', 'POST', { timeout: 5000, retries: 0 });
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledTimes(1);
   });
 

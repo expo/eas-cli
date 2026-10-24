@@ -12,6 +12,7 @@ import spawn from '@expo/turtle-spawn';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import fetch, { Response } from 'node-fetch';
+import { Readable } from 'stream';
 import { setTimeout } from 'timers/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -390,7 +391,13 @@ describe('projectSources', () => {
       ctx.graphqlClient.mutation = mockGraphqlMutation as any;
 
       const fetchMock = jest.mocked(fetch);
-      fetchMock.mockImplementation(async () => ({ ok: true }) as Response);
+      let uploadedBody = '';
+      fetchMock.mockImplementation(async (_url, request) => {
+        for await (const chunk of request!.body as Readable) {
+          uploadedBody += chunk;
+        }
+        return { ok: true } as Response;
+      });
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: ctx.job.projectArchive }),
@@ -414,10 +421,14 @@ describe('projectSources', () => {
         'https://storage.example.com/upload',
         expect.objectContaining({
           method: 'PUT',
-          headers: { 'x-custom-header': 'value' },
-          body: '{"archiveContent":["project/README.md","project/package.json"]}',
+          headers: {
+            'x-custom-header': 'value',
+            'content-length': '63',
+            'content-type': 'text/plain;charset=UTF-8',
+          },
         })
       );
+      expect(uploadedBody).toBe('{"archiveContent":["project/README.md","project/package.json"]}');
 
       // Verify build metadata was updated
       expect(mockGraphqlMutation).toHaveBeenNthCalledWith(

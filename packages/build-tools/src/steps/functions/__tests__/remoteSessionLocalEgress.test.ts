@@ -162,6 +162,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     });
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: openPreview,
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopPreview,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);

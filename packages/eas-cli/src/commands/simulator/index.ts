@@ -42,6 +42,10 @@ import {
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
+import {
   simulatorRequestFailureReason,
   simulatorRequestProperties,
 } from '../../simulator/requestAnalytics';
@@ -79,7 +83,7 @@ export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in.';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in';
 
   static override flags = {
     platform: Flags.option({
@@ -99,6 +103,10 @@ export default class Simulator extends EasCommand {
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+    }),
+    'system-image': Flags.string({
+      description:
+        'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
@@ -248,6 +256,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const systemImagePackage = flags['system-image']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -291,6 +300,9 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (systemImagePackage && platform !== AppPlatform.Android) {
+      throw new EasCommandError('--system-image is only supported with --platform android.');
+    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
@@ -366,11 +378,18 @@ export default class Simulator extends EasCommand {
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-            ...(deviceIdentifier
-              ? platform === AppPlatform.Ios
+            ...(platform === AppPlatform.Ios
+              ? deviceIdentifier
                 ? { ios: { deviceIdentifier } }
-                : { android: { deviceIdentifier } }
-              : {}),
+                : {}
+              : deviceIdentifier || systemImagePackage
+                ? {
+                    android: {
+                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                      ...(systemImagePackage ? { systemImagePackage } : {}),
+                    },
+                  }
+                : {}),
             ...(buildId ? { buildId } : {}),
             ...(buildFingerprint ? { buildFingerprint } : {}),
             ...(applicationArchiveUrlFromFlag
@@ -446,7 +465,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -457,7 +476,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -619,6 +638,18 @@ export default class Simulator extends EasCommand {
   }
 }
 
+// Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
+async function formatJobRunErrorsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<string> {
+  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId, {
+    signal,
+  });
+  return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
+}
+
 async function resolvePlatformAsync(
   platform: PlatformFlagValue | undefined,
   nonInteractive: boolean
@@ -700,7 +731,9 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Errored
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
-        throw new Error(`Simulator session ${deviceRunSessionId} errored.`);
+        throw new Error(
+          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
+        );
       }
       if (
         session.status === DeviceRunSessionStatus.Stopped ||

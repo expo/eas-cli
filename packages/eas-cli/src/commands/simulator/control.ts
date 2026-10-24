@@ -35,7 +35,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
   static override description =
-    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports. To save a screenshot locally, run `eas simulator:control screenshot.capture --output ./screenshot.png`.';
+    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports. To save a screenshot locally, run `eas simulator:control screenshot.capture --output ./screenshot.png`';
   static override strict = false;
 
   static override examples = [

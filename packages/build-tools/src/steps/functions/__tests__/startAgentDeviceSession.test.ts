@@ -687,6 +687,18 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['NUL argument', { launch_args: ['a\u0000b'] }],
+    ['command length', { launch_args: ['--es', 'quotes', "'".repeat(20_000)] }],
+    ['NUL URL', { open_url: 'example:\u0000screen' }],
+  ])('rejects Android launch %s before startup work', async (_name, inputs) => {
+    const step = runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id', ...inputs });
+    await expect(step).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('keeps Android launch inputs on its existing direct path', async () => {
     const launchArgs = ['a'.repeat(9000)];
     await runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id', launch_args: launchArgs });

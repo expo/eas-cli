@@ -76,7 +76,8 @@ async function runAsync(
   runtimePlatform: BuildRuntimePlatform,
   capture: CaptureInputs = NO_CAPTURE,
   disableShare = false,
-  privatePreviewUrl?: string
+  privatePreviewUrl?: string,
+  maxIdleTimeMinutes?: number
 ): Promise<void> {
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
@@ -88,7 +89,7 @@ async function runAsync(
       ngrokAuthtoken: 'ngrok-token',
     },
     packageVersion: undefined,
-    maxIdleTimeMinutes: undefined,
+    maxIdleTimeMinutes,
     maxDurationSeconds: undefined,
     capture,
     disableShare,
@@ -133,6 +134,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         apiUrl: 'https://web-preview.tunnel.example.com',
         closeAsync: jest.fn(),
       }),
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: mockPreviewStopAsync,
     };
     jest.mocked(startDeviceSessionHostAsync).mockImplementation(async (_ctx, options) => {
@@ -200,6 +202,21 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     await runAsync(logger, BuildRuntimePlatform.DARWIN);
     expect(JSON.stringify(logger.info.mock.calls)).not.toContain(token);
     expect(JSON.stringify(logger.info.mock.calls)).not.toContain(encodeURIComponent(token));
+  });
+
+  it('resets the idle timer on preview input from the session host', async () => {
+    const previewInputAt = new Date('2026-10-19T12:00:00Z');
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const host = await jest.mocked(startDeviceSessionHostAsync).getMockImplementation()!(ctx, {
+      application: Promise.resolve(),
+    } as never);
+    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
+
+    await runAsync(logger, BuildRuntimePlatform.LINUX, NO_CAPTURE, false, undefined, 5);
+
+    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(previewInputAt);
   });
 
   it('hands network capture to serve-sim', async () => {

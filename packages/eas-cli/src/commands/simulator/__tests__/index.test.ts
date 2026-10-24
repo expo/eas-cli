@@ -6,6 +6,7 @@ import { GraphQLError } from 'graphql';
 import { SimulatorEvent, isAnalyticsOptedOutAsync } from '../../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../../analytics/agent';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import fetch from '../../../fetch';
 import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
@@ -44,6 +45,7 @@ jest.mock('../../../analytics/AnalyticsManager', () => ({
 jest.mock('../../../analytics/agent');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
+jest.mock('../../../fetch');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log', () => ({
   __esModule: true,
@@ -57,6 +59,7 @@ jest.mock('../../../log', () => ({
     withTick: jest.fn(),
   },
   link: jest.fn((url: string) => url),
+  learnMore: jest.fn((url: string) => `Learn more: ${url}`),
 }));
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
@@ -105,6 +108,8 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 );
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
+const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
+const mockFetch = jest.mocked(fetch);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockLogEvent = jest.fn();
 const mockFlushAsync = jest.fn(async () => {});
@@ -191,6 +196,7 @@ describe(Simulator, () => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
+    mockJobRunErrorsByIdAsync.mockResolvedValue(null);
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
@@ -1124,6 +1130,76 @@ describe(Simulator, () => {
     );
   });
 
+  it('forwards --system-image in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image',
+      '  system-images;android-35-ext15;google_apis_playstore;x86_64  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          systemImagePackage: 'system-images;android-35-ext15;google_apis_playstore;x86_64',
+        },
+      })
+    );
+  });
+
+  it('forwards --device and --system-image together in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+      '--system-image',
+      'system-images;android-35-ext15;google_apis_playstore;x86_64',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          deviceIdentifier: 'pixel_9',
+          systemImagePackage: 'system-images;android-35-ext15;google_apis_playstore;x86_64',
+        },
+      })
+    );
+  });
+
+  it('omits a blank --system-image', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--system-image',
+      '  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('android');
+  });
+
+  it('rejects --system-image for iOS before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--system-image',
+      'system-images;android-35-ext15;google_apis_playstore;x86_64',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--system-image is only supported with --platform android.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('trims --device before sending it', async () => {
     const { command } = createCommand([
       '--platform',
@@ -1920,6 +1996,292 @@ describe(Simulator, () => {
     );
   });
 
+  describe('job run errors', () => {
+    const erroredSessionMessage =
+      'Simulator session session-123 errored before the agent-device session was ready. https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
+    const logFileUrl = 'https://logs.example.com/job-123';
+    const unknownError = {
+      errorCode: 'UNKNOWN_ERROR',
+      message: 'Unknown error. See logs for more information.',
+      docsUrl: null,
+    };
+
+    // Shaped like the worker's bunyan output: the failing call logs at error level with `err`,
+    // then the step runner logs an end-step marker with result "fail".
+    function failedStepLogLines(
+      stepId: string,
+      displayName: string,
+      messages: string[]
+    ): Record<string, unknown>[] {
+      return [
+        {
+          level: 30,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          marker: 'start-step',
+          msg: `Executing build step "${displayName}"`,
+        },
+        ...messages.map(msg => ({
+          level: 50,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          msg,
+          err: { message: msg },
+        })),
+        {
+          level: 50,
+          buildStepId: stepId,
+          buildStepDisplayName: displayName,
+          marker: 'end-step',
+          result: 'fail',
+          msg: `Build step "${displayName}" failed`,
+        },
+      ];
+    }
+
+    function mockLogFile(logLines: Record<string, unknown>[]): void {
+      mockFetch.mockResolvedValue({
+        text: async () => logLines.map(line => JSON.stringify(line)).join('\n'),
+      } as unknown as Awaited<ReturnType<typeof fetch>>);
+    }
+
+    beforeEach(() => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+    });
+
+    it('keeps the message unchanged without reading logs when the job run has no errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [],
+        logFileUrls: [logFileUrl],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('lists each job run error on its own line with its docs link', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [
+          {
+            errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+            message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+            docsUrl: null,
+          },
+          {
+            errorCode: 'EAS_SIMULATOR_BUILD_NOT_INSTALLABLE',
+            message: 'The build cannot be installed on a simulator.',
+            docsUrl: 'https://docs.expo.dev/simulator',
+          },
+        ],
+        logFileUrls: [logFileUrl],
+      });
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nNo available iOS Simulator is named "iPhone 16 Pro".\nThe build cannot be installed on a simulator. Learn more: https://docs.expo.dev/simulator`,
+        })
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('reads the failed step error from the job run logs for an unknown error', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Install application',
+          msg: 'Retrying install',
+          err: { message: 'Retrying install' },
+        },
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'success',
+          msg: 'Finished',
+        },
+        ...failedStepLogLines('step-002', 'Launch application', [
+          'adb shell am start exited with non-zero code: 1',
+        ]),
+        {
+          level: 20,
+          buildStepId: 'step-002',
+          msg: 'Getting value for output parameter "x" failed.',
+          err: { message: 'not set' },
+        },
+        {
+          level: 40,
+          msg: 'Could not stop the emulator during remote session teardown.',
+          err: { message: 'teardown' },
+        },
+      ]);
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nLaunch application: adb shell am start exited with non-zero code: 1`,
+        })
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        logFileUrl,
+        expect.objectContaining({ size: 20 * 1024 * 1024, signal: expect.any(AbortSignal) })
+      );
+    });
+
+    it('prints the masked log message instead of the unmasked err.message', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Run script',
+          msg: 'curl -H "Authorization: ********" exited with non-zero code: 22',
+          err: { message: 'curl -H "Authorization: secret-token" exited with non-zero code: 22' },
+        },
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'fail',
+          msg: 'Build step "Run script" failed',
+        },
+      ]);
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nRun script: curl -H "Authorization: ********" exited with non-zero code: 22`,
+        })
+      );
+    });
+
+    it('shows the first failed step, then only the error line of later failed steps', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile([
+        ...failedStepLogLines('step-001', 'Boot', ['A', 'B']),
+        ...failedStepLogLines('step-002', 'Finish recordings', ['C', 'D']),
+      ]);
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nBoot: B\nFinish recordings: D`,
+        })
+      );
+    });
+
+    it('truncates very long log errors', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile(failedStepLogLines('step-001', 'Boot', ['x'.repeat(2000)]));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\n${`Boot: ${'x'.repeat(2000)}`.slice(0, 500)}…`,
+        })
+      );
+    });
+
+    it('keeps the job run error when no step failed, ignoring errors that steps ignored', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [
+          {
+            errorCode: 'UNKNOWN_ERROR',
+            message:
+              'Unknown error. See logs of the Complete job build phase for more information.',
+            docsUrl: null,
+          },
+        ],
+        logFileUrls: [logFileUrl],
+      });
+      mockLogFile([
+        {
+          level: 50,
+          buildStepId: 'step-001',
+          buildStepDisplayName: 'Upload artifact',
+          msg: 'Failed to upload screen-recording. Ignoring error.',
+          err: { message: 'upload failed' },
+        },
+        {
+          level: 30,
+          buildStepId: 'step-001',
+          marker: 'end-step',
+          result: 'success',
+          msg: 'Finished',
+        },
+        { level: 50, phase: 'COMPLETE_JOB', msg: '', err: { message: 'upload outputs failed' } },
+      ]);
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nUnknown error. See logs of the Complete job build phase for more information.`,
+        })
+      );
+    });
+
+    it('falls back to the unknown error message when the job run logs cannot be read', async () => {
+      mockJobRunErrorsByIdAsync.mockResolvedValue({
+        id: 'job-123',
+        errors: [unknownError],
+        logFileUrls: [logFileUrl],
+      });
+      mockFetch.mockRejectedValue(new Error('Request failed: 503 (Service Unavailable)'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({
+          message: `${erroredSessionMessage}\nUnknown error. See logs for more information.`,
+        })
+      );
+    });
+
+    it('keeps the message unchanged when the job run errors cannot be fetched', async () => {
+      mockJobRunErrorsByIdAsync.mockRejectedValue(new Error('graphql boom'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        expect.objectContaining({ message: erroredSessionMessage })
+      );
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    });
+  });
+
   it('keeps polling until the remote config appears', async () => {
     mockByIdAsync
       .mockResolvedValueOnce(makeDeviceRunSession({ remoteConfig: null }))
@@ -2217,6 +2579,31 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
 
     await expect(command.runAsync()).rejects.toThrow('Simulator session session-123 errored.');
+  });
+
+  it('includes the job run error when the session errors while it is running', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored }));
+    mockJobRunErrorsByIdAsync.mockResolvedValue({
+      id: 'job-123',
+      errors: [
+        {
+          errorCode: 'EAS_SIMULATOR_SESSION_CRASHED',
+          message: 'The simulator stopped responding.',
+          docsUrl: null,
+        },
+      ],
+      logFileUrls: [],
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Simulator session session-123 errored.\nThe simulator stopped responding.',
+      })
+    );
   });
 
   it('keeps waiting while the session is still in progress', async () => {
