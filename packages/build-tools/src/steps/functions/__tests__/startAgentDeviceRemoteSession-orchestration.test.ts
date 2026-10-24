@@ -603,10 +603,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
         ctx,
         {} as never
       );
-      const preview = await host.openPreviewAsync({
-        baseDomain: 'tunnel.example.com',
-        authtoken: 'ngrok-token',
-      });
+      const preview = await host.openPreviewAsync();
       jest.mocked(host.openPreviewAsync).mockImplementation(async () => {
         await previewReady.promise;
         return preview;

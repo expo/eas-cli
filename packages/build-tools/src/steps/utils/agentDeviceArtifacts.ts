@@ -6,15 +6,16 @@ import fetch from 'node-fetch';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
-import { sleepAsync } from '../../utils/retry';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
+const AGENT_DEVICE_ARTIFACT_CLEANUP_TIMEOUT_MS = 30_000;
 
 const AgentDeviceArtifactSchema = z.object({
   id: z.string(),
@@ -45,69 +46,128 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
     daemonUrl,
     daemonToken,
     logger,
+    signal,
+    stopPollingSignal,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
     daemonToken: string;
     logger: bunyan;
+    signal?: AbortSignal;
+    stopPollingSignal?: AbortSignal;
   }
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
   const uploadedArtifactIds = new Set<string>();
   let listArtifactsErrorCount = 0;
 
-  for (;;) {
-    try {
-      const artifacts = await listAgentDeviceArtifactsAsync({ daemonUrl, daemonToken });
-      listArtifactsErrorCount = 0;
-      for (const artifact of artifacts) {
-        if (uploadedArtifactIds.has(artifact.id)) {
-          continue;
-        }
-        try {
-          await uploadAgentDeviceArtifactAsync(ctx, {
-            deviceRunSessionId,
-            daemonUrl,
-            daemonToken,
-            artifact,
-            logger,
-          });
-          uploadedArtifactIds.add(artifact.id);
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not upload agent-device remote session artifact', error);
-          logger.warn({ err: error }, 'Could not upload agent-device remote session artifact.');
-        }
-      }
-    } catch (err) {
-      if (err instanceof AgentDeviceArtifactsUnsupportedError) {
-        logger.warn(
-          'agent-device daemon does not expose artifact inventory; remote session artifact uploads are disabled.'
-        );
+  // Ending normal polling must not cancel a transfer that the session already produced.
+  const cleanup = new AbortController();
+  const transferSignal = stopPollingSignal
+    ? AbortSignal.any([cleanup.signal, ...(signal ? [signal] : [])])
+    : signal;
+  const pollingSignal = stopPollingSignal
+    ? AbortSignal.any([stopPollingSignal, ...(signal ? [signal] : [])])
+    : signal;
+  let cleanupTimer: NodeJS.Timeout | undefined;
+  const startCleanupDeadline = (): void => {
+    cleanupTimer ??= setTimeout(() => cleanup.abort(), AGENT_DEVICE_ARTIFACT_CLEANUP_TIMEOUT_MS);
+  };
+  stopPollingSignal?.addEventListener('abort', startCleanupDeadline, { once: true });
+  if (stopPollingSignal?.aborted) {
+    startCleanupDeadline();
+  }
+
+  try {
+    for (;;) {
+      const finalInventory = stopPollingSignal?.aborted;
+      if (transferSignal?.aborted) {
         return;
       }
-      const error = err instanceof Error ? err : new Error(String(err));
-      listArtifactsErrorCount += 1;
-      if (listArtifactsErrorCount % 5 === 0) {
-        Sentry.capture('Could not list agent-device remote session artifacts', error);
-        logger.warn(
-          { err: error, failedArtifactListCount: listArtifactsErrorCount },
-          'Could not list agent-device remote session artifacts.'
-        );
+      try {
+        const artifacts = await listAgentDeviceArtifactsAsync({
+          daemonUrl,
+          daemonToken,
+          signal: transferSignal,
+        });
+        listArtifactsErrorCount = 0;
+        for (const artifact of artifacts) {
+          if (uploadedArtifactIds.has(artifact.id)) {
+            continue;
+          }
+          try {
+            await uploadAgentDeviceArtifactAsync(ctx, {
+              deviceRunSessionId,
+              daemonUrl,
+              daemonToken,
+              artifact,
+              logger,
+              ...(transferSignal ? { signal: transferSignal } : {}),
+            });
+            uploadedArtifactIds.add(artifact.id);
+          } catch (err) {
+            if (transferSignal?.aborted) {
+              return;
+            }
+            const error = err instanceof Error ? err : new Error(String(err));
+            Sentry.capture('Could not upload agent-device remote session artifact', error);
+            logger.warn({ err: error }, 'Could not upload agent-device remote session artifact.');
+          }
+        }
+      } catch (err) {
+        if (transferSignal?.aborted) {
+          return;
+        }
+        if (err instanceof AgentDeviceArtifactsUnsupportedError) {
+          logger.warn(
+            'agent-device daemon does not expose artifact inventory; remote session artifact uploads are disabled.'
+          );
+          return;
+        }
+        const error = err instanceof Error ? err : new Error(String(err));
+        listArtifactsErrorCount += 1;
+        // The final inventory has no later retry, so always report its failure.
+        if (finalInventory || listArtifactsErrorCount % 5 === 0) {
+          Sentry.capture('Could not list agent-device remote session artifacts', error);
+          logger.warn(
+            { err: error, failedArtifactListCount: listArtifactsErrorCount },
+            'Could not list agent-device remote session artifacts.'
+          );
+        }
       }
+      if (finalInventory) {
+        return;
+      }
+      await sleepAsync(AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS, undefined, {
+        signal: pollingSignal,
+      }).catch(error => {
+        if (!pollingSignal?.aborted) {
+          throw error;
+        }
+      });
     }
-    await sleepAsync(AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS);
+  } finally {
+    clearTimeout(cleanupTimer);
+    stopPollingSignal?.removeEventListener('abort', startCleanupDeadline);
+    if (cleanup.signal.aborted) {
+      logger.warn(
+        'Timed out draining agent-device artifacts; some session artifacts may not have been uploaded.'
+      );
+    }
   }
 }
 
 export async function listAgentDeviceArtifactsAsync({
   daemonUrl,
   daemonToken,
+  signal,
 }: {
   daemonUrl: string;
   daemonToken: string;
+  signal?: AbortSignal;
 }): Promise<AgentDeviceArtifact[]> {
   const response = await fetch(new URL('/artifacts', daemonUrl).toString(), {
+    ...(signal ? { signal } : {}),
     headers: { Authorization: `Bearer ${daemonToken}` },
   });
   if (response.status === 404) {
@@ -133,14 +193,17 @@ export async function uploadAgentDeviceArtifactAsync(
     daemonToken,
     artifact,
     logger,
+    signal,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
     daemonToken: string;
     artifact: AgentDeviceArtifact;
     logger: bunyan;
+    signal?: AbortSignal;
   }
 ): Promise<void> {
+  signal?.throwIfAborted();
   logger.info(`Downloading artifact ${artifact.filename}.`);
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'agent-device-artifact-'));
   try {
@@ -150,6 +213,7 @@ export async function uploadAgentDeviceArtifactAsync(
       daemonUrl,
       daemonToken,
       destinationPath: temporaryArtifactPath,
+      signal,
     });
     const { size } = await stat(temporaryArtifactPath);
     logger.info(`Uploading artifact ${artifact.filename} (${formatBytes(size)}).`);
@@ -164,6 +228,7 @@ export async function uploadAgentDeviceArtifactAsync(
         : {}),
       size,
       openStream: () => createReadStream(temporaryArtifactPath),
+      ...(signal ? { signal } : {}),
     });
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
@@ -175,16 +240,19 @@ async function downloadAgentDeviceArtifactToFileAsync({
   daemonUrl,
   daemonToken,
   destinationPath,
+  signal,
 }: {
   artifact: AgentDeviceArtifact;
   daemonUrl: string;
   daemonToken: string;
   destinationPath: string;
+  signal?: AbortSignal;
 }): Promise<void> {
   const response = await fetch(
     new URL(`/artifacts/${encodeURIComponent(artifact.id)}`, daemonUrl).toString(),
     {
       headers: { Authorization: `Bearer ${daemonToken}` },
+      ...(signal ? { signal } : {}),
     }
   );
   if (!response.ok) {
@@ -197,5 +265,9 @@ async function downloadAgentDeviceArtifactToFileAsync({
       `Agent-device artifact ${artifact.id} response did not include a readable body.`
     );
   }
-  await pipeline(response.body, createWriteStream(destinationPath));
+  if (signal) {
+    await pipeline(response.body, createWriteStream(destinationPath), { signal });
+  } else {
+    await pipeline(response.body, createWriteStream(destinationPath));
+  }
 }

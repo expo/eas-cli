@@ -4,11 +4,13 @@ import spawn from '@expo/turtle-spawn';
 import { type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { access, mkdir, mkdtemp } from 'node:fs/promises';
+import { z } from 'zod';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 
 import { Sentry } from '../../sentry';
+import { turtleFetch } from '../../utils/turtleFetch';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import {
   PackageManager,
@@ -57,11 +59,22 @@ type ActiveIosSimulatorRecording = IosSimulatorRecording & {
   hasExited: () => boolean;
 };
 
+type AdoptedIosSimulatorRecording = {
+  udid: string;
+  serverToken: string;
+  output: string;
+  recordingId: string;
+  ready: Promise<void>;
+  finishAsync(): Promise<void>;
+};
+
 type IosSimulatorRecordingSession = {
   env: Env;
   logger: bunyan;
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
+  adoptedRecordings: Map<string, AdoptedIosSimulatorRecording>;
+  runtimeDisplayNames: Map<string, string>;
   completedRecordings: IosSimulatorRecording[];
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
   /** Failed attempts for the whole session; unlike recordingFailureCounts, never reset. */
@@ -81,6 +94,80 @@ export namespace IosSimulatorRecordingUtils {
     serveSimPackageSpec ??= packageSpec;
   }
 
+  /** Reserve this job's output before adoption so the poller cannot start a second writer. */
+  export async function prepareAdoptedRecordingAsync({
+    udid,
+    deviceName,
+    serverToken,
+    recordingUrl,
+  }: {
+    udid: string;
+    deviceName: string;
+    serverToken: string;
+    recordingUrl: string;
+  }): Promise<{ output: string; recordingId: string; finishAsync(): Promise<void> } | undefined> {
+    const session = activeIosSimulatorRecordingSession;
+    udid = udid.toUpperCase();
+    if (!session) {
+      return undefined;
+    }
+    const existing = [...session.adoptedRecordings.values()].find(
+      recording => recording.udid === udid && recording.serverToken === serverToken
+    );
+    if (existing) {
+      await existing.ready;
+      return existing;
+    }
+    if (session.activeRecordings.has(udid as IosSimulatorUuid)) {
+      throw new Error('This Simulator already has a recording managed by the job.');
+    }
+    const recordingId = randomUUID();
+    const output = path.join(session.recordingsRootDirectory, recordingId);
+    const startedAt = new Date();
+    let finishing: Promise<void> | undefined;
+    const recording: AdoptedIosSimulatorRecording = {
+      udid,
+      serverToken,
+      output,
+      recordingId,
+      ready: mkdir(output, { recursive: true }).then(() => {}),
+      finishAsync: () =>
+        (finishing ??= (async () => {
+          await recording.ready;
+          const response = await turtleFetch(recordingUrl, 'DELETE', {
+            headers: { Authorization: `Bearer ${serverToken}`, 'x-recording-id': recordingId },
+            retries: 0,
+            timeout: SERVE_SIM_CONTROL_REQUEST_TIMEOUT_MS,
+          });
+          if (response.status !== 200) {
+            throw new Error(
+              `Could not finish the warm Simulator video recording (HTTP ${response.status}); complete footage is not confirmed.`
+            );
+          }
+          const result = z.object({ manifest: z.string() }).parse(await response.json());
+          if (result.manifest !== path.join(output, 'session.json')) {
+            throw new Error(
+              'The warm Simulator recording returned an unexpected manifest path for this job.'
+            );
+          }
+          await access(result.manifest);
+          session.completedRecordings.push({
+            id: recordingId,
+            udid: udid as IosSimulatorUuid,
+            deviceName,
+            runtimeDisplayName: session.runtimeDisplayNames.get(udid) ?? 'Unknown iOS runtime',
+            outputDirectory: output,
+            startedAt,
+            getOutput: () => '',
+            hasStarted: () => true,
+          });
+        })()),
+    };
+    session.adoptedRecordings.set(recordingId, recording);
+    await recording.ready;
+    return recording;
+  }
+
   export async function startAsync({ env, logger }: { env: Env; logger: bunyan }): Promise<void> {
     if (activeIosSimulatorRecordingSession) {
       logger.info('iOS Simulator screen recording polling is already running.');
@@ -95,6 +182,8 @@ export namespace IosSimulatorRecordingUtils {
       logger,
       recordingsRootDirectory,
       activeRecordings: new Map(),
+      adoptedRecordings: new Map(),
+      runtimeDisplayNames: new Map(),
       completedRecordings: [],
       recordingFailureCounts: new Map(),
       failedAttemptCounts: new Map(),
@@ -190,6 +279,17 @@ export namespace IosSimulatorRecordingUtils {
       })
     );
 
+    await Promise.all(
+      [...session.adoptedRecordings.values()].map(recording =>
+        recording.finishAsync().catch(err => {
+          logger.warn(
+            { err },
+            'Could not finish the warm Simulator video recording; complete footage is not confirmed.'
+          );
+        })
+      )
+    );
+
     const completedRecordings = [...session.completedRecordings].sort(
       (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
     );
@@ -243,6 +343,9 @@ async function pollIosSimulatorRecordingsAsync(
         break;
       }
       listDevicesErrorCount = 0;
+      for (const device of bootedDevices) {
+        session.runtimeDisplayNames.set(device.udid.toUpperCase(), device.runtimeDisplayName);
+      }
       const readyServers = new Map(
         (await readServeSimServersAsync(SERVE_SIM_STATE_DIR)).flatMap(server =>
           server.token ? [[server.udid, server.token] as const] : []
@@ -262,7 +365,14 @@ async function pollIosSimulatorRecordingsAsync(
       for (const device of bootedDevices) {
         const token = readyServers.get(device.udid);
         const packageSpec = serveSimPackageSpec;
-        if (!token || !packageSpec) {
+        if (
+          !token ||
+          !packageSpec ||
+          [...session.adoptedRecordings.values()].some(
+            recording =>
+              recording.udid === device.udid.toUpperCase() && recording.serverToken === token
+          )
+        ) {
           continue;
         }
         if (session.serveBearerTokens.get(device.udid) !== token) {

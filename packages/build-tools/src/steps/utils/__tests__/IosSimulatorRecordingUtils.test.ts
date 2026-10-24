@@ -9,12 +9,14 @@ import { setTimeout } from 'node:timers/promises';
 
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { Sentry } from '../../../sentry';
+import { turtleFetch } from '../../../utils/turtleFetch';
 import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('../serveSimMetricsRecorder');
 jest.mock('../../../sentry');
+jest.mock('../../../utils/turtleFetch');
 
 const logger = {
   info: jest.fn(),
@@ -536,4 +538,140 @@ test('records every booted device with the first serve-sim package', async () =>
   await setTimeout(50);
   currentTime += 311_000;
   await IosSimulatorRecordingUtils.finishAsync({ logger });
+});
+
+test('does not request adopted video when job recording is disabled', async () => {
+  await expect(
+    IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+      udid,
+      deviceName: 'iPhone 17 Pro',
+      serverToken: 'job-token',
+      recordingUrl: 'http://127.0.0.1:3200/helper/device/recording/video',
+    })
+  ).resolves.toBeUndefined();
+  expect(turtleFetch).not.toHaveBeenCalled();
+});
+
+test('reserves adoption against the poller and awaits exact owned finalization once', async () => {
+  let releaseDevices!: (devices: never[]) => void;
+  jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockImplementation(
+    () =>
+      new Promise(resolve => {
+        releaseDevices = resolve as never;
+      })
+  );
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([{ udid, url: 'http://127.0.0.1:3200', token: 'job-token' }]);
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  const args = {
+    udid,
+    deviceName: 'iPhone 17 Pro',
+    serverToken: 'job-token',
+    recordingUrl: `http://127.0.0.1:3200/helper/${udid}/recording/video`,
+  };
+  const [recording, reused] = await Promise.all([
+    IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync(args),
+    IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({ ...args, udid: udid.toLowerCase() }),
+  ]);
+  expect(reused).toBe(recording);
+  releaseDevices([{ udid, name: 'iPhone 17 Pro', runtimeDisplayName: 'iOS 26.4' }] as never);
+  await setTimeout(20);
+  expect(spawn).not.toHaveBeenCalled();
+  const manifest = `${recording!.output}/session.json`;
+  await writeFile(manifest, JSON.stringify({ recording: 'recording.mp4' }));
+  let finalize!: () => void;
+  jest.mocked(turtleFetch).mockImplementation(async () => {
+    await new Promise<void>(resolve => {
+      finalize = resolve;
+    });
+    return { status: 200, json: async () => ({ manifest }) } as never;
+  });
+  let collected = false;
+  const finishing = IosSimulatorRecordingUtils.finishAsync({ logger }).then(result => {
+    collected = true;
+    return result;
+  });
+  await setTimeout(20);
+  expect(collected).toBe(false);
+  const sameFinalization = recording!.finishAsync();
+  finalize();
+  const result = await finishing;
+  await sameFinalization;
+  expect(result).toEqual([
+    {
+      udid,
+      deviceName: 'iPhone 17 Pro',
+      runtimeDisplayName: 'iOS 26.4',
+      directory: recording!.output,
+    },
+  ]);
+  expect(turtleFetch).toHaveBeenCalledTimes(1);
+  expect(turtleFetch).toHaveBeenCalledWith(
+    args.recordingUrl,
+    'DELETE',
+    expect.objectContaining({
+      retries: 0,
+      timeout: 120000,
+      headers: { Authorization: 'Bearer job-token', 'x-recording-id': recording!.recordingId },
+    })
+  );
+  expect(spawn).not.toHaveBeenCalled();
+});
+
+test.each(['cancelled', 'wrong-manifest', 'stop-failed'])(
+  'does not publish adopted footage after %s even if a manifest file exists',
+  async failure => {
+    jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+    await IosSimulatorRecordingUtils.startAsync({ env, logger });
+    const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+      udid,
+      deviceName: 'iPhone',
+      serverToken: 'job-token',
+      recordingUrl: `http://127.0.0.1:3200/helper/${udid}/recording/video`,
+    });
+    await writeFile(
+      `${recording!.output}/session.json`,
+      JSON.stringify({ recording: 'recording.mp4' })
+    );
+    jest.mocked(turtleFetch).mockImplementation(async () => {
+      if (failure === 'stop-failed') {
+        throw new Error('native finalization failed');
+      }
+      return {
+        status: failure === 'cancelled' ? 202 : 200,
+        json: async () => ({ manifest: '/foreign/session.json' }),
+      } as never;
+    });
+    expect(await IosSimulatorRecordingUtils.finishAsync({ logger })).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Could not finish the warm Simulator video recording; complete footage is not confirmed.'
+    );
+  }
+);
+
+test('a reserved adopted recording does not suppress recording a replacement server token', async () => {
+  let releaseDevices!: (devices: never[]) => void;
+  jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        releaseDevices = resolve as never;
+      })
+  );
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([{ udid, url: 'http://127.0.0.1:3200', token: 'replacement-token' }]);
+  mockFailingRecorder();
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+    udid,
+    deviceName: 'iPhone',
+    serverToken: 'old-token',
+    recordingUrl: `http://127.0.0.1:3200/helper/${udid}/recording/video`,
+  });
+  jest.mocked(turtleFetch).mockRejectedValue(new Error('old server stopped'));
+  releaseDevices([{ udid, name: 'iPhone', runtimeDisplayName: 'iOS 26.4' }] as never);
+  await waitForRecorderSpawnAsync();
+  expect(spawn).toHaveBeenCalledTimes(1);
 });

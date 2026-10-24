@@ -184,6 +184,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       env,
       logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
+      preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
       disableShare,
       privatePreviewUrl,
       frameAncestors,
@@ -197,10 +198,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       application: hostBootedDevice?.application,
     });
     tasks.signal.throwIfAborted();
-    const webPreview = await sessionHost.openPreviewAsync({
-      baseDomain: ngrokTunnelDomain,
-      authtoken: ngrokAuthtoken,
-    });
+    const webPreview = await sessionHost.openPreviewAsync();
     tasks.signal.throwIfAborted();
     taskLogger.info(
       webPreview.sharePageUrl

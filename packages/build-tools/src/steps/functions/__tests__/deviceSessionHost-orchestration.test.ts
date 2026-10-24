@@ -145,7 +145,11 @@ describe.each([
 
   it('holds the host until session completion', async () => {
     await runAsync();
-    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test', authtoken: 'token' });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ preview: { baseDomain: 'example.test', authtoken: 'token' } })
+    );
+    expect(openPreview).toHaveBeenCalledWith();
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
