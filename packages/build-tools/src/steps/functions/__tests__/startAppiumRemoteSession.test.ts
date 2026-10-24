@@ -215,7 +215,6 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
         'launch_args',
         'open_url',
         'public_preview',
-        'single_device',
         'private_preview_url',
       ])
     );
@@ -321,7 +320,6 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
         ...(bootSimulator
           ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-device' } }
           : {}),
-        single_device: { value: 'chosen-ios-udid' },
         public_preview: { value: false },
         private_preview_url: { value: 'https://expo.dev/private-preview' },
         frame_ancestors: { value: ['https://preview.example.com'] },
@@ -330,7 +328,6 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          singleDevice: 'chosen-ios-udid',
           disableShare: true,
           privatePreviewUrl: 'https://expo.dev/private-preview',
           frameAncestors: ['https://preview.example.com'],

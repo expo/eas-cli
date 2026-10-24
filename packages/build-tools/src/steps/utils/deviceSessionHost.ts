@@ -52,6 +52,7 @@ import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
 import { createStartupTasks } from './startupTasks';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -131,7 +132,6 @@ export function createServeSimArgs({
   shareUrl,
   disableShare = false,
   packageVersion,
-  singleDevice,
   iosSimulatorUdid,
   installAppPath,
   launchAppIdentifier,
@@ -149,8 +149,7 @@ export function createServeSimArgs({
   shareUrl?: string;
   disableShare?: boolean;
   packageVersion?: string;
-  singleDevice?: string;
-  iosSimulatorUdid?: string;
+  iosSimulatorUdid: string;
   installAppPath?: string;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
@@ -158,8 +157,8 @@ export function createServeSimArgs({
 } & ServeSimLaunchOptions): string[] {
   return [
     createServeSimPackageSpec(packageVersion),
-    ...(singleDevice !== undefined ? ['--single-device', singleDevice] : []),
-    ...(iosSimulatorUdid ? [iosSimulatorUdid] : []),
+    '--single-device',
+    iosSimulatorUdid,
     '--port',
     String(port),
     '--host',
@@ -201,26 +200,27 @@ export function createServeSimArgs({
 
 export function createExpoDeviceHubArgs({
   port,
+  device,
   turnArgs = [],
   websiteArgs = [],
   frameAncestorArgs: frameArgs = [],
   corsOriginArgs: corsArgs = [],
   packageVersion,
-  singleDevice,
   recordingDirectory,
 }: {
   port: number;
+  device: string;
   turnArgs?: string[];
   websiteArgs?: string[];
   frameAncestorArgs?: string[];
   corsOriginArgs?: string[];
   packageVersion?: string;
-  singleDevice?: string;
   recordingDirectory?: string;
 }): string[] {
   return [
     createExpoDeviceHubPackageSpec(packageVersion),
-    ...(singleDevice !== undefined ? ['--single-device', singleDevice] : []),
+    '--single-device',
+    device,
     '--port',
     String(port),
     '--host',
@@ -386,7 +386,6 @@ type DeviceSessionHostOptions = {
   startupTimeoutMs?: number;
   signal?: AbortSignal;
   packageVersion?: string;
-  singleDevice?: string;
   disableShare?: boolean;
   privatePreviewUrl?: string;
   /** Origins allowed to embed the preview host, in addition to the website origins. */
@@ -437,7 +436,6 @@ async function startDeviceSessionHostInternalAsync(
     startupTimeoutMs,
     signal,
     packageVersion,
-    singleDevice,
     iosSimulatorUdid,
     installAppPath,
     application,
@@ -458,18 +456,6 @@ async function startDeviceSessionHostInternalAsync(
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
-  if (
-    singleDevice !== undefined &&
-    !isAndroid &&
-    iosSimulatorUdid &&
-    singleDevice.toUpperCase() !== iosSimulatorUdid.toUpperCase()
-  ) {
-    throw new UserError(
-      'EAS_SINGLE_DEVICE_INVALID_INPUT',
-      'single_device must match the selected iOS Simulator UDID.'
-    );
-  }
-
   if (
     Object.keys(bootEnv).length > 0 &&
     (runtimePlatform !== BuildRuntimePlatform.DARWIN || !iosSimulatorUdid)
@@ -499,6 +485,20 @@ async function startDeviceSessionHostInternalAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
+  const devices = isAndroid
+    ? (await AndroidEmulatorUtils.getAttachedDevicesAsync({ env }))
+        .filter(device => device.state === 'device')
+        .map(device => device.serialId)
+    : iosSimulatorUdid
+      ? [iosSimulatorUdid]
+      : (await IosSimulatorUtils.getAvailableDevicesAsync({ env, filter: 'booted' })).map(
+          device => device.udid
+        );
+  signal?.throwIfAborted();
+  if (devices.length !== 1) {
+    throw new SystemError(`Expected one device for the session preview, found ${devices.length}.`);
+  }
+  const deviceId = devices[0];
   const recording: AndroidSessionRecording | null = isAndroid
     ? {
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
@@ -526,9 +526,9 @@ async function startDeviceSessionHostInternalAsync(
     isAndroid
       ? createExpoDeviceHubArgs({
           port,
+          device: deviceId,
           turnArgs,
           packageVersion,
-          singleDevice,
           recordingDirectory: recording?.directory,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
@@ -538,8 +538,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           turnArgs,
           packageVersion,
-          singleDevice,
-          iosSimulatorUdid,
+          iosSimulatorUdid: deviceId,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
           corsOriginArgs: corsOriginArgs(corsOrigins),
@@ -784,11 +783,9 @@ async function startDeviceSessionHostInternalAsync(
     }
     logger.info(`Waiting for ${serverName} to become ready.`);
     const device = (await readiness).enforceValue();
-    // Hub reports server readiness with "no-device-id", not an emulator identity.
-    const expectedDevice = iosSimulatorUdid ?? (isAndroid ? undefined : singleDevice);
-    if (expectedDevice && device.toLowerCase() !== expectedDevice.toLowerCase()) {
+    if (!isAndroid && device.toLowerCase() !== deviceId.toLowerCase()) {
       throw new SystemError(
-        `${serverName} became ready on ${device}, but this session requested ${expectedDevice}.`
+        `serve-sim became ready on ${device}, but this session requested ${deviceId}.`
       );
     }
     hostReady = true;
@@ -831,7 +828,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               runtimePlatform,
-              device: singleDevice ?? device,
+              device: deviceId,
               env,
               signal,
             }),

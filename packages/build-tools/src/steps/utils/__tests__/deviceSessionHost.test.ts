@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
@@ -30,7 +31,6 @@ import {
 } from '../deviceRunSessionPreview';
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
-  createExpoDeviceHubArgs,
   createServeSimArgs,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
@@ -43,8 +43,13 @@ import {
 import * as screenshotCollector from '../deviceRunSessionScreenshots';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../../../utils/AndroidEmulatorUtils');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
-  IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
+  IosSimulatorUtils: {
+    disableApsdAsync: jest.fn(),
+    waitForReadyAsync: jest.fn(),
+    getAvailableDevicesAsync: jest.fn(),
+  },
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
@@ -69,8 +74,8 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 jest.mock('../deviceRunSessionPreview', () => ({
   ...jest.requireActual('../deviceRunSessionPreview'),
-  captureDeviceRunSessionPreviewAsync: jest.fn(),
   ensureMacosPreviewEncoderInstalledAsync: jest.fn(),
+  captureDeviceRunSessionPreviewAsync: jest.fn(),
   startDeviceRunSessionPreview: jest.fn(),
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
@@ -137,6 +142,16 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+    .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as Awaited<
+      ReturnType<typeof AndroidEmulatorUtils.getAttachedDevicesAsync>
+    >);
+  jest
+    .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+    .mockResolvedValue([{ udid: 'emulator-5554' }] as Awaited<
+      ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>
+    >);
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
@@ -150,7 +165,7 @@ beforeEach(() => {
   jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const port = options.args[options.args.indexOf('--port') + 1];
-    const device = options.args[options.args.indexOf('@expo/serve-sim@latest') + 1];
+    const device = options.args[options.args.indexOf('--single-device') + 1];
     jest.mocked(readServeSimServersAsync).mockResolvedValue([
       {
         udid: device?.startsWith('--') ? 'emulator-5554' : (device ?? 'emulator-5554'),
@@ -194,105 +209,65 @@ afterEach(async () => {
   );
 });
 
-it('targets the selected Simulator in the serve-sim invocation', () => {
-  expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: 'session-udid' }).slice(0, 4)).toEqual([
-    '@expo/serve-sim@latest',
-    'session-udid',
-    '--port',
-    '4321',
-  ]);
-});
-
-it('adds the single-device option to either host without changing the default', () => {
-  for (const createArgs of [createServeSimArgs, createExpoDeviceHubArgs]) {
-    expect(createArgs({ port: 4321 })).not.toContain('--single-device');
-    expect(createArgs({ port: 4321, singleDevice: 'pinned-device' }).slice(1, 3)).toEqual([
-      '--single-device',
-      'pinned-device',
-    ]);
-    // An explicit empty value must reach host validation, not silently enable multiple devices.
-    expect(createArgs({ port: 4321, singleDevice: '' }).slice(1, 3)).toEqual([
-      '--single-device',
-      '',
-    ]);
-  }
-});
-
-it('rejects a pinned target that conflicts with the selected Simulator before starting anything', async () => {
-  await expect(
-    startDeviceSessionHostAsync(ctx, {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger,
-      timeoutMs: 10_000,
-      iosSimulatorUdid: 'selected-udid',
-      singleDevice: 'other-udid',
-    })
-  ).rejects.toThrow('single_device must match');
-  expect(spawnDetached).not.toHaveBeenCalled();
-});
-
 it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
-  'passes the pinned device to the %s host',
+  'always pins the %s preview host to its booted device',
   async runtimePlatform => {
-    if (runtimePlatform === BuildRuntimePlatform.LINUX) {
-      jest.mocked(turtleFetch).mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: 'ready', device: 'no-device-id' }),
-      } as Awaited<ReturnType<typeof turtleFetch>>);
-    }
-
+    jest.mocked(turtleFetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'ready',
+        device: runtimePlatform === BuildRuntimePlatform.LINUX ? 'no-device-id' : 'emulator-5554',
+      }),
+    } as Awaited<ReturnType<typeof turtleFetch>>);
     const host = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform,
       env,
       logger,
       timeoutMs: 10_000,
-      singleDevice: 'emulator-5554',
     });
-    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
-    expect(
-      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
-    ).toEqual(['--single-device', 'emulator-5554']);
-    await host.finishAsync();
+    try {
+      const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+      expect(
+        args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+      ).toEqual(['--single-device', 'emulator-5554']);
+      await new Promise(resolve => setImmediate(resolve));
+      await jest
+        .mocked(startDeviceRunSessionPreview)
+        .mock.calls[0][0].captureAsync(new AbortController().signal);
+      expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ device: 'emulator-5554' })
+      );
+    } finally {
+      await host.finishAsync();
+    }
   }
 );
 
-it('uses the pinned Android serial for thumbnails when Hub reports no device identity', async () => {
-  jest.mocked(turtleFetch).mockResolvedValue({
-    ok: true,
-    json: async () => ({ status: 'ready', device: 'no-device-id' }),
-  } as Awaited<ReturnType<typeof turtleFetch>>);
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.LINUX,
-    env,
-    logger,
-    timeoutMs: 10_000,
-    singleDevice: 'emulator-5556',
-  });
-  try {
-    await new Promise(resolve => setImmediate(resolve));
-    const { captureAsync } = jest.mocked(startDeviceRunSessionPreview).mock.calls[0][0];
-    await captureAsync(new AbortController().signal);
-    expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ device: 'emulator-5556' })
+it.each([
+  [[]],
+  [
+    [
+      { serialId: 'emulator-5554', state: 'device' },
+      { serialId: 'emulator-5556', state: 'device' },
+    ],
+  ],
+])('refuses ambiguous or missing Android startup devices: %j', async devices => {
+  jest
+    .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+    .mockResolvedValue(
+      devices as Awaited<ReturnType<typeof AndroidEmulatorUtils.getAttachedDevicesAsync>>
     );
-  } finally {
-    await host.finishAsync();
-  }
+  await expect(startHostAsync()).rejects.toThrow('Expected one device');
+  expect(spawnDetached).not.toHaveBeenCalled();
 });
 
-it('stops serve-sim if readiness reports a different device than the pinned one', async () => {
-  await expect(
-    startDeviceSessionHostAsync(ctx, {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger,
-      timeoutMs: 10_000,
-      singleDevice: 'other-device',
-    })
-  ).rejects.toThrow('but this session requested other-device');
-  expect(stopServer).toHaveBeenCalledTimes(1);
-  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+it('targets the selected Simulator in the serve-sim invocation', () => {
+  expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: 'session-udid' }).slice(0, 4)).toEqual([
+    '@expo/serve-sim@latest',
+    '--single-device',
+    'session-udid',
+    '--port',
+  ]);
 });
 
 it('merges Simulator boot variables into the inherited serve-sim environment', async () => {
@@ -399,7 +374,7 @@ it('installs and launches through the API for the selected Simulator', async () 
       },
     })
   );
-  expect(args[args.indexOf('@expo/serve-sim@latest') + 1]).toBe('emulator-5554');
+  expect(args[args.indexOf('--single-device') + 1]).toBe('emulator-5554');
   await host.finishAsync();
 });
 

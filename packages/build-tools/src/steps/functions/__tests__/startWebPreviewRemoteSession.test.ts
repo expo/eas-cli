@@ -264,7 +264,6 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       'network_capture',
       'network_capture_fields',
       'public_preview',
-      'single_device',
       'private_preview_url',
       'frame_ancestors',
       'cors_origins',
@@ -349,16 +348,6 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({ corsOrigins: ['https://app.example.test'] })
-    );
-  });
-
-  it('hands single_device to the session host', async () => {
-    await runAsync(BuildRuntimePlatform.DARWIN, {
-      single_device: { value: 'session-udid' },
-    });
-    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({ singleDevice: 'session-udid' })
     );
   });
 

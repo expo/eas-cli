@@ -22,7 +22,6 @@ import {
   createFrameAncestorsInputProvider,
   createPrivatePreviewUrlInputProvider,
   createPublicPreviewInputProvider,
-  createSingleDeviceInputProvider,
   omitNgrokAuthtoken,
   parseCorsOriginsInput,
   parseFrameAncestorsInput,
@@ -118,7 +117,6 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
       // Session.
       ...createNetworkCaptureInputProviders(),
       createPublicPreviewInputProvider(),
-      createSingleDeviceInputProvider(),
       createPrivatePreviewUrlInputProvider(),
       createFrameAncestorsInputProvider(),
       createCorsOriginsInputProvider(),
@@ -290,7 +288,6 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
           maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
           capture,
           disableShare: inputs.public_preview?.value === false,
-          singleDevice: inputs.single_device?.value as string | undefined,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),

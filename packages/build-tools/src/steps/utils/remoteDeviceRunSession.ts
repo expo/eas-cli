@@ -827,17 +827,6 @@ export function createPublicPreviewInputProvider(): ReturnType<
   });
 }
 
-/** The concrete Simulator UDID or adb serial accepted by the preview host's --single-device. */
-export function createSingleDeviceInputProvider(): ReturnType<
-  typeof BuildStepInput.createProvider
-> {
-  return BuildStepInput.createProvider({
-    id: 'single_device',
-    required: false,
-    allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-  });
-}
-
 export function createPrivatePreviewUrlInputProvider(): ReturnType<
   typeof BuildStepInput.createProvider
 > {

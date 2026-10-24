@@ -94,7 +94,6 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxDurationSeconds,
     capture,
     disableShare = false,
-    singleDevice,
     privatePreviewUrl,
     frameAncestors,
     corsOrigins,
@@ -111,7 +110,6 @@ export async function runAgentDeviceRemoteSessionAsync(
     maxDurationSeconds: number | undefined;
     capture: ReturnType<typeof parseNetworkCaptureInputs>;
     disableShare?: boolean;
-    singleDevice?: string;
     privatePreviewUrl?: string;
     frameAncestors?: string[];
     corsOrigins?: string[];
@@ -187,7 +185,6 @@ export async function runAgentDeviceRemoteSessionAsync(
       logger: taskLogger,
       timeoutMs: STARTUP_TIMEOUT_MS,
       disableShare,
-      singleDevice,
       privatePreviewUrl,
       frameAncestors,
       corsOrigins,
