@@ -2395,12 +2395,10 @@ it('finalizes an adoption recording and stops the worker when adoption is cancel
   expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
 });
 
-it('overlaps warm setup and tunnel with TURN, keeps setup nonblocking and waits for native video before app operations', async () => {
+it('overlaps the warm tunnel with TURN, skips Simulator setup and waits for native video before app operations', async () => {
   const warm = warmSimulator();
   const turn = deferred<string[]>();
-  const setup = deferred<void>();
   const adoption = deferred<{ stdout: string }>();
-  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValueOnce(setup.promise);
   jest.mocked(spawn).mockReturnValueOnce(adoption.promise as never);
   const stageDirectory = await mkdtemp(path.join(os.tmpdir(), 'warm-overlap-test-'));
   directories.push(stageDirectory);
@@ -2433,7 +2431,7 @@ it('overlaps warm setup and tunnel with TURN, keeps setup nonblocking and waits 
     for (let i = 0; i < 50 && !jest.mocked(ngrok.forward).mock.calls.length; i++) {
       await new Promise(resolve => setImmediate(resolve));
     }
-    expect(IosSimulatorUtils.disableApsdAsync).toHaveBeenCalled();
+    expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
     expect(ngrok.forward).toHaveBeenCalledTimes(1);
     expect(spawn).not.toHaveBeenCalled();
     expect(runServeSimActionAsync).not.toHaveBeenCalled();
@@ -2466,15 +2464,10 @@ it('overlaps warm setup and tunnel with TURN, keeps setup nonblocking and waits 
     expect(runServeSimActionAsync).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'app.launch' })
     );
-    const finishing = host.finishAsync();
-    await new Promise(resolve => setImmediate(resolve));
-    expect(warm.process.stopAsync).not.toHaveBeenCalled();
-    setup.resolve();
-    await finishing;
+    await host.finishAsync();
     expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
   } finally {
     turn.resolve([]);
-    setup.resolve();
     adoption.resolve({
       stdout: JSON.stringify({ recording: { output: '/job/video', recordingId: 'job-recording' } }),
     });
@@ -2484,14 +2477,12 @@ it('overlaps warm setup and tunnel with TURN, keeps setup nonblocking and waits 
 });
 
 it.each(['adoption failure', 'cancellation'])(
-  'drains setup and closes a late warm tunnel before controller stop on %s',
+  'closes a late warm tunnel before controller stop on %s',
   async failure => {
     const warm = warmSimulator();
-    const setup = deferred<void>();
     const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
     const adoption = deferred<never>();
     const controller = new AbortController();
-    jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValueOnce(setup.promise);
     jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
     jest.mocked(spawn).mockImplementationOnce((_command, _args, options) => {
       options?.signal?.addEventListener('abort', () => adoption.reject(options.signal!.reason), {
@@ -2538,8 +2529,6 @@ it.each(['adoption failure', 'cancellation'])(
         await new Promise(resolve => setImmediate(resolve));
       }
       expect(closeTunnel).toHaveBeenCalledTimes(1);
-      expect(warm.process.stopAsync).not.toHaveBeenCalled();
-      setup.resolve();
       await rejected;
       expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
       expect(closeTunnel.mock.invocationCallOrder[0]).toBeLessThan(
@@ -2547,7 +2536,6 @@ it.each(['adoption failure', 'cancellation'])(
       );
       expect(runServeSimActionAsync).not.toHaveBeenCalled();
     } finally {
-      setup.resolve();
       tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
       adoption.reject(new Error('test cleanup'));
       await starting.catch(() => {});
@@ -2555,12 +2543,10 @@ it.each(['adoption failure', 'cancellation'])(
   }
 );
 
-it('keeps an app failure untyped and drains warm setup and late tunnel before stop', async () => {
+it('keeps an app failure untyped and closes a late warm tunnel before stop', async () => {
   const warm = warmSimulator();
-  const setup = deferred<void>();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   const failure = new Error('app install failed');
-  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValueOnce(setup.promise);
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
   jest.mocked(spawn).mockResolvedValueOnce({ stdout: '{}' } as never);
   const stageDirectory = await mkdtemp(path.join(os.tmpdir(), 'warm-overlap-test-'));
@@ -2600,55 +2586,12 @@ it('keeps an app failure untyped and drains warm setup and late tunnel before st
       await new Promise(resolve => setImmediate(resolve));
     }
     expect(closeTunnel).toHaveBeenCalledTimes(1);
-    expect(warm.process.stopAsync).not.toHaveBeenCalled();
-    setup.resolve();
     await rejected;
     expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
     expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
   } finally {
-    setup.resolve();
     tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
     await starting.catch(() => {});
-  }
-});
-
-it('warns on a late warm APSd failure without holding launch or live readiness', async () => {
-  const warm = warmSimulator();
-  const setup = deferred<void>();
-  const failure = new Error('apsd setup unavailable');
-  jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValueOnce(setup.promise);
-  jest.mocked(spawn).mockResolvedValueOnce({ stdout: '{}' } as never);
-  const starting = startWarmDeviceSessionHostAsync(
-    ctx,
-    {
-      preview: { baseDomain, authtoken },
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger,
-      timeoutMs: 1000,
-      iosSimulatorUdid: 'emulator-5554',
-      launchAppIdentifier: 'test.application',
-    },
-    warm,
-    { turnArgs: Promise.resolve([]) }
-  );
-  try {
-    const host = await starting;
-    expect(runServeSimActionAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'app.launch' })
-    );
-    expect(warm.process.stopAsync).not.toHaveBeenCalled();
-    setup.reject(failure);
-    await host.finishAsync();
-    expect(logger.warn).toHaveBeenCalledWith(
-      { err: failure },
-      'Failed to disable apsd in the Simulator.'
-    );
-    expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
-  } finally {
-    setup.resolve();
-    const host = await starting;
-    await host.finishAsync();
   }
 });
 
@@ -2681,10 +2624,9 @@ it.each([
   { timing: 'opened', timeout: true },
   { timing: 'late', timeout: true },
 ])(
-  'forbids cold retry after $timing warm tunnel retirement fails (timeout=$timeout), while draining setup and stopping the host',
+  'forbids cold retry after $timing warm tunnel retirement fails (timeout=$timeout), while stopping the host',
   async ({ timing, timeout }) => {
     const warm = warmSimulator();
-    const setup = deferred<void>();
     const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
     const adoption = deferred<never>();
     const closeError = new Error('listener still alive');
@@ -2692,7 +2634,6 @@ it.each([
     jest
       .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
       .mockResolvedValueOnce({ directory: '/tmp/screenshots', finishAsync: screenshotsFinish });
-    jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValueOnce(setup.promise);
     jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
     const closing = deferred<void>();
     if (timeout) {
@@ -2734,8 +2675,6 @@ it.each([
       if (timing === 'late') {
         expect(closeTunnel).toHaveBeenCalledTimes(1);
       }
-      expect(warm.process.stopAsync).not.toHaveBeenCalled();
-      setup.resolve();
       const error = await outcome;
       expect(error).toBeInstanceOf(AggregateError);
       expect(error).not.toBeInstanceOf(WarmSessionAdoptionError);
@@ -2749,7 +2688,6 @@ it.each([
       expect(runServeSimActionAsync).not.toHaveBeenCalled();
     } finally {
       closing.resolve();
-      setup.resolve();
       tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
       adoption.reject(new Error('test cleanup'));
       await outcome;

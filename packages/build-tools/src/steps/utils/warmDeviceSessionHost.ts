@@ -69,7 +69,7 @@ function createWarmDeviceSessionServer(
     port: warm.serveSim.port,
     // Warm startup can fetch TURN while claiming the device.
     turnArgs: startup?.turnArgs ?? fetchWebPreviewTurnArgsAsync(ctx, { logger }),
-    simulatorBooted: true,
+    simulatorPrepared: true,
     requiresPreviewRetirement: true,
     stopAsync: stopSessionAsync,
     async startAsync({ command, args, env, signal }) {

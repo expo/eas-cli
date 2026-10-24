@@ -417,8 +417,8 @@ export type DeviceSessionServerLaunch = {
 export type DeviceSessionServer = {
   port: number;
   turnArgs: Promise<string[]>;
-  /** The Simulator is booted before startAsync, so Simulator setup overlaps server startup. */
-  simulatorBooted: boolean;
+  /** The Simulator was booted and set up before startAsync, so the host skips Simulator setup. */
+  simulatorPrepared: boolean;
   /** Another session can start on this machine, so an unconfirmed tunnel close fails cleanup. */
   requiresPreviewRetirement: boolean;
   startAsync(launch: DeviceSessionServerLaunch): Promise<DetachedProcessHandle>;
@@ -436,7 +436,7 @@ async function createColdDeviceSessionServerAsync(
   return {
     port,
     turnArgs: Promise.resolve(turnArgs),
-    simulatorBooted: false,
+    simulatorPrepared: false,
     requiresPreviewRetirement: false,
     async startAsync({ command, args, env, logger, secrets, stopGracePeriodMs }) {
       return spawnDetached({ command, args, env, logger, secrets, stopGracePeriodMs });
@@ -663,9 +663,6 @@ async function startDeviceSessionHostInternalAsync(
       startup.signal.throwIfAborted();
     });
   }
-  if (server.simulatorBooted && iosSimulatorUdid) {
-    beforeLaunch = asyncResult(startSimulatorSetup());
-  }
   const earlyPreview = asyncResult(
     openPreviewAsync().catch(error => {
       startup.abort(error);
@@ -779,9 +776,6 @@ async function startDeviceSessionHostInternalAsync(
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
       return (finishTask ??= (async () => {
-        if (server.simulatorBooted) {
-          await beforeLaunch;
-        }
         if (server.requiresPreviewRetirement) {
           // Confirm the tunnel is closed before stop, so the next session cannot reach this one.
           await earlyPreview
@@ -861,7 +855,9 @@ async function startDeviceSessionHostInternalAsync(
         );
       }
       signal?.throwIfAborted();
-      beforeLaunch ??= asyncResult(startup.untilAborted(startSimulatorSetup()));
+      if (!server.simulatorPrepared) {
+        beforeLaunch = asyncResult(startup.untilAborted(startSimulatorSetup()));
+      }
       const app = (application ? await startup.untilAborted(application) : undefined) ?? {
         installAppPath,
         launchAppIdentifier,
@@ -884,9 +880,7 @@ async function startDeviceSessionHostInternalAsync(
         signal?.throwIfAborted();
         await action('app.install', { udid: iosSimulatorUdid, path: staged.path });
       }
-      if (!server.simulatorBooted) {
-        (await beforeLaunch)?.enforceValue();
-      }
+      (await beforeLaunch)?.enforceValue();
       startup.signal.throwIfAborted();
       if (app.launchAppIdentifier) {
         signal?.throwIfAborted();
