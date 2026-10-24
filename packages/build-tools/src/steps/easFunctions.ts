@@ -67,6 +67,7 @@ import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbeddedBundle';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
+import { createWaitForAscBuildProcessingBuildFunction } from './functions/waitForAscBuildProcessing';
 import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
@@ -144,6 +145,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createSubmissionEntityFunction(),
     createSubmitToGooglePlayBuildFunction(),
     createUploadToAscBuildFunction(),
+    createWaitForAscBuildProcessingBuildFunction(),
     createUpdateTestFlightMetadataBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),

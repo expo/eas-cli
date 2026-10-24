@@ -93,7 +93,7 @@ export async function updateTestFlightMetadataAsync({
   if (upload.attributes?.state?.state !== 'COMPLETE' || !buildId) {
     throw new UserError(
       'EAS_TESTFLIGHT_BUILD_NOT_READY',
-      'The uploaded build is not ready for TestFlight metadata. Run eas/upload_to_asc with wait_for_processing: true first.'
+      'The uploaded build is not ready for TestFlight metadata. Run eas/wait_for_asc_build_processing first, or use eas/upload_to_asc with wait_for_processing: true.'
     );
   }
   logger.info(`Updating TestFlight metadata for Apple build ${buildId}...`);

@@ -302,4 +302,8 @@ export namespace AscApiUtils {
         .join('\n') || '  (none)'
     );
   }
+
+  export function itemizeMessages(messages: { description: string; code: string }[]): string {
+    return `- ${messages.map(m => `${m.description} (${m.code})`).join('\n- ')}`;
+  }
 }
