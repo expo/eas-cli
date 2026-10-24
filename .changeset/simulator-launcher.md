@@ -9,3 +9,5 @@ Start unused-tool shutdown during claim without delaying handoff. Drain it durin
 Preinstall the latest stable Expo Go during initial warmup without delaying the candidate. Claim prevents late warmup installs and waits for one already in progress before handing the device to the job.
 
 Disable apsd on each warm device before reporting it ready.
+
+Check for ffmpeg without installing it; the VM image provides it.
