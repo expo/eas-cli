@@ -436,16 +436,9 @@ export namespace AscApiUtils {
         throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
       } else if (state.state === 'COMPLETE') {
         logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
-        return;
       }
-      throw new Error(
-        `Unexpected App Store Connect processing state: ${state.state}. Check the build in App Store Connect.`
-      );
+      break;
     }
-    throw new UserError(
-      'EAS_ASC_BUILD_PROCESSING_TIMEOUT',
-      `App Store Connect did not finish processing build upload ${buildUploadId} within 30 minutes. Check its status in App Store Connect before retrying.`
-    );
   }
 
   export function itemizeMessages(messages: { description: string; code: string }[]): string {

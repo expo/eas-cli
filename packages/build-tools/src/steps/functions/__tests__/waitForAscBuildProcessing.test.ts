@@ -35,6 +35,28 @@ async function waitAsync(diagnostics: Record<string, string> = {}): Promise<void
     .executeAsync();
 }
 
+async function uploadAsync(waitForProcessing?: boolean): Promise<void> {
+  await fs.outputFile('/project/app.ipa', 'ipa');
+  jest.mocked(readIpaInfoAsync).mockResolvedValue({
+    bundleIdentifier: 'com.test.ipa',
+    bundleVersion: '1',
+    bundleShortVersion: '1.0',
+    dtPlatformName: 'iphoneos',
+  });
+  mockUpload();
+  const step = createUploadToAscBuildFunction().createBuildStepFromFunctionCall(globalContext(), {
+    callInputs: {
+      ipa_path: 'app.ipa',
+      asc_api_key_path: 'key.json',
+      apple_app_identifier: 'app',
+      bundle_version: '1',
+      bundle_short_version: '1.0',
+      ...(waitForProcessing === undefined ? {} : { wait_for_processing: waitForProcessing }),
+    },
+  });
+  await step.executeAsync();
+}
+
 function mockProcessing(state: string, errors: { code: string; description: string }[] = []): void {
   api()
     .get('/v1/buildUploads/upload')
@@ -139,34 +161,29 @@ it('fails for an unclassified Apple processing error', async () => {
 it.each([undefined, false, true])(
   'keeps upload wait_for_processing=%s compatible',
   async waitForProcessing => {
-    await fs.outputFile('/project/app.ipa', 'ipa');
-    jest.mocked(readIpaInfoAsync).mockResolvedValue({
-      bundleIdentifier: 'com.test.ipa',
-      bundleVersion: '1',
-      bundleShortVersion: '1.0',
-      dtPlatformName: 'iphoneos',
-    });
-    mockUpload();
     if (waitForProcessing) {
       mockProcessing('PROCESSING');
       mockProcessing('FAILED', [{ code: '90725', description: 'SDK is too old' }]);
     }
-    const step = createUploadToAscBuildFunction().createBuildStepFromFunctionCall(globalContext(), {
-      callInputs: {
-        ipa_path: 'app.ipa',
-        asc_api_key_path: 'key.json',
-        apple_app_identifier: 'app',
-        bundle_version: '1',
-        bundle_short_version: '1.0',
-        ...(waitForProcessing === undefined ? {} : { wait_for_processing: waitForProcessing }),
-      },
-    });
     if (waitForProcessing) {
-      await expect(step.executeAsync()).rejects.toMatchObject({
+      await expect(uploadAsync(waitForProcessing)).rejects.toMatchObject({
         errorCode: 'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
       });
     } else {
-      await expect(step.executeAsync()).resolves.toBeUndefined();
+      await expect(uploadAsync(waitForProcessing)).resolves.toBeUndefined();
     }
+  }
+);
+
+it.each(['upload', 'wait'])(
+  'preserves the successful timeout return for the %s step',
+  async step => {
+    mockProcessing('PROCESSING');
+    const start = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(start);
+    jest.mocked(setTimeout).mockImplementationOnce(async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(start + 30 * 60 * 1000);
+    });
+    await expect(step === 'upload' ? uploadAsync(true) : waitAsync()).resolves.toBeUndefined();
   }
 );
