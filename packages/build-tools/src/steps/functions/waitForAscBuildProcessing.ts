@@ -52,7 +52,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         .object({
           asc_api_key_path: z.string(),
           build_upload_id: z.string(),
-          wait_processing_timeout_seconds: z.number().int().positive(),
+          wait_processing_timeout_seconds: z.number().finite().positive(),
           bundle_identifier: z.string().optional(),
           apple_app_identifier: z.string().optional(),
           bundle_short_version: z.string().optional(),
