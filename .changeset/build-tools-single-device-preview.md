@@ -2,4 +2,4 @@
 '@expo/build-tools': minor
 ---
 
-Add single-device mode for remote session previews.
+Use single-device previews when the session already has a valid device ID.

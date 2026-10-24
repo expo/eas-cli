@@ -17,8 +17,6 @@ import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
-import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
-import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import * as processes from '../../../utils/processes';
 import {
@@ -532,18 +530,31 @@ describe(describeServeSimLaunch, () => {
   });
 });
 
+it('only pins hosts when a valid device ID is supplied', () => {
+  const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+  expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: udid })).toEqual(
+    expect.arrayContaining(['--single-device', udid])
+  );
+  for (const iosSimulatorUdid of [undefined, '', 'booted', 'iPhone 17']) {
+    expect(createServeSimArgs({ port: 4321, iosSimulatorUdid })).not.toContain('--single-device');
+  }
+  expect(createExpoDeviceHubArgs({ port: 4321, device: 'emulator-5554' })).toEqual(
+    expect.arrayContaining(['--single-device', 'emulator-5554'])
+  );
+  for (const device of [undefined, '', 'all', 'booted', 'invalid serial']) {
+    expect(createExpoDeviceHubArgs({ port: 4321, device })).not.toContain('--single-device');
+  }
+});
+
 describe(createServeSimArgs, () => {
   it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
       createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
         port: 4321,
         turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       })
     ).toEqual([
       '@expo/serve-sim@latest',
-      '--single-device',
-      'device-id',
       '--port',
       '4321',
       '--host',
@@ -568,7 +579,6 @@ describe(createServeSimArgs, () => {
 
   it('appends the website args after the TURN args when provided', () => {
     const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
       port: 4321,
       turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       websiteArgs: ['--cors-origin', 'https://expo.dev'],
@@ -583,7 +593,6 @@ describe(createServeSimArgs, () => {
 
   it('appends the session frame ancestors after the website args', () => {
     const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
       port: 4321,
       websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
       frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
@@ -603,28 +612,19 @@ describe(createServeSimArgs, () => {
   });
 
   it('pins the requested package version', () => {
-    expect(
-      createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
-        port: 4321,
-        packageVersion: '0.1.38',
-      })[0]
-    ).toBe('@expo/serve-sim@0.1.38');
+    expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' })[0]).toBe(
+      '@expo/serve-sim@0.1.38'
+    );
   });
 
   it('pins a dist-tag', () => {
-    expect(
-      createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
-        port: 4321,
-        packageVersion: 'next',
-      })[0]
-    ).toBe('@expo/serve-sim@next');
+    expect(createServeSimArgs({ port: 4321, packageVersion: 'next' })[0]).toBe(
+      '@expo/serve-sim@next'
+    );
   });
 
   it('appends --share-url after the website args', () => {
     const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
       port: 4321,
       websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
       shareUrl: 'https://expo.dev/simulator-preview/abc',
@@ -638,20 +638,15 @@ describe(createServeSimArgs, () => {
   });
 
   it('disables the native Share button only when requested', () => {
-    expect(
-      createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321, disableShare: true })
-    ).toContain('--disable-share');
-    expect(
-      createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321, disableShare: false })
-    ).not.toContain('--disable-share');
-    expect(createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321 })).not.toContain(
+    expect(createServeSimArgs({ port: 4321, disableShare: true })).toContain('--disable-share');
+    expect(createServeSimArgs({ port: 4321, disableShare: false })).not.toContain(
       '--disable-share'
     );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--disable-share');
   });
 
   it('appends the launch flags after the streaming policy', () => {
     const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
       port: 4321,
       launchAppIdentifier: 'host.exp.Exponent',
       launchArgs: ['-EXDevMenuIsOnboardingFinished', '1'],
@@ -670,40 +665,28 @@ describe(createServeSimArgs, () => {
   });
 
   it('omits the launch flags when there is no application to launch', () => {
-    const args = createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321 });
+    const args = createServeSimArgs({ port: 4321 });
     expect(args.some(argument => argument.startsWith('--launch'))).toBe(false);
     expect(args).not.toContain('--open-url');
   });
 
   it('omits --network-capture by default', () => {
-    expect(createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321 })).not.toContain(
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
       '--network-capture'
     );
-    expect(
-      createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321, networkCapture: false })
-    ).not.toContain('--network-capture');
   });
 
   it('passes a capture proxy as one argument, including when capture will be enabled later', () => {
     const proxy = 'http://user:p%40ss%20word@proxy.example:8899';
-    const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
-      port: 4321,
-      networkCaptureProxy: proxy,
-    });
+    const args = createServeSimArgs({ port: 4321, networkCaptureProxy: proxy });
     expect(args.slice(-2)).toEqual(['--network-capture-proxy', proxy]);
     expect(args).not.toContain('--network-capture');
-    expect(createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321 })).not.toContain(
-      '--network-capture-proxy'
-    );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture-proxy');
   });
 
   it('appends --network-capture when enabled, which also covers an already booted simulator', () => {
-    const args = createServeSimArgs({
-      iosSimulatorUdid: 'device-id',
-      port: 4321,
-      networkCapture: true,
-    });
+    const args = createServeSimArgs({ port: 4321, networkCapture: true });
     expect(args).toContain('--network-capture');
     expect(args).not.toContain('--enable');
   });
@@ -711,7 +694,6 @@ describe(createServeSimArgs, () => {
   it('repeats --network-capture-field once per requested field', () => {
     expect(
       createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
         port: 4321,
         networkCapture: true,
         networkCaptureFields: ['header', 'query'],
@@ -728,19 +710,14 @@ describe(createServeSimArgs, () => {
   });
 
   it('keeps capture metadata-only when no field is requested', () => {
-    expect(
-      createServeSimArgs({ iosSimulatorUdid: 'device-id', port: 4321, networkCapture: true })
-    ).not.toContain('--network-capture-field');
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).not.toContain(
+      '--network-capture-field'
+    );
   });
 
   it('does not pass fields when capture itself is off', () => {
     expect(
-      createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
-        port: 4321,
-        networkCapture: false,
-        networkCaptureFields: ['header'],
-      })
+      createServeSimArgs({ port: 4321, networkCapture: false, networkCaptureFields: ['header'] })
     ).not.toContain('--network-capture-field');
   });
 
@@ -783,28 +760,19 @@ describe(createServeSimArgs, () => {
 
 describe(createExpoDeviceHubArgs, () => {
   it('opts in to recording only when a directory is provided', () => {
-    expect(createExpoDeviceHubArgs({ device: 'emulator-5554', port: 4321 })).not.toContain(
-      '--android-recording-directory'
-    );
+    expect(createExpoDeviceHubArgs({ port: 4321 })).not.toContain('--android-recording-directory');
     expect(
-      createExpoDeviceHubArgs({
-        device: 'emulator-5554',
-        port: 4321,
-        recordingDirectory: '/tmp/recordings',
-      }).slice(-2)
+      createExpoDeviceHubArgs({ port: 4321, recordingDirectory: '/tmp/recordings' }).slice(-2)
     ).toEqual(['--android-recording-directory', '/tmp/recordings']);
   });
   it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
     expect(
       createExpoDeviceHubArgs({
-        device: 'emulator-5554',
         port: 4321,
         turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       })
     ).toEqual([
       'expo-device-hub@latest',
-      '--single-device',
-      'emulator-5554',
       '--port',
       '4321',
       '--host',
@@ -834,7 +802,6 @@ describe(createExpoDeviceHubArgs, () => {
   // The same website flags as serve-sim, after the TURN args.
   it('appends the website args after the TURN args when provided', () => {
     const args = createExpoDeviceHubArgs({
-      device: 'emulator-5554',
       port: 4321,
       turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
@@ -851,7 +818,6 @@ describe(createExpoDeviceHubArgs, () => {
 
   it('appends the session frame ancestors after the website args', () => {
     const args = createExpoDeviceHubArgs({
-      device: 'emulator-5554',
       port: 4321,
       websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
       frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
@@ -868,9 +834,9 @@ describe(createExpoDeviceHubArgs, () => {
   });
 
   it('pins the requested package version', () => {
-    expect(
-      createExpoDeviceHubArgs({ device: 'emulator-5554', port: 4321, packageVersion: '0.7.0' })[0]
-    ).toBe('expo-device-hub@0.7.0');
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' })[0]).toBe(
+      'expo-device-hub@0.7.0'
+    );
   });
 });
 
@@ -1104,19 +1070,6 @@ describe('spawnDetached process group shutdown', () => {
 });
 
 describe(startDeviceSessionHostAsync, () => {
-  beforeEach(() => {
-    jest
-      .spyOn(IosSimulatorUtils, 'getAvailableDevicesAsync')
-      .mockResolvedValue([{ udid: 'device-id' }] as Awaited<
-        ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>
-      >);
-    jest
-      .spyOn(AndroidEmulatorUtils, 'getAttachedDevicesAsync')
-      .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as Awaited<
-        ReturnType<typeof AndroidEmulatorUtils.getAttachedDevicesAsync>
-      >);
-  });
-
   const baseDomain = 'eas-simulator.ngrok.dev';
   const turnArgs = [
     '--turn-url',
@@ -1342,7 +1295,6 @@ describe(startDeviceSessionHostAsync, () => {
     expect(args).toEqual([
       '--yes',
       ...createExpoDeviceHubArgs({
-        device: 'emulator-5554',
         port,
         turnArgs,
         websiteArgs,
@@ -1479,7 +1431,6 @@ describe(startDeviceSessionHostAsync, () => {
     expect(args).toEqual([
       '--yes',
       ...createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
         port,
         turnArgs,
         websiteArgs,
@@ -1518,7 +1469,6 @@ describe(startDeviceSessionHostAsync, () => {
     expect(args).toEqual([
       'x',
       ...createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
         port,
         turnArgs,
         websiteArgs,
@@ -1553,7 +1503,6 @@ describe(startDeviceSessionHostAsync, () => {
     expect(args).toEqual([
       'x',
       ...createServeSimArgs({
-        iosSimulatorUdid: 'device-id',
         port,
         turnArgs,
         websiteArgs,

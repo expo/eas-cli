@@ -309,6 +309,15 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it('passes the existing Android selection to the preview host', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    await runSessionAsync(logger);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ androidDeviceSerial: 'emulator-5554' })
+    );
+  });
+
   it.each([false, true])(
     'preserves preview settings with Simulator startup %s',
     async bootSimulator => {

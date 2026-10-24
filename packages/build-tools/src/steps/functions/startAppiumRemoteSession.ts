@@ -156,6 +156,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const startHost = () =>
         startDeviceSessionHostAsync(ctx, {
           ...iosStartup,
+          androidDeviceSerial: device.platformName === 'Android' ? device.udid : undefined,
           separateLogPhase: true,
           runtimePlatform,
           env,
@@ -266,8 +267,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
-        // expo-device-hub has no serial-selection flag. Device run session workflows must expose
-        // a single booted Android emulator so the Hub and Appium resolve the same device.
+        // The preview host uses the same Android serial selected for Appium.
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
           logger.info(launchDescription);

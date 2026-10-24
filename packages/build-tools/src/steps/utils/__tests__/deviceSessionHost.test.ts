@@ -9,7 +9,6 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
-import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
@@ -43,13 +42,8 @@ import {
 import * as screenshotCollector from '../deviceRunSessionScreenshots';
 
 jest.mock('@ngrok/ngrok');
-jest.mock('../../../utils/AndroidEmulatorUtils');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
-  IosSimulatorUtils: {
-    disableApsdAsync: jest.fn(),
-    waitForReadyAsync: jest.fn(),
-    getAvailableDevicesAsync: jest.fn(),
-  },
+  IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
@@ -142,16 +136,6 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest
-    .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
-    .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as Awaited<
-      ReturnType<typeof AndroidEmulatorUtils.getAttachedDevicesAsync>
-    >);
-  jest
-    .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
-    .mockResolvedValue([{ udid: 'emulator-5554' }] as Awaited<
-      ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>
-    >);
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
@@ -165,7 +149,7 @@ beforeEach(() => {
   jest.mocked(findUnlistedDeviceScreenRecordingsAsync).mockReset().mockResolvedValue([]);
   jest.mocked(spawnDetached).mockImplementation(options => {
     const port = options.args[options.args.indexOf('--port') + 1];
-    const device = options.args[options.args.indexOf('--single-device') + 1];
+    const device = options.args[options.args.indexOf('@expo/serve-sim@latest') + 1];
     jest.mocked(readServeSimServersAsync).mockResolvedValue([
       {
         udid: device?.startsWith('--') ? 'emulator-5554' : (device ?? 'emulator-5554'),
@@ -209,64 +193,59 @@ afterEach(async () => {
   );
 });
 
-it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
-  'always pins the %s preview host to its booted device',
-  async runtimePlatform => {
-    jest.mocked(turtleFetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        status: 'ready',
-        device: runtimePlatform === BuildRuntimePlatform.LINUX ? 'no-device-id' : 'emulator-5554',
-      }),
-    } as Awaited<ReturnType<typeof turtleFetch>>);
+it.each([undefined, '', 'invalid serial', 'all', 'booted'])(
+  'starts Hub without adding a device restriction for %j',
+  async androidDeviceSerial => {
     const host = await startDeviceSessionHostAsync(ctx, {
-      runtimePlatform,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger,
       timeoutMs: 10_000,
+      androidDeviceSerial,
     });
     try {
-      const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
-      expect(
-        args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
-      ).toEqual(['--single-device', 'emulator-5554']);
-      await new Promise(resolve => setImmediate(resolve));
-      await jest
-        .mocked(startDeviceRunSessionPreview)
-        .mock.calls[0][0].captureAsync(new AbortController().signal);
-      expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ device: 'emulator-5554' })
-      );
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].args).not.toContain('--single-device');
     } finally {
       await host.finishAsync();
     }
   }
 );
 
-it.each([
-  [[]],
-  [
-    [
-      { serialId: 'emulator-5554', state: 'device' },
-      { serialId: 'emulator-5556', state: 'device' },
-    ],
-  ],
-])('refuses ambiguous or missing Android startup devices: %j', async devices => {
-  jest
-    .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
-    .mockResolvedValue(
-      devices as Awaited<ReturnType<typeof AndroidEmulatorUtils.getAttachedDevicesAsync>>
+it('uses the supplied Android serial for Hub and thumbnails without selecting another device', async () => {
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: 'no-device-id' }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    androidDeviceSerial: 'emulator-5556',
+  });
+  try {
+    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    expect(
+      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+    ).toEqual(['--single-device', 'emulator-5556']);
+    await new Promise(resolve => setImmediate(resolve));
+    await jest
+      .mocked(startDeviceRunSessionPreview)
+      .mock.calls[0][0].captureAsync(new AbortController().signal);
+    expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ device: 'emulator-5556' })
     );
-  await expect(startHostAsync()).rejects.toThrow('Expected one device');
-  expect(spawnDetached).not.toHaveBeenCalled();
+  } finally {
+    await host.finishAsync();
+  }
 });
 
 it('targets the selected Simulator in the serve-sim invocation', () => {
   expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: 'session-udid' }).slice(0, 4)).toEqual([
     '@expo/serve-sim@latest',
-    '--single-device',
     'session-udid',
     '--port',
+    '4321',
   ]);
 });
 
@@ -374,7 +353,7 @@ it('installs and launches through the API for the selected Simulator', async () 
       },
     })
   );
-  expect(args[args.indexOf('--single-device') + 1]).toBe('emulator-5554');
+  expect(args[args.indexOf('@expo/serve-sim@latest') + 1]).toBe('emulator-5554');
   await host.finishAsync();
 });
 
