@@ -35,7 +35,7 @@ async function waitAsync(diagnostics: Record<string, string> = {}): Promise<void
     .executeAsync();
 }
 
-async function uploadAsync(waitForProcessing?: boolean): Promise<void> {
+async function uploadAsync(): Promise<void> {
   await fs.outputFile('/project/app.ipa', 'ipa');
   jest.mocked(readIpaInfoAsync).mockResolvedValue({
     bundleIdentifier: 'com.test.ipa',
@@ -51,7 +51,6 @@ async function uploadAsync(waitForProcessing?: boolean): Promise<void> {
       apple_app_identifier: 'app',
       bundle_version: '1',
       bundle_short_version: '1.0',
-      ...(waitForProcessing === undefined ? {} : { wait_for_processing: waitForProcessing }),
     },
   });
   await step.executeAsync();
@@ -208,32 +207,16 @@ it('reports missing privacy purpose strings when Apple does not name a key', asy
   });
 });
 
-it.each([undefined, false, true])(
-  'keeps upload wait_for_processing=%s compatible',
-  async waitForProcessing => {
-    if (waitForProcessing) {
-      mockProcessing('PROCESSING');
-      mockProcessing('FAILED', [{ code: '90725', description: 'SDK is too old' }]);
-    }
-    if (waitForProcessing) {
-      await expect(uploadAsync(waitForProcessing)).rejects.toMatchObject({
-        errorCode: 'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
-      });
-    } else {
-      await expect(uploadAsync(waitForProcessing)).resolves.toBeUndefined();
-    }
-  }
-);
+it('finishes the upload without waiting for processing', async () => {
+  await expect(uploadAsync()).resolves.toBeUndefined();
+});
 
-it.each(['upload', 'wait'])(
-  'preserves the successful timeout return for the %s step',
-  async step => {
-    mockProcessing('PROCESSING');
-    const start = Date.now();
-    jest.spyOn(Date, 'now').mockReturnValue(start);
-    jest.mocked(setTimeout).mockImplementationOnce(async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(start + 30 * 60 * 1000);
-    });
-    await expect(step === 'upload' ? uploadAsync(true) : waitAsync()).resolves.toBeUndefined();
-  }
-);
+it('preserves the successful timeout return for the wait step', async () => {
+  mockProcessing('PROCESSING');
+  const start = Date.now();
+  jest.spyOn(Date, 'now').mockReturnValue(start);
+  jest.mocked(setTimeout).mockImplementationOnce(async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(start + 30 * 60 * 1000);
+  });
+  await expect(waitAsync()).resolves.toBeUndefined();
+});

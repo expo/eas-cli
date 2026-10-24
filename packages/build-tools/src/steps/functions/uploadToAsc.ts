@@ -14,7 +14,6 @@ import { z } from 'zod';
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 import { readIpaInfoAsync } from './readIpaInfo';
-import { waitForAscBuildProcessingAsync } from './waitForAscBuildProcessing';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -49,12 +48,6 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
-      BuildStepInput.createProvider({
-        id: 'wait_for_processing',
-        required: false,
-        defaultValue: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
-      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -72,7 +65,6 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const appleAppIdentifier = z.string().parse(inputs.apple_app_identifier.value);
       const bundleVersion = z.string().parse(inputs.bundle_version.value);
       const bundleShortVersion = z.string().parse(inputs.bundle_short_version.value);
-      const waitForProcessing = Boolean(inputs.wait_for_processing.value);
 
       const ipaPath = path.resolve(stepsCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
@@ -202,21 +194,6 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       }
 
       stepsCtx.logger.info(`See your build in App Store Connect: ${buildUploadUrl}`);
-
-      if (!waitForProcessing) {
-        stepsCtx.logger.info('Skipping waiting for processing.');
-        return;
-      }
-
-      await waitForAscBuildProcessingAsync({
-        client,
-        buildUploadId,
-        logger: stepsCtx.logger,
-        ipaBundleIdentifier: ipaInfoResult.ok ? ipaInfoResult.value.bundleIdentifier : undefined,
-        appleAppIdentifier: undefined,
-        ascAppBundleIdentifier,
-        bundleShortVersion,
-      });
     },
   });
 }
