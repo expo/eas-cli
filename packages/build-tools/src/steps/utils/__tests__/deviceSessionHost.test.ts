@@ -195,13 +195,13 @@ afterEach(async () => {
 
 it.each([undefined, '', 'invalid serial', 'all', 'booted'])(
   'starts Hub without adding a device restriction for %j',
-  async androidDeviceSerial => {
+  async previewDeviceId => {
     const host = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger,
       timeoutMs: 10_000,
-      androidDeviceSerial,
+      previewDeviceId,
     });
     try {
       expect(jest.mocked(spawnDetached).mock.calls[0][0].args).not.toContain('--single-device');
@@ -221,7 +221,7 @@ it('uses the supplied Android serial for Hub and thumbnails without selecting an
     env,
     logger,
     timeoutMs: 10_000,
-    androidDeviceSerial: 'emulator-5556',
+    previewDeviceId: 'emulator-5556',
   });
   try {
     const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
@@ -238,6 +238,44 @@ it('uses the supplied Android serial for Hub and thumbnails without selecting an
   } finally {
     await host.finishAsync();
   }
+});
+
+it('pins an already-booted iOS preview without taking over boot or setup', async () => {
+  const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: udid }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    previewDeviceId: udid,
+  });
+  try {
+    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    expect(
+      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+    ).toEqual(['--single-device', udid]);
+    expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
+    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+  } finally {
+    await host.finishAsync();
+  }
+});
+
+it('rejects readiness on a different Simulator from the selected preview target', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      previewDeviceId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
+    })
+  ).rejects.toThrow('but this session requested AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA');
+  expect(stopServer).toHaveBeenCalled();
 });
 
 it('targets the selected Simulator in the serve-sim invocation', () => {

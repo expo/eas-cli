@@ -395,7 +395,8 @@ type DeviceSessionHostOptions = {
   /** Origins whose pages may call the preview host's API, in addition to the website origins. */
   corsOrigins?: string[];
   iosSimulatorUdid?: string;
-  androidDeviceSerial?: string;
+  /** Selected preview target; does not enable Simulator boot or setup. */
+  previewDeviceId?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
   application?: Promise<ServeSimApplicationOptions | void>;
@@ -440,7 +441,7 @@ async function startDeviceSessionHostInternalAsync(
     signal,
     packageVersion,
     iosSimulatorUdid,
-    androidDeviceSerial,
+    previewDeviceId,
     installAppPath,
     application,
     onStartupError,
@@ -489,10 +490,10 @@ async function startDeviceSessionHostInternalAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
-  const androidDevice =
-    androidDeviceSerial && ANDROID_DEVICE_SERIAL.test(androidDeviceSerial)
-      ? androidDeviceSerial
-      : undefined;
+  const deviceIdPattern = isAndroid ? ANDROID_DEVICE_SERIAL : IOS_SIMULATOR_UDID;
+  const validPreviewDevice =
+    previewDeviceId && deviceIdPattern.test(previewDeviceId) ? previewDeviceId : undefined;
+  const previewDevice = isAndroid ? validPreviewDevice : (iosSimulatorUdid ?? validPreviewDevice);
   const recording: AndroidSessionRecording | null = isAndroid
     ? {
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
@@ -520,7 +521,7 @@ async function startDeviceSessionHostInternalAsync(
     isAndroid
       ? createExpoDeviceHubArgs({
           port,
-          device: androidDevice,
+          device: previewDevice,
           turnArgs,
           packageVersion,
           recordingDirectory: recording?.directory,
@@ -532,7 +533,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           turnArgs,
           packageVersion,
-          iosSimulatorUdid,
+          iosSimulatorUdid: previewDevice,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
           corsOriginArgs: corsOriginArgs(corsOrigins),
@@ -777,9 +778,9 @@ async function startDeviceSessionHostInternalAsync(
     }
     logger.info(`Waiting for ${serverName} to become ready.`);
     const device = (await readiness).enforceValue();
-    if (iosSimulatorUdid && device.toLowerCase() !== iosSimulatorUdid.toLowerCase()) {
+    if (!isAndroid && previewDevice && device.toLowerCase() !== previewDevice.toLowerCase()) {
       throw new SystemError(
-        `serve-sim became ready on ${device}, but this session requested ${iosSimulatorUdid}.`
+        `serve-sim became ready on ${device}, but this session requested ${previewDevice}.`
       );
     }
     hostReady = true;
@@ -822,7 +823,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               runtimePlatform,
-              device: isAndroid ? (androidDevice ?? device) : device,
+              device: previewDevice ?? device,
               env,
               signal,
             }),

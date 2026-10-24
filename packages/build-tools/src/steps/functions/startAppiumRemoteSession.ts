@@ -156,7 +156,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const startHost = () =>
         startDeviceSessionHostAsync(ctx, {
           ...iosStartup,
-          androidDeviceSerial: device.platformName === 'Android' ? device.udid : undefined,
+          previewDeviceId: device.udid,
           separateLogPhase: true,
           runtimePlatform,
           env,
@@ -267,7 +267,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
-        // The preview host uses the same Android serial selected for Appium.
+        // The preview host uses the same device selected for Appium.
         const launchDescription = describeServeSimLaunch(launch);
         if (launchDescription) {
           logger.info(launchDescription);
