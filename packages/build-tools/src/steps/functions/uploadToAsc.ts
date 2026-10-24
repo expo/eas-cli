@@ -213,6 +213,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         buildUploadId,
         logger: stepsCtx.logger,
         ipaBundleIdentifier: ipaInfoResult.ok ? ipaInfoResult.value.bundleIdentifier : undefined,
+        appleAppIdentifier: undefined,
         ascAppBundleIdentifier,
         bundleShortVersion,
       });

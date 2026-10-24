@@ -66,6 +66,7 @@ export function createWaitForAscBuildProcessingBuildFunction(): BuildFunction {
         logger: ctx.logger,
         ipaBundleIdentifier: parsedInputs.bundle_identifier,
         appleAppIdentifier: parsedInputs.apple_app_identifier,
+        ascAppBundleIdentifier: undefined,
         bundleShortVersion: parsedInputs.bundle_short_version,
       });
     },
@@ -84,10 +85,10 @@ export async function waitForAscBuildProcessingAsync({
   client: AscApiClient;
   buildUploadId: string;
   logger: bunyan;
-  ipaBundleIdentifier?: string;
-  appleAppIdentifier?: string;
-  ascAppBundleIdentifier?: string;
-  bundleShortVersion?: string;
+  ipaBundleIdentifier: string | undefined;
+  appleAppIdentifier: string | undefined;
+  ascAppBundleIdentifier: string | undefined;
+  bundleShortVersion: string | undefined;
 }): Promise<void> {
   logger.info('Checking build upload status...');
   const waitingForBuildStartedAt = Date.now();
