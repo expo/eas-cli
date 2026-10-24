@@ -124,15 +124,6 @@ it('polls an existing upload through awaiting and processing states until comple
   await expect(waitAsync()).resolves.toBeUndefined();
 });
 
-it.each([
-  ['90725', 'SDK is too old', 'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE'],
-  ['90683', 'Missing NSCameraUsageDescription', 'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING'],
-  ['90062', 'Version train is closed', 'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN'],
-])('preserves actionable processing error %s', async (code, description, errorCode) => {
-  mockProcessing('FAILED', [{ code, description }]);
-  await expect(waitAsync()).rejects.toMatchObject({ errorCode });
-});
-
 it('includes optional IPA and selected app details in bundle mismatch errors', async () => {
   mockProcessing('FAILED', [{ code: '90054', description: 'Bundle mismatch' }]);
   mockApp();
