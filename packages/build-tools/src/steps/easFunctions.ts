@@ -69,6 +69,7 @@ import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbed
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createWaitForAscBuildProcessingBuildFunction } from './functions/waitForAscBuildProcessing';
 import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
+import { createSubmitTestFlightBetaReviewBuildFunction } from './functions/submitTestFlightBetaReview';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
@@ -147,6 +148,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadToAscBuildFunction(),
     createWaitForAscBuildProcessingBuildFunction(),
     createUpdateTestFlightMetadataBuildFunction(),
+    createSubmitTestFlightBetaReviewBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
     createMaestroTestsBuildFunction(ctx),
