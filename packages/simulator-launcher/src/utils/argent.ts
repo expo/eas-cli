@@ -12,24 +12,11 @@ export async function prepareArgentEnvironmentAsync(signal: AbortSignal): Promis
   const argentPackage = `@swmansion/argent@${process.env.ARGENT_VERSION || 'latest'}`;
 
   signal.throwIfAborted();
-  try {
-    await commands.runAsync('ffmpeg', ['-version'], signal).catch(async error => {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-      signal.throwIfAborted();
-      await commands.runAsync(
-        '/usr/bin/env',
-        ['HOMEBREW_NO_AUTO_UPDATE=1', 'brew', 'install', 'ffmpeg'],
-        signal
-      );
-      signal.throwIfAborted();
-      await commands.runAsync('ffmpeg', ['-version'], signal);
-    });
-  } catch (error) {
+  // The VM image provides ffmpeg; installing it here would delay every warm session.
+  await commands.runAsync('ffmpeg', ['-version'], signal).catch(error => {
     signal.throwIfAborted();
-    process.stderr.write(`Could not prepare ffmpeg; video tools may be unavailable: ${error}\n`);
-  }
+    process.stderr.write(`ffmpeg is unavailable; Argent video tools may not work: ${error}\n`);
+  });
   commands.throwIfCommandCloseTimedOut();
 
   for (const [verb, flag] of [

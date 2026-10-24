@@ -377,3 +377,30 @@ describe('waitForServeSimReadyAsync', () => {
     );
   });
 });
+
+describe('prepareArgentEnvironmentAsync', () => {
+  const { prepareArgentEnvironmentAsync: prepareActual } =
+    jest.requireActual<typeof import('../utils/argent')>('../utils/argent');
+
+  it('warns without installing ffmpeg when the image does not provide it', async () => {
+    jest.mocked(commands.runAsync).mockImplementation(async file => {
+      if (file === 'ffmpeg') {
+        throw Object.assign(new Error('spawn ffmpeg ENOENT'), { code: 'ENOENT' });
+      }
+      return '';
+    });
+    const stderr = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    await prepareActual(controller.signal);
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('ffmpeg is unavailable'));
+    expect(
+      jest
+        .mocked(commands.runAsync)
+        .mock.calls.some(([file, args]) => file.includes('brew') || args.includes('brew'))
+    ).toBe(false);
+    expect(commands.runAsync).toHaveBeenCalledWith(
+      'bunx',
+      [expect.stringMatching(/^@swmansion\/argent@/), 'enable', 'artifacts-list-endpoint'],
+      controller.signal
+    );
+  });
+});
