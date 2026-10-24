@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 import { readIpaInfoAsync } from './readIpaInfo';
+import { waitForAscBuildProcessingAsync } from './waitForAscBuildProcessing';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -207,7 +208,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         return;
       }
 
-      await AscApiUtils.waitForAscBuildProcessingAsync({
+      await waitForAscBuildProcessingAsync({
         client,
         buildUploadId,
         logger: stepsCtx.logger,
