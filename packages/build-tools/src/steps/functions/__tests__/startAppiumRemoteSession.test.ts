@@ -309,6 +309,29 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it('passes the existing Android selection to the preview host', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    await runSessionAsync(logger);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ previewDeviceId: 'emulator-5554' })
+    );
+  });
+
+  it('passes the selected iOS preview target without enabling Simulator startup', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ udid }, { udid: 'BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB' }] as Awaited<
+        ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>
+      >);
+    await runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN);
+    const options = jest.mocked(startDeviceSessionHostAsync).mock.calls[0][1];
+    expect(options).toHaveProperty('previewDeviceId', udid);
+    expect(options.iosSimulatorUdid).toBeUndefined();
+  });
+
   it.each([false, true])(
     'preserves preview settings with Simulator startup %s',
     async bootSimulator => {
