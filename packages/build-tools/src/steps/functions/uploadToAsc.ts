@@ -322,9 +322,16 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
         } else if (state.state === 'COMPLETE') {
           stepsCtx.logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
+          return;
         }
-        break;
+        throw new Error(
+          `Unexpected App Store Connect processing state: ${state.state}. Check the build in App Store Connect.`
+        );
       }
+      throw new UserError(
+        'EAS_ASC_BUILD_PROCESSING_TIMEOUT',
+        `App Store Connect did not finish processing build upload ${buildUploadId} within 30 minutes. Check its status in App Store Connect before retrying.`
+      );
     },
   });
 }
