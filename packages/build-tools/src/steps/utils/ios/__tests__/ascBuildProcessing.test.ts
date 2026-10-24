@@ -4,7 +4,7 @@ import {
   isMissingPurposeStringError,
   isSdkVersionIssueError,
   parseMissingUsageDescriptionKeys,
-} from '../uploadToAsc';
+} from '../ascBuildProcessing';
 
 describe(isClosedVersionTrainError, () => {
   it('returns true when all errors are closed-version-train codes', () => {
