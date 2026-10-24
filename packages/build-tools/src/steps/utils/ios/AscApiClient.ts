@@ -43,6 +43,7 @@ const GetApi = {
       data: z.object({
         id: z.string(),
         attributes: z.object({
+          externalBuildState: z.string().optional(),
           internalBuildState: z.enum([
             'PROCESSING',
             'PROCESSING_EXCEPTION',
@@ -217,6 +218,19 @@ const GetApi = {
 } satisfies ApiSchema;
 
 const PostApi = {
+  '/v1/betaAppReviewSubmissions': {
+    request: z.object({
+      data: z.object({
+        type: z.literal('betaAppReviewSubmissions'),
+        relationships: z.object({
+          build: z.object({ data: z.object({ type: z.literal('builds'), id: z.string() }) }),
+        }),
+      }),
+    }),
+    response: z.object({
+      data: z.object({ id: z.string(), type: z.literal('betaAppReviewSubmissions') }),
+    }),
+  },
   // https://developer.apple.com/documentation/appstoreconnectapi/post-v1-builds-_id_-relationships-betagroups
   '/v1/builds/:id/relationships/betaGroups': {
     path: z.object({ id: z.string() }),

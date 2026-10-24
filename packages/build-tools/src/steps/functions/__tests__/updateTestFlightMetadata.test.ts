@@ -116,6 +116,46 @@ it('uses empty metadata defaults', async () => {
   expect(spy).toHaveBeenCalled();
 });
 
+it.each(['READY_FOR_BETA_SUBMISSION', 'IN_BETA_REVIEW', 'READY_FOR_BETA_TESTING'])(
+  'submits for beta review only when needed (state: %s)',
+  async externalBuildState => {
+    mockBuild();
+    api()
+      .get('/v1/builds/build/buildBetaDetail')
+      .query(true)
+      .reply(200, {
+        data: {
+          id: 'detail',
+          attributes: { internalBuildState: 'READY_FOR_BETA_TESTING', externalBuildState },
+        },
+      });
+    if (externalBuildState === 'READY_FOR_BETA_SUBMISSION') {
+      api()
+        .post('/v1/betaAppReviewSubmissions', {
+          data: {
+            type: 'betaAppReviewSubmissions',
+            relationships: { build: { data: { type: 'builds', id: 'build' } } },
+          },
+        })
+        .reply(201, { data: { id: 'review', type: 'betaAppReviewSubmissions' } });
+    }
+    await updateTestFlightMetadataAsync({ ...options, changelog: '', submitBetaReview: true });
+  }
+);
+
+it('does not treat a rejected beta review request as success', async () => {
+  mockBuild();
+  mockInternalBuildState();
+  api()
+    .post('/v1/betaAppReviewSubmissions')
+    .reply(409, {
+      errors: [{ status: '409', code: 'STATE_ERROR', detail: 'Missing beta review information' }],
+    });
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, changelog: '', submitBetaReview: true })
+  ).rejects.toThrow('Missing beta review information');
+});
+
 it('skips automatic internal groups and groups that already contain the build', async () => {
   mockBuild();
   api()
@@ -306,7 +346,9 @@ it('reports missing groups independently of the changelog task', async () => {
     .get('/v1/betaGroups')
     .query({ 'filter[app]': 'app', limit: '200' })
     .reply(200, { data: [] });
-  await expect(updateTestFlightMetadataAsync({ ...options, groups: ['missing'] })).rejects.toThrow(
+  await expect(
+    updateTestFlightMetadataAsync({ ...options, groups: ['missing'], submitBetaReview: true })
+  ).rejects.toThrow(
     'The following TestFlight group was not found in App Store Connect: "missing".'
   );
 });

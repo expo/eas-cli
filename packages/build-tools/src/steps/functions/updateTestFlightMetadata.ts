@@ -17,6 +17,12 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
     __metricsId: 'eas/update_testflight_metadata',
     inputProviders: [
       BuildStepInput.createProvider({
+        id: 'submit_beta_review',
+        required: false,
+        defaultValue: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
         id: 'asc_api_key_path',
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -46,12 +52,14 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
           build_upload_id: z.string(),
           changelog: z.string(),
           groups: z.array(z.string()),
+          submit_beta_review: z.boolean(),
         })
         .parse({
           asc_api_key_path: inputs.asc_api_key_path.value,
           build_upload_id: inputs.build_upload_id.value,
           changelog: inputs.changelog.value,
           groups: inputs.groups.value,
+          submit_beta_review: inputs.submit_beta_review.value,
         });
       const keyPath = path.resolve(ctx.workingDirectory, parsedInputs.asc_api_key_path);
       const key = await AscApiUtils.loadApiKeyAsync({ keyPath });
@@ -61,6 +69,7 @@ export function createUpdateTestFlightMetadataBuildFunction(): BuildFunction {
         buildUploadId: parsedInputs.build_upload_id,
         changelog: parsedInputs.changelog,
         groups: parsedInputs.groups,
+        submitBetaReview: parsedInputs.submit_beta_review,
         logger: ctx.logger,
       });
       ctx.logger.info('TestFlight metadata updated.');
@@ -74,12 +83,14 @@ export async function updateTestFlightMetadataAsync({
   changelog,
   groups,
   logger,
+  submitBetaReview = false,
 }: {
   client: AscApiClient;
   buildUploadId: string;
   changelog: string;
   groups: string[];
   logger: bunyan;
+  submitBetaReview?: boolean;
 }): Promise<void> {
   const { data: upload } = await client.getAsync(
     '/v1/buildUploads/:id',
@@ -280,6 +291,26 @@ export async function updateTestFlightMetadataAsync({
         .map(failure => String(failure.reason))
         .join('; ')}`
     );
+  }
+  if (submitBetaReview) {
+    const { data } = await client.getAsync('/v1/builds/:id/buildBetaDetail', {}, { id: buildId });
+    const reviewedStates = [
+      'WAITING_FOR_BETA_REVIEW',
+      'IN_BETA_REVIEW',
+      'READY_FOR_BETA_TESTING',
+      'IN_BETA_TESTING',
+    ];
+    if (reviewedStates.includes(data.attributes.externalBuildState ?? '')) {
+      logger.info('This build is already in beta review or available for external testing.');
+      return;
+    }
+    await client.postAsync('/v1/betaAppReviewSubmissions', {
+      data: {
+        type: 'betaAppReviewSubmissions',
+        relationships: { build: { data: { type: 'builds', id: buildId } } },
+      },
+    });
+    logger.info('Build submitted for beta review.');
   }
 }
 
