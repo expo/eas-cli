@@ -25,11 +25,13 @@ export function createSubmitTestFlightBetaReviewBuildFunction(): BuildFunction {
       }),
     ],
     fn: async (ctx, { inputs }) => {
-      const keyPath = path.resolve(
-        ctx.workingDirectory,
-        z.string().parse(inputs.asc_api_key_path.value)
-      );
-      const buildUploadId = z.string().parse(inputs.build_upload_id.value);
+      const { ascApiKeyPath, buildUploadId } = z
+        .object({ ascApiKeyPath: z.string(), buildUploadId: z.string() })
+        .parse({
+          ascApiKeyPath: inputs.asc_api_key_path.value,
+          buildUploadId: inputs.build_upload_id.value,
+        });
+      const keyPath = path.resolve(ctx.workingDirectory, ascApiKeyPath);
       const key = await AscApiUtils.loadApiKeyAsync({ keyPath });
       const client = new AscApiClient({ key, logger: ctx.logger });
       const { data: upload } = await client.getAsync(
