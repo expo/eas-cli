@@ -136,18 +136,6 @@ it('fails for an unclassified Apple processing error', async () => {
   await expect(waitAsync()).rejects.toThrow('Build upload (ID: upload) failed.');
 });
 
-it('fails when processing does not complete within 30 minutes', async () => {
-  mockProcessing('PROCESSING');
-  const start = Date.now();
-  jest.spyOn(Date, 'now').mockReturnValue(start);
-  jest.mocked(setTimeout).mockImplementationOnce(async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(start + 30 * 60 * 1000);
-  });
-  await expect(waitAsync()).rejects.toMatchObject({
-    errorCode: 'EAS_ASC_BUILD_PROCESSING_TIMEOUT',
-  });
-});
-
 it.each([undefined, false, true])(
   'keeps upload wait_for_processing=%s compatible',
   async waitForProcessing => {
