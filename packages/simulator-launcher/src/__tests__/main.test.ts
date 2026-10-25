@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { claimAsync } from '../commands/claim';
 import { runWarmSimulatorSessionAsync, startAsync } from '../commands/start';
-import { stopAsync } from '../commands/stop';
+import { shutdownSimulatorAsync, stopAsync } from '../commands/stop';
 import { mainAsync } from '../main';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { type ChildProcessHandle, commands } from '../utils/processes';
@@ -543,3 +543,22 @@ test.each(['stop', 'claim'])(
     }
   }
 );
+
+test.each([
+  ['Shutdown', true],
+  ['Booted', false],
+])('a failed shutdown of a device that is %s counts as done: %s', async (state, done) => {
+  const failure = Object.assign(new Error('xcrun exited with 149.'), { code: 149 });
+  jest.mocked(commands.runAsync).mockImplementation(async (_file, args) => {
+    if (args.includes('shutdown')) {
+      throw failure;
+    }
+    return JSON.stringify({ devices: { ios: [{ udid: 'OLD', state }] } });
+  });
+  const shutdown = shutdownSimulatorAsync('OLD');
+  if (done) {
+    await expect(shutdown).resolves.toBeUndefined();
+  } else {
+    await expect(shutdown).rejects.toBe(failure);
+  }
+});

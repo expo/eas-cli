@@ -3,7 +3,7 @@ import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
-import { stopServicesAndShutdownSimulatorAsync } from './stop';
+import { shutdownSimulatorAsync, stopServicesAndShutdownSimulatorAsync } from './stop';
 import {
   setAgentDeviceEnvironmentDefaults,
   startAgentDevicePreparation,
@@ -498,7 +498,7 @@ export function createWarmSimulatorSession({
           await throwIfStoppingAsync();
         })();
         previousDeviceShutdown = release.then(async () => {
-          await commands.runAsync('xcrun', ['simctl', 'shutdown', previousUdid]);
+          await shutdownSimulatorAsync(previousUdid);
           ownedSimulatorUdids.delete(previousUdid);
         });
         void previousDeviceShutdown.catch(() => {});

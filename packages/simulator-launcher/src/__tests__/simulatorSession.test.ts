@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createWarmSimulatorSession } from '../commands/start';
-import { stopServicesAndShutdownSimulatorAsync } from '../commands/stop';
+import { shutdownSimulatorAsync, stopServicesAndShutdownSimulatorAsync } from '../commands/stop';
 import { startAgentDevicePreparation, stopAgentDeviceDaemonAsync } from '../utils/agentDevice';
 import { prepareArgentEnvironmentAsync, startArgentServer } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
@@ -243,10 +243,11 @@ it('replacement starts new services once the old serve-sim exits, without waitin
             ],
           },
         })
-      : args.join(' ') === 'simctl shutdown PHONE'
-        ? oldShutdown.promise
-        : original(file, args, signal)
+      : original(file, args, signal)
   );
+  jest.mocked(shutdownSimulatorAsync).mockImplementation(async () => {
+    await oldShutdown.promise;
+  });
   jest.mocked(terminateProcessGroupAsync).mockReturnValueOnce(serveSimStop.promise);
   const session = createSession();
   try {
@@ -267,7 +268,7 @@ it('replacement starts new services once the old serve-sim exits, without waitin
     // The claim returns while the old device is still shutting down.
     expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro' } });
     expect(waitForServeSimPortFreeAsync).toHaveBeenCalled();
-    expect(commands.runAsync).toHaveBeenCalledWith('xcrun', ['simctl', 'shutdown', 'PHONE']);
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
     expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
     expect(commands.runAsync).toHaveBeenCalledWith(
       'xcrun',
@@ -353,10 +354,9 @@ it('keeps a replaced device owned when its background shutdown fails', async () 
             ],
           },
         })
-      : args.join(' ') === 'simctl shutdown PHONE'
-        ? Promise.reject(new Error('shutdown failed'))
-        : original(file, args, signal)
+      : original(file, args, signal)
   );
+  jest.mocked(shutdownSimulatorAsync).mockRejectedValueOnce(new Error('shutdown failed'));
   const session = createSession();
   await session.prepareAsync();
   await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' });
