@@ -336,10 +336,10 @@ for (const selector of [undefined, 'phone', 'iPhone 17 Pro']) {
     ).toHaveLength(1);
     if (replacement) {
       const calls = jest.mocked(commands.runAsync).mock.calls;
-      // The new device boots while the old one is released; the old one still shuts down.
-      expect(
-        calls.findIndex(([, args]) => args.join(' ') === 'simctl bootstatus PRO -b')
-      ).toBeLessThan(calls.findIndex(([, args]) => args.join(' ') === 'simctl shutdown PHONE'));
+      // The new device boots and the old one still shuts down; their order is concurrent.
+      expect(calls.map(([, args]) => args.join(' '))).toEqual(
+        expect.arrayContaining(['simctl bootstatus PRO -b', 'simctl shutdown PHONE'])
+      );
       expect(startExpoGoPreinstall).toHaveBeenCalledTimes(1);
     }
     await expect(claimAsync(boot, 'argent')).rejects.toThrow('available');

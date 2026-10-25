@@ -15,3 +15,5 @@ Check for ffmpeg without installing it; the VM image provides it.
 Record the preinstalled Expo Go identity in the claim record, so the job can skip a matching install without asking the Simulator.
 
 Start Argent and agent-device in the Simulator only after serve-sim is ready.
+
+Treat processes that have exited but await reaping as stopped, so a replaced serve-sim no longer fails cleanup with kill EPERM.

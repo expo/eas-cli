@@ -353,6 +353,66 @@ describe('terminateProcessGroupAsync', () => {
   });
 });
 
+describe('EPERM from exited processes awaiting reap', () => {
+  const eperm = (): never => {
+    throw Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
+  };
+
+  it('treats a group with only zombie members as stopped', async () => {
+    jest.useRealTimers();
+    let terminated = false;
+    jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      expect(pid).toBe(-90001);
+      if (signal === 'SIGTERM') {
+        terminated = true;
+        return true;
+      }
+      // After TERM, the only member left is the leader awaiting reap.
+      return terminated ? eperm() : true;
+    });
+    jest
+      .spyOn(commands, 'runAsync')
+      .mockImplementation(async file => (file === 'ps' ? '  90001 Z\n    412 Ss\n' : ''));
+    await terminateProcessGroupAsync({ child, resultPromise: Promise.resolve('') }, 50);
+    expect(
+      jest.mocked(process.kill).mock.calls.filter(([, signal]) => signal === 'SIGKILL')
+    ).toEqual([]);
+  });
+
+  it('still fails closed when a live member cannot be signalled', async () => {
+    jest.useRealTimers();
+    jest.spyOn(process, 'kill').mockImplementation(() => eperm());
+    jest
+      .spyOn(commands, 'runAsync')
+      .mockImplementation(async file => (file === 'ps' ? '  90001 S\n' : ''));
+    const stopping = terminateProcessGroupAsync(
+      { child, resultPromise: Promise.resolve('') },
+      50
+    ).catch(error => error);
+    expect((await stopping).message).toContain('process group 90001 is still running');
+  });
+
+  it('lets the tree stop finish a descendant that exited before its signal', async () => {
+    jest
+      .spyOn(process, 'kill')
+      .mockImplementation((pid, signal) =>
+        pid === 90002 && signal === 'SIGTERM' ? eperm() : pid === 90002 ? eperm() : true
+      );
+    jest.mocked(child.kill).mockImplementation(() => {
+      Object.defineProperty(child, 'exitCode', { value: 0 });
+      return true;
+    });
+    jest
+      .spyOn(commands, 'runAsync')
+      .mockImplementation(async (file, args) =>
+        file === 'pgrep' ? (args[1] === '90001' ? '90002\n' : '') : file === 'ps' ? 'Z\n' : ''
+      );
+    await expect(
+      stopProcessAndDescendantsAsync({ child, resultPromise: Promise.resolve('') })
+    ).resolves.toBeUndefined();
+  });
+});
+
 test('serve-sim leads its own process group', () => {
   const { startServeSim } = require('../utils/serveSim');
   startServeSim('PHONE', new AbortController().signal);

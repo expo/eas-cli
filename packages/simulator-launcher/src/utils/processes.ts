@@ -71,16 +71,64 @@ export const commands = {
   },
 };
 
+/** EPERM means the process exists but cannot be signalled, as for an exited one awaiting reap. */
 function isProcessRunning(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ESRCH') {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') {
       return false;
+    }
+    if (code === 'EPERM') {
+      return true;
     }
     throw error;
   }
+}
+
+/** Signals a process; false when it is gone, true when it was signalled or cannot be. */
+function signalProcess(pid: number, signal: NodeJS.Signals): boolean {
+  try {
+    process.kill(pid, signal);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') {
+      return false;
+    }
+    if (code !== 'EPERM') {
+      throw error;
+    }
+  }
+  return true;
+}
+
+/**
+ * macOS reports EPERM for a group whose only members have exited and await reaping, so EPERM
+ * is resolved by checking for a member that is not a zombie.
+ */
+async function isProcessGroupRunningAsync(groupId: number): Promise<boolean> {
+  try {
+    process.kill(-groupId, 0);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') {
+      return false;
+    }
+    if (code !== 'EPERM') {
+      throw error;
+    }
+  }
+  const members = await commands.runAsync('ps', ['-A', '-o', 'pgid=,stat=']);
+  return members
+    .trim()
+    .split('\n')
+    .some(line => {
+      const [pgid, stat = ''] = line.trim().split(/\s+/);
+      return Number(pgid) === groupId && !stat.startsWith('Z');
+    });
 }
 
 async function stopProcessTreeAsync(
@@ -127,8 +175,8 @@ async function stopProcessTreeAsync(
           'A Simulator service launcher exited before it could be stopped safely; cleanup could not be confirmed.'
         );
       }
-    } else {
-      process.kill(pid, 'SIGTERM');
+    } else if (!signalProcess(pid, 'SIGTERM')) {
+      return;
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
@@ -187,25 +235,16 @@ export async function terminateProcessGroupAsync(
   if (!groupId) {
     throw new Error('A Simulator service has no process group; cleanup could not be confirmed.');
   }
-  const isGroupRunning = (): boolean => isProcessRunning(-groupId);
   for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
-    if (!isGroupRunning()) {
-      break;
-    }
-    try {
-      process.kill(-groupId, signal);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
-        throw error;
-      }
+    if (!(await isProcessGroupRunningAsync(groupId)) || !signalProcess(-groupId, signal)) {
       break;
     }
     const deadline = Date.now() + graceMs;
-    while (isGroupRunning() && Date.now() < deadline) {
+    while ((await isProcessGroupRunningAsync(groupId)) && Date.now() < deadline) {
       await sleepAsync(100);
     }
   }
-  if (isGroupRunning()) {
+  if (await isProcessGroupRunningAsync(groupId)) {
     throw new Error(
       `Simulator service process group ${groupId} is still running; cleanup could not be confirmed.`
     );
