@@ -14,7 +14,8 @@ exec bunx @expo/simulator-launcher@latest start
 - `start`: boot the selected Simulator and launch the tools in the foreground.
 - `claim ENGINE [DEVICE]`: hand the warm device to one job. Engines: `serve-sim`, `agent-device`,
   `argent`. Omit DEVICE to reuse it, or pass an exact name or UDID to select another.
-  Replacement cleans up the old session before starting the requested device.
+  A claim waits only for its engine and stops the other tools. Replacement boots the requested
+  device while the old tools and serve-sim stop; the old device shuts down in the background.
 - `stop`: disable preparation for this VM boot and wait for owned resources to be cleaned up.
 
 ```sh
@@ -52,8 +53,11 @@ The startup script owns Node/Bun/PATH setup and these optional overrides:
   the tools and performs serve-sim's private `--adopt` handoff before app actions.
 - One start attempt and one accepted claim per VM boot. Stop is permanent for that boot;
   a failed replacement cannot skip cleanup and start another device.
-- Warmup also tries to preinstall the latest stable Expo Go and install missing ffmpeg with Homebrew.
-  Ordinary failures warn. Claim prevents a late Expo Go install, waiting only if native install already
-  started; the job's requested app remains authoritative.
+- A session is ready once its device has booted, apsd has been disabled and serve-sim answers.
+- Warmup also tries to preinstall the latest stable Expo Go. It only checks for ffmpeg, which the VM
+  image provides. Ordinary failures warn. A failed apsd disable leaves push notifications running;
+  warm jobs do not retry it, and they do not use push notifications. Claim prevents a late Expo Go
+  install, waiting only if native install already started, and its record names the preinstalled
+  Expo Go for the same device; the job's requested app remains authoritative.
 - Stop has a caller timeout, not a global cleanup deadline. A timeout or cleanup error does not prove
   teardown completed, and EAS must not start a fallback session until cleanup is confirmed.
