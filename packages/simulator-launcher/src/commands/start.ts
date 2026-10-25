@@ -318,8 +318,8 @@ export function createWarmSimulatorSession({
     }
   }
 
-  /** Starts a tool after `servicesAllowed`; a failure before claim fails the warm session closed. */
-  function startTool(tool: WarmTool, udid: string, servicesAllowed: Promise<unknown>): void {
+  /** Starts a tool after `serveSimReady`; a failure before claim fails the warm session closed. */
+  function startTool(tool: WarmTool, udid: string, serveSimReady: Promise<unknown>): void {
     const controller = new AbortController();
     const toolSignal = AbortSignal.any([signal, controller.signal]);
     let abort!: () => void;
@@ -333,12 +333,12 @@ export function createWarmSimulatorSession({
     void aborted.catch(() => {});
     const ready =
       tool === 'agent-device'
-        ? servicesAllowed.then(async () => {
+        ? serveSimReady.then(async () => {
             agentDevicePrepareProcess = startAgentDevicePreparation(udid, toolSignal);
             serviceProcesses.add(agentDevicePrepareProcess);
             await Promise.race([agentDevicePrepareProcess.resultPromise, aborted]);
           })
-        : Promise.all([servicesAllowed, prepareArgentEnvironmentAsync(toolSignal)]).then(() => {
+        : Promise.all([serveSimReady, prepareArgentEnvironmentAsync(toolSignal)]).then(() => {
             argentProcess = startArgentServer(toolSignal);
             serviceProcesses.add(argentProcess);
           });
@@ -373,8 +373,8 @@ export function createWarmSimulatorSession({
   }
 
   /**
-   * Boots the device, then starts serve-sim and the given tools once `servicesAllowed` settles.
-   * Resolves when serve-sim is ready; tools keep starting and report through their startups.
+   * Boots the device and starts serve-sim once `servicesAllowed` settles, then the given tools once
+   * serve-sim is ready. Resolves when serve-sim is ready; tools report through their startups.
    */
   async function bootSimulatorAndStartServicesAsync(
     device: SimulatorDevice,
@@ -395,15 +395,17 @@ export function createWarmSimulatorSession({
       void expoGoPreinstall.resultPromise.catch(onBackgroundFailure);
     }
     const servicesReady = Promise.all([simulatorBootPromise, servicesAllowed]);
-    for (const tool of tools) {
-      startTool(tool, udid, servicesReady);
-    }
     const serveSimPromise = servicesReady.then(async () => {
       const serveSim = startServeSim(udid, signal);
       serveSimProcess = serveSim;
       serviceProcesses.add(serveSim);
       await waitForServeSimReadyAsync(udid, serveSim, signal);
     });
+    // Tools spawn into the Simulator; starting them while serve-sim arms its own launchctl
+    // settings coincided with simctl stalls, so they wait for serve-sim to be ready.
+    for (const tool of tools) {
+      startTool(tool, udid, serveSimPromise);
+    }
     // The job launches apps right after its claim, so apsd is settled before the device is ready.
     const apsdPromise = simulatorBootPromise.then(() =>
       disableApsdAsync(udid, signal).catch(error => {

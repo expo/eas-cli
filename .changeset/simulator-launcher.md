@@ -13,3 +13,5 @@ Disable apsd on each warm device before reporting it ready.
 Check for ffmpeg without installing it; the VM image provides it.
 
 Record the preinstalled Expo Go identity in the claim record, so the job can skip a matching install without asking the Simulator.
+
+Start Argent and agent-device in the Simulator only after serve-sim is ready.

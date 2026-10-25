@@ -14,7 +14,7 @@ import {
   stopProcessAndDescendantsAsync,
   terminateProcessGroupAsync,
 } from '../utils/processes';
-import { startServeSim } from '../utils/serveSim';
+import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
 
 jest.mock('../commands/stop');
 jest.mock('../utils/agentDevice');
@@ -165,6 +165,27 @@ it('keeps the warm session when apsd cannot be disabled', async () => {
     expect.stringContaining('Could not disable apsd on PHONE; continuing')
   );
   expect(onPreparationFailure).not.toHaveBeenCalled();
+});
+
+it('starts tools in the Simulator only after serve-sim is ready', async () => {
+  const serveSimReady = deferred<void>();
+  jest.mocked(waitForServeSimReadyAsync).mockReturnValueOnce(serveSimReady.promise);
+  const session = createSession();
+  const preparing = session.prepareAsync();
+  try {
+    await until(() => jest.mocked(startServeSim).mock.calls.length > 0);
+    await new Promise(resolve => setImmediate(resolve));
+    // Argent's configuration does not touch the Simulator, so it may run early.
+    expect(prepareArgentEnvironmentAsync).toHaveBeenCalled();
+    expect(startAgentDevicePreparation).not.toHaveBeenCalled();
+    expect(startArgentServer).not.toHaveBeenCalled();
+    serveSimReady.resolve();
+    await preparing;
+    await until(() => jest.mocked(startArgentServer).mock.calls.length > 0);
+    expect(startAgentDevicePreparation).toHaveBeenCalledWith('PHONE', expect.anything());
+  } finally {
+    serveSimReady.resolve();
+  }
 });
 
 it('serve-sim claim during agent-device prepare stops it and returns without waiting', async () => {
