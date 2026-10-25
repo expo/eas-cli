@@ -222,32 +222,22 @@ type WarmTool = 'agent-device' | 'argent';
 
 /** Push notifications are not used in warm sessions, and apsd's work competes with app installs. */
 async function disableApsdAsync(udid: string, signal: AbortSignal): Promise<void> {
+  const launchctl = (...args: string[]): Promise<string> =>
+    commands.runAsync('xcrun', ['simctl', 'spawn', udid, 'launchctl', ...args], signal);
   let lastError: unknown;
   for (const domain of ['user/foreground', 'system']) {
     const service = `${domain}/com.apple.apsd`;
     try {
-      await commands.runAsync(
-        'xcrun',
-        ['simctl', 'spawn', udid, 'launchctl', 'disable', service],
-        signal
-      );
+      await launchctl('disable', service);
       // bootout fails when apsd is already gone; the list check below decides.
-      await commands
-        .runAsync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', service], signal)
-        .catch(error => {
-          lastError = error;
-        });
-      const loaded = await commands
-        .runAsync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list', 'com.apple.apsd'], signal)
-        .then(
-          () => true,
-          error => {
-            if (error.code === 113) {
-              return false;
-            }
-            throw error;
-          }
-        );
+      await launchctl('bootout', service).catch(error => {
+        lastError = error;
+      });
+      // launchctl list exits 113 for a service that is not loaded.
+      const loaded = await launchctl('list', 'com.apple.apsd').then(
+        () => true,
+        error => (error.code === 113 ? false : Promise.reject(error))
+      );
       if (!loaded) {
         return;
       }
@@ -524,9 +514,8 @@ export function createWarmSimulatorSession({
         await toolStartups.get(requestedTool)!.ready;
       }
       // A replacement device has no preinstalled Expo Go.
-      return preinstalledExpoGo?.udid === currentDevice.udid
-        ? { device: currentDevice, preinstalledExpoGo }
-        : { device: currentDevice };
+      const preinstalledHere = preinstalledExpoGo?.udid === currentDevice.udid;
+      return { device: currentDevice, ...(preinstalledHere ? { preinstalledExpoGo } : {}) };
     },
 
     /** Drain all owned work. Rejection means terminal cleanup cannot be acknowledged. */
