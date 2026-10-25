@@ -5,12 +5,17 @@ import { PassThrough } from 'node:stream';
 jest.mock('node:child_process', () => ({ spawn: jest.fn() }));
 let commands: typeof import('../utils/processes').commands;
 let stopProcessAndDescendantsAsync: typeof import('../utils/processes').stopProcessAndDescendantsAsync;
+let terminateProcessGroupAsync: typeof import('../utils/processes').terminateProcessGroupAsync;
 let child: ChildProcess;
 
 beforeEach(() => {
   jest.useFakeTimers();
   jest.isolateModules(() => {
-    ({ commands, stopProcessAndDescendantsAsync } = require('../utils/processes'));
+    ({
+      commands,
+      stopProcessAndDescendantsAsync,
+      terminateProcessGroupAsync,
+    } = require('../utils/processes'));
   });
   child = Object.assign(new EventEmitter(), {
     pid: 90001,
@@ -283,4 +288,83 @@ test('normal wrapper exit after draining does not bypass a missing close timeout
   expect((await stopping).message).toContain('did not finish closing');
   child.emit('close', 0, null);
   expect(() => commands.throwIfCommandCloseTimedOut()).toThrow('did not finish closing');
+});
+
+describe('terminateProcessGroupAsync', () => {
+  /** Models the group led by 90001; `members` are its live processes. */
+  function group(members: Set<number>, { ignoresTerm = false, survivesKill = false } = {}) {
+    const signals: [number, string | number | undefined][] = [];
+    jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid !== -90001) {
+        throw new Error(`Only the process group may be signalled, not ${pid}.`);
+      }
+      if (members.size === 0) {
+        throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+      }
+      if (signal) {
+        signals.push([pid, signal]);
+      }
+      if ((signal === 'SIGTERM' && !ignoresTerm) || (signal === 'SIGKILL' && !survivesKill)) {
+        members.clear();
+      }
+      return true;
+    });
+    return signals;
+  }
+
+  it('signals the whole group once and waits for it to empty', async () => {
+    const signals = group(new Set([90001, 90002, 90003]));
+    await terminateProcessGroupAsync({ child, resultPromise: Promise.resolve('') });
+    expect(signals).toEqual([[-90001, 'SIGTERM']]);
+  });
+
+  it('kills a group that ignores TERM after the grace period', async () => {
+    jest.useRealTimers();
+    const signals = group(new Set([90001, 90004]), { ignoresTerm: true });
+    await terminateProcessGroupAsync({ child, resultPromise: Promise.resolve('') }, 50);
+    expect(signals).toEqual([
+      [-90001, 'SIGTERM'],
+      [-90001, 'SIGKILL'],
+    ]);
+  });
+
+  it('fails when the group survives SIGKILL', async () => {
+    jest.useRealTimers();
+    group(new Set([90001, 90004]), { ignoresTerm: true, survivesKill: true });
+    const stopping = terminateProcessGroupAsync(
+      { child, resultPromise: Promise.resolve('') },
+      50
+    ).catch(error => error);
+    expect((await stopping).message).toContain('process group 90001 is still running');
+  });
+
+  it('never signals a reused PID after its group has exited', async () => {
+    jest.useRealTimers();
+    const members = new Set([90001, 90002]);
+    const signals = group(members);
+    const groupKill = jest.mocked(process.kill).getMockImplementation()!;
+    // After TERM empties the group, 90001's number belongs to an unrelated live process.
+    jest
+      .mocked(process.kill)
+      .mockImplementation((pid, signal) => (pid === 90001 ? true : groupKill(pid, signal)));
+    await terminateProcessGroupAsync({ child, resultPromise: Promise.resolve('') }, 50);
+    expect(signals).toEqual([[-90001, 'SIGTERM']]);
+    expect(jest.mocked(process.kill).mock.calls.some(([pid]) => pid > 0)).toBe(false);
+  });
+});
+
+test('serve-sim leads its own process group', () => {
+  const { startServeSim } = require('../utils/serveSim');
+  startServeSim('PHONE', new AbortController().signal);
+  expect(spawn).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['PHONE', '--port', '3200']),
+    expect.objectContaining({ detached: true })
+  );
+});
+
+test('the fixture PID guard keeps tests away from the real process.kill', () => {
+  expect(() => process.kill(90002, 0)).toThrow('fixture PID 90002');
+  expect(() => process.kill(-90001, 'SIGKILL')).toThrow('fixture PID -90001');
+  expect(() => process.kill(11, 0)).toThrow('fixture PID 11');
 });

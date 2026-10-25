@@ -12,8 +12,9 @@ import {
   type ChildProcessHandle,
   commands,
   stopProcessAndDescendantsAsync,
+  terminateProcessGroupAsync,
 } from '../utils/processes';
-import { startServeSim } from '../utils/serveSim';
+import { startServeSim, waitForServeSimPortFreeAsync } from '../utils/serveSim';
 
 jest.mock('../commands/stop');
 jest.mock('../utils/agentDevice');
@@ -229,8 +230,9 @@ it('claim waits only for the requested tool and stops the other one mid-start', 
   }
 });
 
-it('replacement boots the new device while the old one is released, then starts only the requested tool', async () => {
-  const release = deferred<void>();
+it('replacement starts new services once the old serve-sim exits, without waiting for the old device shutdown', async () => {
+  const serveSimStop = deferred<void>();
+  const oldShutdown = deferred<string>();
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
     args.includes('devices')
@@ -242,9 +244,11 @@ it('replacement boots the new device while the old one is released, then starts 
             ],
           },
         })
-      : original(file, args, signal)
+      : args.join(' ') === 'simctl shutdown PHONE'
+        ? oldShutdown.promise
+        : original(file, args, signal)
   );
-  jest.mocked(stopServicesAndShutdownSimulatorAsync).mockReturnValueOnce(release.promise);
+  jest.mocked(terminateProcessGroupAsync).mockReturnValueOnce(serveSimStop.promise);
   const session = createSession();
   try {
     await session.prepareAsync();
@@ -257,15 +261,14 @@ it('replacement boots the new device while the old one is released, then starts 
         .mocked(commands.runAsync)
         .mock.calls.some(([, args]) => args.includes('bootstatus') && args.includes('PRO'))
     );
-    expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
-      expect.any(Set),
-      'PHONE',
-      undefined
-    );
+    expect(terminateProcessGroupAsync).toHaveBeenCalledWith(serveSim);
     expect(startServeSim).not.toHaveBeenCalled();
     expect(startAgentDevicePreparation).not.toHaveBeenCalled();
-    release.resolve();
+    serveSimStop.resolve();
+    // The claim returns while the old device is still shutting down.
     expect(await claiming).toEqual({ udid: 'PRO', name: 'iPhone 17 Pro' });
+    expect(waitForServeSimPortFreeAsync).toHaveBeenCalled();
+    expect(commands.runAsync).toHaveBeenCalledWith('xcrun', ['simctl', 'shutdown', 'PHONE']);
     expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
     expect(commands.runAsync).toHaveBeenCalledWith(
       'xcrun',
@@ -274,9 +277,52 @@ it('replacement boots the new device while the old one is released, then starts 
     );
     expect(startAgentDevicePreparation).toHaveBeenCalledWith('PRO', expect.anything());
     expect(startArgentServer).not.toHaveBeenCalled();
+    // Terminal cleanup waits for the background shutdown, then owns only the new device.
+    let stopped = false;
+    const stopping = session.stopAsync().then(() => {
+      stopped = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(stopped).toBe(false);
+    expect(stopServicesAndShutdownSimulatorAsync).not.toHaveBeenCalled();
+    oldShutdown.resolve('');
+    await stopping;
+    expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledTimes(1);
+    expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
+      expect.any(Set),
+      'PRO',
+      agent
+    );
   } finally {
-    release.resolve();
+    serveSimStop.resolve();
+    oldShutdown.resolve('');
   }
+});
+
+it('keeps a replaced device owned when its background shutdown fails', async () => {
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
+    args.includes('devices')
+      ? JSON.stringify({
+          devices: {
+            ios: [
+              { udid: 'PHONE', name: 'iPhone 17' },
+              { udid: 'PRO', name: 'iPhone 17 Pro' },
+            ],
+          },
+        })
+      : args.join(' ') === 'simctl shutdown PHONE'
+        ? Promise.reject(new Error('shutdown failed'))
+        : original(file, args, signal)
+  );
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' });
+  await session.stopAsync();
+  expect(
+    jest.mocked(stopServicesAndShutdownSimulatorAsync).mock.calls.map(([, udid]) => udid)
+  ).toEqual(['PHONE', 'PRO']);
+  expect(onBackgroundFailure).not.toHaveBeenCalled();
 });
 
 it('drains unused tools and the whole Expo Go task before native cleanup, retaining their failure', async () => {

@@ -9,11 +9,14 @@ export const commands = {
     file: string,
     args: string[],
     signal?: AbortSignal,
-    captureStdout = false
+    captureStdout = false,
+    /** Lead a new process group, so terminateProcessGroupAsync can signal the whole tree. */
+    detached = false
   ): ChildProcessHandle {
     const child = spawn(file, args, {
       stdio: captureStdout ? ['ignore', 'pipe', 'inherit'] : 'inherit',
       signal,
+      detached,
     });
     let stdout = '';
     let error: Error | undefined;
@@ -165,6 +168,46 @@ export async function stopProcessAndDescendantsAsync(
     // Never inspect a reused wrapper PID or infer that its descendants have also exited.
     throw new Error(
       'A Simulator service exited before its child processes could be stopped; cleanup could not be confirmed.'
+    );
+  }
+  await processHandle.resultPromise.catch(() => {});
+  commands.throwIfCommandCloseTimedOut();
+}
+
+/**
+ * Stops a process group that has nothing to finalize. The handle must lead its own group
+ * (`commands.start(..., detached)`), so children spawned or respawned during the stop are
+ * signalled too, and the group ID cannot be reused while any member is alive.
+ */
+export async function terminateProcessGroupAsync(
+  processHandle: ChildProcessHandle,
+  graceMs = 5_000
+): Promise<void> {
+  const groupId = processHandle.child.pid;
+  if (!groupId) {
+    throw new Error('A Simulator service has no process group; cleanup could not be confirmed.');
+  }
+  const isGroupRunning = (): boolean => isProcessRunning(-groupId);
+  for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
+    if (!isGroupRunning()) {
+      break;
+    }
+    try {
+      process.kill(-groupId, signal);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+        throw error;
+      }
+      break;
+    }
+    const deadline = Date.now() + graceMs;
+    while (isGroupRunning() && Date.now() < deadline) {
+      await sleepAsync(100);
+    }
+  }
+  if (isGroupRunning()) {
+    throw new Error(
+      `Simulator service process group ${groupId} is still running; cleanup could not be confirmed.`
     );
   }
   await processHandle.resultPromise.catch(() => {});

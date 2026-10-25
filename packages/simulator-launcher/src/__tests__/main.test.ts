@@ -132,6 +132,8 @@ beforeEach(async () => {
     return job;
   });
   jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
+  // Fixture PIDs are fake; never signal them.
+  jest.spyOn(processes, 'terminateProcessGroupAsync').mockResolvedValue();
   jest.spyOn(serveSim, 'waitForServeSimReadyAsync').mockResolvedValue();
 });
 afterEach(async () => {
@@ -334,9 +336,10 @@ for (const selector of [undefined, 'phone', 'iPhone 17 Pro']) {
     ).toHaveLength(1);
     if (replacement) {
       const calls = jest.mocked(commands.runAsync).mock.calls;
+      // The new device boots while the old one is released; the old one still shuts down.
       expect(
-        calls.findIndex(([, args]) => args.join(' ') === 'simctl shutdown PHONE')
-      ).toBeLessThan(calls.findIndex(([, args]) => args.join(' ') === 'simctl bootstatus PRO -b'));
+        calls.findIndex(([, args]) => args.join(' ') === 'simctl bootstatus PRO -b')
+      ).toBeLessThan(calls.findIndex(([, args]) => args.join(' ') === 'simctl shutdown PHONE'));
       expect(startExpoGoPreinstall).toHaveBeenCalledTimes(1);
     }
     await expect(claimAsync(boot, 'argent')).rejects.toThrow('available');

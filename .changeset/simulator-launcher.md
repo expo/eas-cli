@@ -2,7 +2,7 @@
 '@expo/simulator-launcher': minor
 ---
 
-Add start, stop and claim commands for warm Simulator sessions. A session is ready once its device boots and serve-sim answers. A claim waits only for its requested tool and stops the others, even mid-startup. Replacing the device boots the requested one while the old one is cleaned up.
+Add start, stop and claim commands for warm Simulator sessions. A session is ready once its device boots and serve-sim answers. A claim waits only for its requested tool and stops the others, even mid-startup. Replacing the device boots the requested one while the old serve-sim and tools stop; new services start once they are gone, and the old device shuts down in the background.
 
 Start unused-tool shutdown during claim without delaying handoff. Drain it during terminal cleanup; a shutdown failure prevents a stopped acknowledgement.
 

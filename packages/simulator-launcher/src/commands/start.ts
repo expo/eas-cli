@@ -19,8 +19,13 @@ import {
   type ChildProcessHandle,
   commands,
   stopProcessAndDescendantsAsync,
+  terminateProcessGroupAsync,
 } from '../utils/processes';
-import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
+import {
+  startServeSim,
+  waitForServeSimPortFreeAsync,
+  waitForServeSimReadyAsync,
+} from '../utils/serveSim';
 import {
   ClaimInputSchema,
   type LauncherState,
@@ -273,6 +278,9 @@ export function createWarmSimulatorSession({
   let argentProcess: ChildProcessHandle | undefined;
   let expoGoPreinstall: ReturnType<typeof startExpoGoPreinstall> | undefined;
   let unusedToolsCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
+  let serveSimProcess: ChildProcessHandle | undefined;
+  // A replaced device shuts down in the background; terminal cleanup retries it if needed.
+  let previousDeviceShutdown: Promise<void> = Promise.resolve();
 
   async function listAvailableSimulatorsAsync(): Promise<SimulatorDevice[]> {
     const { devices } = SimulatorListSchema.parse(
@@ -395,6 +403,7 @@ export function createWarmSimulatorSession({
     }
     const serveSimPromise = servicesReady.then(async () => {
       const serveSim = startServeSim(udid, signal);
+      serveSimProcess = serveSim;
       serviceProcesses.add(serveSim);
       await waitForServeSimReadyAsync(udid, serveSim, signal);
     });
@@ -457,20 +466,29 @@ export function createWarmSimulatorSession({
         tool => tool === request.engine
       );
       if (device.udid.toLowerCase() !== currentDevice.udid.toLowerCase()) {
-        // Release the old device while the new one boots; services start after the release.
+        // The new device boots while the old services stop. The old serve-sim is unclaimed and
+        // has nothing to finalize, so its process group stops without a grace wait. The new services start once
+        // the old ones are gone; the old device shuts down in the background and stays owned.
         const previousUdid = currentDevice.udid;
+        const previousServeSim = serveSimProcess;
         const release = (async () => {
-          await Promise.all([...toolStartups.keys()].map(tool => stopToolAsync(tool)));
-          await stopServicesAndShutdownSimulatorAsync(
-            serviceProcesses,
-            previousUdid,
-            agentDevicePrepareProcess
-          );
-          ownedSimulatorUdids.delete(previousUdid);
-          agentDevicePrepareProcess = undefined;
-          argentProcess = undefined;
+          await Promise.all([
+            ...[...toolStartups.keys()].map(tool => stopToolAsync(tool)),
+            (async () => {
+              if (previousServeSim) {
+                await terminateProcessGroupAsync(previousServeSim);
+                serviceProcesses.delete(previousServeSim);
+              }
+            })(),
+          ]);
+          await waitForServeSimPortFreeAsync(signal);
           await throwIfStoppingAsync();
         })();
+        previousDeviceShutdown = release.then(async () => {
+          await commands.runAsync('xcrun', ['simctl', 'shutdown', previousUdid]);
+          ownedSimulatorUdids.delete(previousUdid);
+        });
+        void previousDeviceShutdown.catch(() => {});
         await bootSimulatorAndStartServicesAsync(
           device,
           requestedTool ? [requestedTool] : [],
@@ -506,6 +524,7 @@ export function createWarmSimulatorSession({
         startup.controller.abort();
       }
       await Promise.allSettled([...toolStartups.values()].map(startup => startup.ready));
+      await previousDeviceShutdown.catch(() => {});
       const cleanupErrors: unknown[] = [];
       for (const udid of ownedSimulatorUdids.size ? [...ownedSimulatorUdids] : [undefined]) {
         try {
