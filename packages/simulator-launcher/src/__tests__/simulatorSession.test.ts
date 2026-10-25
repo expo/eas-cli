@@ -404,12 +404,36 @@ describe('waitForServeSimReadyAsync', () => {
       );
       await waiting;
       expect(fetchSpy).toHaveBeenLastCalledWith('http://127.0.0.1:3200/readyz', {
-        headers: { Authorization: 'Bearer secret' },
         signal: expect.any(AbortSignal),
       });
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     } finally {
       await fs.rm(tmpdir, { recursive: true, force: true });
+    }
+  });
+
+  it('reads serve-sim state from SERVE_SIM_STATE_DIR when it is set', async () => {
+    const stateDir = await fs.mkdtemp(
+      path.join(jest.requireActual<typeof os>('node:os').tmpdir(), 'serve-sim-state-')
+    );
+    process.env.SERVE_SIM_STATE_DIR = stateDir;
+    jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ status: 'ready', device: 'PHONE' })));
+    try {
+      await fs.writeFile(
+        path.join(stateDir, 'server-PHONE.json'),
+        JSON.stringify({ device: 'PHONE', url: 'http://127.0.0.1:3200', token: 'secret' })
+      );
+      const running = {
+        child: { pid: 10 } as ChildProcess,
+        resultPromise: new Promise<string>(() => {}),
+      };
+      await waitForServeSimReadyAsync('PHONE', running, controller.signal);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      await fs.rm(stateDir, { recursive: true, force: true });
     }
   });
 

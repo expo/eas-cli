@@ -9,6 +9,7 @@ import { type ChildProcessHandle, commands } from './processes';
 
 const SERVE_SIM_PORT = 3200;
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
+// The job needs the token from this file; /readyz itself is not token-gated.
 const ServeSimStateSchema = z.object({ device: z.string(), url: z.string(), token: z.string() });
 
 export function startServeSim(udid: string, signal: AbortSignal): ChildProcessHandle {
@@ -57,7 +58,8 @@ export async function waitForServeSimReadyAsync(
     exited = true;
   };
   void server.resultPromise.then(markExited, markExited);
-  const stateFile = path.join(os.tmpdir(), 'serve-sim', `server-${udid}.json`);
+  const stateDirectory = process.env.SERVE_SIM_STATE_DIR || path.join(os.tmpdir(), 'serve-sim');
+  const stateFile = path.join(stateDirectory, `server-${udid}.json`);
   const deadline = Date.now() + SERVE_SIM_READY_TIMEOUT_MS;
   for (;;) {
     signal.throwIfAborted();
@@ -70,7 +72,6 @@ export async function waitForServeSimReadyAsync(
     try {
       const state = ServeSimStateSchema.parse(JSON.parse(await fs.readFile(stateFile, 'utf8')));
       const response = await fetch(`${state.url}/readyz`, {
-        headers: { Authorization: `Bearer ${state.token}` },
         signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
       });
       const ready = response.ok
