@@ -14,7 +14,7 @@ import {
   stopProcessAndDescendantsAsync,
   terminateProcessGroupAsync,
 } from '../utils/processes';
-import { startServeSim, waitForServeSimPortFreeAsync } from '../utils/serveSim';
+import { startServeSim } from '../utils/serveSim';
 
 jest.mock('../commands/stop');
 jest.mock('../utils/agentDevice');
@@ -106,7 +106,7 @@ it('creates an idle owner synchronously and stops services acquired before a too
     await session.stopAsync();
     expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
       new Set([serveSim, agent]),
-      'PHONE',
+      ['PHONE'],
       agent
     );
     expect(startArgentServer).not.toHaveBeenCalled();
@@ -189,7 +189,7 @@ it('serve-sim claim during agent-device prepare stops it and returns without wai
     await session.stopAsync();
     expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
       new Set([serveSim]),
-      'PHONE',
+      ['PHONE'],
       undefined
     );
   } finally {
@@ -267,7 +267,6 @@ it('replacement starts new services once the old serve-sim exits, without waitin
     serveSimStop.resolve();
     // The claim returns while the old device is still shutting down.
     expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro' } });
-    expect(waitForServeSimPortFreeAsync).toHaveBeenCalled();
     expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
     expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
     expect(commands.runAsync).toHaveBeenCalledWith(
@@ -290,7 +289,7 @@ it('replacement starts new services once the old serve-sim exits, without waitin
     expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledTimes(1);
     expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
       expect.any(Set),
-      'PRO',
+      ['PRO'],
       agent
     );
   } finally {
@@ -362,8 +361,8 @@ it('keeps a replaced device owned when its background shutdown fails', async () 
   await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' });
   await session.stopAsync();
   expect(
-    jest.mocked(stopServicesAndShutdownSimulatorAsync).mock.calls.map(([, udid]) => udid)
-  ).toEqual(['PHONE', 'PRO']);
+    jest.mocked(stopServicesAndShutdownSimulatorAsync).mock.calls.map(([, udids]) => udids)
+  ).toEqual([['PHONE', 'PRO']]);
   expect(onBackgroundFailure).not.toHaveBeenCalled();
 });
 
@@ -408,7 +407,7 @@ it('drains unused tools and the whole Expo Go task before native cleanup, retain
     await rejected;
     expect(stopServicesAndShutdownSimulatorAsync).toHaveBeenCalledWith(
       new Set([serveSim, argent]),
-      'PHONE',
+      ['PHONE'],
       undefined
     );
   } finally {

@@ -21,11 +21,7 @@ import {
   stopProcessAndDescendantsAsync,
   terminateProcessGroupAsync,
 } from '../utils/processes';
-import {
-  startServeSim,
-  waitForServeSimPortFreeAsync,
-  waitForServeSimReadyAsync,
-} from '../utils/serveSim';
+import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
 import {
   ClaimInputSchema,
   type LauncherState,
@@ -336,8 +332,9 @@ export function createWarmSimulatorSession({
   function startTool(tool: WarmTool, udid: string, servicesAllowed: Promise<unknown>): void {
     const controller = new AbortController();
     const toolSignal = AbortSignal.any([signal, controller.signal]);
+    let abort!: () => void;
     const aborted = new Promise<never>((_resolve, reject) => {
-      const abort = (): void => reject(toolSignal.reason);
+      abort = () => reject(toolSignal.reason);
       toolSignal.addEventListener('abort', abort, { once: true });
       if (toolSignal.aborted) {
         abort();
@@ -355,6 +352,8 @@ export function createWarmSimulatorSession({
             argentProcess = startArgentServer(toolSignal);
             serviceProcesses.add(argentProcess);
           });
+    const removeAbortListener = (): void => toolSignal.removeEventListener('abort', abort);
+    void ready.then(removeAbortListener, removeAbortListener);
     void ready.catch(error => {
       if (!controller.signal.aborted) {
         onPreparationFailure(error);
@@ -475,8 +474,9 @@ export function createWarmSimulatorSession({
       );
       if (device.udid.toLowerCase() !== currentDevice.udid.toLowerCase()) {
         // The new device boots while the old services stop. The old serve-sim is unclaimed and
-        // has nothing to finalize, so its process group stops without a grace wait. The new services start once
-        // the old ones are gone; the old device shuts down in the background and stays owned.
+        // has nothing to finalize, so its process group stops without a grace wait. Its port 3200
+        // listener is in that group, so the new serve-sim can bind once the group is gone. The old
+        // device shuts down in the background and stays owned until it does.
         const previousUdid = currentDevice.udid;
         const previousServeSim = serveSimProcess;
         const release = (async () => {
@@ -494,7 +494,6 @@ export function createWarmSimulatorSession({
           if (failed?.status === 'rejected') {
             throw failed.reason;
           }
-          await waitForServeSimPortFreeAsync(signal);
           await throwIfStoppingAsync();
         })();
         previousDeviceShutdown = release.then(async () => {
@@ -541,24 +540,14 @@ export function createWarmSimulatorSession({
       }
       await Promise.allSettled([...toolStartups.values()].map(startup => startup.ready));
       await previousDeviceShutdown.catch(() => {});
-      const cleanupErrors: unknown[] = [];
-      for (const udid of ownedSimulatorUdids.size ? [...ownedSimulatorUdids] : [undefined]) {
-        try {
-          await stopServicesAndShutdownSimulatorAsync(
-            serviceProcesses,
-            udid,
-            agentDevicePrepareProcess
-          );
-        } catch (error) {
-          cleanupErrors.push(error);
-        }
-      }
+      await stopServicesAndShutdownSimulatorAsync(
+        serviceProcesses,
+        [...ownedSimulatorUdids],
+        agentDevicePrepareProcess
+      );
       const warmupErrors = [...unusedToolsResults, ...expoGoResults].flatMap(result =>
         result.status === 'rejected' ? [result.reason] : []
       );
-      if (cleanupErrors.length) {
-        throw cleanupErrors[0];
-      }
       if (warmupErrors.length) {
         throw new AggregateError(
           warmupErrors,

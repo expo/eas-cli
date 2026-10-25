@@ -42,9 +42,10 @@ export async function stopAsync(bootUuid: string): Promise<number> {
   return 0;
 }
 
+/** Stops the services once, then shuts down every owned device. */
 export async function stopServicesAndShutdownSimulatorAsync(
   serviceProcesses: Set<ChildProcessHandle>,
-  simulatorUdid?: string,
+  simulatorUdids: string[],
   agentDevicePrepareProcess?: ChildProcessHandle
 ): Promise<void> {
   const cleanupErrors: unknown[] = [];
@@ -56,9 +57,11 @@ export async function stopServicesAndShutdownSimulatorAsync(
       .then(() => serviceProcesses.delete(childProcessHandle))
       .catch(error => cleanupErrors.push(error));
   }
-  if (simulatorUdid) {
+  if (simulatorUdids.length) {
     await stopAgentDeviceDaemonAsync().catch(error => cleanupErrors.push(error));
-    await shutdownSimulatorAsync(simulatorUdid).catch(error => cleanupErrors.push(error));
+  }
+  for (const udid of simulatorUdids) {
+    await shutdownSimulatorAsync(udid).catch(error => cleanupErrors.push(error));
   }
   try {
     commands.throwIfCommandCloseTimedOut();
