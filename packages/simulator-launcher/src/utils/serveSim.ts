@@ -52,9 +52,11 @@ export async function waitForServeSimReadyAsync(
   signal: AbortSignal
 ): Promise<void> {
   let exited = false;
-  void server.resultPromise.finally(() => {
+  // Handle both outcomes: a rejection here would otherwise be unhandled and end the launcher.
+  const markExited = (): void => {
     exited = true;
-  });
+  };
+  void server.resultPromise.then(markExited, markExited);
   const stateFile = path.join(os.tmpdir(), 'serve-sim', `server-${udid}.json`);
   const deadline = Date.now() + SERVE_SIM_READY_TIMEOUT_MS;
   for (;;) {

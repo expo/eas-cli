@@ -413,6 +413,25 @@ describe('waitForServeSimReadyAsync', () => {
     }
   });
 
+  it('fails without an unhandled rejection when serve-sim exits with an error', async () => {
+    jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      const crashed = {
+        child: { pid: 10 } as ChildProcess,
+        resultPromise: Promise.reject(new Error('bunx exited with SIGTERM.')),
+      };
+      await expect(waitForServeSimReadyAsync('PHONE', crashed, controller.signal)).rejects.toThrow(
+        'serve-sim exited before PHONE became ready.'
+      );
+      await new Promise(resolve => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
   it('fails when serve-sim exits before it is ready', async () => {
     jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
     const exited = { child: { pid: 10 } as ChildProcess, resultPromise: Promise.resolve('') };
