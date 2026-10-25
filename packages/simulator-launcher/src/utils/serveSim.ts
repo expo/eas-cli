@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { type ChildProcessHandle, commands } from './processes';
 
 const SERVE_SIM_PORT = 3200;
+const SERVE_SIM_URL = `http://127.0.0.1:${SERVE_SIM_PORT}`;
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
 // The job needs the token from this file; /readyz itself is not token-gated.
 const ServeSimStateSchema = z.object({ device: z.string(), url: z.string(), token: z.string() });
@@ -68,16 +69,25 @@ export async function waitForServeSimReadyAsync(
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for serve-sim on ${udid} to become ready.`);
     }
+    const state = await fs
+      .readFile(stateFile, 'utf8')
+      .then(contents => ServeSimStateSchema.parse(JSON.parse(contents)))
+      .catch(() => undefined);
+    // Only the local serve-sim this launcher started may be probed; the job checks the same.
+    if (state && state.url !== SERVE_SIM_URL) {
+      throw new Error(`serve-sim on ${udid} reports ${state.url}, not ${SERVE_SIM_URL}.`);
+    }
     try {
-      const state = ServeSimStateSchema.parse(JSON.parse(await fs.readFile(stateFile, 'utf8')));
-      const response = await fetch(`${state.url}/readyz`, {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
-      });
-      const ready = response.ok
-        ? ((await response.json()) as { status?: string; device?: string })
-        : {};
-      if (ready.status === 'ready' && ready.device?.toUpperCase() === udid.toUpperCase()) {
-        return;
+      if (state) {
+        const response = await fetch(`${SERVE_SIM_URL}/readyz`, {
+          signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
+        });
+        const ready = response.ok
+          ? ((await response.json()) as { status?: string; device?: string })
+          : {};
+        if (ready.status === 'ready' && ready.device?.toUpperCase() === udid.toUpperCase()) {
+          return;
+        }
       }
     } catch {
       // serve-sim writes its state and answers /readyz only once it is listening.

@@ -587,3 +587,29 @@ it('reports the preinstalled Expo Go only for the device it was installed on', a
     expect(claimed.preinstalledExpoGo).toEqual(requestedDevice ? undefined : preinstalledExpoGo);
   }
 });
+
+it('rejects serve-sim state that points readiness at another address', async () => {
+  const { waitForServeSimReadyAsync: waitActual } =
+    jest.requireActual<typeof import('../utils/serveSim')>('../utils/serveSim');
+  const stateDir = await fs.mkdtemp(
+    path.join(jest.requireActual<typeof os>('node:os').tmpdir(), 'serve-sim-state-')
+  );
+  process.env.SERVE_SIM_STATE_DIR = stateDir;
+  const fetchSpy = jest.spyOn(global, 'fetch');
+  try {
+    await fs.writeFile(
+      path.join(stateDir, 'server-PHONE.json'),
+      JSON.stringify({ device: 'PHONE', url: 'http://example.test:3200', token: 'secret' })
+    );
+    const running = {
+      child: { pid: 10 } as ChildProcess,
+      resultPromise: new Promise<string>(() => {}),
+    };
+    await expect(waitActual('PHONE', running, controller.signal)).rejects.toThrow(
+      'not http://127.0.0.1:3200'
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally {
+    await fs.rm(stateDir, { recursive: true, force: true });
+  }
+});
