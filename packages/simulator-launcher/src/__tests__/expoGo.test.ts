@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { commands } from '../utils/processes';
+import { deferred, until } from './helpers';
 
 const runCommandAsync = commands.runAsync.bind(commands);
 function createArchive(entries: { name: string; contents: Buffer }[]): Buffer {
@@ -24,22 +25,6 @@ function createArchive(entries: { name: string; contents: Buffer }[]): Buffer {
 }
 function installCalls() {
   return jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file === 'xcrun');
-}
-
-function deferred<T = void>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((yes, no) => {
-    resolve = yes;
-    reject = no;
-  });
-  return { promise, resolve, reject };
-}
-async function until(predicate: () => boolean): Promise<void> {
-  for (let i = 0; i < 400 && !predicate(); i++) {
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
-  expect(predicate()).toBe(true);
 }
 
 let directory: string;

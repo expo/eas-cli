@@ -10,6 +10,7 @@ import {
   updateLauncherStateAsync,
   waitForLauncherStateAsync,
 } from '../utils/state';
+import { deferred } from './helpers';
 
 const boot = 'boot-one';
 let root: string;
@@ -36,13 +37,6 @@ const remap = (file: unknown): unknown =>
     ? path.join(root, 'control', path.basename(file))
     : file;
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>(yes => {
-    resolve = yes;
-  });
-  return { promise, resolve };
-}
 beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'launcher-state-'));
   jest.spyOn(os, 'homedir').mockReturnValue(root);

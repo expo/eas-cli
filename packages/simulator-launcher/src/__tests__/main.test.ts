@@ -5,18 +5,20 @@ import path from 'node:path';
 
 import { claimAsync } from '../commands/claim';
 import { runWarmSimulatorSessionAsync, startAsync } from '../commands/start';
-import { shutdownSimulatorAsync, stopAsync } from '../commands/stop';
+import { stopAsync } from '../commands/stop';
 import { mainAsync } from '../main';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { type ChildProcessHandle, commands } from '../utils/processes';
 import * as processes from '../utils/processes';
 import * as serveSim from '../utils/serveSim';
+import { shutdownSimulatorAsync } from '../utils/simulator';
 import {
   LAUNCHER_STATE_FILE,
   readLauncherStateAsync,
   updateLauncherStateAsync,
   waitForLauncherStateAsync,
 } from '../utils/state';
+import { deferred, until } from './helpers';
 
 jest.mock('../utils/expoGo');
 const boot = 'boot-one';
@@ -48,21 +50,6 @@ const remap = (file: unknown): unknown =>
     ? path.join(root, 'control', path.basename(file))
     : file;
 
-function deferred<T = string>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((yes, no) => {
-    resolve = yes;
-    reject = no;
-  });
-  return { promise, resolve, reject };
-}
-async function until(check: () => boolean): Promise<void> {
-  for (let i = 0; i < 200 && !check(); i++) {
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
-  expect(check()).toBe(true);
-}
 async function status(value: string) {
   return await waitForLauncherStateAsync(boot, state => state?.status === value, 2_000);
 }
@@ -237,8 +224,8 @@ test('startup returns native identity and effective paths in the single ready re
 
 for (const slower of ['boot', 'config']) {
   test(`serve-sim and agent depend only on boot while ${slower} is pending`, async () => {
-    const booting = deferred();
-    const config = deferred();
+    const booting = deferred<string>();
+    const config = deferred<string>();
     const original = jest.mocked(commands.runAsync).getMockImplementation()!;
     jest
       .mocked(commands.runAsync)
@@ -409,7 +396,7 @@ test('stop during replacement prevents a late claimed result and drains newly ow
   const [completion] = await beginSession();
   await status('ready');
   const entered = deferred<void>();
-  const release = deferred();
+  const release = deferred<string>();
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
     if (args.includes('bootstatus') && args.includes('PRO')) {
@@ -513,7 +500,7 @@ test.each(['stop', 'claim'])(
     const directory = path.join(root, '.expo/simulator-tools');
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(path.join(directory, 'run'), 'installed implementation');
-    const completion = deferred();
+    const completion = deferred<string>();
     const child = { kill: jest.fn() } as unknown as ChildProcess;
     jest.mocked(commands.start).mockReturnValue({ child, resultPromise: completion.promise });
     const term = process.listenerCount('SIGTERM'),

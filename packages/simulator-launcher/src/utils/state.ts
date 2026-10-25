@@ -37,6 +37,7 @@ export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   preinstalledExpoGo: PreinstalledAppSchema.optional(),
   error: z.string().optional(),
 });
+export type ClaimInput = z.infer<typeof ClaimInputSchema>;
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;

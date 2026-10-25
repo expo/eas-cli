@@ -1,9 +1,13 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { type ChildProcessHandle, commands } from './processes';
+import { type ChildProcessHandle, commands, stopProcessAndDescendantsAsync } from './processes';
+import { type WarmTool, untilAbortedAsync } from './tools';
 
-export function setAgentDeviceEnvironmentDefaults(): void {
+const packageSpec = (): string => `agent-device@${process.env.AGENT_DEVICE_VERSION || 'latest'}`;
+
+/** `prepare ios-runner` builds and starts the runner and its daemon; it exits once both are up. */
+export function createAgentDeviceTool(): WarmTool {
   process.env.AGENT_DEVICE_STATE_DIR ||= path.join(
     os.homedir(),
     'Library/Caches/expo-simulator-startup/agent-device'
@@ -12,35 +16,54 @@ export function setAgentDeviceEnvironmentDefaults(): void {
   process.env.AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS ||= '0';
   process.env.AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS ||= '0';
   process.env.AGENT_DEVICE_IOS_RUNNER_DETACH ||= '0';
-}
-
-export function startAgentDevicePreparation(udid: string, signal: AbortSignal): ChildProcessHandle {
-  signal.throwIfAborted();
-  return commands.start('bunx', [
-    `agent-device@${process.env.AGENT_DEVICE_VERSION || 'latest'}`,
-    'prepare',
-    'ios-runner',
-    '--platform',
-    'ios',
-    '--udid',
-    udid,
-    '--daemon-server-mode',
-    'http',
-    '--daemon-transport',
-    'http',
-    '--timeout',
-    '240000',
-    '--json',
-  ]);
-}
-
-export async function stopAgentDeviceDaemonAsync(): Promise<void> {
-  await commands.runAsync('bunx', [
-    `agent-device@${process.env.AGENT_DEVICE_VERSION || 'latest'}`,
-    'daemon',
-    'stop',
-    '--clean',
-    '--state-dir',
-    process.env.AGENT_DEVICE_STATE_DIR!,
-  ]);
+  let prepareProcess: ChildProcessHandle | undefined;
+  return {
+    name: 'agent-device',
+    async startAsync(udid, signal) {
+      signal.throwIfAborted();
+      prepareProcess = commands.start('bunx', [
+        packageSpec(),
+        'prepare',
+        'ios-runner',
+        '--platform',
+        'ios',
+        '--udid',
+        udid,
+        '--daemon-server-mode',
+        'http',
+        '--daemon-transport',
+        'http',
+        '--timeout',
+        '240000',
+        '--json',
+      ]);
+      await untilAbortedAsync(prepareProcess.resultPromise, signal);
+    },
+    async stopAsync() {
+      const errors: unknown[] = [];
+      if (prepareProcess) {
+        await stopProcessAndDescendantsAsync(prepareProcess, /* allowCompletedProcess */ true).then(
+          () => (prepareProcess = undefined),
+          error => errors.push(error)
+        );
+      }
+      // The daemon outlives the prepare process, so it stops even if the prepare stop failed.
+      await commands
+        .runAsync('bunx', [
+          packageSpec(),
+          'daemon',
+          'stop',
+          '--clean',
+          '--state-dir',
+          process.env.AGENT_DEVICE_STATE_DIR!,
+        ])
+        .catch(error => errors.push(error));
+      if (errors.length > 1) {
+        throw new AggregateError(errors, 'agent-device could not be stopped.');
+      }
+      if (errors.length) {
+        throw errors[0];
+      }
+    },
+  };
 }
