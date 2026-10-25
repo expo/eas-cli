@@ -6,6 +6,7 @@ import { Writable } from 'node:stream';
 import { z } from 'zod';
 
 import { commands } from './processes';
+import { type PreinstalledApp } from './state';
 
 const VERSIONS_URL = 'https://api.expo.dev/v2/versions';
 const HEADERS = { Accept: 'application/json', 'User-Agent': 'expo-simulator-launcher' };
@@ -26,7 +27,8 @@ export function startExpoGoPreinstall(
   boot: Promise<unknown>,
   signal: AbortSignal
 ): {
-  claimAsync(): Promise<void>;
+  /** Resolves with the installed Expo Go, or undefined when the preinstall did not finish. */
+  claimAsync(): Promise<PreinstalledApp | undefined>;
   stopAsync(): Promise<void>;
   resultPromise: Promise<void>;
 } {
@@ -37,6 +39,7 @@ export function startExpoGoPreinstall(
     AbortSignal.timeout(120_000),
   ]);
   let installation: Promise<void> | undefined;
+  let installed: PreinstalledApp | undefined;
   let failure: unknown;
   void boot.catch(() => {});
   const warmup = (async () => {
@@ -77,8 +80,13 @@ export function startExpoGoPreinstall(
       // No await between this latch and launch. Claim cannot race a not-yet-started install.
       process.stderr.write(`Preinstalling Expo Go for SDK ${sdk} on Simulator ${udid}.\n`);
       installation = commands.runAsync('xcrun', ['simctl', 'install', udid, appPath]).then(
-        () => {
+        async () => {
           process.stderr.write('Expo Go preinstall finished.\n');
+          // The job compares its app with this record instead of asking the Simulator.
+          installed = await readPreinstalledAppAsync(udid, appPath).catch(error => {
+            process.stderr.write(`Could not read the preinstalled Expo Go version: ${error}\n`);
+            return undefined;
+          });
         },
         error => {
           commands.throwIfCommandCloseTimedOut();
@@ -120,6 +128,7 @@ export function startExpoGoPreinstall(
         throw failure;
       }
       commands.throwIfCommandCloseTimedOut();
+      return installed;
     },
     async stopAsync() {
       downloadController.abort();
@@ -127,4 +136,14 @@ export function startExpoGoPreinstall(
       commands.throwIfCommandCloseTimedOut();
     },
   };
+}
+
+async function readPreinstalledAppAsync(udid: string, appPath: string): Promise<PreinstalledApp> {
+  const infoPlistPath = path.join(appPath, 'Info.plist');
+  const [bundleIdentifier, shortVersion, version] = await Promise.all(
+    ['CFBundleIdentifier', 'CFBundleShortVersionString', 'CFBundleVersion'].map(async key =>
+      (await commands.runAsync('plutil', ['-extract', key, 'raw', '-o', '-', infoPlistPath])).trim()
+    )
+  );
+  return { udid, bundleIdentifier, shortVersion, version };
 }

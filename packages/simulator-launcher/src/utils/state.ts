@@ -16,6 +16,13 @@ export const ClaimInputSchema = z.object({
   engine: z.enum(['serve-sim', 'agent-device', 'argent']),
   requestedDevice: NonBlankStringSchema.optional(),
 });
+/** The Expo Go this launcher installed on `udid` and never launched. */
+export const PreinstalledAppSchema = z.object({
+  udid: NonBlankStringSchema,
+  bundleIdentifier: NonBlankStringSchema,
+  shortVersion: z.string(),
+  version: z.string(),
+});
 export const WarmSessionInfoSchema = z.object({
   device: SimulatorDeviceSchema,
   controllerPid: z.number().int().gt(1),
@@ -27,11 +34,13 @@ export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   bootUuid: NonBlankStringSchema,
   status: z.enum(['starting', 'ready', 'claiming', 'claimed', 'stopping', 'disabled']),
   ...ClaimInputSchema.partial().shape,
+  preinstalledExpoGo: PreinstalledAppSchema.optional(),
   error: z.string().optional(),
 });
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
+export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
 
 export function getInstalledLauncherDirectory(): string {
   return path.join(os.homedir(), '.expo/simulator-tools');

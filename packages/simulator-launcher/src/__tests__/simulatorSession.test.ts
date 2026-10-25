@@ -79,7 +79,7 @@ beforeEach(() => {
   jest.mocked(startAgentDevicePreparation).mockReturnValue(agent);
   jest.mocked(startArgentServer).mockReturnValue(argent);
   jest.mocked(startExpoGoPreinstall).mockReturnValue({
-    claimAsync: jest.fn(async () => {}),
+    claimAsync: jest.fn(async () => undefined),
     stopAsync: jest.fn(async () => {}),
     resultPromise: Promise.resolve(),
   });
@@ -180,8 +180,7 @@ it('serve-sim claim during agent-device prepare stops it and returns without wai
   try {
     await session.prepareAsync();
     expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-      udid: 'PHONE',
-      name: 'iPhone 17',
+      device: { udid: 'PHONE', name: 'iPhone 17' },
     });
     await until(() => jest.mocked(stopAgentDeviceDaemonAsync).mock.calls.length > 0);
     expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(prepare, true);
@@ -221,7 +220,7 @@ it('claim waits only for the requested tool and stops the other one mid-start', 
     expect(claimed).toBe(false);
     expect(startArgentServer).not.toHaveBeenCalled();
     argentConfig.resolve();
-    expect(await claiming).toMatchObject({ udid: 'PHONE' });
+    expect(await claiming).toMatchObject({ device: { udid: 'PHONE' } });
     expect(startArgentServer).toHaveBeenCalledTimes(1);
     expect(onPreparationFailure).not.toHaveBeenCalled();
   } finally {
@@ -266,7 +265,7 @@ it('replacement starts new services once the old serve-sim exits, without waitin
     expect(startAgentDevicePreparation).not.toHaveBeenCalled();
     serveSimStop.resolve();
     // The claim returns while the old device is still shutting down.
-    expect(await claiming).toEqual({ udid: 'PRO', name: 'iPhone 17 Pro' });
+    expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro' } });
     expect(waitForServeSimPortFreeAsync).toHaveBeenCalled();
     expect(commands.runAsync).toHaveBeenCalledWith('xcrun', ['simctl', 'shutdown', 'PHONE']);
     expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
@@ -331,7 +330,7 @@ it('drains unused tools and the whole Expo Go task before native cleanup, retain
   const expoCleanup = deferred();
   const failure = new Error('Argent stop failed');
   const preinstall = {
-    claimAsync: jest.fn(async () => {}),
+    claimAsync: jest.fn(async () => undefined),
     stopAsync: jest.fn(() => expoCleanup.promise),
     resultPromise: expoCleanup.promise,
   };
@@ -349,8 +348,7 @@ it('drains unused tools and the whole Expo Go task before native cleanup, retain
     argentEventLogPath: '/isolated-session-fixture/events',
   });
   expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-    udid: 'PHONE',
-    name: 'iPhone 17',
+    device: { udid: 'PHONE', name: 'iPhone 17' },
   });
   expect(preinstall.claimAsync).toHaveBeenCalledTimes(1);
   const stopping = session.stopAsync();
@@ -449,4 +447,37 @@ describe('prepareArgentEnvironmentAsync', () => {
       controller.signal
     );
   });
+});
+
+it('reports the preinstalled Expo Go only for the device it was installed on', async () => {
+  const preinstalledExpoGo = {
+    udid: 'PHONE',
+    bundleIdentifier: 'host.exp.Exponent',
+    shortVersion: '58.0.7',
+    version: '58.0.7',
+  };
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
+    args.includes('devices')
+      ? JSON.stringify({
+          devices: {
+            ios: [
+              { udid: 'PHONE', name: 'iPhone 17' },
+              { udid: 'PRO', name: 'iPhone 17 Pro' },
+            ],
+          },
+        })
+      : original(file, args, signal)
+  );
+  for (const requestedDevice of [undefined, 'PRO']) {
+    jest.mocked(startExpoGoPreinstall).mockReturnValueOnce({
+      claimAsync: jest.fn(async () => preinstalledExpoGo),
+      stopAsync: jest.fn(async () => {}),
+      resultPromise: Promise.resolve(),
+    });
+    const session = createSession();
+    await session.prepareAsync();
+    const claimed = await session.claimAsync({ engine: 'serve-sim', requestedDevice });
+    expect(claimed.preinstalledExpoGo).toEqual(requestedDevice ? undefined : preinstalledExpoGo);
+  }
 });

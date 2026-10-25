@@ -395,3 +395,48 @@ it.each(['traversal', 'malformed'] as const)(
     expect(await fs.readdir(directory)).toEqual([]);
   }
 );
+
+it('claim returns the identity read from the Expo Go it installed', async () => {
+  const plist: Record<string, string> = {
+    CFBundleIdentifier: 'host.exp.Exponent',
+    CFBundleShortVersionString: '58.0.7',
+    CFBundleVersion: '58.0.7',
+  };
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation(async (file, args, signal) =>
+      file === '/usr/bin/tar'
+        ? await runCommandAsync(file, args, signal)
+        : file === 'plutil'
+          ? `${plist[args[1]]}\n`
+          : ''
+    );
+  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  await warmup.resultPromise;
+  expect(await warmup.claimAsync()).toEqual({
+    udid: 'UDID',
+    bundleIdentifier: 'host.exp.Exponent',
+    shortVersion: '58.0.7',
+    version: '58.0.7',
+  });
+  const plistPath = jest
+    .mocked(commands.runAsync)
+    .mock.calls.find(([file]) => file === 'plutil')![1];
+  expect(path.basename(path.dirname(plistPath[5]))).toBe('ExpoGo.app');
+});
+
+it('claim returns no identity when the preinstall fails', async () => {
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation(async (file, args, signal) =>
+      file === '/usr/bin/tar'
+        ? await runCommandAsync(file, args, signal)
+        : file === 'xcrun'
+          ? Promise.reject(Object.assign(new Error('install failed'), { code: 1 }))
+          : ''
+    );
+  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  await warmup.resultPromise;
+  expect(await warmup.claimAsync()).toBeUndefined();
+  expect(jest.mocked(commands.runAsync).mock.calls.some(([file]) => file === 'plutil')).toBe(false);
+});

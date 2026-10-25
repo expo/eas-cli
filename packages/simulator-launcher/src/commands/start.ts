@@ -29,6 +29,7 @@ import {
 import {
   ClaimInputSchema,
   type LauncherState,
+  type PreinstalledApp,
   type SimulatorDevice,
   SimulatorDeviceSchema,
   type WarmSessionInfo,
@@ -39,7 +40,9 @@ import {
 
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
-  claimAsync(request: z.infer<typeof ClaimInputSchema>): Promise<SimulatorDevice>;
+  claimAsync(
+    request: z.infer<typeof ClaimInputSchema>
+  ): Promise<{ device: SimulatorDevice; preinstalledExpoGo?: PreinstalledApp }>;
   stopAsync(): Promise<void>;
 };
 
@@ -157,7 +160,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
         const state = requireOwnedState(await readLauncherStateAsync(bootUuid));
         if (state.status === 'claiming') {
           const request = ClaimInputSchema.parse(state);
-          const device = await session.claimAsync(request);
+          const { device, preinstalledExpoGo } = await session.claimAsync(request);
           await updateLauncherStateAsync(
             bootUuid,
             current => {
@@ -168,7 +171,12 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
               ) {
                 throw interruption;
               }
-              return { ...owned, status: 'claimed', device };
+              return {
+                ...owned,
+                status: 'claimed',
+                device,
+                ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
+              };
             },
             signal
           );
@@ -454,8 +462,8 @@ export function createWarmSimulatorSession({
       };
     },
 
-    async claimAsync(request: z.infer<typeof ClaimInputSchema>): Promise<SimulatorDevice> {
-      await expoGoPreinstall?.claimAsync();
+    async claimAsync(request: z.infer<typeof ClaimInputSchema>) {
+      const preinstalledExpoGo = await expoGoPreinstall?.claimAsync();
       await throwIfStoppingAsync();
       const device =
         !request.requestedDevice ||
@@ -511,7 +519,10 @@ export function createWarmSimulatorSession({
       if (requestedTool) {
         await toolStartups.get(requestedTool)!.ready;
       }
-      return currentDevice;
+      // A replacement device has no preinstalled Expo Go.
+      return preinstalledExpoGo?.udid === currentDevice.udid
+        ? { device: currentDevice, preinstalledExpoGo }
+        : { device: currentDevice };
     },
 
     /** Drain all owned work. Rejection means terminal cleanup cannot be acknowledged. */

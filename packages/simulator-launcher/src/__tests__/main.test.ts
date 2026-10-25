@@ -100,7 +100,7 @@ beforeEach(async () => {
     .mockReset()
     .mockReturnValue({
       resultPromise: Promise.resolve(),
-      claimAsync: jest.fn(async () => {}),
+      claimAsync: jest.fn(async () => undefined),
       stopAsync: jest.fn(async () => {}),
     });
   jest.spyOn(commands, 'runAsync').mockImplementation(async (file, args) => {
@@ -436,7 +436,13 @@ test('stop during replacement prevents a late claimed result and drains newly ow
 });
 
 test('claim joins an already-started Expo Go install and terminal stop drains the whole task', async () => {
-  const install = deferred<void>();
+  const preinstalledExpoGo = {
+    udid: 'PHONE',
+    bundleIdentifier: 'host.exp.Exponent',
+    shortVersion: '58.0.7',
+    version: '58.0.7',
+  };
+  const install = deferred<typeof preinstalledExpoGo>();
   const cleanup = deferred<void>();
   jest.mocked(startExpoGoPreinstall).mockReturnValue({
     resultPromise: cleanup.promise,
@@ -450,8 +456,14 @@ test('claim joins an already-started Expo Go install and terminal stop drains th
   try {
     await status('claiming');
     expect((await readLauncherStateAsync(boot))?.status).not.toBe('claimed');
-    install.resolve();
+    install.resolve(preinstalledExpoGo);
     await claiming;
+    // The claim record tells the job which Expo Go is already installed on this device.
+    expect(await readLauncherStateAsync(boot)).toMatchObject({
+      status: 'claimed',
+      device: { udid: 'PHONE' },
+      preinstalledExpoGo,
+    });
     const stopping = stopAsync(boot);
     await status('stopping');
     expect((await readLauncherStateAsync(boot))?.status).not.toBe('disabled');
@@ -459,7 +471,7 @@ test('claim joins an already-started Expo Go install and terminal stop drains th
     await stopping;
     await completion;
   } finally {
-    install.resolve();
+    install.resolve(preinstalledExpoGo);
     cleanup.resolve();
   }
 });
