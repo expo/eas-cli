@@ -480,7 +480,8 @@ export function createWarmSimulatorSession({
         const previousUdid = currentDevice.udid;
         const previousServeSim = serveSimProcess;
         const release = (async () => {
-          await Promise.all([
+          // Settle every stop before failing, so cleanup never races a stop still in flight.
+          const stops = await Promise.allSettled([
             ...[...toolStartups.keys()].map(tool => stopToolAsync(tool)),
             (async () => {
               if (previousServeSim) {
@@ -489,6 +490,10 @@ export function createWarmSimulatorSession({
               }
             })(),
           ]);
+          const failed = stops.find(stop => stop.status === 'rejected');
+          if (failed?.status === 'rejected') {
+            throw failed.reason;
+          }
           await waitForServeSimPortFreeAsync(signal);
           await throwIfStoppingAsync();
         })();

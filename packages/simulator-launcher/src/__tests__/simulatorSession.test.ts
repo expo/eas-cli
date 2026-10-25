@@ -298,6 +298,49 @@ it('replacement starts new services once the old serve-sim exits, without waitin
   }
 });
 
+it('fails a replacement only after every old stop settles', async () => {
+  const serveSimStop = deferred<void>();
+  const daemonFailure = new Error('daemon stop failed');
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
+    args.includes('devices')
+      ? JSON.stringify({
+          devices: {
+            ios: [
+              { udid: 'PHONE', name: 'iPhone 17' },
+              { udid: 'PRO', name: 'iPhone 17 Pro' },
+            ],
+          },
+        })
+      : original(file, args, signal)
+  );
+  jest.mocked(terminateProcessGroupAsync).mockReturnValueOnce(serveSimStop.promise);
+  jest.mocked(stopAgentDeviceDaemonAsync).mockRejectedValueOnce(daemonFailure);
+  const session = createSession();
+  try {
+    await session.prepareAsync();
+    let settled = false;
+    const claiming = session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' }).then(
+      () => {
+        settled = true;
+      },
+      error => {
+        settled = true;
+        return error;
+      }
+    );
+    await until(() => jest.mocked(stopAgentDeviceDaemonAsync).mock.calls.length > 0);
+    await new Promise(resolve => setImmediate(resolve));
+    // The old serve-sim is still stopping, so the replacement has not failed yet.
+    expect(settled).toBe(false);
+    expect(stopServicesAndShutdownSimulatorAsync).not.toHaveBeenCalled();
+    serveSimStop.resolve();
+    expect(await claiming).toBe(daemonFailure);
+  } finally {
+    serveSimStop.resolve();
+  }
+});
+
 it('keeps a replaced device owned when its background shutdown fails', async () => {
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
