@@ -1148,3 +1148,44 @@ it.each(['boot', 'serve-sim'])(
     }
   }
 );
+it('bounds cache priming to two 30-second attempts and still becomes ready after both time out', async () => {
+  const attempts = [new AbortController(), new AbortController()];
+  const realTimeout = AbortSignal.timeout;
+  const timeoutSpy = jest
+    .spyOn(AbortSignal, 'timeout')
+    .mockImplementation(ms => (ms === 30_000 ? attempts.shift()!.signal : realTimeout(ms)));
+  const first = attempts[0],
+    second = attempts[1];
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      args.includes('--version')
+        ? new Promise((_resolve, reject) =>
+            signal!.addEventListener('abort', () => reject(signal!.reason), { once: true })
+          )
+        : original(file, args, signal)
+    );
+  const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const session = createSession();
+  const preparing = session.prepareAsync();
+  void preparing.catch(() => {});
+  try {
+    await until(() => ran('--version').length === 1);
+    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
+    first.abort(new DOMException('prime timed out', 'TimeoutError'));
+    await until(() => ran('--version').length === 2);
+    second.abort(new DOMException('prime timed out', 'TimeoutError'));
+    expect((await preparing).device.udid).toBe('PHONE');
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('claim/stop may need the registry')
+    );
+  } finally {
+    first.abort();
+    second.abort();
+    controller.abort();
+    await preparing.catch(() => {});
+    await session.stopAsync();
+    timeoutSpy.mockRestore();
+  }
+});

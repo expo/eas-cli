@@ -426,22 +426,26 @@ export function createWarmSimulatorSession({
         );
       }
       const first = startDevice(warmDevices[0], warmTools, /* preinstallExpoGo */ true);
-      launcherCachePriming = commands
-        .runAsync(
-          'bun',
-          ['x', `@expo/simulator-launcher@${LAUNCHER_VERSION}`, '--version'],
-          AbortSignal.any([signal, first.shutdown.signal])
-        )
-        .then(
-          () => {},
-          error => {
+      launcherCachePriming = (async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            await commands.runAsync(
+              'bun',
+              ['x', `@expo/simulator-launcher@${LAUNCHER_VERSION}`, '--version'],
+              AbortSignal.any([signal, first.shutdown.signal, AbortSignal.timeout(30_000)])
+            );
+            return;
+          } catch (error) {
             signal.throwIfAborted();
             first.shutdown.signal.throwIfAborted();
-            process.stderr.write(
-              `Could not cache the Simulator launcher version; claim/stop may need the registry: ${error}\n`
-            );
+            if (attempt === 1) {
+              process.stderr.write(
+                `Could not cache the Simulator launcher version; claim/stop may need the registry: ${error}\n`
+              );
+            }
           }
-        );
+        }
+      })();
       await Promise.all([first.ready, launcherCachePriming]);
       currentDevice = first.device;
       return {
