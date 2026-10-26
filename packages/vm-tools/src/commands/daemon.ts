@@ -59,10 +59,11 @@ export async function runStartupScriptOncePerBootAsync(
       await fs.rmdir(marker);
       controller.signal.throwIfAborted();
     }
-    child = spawn('/bin/bash', [script], { stdio: 'inherit' });
+    const startupProcess = spawn('/bin/bash', [script], { stdio: 'inherit' });
+    child = startupProcess;
     return await new Promise<number>((resolve, reject) => {
-      child!.once('error', reject);
-      child!.once('exit', (code, signal) => resolve(code ?? (signal ? 1 : 0)));
+      startupProcess.once('error', reject);
+      startupProcess.once('exit', (code, signal) => resolve(code ?? (signal ? 1 : 0)));
     });
   } finally {
     process.off('SIGTERM', stop);
