@@ -144,7 +144,8 @@ test('starts serve-sim record-video and returns only a finalized recording', asy
   const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
   await setTimeout(20);
   expect(child.kill).not.toHaveBeenCalled();
-  stderr.write('serve-sim:recording-started\n');
+  stderr.write('serve-sim:recording-');
+  stderr.write('started\r\n');
   stderr.write('x'.repeat(17_000));
   const recordings = await finishing;
 
@@ -360,6 +361,32 @@ test('keeps a recorder active after its package-manager wrapper exits', async ()
   expect(signalGroup).toHaveBeenCalledWith(-4321, 'SIGINT');
   expect(child.kill).not.toHaveBeenCalled();
   expect(recordings).toHaveLength(1);
+});
+
+test('does not mistake bundled source in an error for a recording start', async () => {
+  let currentTime = Date.now();
+  jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([{ udid, url: 'http://127.0.0.1:43563', token: 'session-token' }]);
+  const recorder = mockRecorder();
+
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  await waitForRecorderSpawnAsync();
+  recorder.child.stderr?.emit(
+    'data',
+    'const marker = "serve-sim:recording-started";\nError: No running serve-sim session found.\n'
+  );
+  recorder.fail(new Error('recorder exited before connecting'));
+
+  const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
+  try {
+    expect(await Promise.race([finishing.then(() => true), setTimeout(250, false)])).toBe(true);
+  } finally {
+    currentTime += 311_000;
+    await finishing;
+  }
+  expect(recorder.child.kill).not.toHaveBeenCalled();
 });
 
 test('does not signal a recorder that exits before it reports its start', async () => {

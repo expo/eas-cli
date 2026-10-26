@@ -36,7 +36,7 @@ const SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS =
 const SERVE_SIM_FINISH_TIMEOUT_MS =
   SERVE_SIM_CONTROL_REQUEST_TIMEOUT_MS + SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS;
 const SERVE_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
-const SERVE_SIM_RECORDING_STARTED = 'serve-sim:recording-started';
+const SERVE_SIM_RECORDING_STARTED_LINE = /(?:^|\n)serve-sim:recording-started\r?\n/;
 // The serve-sim package the session host started; every recorder runs `record-video` from it.
 let serveSimPackageSpec: string | null = null;
 
@@ -509,7 +509,7 @@ function captureProcessOutput(recordingProcess: ChildProcess): {
   let started = false;
   const appendChunk = (chunk: Buffer | string): void => {
     output = `${output}${chunk.toString()}`;
-    if (output.includes(SERVE_SIM_RECORDING_STARTED)) {
+    if (SERVE_SIM_RECORDING_STARTED_LINE.test(output)) {
       started = true;
     }
     output = output.slice(-16_384);
