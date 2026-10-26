@@ -19,6 +19,7 @@ import {
   type SandboxDaemonCommandImplementations,
   createSandboxCommandImplementations,
 } from '../sandboxCommandImplementations';
+import { ShellSessionManager } from '../shellSessionManager';
 
 const READ_FILE_LIMITS = { maxTextBytes: 40_000, maxImageBytes: 3_000_000 };
 const FIXTURES_DIRECTORY = path.join(__dirname, 'fixtures');
@@ -185,22 +186,35 @@ describe('sandbox daemon commands', () => {
   });
 
   it('measures each call separately', async () => {
-    const now = jest.spyOn(performance, 'now');
+    // The clock moves only when a read finishes. Other readers of the shared process clock,
+    // such as Node's fetch, see the same value and cannot shift the measured time.
+    let clock = 1_000;
+    let readTimeMs = 250;
+    const now = jest.spyOn(performance, 'now').mockImplementation(() => clock);
+    const readAsync = ShellSessionManager.prototype.readAsync;
+    const read = jest
+      .spyOn(ShellSessionManager.prototype, 'readAsync')
+      .mockImplementation(async function (this: ShellSessionManager, ...args) {
+        const result = await readAsync.apply(this, args);
+        clock += readTimeMs;
+        return result;
+      });
     try {
-      now.mockReturnValueOnce(1_000).mockReturnValueOnce(1_250);
       const started = await commandImplementations.execCommand({
         cmd: 'read value',
         yieldTimeMs: 0,
       });
       expect(started.wallTimeSeconds).toBe(0.25);
 
-      now.mockReturnValueOnce(5_000).mockReturnValueOnce(5_100);
+      clock = 5_000;
+      readTimeMs = 100;
       const polled = await commandImplementations.writeStdin({
         sessionId: getSessionId(started),
         yieldTimeMs: 0,
       });
       expect(polled.wallTimeSeconds).toBe(0.1);
     } finally {
+      read.mockRestore();
       now.mockRestore();
     }
   });
