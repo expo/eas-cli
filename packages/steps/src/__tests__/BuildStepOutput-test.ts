@@ -1,6 +1,6 @@
 import { createGlobalContextMock } from './utils/context';
 import { BuildStep } from '../BuildStep';
-import { BuildStepOutput, makeBuildStepOutputById } from '../BuildStepOutput';
+import { BuildStepOutput, makeBuildStepOutputByIdMap } from '../BuildStepOutput';
 import { BuildStepRuntimeError } from '../errors';
 
 describe(BuildStepOutput, () => {
@@ -76,15 +76,12 @@ describe(BuildStepOutput, () => {
   });
 });
 
-describe(makeBuildStepOutputById, () => {
-  it('returns an empty null-prototype object when outputs are undefined', () => {
-    const result = makeBuildStepOutputById(undefined);
-
-    expect(Object.keys(result)).toEqual([]);
-    expect(Object.getPrototypeOf(result)).toBeNull();
+describe(makeBuildStepOutputByIdMap, () => {
+  it('returns empty object when inputs are undefined', () => {
+    expect(makeBuildStepOutputByIdMap(undefined)).toEqual({});
   });
 
-  it('returns a null-prototype object with outputs indexed by their ids', () => {
+  it('returns object with outputs indexed by their ids', () => {
     const ctx = createGlobalContextMock();
     const outputs: BuildStepOutput[] = [
       new BuildStepOutput(ctx, {
@@ -98,13 +95,11 @@ describe(makeBuildStepOutputById, () => {
         required: true,
       }),
     ];
-    const result = makeBuildStepOutputById(outputs);
-    expect(Object.getPrototypeOf(result)).toBeNull();
-    expect(Object.keys(result)).toHaveLength(2);
+    const result = makeBuildStepOutputByIdMap(outputs);
+    expect(Object.keys(result).length).toBe(2);
     expect(result.abc1).toBeDefined();
     expect(result.abc2).toBeDefined();
   });
-
   it('supports output ids that are special object property names', () => {
     const ctx = createGlobalContextMock();
     const output = new BuildStepOutput(ctx, {
@@ -113,7 +108,7 @@ describe(makeBuildStepOutputById, () => {
       required: true,
     });
 
-    const result = makeBuildStepOutputById([output]);
+    const result = makeBuildStepOutputByIdMap([output]);
 
     expect(result.__proto__).toBe(output);
     expect(Object.hasOwn(result, '__proto__')).toBe(true);

@@ -4,7 +4,7 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import {
   BuildStepInputById,
   BuildStepInputProvider,
-  makeBuildStepInputById,
+  makeBuildStepInputByIdMap,
 } from './BuildStepInput';
 import { BuildConfigError } from './errors';
 
@@ -52,7 +52,7 @@ export class BuildFunctionGroup {
         return input;
       });
       return createBuildStepsFromFunctionGroupCall(ctx, {
-        inputs: makeBuildStepInputById(inputs),
+        inputs: makeBuildStepInputByIdMap(inputs),
       });
     };
   }

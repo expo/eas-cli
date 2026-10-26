@@ -8,7 +8,6 @@ import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
   interpolateWithOutputs,
 } from './utils/template';
-import { createEmptyRecord } from './utils/record';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',
@@ -256,10 +255,15 @@ export function getDisallowedInputValueError(
   return `Input parameter "${input.id}" for step "${stepDisplayName}" is set to "${rendered}" which is not one of the allowed values: ${allowedValues}.`;
 }
 
-export function makeBuildStepInputById(inputs?: BuildStepInput[]): BuildStepInputById {
-  const inputById = createEmptyRecord<BuildStepInputById>();
-  for (const input of inputs ?? []) {
-    inputById[input.id] = input;
+export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
+  if (inputs === undefined) {
+    return Object.create(null);
   }
-  return inputById;
+  return inputs.reduce(
+    (acc, input) => {
+      acc[input.id] = input;
+      return acc;
+    },
+    Object.create(null) as BuildStepInputById
+  );
 }
