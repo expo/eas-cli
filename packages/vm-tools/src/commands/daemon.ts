@@ -27,7 +27,7 @@ export async function runStartupScriptOncePerBootAsync(
       controller.signal.throwIfAborted();
       try {
         if (!(await fs.stat(script)).isFile()) {
-          throw new Error('The mounted VM startup.sh is not a regular file.');
+          throw new Error('VM startup.sh must be a regular file.');
         }
         break;
       } catch (error) {
