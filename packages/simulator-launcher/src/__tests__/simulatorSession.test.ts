@@ -1317,19 +1317,112 @@ it('a claim during the first secondary startup check replaces the resource-free 
   const check = deferred<void>();
   let checks = 0;
   const session = createWarmSimulatorSession({
-    signal:controller.signal, onPreparationFailure, onBackgroundFailure, isReadyAsync:async () => true,
-    throwIfStoppingAsync:async () => { if (++checks===2) await check.promise; controller.signal.throwIfAborted(); },
+    signal: controller.signal,
+    onPreparationFailure,
+    onBackgroundFailure,
+    isReadyAsync: async () => true,
+    throwIfStoppingAsync: async () => {
+      if (++checks === 2) {
+        await check.promise;
+      }
+      controller.signal.throwIfAborted();
+    },
   });
   await session.prepareAsync();
   session.startRemainingDevices();
-  await until(() => checks===2);
-  const claiming = session.claimAsync({engine:'serve-sim',requestedDevice:'PHONE18'});
+  await until(() => checks === 2);
+  const claiming = session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
   void claiming.catch(() => {});
   try {
     check.resolve();
     const result = await claiming;
-    expect(ran('bootstatus','PHONE18')).toHaveLength(1);
-    expect(startServeSim).toHaveBeenCalledWith('PHONE18',expect.any(AbortSignal),3200);
+    expect(ran('bootstatus', 'PHONE18')).toHaveLength(1);
+    expect(startServeSim).toHaveBeenCalledWith('PHONE18', expect.any(AbortSignal), 3200);
     expect(result.device.port).toBe(3200);
-  } finally { check.resolve(); await claiming.catch(() => {}); await session.stopAsync(); }
+  } finally {
+    check.resolve();
+    await claiming.catch(() => {});
+    await session.stopAsync();
+  }
+});
+it('does not abort the claimed default when unused-device preinstall claim fails', async () => {
+  const servers = configureTwoDevices();
+  const install = jest.mocked(startExpoGoPreinstall).getMockImplementation()!;
+  jest.mocked(startExpoGoPreinstall).mockImplementation((...args) => ({
+    ...install(...args),
+    claimAsync: jest.fn(async (udid = 'DUO') => {
+      if (udid === 'PHONE18') {
+        throw new Error('unused install failed');
+      }
+      return undefined;
+    }),
+  }));
+  const session = createSession();
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+  try {
+    expect((await session.claimAsync({ engine: 'serve-sim' })).device.udid).toBe('DUO');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(controller.signal.aborted).toBe(false);
+    expect(onBackgroundFailure).not.toHaveBeenCalled();
+    expect(stopProcessAndDescendantsAsync).not.toHaveBeenCalledWith(servers.DUO);
+  } finally {
+    await session.stopAsync();
+  }
+});
+it('still shuts old devices down when their preinstall cleanup rejects during replacement', async () => {
+  configureTwoDevices();
+  const install = jest.mocked(startExpoGoPreinstall).getMockImplementation()!;
+  jest.mocked(startExpoGoPreinstall).mockImplementation((...args) => ({
+    ...install(...args),
+    stopAsync: jest.fn(async () => {
+      throw new Error('archive cleanup failed');
+    }),
+  }));
+  const session = createSession();
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+  try {
+    await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'OTHER' });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE18');
+  } finally {
+    await session.stopAsync().catch(() => {});
+  }
+});
+it('retains failed preinstall ownership when replacement overwrites that device entry', async () => {
+  configureTwoDevices();
+  const failure = new Error('secondary installation is unconfirmed');
+  const install = jest.mocked(startExpoGoPreinstall).getMockImplementation()!;
+  jest.mocked(startExpoGoPreinstall).mockImplementation((...args) => ({
+    ...install(...args),
+    preinstallOnDeviceAsync: jest.fn(async () => {
+      throw failure;
+    }),
+    claimAsync: jest.fn(async (udid = 'DUO') => {
+      if (udid === 'PHONE18') {
+        throw failure;
+      }
+      return undefined;
+    }),
+    stopAsync: jest.fn(async (udid = 'DUO') => {
+      if (udid === 'PHONE18') {
+        throw failure;
+      }
+    }),
+  }));
+  jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const session = createSession();
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+  await new Promise(resolve => setImmediate(resolve));
+  await expect(
+    session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' })
+  ).rejects.toBe(failure);
+  expect(jest.mocked(startServeSim).mock.calls.at(-1)?.[2]).toBe(3200);
+  await expect(session.stopAsync()).rejects.toThrow('background work could not be cleaned up');
 });

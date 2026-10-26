@@ -30,7 +30,7 @@ export function startExpoGoPreinstall(
 ): {
   claimAsync(selectedUdid?: string): Promise<PreinstalledApp | undefined>;
   preinstallOnDeviceAsync(udid: string, boot: Promise<unknown>, signal: AbortSignal): Promise<void>;
-  stopAsync(): Promise<void>;
+  stopAsync(selectedUdid?: string): Promise<void>;
   resultPromise: Promise<void>;
 } {
   const downloadController = new AbortController();
@@ -43,7 +43,7 @@ export function startExpoGoPreinstall(
   const installations = new Map<string, Promise<void>>();
   const installed = new Map<string, PreinstalledApp>();
   const operations = new Set<Promise<void>>();
-  let failure: unknown;
+  const failures = new Map<string, unknown>();
   let cleanup: Promise<void> | undefined;
   const archive = (async () => {
     const directoryPath = await directory;
@@ -134,22 +134,22 @@ export function startExpoGoPreinstall(
 
   async function cleanUpAsync(): Promise<void> {
     return await (cleanup ??= (async () => {
-      const results = await Promise.allSettled([...operations]);
+      // Install failures belong to a device; cleanup still drains every operation.
+      await Promise.allSettled([...operations]);
       await archive.catch(() => {});
       // Unproved close never permits temporary-file removal or a stopped acknowledgement.
       commands.throwIfCommandCloseTimedOut();
       await fs.rm(await directory, { recursive: true, force: true });
-      const rejected = results.find(result => result.status === 'rejected');
-      if (rejected?.status === 'rejected') {
-        throw rejected.reason;
-      }
     })());
   }
-  const initial = preinstallAsync(udid, boot, downloadSignal);
+  const initial = preinstallAsync(udid, boot, downloadSignal).catch(error => {
+    failures.set(udid, error);
+    throw error;
+  });
   operations.add(initial);
   const resultPromise = reuseArchive ? initial : initial.finally(cleanUpAsync);
   void resultPromise.catch(error => {
-    failure = error;
+    failures.set(udid, error);
   });
   return {
     resultPromise,
@@ -157,30 +157,34 @@ export function startExpoGoPreinstall(
       if (downloadController.signal.aborted || cleanup) {
         return Promise.resolve();
       }
-      const operation = preinstallAsync(target, boot, deviceSignal);
+      const operation = preinstallAsync(target, boot, deviceSignal).catch(error => {
+        failures.set(target, error);
+        throw error;
+      });
       operations.add(operation);
       const complete = operation.finally(cleanUpAsync);
       void complete.catch(error => {
-        failure = error;
+        failures.set(target, error);
       });
       await complete;
     },
     async claimAsync(selectedUdid = udid) {
       downloadController.abort();
-      void cleanUpAsync().catch(error => {
-        failure = error;
-      });
+      void cleanUpAsync().catch(() => {});
       await installations.get(selectedUdid);
-      if (failure) {
-        throw failure;
+      if (failures.has(selectedUdid)) {
+        throw failures.get(selectedUdid);
       }
-      commands.throwIfCommandCloseTimedOut();
       return installed.get(selectedUdid);
     },
-    async stopAsync() {
+    async stopAsync(selectedUdid = udid) {
+      // The session owner must still confirm Simulator shutdown before publishing disabled.
       downloadController.abort();
       await cleanUpAsync();
       commands.throwIfCommandCloseTimedOut();
+      if (failures.has(selectedUdid)) {
+        throw failures.get(selectedUdid);
+      }
     },
   };
 }

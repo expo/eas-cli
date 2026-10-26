@@ -497,3 +497,62 @@ it('claim and stop drain a secondary native install without cancelling its trans
     await secondary;
   }
 });
+
+it.each(['signal', 'close timeout'])(
+  'isolates a secondary %s failure from the already-installed default',
+  async kind => {
+    warmup = startExpoGoPreinstall('FIRST', Promise.resolve(), controller.signal, true);
+    await warmup.resultPromise;
+    const failure = Object.assign(new Error('secondary install failed'), { code: null });
+    const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+    jest.mocked(commands.runAsync).mockImplementation((file, args, signal) => {
+      if (file === 'xcrun' && args.includes('SECOND')) {
+        if (kind === 'close timeout') {
+          jest.mocked(commands.throwIfCommandCloseTimedOut).mockImplementation(() => {
+            throw failure;
+          });
+        }
+        return Promise.reject(failure);
+      }
+      return original(file, args, signal);
+    });
+    await expect(
+      warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal)
+    ).rejects.toBe(failure);
+    expect((await warmup.claimAsync('FIRST'))?.udid).toBe('FIRST');
+    await expect(warmup.claimAsync('SECOND')).rejects.toBe(failure);
+    if (kind === 'close timeout') {
+      await expect(warmup.stopAsync('FIRST')).rejects.toBe(failure);
+    } else {
+      await expect(warmup.stopAsync('FIRST')).resolves.toBeUndefined();
+    }
+    await expect(warmup.stopAsync('SECOND')).rejects.toBe(failure);
+  }
+);
+it('a concurrent stop cannot miss a secondary install failure while shared cleanup drains', async () => {
+  warmup = startExpoGoPreinstall('FIRST', Promise.resolve(), controller.signal, true);
+  await warmup.resultPromise;
+  const installation = deferred<string>();
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      file === 'xcrun' && args.includes('SECOND')
+        ? installation.promise
+        : original(file, args, signal)
+    );
+  const secondary = warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal);
+  void secondary.catch(() => {});
+  try {
+    await until(() => installCalls().length === 2);
+    const stopping = warmup.stopAsync('SECOND');
+    void stopping.catch(() => {});
+    const failure = Object.assign(new Error('secondary killed'), { code: null });
+    installation.reject(failure);
+    await expect(stopping).rejects.toBe(failure);
+    await expect(secondary).rejects.toBe(failure);
+  } finally {
+    installation.resolve('');
+    await secondary.catch(() => {});
+  }
+});
