@@ -40,22 +40,20 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
     }
     // Unknown state uses latest; only the launcher can confirm that cleanup finished.
   }
-  if (!hasStartupScript) {
-    if (!hasState) {
-      return;
+  if (!hasStartupScript && !hasState) {
+    return;
+  }
+  if (typeof state?.bootUuid === 'string' && (!hasStartupScript || state.status === 'disabled')) {
+    const boot = (
+      await spawn('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'], { stdio: 'pipe' })
+    ).stdout.trim();
+    if (!boot) {
+      throw new Error(
+        'Could not read the VM boot identifier; Simulator cleanup cannot be confirmed.'
+      );
     }
-    if (typeof state?.bootUuid === 'string') {
-      const boot = (
-        await spawn('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'], { stdio: 'pipe' })
-      ).stdout.trim();
-      if (!boot) {
-        throw new Error(
-          'Could not read the VM boot identifier; Simulator cleanup cannot be confirmed.'
-        );
-      }
-      if (state.bootUuid !== boot) {
-        return;
-      }
+    if (state.bootUuid === boot ? state.status === 'disabled' : !hasStartupScript) {
+      return;
     }
   }
   const { command, args } =
