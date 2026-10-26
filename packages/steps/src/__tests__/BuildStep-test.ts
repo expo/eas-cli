@@ -1394,7 +1394,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ifCondition: 'inputs.__proto__ === "prototype input"',
     });
 
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(true);
   });
 
   it('returns true when an eas value matches', () => {
