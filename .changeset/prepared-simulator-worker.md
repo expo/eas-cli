@@ -3,4 +3,4 @@
 '@expo/build-tools': patch
 ---
 
-Stop warm Simulator startup through the launcher CLI before worker environment setup unless the job opts into warm adoption. Await cleanup for any claimed controller. Unadopted opt-in resources remain owned by the VM/controller until shutdown.
+Stop warmup before job setup unless the gate enables a warm Simulator for the job (`EAS_USE_WARM_SIMULATOR=1`). The worker waits until the launcher confirms the cleanup. When such a job does not claim the warm Simulator, the launcher keeps it until the VM shuts down.
