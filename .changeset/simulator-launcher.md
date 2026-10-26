@@ -2,18 +2,12 @@
 '@expo/simulator-launcher': minor
 ---
 
-Add start, stop and claim commands for warm Simulator sessions. A session is ready once its device boots and serve-sim answers. A claim waits only for its requested tool and stops the others, even mid-startup. Replacing the device boots the requested one while the old serve-sim and tools stop; new services start once they are gone, and the old device shuts down in the background.
+Add `@expo/simulator-launcher` for warm Simulators: `start` runs warmup at VM boot, `claim` hands the warm Simulator to a job, and `stop` ends warmup.
 
-Start unused-tool shutdown during claim without delaying handoff. Drain it during terminal cleanup; a shutdown failure prevents a stopped acknowledgement.
+Warmup boots the device, disables apsd, preinstalls the latest stable Expo Go, starts serve-sim, and starts Argent and agent-device after serve-sim is ready. The warm Simulator is ready when the device has booted, apsd is disabled and serve-sim answers.
 
-Preinstall the latest stable Expo Go during initial warmup without delaying the candidate. Claim prevents late warmup installs and waits for one already in progress before handing the device to the job.
+A claim waits only for the requested engine and stops the other tools, also while they are still starting. The claim record names the preinstalled Expo Go, so the job can skip a matching install. A claim waits for an Expo Go install that already started and prevents a later one.
 
-Disable apsd on each warm device before reporting it ready.
+Replacement boots the requested device while the old tools and serve-sim stop. The old device shuts down in the background.
 
-Check for ffmpeg without installing it; the VM image provides it.
-
-Record the preinstalled Expo Go identity in the claim record, so the job can skip a matching install without asking the Simulator.
-
-Start Argent and agent-device in the Simulator only after serve-sim is ready.
-
-Treat processes that have exited but await reaping as stopped, so a replaced serve-sim no longer fails cleanup with kill EPERM.
+`stop` waits for every tool to stop and reports a cleanup failure instead of a confirmed stop. The launcher only checks for ffmpeg, which the VM image provides. Processes that exited but are not yet reaped count as stopped.
