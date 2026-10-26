@@ -15,6 +15,14 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
   ) {
     return;
   }
+  try {
+    await fs.access('/Volumes/My Shared Files/expo-startup/startup.sh');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return;
+    }
+    throw error;
+  }
   const env = { ...process.env, ...job.builderEnvironment?.env };
   let launcherVersion: unknown;
   try {
