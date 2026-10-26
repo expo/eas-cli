@@ -15,25 +15,48 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
   ) {
     return;
   }
+  let hasStartupScript = true;
   try {
     await fs.access('/Volumes/My Shared Files/expo-startup/startup.sh');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return;
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
     }
-    throw error;
+    hasStartupScript = false;
   }
   const env = { ...process.env, ...job.builderEnvironment?.env };
   let launcherVersion: unknown;
+  let state: { bootUuid?: unknown; status?: unknown } | undefined;
+  let hasState = false;
   try {
-    launcherVersion = JSON.parse(
-      await fs.readFile('/tmp/expo-simulator-startup.json', 'utf8')
-    )?.launcherVersion;
+    const contents = await fs.readFile('/tmp/expo-simulator-startup.json', 'utf8');
+    hasState = true;
+    const parsed = JSON.parse(contents);
+    state = parsed;
+    launcherVersion = parsed?.launcherVersion;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !(error instanceof SyntaxError)) {
       throw error;
     }
     // Unknown state uses latest; only the launcher can confirm that cleanup finished.
+  }
+  if (!hasStartupScript) {
+    if (!hasState) {
+      return;
+    }
+    if (typeof state?.bootUuid === 'string') {
+      const boot = (
+        await spawn('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'], { stdio: 'pipe' })
+      ).stdout.trim();
+      if (!boot) {
+        throw new Error(
+          'Could not read the VM boot identifier; Simulator cleanup cannot be confirmed.'
+        );
+      }
+      if (state.bootUuid !== boot) {
+        return;
+      }
+    }
   }
   const { command, args } =
     typeof launcherVersion === 'string' && launcherVersion
