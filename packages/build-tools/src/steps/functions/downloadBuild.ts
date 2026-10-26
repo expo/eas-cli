@@ -312,8 +312,22 @@ export async function downloadBuildAsync(
         const response = await fetch(downloadUrl, { headers, signal });
         if (!response.ok) {
           const textResult = await asyncResult(response.text());
+          const archiveUrl = new URL(downloadUrl);
+          const source = params.buildId
+            ? `application archive for build ${params.buildId}`
+            : `archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
+          if (response.status === 404 || response.status === 410) {
+            throw new UserError(
+              'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
+              `Failed to download the ${source} (HTTP ${response.status}). ` +
+                'The archive is unavailable. ' +
+                (params.buildId
+                  ? 'Check that the archive still exists and try again.'
+                  : 'Check that the URL is correct and the archive still exists, then try again.')
+            );
+          }
           throw new Error(
-            `Unexpected response from server (${response.status}): ${textResult.value}`
+            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
           );
         }
         const archiveFilename = resolveArchiveFilename({ response, extensions });
