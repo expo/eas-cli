@@ -84,7 +84,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopAsync,
     });
-    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
     stopAsync.mockResolvedValue(undefined);
   });
