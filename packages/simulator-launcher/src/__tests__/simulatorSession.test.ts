@@ -1080,3 +1080,27 @@ it('returns only the selected device preinstall metadata', async () => {
   });
   await session.stopAsync();
 });
+
+it('keeps the claimed device alive when retiring the unused device fails, then retries at final stop', async () => {
+  const servers = configureTwoDevices();
+  const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  jest
+    .mocked(terminateProcessGroupAsync)
+    .mockRejectedValueOnce(new Error('unused server stop failed'));
+  const session = createSession();
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+  try {
+    expect((await session.claimAsync({ engine: 'serve-sim' })).device.udid).toBe('DUO');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(controller.signal.aborted).toBe(false);
+    expect(onBackgroundFailure).not.toHaveBeenCalled();
+    expect(stopProcessAndDescendantsAsync).not.toHaveBeenCalledWith(servers.DUO);
+    expect(shutdownSimulatorAsync).not.toHaveBeenCalledWith('DUO');
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('unused server stop failed'));
+  } finally {
+    await session.stopAsync().catch(() => {});
+  }
+  expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(servers.PHONE18);
+});

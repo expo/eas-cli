@@ -504,8 +504,10 @@ export function createWarmSimulatorSession({
                 }
                 devices.delete(session.device.udid);
               } catch (error) {
-                onBackgroundFailure(error);
-                throw error;
+                // Keep the unused device owned for final cleanup without interrupting the job.
+                process.stderr.write(
+                  `Could not release unused Simulator ${session.device.udid}; final stop will retry: ${error}\n`
+                );
               }
             })
         );
