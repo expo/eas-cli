@@ -287,6 +287,7 @@ export function createWarmSimulatorSession({
       const deviceSignal = AbortSignal.any([signal, session.shutdown.signal]);
       const isAdditional = preinstallExpoGo && device.udid !== warmDevices[0].udid;
       if (isAdditional && (claimed || stopping || !(await isReadyAsync()))) {
+        session.failed = true;
         return;
       }
       deviceSignal.throwIfAborted();
@@ -531,6 +532,7 @@ export function createWarmSimulatorSession({
       }
       const matches = [...devices.values()].filter(
         session =>
+          ownedSimulatorUdids.has(session.device.udid) &&
           !session.failed &&
           (!request.requestedDevice
             ? session.device.udid === currentDevice.udid

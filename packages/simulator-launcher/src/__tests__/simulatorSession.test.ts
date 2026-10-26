@@ -1312,3 +1312,24 @@ it('starts each warm serve-sim as an explicit orphan on its device port', () => 
   }
   expect(launches.map(([, args]) => args[args.indexOf('--port') + 1])).toEqual(['3200', '3202']);
 });
+it('a claim during the first secondary startup check replaces the resource-free reservation', async () => {
+  configureTwoDevices();
+  const check = deferred<void>();
+  let checks = 0;
+  const session = createWarmSimulatorSession({
+    signal:controller.signal, onPreparationFailure, onBackgroundFailure, isReadyAsync:async () => true,
+    throwIfStoppingAsync:async () => { if (++checks===2) await check.promise; controller.signal.throwIfAborted(); },
+  });
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => checks===2);
+  const claiming = session.claimAsync({engine:'serve-sim',requestedDevice:'PHONE18'});
+  void claiming.catch(() => {});
+  try {
+    check.resolve();
+    const result = await claiming;
+    expect(ran('bootstatus','PHONE18')).toHaveLength(1);
+    expect(startServeSim).toHaveBeenCalledWith('PHONE18',expect.any(AbortSignal),3200);
+    expect(result.device.port).toBe(3200);
+  } finally { check.resolve(); await claiming.catch(() => {}); await session.stopAsync(); }
+});
