@@ -27,10 +27,8 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
   const env = { ...process.env, ...job.builderEnvironment?.env };
   let launcherVersion: unknown;
   let state: { bootUuid?: unknown; status?: unknown } | undefined;
-  let hasState = false;
   try {
     const contents = await fs.readFile('/tmp/expo-simulator-startup.json', 'utf8');
-    hasState = true;
     const parsed = JSON.parse(contents);
     state = parsed;
     launcherVersion = parsed?.launcherVersion;
@@ -38,9 +36,10 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !(error instanceof SyntaxError)) {
       throw error;
     }
-    // Unknown state uses latest; only the launcher can confirm that cleanup finished.
+    // With a startup script, unknown state still requires the launcher to confirm cleanup.
   }
-  if (!hasStartupScript && !hasState) {
+  const hasBootState = typeof state?.bootUuid === 'string' && state.bootUuid.trim() !== '';
+  if (!hasStartupScript && !hasBootState) {
     return;
   }
   if (typeof state?.bootUuid === 'string' && (!hasStartupScript || state.status === 'disabled')) {
