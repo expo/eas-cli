@@ -22,6 +22,7 @@ export function startServeSim(udid: string, signal: AbortSignal, port = 3200): C
       '--port',
       String(port),
       '--require-token',
+      '--orphan',
       '--transport',
       'webrtc',
       '--webrtc-codec',

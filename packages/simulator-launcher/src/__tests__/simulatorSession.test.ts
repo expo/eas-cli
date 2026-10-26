@@ -1300,3 +1300,15 @@ it('a claim while default warm work is pending prevents any later secondary boot
     await session.stopAsync();
   }
 });
+it('starts each warm serve-sim as an explicit orphan on its device port', () => {
+  const { startServeSim: launch } =
+    jest.requireActual<typeof import('../utils/serveSim')>('../utils/serveSim');
+  launch('DUO', controller.signal, 3200);
+  launch('PHONE18', controller.signal, 3202);
+  const launches = jest.mocked(commands.start).mock.calls;
+  expect(launches).toHaveLength(2);
+  for (const [, args] of launches) {
+    expect(args).toContain('--orphan');
+  }
+  expect(launches.map(([, args]) => args[args.indexOf('--port') + 1])).toEqual(['3200', '3202']);
+});
