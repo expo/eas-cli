@@ -2,4 +2,4 @@
 '@expo/vm-tools': minor
 ---
 
-Add a guest startup daemon that runs the script supplied when creating a VM.
+Add a launchd agent for the guest VM that runs the mounted startup script once per boot.
