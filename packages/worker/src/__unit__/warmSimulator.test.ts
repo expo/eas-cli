@@ -225,3 +225,16 @@ it('retries a Bun cache miss with additional warning output', async () => {
   await maybeStopWarmSimulatorAsync({} as Job);
   expect(spawn).toHaveBeenCalledTimes(2);
 });
+it.each([
+  '{',
+  '{}',
+  JSON.stringify({ launcherVersion: '25.3.0' }),
+  JSON.stringify({ bootUuid: '  ' }),
+])('does not resolve a package for invalid state without a startup script: %s', async contents => {
+  jest
+    .mocked(fs.access)
+    .mockRejectedValue(Object.assign(new Error('missing script'), { code: 'ENOENT' }));
+  jest.mocked(fs.readFile).mockResolvedValue(contents);
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(spawn).not.toHaveBeenCalled();
+});
