@@ -42,7 +42,7 @@ export default class Log {
   public static errorToStderr(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     // eslint-disable-next-line no-console
-    console.error(...Log.withTextColor(args, chalk.red));
+    console.error(...Log.withTextColor(args, chalk.stderr.red));
   }
 
   public static warn(...args: any[]): void {
