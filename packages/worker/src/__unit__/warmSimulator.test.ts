@@ -200,3 +200,15 @@ it('ignores an old-boot launcher state when the startup script is absent', async
   await maybeStopWarmSimulatorAsync({} as Job);
   expect(jest.mocked(spawn).mock.calls.every(([file]) => file === '/usr/sbin/sysctl')).toBe(true);
 });
+it('skips the package manager when cleanup is already confirmed for this boot', async () => {
+  jest
+    .mocked(fs.readFile)
+    .mockResolvedValue(
+      JSON.stringify({ bootUuid: 'boot-one', status: 'disabled', launcherVersion: '25.3.0' })
+    );
+  jest
+    .mocked(spawn)
+    .mockResolvedValue({ stdout: 'boot-one\n' } as Awaited<ReturnType<typeof spawn>>);
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(jest.mocked(spawn).mock.calls.map(([file]) => file)).toEqual(['/usr/sbin/sysctl']);
+});
