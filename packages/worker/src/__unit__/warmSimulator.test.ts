@@ -212,3 +212,18 @@ it('skips the package manager when cleanup is already confirmed for this boot', 
   await maybeStopWarmSimulatorAsync({} as Job);
   expect(jest.mocked(spawn).mock.calls.map(([file]) => file)).toEqual(['/usr/sbin/sysctl']);
 });
+it('retries a Bun cache miss with additional warning output', async () => {
+  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+  jest
+    .mocked(spawn)
+    .mockRejectedValueOnce(
+      Object.assign(new Error('cache miss'), {
+        status: 1,
+        stdout: '',
+        stderr:
+          "warning: a new Bun setting\nerror: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.\n",
+      })
+    );
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(spawn).toHaveBeenCalledTimes(2);
+});
