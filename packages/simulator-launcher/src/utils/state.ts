@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
@@ -32,6 +30,7 @@ export const WarmSessionInfoSchema = z.object({
 });
 export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   bootUuid: NonBlankStringSchema,
+  launcherVersion: NonBlankStringSchema.optional(),
   status: z.enum(['starting', 'ready', 'claiming', 'claimed', 'stopping', 'disabled']),
   ...ClaimInputSchema.partial().shape,
   preinstalledExpoGo: PreinstalledAppSchema.optional(),
@@ -42,10 +41,6 @@ export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
 export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
-
-export function getInstalledLauncherDirectory(): string {
-  return path.join(os.homedir(), '.expo/simulator-tools');
-}
 
 export async function readLauncherStateAsync(bootUuid: string): Promise<LauncherState | undefined> {
   let contents: string;

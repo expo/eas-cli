@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { createAgentDeviceTool } from '../utils/agentDevice';
@@ -26,11 +24,12 @@ import {
   type PreinstalledApp,
   type SimulatorDevice,
   type WarmSessionInfo,
-  getInstalledLauncherDirectory,
   readLauncherStateAsync,
   updateLauncherStateAsync,
 } from '../utils/state';
 import { type StartedTool, type WarmTool, startTool } from '../utils/tools';
+
+const LAUNCHER_VERSION: string = require('../../package.json').version;
 
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
@@ -41,7 +40,7 @@ type WarmSimulatorSession = {
   stopAsync(): Promise<void>;
 };
 
-export async function startAsync(bootUuid: string, sourceBundlePath: string): Promise<number> {
+export async function startAsync(bootUuid: string): Promise<number> {
   const initial = await updateLauncherStateAsync(bootUuid, state => {
     if (state?.status === 'disabled') {
       return state;
@@ -51,19 +50,15 @@ export async function startAsync(bootUuid: string, sourceBundlePath: string): Pr
         'Simulator preparation has already been started or disabled for this VM boot.'
       );
     }
-    return { bootUuid, status: 'starting', controllerPid: process.pid };
+    return {
+      bootUuid,
+      status: 'starting',
+      controllerPid: process.pid,
+      launcherVersion: LAUNCHER_VERSION,
+    };
   });
   if (initial.status === 'disabled') {
     return 0;
-  }
-  await fs.mkdir(getInstalledLauncherDirectory(), { recursive: true });
-  const installedLauncherPath = path.join(getInstalledLauncherDirectory(), 'run');
-  const temporaryPath = `${installedLauncherPath}.${process.pid}`;
-  try {
-    await fs.copyFile(sourceBundlePath, temporaryPath);
-    await fs.rename(temporaryPath, installedLauncherPath);
-  } finally {
-    await fs.rm(temporaryPath, { force: true });
   }
   await runWarmSimulatorSessionAsync(bootUuid);
   return 0;

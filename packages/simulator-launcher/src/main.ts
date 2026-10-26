@@ -1,12 +1,9 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { claimAsync } from './commands/claim';
 import { startAsync } from './commands/start';
 import { stopAsync } from './commands/stop';
-import { runInstalledLauncherCommandAsync } from './utils/installedLauncher';
 import { commands } from './utils/processes';
-import { getInstalledLauncherDirectory } from './utils/state';
 
 export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
   if (process.platform !== 'darwin') {
@@ -15,22 +12,6 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
   const [command, engine, requestedDevice] = args;
   if (command !== 'start' && command !== 'stop' && command !== 'claim') {
     throw new Error('Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]>');
-  }
-  const installedLauncherPath = path.join(getInstalledLauncherDirectory(), 'run');
-  const isInstalledLauncher = path.resolve(__filename) === installedLauncherPath;
-  if ((command === 'stop' || command === 'claim') && !isInstalledLauncher) {
-    const installedLauncherExists = await fs
-      .stat(installedLauncherPath)
-      .then(() => true)
-      .catch(error => {
-        if (command !== 'stop' || error.code !== 'ENOENT') {
-          throw error;
-        }
-        return false;
-      });
-    if (installedLauncherExists) {
-      return await runInstalledLauncherCommandAsync([command, ...args.slice(1)]);
-    }
   }
   const bootUuid = (
     await commands.runAsync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'])
@@ -42,7 +23,7 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
   }
   switch (command) {
     case 'start':
-      return await startAsync(bootUuid, __filename);
+      return await startAsync(bootUuid);
     case 'stop':
       return await stopAsync(bootUuid);
     case 'claim':

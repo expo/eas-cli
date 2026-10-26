@@ -19,17 +19,14 @@ exec bunx @expo/simulator-launcher@latest start
 - `stop`: end warmup for this VM boot and wait for owned resources to be cleaned up.
 
 ```sh
-node "$HOME/.expo/simulator-tools/run" claim serve-sim
+bunx @expo/simulator-launcher@latest claim serve-sim
 # Returns one JSON record with the device, boot, engine, controller identity and tool paths.
 bunx @expo/simulator-launcher@latest stop
 ```
 
-`start` copies its self-contained JavaScript bundle to `$HOME/.expo/simulator-tools/run`.
-Later package `claim`/`stop` commands use that installed bundle, so the same implementation controls
-this boot even if `latest` changes; the direct Node command works without package resolution.
-
-Before any launcher has downloaded, the package `stop` command still disables later warmup.
-Once startup has claimed this boot, stop requires its cleanup confirmation, even if the copy is missing.
+`start` records its package version in the state file. Build-tools uses that exact version from
+Bun's cache for later claim and stop commands. No launcher bundle is copied into the image or home.
+Before startup has run, the package `stop` command still disables later warmup for this boot.
 
 The launcher has one durable state file: `/tmp/expo-simulator-startup.json`, shared by all commands
 regardless of HOME/TMPDIR. It contains the lifecycle, claim and native session metadata. A short

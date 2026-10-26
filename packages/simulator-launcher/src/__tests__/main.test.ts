@@ -134,11 +134,10 @@ afterEach(async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
-test('concurrent starts acquire one session and pin only the winning bundle', async () => {
-  const copy = jest.spyOn(fs, 'copyFile');
+test('concurrent starts acquire one session and record the package version', async () => {
   const results: unknown[] = [];
   const starts = [0, 1].map(() =>
-    startAsync(boot, require.resolve('../main')).then(
+    startAsync(boot).then(
       value => results.push(value),
       error => results.push(error)
     )
@@ -147,9 +146,8 @@ test('concurrent starts acquire one session and pin only the winning bundle', as
   await status('ready');
   await until(() => results.length === 1);
   expect(results[0]).toBeInstanceOf(Error);
-  expect(copy).toHaveBeenCalledTimes(1);
-  expect(await fs.readFile(path.join(root, '.expo/simulator-tools/run'), 'utf8')).toContain(
-    'runCliAsync'
+  expect((await readLauncherStateAsync(boot))?.launcherVersion).toBe(
+    require('../../package.json').version
   );
   expect(jobs).toHaveLength(3);
   await stopAsync(boot);
@@ -159,9 +157,7 @@ test('concurrent starts acquire one session and pin only the winning bundle', as
 
 test('stop before download makes every later start a resource-free disabled no-op', async () => {
   expect(await stopAsync(boot)).toBe(0);
-  const copy = jest.spyOn(fs, 'copyFile');
-  expect(await startAsync(boot, 'not-downloaded')).toBe(0);
-  expect(copy).not.toHaveBeenCalled();
+  expect(await startAsync(boot)).toBe(0);
   expect(commands.runAsync).not.toHaveBeenCalled();
   expect(commands.start).not.toHaveBeenCalled();
   expect(await readLauncherStateAsync(boot)).toEqual({ bootUuid: boot, status: 'disabled' });
@@ -195,14 +191,6 @@ test('package stop under a different HOME and TMPDIR still waits for the active 
     drain.resolve();
     await stopping;
   }
-});
-
-test('failed bundle pin stays fail-closed instead of fabricating cleanup', async () => {
-  jest.spyOn(fs, 'copyFile').mockRejectedValueOnce(new Error('copy failed'));
-  await expect(startAsync(boot, 'source')).rejects.toThrow('copy failed');
-  expect((await readLauncherStateAsync(boot))?.status).toBe('starting');
-  await expect(startAsync(boot, 'source')).rejects.toThrow('already');
-  expect(commands.start).not.toHaveBeenCalled();
 });
 
 test('startup returns native identity and effective paths in the single ready record', async () => {
@@ -474,62 +462,6 @@ for (const target of ['linux', 'win32']) {
     expect(await fs.readdir(path.join(root, 'control'))).toEqual([]);
   });
 }
-
-test('package stop and claim use the installed bundle through Node', async () => {
-  const directory = path.join(root, '.expo/simulator-tools');
-  await fs.mkdir(directory, { recursive: true });
-  await fs.writeFile(path.join(directory, 'run'), 'installed implementation');
-  await mainAsync(['stop']);
-  await mainAsync(['claim', 'argent', 'iPhone 17 Pro']);
-  expect(commands.start).toHaveBeenNthCalledWith(1, process.execPath, [
-    path.join(directory, 'run'),
-    'stop',
-  ]);
-  expect(commands.start).toHaveBeenNthCalledWith(2, process.execPath, [
-    path.join(directory, 'run'),
-    'claim',
-    'argent',
-    'iPhone 17 Pro',
-  ]);
-  expect(commands.runAsync).not.toHaveBeenCalled();
-});
-
-test.each(['stop', 'claim'])(
-  'installed %s forwards signals, waits for completion and propagates delegated ENOENT',
-  async command => {
-    const directory = path.join(root, '.expo/simulator-tools');
-    await fs.mkdir(directory, { recursive: true });
-    await fs.writeFile(path.join(directory, 'run'), 'installed implementation');
-    const completion = deferred<string>();
-    const child = { kill: jest.fn() } as unknown as ChildProcess;
-    jest.mocked(commands.start).mockReturnValue({ child, resultPromise: completion.promise });
-    const term = process.listenerCount('SIGTERM'),
-      int = process.listenerCount('SIGINT');
-    let finished = false;
-    const result = mainAsync([command, 'serve-sim']).catch(error => error);
-    void result.then(() => {
-      finished = true;
-    });
-    try {
-      await until(() => jest.mocked(commands.start).mock.calls.length === 1);
-      process.emit('SIGTERM', 'SIGTERM');
-      process.emit('SIGINT', 'SIGINT');
-      expect(child.kill).toHaveBeenNthCalledWith(1, 'SIGTERM');
-      expect(child.kill).toHaveBeenNthCalledWith(2, 'SIGINT');
-      expect(finished).toBe(false);
-      const error = Object.assign(new Error('installed command failed'), { code: 'ENOENT' });
-      completion.reject(error);
-      expect(await result).toBe(error);
-      expect(commands.runAsync).not.toHaveBeenCalled();
-      expect(await fs.readdir(directory)).toEqual(['run']);
-      expect(process.listenerCount('SIGTERM')).toBe(term);
-      expect(process.listenerCount('SIGINT')).toBe(int);
-    } finally {
-      completion.resolve('');
-      await result;
-    }
-  }
-);
 
 test.each([
   ['Shutdown', true],
