@@ -184,6 +184,7 @@ export type XCUITestAppiumCommand =
   | 'mobileGetIncreaseContrast'
   | 'mobileGetPasteboard'
   | 'mobileGetPermission'
+  | 'mobileGetPressableButtons'
   | 'mobileGetSimulatedHingeAngle'
   | 'mobileGetSimulatedLocation'
   | 'mobileGetSource'
