@@ -395,9 +395,7 @@ export function createWarmSimulatorSession({
         await attempt(tool.stopAsync());
       }
     }
-    for (const udid of ownedSimulatorUdids) {
-      await attempt(shutdownSimulatorAsync(udid));
-    }
+    await Promise.all([...ownedSimulatorUdids].map(udid => attempt(shutdownSimulatorAsync(udid))));
     try {
       commands.throwIfCommandCloseTimedOut();
     } catch (error) {

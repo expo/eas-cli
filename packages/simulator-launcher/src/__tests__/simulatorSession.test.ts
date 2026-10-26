@@ -1189,3 +1189,27 @@ it('bounds cache priming to two 30-second attempts and still becomes ready after
     timeoutSpy.mockRestore();
   }
 });
+it('shuts owned devices down in parallel during terminal stop', async () => {
+  configureTwoDevices();
+  const duo = deferred<void>(),
+    other = deferred<void>();
+  jest
+    .mocked(shutdownSimulatorAsync)
+    .mockImplementation(udid => (udid === 'DUO' ? duo.promise : other.promise));
+  const session = createSession();
+  await session.prepareAsync();
+  session.startRemainingDevices();
+  await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+  const stopping = session.stopAsync();
+  try {
+    await until(() => jest.mocked(shutdownSimulatorAsync).mock.calls.length > 0);
+    expect(jest.mocked(shutdownSimulatorAsync).mock.calls.map(([udid]) => udid)).toEqual([
+      'DUO',
+      'PHONE18',
+    ]);
+  } finally {
+    duo.resolve();
+    other.resolve();
+    await stopping;
+  }
+});
