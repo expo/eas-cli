@@ -13,3 +13,5 @@ Replacement boots the requested device while the old tools and serve-sim stop. T
 `stop` waits for every tool to stop and reports a cleanup failure instead of a confirmed stop. The launcher only checks for ffmpeg, which the VM image provides. Processes that exited but are not yet reaped count as stopped.
 
 The launcher records its package version instead of copying its bundle. Build-tools uses that exact version for claim and stop.
+
+Accept a comma-separated list of exact Simulator names or UDIDs for warmup.

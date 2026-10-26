@@ -15,6 +15,7 @@ import {
   disableApsdAsync,
   listAvailableSimulatorsAsync,
   selectSimulators,
+  selectWarmupSimulators,
   shutdownSimulatorAsync,
 } from '../utils/simulator';
 import {
@@ -369,7 +370,10 @@ export function createWarmSimulatorSession({
   return {
     async prepareAsync(): Promise<WarmSessionInfo> {
       availableDevices = await listAvailableSimulatorsAsync(signal);
-      const selectedDevice = await resolveDeviceAsync(process.env.EXPO_SIMULATOR_DEVICE);
+      const [selectedDevice] = selectWarmupSimulators(
+        availableDevices,
+        process.env.EXPO_SIMULATOR_DEVICE
+      );
       const controllerStartTime = (
         await commands.runAsync('ps', ['-p', String(process.pid), '-o', 'lstart='], signal)
       ).trim();
