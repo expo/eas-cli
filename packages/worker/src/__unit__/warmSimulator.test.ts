@@ -5,13 +5,14 @@ import fs from 'node:fs/promises';
 import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 
 jest.mock('@expo/turtle-spawn');
-jest.mock('node:fs/promises', () => ({ readFile: jest.fn() }));
+jest.mock('node:fs/promises', () => ({ access: jest.fn(), readFile: jest.fn() }));
 
 const originalPlatform = process.platform;
 let savedEnvironment: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   savedEnvironment = { ...process.env };
+  jest.mocked(fs.access).mockReset().mockResolvedValue(undefined);
   jest
     .mocked(fs.readFile)
     .mockReset()
@@ -99,6 +100,20 @@ it('propagates command failure instead of allowing job setup', async () => {
   await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
 });
 
+it('does not resolve a package on images without the startup script', async () => {
+  jest
+    .mocked(fs.access)
+    .mockRejectedValue(Object.assign(new Error('missing script'), { code: 'ENOENT' }));
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(fs.readFile).not.toHaveBeenCalled();
+  expect(spawn).not.toHaveBeenCalled();
+});
+it.each(['EACCES', 'EIO'])('fails closed on a startup script %s error', async code => {
+  const error = Object.assign(new Error(code), { code });
+  jest.mocked(fs.access).mockRejectedValue(error);
+  await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
+  expect(spawn).not.toHaveBeenCalled();
+});
 it('uses Bun and the recorded version when warmup has started', async () => {
   jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
   await maybeStopWarmSimulatorAsync({
