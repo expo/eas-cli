@@ -23,6 +23,7 @@ import {
   type ClaimInput,
   ClaimInputSchema,
   type LauncherState,
+  type PreinstalledApp,
   type SimulatorDevice,
   type WarmSessionInfo,
   getInstalledLauncherDirectory,
@@ -30,6 +31,15 @@ import {
   updateLauncherStateAsync,
 } from '../utils/state';
 import { type StartedTool, type WarmTool, startTool } from '../utils/tools';
+
+type WarmSimulatorSession = {
+  prepareAsync(): Promise<WarmSessionInfo>;
+  claimAsync(request: ClaimInput): Promise<{
+    device: SimulatorDevice;
+    preinstalledExpoGo?: PreinstalledApp;
+  }>;
+  stopAsync(): Promise<void>;
+};
 
 export async function startAsync(bootUuid: string, sourceBundlePath: string): Promise<number> {
   const initial = await updateLauncherStateAsync(bootUuid, state => {
@@ -211,7 +221,7 @@ export function createWarmSimulatorSession({
   throwIfStoppingAsync(): Promise<void>;
   onPreparationFailure(error: unknown): void;
   onBackgroundFailure(error: unknown): void;
-}) {
+}): WarmSimulatorSession {
   const warmTools = [createAgentDeviceTool(), createArgentTool()];
   const serveSims = new Set<ChildProcessHandle>();
   // Track attempted devices for cleanup; publish currentDevice only after startup succeeds.
