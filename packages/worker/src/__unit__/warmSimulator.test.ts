@@ -105,7 +105,7 @@ it('does not resolve a package on images without the startup script', async () =
     .mocked(fs.access)
     .mockRejectedValue(Object.assign(new Error('missing script'), { code: 'ENOENT' }));
   await maybeStopWarmSimulatorAsync({} as Job);
-  expect(fs.readFile).not.toHaveBeenCalled();
+  expect(fs.readFile).toHaveBeenCalledTimes(1);
   expect(spawn).not.toHaveBeenCalled();
 });
 it.each(['EACCES', 'EIO'])('fails closed on a startup script %s error', async code => {
@@ -163,4 +163,40 @@ it('propagates failure of the single cache-resolution retry', async () => {
   jest.mocked(spawn).mockRejectedValueOnce(missing).mockRejectedValueOnce(failure);
   await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(failure);
   expect(spawn).toHaveBeenCalledTimes(2);
+});
+
+it('stops a current-boot launcher even if its startup script is no longer present', async () => {
+  jest.mocked(fs.access).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+  jest
+    .mocked(fs.readFile)
+    .mockResolvedValue(
+      JSON.stringify({ bootUuid: 'boot-one', status: 'ready', launcherVersion: '25.3.0' })
+    );
+  jest
+    .mocked(spawn)
+    .mockImplementation(
+      file =>
+        Promise.resolve({ stdout: file === '/usr/sbin/sysctl' ? 'boot-one\n' : '' }) as ReturnType<
+          typeof spawn
+        >
+    );
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(spawn).toHaveBeenCalledWith(
+    'bun',
+    ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop'],
+    expect.anything()
+  );
+});
+it('ignores an old-boot launcher state when the startup script is absent', async () => {
+  jest.mocked(fs.access).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+  jest
+    .mocked(fs.readFile)
+    .mockResolvedValue(
+      JSON.stringify({ bootUuid: 'old-boot', status: 'ready', launcherVersion: '25.3.0' })
+    );
+  jest
+    .mocked(spawn)
+    .mockResolvedValue({ stdout: 'boot-one\n' } as Awaited<ReturnType<typeof spawn>>);
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(jest.mocked(spawn).mock.calls.every(([file]) => file === '/usr/sbin/sysctl')).toBe(true);
 });
