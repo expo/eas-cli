@@ -4,12 +4,8 @@ import { GraphQLError } from 'graphql/error';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getErrorAsync } from '../../__tests__/commands/utils';
-import { getAgentTelemetryContext } from '../../analytics/agent';
 import { EasCommandError } from '../../commandUtils/errors';
 import Build from '../../commands/build';
-import { ExperimentOverrides } from '../../experimentation/ExperimentOverrides';
-import { ExperimentationClient } from '../../experimentation/ExperimentationClient';
-import { LazyExperimentationClient } from '../../experimentation/LazyExperimentationClient';
 import Log, { link } from '../../log';
 import { handleBuildRequestErrorAsync } from '../build';
 import {
@@ -28,12 +24,7 @@ import {
   FreeTierLimitCheckoutExperiment,
   maybeOfferFreeTierLimitCheckoutAsync,
 } from '../freeTierLimitCheckout';
-import {
-  FREE_TIER_LIMIT_AGENT_GUIDANCE_EXPERIMENT_NAMESPACE,
-  FreeTierLimitAgentGuidanceExperiment,
-} from '../freeTierLimitGuidance';
 
-jest.mock('../../analytics/agent');
 jest.mock('../freeTierLimitCheckout', () => ({
   ...jest.requireActual('../freeTierLimitCheckout'),
   maybeOfferFreeTierLimitCheckoutAsync: jest.fn(),
@@ -43,25 +34,8 @@ const CHECKOUT_EXPERIMENT = { accountId: 'account-id' } as FreeTierLimitCheckout
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.mocked(getAgentTelemetryContext).mockReturnValue(null);
   jest.mocked(maybeOfferFreeTierLimitCheckoutAsync).mockResolvedValue(false);
 });
-
-/** An experiment handle whose client is forced to the given variant through an override. */
-function createExperiment(variant: string): FreeTierLimitAgentGuidanceExperiment {
-  return {
-    accountId: 'account-id',
-    experimentation: LazyExperimentationClient.fromClient(
-      ExperimentationClient.createDisabled(
-        new ExperimentOverrides(
-          new Map([
-            [FREE_TIER_LIMIT_AGENT_GUIDANCE_EXPERIMENT_NAMESPACE, new Map([['variant', variant]])],
-          ])
-        )
-      )
-    ),
-  };
-}
 
 const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `Build request error details:
 {
@@ -355,115 +329,6 @@ describe(Build.name, () => {
           );
         });
       });
-      describe('for free tier limit errors in the agent guidance experiment', () => {
-        beforeEach(() => {
-          jest
-            .mocked(getAgentTelemetryContext)
-            .mockReturnValue({ id: 'claude-code', sessionId: 'session-1' });
-        });
-
-        it('appends the human required block for Android in the treatment arm', async () => {
-          const platform = Platform.ANDROID;
-          const accountName = 'test-account';
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
-            async () => {
-              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
-            }
-          );
-
-          assertReThrownError(
-            handleBuildRequestErrorThrownError,
-            EasBuildFreeTierLimitExceededError,
-            [
-              'Error 1',
-              'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.',
-              'Fix: Human required: Android builds for this account are blocked until the Free plan resets. Upgrading costs money, so an account owner or admin decides.',
-            ].join('\n')
-          );
-        });
-
-        it('appends the human required block for iOS in the treatment arm', async () => {
-          const platform = Platform.IOS;
-          const accountName = 'test-account';
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          const handleBuildRequestErrorThrownError =
-            await getErrorAsync<EasBuildFreeTierIosLimitExceededError>(async () => {
-              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
-            });
-
-          assertReThrownError(
-            handleBuildRequestErrorThrownError,
-            EasBuildFreeTierIosLimitExceededError,
-            [
-              'Error 1',
-              'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.',
-              'Fix: Human required: iOS builds for this account are blocked until the Free plan resets. Upgrading costs money, so an account owner or admin decides.',
-            ].join('\n')
-          );
-        });
-
-        it('does not append the block in the control arm', async () => {
-          const platform = Platform.ANDROID;
-          const accountName = 'test-account';
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
-            async () => {
-              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('control'));
-            }
-          );
-
-          assertReThrownError(
-            handleBuildRequestErrorThrownError,
-            EasBuildFreeTierLimitExceededError,
-            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
-          );
-        });
-
-        it('does not append the block when no coding agent runs the CLI', async () => {
-          jest.mocked(getAgentTelemetryContext).mockReturnValue(null);
-          const platform = Platform.ANDROID;
-          const accountName = 'test-account';
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierLimitExceededError>(
-            async () => {
-              await handleBuildRequestErrorAsync(error, platform, accountName, createExperiment('treatment'));
-            }
-          );
-
-          assertReThrownError(
-            handleBuildRequestErrorThrownError,
-            EasBuildFreeTierLimitExceededError,
-            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
-          );
-        });
-
-        it('does not append the block to other server-side errors', async () => {
-          const platform = Platform.ANDROID;
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildFreeTierDisabledError>(
-            async () => {
-              await handleBuildRequestErrorAsync(error, platform, undefined, createExperiment('treatment'));
-            }
-          );
-
-          assertReThrownError(
-            handleBuildRequestErrorThrownError,
-            EasBuildFreeTierDisabledError,
-            'Error 1'
-          );
-        });
-      });
       describe('for free tier limit errors in the checkout experiment', () => {
         it('offers the checkout with the limit message and marks the message as printed', async () => {
           jest.mocked(maybeOfferFreeTierLimitCheckoutAsync).mockResolvedValue(true);
@@ -480,7 +345,6 @@ describe(Build.name, () => {
                 error,
                 platform,
                 accountName,
-                undefined,
                 CHECKOUT_EXPERIMENT
               );
             }
@@ -513,7 +377,6 @@ describe(Build.name, () => {
                 error,
                 platform,
                 accountName,
-                undefined,
                 CHECKOUT_EXPERIMENT
               );
             });
@@ -542,7 +405,6 @@ describe(Build.name, () => {
                 error,
                 platform,
                 accountName,
-                undefined,
                 CHECKOUT_EXPERIMENT
               );
             }
@@ -557,35 +419,6 @@ describe(Build.name, () => {
           );
         });
 
-        it('passes the agent guidance along when both experiments are present', async () => {
-          jest
-            .mocked(getAgentTelemetryContext)
-            .mockReturnValue({ id: 'claude-code', sessionId: 'session-1' });
-          const platform = Platform.ANDROID;
-          const accountName = 'test-account';
-          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
-          const error = new CombinedError({ graphQLErrors: [graphQLError] });
-
-          await getErrorAsync(async () => {
-            await handleBuildRequestErrorAsync(
-              error,
-              platform,
-              accountName,
-              createExperiment('treatment'),
-              CHECKOUT_EXPERIMENT
-            );
-          });
-
-          expect(maybeOfferFreeTierLimitCheckoutAsync).toHaveBeenCalledWith(
-            [
-              'Error 1',
-              'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.',
-              'Fix: Human required: Android builds for this account are blocked until the Free plan resets. Upgrading costs money, so an account owner or admin decides.',
-            ].join('\n'),
-            CHECKOUT_EXPERIMENT
-          );
-        });
-
         it('does not offer the checkout for other server-side errors', async () => {
           const platform = Platform.ANDROID;
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
@@ -596,7 +429,6 @@ describe(Build.name, () => {
               await handleBuildRequestErrorAsync(
                 error,
                 platform,
-                undefined,
                 undefined,
                 CHECKOUT_EXPERIMENT
               );
