@@ -88,6 +88,7 @@ beforeEach(async () => {
     .mockReset()
     .mockReturnValue({
       resultPromise: Promise.resolve(),
+      preinstallOnDeviceAsync: jest.fn(async () => {}),
       claimAsync: jest.fn(async () => undefined),
       stopAsync: jest.fn(async () => {}),
     });
@@ -422,6 +423,7 @@ test('claim joins an already-started Expo Go install and terminal stop drains th
   const cleanup = deferred<void>();
   jest.mocked(startExpoGoPreinstall).mockReturnValue({
     resultPromise: cleanup.promise,
+    preinstallOnDeviceAsync: jest.fn(async () => {}),
     claimAsync: jest.fn(() => install.promise),
     stopAsync: jest.fn(() => cleanup.promise),
   });

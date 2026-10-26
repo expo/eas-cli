@@ -104,6 +104,8 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   const session = createWarmSimulatorSession({
     signal,
     throwIfStoppingAsync,
+    isReadyAsync: async () =>
+      requireOwnedState(await readLauncherStateAsync(bootUuid)).status === 'ready',
     onPreparationFailure(error) {
       if (!signal.aborted) {
         sessionError = error;
@@ -223,11 +225,13 @@ type WarmDeviceSession = {
 export function createWarmSimulatorSession({
   signal,
   throwIfStoppingAsync,
+  isReadyAsync,
   onPreparationFailure,
   onBackgroundFailure,
 }: {
   signal: AbortSignal;
   throwIfStoppingAsync(): Promise<void>;
+  isReadyAsync(): Promise<boolean>;
   onPreparationFailure(error: unknown): void;
   onBackgroundFailure(error: unknown): void;
 }): WarmSimulatorSession {
@@ -245,6 +249,7 @@ export function createWarmSimulatorSession({
   let unusedDevicesCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
   let previousDeviceShutdown: Promise<void> = Promise.resolve();
   let launcherCachePriming: Promise<void> = Promise.resolve();
+  let additionalWarmup: Promise<void> | undefined;
 
   async function resolveDeviceAsync(
     selector?: string,
@@ -280,13 +285,39 @@ export function createWarmSimulatorSession({
     session.ready = (async () => {
       await throwIfStoppingAsync();
       const deviceSignal = AbortSignal.any([signal, session.shutdown.signal]);
+      const isAdditional = preinstallExpoGo && device.udid !== warmDevices[0].udid;
+      if (isAdditional && (claimed || stopping || !(await isReadyAsync()))) {
+        return;
+      }
       deviceSignal.throwIfAborted();
       const udid = device.udid;
       ownedSimulatorUdids.add(udid);
       const boot = bootSimulatorAsync(udid, deviceSignal);
       if (preinstallExpoGo && !claimed && !stopping) {
-        session.expoGo = startExpoGoPreinstall(udid, boot, deviceSignal);
-        void session.expoGo.resultPromise.catch(onBackgroundFailure);
+        const shared = devices.get(warmDevices[0].udid)?.expoGo;
+        if (isAdditional && shared) {
+          session.expoGo = {
+            ...shared,
+            resultPromise: shared.preinstallOnDeviceAsync(udid, boot, deviceSignal),
+            async claimAsync() {
+              return await shared.claimAsync(udid);
+            },
+          };
+          void session.expoGo.resultPromise.catch(error => {
+            session.failed = true;
+            process.stderr.write(
+              `Expo Go preinstall on unused Simulator ${udid} failed; final stop will drain it: ${error}\n`
+            );
+          });
+        } else {
+          session.expoGo = startExpoGoPreinstall(
+            udid,
+            boot,
+            deviceSignal,
+            /* reuseArchive */ warmDevices.length > 1
+          );
+          void session.expoGo.resultPromise.catch(onBackgroundFailure);
+        }
       }
       const serveSimReady = Promise.all([boot, servicesAllowed]).then(async () => {
         const handle = startServeSim(udid, deviceSignal, device.port);
@@ -456,14 +487,29 @@ export function createWarmSimulatorSession({
       };
     },
     startRemainingDevices(): void {
-      if (claimed || stopping) {
+      if (claimed || stopping || additionalWarmup) {
         return;
       }
-      for (const device of warmDevices.slice(1)) {
-        if (!devices.has(device.udid)) {
-          startDevice(device, [], /* preinstallExpoGo */ true);
+      additionalWarmup = (async () => {
+        const first = devices.get(warmDevices[0].udid)!;
+        // Keep second-device work out of the default Expo Go and tool startup critical path.
+        await Promise.all([
+          first.expoGo?.resultPromise,
+          ...[...startedTools.values()].map(tool => tool.ready),
+        ]);
+        if (claimed || stopping || !(await isReadyAsync())) {
+          return;
         }
-      }
+        for (const device of warmDevices.slice(1)) {
+          if (!devices.has(device.udid)) {
+            startDevice(device, [], /* preinstallExpoGo */ true);
+          }
+        }
+      })().catch(error => {
+        if (!claimed && !stopping && !signal.aborted) {
+          onPreparationFailure(error);
+        }
+      });
     },
     async claimAsync(request: ClaimInput) {
       claimed = true;
@@ -475,6 +521,14 @@ export function createWarmSimulatorSession({
         })
       );
       await throwIfStoppingAsync();
+      if (
+        request.requestedDevice &&
+        selectSimulators(availableDevices, request.requestedDevice).length > 1
+      ) {
+        throw new Error(
+          `More than one warm Simulator matches ${request.requestedDevice}. Use an exact UDID.`
+        );
+      }
       const matches = [...devices.values()].filter(
         session =>
           !session.failed &&
@@ -563,6 +617,7 @@ export function createWarmSimulatorSession({
         session.shutdown.abort();
       }
       await Promise.all(cancellingTools);
+      await additionalWarmup;
       const [unusedToolsResults, unusedDeviceResults, expoGoResults] = await Promise.all([
         unusedToolsCleanup,
         unusedDevicesCleanup,

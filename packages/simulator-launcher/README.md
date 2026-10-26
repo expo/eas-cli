@@ -12,7 +12,8 @@ exec bunx @expo/simulator-launcher@latest start
 
 ## Commands
 
-- `start`: warm the default device in the foreground. After it is ready, warm the remaining devices.
+- `start`: warm the default device in the foreground. Once its tools and Expo Go preinstall finish,
+  warm the remaining devices only while the session is still unclaimed.
 - `claim ENGINE [DEVICE]`: give one device to one job. Engines: `serve-sim`, `agent-device`, `argent`. No DEVICE means the first configured device. A matching warm device is reused;
   its device and port are returned, and the other device is stopped in the background.
   Otherwise the requested device boots while the old servers/tools stop. Old devices shut down
@@ -26,7 +27,7 @@ bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
 ```
 
 There is no copied launcher bundle. Build-tools uses the recorded package version for claim/stop;
-Warmup primes Bun’s exact-version cache before ready. Claim/stop use `--no-install`, retrying
+Warmup primes Bun’s exact-version cache before ready, with two attempts of up to 30 seconds. Claim/stop use `--no-install`, retrying
 once with the registry only when Bun cannot find that cached binary. Priming failures warn.
 Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.
@@ -50,13 +51,16 @@ serializes updates; an abandoned lock fails closed. This private format requires
 ## Boundaries
 
 - Ready means the default device booted, its apsd disable attempt finished and serve-sim answers.
-  The second device may still be warming. Claim waits for the selected device; job-time native,
+  The second device may not have started yet. Its startup failure leaves the default available.
+  Claim waits for the selected device; job-time native,
   version and authentication checks plus private serve-sim adoption remain authoritative.
 - Agent-device prestarts on the default device only. A secondary claim prepares its runner after
   the old tools stop. One device-independent Argent server is reused for the claimed device.
-- Warmup tries to preinstall the latest stable Expo Go on each initial device; ordinary failures
+- Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
+  Each initial device gets a preinstall attempt; ordinary failures
   warn. Claim prevents new preinstalls and waits for a selected-device native install already in
   flight. Unused-device preinstalls drain during background cleanup. Job app installs remain
   authoritative. Replacements do not preinstall again. The VM image provides ffmpeg.
 - One start attempt and one accepted claim per boot. Failed cleanup never permits another session.
   Stop's caller timeout is not a global cleanup deadline or proof that teardown completed.
+  A build-tools claim timeout uses normal startup only after confirmed terminal cleanup.

@@ -425,3 +425,75 @@ it('claim returns no identity when the preinstall fails', async () => {
   expect(await warmup.claimAsync()).toBeUndefined();
   expect(jest.mocked(commands.runAsync).mock.calls.some(([file]) => file === 'plutil')).toBe(false);
 });
+
+it('downloads and extracts once for two devices, then removes the shared app after both installs', async () => {
+  warmup = startExpoGoPreinstall(
+    'FIRST',
+    Promise.resolve(),
+    controller.signal,
+    /* reuseArchive */ true
+  );
+  await warmup.resultPromise;
+  const app = installCalls()[0][1][3];
+  expect((await fs.stat(app)).isDirectory()).toBe(true);
+  await warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(
+    jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file === '/usr/bin/tar')
+  ).toHaveLength(1);
+  expect(installCalls().map(([, args]) => args.slice(2))).toEqual([
+    ['FIRST', app],
+    ['SECOND', app],
+  ]);
+  await expect(fs.stat(app)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect((await warmup.claimAsync('SECOND'))?.udid).toBe('SECOND');
+});
+it('a claim prevents secondary preinstall from starting and releases the retained archive', async () => {
+  warmup = startExpoGoPreinstall(
+    'FIRST',
+    Promise.resolve(),
+    controller.signal,
+    /* reuseArchive */ true
+  );
+  await warmup.resultPromise;
+  await warmup.claimAsync();
+  await warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal);
+  await warmup.stopAsync();
+  expect(installCalls()).toHaveLength(1);
+  expect(await fs.readdir(directory)).toEqual([]);
+});
+it('claim and stop drain a secondary native install without cancelling its transaction', async () => {
+  const install = deferred<string>();
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  warmup = startExpoGoPreinstall(
+    'FIRST',
+    Promise.resolve(),
+    controller.signal,
+    /* reuseArchive */ true
+  );
+  await warmup.resultPromise;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      file === 'xcrun' && args.includes('SECOND') ? install.promise : original(file, args, signal)
+    );
+  const secondary = warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal);
+  let claimed = false;
+  try {
+    await until(() => installCalls().length === 2);
+    const claiming = warmup.claimAsync('SECOND').then(() => {
+      claimed = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(claimed).toBe(false);
+    expect(installCalls()[1][2]).toBeUndefined();
+    install.resolve('');
+    await claiming;
+    await secondary;
+    await warmup.stopAsync();
+    expect(await fs.readdir(directory)).toEqual([]);
+  } finally {
+    install.resolve('');
+    await secondary;
+  }
+});

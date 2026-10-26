@@ -21,14 +21,15 @@ const VersionsSchema = z.object({
   ),
 });
 
-/** Warm only this initial device. Claim prevents new installs; a started install must finish. */
+/** Claim forbids later installs; started native installs and the shared archive stay owned. */
 export function startExpoGoPreinstall(
   udid: string,
   boot: Promise<unknown>,
-  signal: AbortSignal
+  signal: AbortSignal,
+  reuseArchive = false
 ): {
-  /** Resolves with the installed Expo Go, or undefined when the preinstall did not finish. */
-  claimAsync(): Promise<PreinstalledApp | undefined>;
+  claimAsync(selectedUdid?: string): Promise<PreinstalledApp | undefined>;
+  preinstallOnDeviceAsync(udid: string, boot: Promise<unknown>, signal: AbortSignal): Promise<void>;
   stopAsync(): Promise<void>;
   resultPromise: Promise<void>;
 } {
@@ -38,55 +39,73 @@ export function startExpoGoPreinstall(
     downloadController.signal,
     AbortSignal.timeout(120_000),
   ]);
-  let installation: Promise<void> | undefined;
-  let installed: PreinstalledApp | undefined;
+  const directory = fs.mkdtemp(path.join(os.tmpdir(), 'simulator-expo-go-'));
+  const installations = new Map<string, Promise<void>>();
+  const installed = new Map<string, PreinstalledApp>();
+  const operations = new Set<Promise<void>>();
   let failure: unknown;
-  void boot.catch(() => {});
-  const warmup = (async () => {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'simulator-expo-go-'));
+  let cleanup: Promise<void> | undefined;
+  const archive = (async () => {
+    const directoryPath = await directory;
+    const response = await fetch(VERSIONS_URL, { headers: HEADERS, signal: downloadSignal });
+    if (!response.ok) {
+      throw new Error(`Expo Go versions returned HTTP ${response.status}.`);
+    }
+    const { sdkVersions } = VersionsSchema.parse(await response.json());
+    // Same latest stable release policy as expo.dev/go (GoScene/utils.ts).
+    const sdk = Object.keys(sdkVersions)
+      .filter(sdk => /\b(\d*)\.0\.0/.test(sdk))
+      .slice(-10)
+      .reverse()
+      .find(sdk => sdkVersions[sdk].releaseNoteUrl && !sdkVersions[sdk].isBeta);
+    const url = sdk && sdkVersions[sdk].iosClientUrl;
+    if (!url || new URL(url).protocol !== 'https:') {
+      throw new Error('No stable Expo Go Simulator archive is available.');
+    }
+    const archive = await fetch(url, { headers: HEADERS, signal: downloadSignal });
+    if (!archive.ok || !archive.body) {
+      throw new Error(`Expo Go archive returned HTTP ${archive.status}.`);
+    }
+    const archivePath = path.join(directoryPath, 'expo-go.tar.gz');
+    await archive.body.pipeTo(Writable.toWeb(createWriteStream(archivePath)), {
+      signal: downloadSignal,
+    });
+    downloadSignal.throwIfAborted();
+    // Wait for the owned extractor to close, including on bad archives and claim/stop.
+    const appPath = path.join(directoryPath, 'ExpoGo.app');
+    await fs.mkdir(appPath);
+    await commands.runAsync('/usr/bin/tar', ['-xzf', archivePath, '-C', appPath]);
+    downloadSignal.throwIfAborted();
+    await fs.access(path.join(appPath, 'Info.plist'));
+
+    return { appPath, sdk };
+  })();
+  void archive.catch(() => {});
+
+  async function preinstallAsync(
+    target: string,
+    boot: Promise<unknown>,
+    deviceSignal: AbortSignal
+  ): Promise<void> {
+    void boot.catch(() => {});
+    let installation: Promise<void> | undefined;
+    const installSignal = AbortSignal.any([signal, deviceSignal, downloadController.signal]);
     try {
-      const response = await fetch(VERSIONS_URL, { headers: HEADERS, signal: downloadSignal });
-      if (!response.ok) {
-        throw new Error(`Expo Go versions returned HTTP ${response.status}.`);
-      }
-      const { sdkVersions } = VersionsSchema.parse(await response.json());
-      // Same latest stable release policy as expo.dev/go (GoScene/utils.ts).
-      const sdk = Object.keys(sdkVersions)
-        .filter(sdk => /\b(\d*)\.0\.0/.test(sdk))
-        .slice(-10)
-        .reverse()
-        .find(sdk => sdkVersions[sdk].releaseNoteUrl && !sdkVersions[sdk].isBeta);
-      const url = sdk && sdkVersions[sdk].iosClientUrl;
-      if (!url || new URL(url).protocol !== 'https:') {
-        throw new Error('No stable Expo Go Simulator archive is available.');
-      }
-      const archive = await fetch(url, { headers: HEADERS, signal: downloadSignal });
-      if (!archive.ok || !archive.body) {
-        throw new Error(`Expo Go archive returned HTTP ${archive.status}.`);
-      }
-      const archivePath = path.join(directory, 'expo-go.tar.gz');
-      await archive.body.pipeTo(Writable.toWeb(createWriteStream(archivePath)), {
-        signal: downloadSignal,
-      });
-      downloadSignal.throwIfAborted();
-      // Wait for the owned extractor to close, including on bad archives and claim/stop.
-      const appPath = path.join(directory, 'ExpoGo.app');
-      await fs.mkdir(appPath);
-      await commands.runAsync('/usr/bin/tar', ['-xzf', archivePath, '-C', appPath]);
-      downloadSignal.throwIfAborted();
-      await fs.access(path.join(appPath, 'Info.plist'));
+      const { appPath, sdk } = await archive;
       await boot;
-      downloadSignal.throwIfAborted();
-      // No await between this latch and launch. Claim cannot race a not-yet-started install.
-      process.stderr.write(`Preinstalling Expo Go for SDK ${sdk} on Simulator ${udid}.\n`);
-      installation = commands.runAsync('xcrun', ['simctl', 'install', udid, appPath]).then(
+      installSignal.throwIfAborted();
+      // No await between checking the claim latch and registering the native install.
+      process.stderr.write(`Preinstalling Expo Go for SDK ${sdk} on Simulator ${target}.\n`);
+      installation = commands.runAsync('xcrun', ['simctl', 'install', target, appPath]).then(
         async () => {
           process.stderr.write('Expo Go preinstall finished.\n');
-          // The job compares its app with this record instead of asking the Simulator.
-          installed = await readPreinstalledAppAsync(udid, appPath).catch(error => {
+          const info = await readPreinstalledAppAsync(target, appPath).catch(error => {
             process.stderr.write(`Could not read the preinstalled Expo Go version: ${error}\n`);
             return undefined;
           });
+          if (info) {
+            installed.set(target, info);
+          }
         },
         error => {
           commands.throwIfCommandCloseTimedOut();
@@ -98,41 +117,69 @@ export function startExpoGoPreinstall(
           );
         }
       );
+      installations.set(target, installation);
       await installation;
     } catch (error) {
       commands.throwIfCommandCloseTimedOut();
-      // A signal exit is not evidence that the native installation transaction finished.
       if (installation) {
         throw error;
       }
-      if (!signal.aborted && !downloadController.signal.aborted) {
+      if (!installSignal.aborted) {
         process.stderr.write(
           `Could not preinstall Expo Go; the job will install its requested app: ${error}\n`
         );
       }
-    } finally {
-      // A rejected command with unproved close must not race removal or permit a stopped ack.
-      commands.throwIfCommandCloseTimedOut();
-      await fs.rm(directory, { recursive: true, force: true });
     }
-  })();
-  void warmup.catch(error => {
+  }
+
+  async function cleanUpAsync(): Promise<void> {
+    return await (cleanup ??= (async () => {
+      const results = await Promise.allSettled([...operations]);
+      await archive.catch(() => {});
+      // Unproved close never permits temporary-file removal or a stopped acknowledgement.
+      commands.throwIfCommandCloseTimedOut();
+      await fs.rm(await directory, { recursive: true, force: true });
+      const rejected = results.find(result => result.status === 'rejected');
+      if (rejected?.status === 'rejected') {
+        throw rejected.reason;
+      }
+    })());
+  }
+  const initial = preinstallAsync(udid, boot, downloadSignal);
+  operations.add(initial);
+  const resultPromise = reuseArchive ? initial : initial.finally(cleanUpAsync);
+  void resultPromise.catch(error => {
     failure = error;
   });
   return {
-    resultPromise: warmup,
-    async claimAsync() {
+    resultPromise,
+    async preinstallOnDeviceAsync(target, boot, deviceSignal) {
+      if (downloadController.signal.aborted || cleanup) {
+        return Promise.resolve();
+      }
+      const operation = preinstallAsync(target, boot, deviceSignal);
+      operations.add(operation);
+      const complete = operation.finally(cleanUpAsync);
+      void complete.catch(error => {
+        failure = error;
+      });
+      await complete;
+    },
+    async claimAsync(selectedUdid = udid) {
       downloadController.abort();
-      await installation;
+      void cleanUpAsync().catch(error => {
+        failure = error;
+      });
+      await installations.get(selectedUdid);
       if (failure) {
         throw failure;
       }
       commands.throwIfCommandCloseTimedOut();
-      return installed;
+      return installed.get(selectedUdid);
     },
     async stopAsync() {
       downloadController.abort();
-      await warmup;
+      await cleanUpAsync();
       commands.throwIfCommandCloseTimedOut();
     },
   };

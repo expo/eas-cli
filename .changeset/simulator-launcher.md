@@ -4,7 +4,7 @@
 
 Add `@expo/simulator-launcher` for warm Simulators: `start` runs warmup at VM boot, `claim` hands the warm Simulator to a job, and `stop` ends warmup.
 
-Warmup starts the first configured device, then warms the other devices after the first is ready. Each gets its own serve-sim port, apsd disable attempt and best-effort Expo Go preinstall. Agent-device and one Argent server prestart with the default device.
+Warmup starts the first configured device, then warms the other devices after the first is ready and its tools and Expo Go preinstall finish. Each gets its own serve-sim port, apsd disable attempt and best-effort Expo Go preinstall. Agent-device and one Argent server prestart with the default device.
 
 A claim waits only for the requested engine and stops the other tools, also while they are still starting. The claim record names the preinstalled Expo Go, so the job can skip a matching install. A claim waits for an Expo Go install that already started and prevents a later one.
 
