@@ -40,7 +40,8 @@ serializes updates; an abandoned lock fails closed. This private format requires
 - `EXPO_SIMULATOR_STARTUP=1` enables warmup.
 - `EXPO_SIMULATOR_DEVICE` is a comma-separated list of exact device names or UDIDs. Entries are
   trimmed and must each identify one available device. The first is the default. Unset keeps
-  the shortest available iPhone name; empty, missing, ambiguous or duplicate entries fail clearly.
+  the shortest available iPhone name, as does an empty or blank value. Empty list entries, missing,
+  ambiguous or duplicate devices fail clearly.
 - `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION`: each defaults to `latest`.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`

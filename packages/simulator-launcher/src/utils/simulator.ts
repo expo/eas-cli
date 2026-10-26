@@ -43,8 +43,9 @@ export function selectWarmupSimulators(
   devices: SimulatorDevice[],
   selectors?: string
 ): SimulatorDevice[] {
-  const entries =
-    selectors === undefined ? [undefined] : selectors.split(',').map(value => value.trim());
+  const entries = !selectors?.trim()
+    ? [undefined]
+    : selectors.split(',').map(value => value.trim());
   const selected = new Set<string>();
   return entries.map(selector => {
     if (selector === '') {
