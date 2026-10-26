@@ -1,15 +1,21 @@
 import { type Job } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs/promises';
 
 import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 
 jest.mock('@expo/turtle-spawn');
+jest.mock('node:fs/promises', () => ({ readFile: jest.fn() }));
 
 const originalPlatform = process.platform;
 let savedEnvironment: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   savedEnvironment = { ...process.env };
+  jest
+    .mocked(fs.readFile)
+    .mockReset()
+    .mockRejectedValue(Object.assign(new Error('no state'), { code: 'ENOENT' }));
   delete process.env.EAS_OVERRIDE_PACKAGE_MANAGER;
   delete process.env.EAS_FALLBACK_PACKAGE_MANAGER;
   Object.defineProperty(process, 'platform', { value: 'darwin' });
@@ -91,4 +97,55 @@ it('propagates command failure instead of allowing job setup', async () => {
   const error = new Error('Stop acknowledgement timed out');
   jest.mocked(spawn).mockRejectedValueOnce(error);
   await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
+});
+
+it('uses Bun and the recorded version when warmup has started', async () => {
+  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+  await maybeStopWarmSimulatorAsync({
+    builderEnvironment: { env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' } },
+  } as unknown as Job);
+  expect(spawn).toHaveBeenCalledWith(
+    'bun',
+    ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop'],
+    expect.anything()
+  );
+});
+
+it('retries once without --no-install only when Bun cannot resolve the cached binary', async () => {
+  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+  const failure = Object.assign(new Error('Bun resolution failed'), {
+    status: 1,
+    stdout: '',
+    stderr:
+      "error: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.",
+  });
+  jest.mocked(spawn).mockRejectedValueOnce(failure);
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(jest.mocked(spawn).mock.calls.map(([file, args]) => [file, args])).toEqual([
+    ['bun', ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop']],
+    ['bun', ['x', '@expo/simulator-launcher@25.3.0', 'stop']],
+  ]);
+});
+it.each(['cleanup failed', 'error: failed to install package'])(
+  'does not retry a launcher or other Bun failure: %s',
+  async stderr => {
+    jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+    const failure = Object.assign(new Error(stderr), { status: 1, stdout: '', stderr });
+    jest.mocked(spawn).mockRejectedValueOnce(failure);
+    await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(failure);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  }
+);
+it('propagates failure of the single cache-resolution retry', async () => {
+  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+  const missing = Object.assign(new Error('Bun resolution failed'), {
+    status: 1,
+    stdout: '',
+    stderr:
+      "error: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.",
+  });
+  const failure = new Error('retry failed');
+  jest.mocked(spawn).mockRejectedValueOnce(missing).mockRejectedValueOnce(failure);
+  await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(failure);
+  expect(spawn).toHaveBeenCalledTimes(2);
 });
