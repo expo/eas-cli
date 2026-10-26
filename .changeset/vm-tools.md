@@ -2,4 +2,4 @@
 '@expo/vm-tools': minor
 ---
 
-Add a launchd agent for the guest VM that runs the mounted startup script once per boot.
+Add a macOS startup script loader that runs startup.sh once per VM boot.
