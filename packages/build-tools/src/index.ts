@@ -22,6 +22,7 @@ export {
   BuildContext,
   BuildContextOptions,
   CacheManager,
+  getResolvedJobInformationEnv,
   LogBuffer,
   SkipNativeBuildError,
 } from './context';

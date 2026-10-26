@@ -1,4 +1,4 @@
-import { Android, Env, Job, Platform } from '@expo/eas-build-job';
+import { Android, Env, Job } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -55,7 +55,6 @@ export async function runGradleCommand(
       env: {
         ...ctx.env,
         ...extraEnv,
-        ...resolveVersionOverridesEnvs(ctx),
         LC_ALL: 'C.UTF-8',
       },
     }
@@ -74,27 +73,6 @@ export function getGradleShellCommand({
   const oomScoreAdjPrefix =
     oomScoreAdj === undefined ? '' : `echo ${oomScoreAdj} > /proc/$$/oom_score_adj || true; `;
   return `${oomScoreAdjPrefix}exec ./gradlew ${gradleCommand} --profile ${verboseFlag}`;
-}
-
-// Version envs should be set at the beginning of the build, but when building
-// from github those values are resolved later.
-function resolveVersionOverridesEnvs(ctx: BuildContext<Job>): Env {
-  const extraEnvs: Env = {};
-  if (
-    ctx.job.platform === Platform.ANDROID &&
-    ctx.job.version?.versionCode &&
-    !ctx.env.EAS_BUILD_ANDROID_VERSION_CODE
-  ) {
-    extraEnvs.EAS_BUILD_ANDROID_VERSION_CODE = ctx.job.version.versionCode;
-  }
-  if (
-    ctx.job.platform === Platform.ANDROID &&
-    ctx.job.version?.versionName &&
-    !ctx.env.EAS_BUILD_ANDROID_VERSION_NAME
-  ) {
-    extraEnvs.EAS_BUILD_ANDROID_VERSION_NAME = ctx.job.version.versionName;
-  }
-  return extraEnvs;
 }
 
 export function resolveGradleCommand(job: Android.Job): string {

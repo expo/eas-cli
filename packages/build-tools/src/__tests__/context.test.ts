@@ -5,6 +5,7 @@ import {
   Job,
   Metadata,
   Platform,
+  Workflow,
 } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
 import fs from 'fs-extra';
@@ -169,6 +170,59 @@ describe('BuildContext', () => {
     expect(ctx.env.EXISTING_ENV).toBe('new-value');
     expect(ctx.env.REMOVED_ENV).toBeUndefined();
     expect(ctx.env.NEW_ENV).toBe('new-env-value');
+  });
+
+  it('updates environment variables from resolved job information', async () => {
+    await vol.promises.mkdir('/workingdir/eas-environment-secrets/', { recursive: true });
+
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        secrets: {},
+      } as Job,
+      {
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+          PATH: '/usr/bin',
+          EAS_BUILD_PROFILE: 'old-profile',
+          EAS_BUILD_ANDROID_VERSION_CODE: '1',
+        },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+
+    const originalPath = ctx.env.PATH;
+
+    ctx.updateJobInformation(
+      {
+        platform: Platform.ANDROID,
+        type: Workflow.MANAGED,
+        username: 'job-username',
+        version: {
+          versionCode: '42',
+          versionName: '1.2.3',
+        },
+      } as Job,
+      {
+        buildProfile: 'production',
+        gitCommitHash: 'abc123',
+      } as Metadata
+    );
+
+    expect(ctx.env).toEqual(
+      expect.objectContaining({
+        __API_SERVER_URL: 'http://api.expo.test',
+        PATH: originalPath,
+        EAS_BUILD_PROFILE: 'production',
+        EAS_BUILD_GIT_COMMIT_HASH: 'abc123',
+        EAS_BUILD_USERNAME: 'job-username',
+        EAS_BUILD_ANDROID_VERSION_CODE: '42',
+        EAS_BUILD_ANDROID_VERSION_NAME: '1.2.3',
+      })
+    );
   });
 
   it('emits build phase duration metrics for successful build phases', async () => {
