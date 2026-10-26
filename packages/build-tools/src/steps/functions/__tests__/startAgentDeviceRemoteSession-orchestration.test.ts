@@ -1,12 +1,15 @@
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fetch from 'node-fetch';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
+import { uploadDeviceRunSessionArtifactAsync } from '../../utils/deviceRunSessionArtifacts';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -39,6 +42,9 @@ jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() })
 jest.mock('../../../sentry');
 jest.mock('../../utils/agentDeviceArtifacts', () => ({
   pollAgentDeviceArtifactsForUploadAsync: jest.fn(),
+}));
+jest.mock('../../utils/deviceRunSessionArtifacts', () => ({
+  uploadDeviceRunSessionArtifactAsync: jest.fn(),
 }));
 jest.mock('../../utils/agentDeviceEvents', () => ({
   startAgentDeviceEventCollectionAsync: jest.fn(),
@@ -236,6 +242,55 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     );
     expect(mockEventCollectionStopAsync).toHaveBeenCalledTimes(1);
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('uploads an artifact created after the last periodic inventory before the daemon stops', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const { pollAgentDeviceArtifactsForUploadAsync: pollActual } = jest.requireActual<
+      typeof import('../../utils/agentDeviceArtifacts')
+    >('../../utils/agentDeviceArtifacts');
+    jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockImplementation(pollActual);
+    const { Response } = jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    const artifacts: { id: string; filename: string }[] = [];
+    let inventories = 0;
+    jest.mocked(fetch).mockImplementation(async url => {
+      if (String(url).endsWith('/artifacts')) {
+        inventories += 1;
+        return new Response(JSON.stringify({ artifacts }));
+      }
+      return new Response(Readable.from([Buffer.from('screenshot')]));
+    });
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
+      while (inventories === 0) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+      }
+      // The next periodic inventory is 5 seconds away, so only the final one can see this file.
+      artifacts.push({ id: 'late', filename: 'late.png' });
+    });
+
+    await runAsync(logger, BuildRuntimePlatform.LINUX);
+
+    expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ artifactId: 'late', filename: 'late.png' })
+    );
+    expect(
+      jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(mockDaemonStopAsync.mock.invocationCallOrder[0]);
+  });
+
+  it('stops the daemon when the final artifact drain fails', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const failure = new Error('drain failed');
+    jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockRejectedValue(failure);
+
+    await expect(runAsync(logger, BuildRuntimePlatform.LINUX)).rejects.toBe(failure);
+
+    expect(pollAgentDeviceArtifactsForUploadAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ stopPollingSignal: expect.any(AbortSignal) })
+    );
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
   it('redacts learned daemon credentials in arbitrary output and retained diagnostics', async () => {

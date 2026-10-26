@@ -6,6 +6,7 @@ import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
@@ -54,6 +55,7 @@ const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnTh
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
   // Only the emulator logcat folder: the Appium step writes into its own temp folder.
