@@ -78,7 +78,7 @@ describe('projectSources', () => {
           },
           platform: Platform.IOS,
           secrets: {
-            robotAccessToken,
+            robotAccessToken: sandbox ? undefined : robotAccessToken,
             environmentSecrets: sandbox
               ? [
                   {

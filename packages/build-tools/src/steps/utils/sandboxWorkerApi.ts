@@ -1,6 +1,5 @@
-import { type EnvironmentSecret, EnvironmentSecretType, SystemError } from '@expo/eas-build-job';
+import { type EnvironmentSecret, EnvironmentSecretType } from '@expo/eas-build-job';
 import { z } from 'zod';
-import type { CustomBuildContext } from '../../customBuildContext';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 export const SANDBOX_WORKER_TOKEN_ENV = 'EAS_SANDBOX_WORKER_TOKEN';
@@ -9,9 +8,10 @@ export const SANDBOX_WORKER_TOKEN_HEADER = 'expo-sandbox-worker-token';
 export class SandboxWorkerApiError extends Error {
   constructor(
     message: string,
-    readonly status: number | undefined
+    readonly status: number | undefined,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
     this.name = 'SandboxWorkerApiError';
   }
 }
@@ -25,22 +25,12 @@ export function getSandboxWorkerTokenFromEnvironmentSecrets(
   return secret?.type === EnvironmentSecretType.STRING && secret.value ? secret.value : null;
 }
 
-export function getSandboxWorkerApi(
-  ctx: Pick<CustomBuildContext, 'job' | 'expoApiV2BaseUrl' | 'env'>
-): SandboxWorkerApi | null {
-  const token = getSandboxWorkerTokenFromEnvironmentSecrets(ctx.job.secrets?.environmentSecrets);
-  if (!token) {
-    return null;
-  }
-  const baseUrl =
-    ctx.expoApiV2BaseUrl ??
-    (ctx.env.__API_SERVER_URL ? new URL('/v2/', ctx.env.__API_SERVER_URL).toString() : null);
-  if (!baseUrl) {
-    throw new SystemError(
-      'The sandbox worker API URL is missing. Check the worker configuration and start a new sandbox.'
-    );
-  }
-  return new SandboxWorkerApi(baseUrl, token);
+export function getSandboxCommandEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const commandEnv = { ...env };
+  delete commandEnv.EXPO_TOKEN;
+  delete commandEnv[SANDBOX_WORKER_TOKEN_ENV];
+  delete commandEnv.__EAS_SANDBOX_MCP_TOKEN;
+  return commandEnv;
 }
 
 export class SandboxWorkerApi {
@@ -50,6 +40,7 @@ export class SandboxWorkerApi {
   ) {}
 
   async markReadyAsync(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     await this.requestAsync('ready', z.object({ id: z.uuid() }), undefined, signal);
   }
 
@@ -101,11 +92,12 @@ export class SandboxWorkerApi {
           shouldThrowOnNotOk: false,
         }
       );
-    } catch {
+    } catch (cause) {
       signal?.throwIfAborted();
       throw new SandboxWorkerApiError(
         `Sandbox request ${route} failed before www responded. Check the worker connection.`,
-        undefined
+        undefined,
+        { cause }
       );
     }
     signal?.throwIfAborted();

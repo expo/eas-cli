@@ -256,10 +256,6 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
   const sandboxWorkerToken = getSandboxWorkerTokenFromEnvironmentSecrets(
     ctx.job.secrets?.environmentSecrets
   );
-  const robotAccessToken = nullthrows(
-    ctx.job.secrets?.robotAccessToken,
-    'robot access token is not set'
-  );
 
   const response = await turtleFetch(
     new URL(
@@ -275,7 +271,9 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
       headers: {
         ...(sandboxWorkerToken
           ? { [SANDBOX_WORKER_TOKEN_HEADER]: sandboxWorkerToken }
-          : { Authorization: `Bearer ${robotAccessToken}` }),
+          : {
+              Authorization: `Bearer ${nullthrows(ctx.job.secrets?.robotAccessToken, 'robot access token is not set')}`,
+            }),
       },
       timeout: 20000,
       retries: 3,

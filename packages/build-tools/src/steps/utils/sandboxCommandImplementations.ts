@@ -7,7 +7,6 @@ import {
   type SandboxDaemonMethod,
 } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client } from '@urql/core';
 import fs, { type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -31,17 +30,13 @@ export function createSandboxCommandImplementations({
   workingDirectory,
   env,
   signal,
-  graphqlClient,
   workerApi,
-  sandboxId,
   logger,
 }: {
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
   signal: AbortSignal;
-  graphqlClient: Client;
-  workerApi?: SandboxWorkerApi;
-  sandboxId: string;
+  workerApi: SandboxWorkerApi;
   logger: bunyan;
 }): {
   commandImplementations: SandboxDaemonCommandImplementations;
@@ -49,9 +44,7 @@ export function createSandboxCommandImplementations({
 } {
   const sessions = new ShellSessionManager({ workingDirectory, env, signal });
   const artifactUploads = new SandboxArtifactUploadManager({
-    graphqlClient,
     workerApi,
-    sandboxId,
     logger,
     signal,
   });

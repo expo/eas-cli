@@ -1,25 +1,14 @@
 import { SystemError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import {
-  getSandboxWorkerApi,
+  SandboxWorkerApi,
+  getSandboxCommandEnv,
   getSandboxWorkerTokenFromEnvironmentSecrets,
 } from '../utils/sandboxWorkerApi';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
-
-const MARK_SANDBOX_READY_MUTATION = graphql(`
-  mutation MarkSandboxReady($sandboxId: ID!) {
-    sandbox {
-      markSandboxReady(sandboxId: $sandboxId) {
-        id
-      }
-    }
-  }
-`);
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
@@ -37,25 +26,25 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async (stepCtx, { inputs, signal, env }) => {
-      // The daemon needs this credential, but shell commands do not.
-      const { __EAS_SANDBOX_MCP_TOKEN: envSandboxToken, ...commandEnv } = env;
-      const sandboxToken =
-        getSandboxWorkerTokenFromEnvironmentSecrets(ctx.job.secrets?.environmentSecrets) ??
-        [...(ctx.job.secrets?.environmentSecrets ?? [])]
-          .reverse()
-          .find(({ name }) => name === '__EAS_SANDBOX_MCP_TOKEN')?.value ??
-        envSandboxToken;
+    fn: async (stepCtx, { signal, env }) => {
+      const sandboxToken = getSandboxWorkerTokenFromEnvironmentSecrets(
+        ctx.job.secrets?.environmentSecrets
+      );
       if (!sandboxToken) {
         throw new SystemError(
-          'A sandbox worker token or legacy MCP token is required to start the sandbox daemon.'
+          'Sandbox worker token is missing. Check the worker configuration and start a new sandbox.'
         );
       }
+      if (!ctx.expoApiV2BaseUrl) {
+        throw new SystemError(
+          'Sandbox worker API URL is missing. Check the worker configuration and start a new sandbox.'
+        );
+      }
+      const workerApi = new SandboxWorkerApi(ctx.expoApiV2BaseUrl, sandboxToken);
       const mcpServerUrl = ctx.mcpServerUrl;
       if (!mcpServerUrl) {
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
-      const sandboxId = String(inputs.sandbox_id.value);
       const daemon = await startSandboxDaemonAsync({
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
@@ -63,15 +52,13 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
-        env: commandEnv,
-        graphqlClient: ctx.graphqlClient,
-        workerApi: getSandboxWorkerApi(ctx) ?? undefined,
-        sandboxId,
+        env: getSandboxCommandEnv(env),
+        workerApi,
       });
       try {
         await daemon.ready;
         signal?.throwIfAborted();
-        await markSandboxReadyAsync(ctx, sandboxId, signal);
+        await workerApi.markReadyAsync(signal);
         signal?.throwIfAborted();
         stepCtx.logger.info('Sandbox daemon started.');
 
@@ -83,28 +70,6 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }
     },
   });
-}
-
-export async function markSandboxReadyAsync(
-  ctx: CustomBuildContext,
-  sandboxId: string,
-  signal?: AbortSignal
-): Promise<void> {
-  signal?.throwIfAborted();
-  const workerApi = getSandboxWorkerApi(ctx);
-  if (workerApi) {
-    await workerApi.markReadyAsync(signal);
-    return;
-  }
-  const result = await ctx.graphqlClient
-    .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
-    .toPromise();
-  signal?.throwIfAborted();
-  if (result.error) {
-    throw new SystemError(`Failed to mark sandbox ${sandboxId} as ready.`, {
-      cause: result.error,
-    });
-  }
 }
 
 async function waitForCancellationAsync(signal?: AbortSignal): Promise<void> {

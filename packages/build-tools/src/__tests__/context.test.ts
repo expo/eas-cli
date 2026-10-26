@@ -32,7 +32,7 @@ describe('BuildContext', () => {
     (fs.readdir as unknown as jest.Mock).mockResolvedValue([]);
   });
 
-  it('keeps sandbox credentials out of command environments, including inherited Expo tokens', () => {
+  it('keeps sandbox credentials out of command environments, including inherited Expo tokens', async () => {
     const ctx = new BuildContext(
       {
         triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
@@ -76,6 +76,18 @@ describe('BuildContext', () => {
     expect(ctx.env.EXPO_TOKEN).toBeUndefined();
     expect(ctx.env.EAS_SANDBOX_WORKER_TOKEN).toBeUndefined();
     expect(ctx.env.__EAS_SANDBOX_MCP_TOKEN).toBeUndefined();
+    (fs.readdir as unknown as jest.Mock).mockResolvedValueOnce([
+      'EXPO_TOKEN',
+      'EAS_SANDBOX_WORKER_TOKEN',
+      '__EAS_SANDBOX_MCP_TOKEN',
+      'KEEP',
+    ]);
+    jest.mocked(fs.readFile).mockResolvedValue('from-step' as never);
+    await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {});
+    expect(ctx.env.EXPO_TOKEN).toBeUndefined();
+    expect(ctx.env.EAS_SANDBOX_WORKER_TOKEN).toBeUndefined();
+    expect(ctx.env.__EAS_SANDBOX_MCP_TOKEN).toBeUndefined();
+    expect(ctx.env.KEEP).toBe('from-step');
   });
 
   it('should merge secrets', async () => {

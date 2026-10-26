@@ -22,7 +22,7 @@ import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
 import { Datadog } from './datadog';
 import { readAppConfig } from './utils/appConfig';
 import {
-  SANDBOX_WORKER_TOKEN_ENV,
+  getSandboxCommandEnv,
   getSandboxWorkerTokenFromEnvironmentSecrets,
 } from './steps/utils/sandboxWorkerApi';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
@@ -132,9 +132,7 @@ export class BuildContext<TJob extends Job = Job> {
     };
 
     if (getSandboxWorkerTokenFromEnvironmentSecrets(this.job.secrets?.environmentSecrets)) {
-      delete this._env.EXPO_TOKEN;
-      delete this._env[SANDBOX_WORKER_TOKEN_ENV];
-      delete this._env.__EAS_SANDBOX_MCP_TOKEN;
+      this._env = getSandboxCommandEnv(this._env);
     }
     this._env.PATH = this._env.PATH
       ? [this.buildExecutablesDirectory, this._env.PATH].join(':')
@@ -269,9 +267,7 @@ export class BuildContext<TJob extends Job = Job> {
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
     if (getSandboxWorkerTokenFromEnvironmentSecrets(this.job.secrets?.environmentSecrets)) {
-      delete this._env.EXPO_TOKEN;
-      delete this._env[SANDBOX_WORKER_TOKEN_ENV];
-      delete this._env.__EAS_SANDBOX_MCP_TOKEN;
+      this._env = getSandboxCommandEnv(this._env);
     }
     this._env.PATH = this._env.PATH
       ? [this.buildExecutablesDirectory, this._env.PATH].join(':')
@@ -414,6 +410,9 @@ export class BuildContext<TJob extends Job = Job> {
       ...this._env,
       ...Object.fromEntries(entries),
     };
+    if (getSandboxWorkerTokenFromEnvironmentSecrets(this.job.secrets?.environmentSecrets)) {
+      this._env = getSandboxCommandEnv(this._env);
+    }
   }
 
   private getEnvironmentSecrets(job: TJob): Record<string, string> {

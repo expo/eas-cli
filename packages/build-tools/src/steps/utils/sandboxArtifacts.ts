@@ -3,11 +3,8 @@ import {
   type SandboxDaemonCommandResult,
   SandboxDaemonError,
   SandboxDaemonErrorCode,
-  SystemError,
 } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client, CombinedError } from '@urql/core';
-import { graphql } from 'gql.tada';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -15,45 +12,13 @@ import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
   ArtifactPutError,
   type ArtifactUploadSession,
   putArtifactWithRetriesAsync,
 } from './artifactPut';
 
-const CREATE_SANDBOX_ARTIFACT_UPLOAD_SESSION_MUTATION = graphql(`
-  mutation CreateSandboxArtifactUploadSession(
-    $sandboxId: ID!
-    $input: CreateSandboxArtifactUploadSessionInput!
-  ) {
-    sandbox {
-      createArtifactUploadSession(sandboxId: $sandboxId, input: $input) {
-        artifact {
-          id
-        }
-        uploadSession {
-          url
-          headers
-        }
-      }
-    }
-  }
-`);
-
-const FINALIZE_SANDBOX_ARTIFACT_MUTATION = graphql(`
-  mutation FinalizeSandboxArtifact($artifactId: ID!) {
-    sandbox {
-      finalizeArtifact(artifactId: $artifactId) {
-        id
-        downloadUrl
-      }
-    }
-  }
-`);
-
 const FINALIZE_ATTEMPTS = 3;
-const REJECTED_UPLOAD_SESSION_ERROR_CODES = new Set(['VALIDATION_ERROR', 'UNAUTHORIZED']);
 
 type SandboxArtifactUploadOutcome =
   | { status: 'uploaded'; downloadUrl: string }
@@ -65,9 +30,7 @@ export class SandboxArtifactUploadManager {
 
   public constructor(
     private readonly options: {
-      graphqlClient: Client;
-      workerApi?: SandboxWorkerApi;
-      sandboxId: string;
+      workerApi: SandboxWorkerApi;
       logger: bunyan;
       signal: AbortSignal;
     }
@@ -120,17 +83,13 @@ export class SandboxArtifactUploadManager {
 }
 
 export async function startSandboxArtifactUploadAsync({
-  graphqlClient,
   workerApi,
-  sandboxId,
   logger,
   filePath,
   name,
   signal,
 }: {
-  graphqlClient: Client;
-  workerApi?: SandboxWorkerApi;
-  sandboxId: string;
+  workerApi: SandboxWorkerApi;
   logger: bunyan;
   filePath: string;
   name: string;
@@ -165,10 +124,9 @@ export async function startSandboxArtifactUploadAsync({
     artifact: { id: artifactId },
     uploadSession,
   } = await createSandboxArtifactUploadSessionAsync(
-    graphqlClient,
-    { sandboxId, name, filename: path.basename(filePath), size },
-    AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
-    workerApi
+    workerApi,
+    { name, filename: path.basename(filePath), size },
+    AbortSignal.any([signal, AbortSignal.timeout(15_000)])
   );
   const completed = (async (): Promise<SandboxArtifactUploadOutcome> => {
     logger.info(`Uploading sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
@@ -180,12 +138,7 @@ export async function startSandboxArtifactUploadAsync({
     }
     let downloadUrl: string;
     try {
-      downloadUrl = await finalizeSandboxArtifactAsync(
-        graphqlClient,
-        artifactId,
-        signal,
-        workerApi
-      );
+      downloadUrl = await finalizeSandboxArtifactAsync(workerApi, artifactId, signal);
     } catch (error) {
       logger.error(
         { err: error },
@@ -200,61 +153,24 @@ export async function startSandboxArtifactUploadAsync({
 }
 
 async function createSandboxArtifactUploadSessionAsync(
-  graphqlClient: Client,
-  {
-    sandboxId,
-    name,
-    filename,
-    size,
-  }: { sandboxId: string; name: string; filename: string; size: number },
-  signal: AbortSignal,
-  workerApi?: SandboxWorkerApi
+  workerApi: SandboxWorkerApi,
+  input: { name: string; filename: string; size: number },
+  signal: AbortSignal
 ) {
-  if (workerApi) {
-    try {
-      return await workerApi.createArtifactUploadSessionAsync({ name, filename, size }, signal);
-    } catch (error) {
-      if (
-        error instanceof SandboxWorkerApiError &&
-        error.status !== undefined &&
-        [400, 401, 403].includes(error.status)
-      ) {
-        throw new SandboxDaemonError(SandboxDaemonErrorCode.BAD_REQUEST, error.message, {
-          cause: error,
-        });
-      }
-      throw error;
-    }
-  }
-  const result = await graphqlClient
-    .mutation(
-      CREATE_SANDBOX_ARTIFACT_UPLOAD_SESSION_MUTATION,
-      { sandboxId, input: { name, filename, size } },
-      graphqlAbortContext(signal)
-    )
-    .toPromise();
-
-  signal.throwIfAborted();
-
-  if (result.error) {
-    const { graphQLErrors } = result.error;
-    const message =
-      graphQLErrors.length > 0
-        ? graphQLErrors.map(error => error.message).join('\n')
-        : `Failed to create an upload session for sandbox artifact "${name}": ${result.error.message}`;
+  try {
+    return await workerApi.createArtifactUploadSessionAsync(input, signal);
+  } catch (error) {
     if (
-      graphQLErrors.length > 0 &&
-      graphQLErrors.every(error =>
-        REJECTED_UPLOAD_SESSION_ERROR_CODES.has(error.extensions?.errorCode as string)
-      )
+      error instanceof SandboxWorkerApiError &&
+      error.status !== undefined &&
+      [400, 401, 403].includes(error.status)
     ) {
-      throw new SandboxDaemonError(SandboxDaemonErrorCode.BAD_REQUEST, message, {
-        cause: result.error,
+      throw new SandboxDaemonError(SandboxDaemonErrorCode.BAD_REQUEST, error.message, {
+        cause: error,
       });
     }
-    throw new SystemError(message, { cause: result.error });
+    throw error;
   }
-  return result.data!.sandbox.createArtifactUploadSession;
 }
 
 async function putSandboxArtifactAsync({
@@ -283,39 +199,19 @@ async function putSandboxArtifactAsync({
 }
 
 async function finalizeSandboxArtifactAsync(
-  graphqlClient: Client,
+  workerApi: SandboxWorkerApi,
   artifactId: string,
-  signal: AbortSignal,
-  workerApi?: SandboxWorkerApi
+  signal: AbortSignal
 ): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     const timeoutSignal = AbortSignal.timeout(15_000);
     const finalizeSignal = AbortSignal.any([signal, timeoutSignal]);
     try {
-      if (workerApi) {
-        return await workerApi.finalizeArtifactAsync(artifactId, finalizeSignal);
-      }
-      const result = await graphqlClient
-        .mutation(
-          FINALIZE_SANDBOX_ARTIFACT_MUTATION,
-          { artifactId },
-          graphqlAbortContext(finalizeSignal)
-        )
-        .toPromise();
-      finalizeSignal.throwIfAborted();
-      if (result.error) {
-        throw result.error;
-      }
-      const { downloadUrl } = result.data!.sandbox.finalizeArtifact;
-      if (downloadUrl === null) {
-        throw new SystemError(`Finalized sandbox artifact ${artifactId} has no download URL.`);
-      }
-      return downloadUrl;
+      return await workerApi.finalizeArtifactAsync(artifactId, finalizeSignal);
     } catch (error) {
       signal.throwIfAborted();
       const retryable =
         timeoutSignal.aborted ||
-        (error instanceof CombinedError && isTransientGraphqlError(error)) ||
         (error instanceof SandboxWorkerApiError &&
           (error.status === undefined || error.status >= 500));
       if (!retryable || attempt >= FINALIZE_ATTEMPTS) {
@@ -324,9 +220,4 @@ async function finalizeSandboxArtifactAsync(
       await delay(500 * attempt, undefined, { signal });
     }
   }
-}
-
-function isTransientGraphqlError(error: CombinedError): boolean {
-  const status: number | undefined = error.response?.status;
-  return status === undefined ? error.networkError !== undefined : status >= 500;
 }

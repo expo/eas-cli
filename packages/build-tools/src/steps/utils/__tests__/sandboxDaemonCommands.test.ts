@@ -5,7 +5,7 @@ jest.unmock('node:fs/promises');
 
 import { type SandboxDaemonCommandResult, SandboxDaemonErrorCode } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client } from '@urql/core';
+import { SandboxWorkerApi } from '../sandboxWorkerApi';
 import fetch from 'node-fetch';
 import { readFileSync, statSync } from 'node:fs';
 import fs, { type FileHandle } from 'node:fs/promises';
@@ -31,22 +31,21 @@ describe('sandbox daemon commands', () => {
   let commandImplementations: SandboxDaemonCommandImplementations;
   let stopAsync: () => Promise<void>;
   let workingDirectory: string;
-  let mutation: jest.Mock;
-  let graphqlClient: Client;
+  let workerApi: SandboxWorkerApi;
+  let createUpload: jest.SpyInstance;
   let logger: bunyan;
 
   beforeEach(async () => {
     workingDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'sandbox-command-executor-'));
-    mutation = jest.fn();
-    graphqlClient = { mutation } as unknown as Client;
+    workerApi = new SandboxWorkerApi('https://api.expo.test/v2/', 'worker-token');
+    createUpload = jest.spyOn(workerApi, 'createArtifactUploadSessionAsync');
     logger = { info: jest.fn(), error: jest.fn() } as unknown as bunyan;
     const controller = new AbortController();
     const commands = createSandboxCommandImplementations({
       workingDirectory,
       env: process.env,
       signal: controller.signal,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
       logger,
     });
     commandImplementations = commands.commandImplementations;
@@ -75,8 +74,7 @@ describe('sandbox daemon commands', () => {
       workingDirectory,
       env: process.env,
       signal: controller.signal,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
       logger,
     });
     const command = commands.commandImplementations.execCommand({ cmd: 'printf should-not-run' });
@@ -430,37 +428,19 @@ describe('sandbox daemon commands', () => {
         `${path.join(workingDirectory, 'dist')} is not a regular file. To upload a directory, create an archive first`
       ),
     });
-    expect(mutation).not.toHaveBeenCalled();
+    expect(createUpload).not.toHaveBeenCalled();
   });
 
   it('uploads an artifact from a path relative to the working directory and waits for it by default', async () => {
     await fs.mkdir(path.join(workingDirectory, 'logs'));
     await fs.writeFile(path.join(workingDirectory, 'logs', 'crash.log'), 'crash');
-    mutation
-      .mockReturnValueOnce({
-        toPromise: async () => ({
-          data: {
-            sandbox: {
-              createArtifactUploadSession: {
-                artifact: { id: ARTIFACT_ID },
-                uploadSession: { url: 'https://uploads.expo.test/artifact', headers: {} },
-              },
-            },
-          },
-        }),
-      })
-      .mockReturnValueOnce({
-        toPromise: async () => ({
-          data: {
-            sandbox: {
-              finalizeArtifact: {
-                id: ARTIFACT_ID,
-                downloadUrl: 'https://downloads.expo.test/artifact',
-              },
-            },
-          },
-        }),
-      });
+    createUpload.mockResolvedValueOnce({
+      artifact: { id: ARTIFACT_ID },
+      uploadSession: { url: 'https://uploads.expo.test/artifact', headers: {} },
+    });
+    jest
+      .spyOn(workerApi, 'finalizeArtifactAsync')
+      .mockResolvedValueOnce('https://downloads.expo.test/artifact');
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const result = await commandImplementations.uploadArtifact({
@@ -473,9 +453,8 @@ describe('sandbox daemon commands', () => {
       status: 'uploaded',
       downloadUrl: 'https://downloads.expo.test/artifact',
     });
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      { sandboxId: 'sandbox-id', input: { name: 'Crash log', filename: 'crash.log', size: 5 } },
+    expect(createUpload).toHaveBeenCalledWith(
+      { name: 'Crash log', filename: 'crash.log', size: 5 },
       expect.anything()
     );
   });
