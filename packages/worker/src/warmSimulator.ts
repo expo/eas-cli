@@ -52,20 +52,19 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
         'Could not read the VM boot identifier; Simulator cleanup cannot be confirmed.'
       );
     }
-    if (state.bootUuid === boot ? state.status === 'disabled' : !hasStartupScript) {
+    const isCurrentBoot = state.bootUuid === boot;
+    if ((isCurrentBoot && state.status === 'disabled') || (!isCurrentBoot && !hasStartupScript)) {
       return;
     }
   }
-  const { command, args } =
-    typeof launcherVersion === 'string' && launcherVersion
-      ? {
-          command: 'bun',
-          args: ['x', '--no-install', `@expo/simulator-launcher@${launcherVersion}`, 'stop'],
-        }
-      : resolvePackageExec(resolveConfiguredPackageManager(env, PackageManager.BUN), [
-          '@expo/simulator-launcher@latest',
-          'stop',
-        ]);
+  const manager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+  const version =
+    typeof launcherVersion === 'string' && launcherVersion ? launcherVersion : 'latest';
+  const { command, args } = resolvePackageExec(manager, [
+    ...(version !== 'latest' && manager === PackageManager.BUN ? ['--no-install'] : []),
+    `@expo/simulator-launcher@${version}`,
+    'stop',
+  ]);
   try {
     await spawn(command, args, { env, stdio: 'pipe', timeout: 150_000 });
   } catch (error) {

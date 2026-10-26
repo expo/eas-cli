@@ -114,14 +114,14 @@ it.each(['EACCES', 'EIO'])('fails closed on a startup script %s error', async co
   await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
   expect(spawn).not.toHaveBeenCalled();
 });
-it('uses Bun and the recorded version when warmup has started', async () => {
+it('uses the configured package manager with the recorded launcher version', async () => {
   jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
   await maybeStopWarmSimulatorAsync({
     builderEnvironment: { env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' } },
   } as unknown as Job);
   expect(spawn).toHaveBeenCalledWith(
-    'bun',
-    ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop'],
+    'npx',
+    ['--yes', '@expo/simulator-launcher@25.3.0', 'stop'],
     expect.anything()
   );
 });
@@ -214,16 +214,14 @@ it('skips the package manager when cleanup is already confirmed for this boot', 
 });
 it('retries a Bun cache miss with additional warning output', async () => {
   jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
-  jest
-    .mocked(spawn)
-    .mockRejectedValueOnce(
-      Object.assign(new Error('cache miss'), {
-        status: 1,
-        stdout: '',
-        stderr:
-          "warning: a new Bun setting\nerror: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.\n",
-      })
-    );
+  jest.mocked(spawn).mockRejectedValueOnce(
+    Object.assign(new Error('cache miss'), {
+      status: 1,
+      stdout: '',
+      stderr:
+        "warning: a new Bun setting\nerror: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.\n",
+    })
+  );
   await maybeStopWarmSimulatorAsync({} as Job);
   expect(spawn).toHaveBeenCalledTimes(2);
 });
