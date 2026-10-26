@@ -25,6 +25,7 @@ import {
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
+  EasBuildUnauthorizedError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
@@ -301,6 +302,17 @@ export async function handleBuildRequestErrorAsync(
   } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
+    );
+  } else if (graphQLErrorCode === 'UNAUTHORIZED') {
+    const requestId = graphQLErrors[0]?.extensions?.requestId;
+    throw new EasBuildUnauthorizedError(
+      `${graphQLErrors[0]?.message}${requestId ? `\nRequest ID: ${requestId}` : ''}\n\nRun ${chalk.bold(
+        'eas whoami'
+      )} to check the user you are logged in as and your permission grant. Run ${chalk.bold(
+        'eas login'
+      )} to change the user or permission grant.\n\nIf your build profile in eas.json uses ${chalk.bold(
+        'permissions.account.role'
+      )}, it may mean your credentials do not grant the requested role.`
     );
   } else if (Array.isArray(error?.graphQLErrors)) {
     const errorDetails = formatBuildRequestErrorDetails(error, graphQLErrors);
