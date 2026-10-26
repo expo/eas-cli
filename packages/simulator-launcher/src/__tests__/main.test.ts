@@ -57,6 +57,7 @@ async function beginSession(): Promise<Promise<unknown>[]> {
   await updateLauncherStateAsync(boot, () => ({
     bootUuid: boot,
     status: 'starting',
+    launcherVersion: require('../../package.json').version,
     controllerPid: process.pid,
   }));
   const completion = runWarmSimulatorSessionAsync(boot).catch(error => error);
@@ -487,8 +488,9 @@ test('publishes default readiness before starting a second device', async () => 
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
   let stateAtSecondBoot: string | undefined;
   jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
-    if (args.includes('bootstatus') && args.includes('PRO'))
+    if (args.includes('bootstatus') && args.includes('PRO')) {
       stateAtSecondBoot = (await readLauncherStateAsync(boot))?.status;
+    }
     return original(file, args, signal);
   });
   const [completion] = await beginSession();
@@ -500,4 +502,40 @@ test('publishes default readiness before starting a second device', async () => 
   ]);
   await stopAsync(boot);
   expect(await completion).toBeUndefined();
+});
+
+test('stop still waits for cleanup on a versionless session record', async () => {
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'ready',
+    controllerPid: 9000,
+    device: { udid: 'PHONE', name: 'iPhone 17' },
+  }));
+  const stopping = stopAsync(boot);
+  await status('stopping');
+  expect((await readLauncherStateAsync(boot))?.launcherVersion).toBeUndefined();
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'disabled' }));
+  expect(await stopping).toBe(0);
+});
+
+test('claim publishes the selected device port and version as one JSON result', async () => {
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone 17,iPhone 17 Pro';
+  const [completion] = await beginSession();
+  await status('ready');
+  await until(() => jobs.length === 4);
+  const stdout = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  try {
+    expect(await claimAsync(boot, 'serve-sim', 'PRO')).toBe(0);
+    const result = JSON.parse(String(stdout.mock.calls.at(-1)![0]));
+    expect(result).toMatchObject({
+      status: 'claimed',
+      launcherVersion: require('../../package.json').version,
+      device: { udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 },
+      devices: [{ udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 }],
+    });
+    await stopAsync(boot);
+    expect(await completion).toBeUndefined();
+  } finally {
+    stdout.mockRestore();
+  }
 });

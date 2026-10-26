@@ -250,7 +250,9 @@ export function createWarmSimulatorSession({
   ): Promise<SimulatorDevice> {
     for (let attempt = 0; ; attempt++) {
       const matches = selectSimulators(availableDevices, selector);
-      if (matches.length === 1) return matches[0];
+      if (matches.length === 1) {
+        return matches[0];
+      }
       if (matches.length > 1 || !refreshOnMiss || attempt === 1) {
         throw new Error(
           `Could not select one available Simulator for ${selector ?? 'the default iPhone'}. Use an exact available device name or UDID.`
@@ -280,7 +282,7 @@ export function createWarmSimulatorSession({
       const udid = device.udid;
       ownedSimulatorUdids.add(udid);
       const boot = bootSimulatorAsync(udid, deviceSignal);
-      if (preinstallExpoGo) {
+      if (preinstallExpoGo && !claimed && !stopping) {
         session.expoGo = startExpoGoPreinstall(udid, boot, deviceSignal);
         void session.expoGo.resultPromise.catch(onBackgroundFailure);
       }
@@ -291,10 +293,7 @@ export function createWarmSimulatorSession({
         await waitForServeSimReadyAsync(udid, handle, deviceSignal, device.port);
       });
       for (const tool of tools) {
-        startedTools.set(
-          tool,
-          startTool(tool, udid, serveSimReady, deviceSignal, onPreparationFailure)
-        );
+        startedTools.set(tool, startTool(tool, udid, serveSimReady, signal, onPreparationFailure));
       }
       const apsd = boot.then(() =>
         disableApsdAsync(udid, deviceSignal).catch(error => {
@@ -305,7 +304,9 @@ export function createWarmSimulatorSession({
       try {
         await Promise.all([serveSimReady, apsd]);
       } catch (error) {
-        if (!session.shutdown.signal.aborted) onPreparationFailure(error);
+        if (!session.shutdown.signal.aborted) {
+          onPreparationFailure(error);
+        }
         await Promise.allSettled([boot, apsd, serveSimReady, servicesAllowed]);
         throw error;
       }
@@ -337,7 +338,9 @@ export function createWarmSimulatorSession({
         ...previousDevices.map(session => stopDeviceServerAsync(session)),
       ]);
       const failed = results.find(result => result.status === 'rejected');
-      if (failed?.status === 'rejected') throw failed.reason;
+      if (failed?.status === 'rejected') {
+        throw failed.reason;
+      }
       await throwIfStoppingAsync();
     })();
     previousDeviceShutdown = release.then(async () => {
@@ -350,7 +353,9 @@ export function createWarmSimulatorSession({
         })
       );
       const failed = results.find(result => result.status === 'rejected');
-      if (failed?.status === 'rejected') throw failed.reason;
+      if (failed?.status === 'rejected') {
+        throw failed.reason;
+      }
     });
     void previousDeviceShutdown.catch(() => {});
     const replacement = startDevice(
@@ -367,11 +372,17 @@ export function createWarmSimulatorSession({
   async function stopServicesAndDevicesAsync(): Promise<void> {
     const cleanupErrors: unknown[] = [];
     const attempt = (step: Promise<void>) => step.catch(error => cleanupErrors.push(error));
-    for (const handle of serveSims) await attempt(stopProcessAndDescendantsAsync(handle));
-    if (ownedSimulatorUdids.size) {
-      for (const tool of warmTools) await attempt(tool.stopAsync());
+    for (const handle of serveSims) {
+      await attempt(stopProcessAndDescendantsAsync(handle));
     }
-    for (const udid of ownedSimulatorUdids) await attempt(shutdownSimulatorAsync(udid));
+    if (ownedSimulatorUdids.size) {
+      for (const tool of warmTools) {
+        await attempt(tool.stopAsync());
+      }
+    }
+    for (const udid of ownedSimulatorUdids) {
+      await attempt(shutdownSimulatorAsync(udid));
+    }
     try {
       commands.throwIfCommandCloseTimedOut();
     } catch (error) {
@@ -394,10 +405,11 @@ export function createWarmSimulatorSession({
       const controllerStartTime = (
         await commands.runAsync('ps', ['-p', String(process.pid), '-o', 'lstart='], signal)
       ).trim();
-      if (!controllerStartTime)
+      if (!controllerStartTime) {
         throw new Error(
           'Could not read the Simulator launcher process start time; the warm session cannot be verified.'
         );
+      }
       const first = startDevice(warmDevices[0], warmTools, /* preinstallExpoGo */ true);
       await first.ready;
       currentDevice = first.device;
@@ -411,9 +423,13 @@ export function createWarmSimulatorSession({
       };
     },
     startRemainingDevices(): void {
-      if (claimed || stopping) return;
+      if (claimed || stopping) {
+        return;
+      }
       for (const device of warmDevices.slice(1)) {
-        if (!devices.has(device.udid)) startDevice(device, [], /* preinstallExpoGo */ true);
+        if (!devices.has(device.udid)) {
+          startDevice(device, [], /* preinstallExpoGo */ true);
+        }
       }
     },
     async claimAsync(request: ClaimInput) {
@@ -426,33 +442,90 @@ export function createWarmSimulatorSession({
         })
       );
       await throwIfStoppingAsync();
-      const device =
-        !request.requestedDevice ||
-        request.requestedDevice.toLowerCase() === currentDevice.udid.toLowerCase()
-          ? currentDevice
-          : await resolveDeviceAsync(request.requestedDevice, /* refreshOnMiss */ true);
-      const requestedTool = warmTools.find(tool => tool.name === request.engine);
-      if (device.udid.toLowerCase() !== currentDevice.udid.toLowerCase())
-        await replaceDeviceAsync(device, requestedTool);
-      unusedToolsCleanup = Promise.allSettled(
-        [...startedTools]
-          .filter(([tool]) => tool !== requestedTool)
-          .map(([tool, started]) => {
-            startedTools.delete(tool);
-            return started.stopAsync().catch(error => {
-              onBackgroundFailure(error);
-              throw error;
-            });
-          })
+      const matches = [...devices.values()].filter(session =>
+        !request.requestedDevice
+          ? session.device.udid === currentDevice.udid
+          : session.device.name === request.requestedDevice ||
+            session.device.udid.toLowerCase() === request.requestedDevice.toLowerCase()
       );
-      if (requestedTool) await startedTools.get(requestedTool)!.ready;
+      if (matches.length > 1) {
+        throw new Error(
+          `More than one warm Simulator matches ${request.requestedDevice}. Use an exact UDID.`
+        );
+      }
+      const existing = matches[0];
+      const requestedTool = warmTools.find(tool => tool.name === request.engine);
+      if (!existing) {
+        const device = await resolveDeviceAsync(request.requestedDevice, /* refreshOnMiss */ true);
+        await replaceDeviceAsync(device, requestedTool);
+      } else {
+        const movingTools =
+          existing.device.udid !== currentDevice.udid && requestedTool?.name === 'agent-device';
+        unusedToolsCleanup = Promise.allSettled(
+          [...startedTools]
+            .filter(([tool]) => movingTools || tool !== requestedTool)
+            .map(([tool, started]) => {
+              startedTools.delete(tool);
+              return started.stopAsync().catch(error => {
+                onBackgroundFailure(error);
+                throw error;
+              });
+            })
+        );
+        unusedDevicesCleanup = Promise.allSettled(
+          [...devices.values()]
+            .filter(session => session !== existing)
+            .map(async session => {
+              try {
+                await stopDeviceServerAsync(session);
+                await session.expoGo?.stopAsync();
+                // A native tool startup/stop must settle before its Simulator shuts down.
+                await unusedToolsCleanup;
+                if (ownedSimulatorUdids.has(session.device.udid)) {
+                  await shutdownSimulatorAsync(session.device.udid);
+                  ownedSimulatorUdids.delete(session.device.udid);
+                }
+                devices.delete(session.device.udid);
+              } catch (error) {
+                onBackgroundFailure(error);
+                throw error;
+              }
+            })
+        );
+        if (movingTools && requestedTool) {
+          const stopped = await unusedToolsCleanup;
+          const failed = stopped.find(result => result.status === 'rejected');
+          if (failed?.status === 'rejected') {
+            throw failed.reason;
+          }
+          await throwIfStoppingAsync();
+          startedTools.set(
+            requestedTool,
+            startTool(
+              requestedTool,
+              existing.device.udid,
+              existing.ready,
+              AbortSignal.any([signal, existing.shutdown.signal]),
+              onPreparationFailure
+            )
+          );
+        }
+        await existing.ready;
+        currentDevice = existing.device;
+      }
+      if (requestedTool) {
+        await startedTools.get(requestedTool)!.ready;
+      }
       const preinstalledExpoGo = await preinstalls.get(currentDevice.udid);
       return { device: currentDevice, ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}) };
     },
     async stopAsync(): Promise<void> {
       stopping = true;
-      await Promise.all([...startedTools.values()].map(tool => tool.cancelAsync()));
-      for (const session of devices.values()) session.shutdown.abort();
+      const cancellingTools = [...startedTools.values()].map(tool => tool.cancelAsync());
+      for (const session of devices.values()) {
+        session.shutdown.abort();
+      }
+      await Promise.all(cancellingTools);
       const [unusedToolsResults, unusedDeviceResults, expoGoResults] = await Promise.all([
         unusedToolsCleanup,
         unusedDevicesCleanup,
@@ -464,11 +537,12 @@ export function createWarmSimulatorSession({
       const errors = [...unusedToolsResults, ...unusedDeviceResults, ...expoGoResults].flatMap(
         result => (result.status === 'rejected' ? [result.reason] : [])
       );
-      if (errors.length)
+      if (errors.length) {
         throw new AggregateError(
           errors,
           'Warm Simulator background work could not be cleaned up; cleanup remains incomplete.'
         );
+      }
     },
   };
 }

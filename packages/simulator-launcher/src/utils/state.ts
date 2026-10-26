@@ -33,6 +33,10 @@ export const WarmSessionInfoSchema = z.object({
   argentEventLogPath: NonBlankStringSchema,
 });
 export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
+  // A versionless record can still be stopped; claims require complete port metadata.
+  device: SimulatorDeviceSchema.extend({
+    port: WarmSimulatorDeviceSchema.shape.port.optional(),
+  }).optional(),
   bootUuid: NonBlankStringSchema,
   launcherVersion: NonBlankStringSchema.optional(),
   status: z.enum(['starting', 'ready', 'claiming', 'claimed', 'stopping', 'disabled']),
