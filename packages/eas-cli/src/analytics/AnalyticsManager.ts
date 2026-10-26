@@ -22,6 +22,7 @@ export type AnalyticsEvent =
   | MetadataEvent
   | BillingEvent
   | SimulatorEvent
+  | UpdateEvent
   | ExperimentationEvent;
 
 export enum CommandEvent {
@@ -70,6 +71,7 @@ export enum BuildEvent {
   BUILD_REQUEST_SUCCESS = 'build cli build request success',
   BUILD_REQUEST_FAIL = 'build cli build request fail',
   FREE_TIER_LIMIT_CHECKOUT_PROMPT = 'build cli free tier limit checkout prompt',
+  FREE_TIER_NEAR_LIMIT_AGENT_UPDATES_TIP = 'build cli free tier near limit agent updates tip',
 
   BUILD_STATUS_COMMAND = 'build cli build status',
 
@@ -82,6 +84,10 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
+}
+
+export enum UpdateEvent {
+  CONFIGURE_SUCCESS = 'update cli configure success',
 }
 
 export enum SimulatorEvent {

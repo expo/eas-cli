@@ -15896,6 +15896,14 @@ export type CreateAppScopedUploadSessionMutationVariables = Exact<{
 
 export type CreateAppScopedUploadSessionMutation = { __typename?: 'RootMutation', uploadSession: { __typename?: 'UploadSession', createAppScopedUploadSession: any } };
 
+export type SetUserPreferenceMutationVariables = Exact<{
+  key: Scalars['String']['input'];
+  value: Scalars['JSON']['input'];
+}>;
+
+
+export type SetUserPreferenceMutation = { __typename?: 'RootMutation', userPreference: { __typename?: 'UserPreferenceMutation', set: { __typename?: 'UserPreference', id: string, key: string, value: any } } };
+
 export type CreateWebhookMutationVariables = Exact<{
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
@@ -15988,6 +15996,14 @@ export type AccountFullUsageQueryVariables = Exact<{
 
 
 export type AccountFullUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, status?: string | null, nextInvoice?: any | null, nextInvoiceAmountDueCents?: number | null, recurringCents?: number | null, price: number, concurrencies?: { __typename?: 'Concurrencies', total: number, android: number, ios: number } | null, addons: Array<{ __typename?: 'AddonDetails', id: string, name: string, quantity?: number | null }>, upcomingInvoice?: { __typename?: 'Invoice', id: string, total: number, lineItems: Array<{ __typename?: 'InvoiceLineItem', id: string, description: string, amount: number, period: { __typename?: 'InvoicePeriod', start: any, end: any } }> } | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', MEDIUM_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, MEDIUM_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_UPDATE: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_SIMULATOR: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, unavailableServiceUsageMetrics: Array<{ __typename?: 'UnavailableServiceUsageMetric', service: EasService }>, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, IOS_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, ANDROID_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }> } } } };
+
+export type AccountFreeTierBuildUsageQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+  currentDate: Scalars['DateTime']['input'];
+}>;
+
+
+export type AccountFreeTierBuildUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null }> } } } } };
 
 export type AccountUsageForOverageWarningQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -16768,6 +16784,13 @@ export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?
         | { __typename: 'SSOUser', username: string, id: string }
         | { __typename: 'User', username: string, id: string }
        | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
+
+export type UserPreferenceByKeyQueryVariables = Exact<{
+  key: Scalars['String']['input'];
+}>;
+
+
+export type UserPreferenceByKeyQuery = { __typename?: 'RootQuery', userPreference: { __typename?: 'UserPreferenceQuery', get?: { __typename?: 'UserPreference', id: string, key: string, value: any } | null } };
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
