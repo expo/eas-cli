@@ -214,6 +214,7 @@ type WarmDeviceSession = {
   device: WarmSimulatorDevice;
   shutdown: AbortController;
   ready: Promise<void>;
+  failed?: boolean;
   serveSim?: ChildProcessHandle;
   expoGo?: ReturnType<typeof startExpoGoPreinstall>;
 };
@@ -305,8 +306,15 @@ export function createWarmSimulatorSession({
       try {
         await Promise.all([serveSimReady, apsd]);
       } catch (error) {
+        session.failed = true;
         if (!session.shutdown.signal.aborted) {
-          onPreparationFailure(error);
+          if (preinstallExpoGo && device.udid !== warmDevices[0].udid) {
+            process.stderr.write(
+              `Could not warm additional Simulator ${device.udid}; a claim will start it normally: ${error}\n`
+            );
+          } else {
+            onPreparationFailure(error);
+          }
         }
         await Promise.allSettled([boot, apsd, serveSimReady, servicesAllowed]);
         throw error;
@@ -348,9 +356,15 @@ export function createWarmSimulatorSession({
       const results = await Promise.allSettled(
         previousDevices.map(async session => {
           await session.expoGo?.stopAsync();
-          await shutdownSimulatorAsync(session.device.udid);
-          ownedSimulatorUdids.delete(session.device.udid);
-          devices.delete(session.device.udid);
+          // A failed warm device can itself be the replacement target. Do not shut it down
+          // underneath its new startup, or remove the new session stored under the same UDID.
+          if (session.device.udid !== device.udid) {
+            await shutdownSimulatorAsync(session.device.udid);
+            ownedSimulatorUdids.delete(session.device.udid);
+          }
+          if (devices.get(session.device.udid) === session) {
+            devices.delete(session.device.udid);
+          }
         })
       );
       const failed = results.find(result => result.status === 'rejected');
@@ -459,11 +473,13 @@ export function createWarmSimulatorSession({
         })
       );
       await throwIfStoppingAsync();
-      const matches = [...devices.values()].filter(session =>
-        !request.requestedDevice
-          ? session.device.udid === currentDevice.udid
-          : session.device.name === request.requestedDevice ||
-            session.device.udid.toLowerCase() === request.requestedDevice.toLowerCase()
+      const matches = [...devices.values()].filter(
+        session =>
+          !session.failed &&
+          (!request.requestedDevice
+            ? session.device.udid === currentDevice.udid
+            : session.device.name === request.requestedDevice ||
+              session.device.udid.toLowerCase() === request.requestedDevice.toLowerCase())
       );
       if (matches.length > 1) {
         throw new Error(

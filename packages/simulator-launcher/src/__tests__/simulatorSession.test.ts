@@ -1104,3 +1104,47 @@ it('keeps the claimed device alive when retiring the unused device fails, then r
   }
   expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(servers.PHONE18);
 });
+
+it.each(['boot', 'serve-sim'])(
+  'keeps the default ready after secondary %s fails and replaces it on request',
+  async failure => {
+    configureTwoDevices();
+    jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+    let failed = false;
+    jest.mocked(commands.runAsync).mockImplementation((file, args, signal) => {
+      if (
+        failure === 'boot' &&
+        args.includes('bootstatus') &&
+        args.includes('PHONE18') &&
+        !failed
+      ) {
+        // Both bootstatus forms must fail for the first attempt.
+        if (!args.includes('-b')) failed = true;
+        return Promise.reject(new Error('secondary boot failed'));
+      }
+      return original(file, args, signal);
+    });
+    jest.mocked(waitForServeSimReadyAsync).mockImplementation(async udid => {
+      if (failure === 'serve-sim' && udid === 'PHONE18' && !failed) {
+        failed = true;
+        throw new Error('secondary server timed out');
+      }
+    });
+    const session = createSession();
+    await session.prepareAsync();
+    session.startRemainingDevices();
+    await until(() => failed);
+    await new Promise(resolve => setImmediate(resolve));
+    try {
+      expect(controller.signal.aborted).toBe(false);
+      expect(onPreparationFailure).not.toHaveBeenCalled();
+      const result = await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
+      expect(result.device).toEqual({ udid: 'PHONE18', name: 'iPhone 18', port: 3200 });
+      expect(ran('bootstatus', 'PHONE18').length).toBeGreaterThanOrEqual(2);
+      expect(shutdownSimulatorAsync).not.toHaveBeenCalledWith('PHONE18');
+    } finally {
+      await session.stopAsync().catch(() => {});
+    }
+  }
+);
