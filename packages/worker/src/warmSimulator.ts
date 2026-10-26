@@ -74,8 +74,8 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
       !args.includes('--no-install') ||
       failure.status !== 1 ||
       failure.stdout !== '' ||
-      failure.stderr?.trim() !==
-        "error: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed."
+      !failure.stderr?.includes("Could not find an existing 'simulator-launcher' binary") ||
+      !failure.stderr.includes('--no-install')
     ) {
       throw error;
     }
