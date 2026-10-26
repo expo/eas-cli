@@ -21,12 +21,14 @@ exec bunx @expo/simulator-launcher@latest start
 
 ```sh
 # Build-tools reads LAUNCHER_VERSION from the version recorded by start.
-bunx "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
-bunx "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
+bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
+bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
 ```
 
 There is no copied launcher bundle. Build-tools uses the recorded package version for claim/stop;
-Bun may resolve registry metadata on its first exact-version invocation. Before start has run,
+Warmup primes Bun’s exact-version cache before ready. Claim/stop use `--no-install`, retrying
+once with the registry only when Bun cannot find that cached binary. Priming failures warn.
+Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.
 
 One durable state file, `/tmp/expo-simulator-startup.json`, holds the lifecycle, launcher version,

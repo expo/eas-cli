@@ -9,6 +9,10 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
   if (process.platform !== 'darwin') {
     throw new Error('simulator-launcher requires macOS (darwin).');
   }
+  if (args.length === 1 && args[0] === '--version') {
+    process.stdout.write(`${require('../package.json').version}\n`);
+    return 0;
+  }
   const [command, engine, requestedDevice] = args;
   if (command !== 'start' && command !== 'stop' && command !== 'claim') {
     throw new Error('Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]>');

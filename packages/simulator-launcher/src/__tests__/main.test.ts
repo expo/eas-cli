@@ -539,3 +539,61 @@ test('claim publishes the selected device port and version as one JSON result', 
     stdout.mockRestore();
   }
 });
+
+test('--version prints the package version without reading boot identity or launcher state', async () => {
+  const stdout = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  expect(await mainAsync(['--version'])).toBe(0);
+  expect(stdout).toHaveBeenCalledWith(`${require('../../package.json').version}\n`);
+  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(await readLauncherStateAsync(boot)).toBeUndefined();
+});
+
+test('primes the exact version once alongside preparation and before publishing ready', async () => {
+  const primed = deferred<string>();
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      args.includes('--version') ? primed.promise : original(file, args, signal)
+    );
+  const starting = startAsync(boot).catch(error => error);
+  active.push(starting);
+  try {
+    await until(() => jest.mocked(serveSim.waitForServeSimReadyAsync).mock.calls.length === 1);
+    expect((await readLauncherStateAsync(boot))?.status).toBe('starting');
+    const calls = jest
+      .mocked(commands.runAsync)
+      .mock.calls.filter(([, args]) => args.includes('--version'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([
+      'bun',
+      ['x', `@expo/simulator-launcher@${require('../../package.json').version}`, '--version'],
+      expect.anything(),
+    ]);
+    primed.resolve('version');
+    await status('ready');
+    await stopAsync(boot);
+    await starting;
+  } finally {
+    primed.resolve('version');
+  }
+});
+
+test('warns about a failed cache prime but still publishes ready', async () => {
+  const stderr = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest
+    .mocked(commands.runAsync)
+    .mockImplementation((file, args, signal) =>
+      args.includes('--version')
+        ? Promise.reject(new Error('registry unavailable'))
+        : original(file, args, signal)
+    );
+  const [completion] = await beginSession();
+  await status('ready');
+  expect(stderr).toHaveBeenCalledWith(
+    expect.stringContaining('Could not cache the Simulator launcher version')
+  );
+  await stopAsync(boot);
+  expect(await completion).toBeUndefined();
+});

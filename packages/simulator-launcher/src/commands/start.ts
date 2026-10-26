@@ -243,6 +243,7 @@ export function createWarmSimulatorSession({
   let unusedToolsCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
   let unusedDevicesCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
   let previousDeviceShutdown: Promise<void> = Promise.resolve();
+  let launcherCachePriming: Promise<void> = Promise.resolve();
 
   async function resolveDeviceAsync(
     selector?: string,
@@ -411,7 +412,23 @@ export function createWarmSimulatorSession({
         );
       }
       const first = startDevice(warmDevices[0], warmTools, /* preinstallExpoGo */ true);
-      await first.ready;
+      launcherCachePriming = commands
+        .runAsync(
+          'bun',
+          ['x', `@expo/simulator-launcher@${LAUNCHER_VERSION}`, '--version'],
+          AbortSignal.any([signal, first.shutdown.signal])
+        )
+        .then(
+          () => {},
+          error => {
+            signal.throwIfAborted();
+            first.shutdown.signal.throwIfAborted();
+            process.stderr.write(
+              `Could not cache the Simulator launcher version; claim/stop may need the registry: ${error}\n`
+            );
+          }
+        );
+      await Promise.all([first.ready, launcherCachePriming]);
       currentDevice = first.device;
       return {
         device: currentDevice,
@@ -533,6 +550,7 @@ export function createWarmSimulatorSession({
       ]);
       await Promise.allSettled([...devices.values()].map(session => session.ready));
       await previousDeviceShutdown.catch(() => {});
+      await launcherCachePriming.catch(() => {});
       await stopServicesAndDevicesAsync();
       const errors = [...unusedToolsResults, ...unusedDeviceResults, ...expoGoResults].flatMap(
         result => (result.status === 'rejected' ? [result.reason] : [])
