@@ -144,7 +144,9 @@ test('starts serve-sim record-video and returns only a finalized recording', asy
   const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
   await setTimeout(20);
   expect(child.kill).not.toHaveBeenCalled();
+  child.stdout?.emit('data', 'Downloading');
   stderr.write('serve-sim:recording-');
+  child.stdout?.emit('data', ' package');
   stderr.write('started\r\n');
   stderr.write('x'.repeat(17_000));
   const recordings = await finishing;

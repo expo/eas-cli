@@ -507,14 +507,19 @@ function captureProcessOutput(recordingProcess: ChildProcess): {
 } {
   let output = '';
   let started = false;
-  const appendChunk = (chunk: Buffer | string): void => {
-    output = `${output}${chunk.toString()}`;
-    if (SERVE_SIM_RECORDING_STARTED_LINE.test(output)) {
-      started = true;
-    }
-    output = output.slice(-16_384);
+  const captureStreamOutput = (stream: ChildProcess['stdout']): void => {
+    let streamOutput = '';
+    stream?.on('data', (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      output = `${output}${text}`.slice(-16_384);
+      streamOutput = `${streamOutput}${text}`;
+      if (SERVE_SIM_RECORDING_STARTED_LINE.test(streamOutput)) {
+        started = true;
+      }
+      streamOutput = streamOutput.slice(-16_384);
+    });
   };
-  recordingProcess.stdout?.on('data', appendChunk);
-  recordingProcess.stderr?.on('data', appendChunk);
+  captureStreamOutput(recordingProcess.stdout);
+  captureStreamOutput(recordingProcess.stderr);
   return { getOutput: () => output, hasStarted: () => started };
 }
