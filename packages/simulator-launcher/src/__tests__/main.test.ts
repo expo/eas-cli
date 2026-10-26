@@ -481,3 +481,23 @@ test.each([
     await expect(shutdown).rejects.toBe(failure);
   }
 });
+
+test('publishes default readiness before starting a second device', async () => {
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone 17,iPhone 17 Pro';
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  let stateAtSecondBoot: string | undefined;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
+    if (args.includes('bootstatus') && args.includes('PRO'))
+      stateAtSecondBoot = (await readLauncherStateAsync(boot))?.status;
+    return original(file, args, signal);
+  });
+  const [completion] = await beginSession();
+  await status('ready');
+  await until(() => stateAtSecondBoot !== undefined);
+  expect(stateAtSecondBoot).toBe('ready');
+  expect((await readLauncherStateAsync(boot))?.devices?.map(device => device.port)).toEqual([
+    3200, 3202,
+  ]);
+  await stopAsync(boot);
+  expect(await completion).toBeUndefined();
+});

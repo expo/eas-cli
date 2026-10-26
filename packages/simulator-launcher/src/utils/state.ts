@@ -10,6 +10,9 @@ export const SimulatorDeviceSchema = z.object({
   udid: NonBlankStringSchema,
   name: NonBlankStringSchema,
 });
+export const WarmSimulatorDeviceSchema = SimulatorDeviceSchema.extend({
+  port: z.number().int().min(1).max(65535),
+});
 export const ClaimInputSchema = z.object({
   engine: z.enum(['serve-sim', 'agent-device', 'argent']),
   requestedDevice: NonBlankStringSchema.optional(),
@@ -22,7 +25,8 @@ export const PreinstalledAppSchema = z.object({
   version: z.string(),
 });
 export const WarmSessionInfoSchema = z.object({
-  device: SimulatorDeviceSchema,
+  device: WarmSimulatorDeviceSchema,
+  devices: z.array(WarmSimulatorDeviceSchema).min(1),
   controllerPid: z.number().int().gt(1),
   controllerStartTime: NonBlankStringSchema,
   agentDeviceStateDir: NonBlankStringSchema,
@@ -39,6 +43,7 @@ export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
 export type ClaimInput = z.infer<typeof ClaimInputSchema>;
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
+export type WarmSimulatorDevice = z.infer<typeof WarmSimulatorDeviceSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
 export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
 

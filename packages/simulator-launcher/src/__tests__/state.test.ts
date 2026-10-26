@@ -15,7 +15,8 @@ import { deferred } from './helpers';
 const boot = 'boot-one';
 let root: string;
 const info = {
-  device: { udid: 'PHONE', name: 'iPhone 17' },
+  device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
+  devices: [{ udid: 'PHONE', name: 'iPhone 17', port: 3200 }],
   controllerPid: 9000,
   controllerStartTime: 'Thu Oct 22 10:00:00 2026',
   agentDeviceStateDir: '/agent',

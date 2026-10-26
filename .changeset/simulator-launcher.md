@@ -15,3 +15,5 @@ Replacement boots the requested device while the old tools and serve-sim stop. T
 The launcher records its package version instead of copying its bundle. Build-tools uses that exact version for claim and stop.
 
 Accept a comma-separated list of exact Simulator names or UDIDs for warmup.
+
+Warm additional devices after the default is ready, each with its own serve-sim port.

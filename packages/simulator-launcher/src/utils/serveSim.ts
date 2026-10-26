@@ -6,13 +6,11 @@ import { z } from 'zod';
 
 import { type ChildProcessHandle, commands } from './processes';
 
-const SERVE_SIM_PORT = 3200;
-const SERVE_SIM_URL = `http://127.0.0.1:${SERVE_SIM_PORT}`;
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
 // The job needs the token from this file; /readyz itself is not token-gated.
 const ServeSimStateSchema = z.object({ device: z.string(), url: z.string(), token: z.string() });
 
-export function startServeSim(udid: string, signal: AbortSignal): ChildProcessHandle {
+export function startServeSim(udid: string, signal: AbortSignal, port = 3200): ChildProcessHandle {
   signal.throwIfAborted();
   return commands.start(
     'bunx',
@@ -22,7 +20,7 @@ export function startServeSim(udid: string, signal: AbortSignal): ChildProcessHa
       '--host',
       '127.0.0.1',
       '--port',
-      String(SERVE_SIM_PORT),
+      String(port),
       '--require-token',
       '--transport',
       'webrtc',
@@ -50,8 +48,10 @@ export function startServeSim(udid: string, signal: AbortSignal): ChildProcessHa
 export async function waitForServeSimReadyAsync(
   udid: string,
   server: ChildProcessHandle,
-  signal: AbortSignal
+  signal: AbortSignal,
+  port = 3200
 ): Promise<void> {
+  const url = `http://127.0.0.1:${port}`;
   let exited = false;
   // Handle both outcomes: a rejection here would otherwise be unhandled and end the launcher.
   const markExited = (): void => {
@@ -74,12 +74,12 @@ export async function waitForServeSimReadyAsync(
       .then(contents => ServeSimStateSchema.parse(JSON.parse(contents)))
       .catch(() => undefined);
     // Only the local serve-sim this launcher started may be probed; the job checks the same.
-    if (state && state.url !== SERVE_SIM_URL) {
-      throw new Error(`serve-sim on ${udid} reports ${state.url}, not ${SERVE_SIM_URL}.`);
+    if (state && state.url !== url) {
+      throw new Error(`serve-sim on ${udid} reports ${state.url}, not ${url}.`);
     }
     try {
       if (state) {
-        const response = await fetch(`${SERVE_SIM_URL}/readyz`, {
+        const response = await fetch(`${url}/readyz`, {
           signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
         });
         const ready = response.ok

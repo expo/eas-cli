@@ -208,7 +208,7 @@ it('serve-sim claim during agent-device prepare stops it and returns without wai
   try {
     await session.prepareAsync();
     expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-      device: { udid: 'PHONE', name: 'iPhone 17' },
+      device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
     });
     await until(() => ran('daemon', 'stop').length > 0);
     expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(prepare, true);
@@ -299,13 +299,13 @@ it('replacement starts new services once the old serve-sim exits, without waitin
     expect(commands.start).not.toHaveBeenCalled();
     serveSimStop.resolve();
     // The claim returns while the old device is still shutting down.
-    expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro' } });
+    expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro', port: 3200 } });
     expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-    expect(startServeSim).toHaveBeenCalledWith('PRO', controller.signal);
+    expect(startServeSim).toHaveBeenCalledWith('PRO', expect.any(AbortSignal), 3200);
     expect(commands.runAsync).toHaveBeenCalledWith(
       'xcrun',
       ['simctl', 'spawn', 'PRO', 'launchctl', 'disable', 'user/foreground/com.apple.apsd'],
-      controller.signal
+      expect.any(AbortSignal)
     );
     expect(started('prepare')).toHaveLength(1);
     expect(started('prepare')[0][1]).toContain('PRO');
@@ -433,7 +433,7 @@ it('drains unused tools and the whole Expo Go task before native cleanup, retain
     argentEventLogPath: '/isolated-session-fixture/events',
   });
   expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-    device: { udid: 'PHONE', name: 'iPhone 17' },
+    device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
   });
   expect(preinstall.claimAsync).toHaveBeenCalledTimes(1);
   const stopping = session.stopAsync();
@@ -569,7 +569,7 @@ describe('Argent preparation', () => {
     expect(commands.runAsync).toHaveBeenCalledWith(
       'bunx',
       [expect.stringMatching(/^@swmansion\/argent@/), 'enable', 'artifacts-list-endpoint'],
-      controller.signal
+      expect.any(AbortSignal)
     );
   });
 });
@@ -630,5 +630,56 @@ it('rejects serve-sim state that points readiness at another address', async () 
     expect(fetchSpy).not.toHaveBeenCalled();
   } finally {
     await fs.rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+it('warms additional devices only after the default is ready, with separate ports and preinstalls', async () => {
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo,iPhone 18';
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation((file, args, signal) =>
+    args.includes('devices')
+      ? Promise.resolve(
+          JSON.stringify({
+            devices: {
+              ios: [
+                { udid: 'DUO', name: 'iPhone Duo' },
+                { udid: 'PHONE18', name: 'iPhone 18' },
+              ],
+            },
+          })
+        )
+      : original(file, args, signal)
+  );
+  const first = handle(201),
+    second = handle(202);
+  jest.mocked(startServeSim).mockImplementation(udid => (udid === 'DUO' ? first : second));
+  const secondReady = deferred<void>();
+  jest
+    .mocked(waitForServeSimReadyAsync)
+    .mockImplementation(udid => (udid === 'PHONE18' ? secondReady.promise : Promise.resolve()));
+  const session = createSession();
+  const info = await session.prepareAsync();
+  expect(info.device).toEqual({ udid: 'DUO', name: 'iPhone Duo', port: 3200 });
+  expect(info.devices).toEqual([
+    { udid: 'DUO', name: 'iPhone Duo', port: 3200 },
+    { udid: 'PHONE18', name: 'iPhone 18', port: 3202 },
+  ]);
+  expect(startServeSim).toHaveBeenCalledTimes(1);
+  expect(startExpoGoPreinstall).toHaveBeenCalledTimes(1);
+  session.startRemainingDevices();
+  try {
+    await until(() => jest.mocked(startServeSim).mock.calls.length === 2);
+    expect(startExpoGoPreinstall).toHaveBeenCalledTimes(2);
+    expect(startServeSim).toHaveBeenCalledWith('PHONE18', expect.any(AbortSignal), 3202);
+    expect(started('prepare')).toHaveLength(1);
+    expect(started('prepare')[0][1]).toContain('DUO');
+    secondReady.resolve();
+    await session.stopAsync();
+    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(first);
+    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(second);
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE18');
+  } finally {
+    secondReady.resolve();
   }
 });
