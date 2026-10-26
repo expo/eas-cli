@@ -432,6 +432,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
     expect(JSON.parse(jest.mocked(spawnDetached).mock.calls[0][0].args.at(-1)!)).toEqual({
       'appium:eventTimings': true,
+      'appium:isHeadless': true,
       'appium:usePreinstalledWDA': true,
       'appium:prebuiltWDAPath': '/tmp/legacy-wda.app',
     });
@@ -518,6 +519,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
     expect(JSON.parse(jest.mocked(spawnDetached).mock.calls[0][0].args.at(-1)!)).toEqual({
       'appium:eventTimings': true,
+      'appium:isHeadless': true,
       'appium:usePreinstalledWDA': true,
       'appium:prebuiltWDAPath': '/tmp/selected-wda.app',
     });
