@@ -266,7 +266,9 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
         '--allow-insecure',
         '*:session_discovery',
         '--default-capabilities',
-        '{"appium:eventTimings":true}',
+        runtimePlatform === BuildRuntimePlatform.DARWIN
+          ? '{"appium:eventTimings":true,"appium:isHeadless":true}'
+          : '{"appium:eventTimings":true}',
       ],
       env: { ...env, APPIUM_HOME: launch.env.APPIUM_HOME },
       logger,
