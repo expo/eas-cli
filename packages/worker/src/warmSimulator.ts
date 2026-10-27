@@ -2,7 +2,7 @@ import {
   PackageManager,
   resolveConfiguredPackageManager,
   resolvePackageExec,
-} from '@expo/build-tools';
+} from '@expo/build-tools/dist/utils/packageManager';
 import { type Job } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
