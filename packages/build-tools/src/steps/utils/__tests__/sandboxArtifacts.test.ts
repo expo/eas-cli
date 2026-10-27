@@ -2,6 +2,14 @@ jest.unmock('fs');
 jest.unmock('fs/promises');
 jest.unmock('node:fs');
 jest.unmock('node:fs/promises');
+jest.mock('node-fetch', () => {
+  const actual = jest.requireActual('node-fetch');
+  return {
+    __esModule: true,
+    ...actual,
+    default: jest.fn(),
+  };
+});
 
 import { SandboxDaemonErrorCode, SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
@@ -310,7 +318,7 @@ describe('sandbox artifact uploads', () => {
     expect(logger.error).toHaveBeenCalledTimes(1);
     const logged = inspect([logger.info.mock.calls, logger.error.mock.calls], { depth: 10 });
     expect(fetch).toHaveBeenCalledTimes(3);
-    expect(logged).toContain('Artifact PUT failed: ECONNRESET.');
+    expect(logged).toContain('Signed URL upload failed: ECONNRESET.');
     expect(logged).not.toContain('secret-signature');
   });
 

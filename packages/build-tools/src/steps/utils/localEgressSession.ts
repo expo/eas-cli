@@ -31,14 +31,17 @@ export async function uploadRemoteSessionConfigWithLocalEgressAsync({
 }: Parameters<typeof uploadRemoteSessionConfigAsync>[0] & {
   env: BuildStepEnv;
   signal?: AbortSignal;
-}): Promise<void> {
+}): Promise<'started' | 'stopped'> {
   // Written by start_local_egress before simulator boot; absent for ordinary sessions.
   const localEgress = await readLocalEgressHandoffAsync();
   signal?.throwIfAborted();
-  await uploadRemoteSessionConfigAsync({
+  const sessionStart = await uploadRemoteSessionConfigAsync({
     ...options,
     remoteConfig: { ...options.remoteConfig, ...buildEgressRemoteConfigFields(localEgress) },
   });
+  if (sessionStart === 'stopped') {
+    return sessionStart;
+  }
   if (localEgress && !signal?.aborted) {
     // Guard refusals from here on show up under this step in the job log,
     // alongside the monitor's reports, instead of under the boot step.
@@ -57,4 +60,5 @@ export async function uploadRemoteSessionConfigWithLocalEgressAsync({
       ...(localEgress.platform === 'android' ? { scanSimulatorConnections: false } : {}),
     });
   }
+  return sessionStart;
 }

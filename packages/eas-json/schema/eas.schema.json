@@ -207,6 +207,27 @@
             }
           ]
         },
+        "permissions": {
+          "type": "object",
+          "description": "Permissions of the EXPO_TOKEN that the build steps use. The user or robot that starts the build must have at least the requested role, or the build fails.",
+          "markdownDescription": "Permissions of the `EXPO_TOKEN` that the build steps use. The user or robot that starts the build must have at least the requested role, or the build fails.",
+          "additionalProperties": false,
+          "required": ["account"],
+          "properties": {
+            "account": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["role"],
+              "properties": {
+                "role": {
+                  "description": "The account role of the EXPO_TOKEN.",
+                  "markdownDescription": "The account role of the `EXPO_TOKEN`.",
+                  "enum": ["runner", "developer", "release_manager"]
+                }
+              }
+            }
+          }
+        },
         "config": {
           "description": "Custom workflow file name that will be used to run this build. You can also specify this property on platform level for platform-specific workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
           "type": "string"

@@ -2,6 +2,38 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [26.0.0](https://github.com/expo/eas-cli/releases/tag/v26.0.0) - 2026-10-26
+
+### 🛠 Breaking changes
+
+- [eas-build-job][build-tools] Remove legacy artifact type exports and route workflow uploads through workflow storage without file-type categories. Preserve workflow uploads and Maestro reports. ([#4719](https://github.com/expo/eas-cli/pull/4719) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🎉 New features
+
+- [eas-build-job][build-tools] Export `validateAndroidLaunchOptions` and `quoteAndroidShellCommand` from `@expo/eas-build-job`, so Android launch arguments can be checked for NUL characters and length before a simulator session starts, and check them before the emulator boots in agent-device sessions. ([#4696](https://github.com/expo/eas-cli/pull/4696) by [@brentvatne](https://github.com/brentvatne))
+- [eas-json] Add `permissions.account.role` to build profiles to request a role for the build's `EXPO_TOKEN`. ([#4732](https://github.com/expo/eas-cli/pull/4732) by [@wschurman](https://github.com/wschurman))
+- [build-tools] Stop sandboxes after an optional maximum duration measured from readiness. ([#4702](https://github.com/expo/eas-cli/pull/4702) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Unify signed URL uploading to a single implementation and use it everywhere. ([#4712](https://github.com/expo/eas-cli/pull/4712) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Regenerate graphql code. ([#4692](https://github.com/expo/eas-cli/pull/4692) by [@wschurman](https://github.com/wschurman))
+- [build-tools] Default Android emulators to 4 GiB of RAM to reduce ADB disconnects during large transfers. Retain the 2 GiB default for API 34 and below outside interactive device sessions, and preserve explicit emulator configuration overrides. ([#4727](https://github.com/expo/eas-cli/pull/4727) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Retry transient failures when reporting that a device run session has started. ([#4680](https://github.com/expo/eas-cli/pull/4680) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Retry the build lookup and the archive download of `eas/download_build` on transient failures, and name the failure cause in the build log. ([#4690](https://github.com/expo/eas-cli/pull/4690) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Read the app config fewer times in `eas build` and other project commands. An iOS build now runs `expo config` 2 times instead of 6. ([`78ba760`](https://github.com/expo/eas-cli/commit/78ba76001b67c9971236af1a1d02e46c2f82d24a) by [@vonovak](https://github.com/vonovak))
+- [build-tools][steps] Stop printing workflow hook parsing messages in build logs: native builds showed them under an "Unknown build phase" group, and custom builds warned about unknown hook keys and hooks on steps that never run. ([#4717](https://github.com/expo/eas-cli/pull/4717) by [@hSATAC](https://github.com/hSATAC))
+- [worker] Retry Node.js installation without the internal Node.js cache mirror when the first attempt fails, while preserving other configured mirrors. ([#3452](https://github.com/expo/eas-cli/pull/3452) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Share one GraphQL client between the project ID check and the command, so commands send one fewer app query. ([#4646](https://github.com/expo/eas-cli/pull/4646) by [@vonovak](https://github.com/vonovak))
+- [eas-cli] Show why a simulator session failed in `eas simulator:get`, and add an `errors` array to its `--json` output. For an unknown error, `simulator:start` and `simulator:get` now show the failed step's error from the session logs. ([#4694](https://github.com/expo/eas-cli/pull/4694) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Show why a simulator session failed in `eas simulator:start`, such as an unknown `--device` name, instead of only the session status. ([#4693](https://github.com/expo/eas-cli/pull/4693) by [@brentvatne](https://github.com/brentvatne))
+- [worker] Mask secrets in every field of uploaded job log records, such as logged errors, not only in log messages. ([#4698](https://github.com/expo/eas-cli/pull/4698) by [@brentvatne](https://github.com/brentvatne))
+
+### 🧹 Chores
+
+- [eas-cli] Make command descriptions in `eas --help` consistently lowercase without trailing periods. ([#4385](https://github.com/expo/eas-cli/pull/4385) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli][build-tools] Bump Node.js to 22.23.4 to fix the CVEs in the [October 2026 Node.js security releases](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases). ([#4714](https://github.com/expo/eas-cli/pull/4714) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ## [25.3.0](https://github.com/expo/eas-cli/releases/tag/v25.3.0) - 2026-10-20
 
 ### 🎉 New features

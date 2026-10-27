@@ -103,6 +103,18 @@ async function runAsync(
 }
 
 describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
+  it('cleans up a stopped startup without starting live-session polling', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValueOnce('stopped');
+    await runAsync(logger, BuildRuntimePlatform.DARWIN);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    expect(pollAgentDeviceArtifactsForUploadAsync).not.toHaveBeenCalled();
+    expect(startAgentDeviceEventCollectionAsync).not.toHaveBeenCalled();
+    expect(mockDaemonStopAsync).toHaveBeenCalled();
+    expect(mockTunnelStopAsync).toHaveBeenCalled();
+    expect(mockPreviewStopAsync).toHaveBeenCalled();
+  });
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -147,7 +159,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       }
       return host;
     });
-    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
 
     await fs.promises.mkdir(path.dirname(DAEMON_ENTRY_PATH), { recursive: true });
