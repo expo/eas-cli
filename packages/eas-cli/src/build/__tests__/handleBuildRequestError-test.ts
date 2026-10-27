@@ -1,5 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { CombinedError } from '@urql/core';
+import chalk from 'chalk';
 import { GraphQLError } from 'graphql/error';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -21,6 +22,7 @@ import {
   EasBuildFreeTierLimitExceededError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
+  EasBuildUnauthorizedError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from '../errors';
@@ -756,6 +758,38 @@ describe(Build.name, () => {
               EXPECTED_MAX_BUILD_COUNT_MESSAGE_IOS
             );
           });
+        });
+      });
+
+      describe('for UNAUTHORIZED', () => {
+        it('points to the permission grant and permissions.account.role in eas.json', async () => {
+          const platform = Platform.ANDROID;
+          const graphQLError = getGraphQLError(
+            'Cannot create an EXPO_TOKEN for the job: the job requires the "Release Manager" role',
+            'UNAUTHORIZED'
+          );
+          const error = new CombinedError({ graphQLErrors: [graphQLError] });
+
+          const handleBuildRequestErrorThrownError = await getErrorAsync<EasBuildUnauthorizedError>(
+            async () => {
+              await handleBuildRequestErrorAsync(error, platform);
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildUnauthorizedError,
+            'Cannot create an EXPO_TOKEN for the job: the job requires the "Release Manager" role\n' +
+              `Request ID: ${mockRequestId}\n\n` +
+              `Run ${chalk.bold(
+                'eas whoami'
+              )} to check the user you are logged in as and your permission grant. Run ${chalk.bold(
+                'eas login'
+              )} to change the user or permission grant.\n\n` +
+              `If your build profile in eas.json uses ${chalk.bold(
+                'permissions.account.role'
+              )}, it may mean your credentials do not grant the requested role.`
+          );
         });
       });
     });

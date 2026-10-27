@@ -4,13 +4,11 @@ import {
   BuildPhaseResult,
   Env,
   EnvironmentSecretType,
-  GenericArtifactType,
   Job,
   LogMarker,
   ManagedArtifactType,
   Metadata,
   errors,
-  isGenericArtifact,
 } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
 import { bunyan } from '@expo/logger';
@@ -42,7 +40,7 @@ export type ArtifactToUpload =
       paths: string[];
     }
   | {
-      type: GenericArtifactType;
+      type: null;
       name: string;
       paths: string[];
       metadata?: Record<string, unknown>;
@@ -241,7 +239,7 @@ export class BuildContext<TJob extends Job = Job> {
     logger: bunyan;
   }): Promise<{ artifactId: string | null }> {
     const result = await this._uploadArtifact({ artifact, logger });
-    if (result.filename && !isGenericArtifact(artifact)) {
+    if (result.filename && artifact.type !== null) {
       this.artifacts[artifact.type] = result.filename;
     }
     return { artifactId: result.artifactId ?? null };

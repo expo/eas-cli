@@ -5,10 +5,12 @@ export { Platform } from '@expo/eas-build-job';
 export {
   AndroidVersionAutoIncrement,
   BuildProfile,
+  BuildProfilePermissions,
   CredentialsSource,
   DistributionType,
   IosEnterpriseProvisioning,
   IosVersionAutoIncrement,
+  JobExpoTokenRole,
   ResourceClass,
 } from './build/types';
 export { EasJsonAccessor } from './accessor';

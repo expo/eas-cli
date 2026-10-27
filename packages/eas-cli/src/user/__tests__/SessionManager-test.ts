@@ -5,7 +5,10 @@ import path from 'path';
 import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
-import { createGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { UserQuery } from '../../graphql/queries/UserQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -110,6 +113,28 @@ describe(SessionManager, () => {
       const sessionManager = new SessionManager(analytics);
       await sessionManager['setSessionAsync'](authStub);
       expect(sessionManager['getSessionSecret']()).toBe(authStub.sessionSecret);
+    });
+  });
+
+  describe('getGraphqlClient', () => {
+    beforeEach(() => {
+      jest.mocked(createGraphqlClient).mockImplementation(() => ({}) as ExpoGraphqlClient);
+    });
+
+    it('returns the same client for the same credential', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: null });
+      expect(
+        sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: 'secret' })
+      ).toBe(client);
+    });
+
+    it('returns a new client when the credential changes', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'a' });
+      expect(sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'b' })).not.toBe(
+        client
+      );
     });
   });
 

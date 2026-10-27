@@ -1,7 +1,12 @@
+import chalk from 'chalk';
+
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
+import { Permission, Role } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
+import { Actor } from '../../../user/User';
 import { resumeDeviceLoginAsync, startDeviceLoginAsync } from '../../../user/deviceLogin';
 import AccountLogin from '../login';
 
@@ -33,12 +38,12 @@ const sessionManager = new SessionManager({
 const originalIsTTY = process.stdin.isTTY;
 const originalCI = process.env.CI;
 
-function command(args: string[]): AccountLogin {
+function command(args: string[], actor: Actor | null = null): AccountLogin {
   const instance = new AccountLogin(['--device', ...args], getMockOclifConfig());
   // @ts-expect-error Mock the protected context without initializing a real session.
   jest.spyOn(instance, 'getContextAsync').mockResolvedValue({
     sessionManager,
-    maybeLoggedIn: { actor: null },
+    maybeLoggedIn: { actor },
   });
   return instance;
 }
@@ -178,4 +183,49 @@ it('requires device login for non-interactive sign-in', async () => {
   await expect(instance.runAsync()).rejects.toThrow(
     'Use eas login --device --non-interactive to log in without prompts.'
   );
+});
+
+describe('when already logged in', () => {
+  const ownerPermissions = getMockViewerUserPermission(Role.Owner).permissions;
+  const limitedMessage =
+    'The permissions granted during authentication limit your access to some accounts. Log in again and change the permission grant.';
+
+  function userActor(
+    effectivePermissions: Actor['accounts'][number]['viewerUserPermission2']['effectivePermissions']
+  ): Actor {
+    return {
+      __typename: 'User',
+      id: 'user-id',
+      email: 'jane@example.com',
+      username: 'jane',
+      accounts: [
+        {
+          id: 'jane-id',
+          name: 'jane',
+          viewerUserPermission2: { permissions: ownerPermissions, effectivePermissions },
+        },
+      ],
+      isExpoAdmin: false,
+      featureGates: {},
+    };
+  }
+
+  beforeEach(() => {
+    jest.mocked(startDeviceLoginAsync).mockResolvedValue(pending);
+  });
+
+  it('shows the roles that the current credentials limit', async () => {
+    await command(['--non-interactive'], userActor([Permission.View])).runAsync();
+    expect(Log.warn).toHaveBeenCalledWith(`You are already logged in as ${chalk.bold('jane')}.`);
+    expect(Log.log).toHaveBeenCalledWith(
+      `• jane (Role: Owner, ${chalk.yellow('limited to Viewer by the current credentials')})`
+    );
+    expect(Log.log).toHaveBeenCalledWith(limitedMessage);
+  });
+
+  it('does not list accounts when the credentials do not limit them', async () => {
+    await command(['--non-interactive'], userActor(ownerPermissions)).runAsync();
+    expect(Log.log).not.toHaveBeenCalledWith('Accounts:');
+    expect(Log.log).not.toHaveBeenCalledWith(limitedMessage);
+  });
 });

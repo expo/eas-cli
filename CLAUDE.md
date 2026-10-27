@@ -215,7 +215,7 @@ if: ${{ steps.previous_step.outputs.success == 'true' && env.ENVIRONMENT == 'pro
 Artifacts tracked as `ArtifactToUpload`:
 
 - Managed artifacts (APK, IPA, AAB) with specific handling
-- Generic artifacts for any file
+- Workflow artifacts for any file
 - Upload via `ctx.uploadArtifact()` or `upload-artifact` step
 
 ## Package Interdependencies
