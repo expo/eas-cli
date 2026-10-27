@@ -130,7 +130,7 @@ describe(BuildStep, () => {
         projectTargetDirectory: '/a/b',
         relativeWorkingDirectory: 'c',
       });
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
 
       const id = 'test1';
       const command = 'ls -la';
@@ -150,7 +150,7 @@ describe(BuildStep, () => {
         projectTargetDirectory: '/a/b',
         relativeWorkingDirectory: 'c',
       });
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
 
       const id = 'test1';
       const command = 'ls -la';

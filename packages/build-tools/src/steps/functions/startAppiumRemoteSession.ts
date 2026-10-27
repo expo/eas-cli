@@ -65,6 +65,7 @@ const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
 const APPIUM_STARTUP_TIMEOUT_MS = 120_000;
 const DEFAULT_APPIUM_VERSION = '^3';
+const FDA_HELPER = '/usr/local/libexec/turtle-tcc-fda';
 
 const AppiumInstalledDriversSchema = z.record(
   z.string(),
@@ -225,9 +226,12 @@ export function createStartAppiumRemoteSessionBuildFunction(
         });
 
         setupSignal?.throwIfAborted();
+        const useFdaHelper =
+          runtimePlatform === BuildRuntimePlatform.DARWIN && fs.existsSync(FDA_HELPER);
         appiumProcess = spawnDetached({
-          command: appiumBinPath,
+          command: useFdaHelper ? FDA_HELPER : appiumBinPath,
           args: [
+            ...(useFdaHelper ? [appiumBinPath] : []),
             '--address',
             APPIUM_HOST,
             '--port',
@@ -242,7 +246,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
             '--allow-insecure',
             '*:session_discovery',
             '--default-capabilities',
-            JSON.stringify({ 'appium:eventTimings': true, ...wdaCapabilities }),
+            JSON.stringify({
+              'appium:eventTimings': true,
+              // Without it, XCUITest restarted the booted Simulator at session start, which
+              // closed the app serve-sim had launched. EAS VMs never show the Simulator window.
+              ...(device.platformName === 'iOS' ? { 'appium:isHeadless': true } : {}),
+              ...wdaCapabilities,
+            }),
           ],
           env: appiumEnv,
           logger,
@@ -278,7 +288,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           authtoken: ngrokAuthtoken,
         });
 
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
+        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
           ctx,
@@ -296,6 +306,9 @@ export function createStartAppiumRemoteSessionBuildFunction(
           },
           logger,
         });
+        if (sessionStart === 'stopped') {
+          return;
+        }
 
         await waitForDeviceRunSessionStoppedAsync({
           ctx,

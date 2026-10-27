@@ -1,13 +1,13 @@
 import { SystemError } from '@expo/eas-build-job';
+import type { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ArtifactPutError,
-  ArtifactPutNetworkError,
-  type ArtifactSource,
-  type ArtifactUploadSession,
-  putArtifactWithRetriesAsync,
-} from './artifactPut';
+  type SignedUrl,
+  SignedUrlUploadApiError,
+  SignedUrlUploadNetworkError,
+  uploadWithSignedUrl,
+} from '../../storage/uploadWithSignedUrl';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
@@ -23,7 +23,11 @@ type ArtifactMetadata = {
 
 export async function uploadDeviceRunSessionArtifactAsync(
   ctx: CustomBuildContext,
-  options: ArtifactMetadata & ArtifactSource & { signal?: AbortSignal; attempts?: number }
+  options: ArtifactMetadata & {
+    openStream: () => Readable;
+    signal?: AbortSignal;
+    attempts?: number;
+  }
 ): Promise<void> {
   try {
     const uploadSession = await withDeviceRunSessionTimeoutAsync(
@@ -31,12 +35,12 @@ export async function uploadDeviceRunSessionArtifactAsync(
       async signal => await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, signal)
     );
     options.signal?.throwIfAborted();
-    await putArtifactWithRetriesAsync(
-      { uploadSession, source: options, signal: options.signal },
-      { attempts: options.attempts }
+    await uploadWithSignedUrl(
+      { signedUrl: uploadSession, srcGeneratorAsync: async () => options.openStream() },
+      { signal: options.signal, retries: (options.attempts ?? 1) - 1, retryIntervalMs: 500 }
     );
   } catch (error) {
-    if (error instanceof ArtifactPutError || error instanceof ArtifactPutNetworkError) {
+    if (error instanceof SignedUrlUploadApiError || error instanceof SignedUrlUploadNetworkError) {
       throw new DeviceRunSessionArtifactUploadError(options.artifactId, error.reason);
     }
     throw error;
@@ -53,9 +57,9 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
   ctx: CustomBuildContext,
   { deviceRunSessionId, artifactId, name, filename, kind, metadata, size }: ArtifactMetadata,
   signal: AbortSignal
-): Promise<ArtifactUploadSession> {
+): Promise<SignedUrl> {
   const workerApi = requireDeviceRunSessionWorkerApi(ctx);
-  let uploadSession: ArtifactUploadSession;
+  let uploadSession: SignedUrl;
   try {
     uploadSession = await workerApi.createArtifactUploadSessionAsync(
       {

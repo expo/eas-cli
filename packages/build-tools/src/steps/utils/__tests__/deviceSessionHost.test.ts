@@ -1416,7 +1416,7 @@ it('does not read the iOS egress handoff for an Android host', async () => {
 });
 
 it.each([true, false])(
-  'waits for setup before launch or boot-only readiness (app: %s)',
+  'runs setup in parallel with app launch and readiness, then joins it at teardown (app: %s)',
   async hasApp => {
     const setup = deferred<void>();
     const prepared = deferred<ServeSimApplicationOptions | void>();
@@ -1471,70 +1471,78 @@ it.each([true, false])(
         ? { installAppPath: '/tmp/App.app', launchAppIdentifier: 'dev.example.other' }
         : undefined
     );
-    if (!hasApp) {
-      let queried = false;
-      ready.resolve({
-        ok: true,
-        json: async () => {
-          queried = true;
-          return { status: 'ready', device: 'emulator-5554' };
-        },
-      } as never);
-      let reported = false;
-      void starting.then(() => {
-        reported = true;
-      });
-      while (!queried) {
-        await new Promise(resolve => setImmediate(resolve));
+    if (hasApp) {
+      while (!jest.mocked(runServeSimActionAsync).mock.calls.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
       await new Promise(resolve => setImmediate(resolve));
-      expect(reported).toBe(false);
+      expect(runServeSimActionAsync).toHaveBeenCalledTimes(2);
+    } else {
       expect(runServeSimActionAsync).not.toHaveBeenCalled();
-      setup.resolve();
-      const host = await starting;
-      expect(runServeSimActionAsync).not.toHaveBeenCalled();
-      await host.finishAsync();
-      return;
-    }
-    while (!jest.mocked(runServeSimActionAsync).mock.calls.length) {
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    await new Promise(resolve => setImmediate(resolve));
-    expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
-    setup.resolve();
-    while (jest.mocked(runServeSimActionAsync).mock.calls.length < 2) {
-      await new Promise(resolve => setTimeout(resolve, 10));
     }
     expect(
       jest
         .mocked(runServeSimActionAsync)
         .mock.calls.map(([options]) => [options.action, options.params])
-    ).toEqual([
-      ['app.install', { udid: 'emulator-5554', path: `${directory}/App.app` }],
-      [
-        'app.launch',
-        {
-          udid: 'emulator-5554',
-          bundleId: 'dev.example.other',
-          launchArgs: [],
-          openUrl: undefined,
-        },
-      ],
-    ]);
-    expect(runServeSimActionAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ token: 'preview-token', timeoutMs: 120_000 })
+    ).toEqual(
+      hasApp
+        ? [
+            ['app.install', { udid: 'emulator-5554', path: `${directory}/App.app` }],
+            [
+              'app.launch',
+              {
+                udid: 'emulator-5554',
+                bundleId: 'dev.example.other',
+                launchArgs: [],
+                openUrl: undefined,
+              },
+            ],
+          ]
+        : []
     );
-    expect(stageServeSimAppAsync).toHaveBeenCalledWith(
-      '/tmp/App.app',
-      env.TMPDIR ?? require('node:os').tmpdir()
-    );
+    if (hasApp) {
+      expect(runServeSimActionAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ token: 'preview-token', timeoutMs: 120_000 })
+      );
+      expect(stageServeSimAppAsync).toHaveBeenCalledWith(
+        '/tmp/App.app',
+        env.TMPDIR ?? require('node:os').tmpdir()
+      );
+    }
+    let queried = false;
     ready.resolve({
       ok: true,
-      json: async () => ({ status: 'ready', device: 'emulator-5554' }),
+      json: async () => {
+        queried = true;
+        return { status: 'ready', device: 'emulator-5554' };
+      },
     } as never);
-    const host = await starting;
-    await host.finishAsync();
-    await expect(access(directory)).rejects.toThrow();
+    let reported = false;
+    void starting.then(() => {
+      reported = true;
+    });
+    while (!queried) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    await new Promise(resolve => setImmediate(resolve));
+    try {
+      expect(reported).toBe(true);
+      const host = await starting;
+      let finished = false;
+      const finishing = host.finishAsync().then(() => {
+        finished = true;
+      });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(finished).toBe(false);
+      setup.resolve();
+      await finishing;
+    } finally {
+      setup.resolve();
+      await (await starting).finishAsync();
+    }
+    if (hasApp) {
+      await expect(access(directory)).rejects.toThrow();
+    }
   }
 );
 
@@ -1679,7 +1687,8 @@ it('warns and continues launching when disabling push fails', async () => {
   await host.finishAsync();
 });
 
-it('cancels pending setup without launching and observes its late failure', async () => {
+it('cancels pending app preparation and observes late setup failure', async () => {
+  const application = deferred<ServeSimApplicationOptions>();
   const controller = new AbortController();
   let rejectSetup!: (error: Error) => void;
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReturnValue(
@@ -1693,7 +1702,7 @@ it('cancels pending setup without launching and observes its late failure', asyn
     logger,
     timeoutMs: 2_000,
     iosSimulatorUdid: 'emulator-5554',
-    launchAppIdentifier: 'dev.example.app',
+    application: application.promise,
     signal: controller.signal,
   });
   const rejected = expect(starting).rejects.toThrow('session canceled');

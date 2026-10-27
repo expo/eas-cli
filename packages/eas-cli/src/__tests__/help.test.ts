@@ -1,6 +1,5 @@
 import { Config, Help } from '@oclif/core';
 
-import SimulatorControl from '../commands/simulator/control';
 import EasHelp from '../help';
 
 describe(EasHelp, () => {
@@ -9,7 +8,7 @@ describe(EasHelp, () => {
   let showHelp: jest.SpyInstance;
 
   beforeEach(() => {
-    run = jest.spyOn(SimulatorControl, 'run').mockResolvedValue(Promise.resolve());
+    run = jest.spyOn(config, 'runCommand').mockResolvedValue(Promise.resolve());
     showHelp = jest.spyOn(Help.prototype, 'showHelp').mockResolvedValue();
   });
 
@@ -21,12 +20,14 @@ describe(EasHelp, () => {
     ['simulator:control', '--id', 'session-123', '--help', 'rotate'],
   ])('routes action help through the command: %j', async (...argv) => {
     await new EasHelp(config).showHelp(argv);
-    expect(run).toHaveBeenCalledWith(argv.slice(1), config);
+    expect(run).toHaveBeenCalledWith('simulator:control', argv.slice(1));
     expect(showHelp).not.toHaveBeenCalled();
   });
 
   it.each([
     ['simulator:control', '--help'],
+    ['simulator:control', 'screenshot.capture', '--help', '--output'],
+    ['sim:control', 'rotate', '-h', '--id'],
     ['sim:control', '-h'],
     ['build', '--help'],
     ['simulator:control', 'clipboard.write', '--', '--help'],

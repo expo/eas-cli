@@ -272,7 +272,7 @@ export default abstract class EasCommand extends Command {
     let baseMessage = `${commandId} command failed.`;
     if (err instanceof EasCommandError) {
       if (!err.messageAlreadyPrinted) {
-        Log.error(err.message);
+        Log.errorToStderr(err.message);
       }
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
@@ -321,10 +321,10 @@ export default abstract class EasCommand extends Command {
       const cleanMessage = err.networkError
         ? `${cleanGQLErrorsMessage}\n${err.networkError.message}`
         : cleanGQLErrorsMessage;
-      Log.error(cleanMessage);
+      Log.errorToStderr(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {
-      Log.error(err.message);
+      Log.errorToStderr(err.message);
     }
     Log.debug(err);
     Sentry.withScope(scope => {
