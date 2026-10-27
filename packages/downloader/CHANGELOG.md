@@ -1,5 +1,9 @@
 # @expo/downloader
 
+## 26.0.0
+
+No changes in this release.
+
 ## 25.3.0
 
 No changes in this release.

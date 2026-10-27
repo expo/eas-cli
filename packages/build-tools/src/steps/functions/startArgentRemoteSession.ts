@@ -360,7 +360,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             : 'Private preview URL unavailable for this session.'
         );
 
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
+        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
           ctx,
@@ -374,6 +374,9 @@ export function createStartArgentRemoteSessionBuildFunction(
           },
           logger,
         });
+        if (sessionStart === 'stopped') {
+          return;
+        }
 
         await waitForDeviceRunSessionStoppedAsync({
           ctx,

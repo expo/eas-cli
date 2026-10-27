@@ -121,7 +121,7 @@ describe('AndroidEmulatorUtils', () => {
           'hw.lcd.density=420',
           'skin.path=pixel_9',
           'showDeviceFrame=yes',
-          'hw.ramSize=2048',
+          'hw.ramSize=4096',
           '',
           'hw.lcd.density=220',
           '',

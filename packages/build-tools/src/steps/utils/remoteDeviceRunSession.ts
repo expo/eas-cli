@@ -31,6 +31,7 @@ import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
+  DeviceRunSessionWorkerApiError,
   requireDeviceRunSessionWorkerApi,
 } from './deviceRunSessionWorkerApi';
 
@@ -554,14 +555,26 @@ export async function uploadRemoteSessionConfigAsync({
   deviceRunSessionId: string;
   remoteConfig: Record<string, unknown>;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<'started' | 'stopped'> {
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
   const workerApi = requireDeviceRunSessionWorkerApi(ctx);
   try {
-    await workerApi.startAsync({ remoteConfig });
+    await workerApi.startAsync(
+      { remoteConfig },
+      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger }
+    );
+    return 'started';
   } catch (err) {
+    if (
+      err instanceof DeviceRunSessionWorkerApiError &&
+      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
+    ) {
+      logger.info(`Device run session ${deviceRunSessionId} was stopped during startup.`);
+      return 'stopped';
+    }
+
     throw new SystemError(
       `Failed to start device run session ${deviceRunSessionId}: ${
         err instanceof Error ? err.message : String(err)
