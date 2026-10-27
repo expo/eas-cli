@@ -38,6 +38,37 @@ export function selectSimulators(devices: SimulatorDevice[], selector?: string):
         .slice(0, 1);
 }
 
+/** Resolve every configured warm device before native work; the first is the claim default. */
+export function selectWarmupSimulators(
+  devices: SimulatorDevice[],
+  selectors?: string
+): SimulatorDevice[] {
+  const entries = !selectors?.trim()
+    ? [undefined]
+    : selectors.split(',').map(value => value.trim());
+  const selected = new Set<string>();
+  return entries.map(selector => {
+    if (selector === '') {
+      throw new Error('EXPO_SIMULATOR_DEVICE must contain nonempty device names or UDIDs.');
+    }
+    const matches = selectSimulators(devices, selector);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected one available Simulator for ${selector ?? 'the default iPhone'}, found ${matches.length}. Use an exact device name or UDID.`
+      );
+    }
+    const device = matches[0];
+    const udid = device.udid.toLowerCase();
+    if (selected.has(udid)) {
+      throw new Error(
+        `Simulator ${device.name} (${device.udid}) appears more than once in EXPO_SIMULATOR_DEVICE.`
+      );
+    }
+    selected.add(udid);
+    return device;
+  });
+}
+
 export async function bootSimulatorAsync(udid: string, signal: AbortSignal): Promise<void> {
   await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], signal).catch(async () => {
     signal.throwIfAborted();

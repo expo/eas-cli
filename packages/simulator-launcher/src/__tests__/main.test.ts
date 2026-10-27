@@ -7,6 +7,7 @@ import { claimAsync } from '../commands/claim';
 import { runWarmSimulatorSessionAsync, startAsync } from '../commands/start';
 import { stopAsync } from '../commands/stop';
 import { mainAsync } from '../main';
+import { startExpoGoPreinstall } from '../utils/expoGo';
 import { type ChildProcessHandle, commands } from '../utils/processes';
 import * as processes from '../utils/processes';
 import * as serveSim from '../utils/serveSim';
@@ -19,6 +20,7 @@ import {
 } from '../utils/state';
 import { deferred, until } from './helpers';
 
+jest.mock('../utils/expoGo');
 const boot = 'boot-one';
 let root: string;
 let environment: NodeJS.ProcessEnv;
@@ -81,6 +83,15 @@ beforeEach(async () => {
   process.env.EXPO_SIMULATOR_STARTUP = '1';
   active = [];
   jobs = [];
+  jest
+    .mocked(startExpoGoPreinstall)
+    .mockReset()
+    .mockReturnValue({
+      resultPromise: Promise.resolve(),
+      preinstallOnDeviceAsync: jest.fn(async () => {}),
+      claimAsync: jest.fn(async () => undefined),
+      stopAsync: jest.fn(async () => {}),
+    });
   jest.spyOn(commands, 'runAsync').mockImplementation(async (file, args) => {
     if (file === '/usr/sbin/sysctl') {
       return boot;
@@ -306,6 +317,7 @@ for (const selector of [undefined, 'phone', 'iPhone 17 Pro']) {
       expect(calls.map(([, args]) => args.join(' '))).toEqual(
         expect.arrayContaining(['simctl bootstatus PRO -b', 'simctl shutdown PHONE'])
       );
+      expect(startExpoGoPreinstall).toHaveBeenCalledTimes(1);
     }
     await expect(claimAsync(boot, 'argent')).rejects.toThrow('available');
     await stopAsync(boot);
@@ -400,6 +412,48 @@ test('stop during replacement prevents a late claimed result and drains newly ow
   }
 });
 
+test('claim joins an already-started Expo Go install and terminal stop drains the whole task', async () => {
+  const preinstalledExpoGo = {
+    udid: 'PHONE',
+    bundleIdentifier: 'host.exp.Exponent',
+    shortVersion: '58.0.7',
+    version: '58.0.7',
+  };
+  const install = deferred<typeof preinstalledExpoGo>();
+  const cleanup = deferred<void>();
+  jest.mocked(startExpoGoPreinstall).mockReturnValue({
+    resultPromise: cleanup.promise,
+    preinstallOnDeviceAsync: jest.fn(async () => {}),
+    claimAsync: jest.fn(() => install.promise),
+    stopAsync: jest.fn(() => cleanup.promise),
+  });
+  const [completion] = await beginSession();
+  await status('ready');
+  jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  const claiming = claimAsync(boot, 'serve-sim');
+  try {
+    await status('claiming');
+    expect((await readLauncherStateAsync(boot))?.status).not.toBe('claimed');
+    install.resolve(preinstalledExpoGo);
+    await claiming;
+    // The claim record tells the job which Expo Go is already installed on this device.
+    expect(await readLauncherStateAsync(boot)).toMatchObject({
+      status: 'claimed',
+      device: { udid: 'PHONE' },
+      preinstalledExpoGo,
+    });
+    const stopping = stopAsync(boot);
+    await status('stopping');
+    expect((await readLauncherStateAsync(boot))?.status).not.toBe('disabled');
+    cleanup.resolve();
+    await stopping;
+    await completion;
+  } finally {
+    install.resolve(preinstalledExpoGo);
+    cleanup.resolve();
+  }
+});
+
 test.each(['install', 'run', 'adopt', 'prepare'])('rejects removed command %s', async command => {
   await expect(mainAsync([command])).rejects.toThrow('Usage:');
   expect(commands.runAsync).not.toHaveBeenCalled();
@@ -431,6 +485,27 @@ test.each([
   }
 });
 
+test('publishes default readiness before starting a second device', async () => {
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone 17,iPhone 17 Pro';
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  let stateAtSecondBoot: string | undefined;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
+    if (args.includes('bootstatus') && args.includes('PRO')) {
+      stateAtSecondBoot = (await readLauncherStateAsync(boot))?.status;
+    }
+    return original(file, args, signal);
+  });
+  const [completion] = await beginSession();
+  await status('ready');
+  await until(() => stateAtSecondBoot !== undefined);
+  expect(stateAtSecondBoot).toBe('ready');
+  expect((await readLauncherStateAsync(boot))?.devices?.map(device => device.port)).toEqual([
+    3200, 3202,
+  ]);
+  await stopAsync(boot);
+  expect(await completion).toBeUndefined();
+});
+
 test('stop still waits for cleanup on a versionless session record', async () => {
   await updateLauncherStateAsync(boot, () => ({
     bootUuid: boot,
@@ -443,6 +518,28 @@ test('stop still waits for cleanup on a versionless session record', async () =>
   expect((await readLauncherStateAsync(boot))?.launcherVersion).toBeUndefined();
   await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'disabled' }));
   expect(await stopping).toBe(0);
+});
+
+test('claim publishes the selected device port and version as one JSON result', async () => {
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone 17,iPhone 17 Pro';
+  const [completion] = await beginSession();
+  await status('ready');
+  await until(() => jobs.length === 4);
+  const stdout = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  try {
+    expect(await claimAsync(boot, 'serve-sim', 'PRO')).toBe(0);
+    const result = JSON.parse(String(stdout.mock.calls.at(-1)![0]));
+    expect(result).toMatchObject({
+      status: 'claimed',
+      launcherVersion: require('../../package.json').version,
+      device: { udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 },
+      devices: [{ udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 }],
+    });
+    await stopAsync(boot);
+    expect(await completion).toBeUndefined();
+  } finally {
+    stdout.mockRestore();
+  }
 });
 
 test('--version prints the package version without reading boot identity or launcher state', async () => {
