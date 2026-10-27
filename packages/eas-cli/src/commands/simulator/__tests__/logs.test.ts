@@ -308,6 +308,56 @@ describe(SimulatorLogs, () => {
     expect(mockLog).toHaveBeenCalledWith(frame);
   });
 
+  it('reports a failed log source while its stream only sends heartbeats', async () => {
+    jest.useFakeTimers();
+    try {
+      mockFetchJsonAsync
+        .mockResolvedValueOnce({
+          ...createSnapshot(),
+          status: 'restarting',
+          streamError: '\u001b[31mlog stream exited (code 1, signal null)\u001b[0m',
+        })
+        .mockResolvedValueOnce({
+          ...createSnapshot(),
+          status: 'restarting',
+          streamError: 'log stream exited (code 1, signal null)',
+        })
+        .mockResolvedValueOnce(createSnapshot());
+      // A connected stream that only receives heartbeats never calls onData.
+      mockStreamAsync.mockImplementation(async () => {
+        await jest.advanceTimersByTimeAsync(30_000);
+      });
+
+      await createCommand(['--follow', '--scope', 'all']).runAsync();
+
+      expect(mockFetchJsonAsync).toHaveBeenCalledTimes(3);
+      expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/logs', {
+        query: { scope: 'all', limit: '1', snapshot: '1' },
+      });
+      expect(mockWarn).toHaveBeenCalledTimes(1);
+      expect(mockWarn).toHaveBeenCalledWith(
+        "Simulator logs are not being collected. The session's log source stopped: log stream exited (code 1, signal null). It restarts automatically, and logs from this gap are missing."
+      );
+      expect(mockLog).toHaveBeenCalledWith('Simulator log collection resumed.');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('stops checking the log source when following stops', async () => {
+    jest.useFakeTimers();
+    try {
+      mockStreamAsync.mockResolvedValue();
+
+      await createCommand(['--follow']).runAsync();
+      await jest.advanceTimersByTimeAsync(30_000);
+
+      expect(mockFetchJsonAsync).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('stops following on Ctrl+C and removes its interrupt handler', async () => {
     const listeners = process.listeners('SIGINT');
     let signal: AbortSignal | undefined;

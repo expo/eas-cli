@@ -14,6 +14,7 @@ import {
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
 import {
+  type SimulatorPreview,
   fetchSimulatorPreviewJsonAsync,
   resolveSimulatorPreviewAsync,
   streamSimulatorPreviewAsync,
@@ -24,6 +25,9 @@ import {
   stripTerminalControlCharacters,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+// serve-sim keeps sending heartbeats while its log source restarts, so the stream alone cannot show a failure.
+const LOG_SOURCE_HEALTH_CHECK_INTERVAL_MS = 10_000;
 
 interface SimulatorLogLine {
   seq: number;
@@ -140,6 +144,7 @@ export default class SimulatorLogs extends EasCommand {
         abortController.abort();
       };
       process.on('SIGINT', interruptHandler);
+      const stopHealthChecks = watchLogSourceHealth(preview, flags.scope, abortController.signal);
       try {
         await streamSimulatorPreviewAsync(
           preview,
@@ -153,6 +158,7 @@ export default class SimulatorLogs extends EasCommand {
           }
         );
       } finally {
+        stopHealthChecks();
         process.removeListener('SIGINT', interruptHandler);
       }
       return;
@@ -190,4 +196,49 @@ function formatLogEnvelope(data: string): string {
   return typeof line?.raw === 'string' && isValidLogTime(line.at)
     ? formatLogLine(line.raw, true, line.at)
     : formatLogLine(data);
+}
+
+/** Polls the log source while following and reports when it stops or recovers. Returns a stop function. */
+function watchLogSourceHealth(
+  preview: SimulatorPreview,
+  scope: string,
+  signal: AbortSignal
+): () => void {
+  let failing = false;
+  let checking = false;
+  const checkAsync = async (): Promise<void> => {
+    checking = true;
+    try {
+      const { status, streamError } = await fetchSimulatorPreviewJsonAsync<SimulatorLogsSnapshot>(
+        preview,
+        '/logs',
+        { query: { scope, limit: '1', snapshot: '1' } }
+      );
+      if (signal.aborted) {
+        return;
+      }
+      if (!failing && status !== 'streaming') {
+        failing = true;
+        const reason = streamError ? `: ${stripTerminalControlCharacters(streamError)}` : '';
+        Log.warn(
+          `Simulator logs are not being collected. The session's log source stopped${reason}. It restarts automatically, and logs from this gap are missing.`
+        );
+      } else if (failing && status === 'streaming' && !streamError) {
+        failing = false;
+        Log.log('Simulator log collection resumed.');
+      }
+    } catch {
+      // The stream itself reports connection failures.
+    } finally {
+      checking = false;
+    }
+  };
+  const timer = setInterval(() => {
+    if (!checking) {
+      void checkAsync();
+    }
+  }, LOG_SOURCE_HEALTH_CHECK_INTERVAL_MS);
+  return () => {
+    clearInterval(timer);
+  };
 }
