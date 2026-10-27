@@ -1,4 +1,5 @@
 ---
+'@expo/simulator-launcher': minor
 ---
 
-Add internal Simulator state, service and cleanup helpers.
+Add Simulator state and service helpers.

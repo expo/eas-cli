@@ -1,7 +1,6 @@
 {
   "name": "@expo/simulator-launcher",
   "version": "25.3.0",
-  "private": true,
   "description": "Simulator state, process and service helpers",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
@@ -10,6 +9,9 @@
     "type": "git",
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/simulator-launcher"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "jest --config jest.config.ts",

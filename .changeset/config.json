@@ -20,7 +20,8 @@
       "@expo/turtle-spawn",
       "@expo/template-file",
       "create-eas-build-function",
-      "@expo/vm-tools"
+      "@expo/vm-tools",
+      "@expo/simulator-launcher"
     ]
   ],
   "linked": [],
