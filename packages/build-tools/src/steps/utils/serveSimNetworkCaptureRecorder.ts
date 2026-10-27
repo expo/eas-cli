@@ -12,7 +12,11 @@ import {
   resolvePackageExec,
 } from '../../utils/packageManager';
 import { createServeSimPackageSpec } from './deviceSessionHost';
-import { type DetachedProcessHandle, spawnDetached } from './remoteDeviceRunSession';
+import {
+  type DetachedProcessHandle,
+  omitNgrokAuthtoken,
+  spawnDetached,
+} from './remoteDeviceRunSession';
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 
 const POLL_INTERVAL_MS = 2_000;
@@ -93,7 +97,7 @@ export namespace ServeSimNetworkCaptureRecorder {
       idleRestartIntervalMs,
       outputDirectory: await mkdtemp(path.join(os.tmpdir(), 'serve-sim-network-capture-')),
       command,
-      env,
+      env: omitNgrokAuthtoken(env),
       followers: [],
       current: new Map(),
       followerStarts: new Map(),

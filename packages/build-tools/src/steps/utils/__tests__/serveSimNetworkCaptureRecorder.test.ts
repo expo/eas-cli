@@ -96,6 +96,19 @@ it('starts one capture har follower per serve-sim that can serve capture routes'
   expect(options.stopGracePeriodMs).toBe(60_000);
 });
 
+it('does not pass the ngrok token to the follower', async () => {
+  await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+  await ServeSimNetworkCaptureRecorder.startAsync({
+    logger,
+    env: { NGROK_AUTHTOKEN: 'ngrok-secret', PATH: '/usr/bin' } as BuildStepEnv,
+    stateDir,
+    pollIntervalMs: 10,
+  });
+  await waitForFollowersAsync(1);
+
+  expect(jest.mocked(spawnDetached).mock.calls[0][0].env).toEqual({ PATH: '/usr/bin' });
+});
+
 it('starts a new follower only when serve-sim restarts for the device', async () => {
   await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
   await ServeSimNetworkCaptureRecorder.startAsync({
