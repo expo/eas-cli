@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 
 import { getVmStateDirectory } from '../utils/state';
 
-const STARTUP_DIRECTORY = '/Volumes/My Shared Files/expo-startup';
+const STARTUP_DIRECTORY = '/usr/local/share/vm-tools';
 const STARTUP_SCRIPT = 'startup.sh';
 const execFilePromise = promisify(execFile);
 

@@ -14,7 +14,7 @@ executable used for installation must remain available.
 
 ## Startup script
 
-At login, vm-tools waits for `/Volumes/My Shared Files/expo-startup/startup.sh` and runs it with
+At login, vm-tools waits for `/usr/local/share/vm-tools/startup.sh` and runs it with
 `/bin/bash` once per VM boot. Put the file in the VM or provide it through a shared directory.
 The script does not need executable permission.
 
