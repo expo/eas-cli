@@ -43,7 +43,9 @@ export async function createBuildContext<TJob extends Job>({
     environment: config.env,
     env: job.builderEnvironment?.env,
   });
-  await maybeStopWarmSimulatorAsync(job);
+  void maybeStopWarmSimulatorAsync(job).catch(err => {
+    childLogger.warn({ err }, 'Could not stop warm Simulator services.');
+  });
   await prepareRuntimeEnvironmentConfigFiles();
   const env = getBuildEnv({ job, projectId, metadata, buildId });
 

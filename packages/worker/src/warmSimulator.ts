@@ -7,7 +7,7 @@ import { type Job } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 
-/** Stop warmup before ordinary setup unless this job opts into warm Simulator adoption. */
+/** Request warmup shutdown unless this job opts into warm Simulator adoption. */
 export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
   if (
     process.platform !== 'darwin' ||
