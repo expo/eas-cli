@@ -1,4 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
+import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import fs from 'fs-extra';
 import path from 'path';
@@ -157,6 +158,90 @@ async function validateAndroidPNGsAsync(ctx: CommonContext<Platform.ANDROID>): P
 //     }
 //   }
 // }
+
+export async function checkAutolinkedNativeModulesAsync(
+  ctx: CommonContext<Platform.ANDROID>
+): Promise<void> {
+  if (ctx.workflow !== Workflow.GENERIC) {
+    return;
+  }
+
+  const settingsGradlePath = await findSettingsGradleAsync(ctx.projectDir);
+  if (!settingsGradlePath) {
+    return;
+  }
+
+  const settingsContent = await fs.readFile(settingsGradlePath, 'utf8');
+  const hasAutolinking =
+    settingsContent.includes('useReactNativeModules') ||
+    settingsContent.includes('applyNativeModulesSettingsGradle') ||
+    settingsContent.includes('native_modules.gradle');
+  if (!hasAutolinking) {
+    return;
+  }
+
+  let rnConfig: Record<string, any>;
+  try {
+    const result = await spawnAsync('npx', ['react-native', 'config'], {
+      cwd: ctx.projectDir,
+      stdio: 'pipe',
+    });
+    rnConfig = JSON.parse(result.stdout);
+  } catch {
+    return;
+  }
+
+  const dependencies = rnConfig.dependencies;
+  if (!dependencies || typeof dependencies !== 'object') {
+    return;
+  }
+
+  const misconfiguredModules: string[] = [];
+  for (const [name, dep] of Object.entries<any>(dependencies)) {
+    const androidConfig = dep?.platforms?.android;
+    if (!androidConfig || !androidConfig.sourceDir) {
+      continue;
+    }
+    const sourceDir = androidConfig.sourceDir;
+    const sourceDirExists = await fs.pathExists(sourceDir);
+    if (!sourceDirExists) {
+      misconfiguredModules.push(name);
+      continue;
+    }
+    const hasBuildGradle =
+      (await fs.pathExists(path.join(sourceDir, 'build.gradle'))) ||
+      (await fs.pathExists(path.join(sourceDir, 'build.gradle.kts')));
+    if (!hasBuildGradle) {
+      misconfiguredModules.push(name);
+    }
+  }
+
+  if (misconfiguredModules.length > 0) {
+    Log.warn(
+      'The following autolinked native modules have missing or incomplete Android build configuration:'
+    );
+    for (const mod of misconfiguredModules) {
+      Log.warn(`  - ${mod}`);
+    }
+    Log.warn('This will likely cause "No variants exist" errors during the build.');
+    Log.warn('Run "npx expo prebuild --clean" to regenerate the native project,');
+    Log.warn('or add "android/" to .gitignore to use the managed workflow.');
+    Log.newLine();
+  }
+}
+
+async function findSettingsGradleAsync(projectDir: string): Promise<string | null> {
+  const candidates = [
+    path.join(projectDir, 'android', 'settings.gradle'),
+    path.join(projectDir, 'android', 'settings.gradle.kts'),
+  ];
+  for (const candidate of candidates) {
+    if (await fs.pathExists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
 
 async function validatePNGsAsync(configPngs: ConfigPng[]): Promise<void> {
   const validationPromises = configPngs.map(configPng => validatePNGAsync(configPng));
