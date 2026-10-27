@@ -664,10 +664,6 @@ it('warms additional devices only after the default is ready, with separate port
   const session = createSession();
   const info = await session.prepareAsync();
   expect(info.device).toEqual({ udid: 'DUO', name: 'iPhone Duo', port: 3200 });
-  expect(info.devices).toEqual([
-    { udid: 'DUO', name: 'iPhone Duo', port: 3200 },
-    { udid: 'PHONE18', name: 'iPhone 18', port: 3202 },
-  ]);
   expect(startServeSim).toHaveBeenCalledTimes(1);
   expect(startExpoGoPreinstall).toHaveBeenCalledTimes(1);
   session.startRemainingDevices();

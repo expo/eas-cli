@@ -33,7 +33,7 @@ Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.
 
 One durable state file, `/tmp/expo-simulator-startup.json`, holds the lifecycle, launcher version,
-devices/ports, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
+selected device/port, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
 serializes updates; an abandoned lock fails closed. This private format requires a fresh VM.
 
 ## Environment

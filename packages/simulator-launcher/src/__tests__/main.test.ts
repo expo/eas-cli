@@ -499,9 +499,9 @@ test('publishes default readiness before starting a second device', async () => 
   await status('ready');
   await until(() => stateAtSecondBoot !== undefined);
   expect(stateAtSecondBoot).toBe('ready');
-  expect((await readLauncherStateAsync(boot))?.devices?.map(device => device.port)).toEqual([
-    3200, 3202,
-  ]);
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    device: { udid: 'PHONE', port: 3200 },
+  });
   await stopAsync(boot);
   expect(await completion).toBeUndefined();
 });
@@ -533,8 +533,8 @@ test('claim publishes the selected device port and version as one JSON result', 
       status: 'claimed',
       launcherVersion: require('../../package.json').version,
       device: { udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 },
-      devices: [{ udid: 'PRO', name: 'iPhone 17 Pro', port: 3202 }],
     });
+    expect(result).not.toHaveProperty('devices');
     await stopAsync(boot);
     expect(await completion).toBeUndefined();
   } finally {
