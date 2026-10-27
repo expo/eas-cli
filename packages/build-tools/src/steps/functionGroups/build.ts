@@ -316,16 +316,6 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx,
-      {
-        workingDirectory,
-        callInputs: {
-          application_archive_path:
-            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
-        },
-      }
-    ),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
@@ -339,6 +329,16 @@ function createStepsForIosBuildWithCredentials({
           }),
         ]
       : []),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        workingDirectory,
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -426,16 +426,6 @@ function createStepsForAndroidBuildWithoutCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx,
-      {
-        workingDirectory,
-        callInputs: {
-          application_archive_path:
-            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
-        },
-      }
-    ),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
@@ -449,6 +439,16 @@ function createStepsForAndroidBuildWithoutCredentials({
           }),
         ]
       : []),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        workingDirectory,
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
@@ -542,16 +542,6 @@ function createStepsForAndroidBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx,
-      {
-        workingDirectory,
-        callInputs: {
-          application_archive_path:
-            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
-        },
-      }
-    ),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
@@ -565,6 +555,16 @@ function createStepsForAndroidBuildWithCredentials({
           }),
         ]
       : []),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        workingDirectory,
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       workingDirectory,
