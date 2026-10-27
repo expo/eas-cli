@@ -18,8 +18,8 @@ export const ClaimInputSchema = z.object({
   requestedDevice: NonBlankStringSchema.optional(),
 });
 export const WarmSessionInfoSchema = z.object({
+  // The default before claim, then the device selected for the job.
   device: WarmSimulatorDeviceSchema,
-  devices: z.array(WarmSimulatorDeviceSchema).min(1),
   controllerPid: z.number().int().gt(1),
   controllerStartTime: NonBlankStringSchema,
   agentDeviceStateDir: NonBlankStringSchema,

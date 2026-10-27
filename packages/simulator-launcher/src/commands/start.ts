@@ -142,6 +142,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
         if (state.status === 'claiming') {
           const request = ClaimInputSchema.parse(state);
           const { device } = await session.claimAsync(request);
+          // Stop can arrive during native work; recheck ownership under the state lock.
           await updateLauncherStateAsync(
             bootUuid,
             current => {
@@ -156,7 +157,6 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
                 ...owned,
                 status: 'claimed',
                 device,
-                devices: [device],
               };
             },
             signal
@@ -188,6 +188,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
       })).catch(() => {});
       throw error;
     }
+    // Only confirmed cleanup may publish disabled, which lets a job safely start cold.
     await updateLauncherStateAsync(bootUuid, state => ({
       ...requireOwnedState(state, 'stopping'),
       status: 'disabled',
@@ -329,6 +330,7 @@ export function createWarmSimulatorSession({
       }
       await throwIfStoppingAsync();
     })();
+    // Release the old ports before shutdown; final stop still drains this background work.
     previousDeviceShutdown = release.then(async () => {
       const results = await Promise.allSettled(
         previousDevices.map(async session => {
@@ -349,6 +351,7 @@ export function createWarmSimulatorSession({
       }
     });
     void previousDeviceShutdown.catch(() => {});
+    // Boot overlaps the release; new services wait for the old ones to exit.
     const replacement = startDevice(
       { ...device, port: 3200 },
       requestedTool ? [requestedTool] : [],
@@ -423,7 +426,6 @@ export function createWarmSimulatorSession({
       currentDevice = first.device;
       return {
         device: currentDevice,
-        devices: [currentDevice],
         controllerPid: process.pid,
         controllerStartTime,
         agentDeviceStateDir: process.env.AGENT_DEVICE_STATE_DIR!,
