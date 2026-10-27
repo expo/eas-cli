@@ -1,4 +1,5 @@
-import { Platform } from '@expo/eas-build-job';
+import { ExpoConfig } from '@expo/config';
+import { Env, Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import { LoggerLevel } from '@expo/logger';
@@ -13,12 +14,13 @@ import { createIosContextAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { resolveBuildResourceClass } from './utils/resourceClass';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
-import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
 
@@ -38,13 +40,17 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   buildLoggerLevel,
   freezeCredentials,
+  refreshAdHocProvisioningProfile: refreshAdHocProvisioningProfileFlag,
   isVerboseLoggingEnabled,
   whatToTest,
   env,
+  experimentation,
+  authenticationInfo,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -61,17 +67,18 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  refreshAdHocProvisioningProfile?: boolean;
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
-  env: Record<string, string>;
+  env: Env;
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
-    env,
-  });
   const projectName = exp.slug;
 
   const [account, workflow] = await Promise.all([
@@ -85,10 +92,11 @@ export async function createBuildContextAsync<T extends Platform>({
     buildProfile.developmentClient ??
     (platform === Platform.ANDROID
       ? (buildProfile as BuildProfile<Platform.ANDROID>)?.gradleCommand === ':app:assembleDebug'
-      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
-    false;
+      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug');
 
   const requiredPackageManager = resolvePackageManager(projectDir);
+
+  const refreshAdHocProvisioningProfile = refreshAdHocProvisioningProfileFlag ?? false;
 
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
@@ -101,6 +109,7 @@ export async function createBuildContextAsync<T extends Platform>({
     easJsonCliConfig,
     vcsClient,
     freezeCredentials,
+    refreshAdHocProvisioningProfile,
   });
 
   const devClientProperties = getDevClientEventProperties({
@@ -155,6 +164,8 @@ export async function createBuildContextAsync<T extends Platform>({
     isVerboseLoggingEnabled,
     env,
     whatToTest,
+    experimentation,
+    authenticationInfo,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

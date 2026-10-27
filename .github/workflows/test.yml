@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['20', '22', '24']
+        node: ['22', '24']
         include:
-          - node: '20'
+          - node: '22'
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - name: Setup tools
         uses: ./.github/actions/setup-mise
         env:
@@ -60,18 +60,17 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
+      - run: yarn actionlint
       - name: Install scripts dependencies
         if: ${{ matrix.coverage }}
         run: yarn install --immutable
         working-directory: ./scripts
         env:
           YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@29386c70ef20e286228c72b668a06fd0e8399192 # v1
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - if: ${{ matrix.coverage }}
-        run: yarn lint-changelog
 
   notify-slack:
     runs-on: ubuntu-latest
@@ -79,7 +78,7 @@ jobs:
     name: Notify Slack
     if: ${{ github.ref == 'refs/heads/main' && always() }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - name: Notify Slack
         uses: ./.github/internal-actions/notify-slack-on-fail-or-recover
         with:

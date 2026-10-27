@@ -14,7 +14,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     });
@@ -26,7 +26,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       required: true,
     });
@@ -38,7 +38,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
     });
@@ -50,7 +50,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
     });
@@ -64,7 +64,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: false,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     });
@@ -76,7 +76,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: 'baz',
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       required: true,
@@ -88,7 +88,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: true,
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       required: true,
@@ -100,7 +100,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: { foo: 'bar' },
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
@@ -114,7 +114,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.runtimePlatform }',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -130,7 +130,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo }}',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -146,7 +146,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: 'test-${{ foo }}',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -161,7 +161,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.env.HOME }',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -181,7 +181,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar }',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -201,7 +201,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar }}',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -221,7 +221,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar }',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -241,7 +241,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar }}',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -268,7 +268,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar[3].baz }',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
@@ -293,7 +293,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar[3].baz }}',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
@@ -318,7 +318,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: 'test-${{ foo.bar[3].baz }}',
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       required: true,
@@ -345,7 +345,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar[3].baz.qux }',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       required: true,
@@ -372,7 +372,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ startsWith(foo.bar[3].baz.qux, "test") }}',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       required: true,
@@ -399,7 +399,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar[3].baz.qux }}',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       required: true,
@@ -426,7 +426,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo }',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
@@ -455,7 +455,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo }}',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
@@ -484,7 +484,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar[3].baz.qux }',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
@@ -513,7 +513,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar[3].baz.qux }}',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
@@ -542,7 +542,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar[3].baz.qux }',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
@@ -571,7 +571,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar[3].baz.qux }}',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
@@ -600,7 +600,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${ eas.foo.bar[3].baz.qux }',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
@@ -629,7 +629,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: '${{ foo.bar[3].baz.qux }}',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       required: true,
@@ -650,7 +650,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
@@ -685,7 +685,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
@@ -717,7 +717,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
@@ -747,7 +747,7 @@ describe(BuildStepInput, () => {
     });
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
@@ -773,7 +773,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       defaultValue: 42,
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       required: true,
@@ -785,7 +785,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     });
@@ -803,7 +803,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
     });
@@ -821,7 +821,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
     i.set('${ eas.runtimePlatform }');
@@ -840,7 +840,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.JSON,
     });
     i.set('${{ foo }}');
@@ -855,7 +855,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
     });
     i.set('${ eas.runtimePlatform }');
@@ -876,7 +876,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
     });
     i.set('${{ foo }}');
@@ -893,7 +893,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
     });
     i.set('${ eas.runtimePlatform }');
@@ -914,7 +914,7 @@ describe(BuildStepInput, () => {
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
       required: true,
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
     });
     i.set('${{ foo }}');
@@ -930,7 +930,7 @@ describe(BuildStepInput, () => {
     const ctx = createGlobalContextMock();
     const i = new BuildStepInput<BuildStepInputValueTypeName>(ctx, {
       id: 'foo',
-      stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+      stepDisplayName: 'test1',
       required: true,
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     });
@@ -952,21 +952,21 @@ describe(makeBuildStepInputByIdMap, () => {
     const inputs: BuildStepInput[] = [
       new BuildStepInput(ctx, {
         id: 'foo1',
-        stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+        stepDisplayName: 'test1',
         defaultValue: 'bar1',
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       new BuildStepInput(ctx, {
         id: 'foo2',
-        stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+        stepDisplayName: 'test1',
         defaultValue: 'bar2',
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       new BuildStepInput(ctx, {
         id: 'foo3',
-        stepDisplayName: BuildStep.getDisplayName({ id: 'test1' }),
+        stepDisplayName: 'test1',
         defaultValue: true,
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: true,

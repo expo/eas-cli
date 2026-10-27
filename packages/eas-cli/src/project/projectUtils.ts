@@ -10,20 +10,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AccountFragment } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { learnMore } from '../log';
-import { Actor } from '../user/User';
-import { expoCommandAsync } from '../utils/expoCli';
-
-export function getUsernameForBuildMetadataAndBuildJob(user: Actor): string | undefined {
-  switch (user.__typename) {
-    case 'User':
-      return user.username;
-    case 'SSOUser':
-      return user.username;
-    case 'Robot':
-      // robot users don't have usernames
-      return undefined;
-  }
-}
+import { expoCommandAsync, resolveExpoCli } from '../utils/expoCli';
 
 /**
  * Return a useful name describing the project config.
@@ -58,7 +45,22 @@ export function isExpoNotificationsInstalled(projectDir: string): boolean {
 
 export function isExpoInstalled(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
-  return !!(packageJson.dependencies && 'expo' in packageJson.dependencies);
+  if (!!(packageJson.dependencies && 'expo' in packageJson.dependencies)) {
+    // NOTE(@kitten): We usually don't apply strict checks for installed packages, but
+    // `isExpoInstalled` is often used to check if we should call the Expo CLI, so we're
+    // also checking if we can resolve `expo` here
+    try {
+      return !!resolveExpoCli(projectDir);
+    } catch (e: any) {
+      if (e.code === 'MODULE_NOT_FOUND') {
+        return false;
+      } else {
+        throw e;
+      }
+    }
+  } else {
+    return false;
+  }
 }
 
 export function isExpoUpdatesInstalledAsDevDependency(projectDir: string): boolean {
@@ -95,28 +97,6 @@ export async function getExpoUpdatesPackageVersionIfInstalledAsync(
   }
   const { version } = await fs.readJson(maybePackageJson);
   return version ?? null;
-}
-
-export async function validateAppVersionRuntimePolicySupportAsync(
-  projectDir: string,
-  exp: ExpoConfig
-): Promise<void> {
-  if (typeof exp.runtimeVersion !== 'object' || exp.runtimeVersion?.policy !== 'appVersion') {
-    return;
-  }
-
-  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
-  if (
-    expoUpdatesPackageVersion !== null &&
-    (semver.gte(expoUpdatesPackageVersion, '0.14.4') ||
-      expoUpdatesPackageVersion.includes('canary'))
-  ) {
-    return;
-  }
-
-  Log.warn(
-    `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
-  );
 }
 
 export async function enforceRollBackToEmbeddedUpdateSupportAsync(

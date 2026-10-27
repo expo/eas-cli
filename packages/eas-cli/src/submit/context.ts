@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform } from '@expo/eas-build-job';
+import { Env, Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -21,6 +21,7 @@ export interface SubmissionContext<T extends Platform> {
   analyticsEventProperties: AnalyticsEventProperties;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  autoTestFlightSetup: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups: T extends Platform.IOS ? string[] : undefined;
   platform: T;
@@ -47,8 +48,9 @@ export interface SubmitArchiveFlags {
 export async function createSubmissionContextAsync<T extends Platform>(params: {
   archiveFlags: SubmitArchiveFlags;
   credentialsCtx?: CredentialsContext;
-  env?: Record<string, string>;
+  env?: Env;
   nonInteractive: boolean;
+  autoTestFlightSetup?: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups: string[] | undefined;
   platform: T;
@@ -116,6 +118,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
 
   return {
     ...rest,
+    autoTestFlightSetup: params.autoTestFlightSetup ?? true,
     accountName: account.name,
     credentialsCtx,
     groups,

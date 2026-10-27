@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
+import type { CommonSpawnOptions } from 'node:child_process';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
@@ -77,18 +78,20 @@ export const shouldUseVersionedExpoCLIWithExplicitPlatforms = memoize(
   shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive
 );
 
-export async function expoCommandAsync(
+export function resolveExpoCli(projectDir: string): string {
+  return (
+    silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js')
+  );
+}
+
+export function spawnExpoCommand(
   projectDir: string,
   args: string[],
-  {
-    silent = false,
-    extraEnv = {},
-  }: { silent?: boolean; extraEnv?: Record<string, string | undefined> } = {}
-): Promise<void> {
+  opts?: CommonSpawnOptions
+): spawnAsync.SpawnPromise<spawnAsync.SpawnResult> {
   let expoCliPath;
   try {
-    expoCliPath =
-      silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
+    expoCliPath = resolveExpoCli(projectDir);
   } catch (e: any) {
     if (e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
@@ -101,25 +104,39 @@ export async function expoCommandAsync(
   }
 
   const spawnPromise = spawnAsync(expoCliPath, args, {
-    stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
+    cwd: projectDir,
+    ...opts,
     env: {
       ...process.env,
-      ...extraEnv,
+      ...opts?.env,
     },
   });
-  const {
-    child: { stdout, stderr },
-  } = spawnPromise;
-  if (!(stdout && stderr)) {
+  if (!spawnPromise.child.stdout && !spawnPromise.child.stderr) {
     throw new Error('Failed to spawn expo-cli');
   }
+
+  return spawnPromise;
+}
+
+export async function expoCommandAsync(
+  projectDir: string,
+  args: string[],
+  {
+    silent = false,
+    extraEnv = {},
+  }: { silent?: boolean; extraEnv?: Record<string, string | undefined> } = {}
+): Promise<void> {
+  const spawnPromise = spawnExpoCommand(projectDir, args, {
+    stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
+    env: extraEnv,
+  });
   if (!silent) {
-    stdout.on('data', data => {
+    spawnPromise.child.stdout?.on('data', data => {
       for (const line of data.toString().trim().split('\n')) {
         Log.log(`${chalk.gray('[expo-cli]')} ${line}`);
       }
     });
-    stderr.on('data', data => {
+    spawnPromise.child.stderr?.on('data', data => {
       for (const line of data.toString().trim().split('\n')) {
         Log.warn(`${chalk.gray('[expo-cli]')} ${line}`);
       }

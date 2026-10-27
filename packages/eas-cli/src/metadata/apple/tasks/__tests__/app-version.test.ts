@@ -44,6 +44,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask({ editLive: true }).prepareAsync({ context });
@@ -83,6 +84,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask({ editLive: true }).prepareAsync({ context });
@@ -118,6 +120,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask().prepareAsync({ context });
@@ -153,6 +156,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask().prepareAsync({ context });
@@ -194,6 +198,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask({ version: '2.0' }).prepareAsync({ context });
@@ -243,6 +248,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppVersionTask({ version: '3.0' }).prepareAsync({ context });
@@ -371,6 +377,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
         version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
       };
 
@@ -399,6 +406,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
         version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
         versionPhasedRelease: null, // Not enabled yet
       };
@@ -417,6 +425,7 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
         version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
         // Enabled, and not completed yet
         versionPhasedRelease: new AppStoreVersionPhasedRelease(
@@ -440,8 +449,9 @@ describe(AppVersionTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
         version: new AppStoreVersion(requestContext, 'APP_STORE_VERSION_1', {} as any),
-        // Enabled, and not completed yet
+        // Enabled, and completed
         versionPhasedRelease: new AppStoreVersionPhasedRelease(
           requestContext,
           'APP_STORE_VERSION_PHASED_RELEASE_1',

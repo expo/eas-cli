@@ -1,16 +1,25 @@
-import { BuildContext, GCS } from '@expo/build-tools';
-import { Job } from '@expo/eas-build-job';
+import { BuildContext, uploadWithSignedUrl } from '@expo/build-tools';
+import { Job, errors } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import { Response } from 'node-fetch';
 
-import config from '../config';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadSourceMapAsync,
   uploadWorkflowArtifactAsync,
 } from '../upload';
 import { turtleFetch } from '../utils/turtleFetch';
+
+const mockLogger = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  child: jest.fn().mockReturnThis(),
+} as unknown as bunyan;
 
 jest.mock('fs');
 jest.mock('fs/promises');
@@ -38,6 +47,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
       job: {
         secrets: {},
       } as Job,
+      logger: mockLogger,
     };
     vol.fromJSON({
       './artifact.ipa': JSON.stringify(randomBytes(20)),
@@ -49,7 +59,14 @@ describe(uploadApplicationArchiveAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('env variables are not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('env variables are not set'),
+      }),
+    });
 
     ctx.env.__WORKFLOW_JOB_ID = randomUUID();
 
@@ -59,7 +76,14 @@ describe(uploadApplicationArchiveAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('robot access token is not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('robot access token is not set'),
+      }),
+    });
   });
 
   it('should upload the application archive', async () => {
@@ -78,6 +102,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
 
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
@@ -119,7 +144,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
       logger: ctx.logger,
     });
 
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -140,6 +165,9 @@ describe(uploadApplicationArchiveAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -151,83 +179,81 @@ describe(uploadApplicationArchiveAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
 
-  describe('with signed upload url provided via config', () => {
-    beforeAll(() => {
-      config.gcsSignedUploadUrlForApplicationArchive = {
-        url: 'https://upload.url/from-config',
-        headers: {
-          authorization: 'test-signed-upload-authorization',
-        },
-      };
+  it('should throw a system error if the application archive upload fails', async () => {
+    vol.fromJSON({
+      './artifact.ipa': JSON.stringify(randomBytes(20)),
     });
-    afterAll(() => {
-      config.gcsSignedUploadUrlForApplicationArchive = null;
-    });
+    const workflowJobId = randomUUID();
 
-    it('should fall back to signed upload URL if upload session fails', async () => {
-      vol.fromJSON({
-        './artifact.ipa': JSON.stringify(randomBytes(20)),
-      });
-      const workflowJobId = randomUUID();
-
-      // @ts-expect-error
-      const ctx: BuildContext<Job> = {
-        env: {
-          __WORKFLOW_JOB_ID: workflowJobId,
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        __WORKFLOW_JOB_ID: workflowJobId,
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
         },
-        job: {
-          secrets: {
-            robotAccessToken: 'fake-token',
-          },
-        } as Job,
-      };
+      } as Job,
+      logger: mockLogger,
+    };
 
-      turtleFetchMock.mockImplementation(async () => {
-        return {
-          json: async () => ({
-            data: {
-              bucketKey: 'test/bucketKey',
-              url: 'https://upload.url/from-www',
-              headers: {
-                authorization: 'test-signed-upload-authorization',
-              },
-              storageType: 'GCS',
+    const bucketKey = `test/${randomUUID()}/artifact.ipa`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const testSignedUploadAuthorization = randomUUID();
+    const uploadError = new Error('upload failed');
+
+    turtleFetchMock.mockImplementation(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            bucketKey,
+            url: uploadUrl,
+            headers: {
+              authorization: testSignedUploadAuthorization,
             },
-          }),
-          ok: true,
-        } as unknown as Response;
-      });
+            storageType: 'GCS',
+          },
+        }),
+      } as Response;
+    });
+    jest.mocked(uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
 
-      // GCS fails to upload to upload session from www.
-      jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ signedUrl }) => {
-        if (signedUrl.url === 'https://upload.url/from-www') {
-          throw new Error('upload failed');
-        }
-        return signedUrl.url;
-      });
-
+    let thrownError: unknown;
+    try {
       await uploadApplicationArchiveAsync(ctx, {
         artifactPaths: ['./artifact.ipa'],
         buildId: randomUUID(),
         logger: ctx.logger,
       });
+    } catch (err) {
+      thrownError = err;
+    }
 
-      expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
-        expect.objectContaining({
-          signedUrl: {
-            url: 'https://upload.url/from-config',
-            headers: {
-              authorization: 'test-signed-upload-authorization',
-            },
-          },
-        })
-      );
-
-      expect(turtleFetchMock).toHaveBeenCalledTimes(1);
+    expect(thrownError).toBeInstanceOf(errors.SystemError);
+    expect(thrownError).toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      buildPhase: undefined,
+      metadata: expect.objectContaining({
+        filename: expect.stringMatching(/^application-.*\.ipa$/),
+        size: expect.any(Number),
+        url: uploadUrl,
+        headers: {
+          authorization: testSignedUploadAuthorization,
+        },
+      }),
+      cause: uploadError,
     });
   });
 });
@@ -240,6 +266,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
       job: {
         secrets: {},
       } as Job,
+      logger: mockLogger,
     };
     vol.fromJSON({
       './video.mp4': JSON.stringify(randomBytes(20)),
@@ -250,7 +277,14 @@ describe(uploadBuildArtifactsAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('env variables are not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('env variables are not set'),
+      }),
+    });
     ctx.env.__WORKFLOW_JOB_ID = randomUUID();
     await expect(
       uploadBuildArtifactsAsync(ctx, {
@@ -258,7 +292,14 @@ describe(uploadBuildArtifactsAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('robot access token is not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('robot access token is not set'),
+      }),
+    });
   });
 
   it('should upload the build artifacts', async () => {
@@ -276,6 +317,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
@@ -313,8 +355,8 @@ describe(uploadBuildArtifactsAsync.name, () => {
       buildId: randomUUID(),
       logger: ctx.logger,
     });
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledTimes(1);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledTimes(1);
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -334,6 +376,9 @@ describe(uploadBuildArtifactsAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -345,95 +390,167 @@ describe(uploadBuildArtifactsAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
 
-  describe('with signed upload url provided via config', () => {
-    beforeAll(() => {
-      config.gcsSignedUploadUrlForBuildArtifacts = {
-        url: 'https://upload.url/from-config',
-        headers: {
-          authorization: 'test-signed-upload-authorization',
-        },
-      };
+  it('should throw a system error if the build artifacts upload fails', async () => {
+    vol.fromJSON({
+      './video.mp4': JSON.stringify(randomBytes(20)),
     });
-    afterAll(() => {
-      config.gcsSignedUploadUrlForBuildArtifacts = null;
-    });
-
-    it('should fall back to signed upload URL if upload session fails', async () => {
-      vol.fromJSON({
-        './video.mp4': JSON.stringify(randomBytes(20)),
-      });
-      const workflowJobId = randomUUID();
-
-      // @ts-expect-error
-      const ctx: BuildContext<Job> = {
-        env: {
-          __WORKFLOW_JOB_ID: workflowJobId,
+    const workflowJobId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        __WORKFLOW_JOB_ID: workflowJobId,
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
         },
-        job: {
-          secrets: {
-            robotAccessToken: 'fake-token',
-          },
-        } as Job,
-      };
-
-      turtleFetchMock.mockImplementation(async () => {
-        return {
-          json: async () => ({
-            data: {
-              bucketKey: 'test/bucketKey',
-              url: 'https://upload.url/from-www',
-              headers: {
-                authorization: 'test-signed-upload-authorization',
-              },
-              storageType: 'GCS',
+      } as Job,
+      logger: mockLogger,
+    };
+    const bucketKey = `test/${randomUUID()}/artifact.ipa`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const testSignedUploadAuthorization = randomUUID();
+    const uploadError = new Error('upload failed');
+    turtleFetchMock.mockImplementation(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            bucketKey,
+            url: uploadUrl,
+            headers: {
+              authorization: testSignedUploadAuthorization,
             },
-          }),
-          ok: true,
-        } as unknown as Response;
-      });
+            storageType: 'GCS',
+          },
+        }),
+      } as Response;
+    });
+    jest.mocked(uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
 
-      // GCS fails to upload to upload session from www.
-      jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ signedUrl }) => {
-        if (signedUrl.url === 'https://upload.url/from-www') {
-          throw new Error('upload failed');
-        }
-        return signedUrl.url;
-      });
-
+    let thrownError: unknown;
+    try {
       await uploadBuildArtifactsAsync(ctx, {
         artifactPaths: ['./video.mp4'],
         buildId: randomUUID(),
         logger: ctx.logger,
       });
+    } catch (err) {
+      thrownError = err;
+    }
 
-      expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
-        expect.objectContaining({
-          signedUrl: {
-            url: 'https://upload.url/from-config',
-            headers: {
-              authorization: 'test-signed-upload-authorization',
-            },
-          },
-        })
-      );
-
-      expect(turtleFetchMock).toHaveBeenCalledTimes(1);
+    expect(thrownError).toBeInstanceOf(errors.SystemError);
+    expect(thrownError).toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      buildPhase: undefined,
+      metadata: expect.objectContaining({
+        filename: expect.stringMatching(/^artifacts-.*\.mp4$/),
+        size: expect.any(Number),
+        url: uploadUrl,
+        headers: {
+          authorization: testSignedUploadAuthorization,
+        },
+      }),
+      cause: uploadError,
     });
   });
 });
 
-describe('with signed upload url provided via www', () => {
-  beforeAll(() => {
-    config.gcsSignedUploadUrlForBuildArtifacts = null;
-  });
-  afterAll(() => {
-    config.gcsSignedUploadUrlForBuildArtifacts = null;
-  });
+describe(uploadSourceMapAsync.name, () => {
+  it('uploads and registers a source map with its dedicated artifact type', async () => {
+    vol.fromJSON({
+      './source-map.map': JSON.stringify({ version: 3, sources: [], names: [], mappings: '' }),
+    });
+    const buildId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        EAS_BUILD_ID: buildId,
+      },
+      job: {
+        platform: 'android',
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+    const bucketKey = `source-maps/${buildId}/source-map.map`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const authorization = randomUUID();
 
+    turtleFetchMock.mockImplementation(async url => {
+      if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`) {
+        return {
+          ok: true,
+          status: 200,
+        } as Response;
+      } else if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              bucketKey,
+              url: uploadUrl,
+              headers: { authorization },
+              storageType: 'GCS',
+            },
+          }),
+        } as Response;
+      }
+      return { ok: false, status: 404 } as Response;
+    });
+
+    await uploadSourceMapAsync(ctx, {
+      sourceMapPath: './source-map.map',
+      buildId,
+      logger: ctx.logger,
+    });
+
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedUrl: {
+          url: uploadUrl,
+          headers: { authorization },
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      1,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`,
+      'POST',
+      expect.objectContaining({
+        json: {
+          filename: `source-map-${buildId}.map`,
+          name: 'Source Map',
+          size: expect.any(Number),
+          type: 'sourceMap',
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      2,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`,
+      'POST',
+      expect.objectContaining({
+        json: { source: { bucketKey, type: 'GCS' }, type: 'sourceMap' },
+      })
+    );
+  });
+});
+
+describe('with signed upload url provided via www', () => {
   it('should use www signed upload url', async () => {
     vol.fromJSON({
       './video.mp4': JSON.stringify(randomBytes(20)),
@@ -451,6 +568,7 @@ describe('with signed upload url provided via www', () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
 
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
@@ -492,7 +610,7 @@ describe('with signed upload url provided via www', () => {
       logger: ctx.logger,
     });
 
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -517,6 +635,9 @@ describe('with signed upload url provided via www', () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -528,6 +649,9 @@ describe('with signed upload url provided via www', () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
@@ -549,6 +673,7 @@ describe(uploadWorkflowArtifactAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
     const bucketKey = `test/${randomUUID()}/video.mp4`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
@@ -584,8 +709,8 @@ describe(uploadWorkflowArtifactAsync.name, () => {
       logger: ctx.logger,
     });
     expect(artifactId).toBe(expectedArtifactId);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledTimes(1);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledTimes(1);
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -605,6 +730,9 @@ describe(uploadWorkflowArtifactAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });

@@ -4,6 +4,7 @@ import { Artifacts, BuildContext } from '../context';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { maybeFindAndUploadBuildArtifacts } from '../utils/artifacts';
 import { Hook, runHookIfPresent } from '../utils/hooks';
+import { maybeUploadSourceMapAsync } from '../utils/sourceMaps';
 
 export async function runBuilderWithHooksAsync<T extends BuildJob>(
   ctx: BuildContext<T>,
@@ -38,6 +39,9 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
       }
 
       await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
+        if (buildSuccess) {
+          await maybeUploadSourceMapAsync(ctx);
+        }
         await maybeFindAndUploadBuildArtifacts(ctx, {
           logger: ctx.logger,
         });

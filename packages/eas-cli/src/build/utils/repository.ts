@@ -143,9 +143,24 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
 
   try {
     await vcsClient.makeShallowCopyAsync(shallowClonePath);
-    await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
-      '.',
-    ]);
+    await tar.create(
+      {
+        cwd: shallowClonePath,
+        file: tarPath,
+        prefix: 'project',
+        gzip: true,
+        portable: true,
+        onWriteEntry(entry) {
+          // Read-only directories may have files inside them. This causes trouble on tar extraction.
+          // Hence, we're forcing the owner write bit on directories in Windows
+          // to avoid this issue.
+          if (entry.type === 'Directory' && entry.stat) {
+            entry.stat.mode |= 0o200;
+          }
+        },
+      },
+      ['.']
+    );
   } catch (err) {
     clearTimeout(timer);
     if (spinner.isSpinning) {

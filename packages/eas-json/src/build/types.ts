@@ -20,6 +20,18 @@ export enum ResourceClass {
   M_LARGE = 'm-large',
 }
 
+export enum JobExpoTokenRole {
+  RUNNER = 'runner',
+  DEVELOPER = 'developer',
+  RELEASE_MANAGER = 'release_manager',
+}
+
+export interface BuildProfilePermissions {
+  account: {
+    role: JobExpoTokenRole;
+  };
+}
+
 export type DistributionType = 'store' | 'internal';
 
 export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
@@ -31,6 +43,9 @@ export type AndroidVersionAutoIncrement = VersionAutoIncrement | 'versionCode';
 export interface CommonBuildProfile {
   // builder
   resourceClass?: ResourceClass;
+
+  // permissions of the EXPO_TOKEN used by the build
+  permissions?: BuildProfilePermissions;
 
   // build environment
   env?: Record<string, string>;
@@ -61,6 +76,7 @@ export interface CommonBuildProfile {
 
   // artifacts
   buildArtifactPaths?: string[];
+  uploadSourceMaps?: boolean;
 
   // cache
   cache?: Omit<Cache, 'clear'>;

@@ -16,6 +16,7 @@ export const AppFragmentNode = gql`
     githubRepository {
       id
       metadata {
+        id
         githubRepoOwnerName
         githubRepoName
       }

@@ -11,3 +11,20 @@ export function createMockLogger(): bunyan {
   } as unknown as bunyan;
   return logger;
 }
+
+export function createRecordingLogger(sink: string[]): bunyan {
+  const record = (...args: unknown[]): void => {
+    const message = args.find(arg => typeof arg === 'string');
+    if (typeof message === 'string') {
+      sink.push(message);
+    }
+  };
+  const logger = {
+    info: jest.fn(record),
+    debug: jest.fn(record),
+    error: jest.fn(record),
+    warn: jest.fn(record),
+    child: jest.fn(() => logger),
+  } as unknown as bunyan;
+  return logger;
+}

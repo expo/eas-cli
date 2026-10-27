@@ -1,0 +1,405 @@
+import { Config } from '@oclif/core';
+
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  AppPlatform,
+  DeviceRunSessionByIdQuery,
+  DeviceRunSessionStatus,
+  DeviceRunSessionType,
+  JobRunStatus,
+} from '../../../graphql/generated';
+import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import Log from '../../../log';
+import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../../simulator/env';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import SimulatorGet from '../get';
+
+jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
+jest.mock('../../../log');
+jest.mock('../../../simulator/env', () => ({
+  ...jest.requireActual('../../../simulator/env'),
+  loadSimulatorEnvAsync: jest.fn(),
+}));
+jest.mock('../../../ora', () => ({
+  ora: jest.fn(() => {
+    const spinner = {
+      fail: jest.fn(),
+      start: jest.fn(),
+      succeed: jest.fn(),
+    };
+    spinner.start.mockReturnValue(spinner);
+    return spinner;
+  }),
+}));
+jest.mock('../../../utils/json');
+
+type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
+
+const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
+const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockLoadSimulatorEnvironmentVariablesAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
+  return {
+    id: 'session-123',
+    name: null,
+    tags: [],
+    publicPreview: false,
+    status: DeviceRunSessionStatus.InProgress,
+    type: DeviceRunSessionType.AgentDevice,
+    platform: AppPlatform.Ios,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    startedAt: '2025-01-01T00:00:05.000Z',
+    finishedAt: null,
+    updatedAt: '2025-01-01T00:01:00.000Z',
+    app: {
+      id: 'app-123',
+      slug: 'testapp',
+      ownerAccount: {
+        id: 'account-123',
+        name: 'testuser',
+      },
+    },
+    artifacts: [
+      {
+        id: 'artifact-123',
+        name: 'session-log',
+        filename: 'session.log',
+        downloadUrl: 'https://artifacts.example.com/session.log',
+        fileSizeBytes: 1234,
+        metadata: { kind: 'log' },
+        createdAt: '2025-01-01T00:00:10.000Z',
+        updatedAt: '2025-01-01T00:00:20.000Z',
+      },
+    ],
+    remoteConfig: {
+      __typename: 'AgentDeviceRunSessionRemoteConfig',
+      agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+      agentDeviceRemoteSessionToken: 'token-123',
+      webPreviewUrl: 'https://preview.example.com',
+    },
+    turtleJobRun: {
+      id: 'job-123',
+      status: JobRunStatus.InProgress,
+    },
+    ...overrides,
+  };
+}
+
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({
+    failures: [],
+    successes: [],
+  });
+  return config;
+}
+
+describe(SimulatorGet, () => {
+  const graphqlClient = {} as ExpoGraphqlClient;
+  const mockConfig = getMockOclifConfig();
+  const projectDir = '/test/project';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockJobRunErrorsByIdAsync.mockResolvedValue(null);
+  });
+
+  function createCommand(argv: string[]): {
+    command: SimulatorGet;
+    getContextAsync: jest.SpyInstance;
+  } {
+    const command = new SimulatorGet(argv, mockConfig);
+    // @ts-expect-error getContextAsync is protected
+    const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+      loggedIn: { graphqlClient },
+      projectDir,
+    });
+    return { command, getContextAsync };
+  }
+
+  it('emits JSON when --json is passed', async () => {
+    const session = makeDeviceRunSession({
+      type: DeviceRunSessionType.ServeSim,
+      remoteConfig: {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.com',
+      },
+    });
+    mockByIdAsync.mockResolvedValue(session);
+
+    const { command, getContextAsync } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
+    expect(getContextAsync).toHaveBeenCalledWith(SimulatorGet, {
+      nonInteractive: true,
+    });
+    expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      id: 'session-123',
+      name: undefined,
+      tags: [],
+      type: 'web-preview-only',
+      status: DeviceRunSessionStatus.InProgress,
+      platform: AppPlatform.Ios,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:00:05.000Z',
+      finishedAt: undefined,
+      updatedAt: '2025-01-01T00:01:00.000Z',
+      deviceRunSessionUrl:
+        'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
+      remoteConfig: {
+        __typename: 'ServeSimRunSessionRemoteConfig',
+        previewUrl:
+          'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview',
+        previewApiUrl: null,
+      },
+      artifacts: session.artifacts,
+      errors: [],
+    });
+    expect(mockJobRunErrorsByIdAsync).not.toHaveBeenCalled();
+  });
+
+  describe('errored sessions', () => {
+    const jobRunErrors = {
+      id: 'job-123',
+      errors: [
+        {
+          errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+          message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+          docsUrl: null,
+        },
+      ],
+      logFileUrls: [],
+    };
+
+    it('includes the job run errors in JSON output', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+      mockJobRunErrorsByIdAsync.mockResolvedValue(jobRunErrors);
+
+      const { command } = createCommand(['--id', 'session-123', '--json']);
+      await command.runAsync();
+
+      expect(mockJobRunErrorsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123', {
+        signal: expect.any(AbortSignal),
+      });
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          errors: [
+            {
+              errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+              message: 'No available iOS Simulator is named "iPhone 16 Pro".',
+              docsUrl: null,
+            },
+          ],
+        })
+      );
+    });
+
+    it('prints the job run errors when only the job run errored', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          status: DeviceRunSessionStatus.Stopped,
+          remoteConfig: null,
+          turtleJobRun: { id: 'job-123', status: JobRunStatus.Errored },
+        })
+      );
+      mockJobRunErrorsByIdAsync.mockResolvedValue(jobRunErrors);
+
+      const { command } = createCommand(['--id', 'session-123']);
+      await command.runAsync();
+
+      expect(Log.gray).toHaveBeenCalledWith('Session errors:');
+      expect(Log.error).toHaveBeenCalledWith(
+        '  No available iOS Simulator is named "iPhone 16 Pro".'
+      );
+    });
+
+    it('prints no errors section when the job run errors cannot be fetched', async () => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+      );
+      mockJobRunErrorsByIdAsync.mockRejectedValue(new Error('graphql boom'));
+
+      const { command } = createCommand(['--id', 'session-123']);
+      await command.runAsync();
+
+      expect(Log.gray).not.toHaveBeenCalledWith('Session errors:');
+      expect(Log.error).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each([false, true])(
+    'uses the saved publicPreview=%s preference for JSON and human previews',
+    async publicPreview => {
+      const publicUrl = 'https://expo.dev/simulator-preview/preview-123';
+      const privateUrl =
+        'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview';
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          publicPreview,
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: publicUrl,
+            previewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+      const expectedUrl = publicPreview ? `${publicUrl}#token=preview-secret` : privateUrl;
+      const expectedApiUrl = publicPreview
+        ? 'https://preview-api.example.test/?token=preview-secret'
+        : null;
+
+      const { command: jsonCommand } = createCommand(['--id', 'session-123', '--json']);
+      await jsonCommand.runAsync();
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: expect.objectContaining({
+            previewUrl: expectedUrl,
+            previewApiUrl: expectedApiUrl,
+          }),
+        })
+      );
+      if (!publicPreview) {
+        expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
+          'preview-secret'
+        );
+      }
+
+      jest.clearAllMocks();
+      mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          publicPreview,
+          type: DeviceRunSessionType.WebPreviewOnly,
+          remoteConfig: {
+            __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+            previewUrl: publicUrl,
+            previewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+      const { command: humanCommand } = createCommand(['--id', 'session-123']);
+      await humanCommand.runAsync();
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(expectedUrl));
+      if (!publicPreview) {
+        expect(JSON.stringify(jest.mocked(Log.log).mock.calls)).not.toContain('preview-secret');
+      }
+    }
+  );
+
+  it('includes the session name in JSON and human output when the session is named', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+
+    jest.clearAllMocks();
+    mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command: humanCommand } = createCommand(['--id', 'session-123']);
+    await humanCommand.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Checkout regression'));
+  });
+
+  it.each([false, true])(
+    'uses saved publicPreview=%s for Android while preserving controller access',
+    async publicPreview => {
+      mockByIdAsync.mockResolvedValue(
+        makeDeviceRunSession({
+          platform: AppPlatform.Android,
+          publicPreview,
+          remoteConfig: {
+            __typename: 'AgentDeviceRunSessionRemoteConfig',
+            agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+            agentDeviceRemoteSessionToken: 'controller-secret',
+            webPreviewUrl: 'https://expo.dev/simulator-preview/android-123',
+            webPreviewToken: 'preview-secret',
+            previewApiUrl: 'https://preview-api.example.test',
+          },
+        })
+      );
+
+      const { command } = createCommand(['--id', 'session-123', '--json']);
+      await command.runAsync();
+
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: {
+            __typename: 'AgentDeviceRunSessionRemoteConfig',
+            agentDeviceRemoteSessionUrl: 'https://agent.example.test',
+            agentDeviceRemoteSessionToken: 'controller-secret',
+            webPreviewUrl: publicPreview
+              ? 'https://expo.dev/simulator-preview/android-123#token=preview-secret'
+              : 'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123/preview',
+            previewApiUrl: publicPreview
+              ? 'https://preview-api.example.test/?token=preview-secret'
+              : null,
+          },
+        })
+      );
+    }
+  );
+
+  it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
+    const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
+    const session = makeDeviceRunSession({ id: 'session-from-env' });
+    mockByIdAsync.mockResolvedValue(session);
+    process.env[EAS_SIMULATOR_SESSION_ID] = 'session-from-env';
+
+    try {
+      const { command } = createCommand([]);
+      await command.runAsync();
+
+      expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
+      expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-from-env');
+    } finally {
+      if (previousDeviceRunSessionId === undefined) {
+        delete process.env[EAS_SIMULATOR_SESSION_ID];
+      } else {
+        process.env[EAS_SIMULATOR_SESSION_ID] = previousDeviceRunSessionId;
+      }
+    }
+  });
+
+  it('throws a helpful error when no simulator session ID is available', async () => {
+    const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
+    delete process.env[EAS_SIMULATOR_SESSION_ID];
+
+    try {
+      const { command } = createCommand([]);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
+      expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
+      expect(mockByIdAsync).not.toHaveBeenCalled();
+    } finally {
+      if (previousDeviceRunSessionId === undefined) {
+        delete process.env[EAS_SIMULATOR_SESSION_ID];
+      } else {
+        process.env[EAS_SIMULATOR_SESSION_ID] = previousDeviceRunSessionId;
+      }
+    }
+  });
+});

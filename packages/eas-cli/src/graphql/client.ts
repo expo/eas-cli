@@ -1,6 +1,9 @@
 import { CombinedError as GraphqlError, OperationResult } from '@urql/core';
 
+import { EasCommandError } from '../commandUtils/errors';
 import Log from '../log';
+
+export const EAS_CLI_UPGRADE_REQUIRED_ERROR_CODE = 'EAS_CLI_UPGRADE_REQUIRED';
 
 export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult<T>>): Promise<T> {
   const { data, error } = await promise;
@@ -13,6 +16,7 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
           ![
             'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED',
             'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED',
+            'EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE',
           ].includes(e?.extensions?.errorCode as string)
       )
     ) {
@@ -28,6 +32,63 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
   }
 
   return data;
+}
+
+/**
+ * Wraps `withErrorHandlingAsync` for queries that hit endpoints which may evolve in
+ * ways that require a newer eas-cli. The server signals this by returning a GraphQL
+ * error with `extensions.errorCode === EAS_CLI_UPGRADE_REQUIRED`. As a fallback we
+ * also detect schema validation errors of the form `Cannot query field "X" on type "Y"`,
+ * which surface when a field has been removed without a coded error.
+ *
+ * In either case we re-throw an `EasCommandError` instructing the user to upgrade.
+ */
+export async function withUpgradeRequiredErrorHandlingAsync<T>(
+  promise: Promise<OperationResult<T>>,
+  { featureName }: { featureName: string }
+): Promise<T> {
+  try {
+    return await withErrorHandlingAsync(promise);
+  } catch (error) {
+    if (isUpgradeRequiredError(error)) {
+      throw new EasCommandError(
+        `${featureName} is not supported by this version of eas-cli. ` +
+          `Upgrade to the latest version: \`npm install -g eas-cli@latest\`.`
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Whether a failed request will keep failing the same way. True only when the server attributes
+ * every error to the caller (`errorType: USER`): a rejected input, a missing permission, a
+ * resource this account can't see. Server faults, network errors, and anything we can't classify
+ * stay retriable, since giving up on those turns a blip into a failed command. Polling loops use
+ * this to stop early instead of waiting out their deadline.
+ */
+export function isPermanentGraphqlError(error: unknown): boolean {
+  if (!(error instanceof GraphqlError) || error.networkError) {
+    return false;
+  }
+  return (
+    error.graphQLErrors.length > 0 &&
+    error.graphQLErrors.every(
+      e => e?.extensions?.errorType === 'USER' && !e?.extensions?.isTransient
+    )
+  );
+}
+
+function isUpgradeRequiredError(error: unknown): boolean {
+  if (!(error instanceof GraphqlError)) {
+    return false;
+  }
+  return error.graphQLErrors.some(e => {
+    if (e?.extensions?.errorCode === EAS_CLI_UPGRADE_REQUIRED_ERROR_CODE) {
+      return true;
+    }
+    return /Cannot query field ".+" on type ".+"/.test(e?.message ?? '');
+  });
 }
 
 export { GraphqlError };

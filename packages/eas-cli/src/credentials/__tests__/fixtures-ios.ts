@@ -1,5 +1,6 @@
 import { UserRole } from '@expo/apple-utils';
 
+import { getMockViewerUserPermission } from '../../__tests__/viewerUserPermission';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 import {
   AppFragment,
@@ -60,14 +61,7 @@ export const testAppFragment: AppFragment = {
   ownerAccount: {
     id: 'test-account-id',
     name: 'testuser',
-    users: [
-      {
-        role: Role.Owner,
-        actor: {
-          id: 'test-user-id',
-        },
-      },
-    ],
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
   },
 };
 

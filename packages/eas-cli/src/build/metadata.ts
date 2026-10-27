@@ -1,5 +1,11 @@
-import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import {
+  Metadata,
+  Platform,
+  getInstalledExpoPackageVersionAsync,
+  sanitizeMetadata,
+} from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
+import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
@@ -9,13 +15,11 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
-import {
-  getUsernameForBuildMetadataAndBuildJob,
-  isExpoUpdatesInstalled,
-} from '../project/projectUtils';
+import { isExpoUpdatesInstalled } from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
+import { getActorUsername } from '../user/User';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
@@ -26,6 +30,16 @@ export async function collectMetadataAsync<T extends Platform>(
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
+  const expoPackageVersionResult = await asyncResult(
+    getInstalledExpoPackageVersionAsync({
+      env: process.env,
+      projectDir: ctx.projectDir,
+    })
+  );
+  if (!expoPackageVersionResult.ok) {
+    Log.debug('Failed to resolve expo package version:');
+    Log.debug(expoPackageVersionResult.reason);
+  }
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -36,6 +50,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
+    expoPackageVersion: expoPackageVersionResult.value,
     ...channelObject,
     distribution,
     appName: ctx.exp.name,
@@ -49,7 +64,7 @@ export async function collectMetadataAsync<T extends Platform>(
       ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
         ? false
         : await ctx.vcsClient.hasUncommittedChangesAsync(),
-    username: getUsernameForBuildMetadataAndBuildJob(ctx.user),
+    username: getActorUsername(ctx.user) ?? undefined,
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
@@ -61,7 +76,6 @@ export async function collectMetadataAsync<T extends Platform>(
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
     requiredPackageManager: ctx.requiredPackageManager ?? undefined,
-    selectedImage: ctx.buildProfile.image,
     customNodeVersion: ctx.buildProfile.node,
     simulator: 'simulator' in ctx.buildProfile && ctx.buildProfile.simulator,
   };
@@ -170,5 +184,9 @@ export function truncateGitCommitMessage(
   if (msg === undefined) {
     return undefined;
   }
-  return msg.length > maxLength ? `${msg.substring(0, maxLength - 3)}...` : msg;
+  if (msg.length <= maxLength) {
+    return msg;
+  }
+  const truncated = msg.substring(0, maxLength - 3).replace(/[\uD800-\uDBFF]$/, '');
+  return `${truncated}...`;
 }

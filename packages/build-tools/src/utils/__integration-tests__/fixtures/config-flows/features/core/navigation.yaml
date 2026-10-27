@@ -1,5 +1,0 @@
-appId: com.example.app
-name: "navigation"
-tags: ["core", "smoke"]
----
-- assertTrue: true

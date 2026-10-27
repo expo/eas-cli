@@ -71,6 +71,8 @@ export function pollForBackgroundJobReceiptAsync(
   options?: {
     onBackgroundJobReceiptPollError?: BackgroundJobPollErrorCondition;
     pollInterval?: number;
+    maxChecks?: number;
+    maxConsecutiveFetchErrors?: number;
   }
 ): Promise<BackgroundJobReceiptDataFragment | null>;
 export async function pollForBackgroundJobReceiptAsync(
@@ -79,10 +81,15 @@ export async function pollForBackgroundJobReceiptAsync(
   options?: {
     onBackgroundJobReceiptPollError?: BackgroundJobPollErrorCondition;
     pollInterval?: number;
+    maxChecks?: number;
+    maxConsecutiveFetchErrors?: number;
   }
 ): Promise<BackgroundJobReceiptDataFragment | null> {
+  const maxChecks = options?.maxChecks ?? 90;
+  const maxConsecutiveFetchErrors = options?.maxConsecutiveFetchErrors ?? 0;
   return await new Promise<BackgroundJobReceiptDataFragment | null>((resolve, reject) => {
     let numChecks = 0;
+    let consecutiveFetchErrors = 0;
     const intervalHandle = setIntervalAsync(async function pollForDeletionFinishedAsync() {
       function failBackgroundDeletion(error: BackgroundJobReceiptPollError): void {
         void clearIntervalAsync(intervalHandle);
@@ -101,6 +108,11 @@ export async function pollForBackgroundJobReceiptAsync(
             resolve(null);
             return;
           }
+          consecutiveFetchErrors += 1;
+          if (consecutiveFetchErrors <= maxConsecutiveFetchErrors) {
+            numChecks++;
+            return;
+          }
         }
         failBackgroundDeletion(
           new BackgroundJobReceiptPollError({
@@ -109,6 +121,8 @@ export async function pollForBackgroundJobReceiptAsync(
         );
         return;
       }
+
+      consecutiveFetchErrors = 0;
 
       // job failed and will not retry
       if (receipt.state === BackgroundJobState.Failure && !receipt.willRetry) {
@@ -121,10 +135,10 @@ export async function pollForBackgroundJobReceiptAsync(
         return;
       }
 
-      // all else fails, stop polling after 90 checks. This should only happen if there's an
+      // all else fails, stop polling after maxChecks. This should only happen if there's an
       // issue with receipts not setting `willRetry` to false when they fail within a reasonable
       // amount of time.
-      if (numChecks > 90) {
+      if (numChecks > maxChecks) {
         failBackgroundDeletion(
           new BackgroundJobReceiptPollError({
             errorType: BackgroundJobReceiptPollErrorType.TIMEOUT,

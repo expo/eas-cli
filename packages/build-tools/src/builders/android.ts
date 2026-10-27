@@ -10,16 +10,23 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
+import { formatGradleProfileReport, parseGradleProfile } from '../android/gradleProfile';
+import { resolveArtifactPath } from '../android/resolve';
+import { Sentry } from '../sentry';
+import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
+import { prebuildAsync } from '../common/prebuild';
+import { JobHooksRef, setupAsync } from '../common/setup';
+import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import {
   extractAndroidVersionAsync,
   reportResolvedVersionAsync,
 } from '../steps/functions/reportResolvedVersion';
-import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
-import { prebuildAsync } from '../common/prebuild';
-import { setupAsync } from '../common/setup';
-import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreGradleCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveGradleCacheAsync } from '../steps/functions/saveBuildCache';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
@@ -30,6 +37,10 @@ import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 
@@ -47,7 +58,21 @@ export default async function androidBuilder(ctx: BuildContext<Android.Job>): Pr
 }
 
 async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
-  await setupAsync(ctx);
+  const jobHooksRef: JobHooksRef = { current: null };
+  try {
+    await buildInnerAsync(ctx, jobHooksRef);
+  } finally {
+    // Native builds have no other drain path for the hook context's queued
+    // step-metric uploads.
+    await jobHooksRef.current?.customBuildContext.drainPendingMetricUploads();
+  }
+}
+
+async function buildInnerAsync(
+  ctx: BuildContext<Android.Job>,
+  jobHooksRef: JobHooksRef
+): Promise<void> {
+  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
   const evictUsedBefore = new Date();
   const workingDirectory = ctx.getReactNativeProjectDirectory();
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
@@ -81,7 +106,13 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     await restoreCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform },
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await restoreGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
@@ -97,7 +128,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
         cwd: ctx.getReactNativeProjectDirectory(),
         logger: ctx.logger,
-        appConfig: ctx.appConfig,
+        appConfig: await ctx.appConfig,
         platform: ctx.job.platform,
         workflow: ctx.job.type,
         env: ctx.env,
@@ -174,13 +205,27 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     });
   });
 
+  await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
+    try {
+      const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
+      const profileTasks = await parseGradleProfile(androidDir);
+      if (profileTasks.length > 0) {
+        const report = formatGradleProfileReport(profileTasks);
+        ctx.logger.info(report);
+      }
+    } catch (err: any) {
+      Sentry.capture('Failed to parse Gradle build profile', err);
+      ctx.markBuildPhaseSkipped();
+    }
+  });
+
   await ctx.runBuildPhase(BuildPhase.PRE_UPLOAD_ARTIFACTS_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
   const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     return await uploadApplicationArchive(ctx, {
-      patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
@@ -204,6 +249,23 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     }
   }
 
+  if (shouldUploadEmbeddedBundle(ctx)) {
+    await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
+    });
+  }
+
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {
       ctx.logger.info('Local builds do not support saving cache.');
@@ -213,8 +275,14 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform },
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

@@ -8,7 +8,7 @@ import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
-import { setupAsync } from '../common/setup';
+import { JobHooksRef, setupAsync } from '../common/setup';
 import { Artifacts, BuildContext } from '../context';
 import { configureXcodeProject } from '../ios/configure';
 import CredentialsManager from '../ios/credentials/manager';
@@ -16,20 +16,31 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
+import { Sentry } from '../sentry';
+import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import {
   extractIosVersionAsync,
   reportResolvedVersionAsync,
 } from '../steps/functions/reportResolvedVersion';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreCocoapodsCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveCocoapodsCacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
+import {
+  shouldUploadEmbeddedBundle,
+  uploadEmbeddedBundleAsync,
+} from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { isSourceMapUploadEnabled, resolveIosSourceMapPathAsync } from '../utils/sourceMaps';
 
 const INSTALL_PODS_WARN_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const INSTALL_PODS_KILL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -50,11 +61,27 @@ export default async function iosBuilder(ctx: BuildContext<Ios.Job>): Promise<Ar
 }
 
 async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
-  await setupAsync(ctx);
+  const jobHooksRef: JobHooksRef = { current: null };
+  try {
+    await buildInnerAsync(ctx, jobHooksRef);
+  } finally {
+    // Native builds have no other drain path for the hook context's queued
+    // step-metric uploads. Must wrap the WHOLE body — iOS's existing inner
+    // try/finally only starts after setupAsync returns.
+    await jobHooksRef.current?.customBuildContext.drainPendingMetricUploads();
+  }
+}
+
+async function buildInnerAsync(
+  ctx: BuildContext<Ios.Job>,
+  jobHooksRef: JobHooksRef
+): Promise<void> {
+  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
   const workingDirectory = ctx.getReactNativeProjectDirectory();
+  let fastlaneResult: { derivedDataPath: string; workspacePath: string } | undefined;
   try {
     const credentials = await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       return await credentialsManager.prepare();
@@ -87,7 +114,13 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       await restoreCcacheAsync({
         logger: ctx.logger,
         workingDirectory,
-        platform: ctx.job.platform,
+        target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      });
+      await restoreCocoapodsCacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
@@ -107,7 +140,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
         return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
           cwd: ctx.getReactNativeProjectDirectory(),
           logger: ctx.logger,
-          appConfig: ctx.appConfig,
+          appConfig: await ctx.appConfig,
           platform: ctx.job.platform,
           workflow: ctx.job.type,
           env: ctx.env,
@@ -150,23 +183,27 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       });
     }
 
-    await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
+    fastlaneResult = await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
       const scheme = resolveScheme(ctx);
       const entitlements = await readEntitlementsAsync(ctx, { scheme, buildConfiguration });
-      await runFastlaneGym(ctx, {
+      const sourceMapPath = isSourceMapUploadEnabled(ctx)
+        ? await resolveIosSourceMapPathAsync(ctx)
+        : null;
+      return await runFastlaneGym(ctx, {
         credentials,
         scheme,
         buildConfiguration,
         entitlements,
-        ...(resolvedExpoUpdatesRuntimeVersion?.runtimeVersion
-          ? {
-              extraEnv: {
+        extraEnv: {
+          ...(resolvedExpoUpdatesRuntimeVersion?.runtimeVersion
+            ? {
                 EXPO_UPDATES_FINGERPRINT_OVERRIDE:
                   resolvedExpoUpdatesRuntimeVersion?.runtimeVersion,
                 EXPO_UPDATES_WORKFLOW_OVERRIDE: ctx.job.type,
-              },
-            }
-          : null),
+              }
+            : null),
+          ...(sourceMapPath ? { SOURCEMAP_FILE: sourceMapPath } : null),
+        },
       });
     });
   } finally {
@@ -175,13 +212,36 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
   }
 
+  await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+    if (ctx.isLocal) {
+      ctx.logger.info('Local builds skip build performance analysis.');
+      return;
+    }
+    try {
+      const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
+      const { skipped } = await parseAndReportXcactivitylog({
+        derivedDataPath,
+        workspacePath,
+        logger: ctx.logger,
+        proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+        env: ctx.env,
+      });
+      if (skipped) {
+        ctx.markBuildPhaseSkipped();
+      }
+    } catch (err: any) {
+      Sentry.capture('Failed to parse xcactivitylog', err);
+      ctx.markBuildPhaseSkipped();
+    }
+  });
+
   await ctx.runBuildPhase(BuildPhase.PRE_UPLOAD_ARTIFACTS_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
   const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
     return await uploadApplicationArchive(ctx, {
-      patternOrPath: resolveArtifactPath(ctx),
+      patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
@@ -205,6 +265,23 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     }
   }
 
+  if (shouldUploadEmbeddedBundle(ctx)) {
+    await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
+      const { status } = await uploadEmbeddedBundleAsync({
+        job: ctx.job,
+        env: ctx.env,
+        logger: ctx.logger,
+        projectDir: ctx.getReactNativeProjectDirectory(),
+        appConfig: await ctx.appConfig,
+      });
+      if (status === 'skipped') {
+        ctx.markBuildPhaseSkipped();
+      } else if (status === 'failed') {
+        ctx.markBuildPhaseHasWarnings();
+      }
+    });
+  }
+
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {
       ctx.logger.info('Local builds do not support saving cache.');
@@ -214,8 +291,14 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveCocoapodsCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

@@ -7,14 +7,19 @@ import {
   UpdateByIdQuery,
   UpdateByIdQueryVariables,
   UpdateFragment,
+  UpdateWithFileUrlsFragment,
   ViewUpdateGroupsOnAppQuery,
   ViewUpdateGroupsOnAppQueryVariables,
   ViewUpdateGroupsOnBranchQuery,
   ViewUpdateGroupsOnBranchQueryVariables,
+  ViewUpdateGroupsPaginatedOnBranchQuery,
+  ViewUpdateGroupsPaginatedOnBranchQueryVariables,
   ViewUpdatesByGroupQuery,
   ViewUpdatesByGroupQueryVariables,
+  ViewUpdatesByGroupWithFileUrlsQuery,
+  ViewUpdatesByGroupWithFileUrlsQueryVariables,
 } from '../generated';
-import { UpdateFragmentNode } from '../types/Update';
+import { UpdateFragmentNode, UpdateWithFileUrlsFragmentNode } from '../types/Update';
 
 export const UpdateQuery = {
   async viewUpdateGroupAsync(
@@ -32,6 +37,40 @@ export const UpdateQuery = {
               }
             }
             ${print(UpdateFragmentNode)}
+          `,
+          {
+            groupId,
+          },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+
+    if (updatesByGroup.length === 0) {
+      throw new Error(`Could not find any updates with group ID: "${groupId}"`);
+    }
+
+    return updatesByGroup;
+  },
+  /**
+   * Same as viewUpdateGroupAsync, but also fetches the signed asset map and source map URLs.
+   * Those are signed per request on the server, so only use this when the URLs are shown.
+   */
+  async viewUpdateGroupWithFileUrlsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { groupId }: ViewUpdatesByGroupWithFileUrlsQueryVariables
+  ): Promise<UpdateWithFileUrlsFragment[]> {
+    const { updatesByGroup } = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdatesByGroupWithFileUrlsQuery, ViewUpdatesByGroupWithFileUrlsQueryVariables>(
+          gql`
+            query ViewUpdatesByGroupWithFileUrls($groupId: ID!) {
+              updatesByGroup(group: $groupId) {
+                id
+                ...UpdateWithFileUrlsFragment
+              }
+            }
+            ${print(UpdateWithFileUrlsFragmentNode)}
           `,
           {
             groupId,
@@ -95,6 +134,80 @@ export const UpdateQuery = {
     }
 
     return branch.updateGroups;
+  },
+  async viewUpdateGroupsPaginatedOnBranchAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      branchName,
+      first,
+      last,
+      after,
+      before,
+      filter,
+    }: ViewUpdateGroupsPaginatedOnBranchQueryVariables
+  ): Promise<UpdateFragment[][]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          ViewUpdateGroupsPaginatedOnBranchQuery,
+          ViewUpdateGroupsPaginatedOnBranchQueryVariables
+        >(
+          gql`
+            query ViewUpdateGroupsPaginatedOnBranch(
+              $appId: String!
+              $branchName: String!
+              $first: Int
+              $last: Int
+              $after: String
+              $before: String
+              $filter: UpdatesFilterV2
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateBranchByName(name: $branchName) {
+                    id
+                    updateGroupsPaginated(
+                      first: $first
+                      last: $last
+                      after: $after
+                      before: $before
+                      filter: $filter
+                    ) {
+                      edges {
+                        node {
+                          id
+                          ...UpdateFragment
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          {
+            appId,
+            branchName,
+            first,
+            last,
+            after,
+            before,
+            filter,
+          },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+    const branch = response.app.byId.updateBranchByName;
+
+    if (!branch) {
+      throw new Error(`Could not find branch "${branchName}"`);
+    }
+
+    return branch.updateGroupsPaginated.edges.map(edge => edge.node);
   },
   async viewUpdateGroupsOnAppAsync(
     graphqlClient: ExpoGraphqlClient,

@@ -1,0 +1,203 @@
+import { Ios, getInstalledExpoPackageVersionAsync } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
+import fs from 'fs-extra';
+import { vol } from 'memfs';
+import path from 'path';
+
+import { createTestIosJob } from '../../__tests__/utils/job';
+import { createMockLogger } from '../../__tests__/utils/logger';
+import { BuildContext } from '../../context';
+import { installPods } from '../pod';
+
+jest.mock('@expo/eas-build-job', () => ({
+  ...jest.requireActual('@expo/eas-build-job'),
+  getInstalledExpoPackageVersionAsync: jest.fn(),
+}));
+jest.mock('@expo/turtle-spawn', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+const WORKING_DIR = '/workingdir';
+const PROJECT_DIR = path.join(WORKING_DIR, 'build');
+const IOS_DIR = path.join(PROJECT_DIR, 'ios');
+
+function makeIosBuildContext({
+  expoVersion,
+  cocoapodsCacheUrl,
+  usePrecompiledModules = true,
+  expoUsePrecompiledModules,
+}: {
+  expoVersion?: string;
+  cocoapodsCacheUrl?: string;
+  usePrecompiledModules?: boolean;
+  expoUsePrecompiledModules?: string;
+}): BuildContext<Ios.Job> {
+  vol.fromJSON({
+    [path.join(IOS_DIR, '.keep')]: '',
+    ...(expoVersion
+      ? {
+          [path.join(PROJECT_DIR, 'node_modules/expo/package.json')]: JSON.stringify({
+            version: expoVersion,
+          }),
+        }
+      : {}),
+  });
+
+  const job: Ios.Job = {
+    ...createTestIosJob(),
+    builderEnvironment: {
+      env: {
+        ...(usePrecompiledModules ? { EAS_USE_PRECOMPILED_MODULES: '1' } : {}),
+      },
+    },
+  };
+
+  return new BuildContext(job, {
+    workingdir: WORKING_DIR,
+    logger: createMockLogger(),
+    logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+    env: {
+      __API_SERVER_URL: 'http://api.expo.test',
+      ...(expoUsePrecompiledModules
+        ? { EXPO_USE_PRECOMPILED_MODULES: expoUsePrecompiledModules }
+        : {}),
+      ...(cocoapodsCacheUrl ? { EAS_BUILD_COCOAPODS_CACHE_URL: cocoapodsCacheUrl } : {}),
+    },
+    uploadArtifact: jest.fn(),
+  });
+}
+
+describe(installPods, () => {
+  beforeEach(() => {
+    vol.reset();
+    jest.mocked(getInstalledExpoPackageVersionAsync).mockImplementation(async ({ projectDir }) => {
+      return (await fs.readJson(path.join(projectDir, 'node_modules/expo/package.json'))).version;
+    });
+    (spawn as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('adds precompiled modules env var for Expo versions well above the minimum', async () => {
+    const ctx = makeIosBuildContext({ expoVersion: '999.0.0' });
+
+    await installPods(ctx, {});
+
+    expect(getInstalledExpoPackageVersionAsync).toHaveBeenCalledWith({
+      env: expect.objectContaining({
+        __API_SERVER_URL: 'http://api.expo.test',
+      }),
+      projectDir: PROJECT_DIR,
+    });
+    expect(spawn).toHaveBeenCalledWith(
+      'pod',
+      ['install'],
+      expect.objectContaining({
+        cwd: IOS_DIR,
+        env: expect.objectContaining({
+          EXPO_USE_PRECOMPILED_MODULES: '1',
+          EXPO_PRECOMPILED_MODULES_BASE_URL:
+            'https://storage.googleapis.com/eas-build-precompiled-modules/',
+        }),
+      })
+    );
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nEXPO_PRECOMPILED_MODULES_BASE_URL=https://storage.googleapis.com/eas-build-precompiled-modules/\nPrecompiled modules pod install environment is configured.'
+    );
+  });
+
+  it('proxies precompiled modules through CocoaPods cache when enabled', async () => {
+    const ctx = makeIosBuildContext({
+      expoVersion: '999.0.0',
+      cocoapodsCacheUrl: 'https://cocoapods-cache.expo.test/',
+    });
+
+    await installPods(ctx, {});
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pod',
+      ['install'],
+      expect.objectContaining({
+        cwd: IOS_DIR,
+        env: expect.objectContaining({
+          EXPO_USE_PRECOMPILED_MODULES: '1',
+          EXPO_PRECOMPILED_MODULES_BASE_URL:
+            'https://cocoapods-cache.expo.test/storage.googleapis.com/eas-build-precompiled-modules/',
+        }),
+      })
+    );
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nEXPO_PRECOMPILED_MODULES_BASE_URL=https://cocoapods-cache.expo.test/storage.googleapis.com/eas-build-precompiled-modules/\nPrecompiled modules pod install environment is configured.'
+    );
+  });
+
+  it('does not add precompiled modules env vars below the minimum Expo version', async () => {
+    const ctx = makeIosBuildContext({ expoVersion: '55.0.25' });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Detected expo=55\.0\.25; not enabling precompiled modules use because precompiled modules require expo>=55\.0\.26\./
+      )
+    );
+  });
+
+  it('does not add precompiled modules env vars when Expo version is invalid', async () => {
+    const ctx = makeIosBuildContext({ expoVersion: 'invalid-version' });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'Detected expo=invalid-version; not enabling precompiled modules use because the installed Expo package version is not a valid semver version.'
+    );
+  });
+
+  it('does not add precompiled modules env vars when Expo version detection fails', async () => {
+    const ctx = makeIosBuildContext({});
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.objectContaining({ code: 'ENOENT' }) }),
+      'Failed to detect installed Expo package version; not enabling precompiled modules use.'
+    );
+  });
+
+  it('does not add precompiled modules env vars without the builder flag', async () => {
+    const ctx = makeIosBuildContext({
+      expoVersion: '999.0.0',
+      usePrecompiledModules: false,
+    });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EAS_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(
+      (spawn as jest.Mock).mock.calls[0][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
+    ).toBeUndefined();
+    expect(ctx.logger.info).not.toHaveBeenCalled();
+  });
+
+  it('does not override EXPO_USE_PRECOMPILED_MODULES=0 even when builder flag is enabled', async () => {
+    const ctx = makeIosBuildContext({
+      expoVersion: '999.0.0',
+      usePrecompiledModules: true,
+      expoUsePrecompiledModules: '0',
+    });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBe('0');
+    expect(
+      (spawn as jest.Mock).mock.calls[0][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
+    ).toBeUndefined();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'EXPO_USE_PRECOMPILED_MODULES=0 is set; not enabling precompiled modules use.'
+    );
+    expect(getInstalledExpoPackageVersionAsync).not.toHaveBeenCalled();
+  });
+});

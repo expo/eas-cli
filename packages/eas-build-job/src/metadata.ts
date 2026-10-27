@@ -50,6 +50,11 @@ export type Metadata = {
   sdkVersion?: string;
 
   /**
+   * Version of the expo package used in the project.
+   */
+  expoPackageVersion?: string;
+
+  /**
    * Runtime version (for Expo Updates)
    */
   runtimeVersion?: string;
@@ -180,6 +185,7 @@ export const MetadataSchema = Joi.object({
   distribution: Joi.string().valid('store', 'internal', 'simulator'),
   credentialsSource: Joi.string().valid('local', 'remote'),
   sdkVersion: Joi.string(),
+  expoPackageVersion: Joi.string(),
   runtimeVersion: Joi.string(),
   fingerprintHash: Joi.string(),
   reactNativeVersion: Joi.string(),

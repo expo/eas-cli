@@ -15,7 +15,11 @@ import {
   EnvironmentSecretsSchema,
   Hooks,
   HooksSchema,
+  JobOutputs,
+  JobOutputsSchema,
   Platform,
+  SshSettings,
+  SshSettingsSchema,
   StaticWorkflowInterpolationContext,
   StaticWorkflowInterpolationContextZ,
   Workflow,
@@ -123,11 +127,13 @@ export interface Job {
     path: string;
   };
   hooks?: Hooks;
+  ssh?: SshSettings;
   steps?: Step[];
-  outputs?: Record<string, string>;
+  outputs?: JobOutputs;
 
   experimental?: {
     prebuildCommand?: string;
+    uploadSourceMaps?: boolean;
   };
   expoBuildUrl?: string;
   githubTriggerOptions?: {
@@ -142,6 +148,8 @@ export interface Job {
   appId: string;
 
   environment?: string;
+
+  refreshAdHocProvisioningProfile?: boolean;
 }
 
 const SecretsSchema = Joi.object({
@@ -210,9 +218,12 @@ export const JobSchema = Joi.object({
 
   username: Joi.string(),
   hooks: HooksSchema,
+  ssh: SshSettingsSchema.optional(),
+  outputs: JobOutputsSchema,
 
   experimental: Joi.object({
     prebuildCommand: Joi.string(),
+    uploadSourceMaps: Joi.boolean(),
   }),
   expoBuildUrl: Joi.string().uri().optional(),
   githubTriggerOptions: Joi.object({
@@ -225,6 +236,8 @@ export const JobSchema = Joi.object({
   appId: Joi.string().required(),
 
   environment: Joi.string(),
+
+  refreshAdHocProvisioningProfile: Joi.boolean(),
 
   workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)

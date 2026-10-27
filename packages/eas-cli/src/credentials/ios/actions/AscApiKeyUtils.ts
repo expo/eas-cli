@@ -2,18 +2,25 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import { UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log, { learnMore } from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import {
   getCredentialsFromUserAsync,
   shouldAutoGenerateCredentialsAsync,
 } from '../../utils/promptForCredentials';
+import { getAscApiKeyForAppSubmissionsAsync } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AscApiKey } from '../appstore/Credentials.types';
+import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
+import { hasAscEnvVars } from '../appstore/resolveCredentials';
 import {
   AscApiKeyPath,
   MinimalAscApiKey,
@@ -24,10 +31,29 @@ import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
+  ASC_APP_CONNECTION = 'EAS Connect',
 }
 
-export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
+export async function promptForAscApiKeyPathAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<AscApiKeyPath> {
+  // Individual keys are valid only as submission keys. Every other purpose
+  // requires a team key, so the key type question is not asked there.
+  const isIndividualKey =
+    purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE &&
+    !ctx.nonInteractive &&
+    (await promptForAscApiKeyTypeIsIndividualAsync());
+
   const { keyId, keyP8Path } = await promptForKeyP8AndIdAsync();
+
+  if (isIndividualKey) {
+    Log.log(
+      'Individual API keys can be used for submissions, TestFlight setup, and metadata only. ' +
+        'They cannot manage certificates or provisioning profiles.'
+    );
+    return { keyId, keyP8Path };
+  }
 
   const bestEffortIssuerId = await getBestEffortIssuerIdAsync(ctx, keyId);
   if (bestEffortIssuerId) {
@@ -36,6 +62,13 @@ export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Prom
   }
   const issuerId = await promptForIssuerIdAsync();
   return { keyId, issuerId, keyP8Path };
+}
+
+async function promptForAscApiKeyTypeIsIndividualAsync(): Promise<boolean> {
+  return await selectAsync<boolean>('Which type of App Store Connect API key do you want to use?', [
+    { title: 'Team key (recommended)', value: false },
+    { title: 'Individual key (submissions only)', value: true },
+  ]);
 }
 
 export async function promptForIssuerIdAsync(): Promise<string> {
@@ -71,9 +104,14 @@ export async function provideOrGenerateAscApiKeyAsync(
     return await generateAscApiKeyAsync(ctx, purpose);
   }
 
-  const userProvided = await promptForAscApiKeyAsync(ctx);
+  const userProvided = await promptForAscApiKeyAsync(ctx, purpose);
   if (!userProvided) {
     return await generateAscApiKeyAsync(ctx, purpose);
+  }
+
+  // The validation below supports team keys only.
+  if (!userProvided.issuerId) {
+    return userProvided;
   }
 
   if (!ctx.appStore.authCtx) {
@@ -99,10 +137,25 @@ async function generateAscApiKeyAsync(
   purpose: AppStoreApiKeyPurpose
 ): Promise<MinimalAscApiKey> {
   await ctx.appStore.ensureAuthenticatedAsync();
+  const role = await selectRoleForGeneratedAscApiKeyAsync();
   const ascApiKey = await ctx.appStore.createAscApiKeyAsync(ctx.analytics, {
     nickname: getAscApiKeyName(purpose),
+    roles: [role],
   });
   return await getMinimalAscApiKeyAsync(ascApiKey);
+}
+
+async function selectRoleForGeneratedAscApiKeyAsync(): Promise<UserRole> {
+  return await selectAsync<UserRole>('Select role for the generated API key:', [
+    {
+      title: 'ADMIN (default)',
+      value: UserRole.ADMIN,
+    },
+    {
+      title: 'APP_MANAGER (least privilege for app management)',
+      value: UserRole.APP_MANAGER,
+    },
+  ]);
 }
 
 export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
@@ -110,12 +163,15 @@ export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
   return nameParts.join(' ');
 }
 
-async function promptForAscApiKeyAsync(ctx: CredentialsContext): Promise<MinimalAscApiKey | null> {
+async function promptForAscApiKeyAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<MinimalAscApiKey | null> {
   const shouldAutoGenerateCredentials = await shouldAutoGenerateCredentialsAsync(ascApiKeyIdSchema);
   if (shouldAutoGenerateCredentials) {
     return null;
   }
-  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx, purpose);
   const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
   return { keyP8: await fs.readFile(keyP8Path, 'utf-8'), keyId, issuerId };
 }
@@ -237,6 +293,23 @@ function filterKeysFromDifferentAppleTeam(
   return keys.filter(key => !key.appleTeam || key.appleTeam?.appleTeamIdentifier === teamId);
 }
 
+export function filterOutIndividualAscApiKeys(
+  keys: AppStoreConnectApiKeyFragment[]
+): AppStoreConnectApiKeyFragment[] {
+  const teamKeys = keys.filter(key => !!key.issuerIdentifier);
+  const hiddenCount = keys.length - teamKeys.length;
+  if (hiddenCount > 0) {
+    Log.log(
+      chalk.gray(
+        `${hiddenCount} individual API ${
+          hiddenCount === 1 ? 'key' : 'keys'
+        } hidden: individual keys are valid only for submissions.`
+      )
+    );
+  }
+  return teamKeys;
+}
+
 export function sortAscApiKeysByUpdatedAtDesc(
   keys: AppStoreConnectApiKeyFragment[]
 ): AppStoreConnectApiKeyFragment[] {
@@ -259,4 +332,95 @@ export function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): strin
 
   line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago`);
   return line;
+}
+
+export async function resolveAscApiKeyForAppCredentialsAsync({
+  graphqlClient,
+  app,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  app: AppLookupParams;
+}): Promise<{
+  ascApiKey: MinimalAscApiKey;
+  teamId?: string;
+  teamName?: string;
+} | null> {
+  const ascKeyFragment = await getAscApiKeyForAppSubmissionsAsync(graphqlClient, app);
+  if (!ascKeyFragment) {
+    return null;
+  }
+  const fullKey = await AppStoreConnectApiKeyQuery.getByIdAsync(graphqlClient, ascKeyFragment.id);
+  return {
+    ascApiKey: {
+      keyP8: fullKey.keyP8,
+      keyId: fullKey.keyIdentifier,
+      issuerId: fullKey.issuerIdentifier,
+    },
+    teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
+    teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
+  };
+}
+
+/**
+ * Best-effort helper that populates `ctx.appStore.authCtx` in non-interactive mode
+ * by loading an App Store Connect API key (from env vars, or by fetching the app's
+ * stored key from the www GraphQL API).
+ *
+ * Returns true if `ctx.appStore.authCtx` is set after the call, false otherwise.
+ * Never throws.
+ */
+export async function tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+  ctx: CredentialsContext,
+  app: AppLookupParams,
+  teamType: AppleTeamType
+): Promise<boolean> {
+  if (ctx.appStore.authCtx) {
+    return true;
+  }
+  try {
+    if (hasAscEnvVars()) {
+      if (
+        process.env.EXPO_ASC_API_KEY_PATH &&
+        process.env.EXPO_ASC_KEY_ID &&
+        !process.env.EXPO_ASC_ISSUER_ID
+      ) {
+        Log.debug(
+          `App Store Connect API key ${process.env.EXPO_ASC_KEY_ID} has no Issuer ID (individual key). Skipping authentication with Apple. Set EXPO_ASC_ISSUER_ID if this is a team key.`
+        );
+        return false;
+      }
+      await ctx.appStore.ensureAuthenticatedAsync({
+        mode: AuthenticationMode.API_KEY,
+        teamType,
+      });
+      return !!ctx.appStore.authCtx;
+    }
+    const resolvedKey = await resolveAscApiKeyForAppCredentialsAsync({
+      graphqlClient: ctx.graphqlClient,
+      app,
+    });
+    if (!resolvedKey) {
+      return false;
+    }
+    if (!resolvedKey.ascApiKey.issuerId) {
+      Log.debug(
+        `App Store Connect API key ${resolvedKey.ascApiKey.keyId} has no Issuer ID (individual key). Skipping authentication with Apple. Run 'eas credentials' and upload the key again with its Issuer ID if this is a team key.`
+      );
+      return false;
+    }
+    Log.log('Using App Store Connect API Key from EAS credentials service.');
+    await ctx.appStore.ensureAuthenticatedAsync({
+      mode: AuthenticationMode.API_KEY,
+      ascApiKey: resolvedKey.ascApiKey,
+      teamId: resolvedKey.teamId,
+      teamName: resolvedKey.teamName,
+      teamType,
+    });
+    return !!ctx.appStore.authCtx;
+  } catch (err: any) {
+    Log.warn(
+      `Failed to authenticate with the App Store Connect API key from EAS credentials service: ${err.message ?? err}`
+    );
+    return false;
+  }
 }

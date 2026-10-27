@@ -32,7 +32,7 @@ export default class NoVcsClient extends Client {
         })
       ).stdout.trim();
     } catch (err) {
-      if (!hasWarnedAboutEasProjectRoot) {
+      if (!this.cwdOverride && !hasWarnedAboutEasProjectRoot) {
         Log.warn(`Failed to get Git root path with \`git rev-parse --show-toplevel\`.`, err);
         Log.warn('Falling back to using current working directory as project root.');
         Log.warn(
@@ -42,7 +42,7 @@ export default class NoVcsClient extends Client {
       }
     }
 
-    return path.resolve(process.cwd(), process.env.EAS_PROJECT_ROOT ?? '.');
+    return path.resolve(this.cwdOverride ?? process.cwd(), process.env.EAS_PROJECT_ROOT ?? '.');
   }
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {

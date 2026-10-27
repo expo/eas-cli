@@ -4,8 +4,11 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   AccountUploadSessionType,
+  AppUploadSessionType,
   CreateAccountScopedUploadSessionMutation,
   CreateAccountScopedUploadSessionMutationVariables,
+  CreateAppScopedUploadSessionMutation,
+  CreateAppScopedUploadSessionMutationVariables,
   CreateUploadSessionMutation,
   CreateUploadSessionMutationVariables,
   UploadSessionType,
@@ -76,5 +79,37 @@ export const UploadSessionMutation = {
         .toPromise()
     );
     return data.uploadSession.createAccountScopedUploadSession;
+  },
+  async createAppScopedUploadSessionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      type,
+      appID,
+    }: {
+      type: AppUploadSessionType;
+      appID: string;
+    }
+  ): Promise<SignedUrl> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<
+          CreateAppScopedUploadSessionMutation,
+          CreateAppScopedUploadSessionMutationVariables
+        >(
+          gql`
+            mutation CreateAppScopedUploadSessionMutation($appID: ID!, $type: AppUploadSessionType!) {
+              uploadSession {
+                createAppScopedUploadSession(appID: $appID, type: $type)
+              }
+            }
+          `,
+          {
+            type,
+            appID,
+          }
+        )
+        .toPromise()
+    );
+    return data.uploadSession.createAppScopedUploadSession;
   },
 };

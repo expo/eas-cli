@@ -16,7 +16,14 @@ import {
 import uniq from '../../../utils/expodash/uniq';
 import { AttributesOf } from '../../utils/asc';
 import { removeDatePrecision } from '../../utils/date';
-import { AppleMetadata } from '../types';
+import {
+  AppleAppClip,
+  AppleAppClipDefaultExperience,
+  AppleAppClipLocalizedInfo,
+  AppleMetadata,
+  ApplePreviews,
+  AppleScreenshots,
+} from '../types';
 
 type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 
@@ -57,6 +64,15 @@ export class AppleConfigReader {
       violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
       violenceRealisticProlongedGraphicOrSadistic:
         attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
+      advertising: attributes.advertising ?? false,
+      ageAssurance: attributes.ageAssurance ?? false,
+      ageRatingOverrideV2: attributes.ageRatingOverrideV2 ?? null,
+      developerAgeRatingInfoUrl: attributes.developerAgeRatingInfoUrl ?? null,
+      gunsOrOtherWeapons: attributes.gunsOrOtherWeapons ?? Rating.NONE,
+      healthOrWellnessTopics: attributes.healthOrWellnessTopics ?? false,
+      messagingAndChat: attributes.messagingAndChat ?? false,
+      parentalControls: attributes.parentalControls ?? false,
+      userGeneratedContent: attributes.userGeneratedContent ?? false,
     };
   }
 
@@ -210,5 +226,35 @@ export class AppleConfigReader {
       notes: review.notes,
       // TODO: add attachment
     };
+  }
+
+  /** Get screenshots configuration for a specific locale */
+  public getScreenshots(locale: string): AppleScreenshots | null {
+    return this.schema.info?.[locale]?.screenshots ?? null;
+  }
+
+  /** Get video previews configuration for a specific locale */
+  public getPreviews(locale: string): ApplePreviews | null {
+    return this.schema.info?.[locale]?.previews ?? null;
+  }
+
+  /** Get the App Clip configuration block, or null if no App Clip is configured. */
+  public getAppClip(): AppleAppClip | null {
+    return this.schema.appClip ?? null;
+  }
+
+  /** Get the App Clip default experience, or null if not configured. */
+  public getAppClipDefaultExperience(): AppleAppClipDefaultExperience | null {
+    return this.schema.appClip?.defaultExperience ?? null;
+  }
+
+  /** Locales that have App Clip default-experience info configured. */
+  public getAppClipLocales(): string[] {
+    return uniq(Object.keys(this.schema.appClip?.defaultExperience?.info ?? {}));
+  }
+
+  /** Get the localized App Clip info (subtitle + header image) for a specific locale. */
+  public getAppClipLocalizedInfo(locale: string): AppleAppClipLocalizedInfo | null {
+    return this.schema.appClip?.defaultExperience?.info?.[locale] ?? null;
   }
 }

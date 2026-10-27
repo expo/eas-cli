@@ -4,6 +4,7 @@ import { Flags } from '@oclif/core';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { handleMetadataError } from '../../metadata/errors';
@@ -19,6 +20,7 @@ export default class MetadataPush extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -32,18 +34,18 @@ export default class MetadataPush extends EasCommand {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPush);
+    const nonInteractive = flags['non-interactive'];
     const {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig: { exp, projectId, projectDir },
       analytics,
       vcsClient,
     } = await this.getContextAsync(MetadataPush, {
-      nonInteractive: false,
+      nonInteractive,
       withServerSideEnvironment: null,
     });
 
-    // this command is interactive (all nonInteractive flags passed to utility functions are false)
-    await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false, vcsClient });
+    await ensureProjectConfiguredAsync({ projectDir, nonInteractive, vcsClient });
 
     const submitProfiles = await getProfilesAsync({
       type: 'submit',
@@ -64,7 +66,7 @@ export default class MetadataPush extends EasCommand {
       user: actor,
       graphqlClient,
       analytics,
-      nonInteractive: false,
+      nonInteractive,
       vcsClient,
     });
 
@@ -75,6 +77,9 @@ export default class MetadataPush extends EasCommand {
         credentialsCtx,
         projectDir,
         profile: submitProfile,
+        nonInteractive,
+        graphqlClient,
+        projectId,
       });
 
       Log.addNewLineIfNone();

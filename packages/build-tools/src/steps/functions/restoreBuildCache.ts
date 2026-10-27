@@ -7,16 +7,27 @@ import {
   BuildStepInputValueTypeName,
   spawnAsync,
 } from '@expo/steps';
+import fs from 'fs';
 import nullthrows from 'nullthrows';
+import os from 'os';
+import path from 'path';
 
 import { sendCcacheStatsAsync } from './ccacheStats';
 import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
 import {
-  CACHE_KEY_PREFIX_BY_PLATFORM,
+  CcacheBuildTarget,
   generateDefaultBuildCacheKeyAsync,
+  getCcacheKeyPrefix,
   getCcachePath,
 } from '../../utils/cacheKey';
-import { TurtleFetchError } from '../../utils/turtleFetch';
+import {
+  getCocoapodsCachePaths,
+  resolveCocoapodsCacheKeyAsync,
+  restoreCocoapodsCacheArchiveAsync,
+} from '../../utils/cocoapodsCache';
+import { Datadog } from '../../datadog';
+import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
+import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';
 
 export function createRestoreBuildCacheFunction(): BuildFunction {
   return new BuildFunction({
@@ -29,6 +40,11 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
         id: 'platform',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'simulator',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
     ],
     fn: async (stepCtx, { env, inputs }) => {
@@ -43,13 +59,39 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
         );
       }
 
+      const target: CcacheBuildTarget =
+        platform === Platform.IOS
+          ? {
+              platform,
+              simulator:
+                (inputs.simulator.value as boolean | undefined) ??
+                (stepCtx.global.staticContext.job.platform === Platform.IOS &&
+                  stepCtx.global.staticContext.job.simulator === true),
+            }
+          : { platform };
       await restoreCcacheAsync({
         logger,
         workingDirectory,
-        platform,
+        target,
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
       });
+
+      if (platform === Platform.ANDROID) {
+        await restoreGradleCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
+      } else {
+        await restoreCocoapodsCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
+      }
     },
   });
 }
@@ -78,13 +120,13 @@ export function createCacheStatsBuildFunction(): BuildFunction {
 export async function restoreCcacheAsync({
   logger,
   workingDirectory,
-  platform,
+  target,
   env,
   secrets,
 }: {
   logger: bunyan;
   workingDirectory: string;
-  platform: Platform;
+  target: CcacheBuildTarget;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 }): Promise<void> {
@@ -122,7 +164,7 @@ export async function restoreCcacheAsync({
       })
     );
 
-    const cacheKey = await generateDefaultBuildCacheKeyAsync(workingDirectory, platform);
+    const cacheKey = await generateDefaultBuildCacheKeyAsync(workingDirectory, target);
     logger.info(`Restoring cache key: ${cacheKey}`);
 
     const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
@@ -133,8 +175,8 @@ export async function restoreCcacheAsync({
       robotAccessToken,
       paths: [cachePath],
       key: cacheKey,
-      keyPrefixes: [CACHE_KEY_PREFIX_BY_PLATFORM[platform]],
-      platform,
+      keyPrefixes: [getCcacheKeyPrefix(target)],
+      platform: target.platform,
     });
 
     await decompressCacheAsync({
@@ -161,7 +203,7 @@ export async function restoreCcacheAsync({
           expoApiServerURL,
           robotAccessToken,
           paths: [cachePath],
-          platform,
+          platform: target.platform,
         });
         await decompressCacheAsync({
           archivePath,
@@ -172,6 +214,174 @@ export async function restoreCcacheAsync({
       } catch (err: unknown) {
         logger.warn({ err }, 'Failed to download public cache');
       }
+    }
+  }
+}
+
+export async function restoreCocoapodsCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_PODS_CACHE !== '1') {
+    return;
+  }
+
+  try {
+    const { stdout } = await spawnAsync('pod', ['--version'], {
+      env,
+      stdio: 'pipe',
+    });
+    const { key, keyPrefix } = await resolveCocoapodsCacheKeyAsync(workingDirectory, stdout);
+    logger.info(`Restoring CocoaPods cache key: ${key}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const { podsDirectory } = getCocoapodsCachePaths(workingDirectory);
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [podsDirectory],
+      key,
+      keyPrefixes: [keyPrefix],
+      platform: Platform.IOS,
+    });
+
+    await restoreCocoapodsCacheArchiveAsync({ archivePath, workingDirectory });
+
+    const hitType = matchedKey === key ? 'direct_hit' : 'prefix_match';
+    logger.info(
+      `CocoaPods cache restored to ${podsDirectory} (${hitType === 'direct_hit' ? 'direct hit' : 'prefix match'})`
+    );
+    Datadog.log(`CocoaPods cache restored (${hitType})`, {
+      event: 'cocoapods_cache_restored',
+      cache_hit_type: hitType,
+    });
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No CocoaPods cache found for this key');
+    } else {
+      logger.warn('Failed to restore CocoaPods cache: ', err);
+    }
+  }
+}
+
+export async function restoreGradleCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_GRADLE_CACHE !== '1') {
+    return;
+  }
+
+  try {
+    // Enable build cache via user-level gradle.properties.
+    // This avoids mutating android/gradle.properties which affects fingerprinting.
+    const gradleUserHome = path.join(os.homedir(), '.gradle');
+    await fs.promises.mkdir(gradleUserHome, { recursive: true });
+    const userGradlePropertiesPath = path.join(gradleUserHome, 'gradle.properties');
+    await fs.promises.appendFile(userGradlePropertiesPath, '\norg.gradle.caching=true\n');
+
+    // Configure cache cleanup via init script.
+    // Works with both Gradle 8 and 9 (org.gradle.cache.cleanup property was removed in Gradle 9).
+    const initScriptDir = path.join(gradleUserHome, 'init.d');
+    await fs.promises.mkdir(initScriptDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(initScriptDir, 'eas-cache-cleanup.gradle'),
+      [
+        'def cacheDir = new File(System.getProperty("user.home"), ".gradle/caches/build-cache-1")',
+        'def countBefore = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        'println "[EAS] Gradle build cache entries before cleanup: ${countBefore}"',
+        '',
+        'beforeSettings { settings ->',
+        '    try {',
+        '        settings.caches {',
+        '            cleanup = Cleanup.ALWAYS',
+        '            buildCache {',
+        '                setRemoveUnusedEntriesAfterDays(3)',
+        '            }',
+        '        }',
+        '        println "[EAS] Configured Gradle cache cleanup via init script"',
+        '    } catch (Exception e) {',
+        '        println "[EAS] Failed to configure cache cleanup: ${e.message}"',
+        '    }',
+        '}',
+        '',
+        'gradle.buildFinished {',
+        '    def countAfter = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        '    println "[EAS] Gradle build cache entries after build: ${countAfter} (was ${countBefore})"',
+        '}',
+        '',
+      ].join('\n')
+    );
+
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const cacheKey = await generateGradleCacheKeyAsync(workingDirectory);
+    logger.info(`Restoring Gradle cache key: ${cacheKey}`);
+
+    const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
+
+    const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+    const journalPath = path.join(gradleCachesPath, 'journal-1');
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [buildCachePath, journalPath],
+      key: cacheKey,
+      keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
+      platform: Platform.ANDROID,
+    });
+
+    await fs.promises.mkdir(gradleCachesPath, { recursive: true });
+    await decompressCacheAsync({
+      archivePath,
+      workingDirectory: gradleCachesPath,
+      verbose: env.EXPO_DEBUG === '1',
+      logger,
+    });
+
+    const hitType = matchedKey === cacheKey ? 'direct_hit' : 'prefix_match';
+    logger.info(
+      `Gradle cache restored to ${gradleCachesPath} (${hitType === 'direct_hit' ? 'direct hit' : 'prefix match'})`
+    );
+
+    Datadog.log(`Gradle cache restored (${hitType})`, {
+      event: 'gradle_cache_restored',
+      cache_hit_type: hitType,
+    });
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No Gradle cache found for this key');
+    } else {
+      logger.warn('Failed to restore Gradle cache: ', err);
     }
   }
 }

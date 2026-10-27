@@ -7,6 +7,7 @@ import nullthrows from 'nullthrows';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import DynamicLoggedInContextField from './context/DynamicLoggedInContextField';
+import ExperimentationContextField from './context/ExperimentationContextField';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -27,7 +28,9 @@ import {
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
 import Log, { link } from '../log';
+import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
+import { getActorDisplayName } from '../user/User';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -55,6 +58,7 @@ const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 interface BaseGetContextAsyncArgs {
   nonInteractive: boolean;
   vcsClientOverride?: Client;
+  projectIdOverride?: string;
 }
 
 interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {
@@ -145,6 +149,14 @@ export default abstract class EasCommand extends Command {
     ProjectId: {
       projectId: new ProjectIdContextField(),
     },
+    /**
+     * Experimentation client for user, account, and device experiments.
+     * Declare a login field first so user experiments see the actor.
+     * Account experiments take the account ID from the command.
+     */
+    Experimentation: {
+      experimentation: new ExperimentationContextField(),
+    },
   };
 
   /**
@@ -169,7 +181,6 @@ export default abstract class EasCommand extends Command {
    * It is set up here to ensure a consistent setup.
    */
   private analyticsInternal?: AnalyticsWithOrchestration;
-
   /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
    */
@@ -182,6 +193,7 @@ export default abstract class EasCommand extends Command {
     {
       nonInteractive,
       vcsClientOverride,
+      projectIdOverride,
       // if specified and not null, the env vars from the selected environment will be fetched from the server
       // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
       withServerSideEnvironment,
@@ -205,6 +217,7 @@ export default abstract class EasCommand extends Command {
           sessionManager: this.sessionManager,
           analytics: this.analytics,
           vcsClientOverride,
+          projectIdOverride,
           withServerSideEnvironment,
         }),
       ]);
@@ -230,7 +243,13 @@ export default abstract class EasCommand extends Command {
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
     // if possible
-    await this.sessionManager.getUserAsync();
+    const actor = await this.sessionManager.getUserAsync();
+    if (actor) {
+      Sentry.setUser({
+        id: actor.id,
+        username: getActorDisplayName(actor),
+      });
+    }
 
     this.analytics.logEvent(CommandEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
@@ -244,13 +263,17 @@ export default abstract class EasCommand extends Command {
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
+    await Sentry.flush(2000);
     return await super.finally(err);
   }
 
   protected override catch(err: Error): Promise<any> {
-    let baseMessage = `${this.id} command failed.`;
+    const commandId = this.id ?? 'unknown';
+    let baseMessage = `${commandId} command failed.`;
     if (err instanceof EasCommandError) {
-      Log.error(err.message);
+      if (!err.messageAlreadyPrinted) {
+        Log.errorToStderr(err.message);
+      }
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
@@ -262,23 +285,34 @@ export default abstract class EasCommand extends Command {
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
           if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
-            if (defaultMsg.includes('ScopedAccountActorViewerContext') && process.env.EAS_BUILD) {
-              // We're in EAS, authenticated with a scoped account actor access token.
-              // We may have not added the scoped actor privacy rule to the right place yet.
-              return `${chalk.bold(
-                `You don't have the required permissions to perform this operation.`
-              )}\n\nWe are in the process of migrating EAS to a more granular permissioning system. If you believe what you're doing is a legitimate operation you should be able to perform, report this to us at ${link(
-                'https://expo.dev/contact'
-              )}\n\nOriginal error message: ${defaultMsg}`;
+            if (defaultMsg.includes('ScopedAccountActorViewerContext')) {
+              if (process.env.EAS_BUILD) {
+                // We're within an EAS job, authenticated with our minted scoped account actor access token.
+                // There's a chance that this operation should be allowed, so we want to provide a way for the user to report this to us.
+                return `${chalk.bold(
+                  `You don't have the required permissions to perform this operation.`
+                )}\n\nWe are in the process of migrating EAS to a more granular permissioning system. If you believe what you're doing is a legitimate operation you should be able to perform, report this to us at ${link(
+                  'https://expo.dev/contact'
+                )}\n\nOriginal error message: ${defaultMsg}`;
+              } else {
+                // We're not in EAS, authenticated with a scoped account actor access token.
+                return `${chalk.bold(
+                  `You don't have the required permissions to perform this operation.`
+                )}\n\nThis can sometimes happen if you are logged in as incorrect user or if the permissions granted during authentication are insufficient to perform the operation.\nRun ${chalk.bold(
+                  'eas whoami'
+                )} to check the user you are logged in as and your permission grant.\nRun ${chalk.bold(
+                  'eas login'
+                )} to change the user or permission grant.\n\nOriginal error message: ${defaultMsg}`;
+              }
             }
 
             return `${chalk.bold(
               `You don't have the required permissions to perform this operation.`
             )}\n\nThis can sometimes happen if you are logged in as incorrect user.\nRun ${chalk.bold(
               'eas whoami'
-            )} to check the username you are logged in as.\nRun ${chalk.bold(
+            )} to check the user you are logged in as.\nRun ${chalk.bold(
               'eas login'
-            )} to change the account.\n\nOriginal error message: ${defaultMsg}`;
+            )} to change users.\n\nOriginal error message: ${defaultMsg}`;
           }
 
           return defaultMsg;
@@ -287,12 +321,23 @@ export default abstract class EasCommand extends Command {
       const cleanMessage = err.networkError
         ? `${cleanGQLErrorsMessage}\n${err.networkError.message}`
         : cleanGQLErrorsMessage;
-      Log.error(cleanMessage);
+      Log.errorToStderr(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {
-      Log.error(err.message);
+      Log.errorToStderr(err.message);
     }
     Log.debug(err);
+    Sentry.withScope(scope => {
+      scope.setTag('command', commandId);
+      scope.setTag('error_name', err.name);
+      scope.setExtra('commandId', commandId);
+      scope.setExtra('commandMessage', baseMessage);
+      scope.setExtra('originalMessage', err.message);
+      if (err instanceof CombinedError) {
+        scope.setExtra('graphQLErrorCount', err.graphQLErrors.length);
+      }
+      Sentry.captureException(err);
+    });
     const sanitizedError = new Error(baseMessage);
     sanitizedError.stack = err.stack;
     throw sanitizedError;

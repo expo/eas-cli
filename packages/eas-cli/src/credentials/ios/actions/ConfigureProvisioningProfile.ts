@@ -16,7 +16,7 @@ import {
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthCtx, AuthenticationMode } from '../appstore/authenticateTypes';
+import { AuthCtx } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
@@ -34,12 +34,9 @@ export class ConfigureProvisioningProfile {
       throw new ForbidCredentialModificationError(
         'Remove the --freeze-credentials flag to configure a Provisioning Profile.'
       );
-    } else if (
-      ctx.nonInteractive &&
-      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
-    ) {
+    } else if (ctx.nonInteractive && !ctx.appStore.authCtx) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. Either set the EXPO_ASC_API_KEY_PATH/EXPO_ASC_KEY_ID/EXPO_ASC_ISSUER_ID environment variables, or configure an App Store Connect API Key for submissions for bundle identifier ${this.app.bundleIdentifier} on EAS. ${learnMore(
           'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
         )}`
       );

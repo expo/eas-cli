@@ -1,8 +1,9 @@
 import {
   BuildJob,
-  EasCliNpmTags,
   Env,
+  Ios,
   Metadata,
+  Platform,
   sanitizeBuildJob,
   sanitizeMetadata,
 } from '@expo/eas-build-job';
@@ -14,7 +15,7 @@ import Joi from 'joi';
 import nullthrows from 'nullthrows';
 
 import { BuildContext } from '../context';
-import { isAtLeastNpm7Async } from '../utils/packageManager';
+import { resolveEasCommandPrefixAndEnvAsync } from '../utils/easCli';
 
 const EasBuildInternalResultSchema = Joi.object<{ job: object; metadata: object }>({
   job: Joi.object().unknown(),
@@ -49,38 +50,48 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
     autoSubmitArgs.push('--auto-submit');
   }
 
-  const result = await spawn(
-    cmd,
-    [
-      ...args,
-      'build:internal',
-      '--platform',
-      job.platform,
-      '--profile',
-      buildProfile,
-      ...autoSubmitArgs,
-    ],
-    {
-      cwd,
-      env: {
-        ...env,
-        EXPO_TOKEN: nullthrows(job.secrets, 'Secrets must be defined for non-custom builds')
-          .robotAccessToken,
-        ...extraEnv,
-        EAS_PROJECT_ROOT: projectRootOverride,
-      },
-      logger,
-      // This prevents printing stdout with job secrets and credentials to logs.
-      mode: PipeMode.STDERR_ONLY_AS_STDOUT,
-    }
-  );
+  const refreshAdHocProvisioningProfileArgs = [];
+  if (job.platform === Platform.IOS && job.refreshAdHocProvisioningProfile === true) {
+    refreshAdHocProvisioningProfileArgs.push('--refresh-ad-hoc-provisioning-profile');
+  }
 
-  const stdout = result.stdout.toString();
-  const parsed = JSON.parse(stdout);
-  return validateEasBuildInternalResult({
-    result: parsed,
-    oldJob: job,
-  });
+  try {
+    const result = await spawn(
+      cmd,
+      [
+        ...args,
+        'build:internal',
+        '--platform',
+        job.platform,
+        '--profile',
+        buildProfile,
+        ...autoSubmitArgs,
+        ...refreshAdHocProvisioningProfileArgs,
+      ],
+      {
+        cwd,
+        env: {
+          ...env,
+          EXPO_TOKEN: nullthrows(job.secrets, 'Secrets must be defined for non-custom builds')
+            .robotAccessToken,
+          ...extraEnv,
+          EAS_PROJECT_ROOT: projectRootOverride,
+        },
+        logger,
+        // This prevents printing stdout with job secrets and credentials to logs.
+        mode: PipeMode.STDERR_ONLY_AS_STDOUT,
+      }
+    );
+
+    const stdout = result.stdout.toString();
+    const parsed = JSON.parse(stdout);
+    return validateEasBuildInternalResult({
+      result: parsed,
+      oldJob: job,
+    });
+  } catch (err: any) {
+    throw new Error('Failed to run eas build:internal');
+  }
 }
 
 export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
@@ -121,33 +132,6 @@ export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
   return env;
 }
 
-async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
-  cmd: string;
-  args: string[];
-  extraEnv: Env;
-}> {
-  const npxArgsPrefix = (await isAtLeastNpm7Async()) ? ['-y'] : [];
-  if (process.env.ENVIRONMENT === 'development') {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.STAGING}`],
-      extraEnv: {},
-    };
-  } else if (process.env.ENVIRONMENT === 'staging') {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.STAGING}`],
-      extraEnv: { EXPO_STAGING: '1' },
-    };
-  } else {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.PRODUCTION}`],
-      extraEnv: {},
-    };
-  }
-}
-
 function validateEasBuildInternalResult<TJob extends BuildJob>({
   oldJob,
   result,
@@ -168,6 +152,12 @@ function validateEasBuildInternalResult<TJob extends BuildJob>({
     // We want to retain values that we have set on the job.
     appId: oldJob.appId,
     initiatingUserId: oldJob.initiatingUserId,
+    // Hooks are resolved server-side at submit; the mid-build eas.json
+    // regeneration must not add, drop, or change them (the original wins).
+    hooks: oldJob.hooks,
+    ...(oldJob.platform === Platform.IOS && oldJob.refreshAdHocProvisioningProfile === true
+      ? { refreshAdHocProvisioningProfile: true }
+      : null),
   }) as TJob;
   assert(newJob.platform === oldJob.platform, 'eas-cli returned a job for a wrong platform');
   const newMetadata = sanitizeMetadata(value.metadata);

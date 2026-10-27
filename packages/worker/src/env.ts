@@ -1,16 +1,17 @@
+import { RuntimeSettings } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
+import os from 'os';
 import path from 'path';
+import v8 from 'v8';
 
 import config from './config';
 import { Environment } from './constants';
-import {
-  ResourceClass,
-  ResourceClassToPlatform,
-  androidImagesWithJavaVersionLowerThen11,
-} from './external/turtle';
+import { androidImagesWithJavaVersionLowerThen11 } from './external/turtle';
 import { getAccessedEnvs } from './utils/env';
+
+const GIB_IN_BYTES = 1024 ** 3;
 
 // keep in sync with local-build-plugin env vars
 // see packages/local-build-plugin/src/build.ts
@@ -33,13 +34,18 @@ export function getBuildEnv({
   // https://github.com/mobile-dev-inc/maestro/issues/1257#issuecomment-1654803779
   setEnv(env, 'MAESTRO_DRIVER_STARTUP_TIMEOUT', '120000');
   setEnv(env, 'MAESTRO_CLI_NO_ANALYTICS', '1');
+  setEnv(env, 'HOMEBREW_NO_AUTO_UPDATE', '1');
   setEnv(env, 'EAS_BUILD', 'true');
   setEnv(env, 'EAS_BUILD_RUNNER', 'eas-build');
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
-  // NPM_CACHE_URL is deprecated
-  setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
-  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);
-  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', config.npmCacheUrl);
+  setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const nodeJsCacheUrl = RuntimeSettings.getNodeJsCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
+  const cocoapodsCacheUrl = RuntimeSettings.getCocoapodsCacheUrl();
+
+  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
+  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
   setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
@@ -47,11 +53,16 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
   setEnv(env, 'EAS_BUILD_PROJECT_ID', projectId);
 
-  const runnerPlatform =
-    job.platform ?? (config.resourceClass && ResourceClassToPlatform[config.resourceClass]);
+  // Keep inherited options last so they override singleton options supplied by the worker.
+  setEnv(env, 'NODE_OPTIONS', [getNodeMemoryOptions(), env.NODE_OPTIONS].filter(Boolean).join(' '));
+
+  const runnerPlatform = job.platform;
   if (runnerPlatform === Platform.IOS) {
-    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
+    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
+    if (RuntimeSettings.isUsingIosPrecompiledModulesEnabled()) {
+      setEnv(env, 'EAS_USE_PRECOMPILED_MODULES', '1');
+    }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
       setEnv(env, 'USE_CCACHE', '1');
@@ -72,13 +83,11 @@ export function getBuildEnv({
         setEnv(env, 'ANDROID_CCACHE', binPath);
       }
     }
-    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', config.mavenCacheUrl);
+    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', mavenCacheUrl);
   }
 
   if (config.env !== Environment.TEST) {
-    const maxHeapSize = config.resourceClass
-      ? (ResourceClassToMaxHeapSize[config.resourceClass] ?? '4g')
-      : '4g';
+    const { maxHeapSize } = getGradleMemoryOptions();
 
     setEnv(
       env,
@@ -141,7 +150,14 @@ export function getBuildEnv({
 }
 
 function getFilteredEnv(): Env {
-  const envToFilter = [...getAccessedEnvs(), 'KUBERNETES_*'];
+  const envToFilter = [
+    ...getAccessedEnvs(),
+    'EAS_NPM_CACHE_URL',
+    'EAS_NODEJS_CACHE_URL',
+    'EAS_MAVEN_CACHE_URL',
+    'EAS_COCOAPODS_CACHE_URL',
+    'KUBERNETES_*',
+  ];
   const envToReturn = micromatch(
     Object.keys(process.env),
     envToFilter.map(env => `!${env}`)
@@ -162,19 +178,24 @@ function setEnv(env: Env, key: string, value: string | null | undefined): void {
   }
 }
 
-const ResourceClassToMaxHeapSize: Record<ResourceClass, string | null> = {
-  [ResourceClass.LINUX_C3D_STANDARD_4]: '4g', // 4 out of 16 GB, 12 GB left
-  [ResourceClass.LINUX_C3D_STANDARD_8]: '8g', // 8 out of 32 GB, 24 GB left
-  [ResourceClass.LINUX_C4D_STANDARD_4]: '4g', // 4 out of 15 GB, 11 GB left
-  [ResourceClass.LINUX_C4D_STANDARD_8]: '8g', // 8 out of 31 GB, 23 GB left
-  [ResourceClass.ANDROID_N2_1_3_12]: '4g', // 4 out of 12 GB, 8 GB left
-  [ResourceClass.ANDROID_N2_2_6_24]: '8g', // 8 out of 24 GB, 16 GB left
+export function getGradleMemoryOptions() {
+  const totalMemoryGb = os.totalmem() / 1024 / 1024 / 1024;
 
-  // We don't care about Gradle heap size for macOS resource classes
-  [ResourceClass.IOS_M1_4_16]: null,
-  [ResourceClass.IOS_M2_2_8]: null,
-  [ResourceClass.IOS_M2_PRO_4_12]: null,
-  [ResourceClass.IOS_M4_PRO_5_20]: null,
-  [ResourceClass.IOS_M4_PRO_10_40]: null,
-  [ResourceClass.IOS_M2_4_22]: null,
-};
+  return {
+    maxHeapSize: `${Math.max(1, Math.round(totalMemoryGb / 4))}g`,
+  };
+}
+
+export function getNodeMemoryOptions(): string | undefined {
+  // constrainedMemory() returns 0 when there is no container or process memory limit.
+  const memoryLimit = process.constrainedMemory() || os.totalmem();
+  const heapLimit = v8.getHeapStatistics().heap_size_limit;
+
+  // V8 defaults to a roughly 2 GiB heap on smaller workers. Raise the ceiling for build child
+  // processes only when the worker has enough memory and Node has not already selected a larger one.
+  if (memoryLimit < 6 * GIB_IN_BYTES || heapLimit >= 3 * GIB_IN_BYTES) {
+    return undefined;
+  }
+
+  return '--max-old-space-size=3072';
+}

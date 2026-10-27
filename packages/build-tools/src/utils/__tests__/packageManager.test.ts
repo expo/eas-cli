@@ -1,11 +1,22 @@
+import { errors } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
+import semver from 'semver';
 
 import {
+  PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolveConfiguredPackageManager,
+  resolveFallbackPackageManager,
+  resolveOverridePackageManager,
+  resolvePackageAdd,
+  resolvePackageExec,
+  resolvePackageInstall,
   resolvePackageManager,
+  resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
 } from '../packageManager';
 
@@ -20,23 +31,23 @@ describe(resolvePackageManager, () => {
   });
 
   it('returns yarn when no lockfiles exist', async () => {
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns npm when only package-json.lock exist', async () => {
     await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('npm');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('npm');
   });
 
   it('returns yarn when only yarn.lock exists', async () => {
     await fs.writeFile(path.join(rootDir, 'yarn.lock'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns yarn when both lockfiles exists', async () => {
     await fs.writeFile(path.join(rootDir, 'yarn.lock'), 'content');
     await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns npm within a monorepo', async () => {
@@ -52,7 +63,7 @@ describe(resolvePackageManager, () => {
       name: '@monorepo/expo-app',
     });
 
-    expect(resolvePackageManager(nestedDir)).toBe('npm');
+    expect(resolvePackageManager(nestedDir, { env: {} })).toBe('npm');
   });
 
   it('returns yarn with an invalid monorepo', async () => {
@@ -64,7 +75,248 @@ describe(resolvePackageManager, () => {
     await fs.mkdirp(nestedDir);
     await fs.writeFile(path.join(nestedDir, 'package.json'), 'content');
 
-    expect(resolvePackageManager(nestedDir)).toBe('yarn');
+    expect(resolvePackageManager(nestedDir, { env: {} })).toBe('yarn');
+  });
+
+  it('returns yarn when no lockfile and env var is an empty string', () => {
+    expect(
+      resolvePackageManager(rootDir, {
+        env: { EAS_FALLBACK_PACKAGE_MANAGER: '' },
+      })
+    ).toBe(PackageManager.YARN);
+  });
+
+  it('returns bun from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bun' } })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('returns pnpm from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'pnpm' } })).toBe(
+      PackageManager.PNPM
+    );
+  });
+
+  it('ignores EAS_FALLBACK_PACKAGE_MANAGER when a lockfile exists', async () => {
+    await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
+    expect(
+      resolvePackageManager(rootDir, {
+        env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' }, // invalid, but should not even be read
+      })
+    ).toBe(PackageManager.NPM);
+  });
+
+  it('throws a UserError on unsupported EAS_FALLBACK_PACKAGE_MANAGER value', () => {
+    expect(() =>
+      resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } })
+    ).toThrow(errors.UserError);
+    try {
+      resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } });
+    } catch (e) {
+      expect(e).toBeInstanceOf(errors.UserError);
+      const error = e as errors.UserError;
+      expect(error.errorCode).toBe('EAS_INVALID_FALLBACK_PACKAGE_MANAGER');
+      expect(error.message).toContain('bunn');
+      expect(error.message).toContain('yarn, npm, pnpm, bun');
+    }
+  });
+});
+
+describe(resolveFallbackPackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveFallbackPackageManager({})).toBeUndefined();
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveFallbackPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveOverridePackageManager, () => {
+  it('returns undefined when unset or empty', () => {
+    expect(resolveOverridePackageManager({})).toBeUndefined();
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: '' })).toBeUndefined();
+  });
+
+  it('returns bun when set', () => {
+    expect(resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('throws a UserError on an unsupported value', () => {
+    expect(() => resolveOverridePackageManager({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bunn' })).toThrow(
+      errors.UserError
+    );
+  });
+});
+
+describe(resolveConfiguredPackageManager, () => {
+  it('uses the unset default', () => {
+    expect(resolveConfiguredPackageManager({}, PackageManager.NPM)).toBe(PackageManager.NPM);
+  });
+
+  it('uses EAS_FALLBACK_PACKAGE_MANAGER when no override is set', () => {
+    expect(
+      resolveConfiguredPackageManager({ EAS_FALLBACK_PACKAGE_MANAGER: 'bun' }, PackageManager.NPM)
+    ).toBe(PackageManager.BUN);
+  });
+
+  it('prefers EAS_OVERRIDE_PACKAGE_MANAGER over the fallback', () => {
+    expect(
+      resolveConfiguredPackageManager(
+        {
+          EAS_OVERRIDE_PACKAGE_MANAGER: 'npm',
+          EAS_FALLBACK_PACKAGE_MANAGER: 'bun',
+        },
+        PackageManager.BUN
+      )
+    ).toBe(PackageManager.NPM);
+  });
+});
+
+describe(resolvePackageExec, () => {
+  const packageArgs = ['@expo/serve-sim@latest', '--port', '1'];
+
+  it('maps npm to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.NPM, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps bun to bun x', () => {
+    expect(resolvePackageExec(PackageManager.BUN, packageArgs)).toEqual({
+      command: 'bun',
+      args: ['x', ...packageArgs],
+    });
+  });
+
+  it('maps yarn to npx --yes', () => {
+    expect(resolvePackageExec(PackageManager.YARN, packageArgs)).toEqual({
+      command: 'npx',
+      args: ['--yes', ...packageArgs],
+    });
+  });
+
+  it('maps pnpm to pnpm dlx', () => {
+    expect(resolvePackageExec(PackageManager.PNPM, packageArgs)).toEqual({
+      command: 'pnpm',
+      args: ['dlx', ...packageArgs],
+    });
+  });
+});
+
+describe(resolvePackageAdd, () => {
+  it('maps npm to npm install --no-audit', () => {
+    expect(resolvePackageAdd(PackageManager.NPM, 'appium@^3')).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', 'appium@^3'],
+    });
+  });
+
+  it('maps bun to bun add', () => {
+    expect(resolvePackageAdd(PackageManager.BUN, 'agent-device@latest')).toEqual({
+      command: 'bun',
+      args: ['add', 'agent-device@latest'],
+    });
+  });
+
+  it('maps yarn to yarn add', () => {
+    expect(resolvePackageAdd(PackageManager.YARN, 'appium@^3')).toEqual({
+      command: 'yarn',
+      args: ['add', 'appium@^3'],
+    });
+  });
+
+  it('maps pnpm to pnpm add', () => {
+    expect(resolvePackageAdd(PackageManager.PNPM, 'appium@^3')).toEqual({
+      command: 'pnpm',
+      args: ['add', 'appium@^3'],
+    });
+  });
+});
+
+describe(resolvePackageInstall, () => {
+  it('maps bun production install', () => {
+    expect(resolvePackageInstall(PackageManager.BUN, { production: true })).toEqual({
+      command: 'bun',
+      args: ['install', '--production'],
+    });
+  });
+
+  it('maps npm production install without audit', () => {
+    expect(resolvePackageInstall(PackageManager.NPM, { production: true })).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit', '--omit=dev'],
+    });
+  });
+
+  it('maps yarn and pnpm production installs', () => {
+    expect(resolvePackageInstall(PackageManager.YARN, { production: true })).toEqual({
+      command: 'yarn',
+      args: ['install', '--production'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM, { production: true })).toEqual({
+      command: 'pnpm',
+      args: ['install', '--prod'],
+    });
+  });
+
+  it('maps non-production installs', () => {
+    expect(resolvePackageInstall(PackageManager.NPM)).toEqual({
+      command: 'npm',
+      args: ['install', '--no-audit'],
+    });
+    expect(resolvePackageInstall(PackageManager.BUN)).toEqual({
+      command: 'bun',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.YARN)).toEqual({
+      command: 'yarn',
+      args: ['install'],
+    });
+    expect(resolvePackageInstall(PackageManager.PNPM)).toEqual({
+      command: 'pnpm',
+      args: ['install'],
+    });
+  });
+});
+
+describe(resolvePackageVersionAsync, () => {
+  const logger = {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  } as unknown as bunyan;
+
+  it('should resolve version from package name and dist tag', async () => {
+    const version = await resolvePackageVersionAsync({
+      logger,
+      packageName: '@expo/repack-app',
+      distTag: 'latest',
+    });
+    expect(semver.valid(version)).toBeTruthy();
+  });
+
+  it('should return null if version cannot be resolved', async () => {
+    const version = await resolvePackageVersionAsync({
+      logger,
+      packageName: '@expo/repack-app',
+      distTag: 'nonexistent-dist-tag',
+    });
+    expect(version).toBeNull();
   });
 });
 

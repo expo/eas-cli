@@ -1,0 +1,155 @@
+import { Args, Flags } from '@oclif/core';
+
+import EasCommand from '../../commandUtils/EasCommand';
+import { EasCommandError } from '../../commandUtils/errors';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
+import Log from '../../log';
+import {
+  EventsOrderPreset,
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../../observe/fetchEvents';
+import {
+  ObserveAfterFlag,
+  ObserveAppVersionFlag,
+  ObserveBuildNumberFlag,
+  ObserveEnvironmentFlag,
+  ObservePlatformFlag,
+  ObserveTimeRangeFlags,
+  ObserveUpdateIdFlag,
+} from '../../observe/flags';
+import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
+import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
+import { observePlatformTargetsFromFlag, observePlatformsFromFlag } from '../../observe/platforms';
+import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { selectAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+const DEFAULT_EVENTS_LIMIT = 10;
+
+export default class ObserveMetrics extends EasCommand {
+  static override description = 'display individual performance metric samples ordered by value';
+
+  static override args = {
+    metric: Args.string({
+      description: 'Metric to query (e.g. tti, cold_launch, nav_tti)',
+      required: false,
+      options: Object.keys(METRIC_ALIASES),
+    }),
+  };
+
+  static override flags = {
+    sort: Flags.option({
+      description: 'Sort order for events',
+      options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
+      required: false,
+      default: EventsOrderPreset.Oldest.valueOf().toLowerCase(),
+    })(),
+    ...ObservePlatformFlag,
+    ...ObserveAfterFlag,
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: DEFAULT_EVENTS_LIMIT,
+      limit: 100,
+    }),
+    ...ObserveTimeRangeFlags,
+    ...ObserveAppVersionFlag,
+    ...ObserveBuildNumberFlag,
+    ...ObserveUpdateIdFlag,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
+    ...EasNonInteractiveAndJsonFlags,
+  };
+
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.LoggedIn,
+  };
+
+  async runAsync(): Promise<void> {
+    const { flags, args } = await this.parse(ObserveMetrics);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveMetrics, {
+      nonInteractive,
+      projectIdOverride: flags['project-id'],
+    });
+
+    if (json) {
+      enableJsonOutput();
+    }
+
+    let metricName: string;
+    if (args.metric) {
+      metricName = resolveMetricName(args.metric);
+    } else if (nonInteractive) {
+      throw new EasCommandError(
+        'A metric argument is required in non-interactive mode. Available metrics: ' +
+          Object.keys(METRIC_ALIASES).join(', ')
+      );
+    } else {
+      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
+        title: `${displayName} (${fullName})`,
+        value: fullName,
+      }));
+      metricName = await selectAsync('Select a metric', choices);
+    }
+    const orderBy = resolveOrderBy(flags.sort);
+
+    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+
+    const platforms = observePlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
+
+    const [{ events, pageInfo }, totalEventCount] = await withObservePlanGateHandlingAsync(() =>
+      Promise.all([
+        fetchObserveEventsAsync(graphqlClient, projectId, {
+          metricName,
+          orderBy,
+          limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+          ...(flags.after && { after: flags.after }),
+          startTime,
+          endTime,
+          platforms,
+          appVersion: flags['app-version'],
+          buildNumber: flags['build-number'],
+          updateId: flags['update-id'],
+          environment: flags.environment,
+        }),
+        fetchTotalEventCountAsync(
+          graphqlClient,
+          projectId,
+          metricName,
+          targets,
+          startTime,
+          endTime,
+          flags.environment
+        ),
+      ])
+    );
+
+    if (json) {
+      printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
+    } else {
+      Log.addNewLineIfNone();
+      Log.log(
+        buildObserveEventsTable(events, pageInfo, {
+          metricName,
+          daysBack,
+          startTime,
+          endTime,
+          totalEventCount,
+        })
+      );
+    }
+  }
+}

@@ -2,26 +2,16 @@ import { WorkflowJobResult } from './types';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
-// This function is in a separate module for testing purposes
-
-export async function fetchRawLogsForCustomJobAsync(
-  job: WorkflowJobResult
-): Promise<string | null> {
-  const firstLogFileUrl = job.turtleJobRun?.logFileUrls?.[0];
-  if (!firstLogFileUrl) {
-    return null;
-  }
-  const response = await fetch(firstLogFileUrl, {
-    method: 'GET',
-  });
-  const rawLogs = await response.text();
-  return rawLogs;
-}
-
-export async function fetchRawLogsForBuildJobAsync(
+export async function fetchRawLogsForJobAsync(
   state: { graphqlClient: ExpoGraphqlClient },
   job: WorkflowJobResult
 ): Promise<string | null> {
+  const turtleLogFileUrl = job.turtleJobRun?.logFileUrls?.[0];
+  if (turtleLogFileUrl) {
+    const response = await fetch(turtleLogFileUrl);
+    return await response.text();
+  }
+
   const buildId = job.outputs?.build_id;
   if (!buildId) {
     return null;
@@ -33,9 +23,6 @@ export async function fetchRawLogsForBuildJobAsync(
   if (!firstLogFileUrl) {
     return null;
   }
-  const response = await fetch(firstLogFileUrl, {
-    method: 'GET',
-  });
-  const rawLogs = await response.text();
-  return rawLogs;
+  const response = await fetch(firstLogFileUrl);
+  return await response.text();
 }

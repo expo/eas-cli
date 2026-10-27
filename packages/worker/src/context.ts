@@ -1,5 +1,5 @@
-import { BuildContext, BuildContextOptions, LogBuffer } from '@expo/build-tools';
-import { BuildPhaseStats, Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
+import { BuildContext, BuildContextOptions, LogBuffer, RuntimeSettings } from '@expo/build-tools';
+import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
 
@@ -8,15 +8,17 @@ import config from './config';
 import { getBuildEnv } from './env';
 import { Analytics } from './external/analytics';
 import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
+import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
 import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadSourceMapAsync,
   uploadWithAnalyticsAsync,
   uploadWorkflowArtifactAsync,
 } from './upload';
 
-export function createBuildContext<TJob extends Job>({
+export async function createBuildContext<TJob extends Job>({
   job,
   logBuffer,
   analytics,
@@ -24,7 +26,7 @@ export function createBuildContext<TJob extends Job>({
   projectId,
   buildId,
   buildLogger,
-  reportBuildPhaseStatsFn,
+  addBuildLogMask,
 }: {
   job: TJob;
   logBuffer: LogBuffer;
@@ -33,10 +35,15 @@ export function createBuildContext<TJob extends Job>({
   projectId: string;
   buildId: string;
   buildLogger: bunyan;
-  reportBuildPhaseStatsFn: (stats: BuildPhaseStats) => void;
-}): BuildContext<TJob> {
-  const env = getBuildEnv({ job, projectId, metadata, buildId });
+  addBuildLogMask: (secret: string) => void;
+}): Promise<BuildContext<TJob>> {
   const childLogger = buildLogger.child({ buildId });
+  await RuntimeSettings.loadAsync({
+    environment: config.env,
+    env: job.builderEnvironment?.env,
+  });
+  await prepareRuntimeEnvironmentConfigFiles();
+  const env = getBuildEnv({ job, projectId, metadata, buildId });
 
   const uploadArtifact: BuildContextOptions['uploadArtifact'] = async ({ artifact, logger }) => {
     const { paths, type } = artifact;
@@ -63,6 +70,13 @@ export function createBuildContext<TJob extends Job>({
           analytics
         );
       }
+      case ManagedArtifactType.SOURCE_MAP: {
+        assert(job.platform, 'Uploading source maps outside of builds is not supported.');
+        return await uploadWithAnalyticsAsync(
+          () => uploadSourceMapAsync(ctx, { sourceMapPath: paths[0], buildId, logger }),
+          analytics
+        );
+      }
       default: {
         return await uploadWithAnalyticsAsync(
           () =>
@@ -70,6 +84,7 @@ export function createBuildContext<TJob extends Job>({
               artifactPaths: paths,
               logger,
               name: artifact.name,
+              metadata: artifact.metadata,
             }),
           analytics
         );
@@ -84,12 +99,14 @@ export function createBuildContext<TJob extends Job>({
     env,
     uploadArtifact,
     reportError: (msg, err, { tags, extras } = {}) => {
-      sentry.handleError(msg, err, { tags, extras });
+      childLogger.error({ tags, extras, err }, msg);
+      sentry.capture(msg, err, { tags, extras });
     },
     cacheManager: new GCSCacheManager(),
     metadata,
-    reportBuildPhaseStats: reportBuildPhaseStatsFn,
     expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+    mcpServerUrl: config.mcpServerUrl,
+    addBuildLogMask,
   });
   return ctx;
 }

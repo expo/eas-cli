@@ -16,6 +16,10 @@ export type IpaInfo = {
   bundleIdentifier: string;
   bundleShortVersion: string;
   bundleVersion: string;
+  // `DTPlatformName` from the bundle's Info.plist (e.g. `iphoneos`, `appletvos`,
+  // `macosx`, `xros`), or null when absent. Used to pick the App Store Connect
+  // platform for the upload. See `AscApiUtils.ascPlatformFromDtPlatformName`.
+  dtPlatformName: string | null;
 };
 
 const INFO_PLIST_PATH_REGEXP = /^Payload\/[^/]+\.app\/Info\.plist$/;
@@ -91,10 +95,14 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
       );
     }
 
+    const dtPlatformName =
+      typeof infoPlist.DTPlatformName === 'string' ? infoPlist.DTPlatformName : null;
+
     return {
       bundleIdentifier,
       bundleShortVersion,
       bundleVersion,
+      dtPlatformName,
     };
   } catch (error) {
     if (error instanceof UserError) {

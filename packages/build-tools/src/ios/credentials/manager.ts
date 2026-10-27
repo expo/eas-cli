@@ -26,7 +26,7 @@ export interface Credentials {
 export type TargetProvisioningProfiles = Record<string, ProvisioningProfileData>;
 
 export default class IosCredentialsManager<TJob extends Ios.Job> {
-  private keychain?: Keychain<TJob>;
+  private keychain?: Keychain;
   private readonly provisioningProfiles: ProvisioningProfile<TJob>[] = [];
   private cleanedUp = false;
 
@@ -48,8 +48,8 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
     this.ctx.logger.info('Preparing credentials');
 
     this.ctx.logger.info('Creating keychain');
-    this.keychain = new Keychain(this.ctx);
-    await this.keychain.create();
+    this.keychain = new Keychain();
+    await this.keychain.create({ logger: this.ctx.logger });
 
     const targets = Object.keys(buildCredentials);
     const targetProvisioningProfiles: TargetProvisioningProfiles = {};
@@ -82,7 +82,7 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
     }
 
     if (this.keychain) {
-      await this.keychain.destroy();
+      await this.keychain.destroy({ logger: this.ctx.logger });
     }
     if (this.provisioningProfiles) {
       for (const provisioningProfile of this.provisioningProfiles) {
@@ -120,10 +120,11 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       );
 
       this.ctx.logger.info('Importing distribution certificate into the keychain');
-      await this.keychain.importCertificate(
-        distCertPath,
-        targetCredentials.distributionCertificate.password
-      );
+      await this.keychain.importCertificate({
+        logger: this.ctx.logger,
+        certPath: distCertPath,
+        certPassword: targetCredentials.distributionCertificate.password,
+      });
 
       this.ctx.logger.info('Initializing provisioning profile');
       const provisioningProfile = new ProvisioningProfile(
@@ -138,10 +139,10 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       this.ctx.logger.info(
         'Validating whether the distribution certificate has been imported successfully'
       );
-      await this.keychain.ensureCertificateImported(
-        provisioningProfile.data.teamId,
-        certificateFingerprint
-      );
+      await this.keychain.ensureCertificateImported({
+        teamId: provisioningProfile.data.teamId,
+        fingerprint: certificateFingerprint,
+      });
 
       this.ctx.logger.info(
         'Verifying whether the distribution certificate and provisioning profile match'

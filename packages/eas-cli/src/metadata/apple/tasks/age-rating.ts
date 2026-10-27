@@ -1,5 +1,4 @@
 import { AgeRatingDeclaration } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import Log from '../../../log';
@@ -7,7 +6,7 @@ import { logAsync } from '../../utils/log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
 export type AgeRatingData = {
-  /** The app age rating declaration for the app version */
+  /** The app age rating declaration for the app info */
   ageRating: AgeRatingDeclaration;
 };
 
@@ -15,7 +14,22 @@ export class AgeRatingTask extends AppleTask {
   public name = (): string => 'age rating declarations';
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
-    context.ageRating = (await context.version!.getAgeRatingDeclarationAsync()) ?? undefined;
+    if (!context.info) {
+      return;
+    }
+    // The ageRatingDeclaration relationship is on appInfos (not appStoreVersions).
+    try {
+      context.ageRating = (await context.info.getAgeRatingDeclarationAsync()) ?? undefined;
+    } catch (error: any) {
+      // Gracefully handle cases where the relationship is not available
+      if (error?.message?.includes('ageRatingDeclaration')) {
+        Log.warn(
+          chalk`{yellow Skipped age rating - not available for this app. This may require updating through App Store Connect directly.}`
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
@@ -25,7 +39,10 @@ export class AgeRatingTask extends AppleTask {
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
-    assert(context.ageRating, `Age rating not initialized, can't update age rating`);
+    if (!context.ageRating) {
+      Log.log(chalk`{dim - Skipped age rating update, not available}`);
+      return;
+    }
 
     const ageRating = config.getAgeRating();
     if (!ageRating) {

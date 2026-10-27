@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from './active-rollout';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from './getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import {
   selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync,
@@ -52,6 +53,7 @@ export async function republishAsync({
   codeSigningInfo,
   json,
   rolloutPercentage,
+  activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
   app: { exp: ExpoConfig; projectId: string };
@@ -61,6 +63,7 @@ export async function republishAsync({
   codeSigningInfo?: CodeSigningInfo;
   json?: boolean;
   rolloutPercentage?: number;
+  activeRollout?: { forceEndActiveRollout: boolean };
 }): Promise<void> {
   const { branchName: targetBranchName, branchId: targetBranchId } = targetBranch;
 
@@ -71,7 +74,7 @@ export async function republishAsync({
     update.groupId === arbitraryUpdate.groupId &&
     update.branchId === arbitraryUpdate.branchId &&
     update.branchName === arbitraryUpdate.branchName &&
-    update.runtimeVersion === arbitraryUpdate.runtimeVersion &&
+    update.runtime.version === arbitraryUpdate.runtime.version &&
     update.manifestHostOverride === arbitraryUpdate.manifestHostOverride &&
     update.assetHostOverride === arbitraryUpdate.assetHostOverride;
   assert(
@@ -90,7 +93,7 @@ export async function republishAsync({
     'Cannot republish an update that is being rolled-out. Either complete the update rollout and then republish or publish a new rollout update.'
   );
 
-  const { runtimeVersion } = arbitraryUpdate;
+  const runtimeVersion = arbitraryUpdate.runtime.version;
 
   // If codesigning was created for the original update, we need to add it to the republish.
   // If one wishes to not sign the republish or sign with a different key, a normal publish should
@@ -166,7 +169,7 @@ export async function republishAsync({
             : null,
         };
 
-    updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
+    const updateGroups = [
       {
         branchId: targetBranchId,
         runtimeVersion,
@@ -179,7 +182,21 @@ export async function republishAsync({
         manifestHostOverride: updatesToPublish[0].manifestHostOverride,
         assetHostOverride: updatesToPublish[0].assetHostOverride,
       },
-    ]);
+    ];
+
+    const updateGroupsToPublish = activeRollout
+      ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
+          appId: app.projectId,
+          branchName: targetBranchName,
+          forceEndActiveRollout: activeRollout.forceEndActiveRollout,
+          rolloutPercentage,
+        })
+      : updateGroups;
+
+    updatesRepublished = await PublishMutation.publishUpdateGroupAsync(
+      graphqlClient,
+      updateGroupsToPublish
+    );
 
     if (codeSigningInfo) {
       Log.log('🔒 Signing republished update group');
@@ -246,7 +263,7 @@ export async function republishAsync({
   Log.log(
     formatFields([
       { label: 'Branch', value: targetBranchName },
-      { label: 'Runtime version', value: arbitraryRepublishedUpdate.runtimeVersion },
+      { label: 'Runtime version', value: arbitraryRepublishedUpdate.runtime.version },
       { label: 'Platform', value: updatesRepublished.map(update => update.platform).join(', ') },
       { label: 'Update group ID', value: arbitraryRepublishedUpdate.group },
       ...(updatesRepublishedByPlatform.android

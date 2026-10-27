@@ -1,5 +1,8 @@
 name: codemention
 on:
+  # pull_request_target is required so fork PRs get a write token to post the
+  # mention comment. Safe because there is no checkout — the action only reads
+  # PR metadata via the GitHub API; no fork code is fetched or executed.
   pull_request_target:
     types: [opened, synchronize, ready_for_review]
 jobs:
@@ -9,6 +12,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: tobyhs/codemention@v1.4.0
+      # Pinned to a commit SHA (not a tag or branch) because this runs under
+      # pull_request_target with a write-scoped token — a re-pointed tag or
+      # moving branch would allow unreviewed upstream code to run here.
+      - uses: tobyhs/codemention@ebac5877393ab8693fd73b42708c8552043e9a3b # post-v1.5.2
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}

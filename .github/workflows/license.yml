@@ -1,0 +1,37 @@
+name: License
+on:
+  schedule:
+    - cron: '0 0 1 1-12/3 *' # Run every three months
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/license.yml
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    name: Update BSL change date
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          token: ${{ secrets.EXPO_BOT_PAT }}
+      - name: Check last commit date
+        run: |
+          # The date in the license
+          change_date=$(sed --quiet --regexp-extended 's/^Change Date:\s+([0-9]{4}-[0-9]{2}-[0-9]{2})/\1/p' < LICENSE-BUSL)
+          [ -z "$change_date" ] && exit 1
+
+          new_change_date=$(date --date "+3 years" --iso-8601)
+
+          if [ "$(date --date "$new_change_date" +%s)" -gt "$(date --date "$change_date" +%s)" ]; then
+            sed --in-place "s/$change_date/$new_change_date/" LICENSE-BUSL
+            git config user.name 'Expo Bot'
+            git config user.email bot@expo.dev
+            git add LICENSE-BUSL
+            git commit -m "[license] Update BSL Change Date to $new_change_date"
+            if [ "$(git branch --show-current)" = main ]; then
+              git push
+            fi
+          fi

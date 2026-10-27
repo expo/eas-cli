@@ -161,4 +161,39 @@ describe(pollForBackgroundJobReceiptAsync, () => {
       })
     ).rejects.toThrow('Background job timed out.');
   });
+
+  it('tolerates consecutive CombinedError fetches before NULL_RECEIPT', async () => {
+    const { CombinedError } = jest.requireActual('@urql/core');
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+    const receiptId = '123';
+    const backgroundJobReceiptInProgress: BackgroundJobReceiptDataFragment = {
+      id: receiptId,
+      state: BackgroundJobState.InProgress,
+      willRetry: false,
+      tries: 0,
+      resultType: BackgroundJobResultType.Void,
+    } as any;
+    const backgroundJobReceiptSuccess: BackgroundJobReceiptDataFragment = {
+      id: receiptId,
+      state: BackgroundJobState.Success,
+      willRetry: false,
+      tries: 0,
+      resultType: BackgroundJobResultType.Void,
+    } as any;
+
+    jest
+      .mocked(BackgroundJobReceiptQuery.byIdAsync)
+      .mockRejectedValueOnce(new CombinedError({ networkError: new Error('blip') }))
+      .mockRejectedValueOnce(new CombinedError({ networkError: new Error('blip') }))
+      .mockResolvedValueOnce(backgroundJobReceiptSuccess);
+
+    const result = await pollForBackgroundJobReceiptAsync(
+      graphqlClient,
+      backgroundJobReceiptInProgress,
+      { pollInterval: 50, maxConsecutiveFetchErrors: 3 }
+    );
+
+    expect(result).toEqual(backgroundJobReceiptSuccess);
+  });
 });

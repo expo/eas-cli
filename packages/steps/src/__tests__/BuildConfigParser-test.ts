@@ -2,7 +2,7 @@ import path from 'path';
 
 import { createGlobalContextMock } from './utils/context';
 import { getError, getErrorAsync } from './utils/error';
-import { UUID_REGEX } from './utils/uuid';
+import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildConfigParser } from '../BuildConfigParser';
 import { BuildFunction } from '../BuildFunction';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
@@ -112,8 +112,8 @@ describe(BuildConfigParser, () => {
 
       // - run: echo "Hi!"
       const step1 = buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
-      expect(step1.name).toBeUndefined();
+      expect(step1.id).toMatch(GENERATED_STEP_ID_REGEX);
+      expect(step1.displayName).toBe('echo "Hi!"');
       expect(step1.command).toBe('echo "Hi!"');
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
@@ -128,8 +128,7 @@ describe(BuildConfigParser, () => {
       //       echo "L"
       //       echo "O"
       const step2 = buildSteps[1];
-      expect(step2.id).toMatch(UUID_REGEX);
-      expect(step2.name).toBe('Say HELLO');
+      expect(step2.displayName).toBe('Say HELLO');
       expect(step2.command).toMatchSnapshot();
       expect(step2.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step2.shell).toBe('/bin/bash -eo pipefail');
@@ -143,7 +142,7 @@ describe(BuildConfigParser, () => {
       //       BAR: baz
       const step3 = buildSteps[2];
       expect(step3.id).toBe('id_2137');
-      expect(step3.name).toBeUndefined();
+      expect(step3.displayName).toBe('id_2137');
       expect(step3.command).toBe('echo "Step with an ID"');
       expect(step3.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step3.shell).toBe('/bin/bash -eo pipefail');
@@ -157,8 +156,7 @@ describe(BuildConfigParser, () => {
       //     working_directory: relative/path/to/files
       //     command: ls -la
       const step4 = buildSteps[3];
-      expect(step4.id).toMatch(UUID_REGEX);
-      expect(step4.name).toBe('List files');
+      expect(step4.displayName).toBe('List files');
       expect(step4.command).toBe('ls -la');
       expect(step4.ctx.workingDirectory).toBe(
         path.join(ctx.defaultWorkingDirectory, 'relative/path/to/files')
@@ -171,8 +169,7 @@ describe(BuildConfigParser, () => {
       //     working_directory: /home/dsokal
       //     command: ls -la
       const step5 = buildSteps[4];
-      expect(step5.id).toMatch(UUID_REGEX);
-      expect(step5.name).toBe('List files in another directory');
+      expect(step5.displayName).toBe('List files in another directory');
       expect(step5.command).toBe('ls -la');
       expect(step5.ctx.workingDirectory).toBe(
         path.join(ctx.projectTargetDirectory, '/home/dsokal')
@@ -186,8 +183,7 @@ describe(BuildConfigParser, () => {
       //     shell: /nib/hsab
       //     command: echo 123
       const step6 = buildSteps[5];
-      expect(step6.id).toMatch(UUID_REGEX);
-      expect(step6.name).toBe('Use non-default shell');
+      expect(step6.displayName).toBe('Use non-default shell');
       expect(step6.command).toBe('echo 123');
       expect(step6.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step6.shell).toBe('/nib/hsab');
@@ -219,8 +215,7 @@ describe(BuildConfigParser, () => {
       //            property3: value4
       //   command: echo "Hi, ${ inputs.name }, ${ inputs.boolean_value }!"
       const step1 = buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
-      expect(step1.name).toBe('Say HI');
+      expect(step1.displayName).toBe('Say HI');
       expect(step1.command).toBe('echo "Hi, ${ inputs.name }, ${ inputs.boolean_value }!"');
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
@@ -270,8 +265,7 @@ describe(BuildConfigParser, () => {
       //       set-output first_name Brent
       //       set-output last_name Vatne
       const step1 = buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
-      expect(step1.name).toBeUndefined();
+      expect(step1.displayName).toBe('set-output first_name Brent');
       expect(step1.command).toMatchSnapshot();
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
@@ -294,8 +288,7 @@ describe(BuildConfigParser, () => {
       //       set-output last_name Sokal
       //       set-output nickname dsokal
       const step2 = buildSteps[1];
-      expect(step2.id).toMatch(UUID_REGEX);
-      expect(step2.name).toBeUndefined();
+      expect(step2.displayName).toBe('set-output first_name Dominik');
       expect(step2.command).toMatchSnapshot();
       expect(step2.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step2.shell).toBe('/bin/bash -eo pipefail');
@@ -333,8 +326,7 @@ describe(BuildConfigParser, () => {
       //            - aaa
       //            - bbb
       const step1 = buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
-      expect(step1.name).toBe('Hi!');
+      expect(step1.displayName).toBe('Hi!');
       expect(step1.command).toBe('echo "Hi, ${ inputs.name }!"');
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
@@ -365,8 +357,7 @@ describe(BuildConfigParser, () => {
       //       name: Szymon
       //       build_number: 122
       const step2 = buildSteps[1];
-      expect(step2.id).toMatch(UUID_REGEX);
-      expect(step2.name).toBe('Hi, Szymon!');
+      expect(step2.displayName).toBe('Hi, Szymon!');
       expect(step2.command).toBe('echo "Hi, ${ inputs.name }!"');
       expect(step2.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step2.shell).toBe('/bin/bash -eo pipefail');
@@ -392,8 +383,7 @@ describe(BuildConfigParser, () => {
 
       // - say_hi_wojtek
       const step3 = buildSteps[2];
-      expect(step3.id).toMatch(UUID_REGEX);
-      expect(step3.name).toBe('Hi, Wojtek!');
+      expect(step3.displayName).toBe('Hi, Wojtek!');
       expect(step3.command).toBe('echo "Hi, Wojtek!"');
       expect(step3.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step3.shell).toBe('/bin/bash -eo pipefail');
@@ -403,7 +393,7 @@ describe(BuildConfigParser, () => {
       //     id: random_number
       const step4 = buildSteps[3];
       expect(step4.id).toMatch('random_number');
-      expect(step4.name).toBe('Generate random number');
+      expect(step4.displayName).toBe('Generate random number');
       expect(step4.command).toBe('set-output value 6');
       expect(step4.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step4.shell).toBe('/bin/bash -eo pipefail');
@@ -416,8 +406,7 @@ describe(BuildConfigParser, () => {
       //     inputs:
       //       value: ${ steps.random_number.value }
       const step5 = buildSteps[4];
-      expect(step5.id).toMatch(UUID_REGEX);
-      expect(step5.name).toBe(undefined);
+      expect(step5.displayName).toBe('print');
       expect(step5.command).toBe('echo "${ inputs.value }"');
       expect(step5.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step5.shell).toBe('/bin/bash -eo pipefail');
@@ -431,8 +420,7 @@ describe(BuildConfigParser, () => {
       //       greeting: Hello
       //       num: 123
       const step6 = buildSteps[5];
-      expect(step6.id).toMatch(UUID_REGEX);
-      expect(step6.name).toBe('Hi!');
+      expect(step6.displayName).toBe('Hi!');
       expect(step6.command).toBe('echo "${ inputs.greeting }, ${ inputs.name }!"');
       expect(step6.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step6.shell).toBe('/bin/bash -eo pipefail');
@@ -644,12 +632,11 @@ describe(BuildConfigParser, () => {
 
       // - eas/download_project
       const step1 = workflow.buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
+      expect(step1.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step1.fn).toBe(downloadProjectFn);
 
       // - eas/build_project
       const step2 = workflow.buildSteps[1];
-      expect(step2.id).toMatch(UUID_REGEX);
       expect(step2.fn).toBe(buildProjectFn);
     });
 
@@ -726,37 +713,32 @@ describe(BuildConfigParser, () => {
 
       // - eas/download_project
       const step1 = workflow.buildSteps[0];
-      expect(step1.id).toMatch(UUID_REGEX);
+      expect(step1.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step1.fn).toBe(downloadProjectFn);
 
       // - eas/build_project
       const step2 = workflow.buildSteps[1];
-      expect(step2.id).toMatch(UUID_REGEX);
+      expect(step2.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step2.fn).toBe(buildProjectFn);
 
       // - eas/download_project3 originating from build group eas/build
       const step3 = workflow.buildSteps[2];
-      expect(step3.id).toMatch(UUID_REGEX);
       expect(step3.fn).toBe(downloadProjectFn);
 
       // - eas/build_project4 originating from build group eas/build
       const step4 = workflow.buildSteps[3];
-      expect(step4.id).toMatch(UUID_REGEX);
       expect(step4.fn).toBe(buildProjectFn);
 
       // - eas/download_project5 originating from submit group eas/submit
       const step5 = workflow.buildSteps[4];
-      expect(step5.id).toMatch(UUID_REGEX);
       expect(step5.fn).toBe(downloadProjectFn);
 
       // - eas/build_project6 originating from submit group eas/submit
       const step6 = workflow.buildSteps[5];
-      expect(step6.id).toMatch(UUID_REGEX);
       expect(step6.fn).toBe(buildProjectFn);
 
       // - eas/test7 originating from submit group eas/submit
       const step7 = workflow.buildSteps[6];
-      expect(step7.id).toMatch(UUID_REGEX);
       expect(step7.fn).toBeDefined();
     });
   });

@@ -5,6 +5,7 @@ export const FastfileResignTemplate = `lane :do_resign do
     provisioning_profile: {<% _.forEach(PROFILES, function(profile) { %>
       "<%- profile.BUNDLE_ID %>" => "<%- profile.PATH %>",<% }); %>
     },
+    use_app_entitlements: true,
     keychain_path: "<%- KEYCHAIN_PATH %>"
   )
 end

@@ -1,5 +1,0 @@
-appId: com.example.app
-name: "login"
-tags: ["auth", "smoke"]
----
-- assertTrue: true

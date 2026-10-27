@@ -49,10 +49,7 @@ export class WsHelper {
   public onMessage(cb: (message: any) => void): void {
     this.onMessageCb = jest.fn(raw => {
       logger.debug({ raw }, 'ws message');
-      const parsed = JSON.parse(raw);
-      if (parsed.type !== 'build-phase-stats') {
-        cb(parsed);
-      }
+      cb(JSON.parse(raw));
     });
     this.ws.on('message', this.onMessageCb);
   }

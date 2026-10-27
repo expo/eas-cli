@@ -131,7 +131,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler (~> 1.17)
+  bundler (>= 2.4)
   cocoapods (~> 1.12)
   expo-cocoapods-proxy!
   rake (~> 10.0)
@@ -139,4 +139,4 @@ DEPENDENCIES
   rubocop (~> 1.48)
 
 BUNDLED WITH
-   2.1.4
+  4.0.13

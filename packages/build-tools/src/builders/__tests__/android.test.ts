@@ -4,9 +4,12 @@ import { vol } from 'memfs';
 import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
+import { Datadog } from '../../datadog';
 import { restoreCredentials } from '../../android/credentials';
+import { uploadEmbeddedBundleAsync } from '../../utils/expoUpdatesEmbedded';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
+import { setupAsync } from '../../common/setup';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
@@ -56,6 +59,10 @@ jest.mock('../../utils/expoUpdates', () => ({
   configureExpoUpdatesIfInstalledAsync: jest.fn(),
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync: jest.fn(async () => null),
 }));
+jest.mock('../../utils/expoUpdatesEmbedded', () => ({
+  ...jest.requireActual('../../utils/expoUpdatesEmbedded'),
+  uploadEmbeddedBundleAsync: jest.fn(async () => ({ status: 'uploaded' })),
+}));
 jest.mock('../../utils/hooks', () => ({
   Hook: {
     POST_INSTALL: 'POST_INSTALL',
@@ -67,8 +74,11 @@ jest.mock('../../utils/prepareBuildExecutable', () => ({
   prepareExecutableAsync: jest.fn(),
 }));
 
+const datadogDistributionMock = jest.spyOn(Datadog, 'distribution');
+
 describe(androidBuilder, () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     vol.fromJSON(
       {
         '/workingdir/env/.gitkeep': '',
@@ -79,6 +89,48 @@ describe(androidBuilder, () => {
       },
       '/'
     );
+  });
+
+  it('passes the install_node_modules anchor and a hooks ref to setupAsync', async () => {
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: { __API_SERVER_URL: 'http://api.expo.test' },
+      uploadArtifact: jest.fn(),
+    });
+
+    await androidBuilder(ctx);
+
+    expect(setupAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        wrappedAnchors: ['install_node_modules'],
+        jobHooksRef: expect.objectContaining({ current: null }),
+      })
+    );
+  });
+
+  it('drains queued hook metric uploads even when setup fails after assigning the ref', async () => {
+    const drainPendingMetricUploads = jest.fn();
+    jest.mocked(setupAsync).mockImplementationOnce(async (_ctx, { jobHooksRef }) => {
+      // A before-hook can queue a metric upload and then fail setup; the drain
+      // must still run.
+      jobHooksRef.current = {
+        customBuildContext: { drainPendingMetricUploads },
+      } as never;
+      throw new Error('setup boom');
+    });
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: { __API_SERVER_URL: 'http://api.expo.test' },
+      uploadArtifact: jest.fn(),
+    });
+
+    await expect(androidBuilder(ctx)).rejects.toThrow('setup boom');
+    expect(drainPendingMetricUploads).toHaveBeenCalled();
   });
 
   it('injects Android version config without build credentials', async () => {
@@ -138,7 +190,6 @@ describe(androidBuilder, () => {
   });
 
   it('marks the configure Android version phase as warning for legacy eas-build.gradle', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const job: Android.Job = {
       ...createTestAndroidJob(),
       secrets: {
@@ -157,23 +208,23 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
 
     await androidBuilder(ctx);
 
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        build_phase: BuildPhase.CONFIGURE_ANDROID_VERSION.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
   });
 
   it('marks the prepare credentials phase as warning for legacy eas-build.gradle', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const ctx = new BuildContext(createTestAndroidJob(), {
       workingdir: '/workingdir',
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
@@ -182,23 +233,23 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
 
     await androidBuilder(ctx);
 
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        build_phase: BuildPhase.PREPARE_CREDENTIALS.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
   });
 
   it('injects credentials and version config when both are configured', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const job: Android.Job = {
       ...createTestAndroidJob(),
       version: {
@@ -214,7 +265,6 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
@@ -234,15 +284,19 @@ describe(androidBuilder, () => {
         versionName: '1.2.3',
       }
     );
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        build_phase: BuildPhase.PREPARE_CREDENTIALS.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        build_phase: BuildPhase.CONFIGURE_ANDROID_VERSION.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
@@ -262,5 +316,110 @@ describe(androidBuilder, () => {
     await androidBuilder(ctx);
 
     expect(runBuilderWithHooksAsync).toHaveBeenCalledWith(ctx, expect.any(Function));
+  });
+
+  describe('embedded bundle upload phase', () => {
+    function createContext({
+      env = {},
+      sdkVersion,
+    }: {
+      env?: Record<string, string>;
+      sdkVersion?: string;
+    }): BuildContext<Android.Job> {
+      return new BuildContext(createTestAndroidJob(), {
+        workingdir: '/workingdir',
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        logger: createMockLogger(),
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+          ...env,
+        },
+        uploadArtifact: jest.fn(),
+        metadata: sdkVersion ? { sdkVersion } : undefined,
+      });
+    }
+
+    it('runs by default on SDK 58 and later', async () => {
+      const ctx = createContext({ sdkVersion: '58.0.0' });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job, env: ctx.env, projectDir: '/workingdir/build' })
+      );
+    });
+
+    it.each([
+      ['uploaded', BuildPhaseResult.SUCCESS],
+      ['skipped', BuildPhaseResult.SKIPPED],
+      ['failed', BuildPhaseResult.WARNING],
+    ] as const)('marks the phase from the %s result', async (uploadResult, phaseResult) => {
+      jest.mocked(uploadEmbeddedBundleAsync).mockResolvedValueOnce({ status: uploadResult });
+      const ctx = createContext({ sdkVersion: '58.0.0' });
+
+      await androidBuilder(ctx);
+
+      expect(datadogDistributionMock).toHaveBeenCalledWith(
+        'eas.build.phase_duration',
+        expect.any(Number),
+        expect.objectContaining({
+          build_phase: BuildPhase.UPLOAD_EMBEDDED_BUNDLE.toLowerCase(),
+          result: phaseResult,
+        })
+      );
+    });
+
+    it('skips by default on SDK 57 and earlier', async () => {
+      const ctx = createContext({ sdkVersion: '57.0.0' });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+    });
+
+    it('skips by default when the SDK version is unknown', async () => {
+      const ctx = createContext({});
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+    });
+
+    it('runs on SDK 57 and earlier when EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE is 1', async () => {
+      const ctx = createContext({
+        sdkVersion: '57.0.0',
+        env: { EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE: '1' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job })
+      );
+    });
+
+    it('skips on SDK 58 and later when EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE is 0', async () => {
+      const ctx = createContext({
+        sdkVersion: '58.0.0',
+        env: { EAS_UPDATE_UPLOAD_EMBEDDED_BUNDLE: '0' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
+    });
+
+    it('runs on SDK 57 and earlier when the experimental EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is 1', async () => {
+      const ctx = createContext({
+        sdkVersion: '57.0.0',
+        env: { EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1' },
+      });
+
+      await androidBuilder(ctx);
+
+      expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ job: ctx.job })
+      );
+    });
   });
 });

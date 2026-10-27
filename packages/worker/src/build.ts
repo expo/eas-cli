@@ -1,4 +1,10 @@
-import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
+import {
+  Artifacts,
+  BuildContext,
+  Builders,
+  TurtleSshSession,
+  runGenericJobAsync,
+} from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -13,11 +19,11 @@ import {
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import omit from 'lodash/omit';
-
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
+import { startSshSessionPhaseAsync } from './sshSession';
 import { cleanUpWorkingdir } from './workingdir';
 
 export async function build({
@@ -30,6 +36,8 @@ export async function build({
   analytics: Analytics;
 }): Promise<Artifacts> {
   const { job, logger } = ctx;
+  let sshSessionDone: Promise<void> | undefined;
+  let hasJobFinished = false;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
 
@@ -49,6 +57,15 @@ export async function build({
         await prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment);
       }
     });
+
+    if (TurtleSshSession.isSshEnabled(ctx.job)) {
+      ({ done: sshSessionDone } = await startSshSessionPhaseAsync({
+        ctx,
+        buildId,
+        logger,
+        hasJobFinished: () => hasJobFinished,
+      }));
+    }
 
     let artifacts: Artifacts;
 
@@ -90,6 +107,9 @@ export async function build({
     }
     throw err;
   } finally {
+    // Lets the SSH supervisor start its idle countdown and tear the tunnel down.
+    hasJobFinished = true;
+    await sshSessionDone;
     if (config.env === 'development') {
       await cleanUpWorkingdir();
     }
@@ -101,7 +121,7 @@ function logBuildError(logger: bunyan, analytics: Analytics, err: Error): void {
   const l = logger.child({ phase: BuildPhase.FAIL_BUILD });
   l.info({ marker: LogMarker.START_PHASE }, `Start phase: ${BuildPhase.FAIL_BUILD}`);
 
-  if (err instanceof errors.BuildError) {
+  if (err instanceof errors.ExpoError) {
     const internalErrorCode = err.trackingCode ?? err.errorCode;
     analytics.logEvent(Event.WORKER_BUILD_FAIL, {
       reason: err?.message,

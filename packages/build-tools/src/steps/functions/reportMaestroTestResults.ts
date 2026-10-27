@@ -1,8 +1,18 @@
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { graphql } from 'gql.tada';
+import { z } from 'zod';
 
-import { MaestroFlowResult, parseMaestroResults } from './maestroResultParser';
+import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
+import {
+  MaestroFlowResult,
+  isFileAttrRun,
+  parseJUnitTestCases,
+  parseMaestroResults,
+  parseMaestroResultsFromFileAttrs,
+} from './maestroResultParser';
 import { CustomBuildContext } from '../../customBuildContext';
+
+const FlowPathSchema = z.array(z.string().min(1)).min(1);
 
 const CREATE_MUTATION = graphql(`
   mutation CreateWorkflowDeviceTestCaseResults($input: CreateWorkflowDeviceTestCaseResultsInput!) {
@@ -38,6 +48,11 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         defaultValue: '${{ env.HOME }}/.maestro/tests',
       }),
+      BuildStepInput.createProvider({
+        id: 'flow_path',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
     ],
     fn: async (stepsCtx, { inputs }) => {
       const { logger } = stepsCtx;
@@ -51,29 +66,65 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         logger.info('No JUnit directory provided, skipping test results report');
         return;
       }
-      const testsDirectory = inputs.tests_directory.value as string;
 
       try {
-        const flowResults = await parseMaestroResults(
-          junitDirectory,
-          testsDirectory,
-          stepsCtx.workingDirectory
-        );
+        // Maestro >= 2.6.0 stamps every <testcase> with its flow's path in a
+        // `file=` attribute; older reports need the legacy flow-file scan to
+        // map testcase names back to paths.
+        const usedFileAttrs = isFileAttrRun(await parseJUnitTestCases(junitDirectory));
+
+        let flowResults: MaestroFlowResult[];
+        if (usedFileAttrs) {
+          flowResults = await parseMaestroResultsFromFileAttrs(junitDirectory);
+        } else {
+          // Legacy (Maestro < 2.6.0) — DELETE this arm once the fleet is on >= 2.6.0.
+          const flowPathRaw = inputs.flow_path.value;
+          let nameToPath: Map<string, string> | null = null;
+          if (flowPathRaw !== undefined) {
+            const parsed = FlowPathSchema.safeParse(flowPathRaw);
+            if (parsed.success) {
+              nameToPath = await buildFlowNameToPathMap({
+                inputFlowPaths: parsed.data,
+                projectRoot: stepsCtx.workingDirectory,
+                logger,
+              });
+            } else {
+              logger.warn(
+                'Ignoring malformed flow_path input (expected a non-empty array of non-empty strings).'
+              );
+            }
+          }
+          flowResults = await parseMaestroResults(junitDirectory, nameToPath);
+        }
+
         if (flowResults.length === 0) {
           logger.info('No maestro test results found, skipping report');
           return;
         }
 
-        // Maestro allows overriding flow names via config, so different flow files can share
-        // the same name. JUnit XML only contains names (not file paths), making it impossible
-        // to map duplicates back to their original flow files. Skip and let the user fix it.
-        const names = flowResults.map(r => r.name);
-        const duplicates = names.filter((n, i) => names.indexOf(n) !== i);
-        if (duplicates.length > 0) {
+        // Detect truly conflicting results: the same (path, retryCount) twice means two
+        // flow files resolved to the same path, which we can't disambiguate and the API
+        // rejects as a duplicate. Same path with different retryCount is expected
+        // (per-attempt results from retries).
+        const seen = new Set<string>();
+        const conflicting = new Set<string>();
+        for (const r of flowResults) {
+          const key = `${r.path}:${r.retryCount}`;
+          if (seen.has(key)) {
+            conflicting.add(r.path);
+          }
+          seen.add(key);
+        }
+        if (conflicting.size > 0) {
+          const conflictList = [...conflicting].join(', ');
           logger.error(
-            `Duplicate test case names found in JUnit output: ${[...new Set(duplicates)].join(
-              ', '
-            )}. Skipping report. Ensure each Maestro flow has a unique name.`
+            usedFileAttrs
+              ? `The same flow file was reported more than once in a single attempt: ` +
+                  `${conflictList}. Skipping report. Check for duplicate flow_path entries ` +
+                  `or leftover XML files in the JUnit report directory.`
+              : `Duplicate Maestro flow names found: ${conflictList}. Skipping report. ` +
+                  `Give each flow a unique name, or upgrade Maestro to >= 2.6.0 (flows are ` +
+                  `then identified by file path, so duplicate names are fine).`
           );
           return;
         }

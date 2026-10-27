@@ -11,6 +11,8 @@ interface ArchiveBuildOptions {
   scheme: string;
   buildConfiguration?: string;
   outputDirectory: string;
+  derivedDataPath: string;
+  resultBundlePath: string;
   clean: boolean;
   logsDirectory: string;
   entitlements?: object;
@@ -21,6 +23,7 @@ interface SimulatorBuildOptions {
   scheme: string;
   buildConfiguration?: string;
   derivedDataPath: string;
+  resultBundlePath: string;
   clean: boolean;
   logsDirectory: string;
   simulatorDestination: string;
@@ -34,6 +37,8 @@ export async function createGymfileForArchiveBuild({
   buildConfiguration,
   entitlements,
   outputDirectory,
+  derivedDataPath,
+  resultBundlePath,
   logsDirectory,
 }: ArchiveBuildOptions): Promise<void> {
   const PROFILES: { BUNDLE_ID: string; UUID: string }[] = [];
@@ -59,6 +64,8 @@ export async function createGymfileForArchiveBuild({
       SCHEME: scheme,
       SCHEME_BUILD_CONFIGURATION: buildConfiguration,
       OUTPUT_DIRECTORY: outputDirectory,
+      DERIVED_DATA_PATH: derivedDataPath,
+      RESULT_BUNDLE_PATH: resultBundlePath,
       EXPORT_METHOD: credentials.distributionType,
       CLEAN: String(clean),
       LOGS_DIRECTORY: logsDirectory,
@@ -74,6 +81,7 @@ export async function createGymfileForSimulatorBuild({
   scheme,
   buildConfiguration,
   derivedDataPath,
+  resultBundlePath,
   logsDirectory,
   simulatorDestination,
 }: SimulatorBuildOptions): Promise<void> {
@@ -86,6 +94,7 @@ export async function createGymfileForSimulatorBuild({
       SCHEME_BUILD_CONFIGURATION: buildConfiguration,
       SCHEME_SIMULATOR_DESTINATION: simulatorDestination,
       DERIVED_DATA_PATH: derivedDataPath,
+      RESULT_BUNDLE_PATH: resultBundlePath,
       CLEAN: String(clean),
       LOGS_DIRECTORY: logsDirectory,
     },

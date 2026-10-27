@@ -176,3 +176,43 @@ describe('getVersion', () => {
     });
   });
 });
+
+describe('getAppClip', () => {
+  it('returns null when no app clip is configured', () => {
+    const reader = new AppleConfigReader({});
+    expect(reader.getAppClip()).toBeNull();
+    expect(reader.getAppClipDefaultExperience()).toBeNull();
+    expect(reader.getAppClipLocales()).toEqual([]);
+  });
+
+  it('returns the configured app clip block', () => {
+    const reader = new AppleConfigReader({
+      appClip: {
+        defaultExperience: {
+          action: 'OPEN',
+          releaseWithAppStoreVersion: true,
+          reviewDetail: { invocationUrls: ['https://example.com/clip'] },
+          info: {
+            'en-US': { subtitle: 'Quick experience', headerImage: 'header.png' },
+            'fr-FR': { subtitle: 'Expérience rapide' },
+          },
+        },
+      },
+    });
+
+    expect(reader.getAppClipDefaultExperience()).toMatchObject({
+      action: 'OPEN',
+      releaseWithAppStoreVersion: true,
+      reviewDetail: { invocationUrls: ['https://example.com/clip'] },
+    });
+    expect(reader.getAppClipLocales().sort()).toEqual(['en-US', 'fr-FR']);
+    expect(reader.getAppClipLocalizedInfo('en-US')).toEqual({
+      subtitle: 'Quick experience',
+      headerImage: 'header.png',
+    });
+    expect(reader.getAppClipLocalizedInfo('fr-FR')).toEqual({
+      subtitle: 'Expérience rapide',
+    });
+    expect(reader.getAppClipLocalizedInfo('de-DE')).toBeNull();
+  });
+});

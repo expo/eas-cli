@@ -40,6 +40,7 @@ jest.mock('../config', () => {
   return {
     ...config,
     buildId: 'f38532aa-81a8-4db7-915f-6e7afe46e22f',
+    wwwApiV2BaseUrl: 'http://api.expo.test/v2/',
   };
 });
 

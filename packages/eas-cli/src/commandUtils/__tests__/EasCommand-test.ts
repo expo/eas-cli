@@ -1,14 +1,21 @@
-import { CombinedError } from '@urql/core';
-import { GraphQLError } from 'graphql/error';
+import { Config } from '@oclif/core';
 import { v4 as uuidv4 } from 'uuid';
 
-import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytics/AnalyticsManager';
-import Log from '../../log';
-import SessionManager from '../../user/SessionManager';
-import EasCommand from '../EasCommand';
+import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 
 jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
+jest.mock('../../sentry', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    setTag: jest.fn(),
+    setUser: jest.fn(),
+    withScope: jest.fn(),
+    captureException: jest.fn(),
+    flush: jest.fn(async (): Promise<void> => {}),
+  },
+}));
 jest.mock('../../analytics/AnalyticsManager', () => {
   const { CommandEvent } = jest.requireActual('../../analytics/AnalyticsManager');
   return {
@@ -18,73 +25,108 @@ jest.mock('../../analytics/AnalyticsManager', () => {
 });
 jest.mock('../../log');
 
-let originalProcessArgv: string[];
 const mockRequestId = uuidv4();
 
-beforeAll(() => {
-  originalProcessArgv = process.argv;
-  process.argv = [];
-});
+/**
+ * A Config that is never loaded. Letting oclif load one discovers and requires
+ * every command in the package, which takes seconds under coverage with a cold
+ * transform cache and has timed out on slow CI runners. Nothing here needs the
+ * command table or hooks.
+ */
+function getMockOclifConfig(): Config {
+  const config = new Config({ root: __dirname });
+  config.runHook = async () => ({
+    failures: [],
+    successes: [],
+  });
+  return config;
+}
 
-afterAll(() => {
-  process.argv = originalProcessArgv;
-});
+let mockConfig: Config;
 
 const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
   setActor: jest.fn((): void => {}),
   flushAsync: jest.fn(async (): Promise<void> => {}),
+  getDeviceId: jest.fn((): string | null => null),
 };
 
 beforeEach(() => {
   jest.resetAllMocks();
-
-  jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
+  mockConfig = getMockOclifConfig();
 });
 
-const createTestEasCommand = () => {
+/**
+ * The config oclif handed to the most recently run command. Command.run returns
+ * a pre-built Config untouched only when it was created by the same @oclif/core
+ * copy the command extends; otherwise it silently builds and fully loads a new
+ * one, bringing back the command discovery this suite avoids.
+ */
+let lastCommandConfig: Config | undefined;
+
+const createTestEasCommand = (): any => {
+  const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
+  createAnalyticsAsync.mockResolvedValue(analytics);
+  const EasCommand = require('../EasCommand').default;
+
   class TestEasCommand extends EasCommand {
-    override async runAsync(): Promise<void> {}
+    async runAsync(): Promise<void> {
+      lastCommandConfig = this.config;
+    }
   }
 
   TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
   return TestEasCommand;
 };
 
-describe(EasCommand.name, () => {
+// These tests go through the static Command.run rather than constructing an
+// instance and calling run() like other command tests, because they cover
+// oclif's catch and finally wiring, which only runs inside the static path.
+describe('EasCommand', () => {
   describe('without exceptions', () => {
-    // The first test in this suite should have an increased timeout
-    // because of the implementation of Command from @oclif/command.
-    // It seems that loading config takes significant amount of time
-    // and I'm not sure how to mock it.
-    //
-    // See https://github.com/oclif/command/blob/master/src/command.ts#L80
-    // and look for "Config.load"
     it('ensures the user data is read', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
+      const SessionManager = jest.requireMock('../../user/SessionManager').default;
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
-    }, 60_000);
+    });
+
+    it('runs with the unloaded config instead of loading one', async () => {
+      const TestEasCommand = createTestEasCommand();
+      await TestEasCommand.run([], mockConfig);
+
+      expect(lastCommandConfig).toBe(mockConfig);
+      expect(mockConfig.plugins.size).toBe(0);
+    });
 
     it('initializes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
+      const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
       expect(createAnalyticsAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.flushAsync).toHaveBeenCalled();
     });
 
+    it('flushes Sentry', async () => {
+      const TestEasCommand = createTestEasCommand();
+      await TestEasCommand.run([], mockConfig);
+
+      const Sentry = jest.requireMock('../../sentry').default;
+      expect(Sentry.flush).toHaveBeenCalled();
+    });
+
     it('logs events', async () => {
       const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      await TestEasCommand.run([], mockConfig);
 
       expect(analytics.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
@@ -96,7 +138,7 @@ describe(EasCommand.name, () => {
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
       try {
-        await TestEasCommand.run().then(() => {
+        await TestEasCommand.run([], mockConfig).then(() => {
           throw new Error('foo');
         });
       } catch {}
@@ -105,9 +147,60 @@ describe(EasCommand.name, () => {
     });
 
     describe('catch', () => {
+      it('captures unexpected errors', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const error = new Error('Unexpected, internal error message');
+        const sentryScope = {
+          setTag: jest.fn(),
+          setExtra: jest.fn(),
+        };
+        const Sentry = jest.requireMock('../../sentry').default;
+        Sentry.withScope.mockImplementation((cb: (scope: typeof sentryScope) => void) => {
+          cb(sentryScope);
+        });
+        runAsyncMock.mockImplementation(() => {
+          throw error;
+        });
+
+        try {
+          await TestEasCommand.run([], mockConfig);
+        } catch {}
+
+        expect(sentryScope.setTag).toHaveBeenCalledWith('command', TestEasCommand.id);
+        expect(sentryScope.setTag).toHaveBeenCalledWith('error_name', error.name);
+        expect(sentryScope.setExtra).toHaveBeenCalledWith('commandId', TestEasCommand.id);
+        expect(sentryScope.setExtra).toHaveBeenCalledWith(
+          'commandMessage',
+          `${TestEasCommand.id} command failed.`
+        );
+        expect(sentryScope.setExtra).toHaveBeenCalledWith('originalMessage', error.message);
+        expect(Sentry.captureException).toHaveBeenCalledWith(error);
+      });
+
+      it('captures expected command errors', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { EasCommandError } = require('../errors');
+        const Sentry = jest.requireMock('../../sentry').default;
+        Sentry.withScope.mockImplementation((cb: (scope: any) => void) => {
+          cb({ setTag: jest.fn(), setExtra: jest.fn() });
+        });
+        runAsyncMock.mockImplementation(() => {
+          throw new EasCommandError('Expected user-facing error');
+        });
+
+        try {
+          await TestEasCommand.run([], mockConfig);
+        } catch {}
+
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      });
+
       it('logs the message', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logErrorSpy = jest.spyOn(Log, 'error');
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         const error = new Error('Unexpected, internal error message');
@@ -115,25 +208,51 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
         expect(logDebugSpy).toBeCalledWith(error);
       });
 
+      it('skips the message when the command already printed it', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
+        const { EasCommandError } = require('../errors');
+        const Sentry = jest.requireMock('../../sentry').default;
+        Sentry.withScope.mockImplementation((cb: (scope: any) => void) => {
+          cb({ setTag: jest.fn(), setExtra: jest.fn() });
+        });
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const error = new EasCommandError('Already printed', { messageAlreadyPrinted: true });
+        runAsyncMock.mockImplementation(() => {
+          throw error;
+        });
+        try {
+          await TestEasCommand.run([], mockConfig);
+        } catch {}
+
+        expect(logErrorSpy).not.toHaveBeenCalled();
+        expect(logDebugSpy).toBeCalledWith(error);
+        expect(Sentry.captureException).toHaveBeenCalledWith(error);
+      });
+
       it('logs the cleaned message if needed', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logErrorSpy = jest.spyOn(Log, 'error');
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { CombinedError } = require('@urql/core');
         const graphQLErrors = ['Unexpected GraphQL error message'];
         const error = new CombinedError({ graphQLErrors });
         runAsyncMock.mockImplementation(() => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
@@ -142,9 +261,12 @@ describe(EasCommand.name, () => {
 
       it('logs the cleaned message with request ID if present', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logErrorSpy = jest.spyOn(Log, 'error');
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { CombinedError } = require('@urql/core');
+        const { GraphQLError } = require('graphql/error');
         const graphQLError = new GraphQLError(
           'Unexpected GraphQL error message',
           null,
@@ -163,7 +285,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -174,9 +296,12 @@ describe(EasCommand.name, () => {
 
       it('logs the cleaned messages with request IDs if multiple GraphQL errors present', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logErrorSpy = jest.spyOn(Log, 'error');
+        const Log = jest.requireMock('../../log').default;
+        const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { CombinedError } = require('@urql/core');
+        const { GraphQLError } = require('graphql/error');
         const graphQLErrors = [
           new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
             errorCode: 'UNKNOWN_GRAPHQL_ERROR',
@@ -196,7 +321,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -217,7 +342,7 @@ describe(EasCommand.name, () => {
           throw new Error('Error message');
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
@@ -227,12 +352,13 @@ describe(EasCommand.name, () => {
       it('re-throws the error with a different default base message in case of CombinedError', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { CombinedError } = require('@urql/core');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = ['Unexpected GraphQL error message'];
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
@@ -242,6 +368,8 @@ describe(EasCommand.name, () => {
       it('re-throws the error with a different default base message in case of CombinedError with multiple GraphQLErrors', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+        const { CombinedError } = require('@urql/core');
+        const { GraphQLError } = require('graphql/error');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = [
             new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
@@ -260,7 +388,7 @@ describe(EasCommand.name, () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await TestEasCommand.run([], mockConfig);
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');

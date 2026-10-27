@@ -1,6 +1,18 @@
+import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import { EventEmitter, once } from 'node:events';
+import fs from 'node:fs';
+import { Socket } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 
-import { AndroidEmulatorUtils } from '../AndroidEmulatorUtils';
+import { createMockLogger } from '../../__tests__/utils/logger';
+import { Sentry } from '../../sentry';
+import {
+  AndroidDeviceName,
+  AndroidEmulatorUtils,
+  AndroidVirtualDeviceName,
+} from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -12,13 +24,415 @@ jest.mock('../retry', () => ({
   retryAsync: jest.fn(async fn => await fn(0)),
 }));
 
+jest.mock('../../sentry', () => ({
+  Sentry: {
+    capture: jest.fn(),
+  },
+}));
+
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 
 describe('AndroidEmulatorUtils', () => {
+  let temporaryDirectories: string[] = [];
+
   beforeEach(() => {
+    temporaryDirectories = [];
+    jest.mocked(Sentry.capture).mockReset();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedRetryAsync.mockImplementation(async fn => await fn(0));
+  });
+
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await Promise.all(
+      temporaryDirectories.map(async temporaryDirectory => {
+        await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  describe(AndroidEmulatorUtils.createAsync, () => {
+    it('applies an explicit LCD configuration after screen scaling', async () => {
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(
+        `${avdDirectory}/config.ini`,
+        [
+          'hw.ramSize=1536',
+          'hw.lcd.height=2424',
+          'hw.lcd.width=1080',
+          'hw.lcd.density=420',
+          'skin.path=pixel_9',
+          'showDeviceFrame=yes',
+        ].join('\n')
+      );
+      const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      const write = jest.fn();
+      const end = jest.fn();
+      avdManagerPromise.child = { stdin: { write, end } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+      const logger = createMockLogger();
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: 'system-images;android-35;default;x86_64',
+        deviceIdentifier: 'medium_phone' as AndroidDeviceName,
+        lcdWidth: 720,
+        lcdHeight: 1600,
+        lcdDensity: 262,
+        env: {
+          HOME: '/home/expo',
+          ANDROID_EMULATOR_ADJUST_SCREEN: '1',
+          ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+        },
+        logger,
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'avdmanager',
+        [
+          'create',
+          'avd',
+          '--name',
+          deviceName,
+          '--package',
+          'system-images;android-35;default;x86_64',
+          '--force',
+          '--device',
+          'medium_phone',
+        ],
+        { env: expect.any(Object), stdio: 'pipe' }
+      );
+      expect(write).toHaveBeenCalledWith('no');
+      expect(end).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        'Setting scaled screen resolution: hw.lcd.height to 1270 and hw.lcd.width to 566.'
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'Setting screen resolution to 720x1600 and density to 262 ppi.'
+      );
+      await expect(fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8')).resolves.toBe(
+        [
+          'hw.ramSize=1536',
+          'hw.lcd.height=2424',
+          'hw.lcd.width=1080',
+          'hw.lcd.density=420',
+          'skin.path=pixel_9',
+          'showDeviceFrame=yes',
+          'hw.ramSize=4096',
+          '',
+          'hw.lcd.density=220',
+          '',
+          'hw.lcd.height=1270',
+          'hw.lcd.width=566',
+          '',
+          'hw.lcd.height=1600',
+          'hw.lcd.width=720',
+          'hw.lcd.density=262',
+          '',
+        ].join('\n')
+      );
+    });
+
+    it.each([
+      [undefined, 2048],
+      ['device-run-session-id', 4096],
+    ])('configures memory for session %s without an LCD override', async (sessionId, ramSize) => {
+      const deviceName = 'generic-emulator' as AndroidVirtualDeviceName;
+      const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
+      const initialConfig = ['skin.path=pixel_9', 'showDeviceFrame=yes'].join('\n');
+      await fs.promises.mkdir(avdDirectory, { recursive: true });
+      await fs.promises.writeFile(`${avdDirectory}/config.ini`, initialConfig);
+      const avdManagerPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      avdManagerPromise.child = { stdin: { write: jest.fn(), end: jest.fn() } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+        deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
+        env: {
+          HOME: '/home/expo',
+          ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+          DEVICE_RUN_SESSION_ID: sessionId,
+        },
+        logger: createMockLogger(),
+      });
+
+      const config = await fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8');
+      expect(config).toContain(initialConfig);
+      expect(config).toContain(`hw.ramSize=${ramSize}\n`);
+      expect(config).not.toContain('hw.lcd.');
+    });
+  });
+
+  describe(AndroidEmulatorUtils.startAsync, () => {
+    function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+      // Under `stdio: 'pipe'` these are net.Sockets, which is what startAsync
+      // narrows on before unref-ing them.
+      const stdout = new Socket();
+      const stderr = new Socket();
+      jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
+      jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
+      const child = Object.assign(new EventEmitter(), {
+        pid: 1234,
+        unref: jest.fn(),
+        stdout,
+        stderr,
+      });
+      const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      spawnPromise.child = child;
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
+        }
+        if (command === 'adb' && args[0] === '-s' && args[2] === 'emu') {
+          return Promise.resolve({ stdout: `${deviceName}\nOK\n`, stderr: '' });
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+      return { child };
+    }
+
+    it('captures logcat and emulator process output', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream');
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: process.env,
+        logcatDirectory: outputDir,
+      });
+
+      expect(result.logcatOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-logcat\\.log$`)
+      );
+      expect(result.emulatorOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-emulator\\.log$`)
+      );
+      await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
+      await expect(fs.promises.access(result.emulatorOutputPath)).resolves.toBeUndefined();
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        expect.stringMatching(/\/emulator\/emulator$/),
+        expect.arrayContaining(['-logcat', '*:v', '-logcat-output', result.logcatOutputPath]),
+        expect.objectContaining({
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          ignoreStdio: true,
+        })
+      );
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        expect.arrayContaining(['logcat']),
+        expect.anything()
+      );
+      expect(child.unref).toHaveBeenCalled();
+      // Piped stdio would otherwise keep this process' event loop alive
+      // for as long as the emulator runs.
+      expect(child.stdout.unref).toHaveBeenCalled();
+      expect(child.stderr.unref).toHaveBeenCalled();
+      const emulatorOutputStream = createWriteStreamSpy.mock.results[0].value;
+      const stderrWriteSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const writeError = Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+      emulatorOutputStream.emit('error', writeError);
+      emulatorOutputStream.emit('error', writeError);
+      expect(stderrWriteSpy).toHaveBeenCalledTimes(2);
+      expect(Sentry.capture).toHaveBeenCalledTimes(1);
+      expect(Sentry.capture).toHaveBeenCalledWith(
+        'Failed to write Android emulator process output',
+        writeError,
+        {
+          level: 'warning',
+          tags: { errorCode: 'ENOSPC' },
+          extras: {
+            deviceName,
+            emulatorOutputPath: result.emulatorOutputPath,
+          },
+        }
+      );
+      const emulatorOutputStreamClosed = once(emulatorOutputStream, 'close');
+      child.emit('close');
+      await emulatorOutputStreamClosed;
+    });
+
+    it('spawns the emulator directly with the same arguments when there is no launch gate', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      mockSuccessfulStart(deviceName);
+      const env = { ANDROID_EMULATOR_EXTRA_ARGS: '-gpu swiftshader_indirect' };
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env,
+        logcatDirectory: outputDir,
+      });
+
+      const emulatorCalls = mockedSpawn.mock.calls.filter(([command]) =>
+        command.endsWith('/emulator/emulator')
+      );
+      expect(emulatorCalls).toEqual([
+        [
+          `${process.env.ANDROID_HOME}/emulator/emulator`,
+          [
+            '-no-window',
+            '-no-boot-anim',
+            '-writable-system',
+            '-noaudio',
+            '-no-snapshot-save',
+            '-logcat',
+            '*:v',
+            '-logcat-output',
+            result.logcatOutputPath,
+            '-avd',
+            deviceName,
+            '-accel',
+            'on',
+            '-gpu',
+            'swiftshader_indirect',
+          ],
+          {
+            detached: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            ignoreStdio: true,
+            env: { ...env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+          },
+        ],
+      ]);
+      expect(
+        mockedSpawn.mock.calls.filter(([command]) =>
+          ['sudo', 'nft', 'systemd-run', 'bash'].includes(command)
+        )
+      ).toEqual([]);
+    });
+
+    it('starts the emulator behind the launch gate and releases it once admitted', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const stdin = { end: jest.fn() };
+      Object.assign(child, { stdin });
+      const gatedSpawn = mockedSpawn.getMockImplementation()!;
+      mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
+        command === 'bash'
+          ? gatedSpawn('/android/emulator/emulator', args, options as any)
+          : gatedSpawn(command, args, options as any)) as any);
+      const admitAsync = jest.fn().mockResolvedValue(undefined);
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        launchGate: {
+          emulatorArgs: ['-http-proxy', '127.0.0.1:8898', '-no-metrics'],
+          wrapperCommand: 'bash',
+          wrapperArgs: ['-c', 'gate', 'eas-egress-gate'],
+          admitAsync,
+        },
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'bash',
+        [
+          '-c',
+          'gate',
+          'eas-egress-gate',
+          `${process.env.ANDROID_HOME}/emulator/emulator`,
+          '-no-window',
+          '-no-boot-anim',
+          '-writable-system',
+          '-noaudio',
+          '-no-snapshot-save',
+          '-logcat',
+          '*:v',
+          '-logcat-output',
+          result.logcatOutputPath,
+          '-avd',
+          deviceName,
+          '-accel',
+          'on',
+          '-http-proxy',
+          '127.0.0.1:8898',
+          '-no-metrics',
+        ],
+        expect.objectContaining({ detached: true, stdio: ['pipe', 'pipe', 'pipe'] })
+      );
+      expect(admitAsync).toHaveBeenCalledWith(1234);
+      expect(stdin.end).toHaveBeenCalledWith('go\n');
+      expect(admitAsync.mock.invocationCallOrder[0]).toBeLessThan(
+        stdin.end.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('kills the gated wrapper and throws when admission fails', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const stdin = { end: jest.fn() };
+      const kill = jest.fn();
+      Object.assign(child, { stdin, kill });
+      const gatedSpawn = mockedSpawn.getMockImplementation()!;
+      mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
+        gatedSpawn(
+          command === 'bash' ? '/android/emulator/emulator' : command,
+          args,
+          options as any
+        )) as any);
+      const admissionError = new Error('not fenced');
+
+      await expect(
+        AndroidEmulatorUtils.startAsync({
+          deviceName,
+          env: {},
+          logcatDirectory: outputDir,
+          launchGate: {
+            emulatorArgs: [],
+            wrapperCommand: 'bash',
+            wrapperArgs: ['-c', 'gate', 'eas-egress-gate'],
+            admitAsync: jest.fn().mockRejectedValue(admissionError),
+          },
+        })
+      ).rejects.toBe(admissionError);
+      expect(kill).toHaveBeenCalledWith('SIGKILL');
+      expect(stdin.end).not.toHaveBeenCalled();
+    });
+
+    it('throws a SystemError when the staging directory cannot be prepared', async () => {
+      const outputDir = '/unwritable/logcat-staging';
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const mkdirError = new Error('mkdir failed');
+      const mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockRejectedValueOnce(mkdirError);
+
+      try {
+        await expect(
+          AndroidEmulatorUtils.startAsync({
+            deviceName,
+            env: process.env,
+            logcatDirectory: outputDir,
+          })
+        ).rejects.toEqual(
+          new SystemError('Failed to prepare Android emulator output for eas-simulator.', {
+            cause: mkdirError,
+          })
+        );
+        expect(mockedSpawn).not.toHaveBeenCalled();
+      } finally {
+        mkdirSpy.mockRestore();
+      }
+    });
   });
 
   describe(AndroidEmulatorUtils.waitForReadyAsync, () => {
@@ -74,6 +488,30 @@ describe('AndroidEmulatorUtils', () => {
       ).rejects.toThrow('network is not ready');
     });
 
+    it('checks the given readiness target instead of 1.1.1.1:443', async () => {
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (args[3] === 'getprop') {
+          return { stdout: '1\n', stderr: '' } as any;
+        }
+        if (args[3] === 'nc' && args[6] === '192.0.2.1' && args[7] === '443') {
+          return { stdout: '', stderr: '' } as any;
+        }
+        throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
+      }) as any);
+
+      await AndroidEmulatorUtils.waitForReadyAsync({
+        serialId: 'emulator-5554' as any,
+        env: process.env,
+        networkReadyTarget: { host: '192.0.2.1', port: 443 },
+      });
+
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        expect.arrayContaining(['1.1.1.1']),
+        expect.anything()
+      );
+    });
+
     it('uses overridden network readiness command when provided', async () => {
       mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
         if (args[3] === 'getprop') {
@@ -106,6 +544,87 @@ describe('AndroidEmulatorUtils', () => {
         'adb',
         ['-s', 'emulator-5554', 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
         expect.anything()
+      );
+    });
+  });
+
+  describe(AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync, () => {
+    it('sets window and transition animation scales to zero', async () => {
+      const logger = createMockLogger();
+
+      await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+        serialId: 'emulator-5554' as any,
+        env: process.env,
+        logger,
+      });
+
+      expect(logger.info).toHaveBeenNthCalledWith(
+        1,
+        'Disabling Android emulator window animations.'
+      );
+      expect(mockedSpawn).toHaveBeenNthCalledWith(
+        1,
+        'adb',
+        [
+          '-s',
+          'emulator-5554',
+          'shell',
+          'settings',
+          'put',
+          'global',
+          'window_animation_scale',
+          '0',
+        ],
+        { env: process.env }
+      );
+      expect(logger.info).toHaveBeenNthCalledWith(
+        2,
+        'Disabling Android emulator transition animations.'
+      );
+      expect(mockedSpawn).toHaveBeenNthCalledWith(
+        2,
+        'adb',
+        [
+          '-s',
+          'emulator-5554',
+          'shell',
+          'settings',
+          'put',
+          'global',
+          'transition_animation_scale',
+          '0',
+        ],
+        { env: process.env }
+      );
+    });
+
+    it('logs and swallows failures when disabling animations', async () => {
+      const logger = createMockLogger();
+      mockedSpawn
+        .mockRejectedValueOnce(new Error('window failed'))
+        .mockRejectedValueOnce(new Error('transition failed'));
+
+      await expect(
+        AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+          serialId: 'emulator-5554' as any,
+          env: process.env,
+          logger,
+        })
+      ).resolves.toBeUndefined();
+
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          err: expect.objectContaining({ message: 'window failed' }),
+        }),
+        'Failed to disable Android emulator window animations.'
+      );
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          err: expect.objectContaining({ message: 'transition failed' }),
+        }),
+        'Failed to disable Android emulator transition animations.'
       );
     });
   });

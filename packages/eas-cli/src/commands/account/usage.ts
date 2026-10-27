@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
+  SimulatorUsageDisplay,
   UsageDisplayData,
   UsageMetricDisplay,
   calculateBillingPeriodInfo,
@@ -58,19 +59,29 @@ function displayBandwidthMetric(metric: UsageMetricDisplay, indent: string = '  
 
   if (metric.overageValue > 0) {
     Log.log(
-      `${indent}${metric.name} (overage): ${chalk.red(
+      `${indent}${metric.name} (additional usage): ${chalk.red(
         formatBytesDisplay(metric.overageValue)
       )} (${formatCurrency(metric.overageCost)})`
     );
   }
 }
 
+function formatMetricValue(value: number, maxDecimals: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
+}
+
+function formatMinutes(minutes: number): string {
+  return `${formatMetricValue(minutes, 1)} minutes`;
+}
+
 function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void {
   const progressBar = createProgressBar(metric.percentUsed, 20);
   const percentStr = `${metric.percentUsed}%`;
-  const planUsageStr = `${formatNumber(metric.planValue)}/${formatNumber(metric.limit)} ${
-    metric.unit ?? ''
-  }`;
+  const maxDecimals = metric.maxDecimals ?? 0;
+  const planUsageStr = `${formatMetricValue(metric.planValue, maxDecimals)}/${formatMetricValue(
+    metric.limit,
+    maxDecimals
+  )} ${metric.unit ?? ''}`;
 
   let color = chalk.green;
   if (metric.percentUsed >= 100) {
@@ -84,10 +95,32 @@ function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void 
 
   if (metric.overageValue > 0) {
     Log.log(
-      `${indent}${metric.name} (overage): ${chalk.red(
-        `${formatNumber(metric.overageValue)} ${metric.unit ?? ''}`
+      `${indent}${metric.name} (additional usage): ${chalk.red(
+        `${formatMetricValue(metric.overageValue, maxDecimals)} ${metric.unit ?? ''}`
       )} (${formatCurrency(metric.overageCost)})`
     );
+  }
+}
+
+function displaySimulatorUsage(simulator: SimulatorUsageDisplay): void {
+  Log.newLine();
+  Log.log(chalk.bold.underline('EAS Simulator'));
+  displayMetric(simulator.minutes);
+
+  if (simulator.jobTypeBreakdown) {
+    const { workflows, simulator: simulatorMinutes, other } = simulator.jobTypeBreakdown;
+    Log.log('  Breakdown by job type:');
+    Log.log(`    Workflows: ${formatMinutes(workflows)}`);
+    Log.log(`    Simulator: ${formatMinutes(simulatorMinutes)}`);
+    if (other > 0) {
+      Log.log(`    Other jobs: ${formatMinutes(other)}`);
+    }
+  }
+
+  if (simulator.iosMinutes > 0 || simulator.androidMinutes > 0) {
+    Log.log('  Simulator minutes by platform:');
+    Log.log(`    iOS: ${formatMinutes(simulator.iosMinutes)}`);
+    Log.log(`    Android: ${formatMinutes(simulator.androidMinutes)}`);
   }
 }
 
@@ -95,7 +128,7 @@ function billingUrl(accountName: string): string {
   return `https://expo.dev/accounts/${accountName}/settings/billing`;
 }
 
-function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): void {
+export function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): void {
   const subscription = usageData.subscription;
 
   Log.newLine();
@@ -141,6 +174,10 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
   displayMetric(data.updates.mau);
   displayBandwidthMetric(data.updates.bandwidth);
 
+  if (data.simulator) {
+    displaySimulatorUsage(data.simulator);
+  }
+
   Log.newLine();
   Log.log(chalk.bold.underline('Billing'));
 
@@ -172,9 +209,9 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
     }
 
     if (data.totalOverageCostCents > 0) {
-      Log.log(`  Current overages: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
+      Log.log(`  Additional usage: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
       if (data.builds.overageCostCents > 0) {
-        Log.log(`    Build overages: ${formatCurrency(data.builds.overageCostCents)}`);
+        Log.log(`    Builds: ${formatCurrency(data.builds.overageCostCents)}`);
         // Show breakdown by worker size
         for (const overage of data.builds.overagesByWorkerSize) {
           const platformName = overage.platform === AppPlatform.Ios ? 'iOS' : 'Android';
@@ -188,7 +225,10 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
         }
       }
       if (data.updates.overageCostCents > 0) {
-        Log.log(`    Update overages: ${formatCurrency(data.updates.overageCostCents)}`);
+        Log.log(`    Updates: ${formatCurrency(data.updates.overageCostCents)}`);
+      }
+      if (data.simulator && data.simulator.overageCostCents > 0) {
+        Log.log(`    Simulator: ${formatCurrency(data.simulator.overageCostCents)}`);
       }
     }
 
@@ -387,6 +427,27 @@ export default class AccountUsage extends EasCommand {
             },
             overageCostCents: displayData.updates.overageCostCents,
           },
+          simulator: displayData.simulator
+            ? {
+                minutes: {
+                  plan: {
+                    used: displayData.simulator.minutes.planValue,
+                    limit: displayData.simulator.minutes.limit,
+                    percentUsed: displayData.simulator.minutes.percentUsed,
+                  },
+                  overage: {
+                    count: displayData.simulator.minutes.overageValue,
+                    costCents: displayData.simulator.minutes.overageCost,
+                  },
+                },
+                byPlatform: {
+                  ios: displayData.simulator.iosMinutes,
+                  android: displayData.simulator.androidMinutes,
+                },
+                byJobType: displayData.simulator.jobTypeBreakdown ?? null,
+                overageCostCents: displayData.simulator.overageCostCents,
+              }
+            : null,
           billing: {
             addons: subscription?.addons ?? [],
             upcomingInvoice: subscription?.upcomingInvoice ?? null,

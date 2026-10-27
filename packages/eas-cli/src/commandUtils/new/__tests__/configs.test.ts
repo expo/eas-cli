@@ -162,8 +162,8 @@ describe('configs', () => {
           title: 'other',
           value: { name: 'other' },
           disabled: true,
-          description:
-            'You do not have the required permissions to create projects on this account.',
+          disabledReason:
+            'You do not have the required permissions to create projects on the "other" account.',
         },
         {
           title: 'jester',

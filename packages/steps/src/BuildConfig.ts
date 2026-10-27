@@ -8,6 +8,7 @@ import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputValueType, BuildStepInputValueTypeName } from './BuildStepInput';
 import { BuildConfigError, BuildWorkflowError } from './errors';
+import { isLocalCompositeFunctionPath } from './utils/localCompositeFunctions';
 import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export type BuildFunctions = Record<string, BuildFunctionConfig>;
@@ -188,7 +189,12 @@ const BuildFunctionCallSchema = Joi.object({
   name: Joi.string(),
   workingDirectory: Joi.string(),
   shell: Joi.string(),
-  env: Joi.object().pattern(Joi.string(), Joi.string().allow('')),
+  env: Joi.object().pattern(
+    Joi.string(),
+    Joi.alternatives()
+      .try(Joi.number().strict(), Joi.string().allow(''))
+      .custom(value => String(value))
+  ),
   if: Joi.string(),
   timeout_minutes: Joi.number().positive(),
   // Internal field for metrics collection. Not documented publicly.
@@ -433,6 +439,18 @@ export function validateAllFunctionsExist(
     }
   }
   const calledFunctionsOrFunctionGroup = Array.from(calledFunctionsOrFunctionGroupsSet);
+  const compositeFunctionPaths = calledFunctionsOrFunctionGroup.filter(
+    isLocalCompositeFunctionPath
+  );
+  if (compositeFunctionPaths.length > 0) {
+    throw new BuildConfigError(
+      `Local composite functions (${compositeFunctionPaths
+        .map(compositeFunctionPath => `"${compositeFunctionPath}"`)
+        .join(
+          ', '
+        )}) are not supported in ".eas/build/*.yml" custom builds. Local composite functions can only be used in EAS workflows (".eas/workflows/*.yml").`
+    );
+  }
   const externalFunctionIdsSet = new Set(externalFunctionIds);
   const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupsIds);
   const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(

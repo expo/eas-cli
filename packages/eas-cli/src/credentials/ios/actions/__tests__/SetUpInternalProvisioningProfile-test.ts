@@ -1,4 +1,9 @@
-import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../../graphql/generated';
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
+import {
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+  Role,
+} from '../../../../graphql/generated';
 import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
@@ -43,7 +48,11 @@ describe(SetUpInternalProvisioningProfile, () => {
         });
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -77,7 +86,11 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -118,7 +131,11 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -152,7 +169,11 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -188,7 +209,11 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -222,7 +247,11 @@ describe(SetUpInternalProvisioningProfile, () => {
 
         const action = new SetUpInternalProvisioningProfile({
           app: {
-            account: { id: 'account-id', name: 'account-name', users: [] },
+            account: {
+              id: 'account-id',
+              name: 'account-name',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
             bundleIdentifier: 'com.expo.test',
             projectName: 'testproject',
           },
@@ -255,7 +284,11 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name', users: [] },
+          account: {
+            id: 'account-id',
+            name: 'account-name',
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+          },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -276,7 +309,11 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name', users: [] },
+          account: {
+            id: 'account-id',
+            name: 'account-name',
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+          },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -295,7 +332,11 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name', users: [] },
+          account: {
+            id: 'account-id',
+            name: 'account-name',
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+          },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },
@@ -320,7 +361,11 @@ describe(SetUpInternalProvisioningProfile, () => {
       });
       const action = new SetUpInternalProvisioningProfile({
         app: {
-          account: { id: 'account-id', name: 'account-name', users: [] },
+          account: {
+            id: 'account-id',
+            name: 'account-name',
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+          },
           bundleIdentifier: 'com.expo.test',
           projectName: 'testproject',
         },

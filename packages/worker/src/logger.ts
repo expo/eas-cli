@@ -1,12 +1,11 @@
-import { GCSLoggerStream, LogBuffer } from '@expo/build-tools';
-import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
+import { HttpLogStream, LogBuffer, RemoteLoggerStream } from '@expo/build-tools';
+import { BuildPhase, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { uuidv7 } from 'uuidv7';
-import HttpLogStream from './utils/HttpLogStream';
 
 const defaultLogger = createLogger({
   name: config.loggers.base.name,
@@ -24,7 +23,10 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   public writable: boolean = true;
   public buffer: CachedLog[] = [];
 
-  constructor(private readonly numberOfLines: number) {
+  constructor(
+    private readonly numberOfLines: number,
+    private readonly secretPatterns: ReadonlySet<string>
+  ) {
     super();
   }
 
@@ -44,7 +46,7 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
     if (this.buffer.length >= this.numberOfLines) {
       this.buffer.shift();
     }
-    this.buffer.push({ msg: rec.msg, phase: rec.phase });
+    this.buffer.push({ msg: maskSecrets(rec.msg, this.secretPatterns), phase: rec.phase });
     return true;
   }
 
@@ -57,42 +59,103 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   }
 }
 
-function createTransformStream(secrets: EnvironmentSecret[]): Transform {
-  const secretValues = secrets.map(({ value }) => value);
-  const secretList: string[] = [
-    ...secretValues,
-    ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
-  ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+// Bunyan's own fields and fields that identify a log line, which never hold user data.
+const UNMASKED_FIELDS = new Set([
+  'name',
+  'pid',
+  'level',
+  'time',
+  'v',
+  'phase',
+  'source',
+  'marker',
+  'result',
+  'buildStepId',
+  'buildStepInternalId',
+]);
+const MAX_MASKED_DEPTH = 20;
 
+function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
     transform(_chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
-      let chunk = _chunk;
-      if (chunk && typeof chunk === 'object') {
-        // Remove hostname from logs since we don't need it.
-        const { hostname: _hostname, ...rest } = chunk;
-        chunk = {
-          ...rest,
-          // Add logId to each log.
-          logId: uuidv7(),
-        };
+      if (!_chunk || typeof _chunk !== 'object') {
+        callback(null, _chunk);
+        return;
       }
-
-      if (chunk && typeof chunk === 'object' && chunk.msg) {
-        const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
-          return acc.replaceAll(pattern, '*'.repeat(pattern.length));
-        }, chunk.msg as string);
-
-        callback(null, {
-          ...chunk,
-          msg: msgWithoutSecrets,
-        });
-      } else {
-        callback(null, chunk);
+      // Remove hostname from logs since we don't need it. Bunyan shares the record with other
+      // streams, so build a copy instead of changing it.
+      const { hostname: _hostname, ...rest } = _chunk;
+      const chunk: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(rest)) {
+        // Secrets can be in any field, such as a serialized error's message and stack.
+        chunk[key] =
+          secretPatterns.size === 0 || UNMASKED_FIELDS.has(key)
+            ? value
+            : maskSecretsInValue(value, secretPatterns);
       }
+      // Add logId to each log.
+      chunk.logId = uuidv7();
+      callback(null, chunk);
     },
   });
+}
+
+function maskSecrets(message: string, secrets: Iterable<string>): string {
+  const characters = message.split('');
+  for (const secret of secrets) {
+    for (
+      let start = message.indexOf(secret);
+      start !== -1;
+      start = message.indexOf(secret, start + 1)
+    ) {
+      characters.fill('*', start, start + secret.length);
+    }
+  }
+  return characters.join('');
+}
+
+function maskSecretsInValue(value: unknown, secrets: ReadonlySet<string>): unknown {
+  if (value === null || typeof value !== 'object') {
+    return maskSecretsInJsonValue(value, secrets, 0);
+  }
+  // Mask what the upload streams will serialize, so a toJSON method can't bring back the original.
+  let json: unknown;
+  try {
+    json = JSON.parse(JSON.stringify(value));
+  } catch {
+    return '[Unserializable]';
+  }
+  return maskSecretsInJsonValue(json, secrets, 0);
+}
+
+function maskSecretsInJsonValue(
+  value: unknown,
+  secrets: ReadonlySet<string>,
+  depth: number
+): unknown {
+  if (typeof value === 'string') {
+    return maskSecrets(value, secrets);
+  }
+  if (typeof value === 'number') {
+    return secrets.has(String(value)) ? maskSecrets(String(value), secrets) : value;
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (depth >= MAX_MASKED_DEPTH) {
+    return '[Truncated]';
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => maskSecretsInJsonValue(item, secrets, depth + 1));
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      maskSecrets(key, secrets),
+      maskSecretsInJsonValue(item, secrets, depth + 1),
+    ])
+  );
 }
 
 function createDiscardStream(): Writable {
@@ -106,13 +169,26 @@ function createDiscardStream(): Writable {
 
 export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
+  addBuildLogMask: (secret: string) => void;
   cleanUp: () => Promise<void>;
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
 }> {
   const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
 
-  const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
+  const secretPatterns = new Set<string>();
+  const addBuildLogMask = (secret: string): void => {
+    for (const pattern of [secret, maybeStringBase64Decode(secret)]) {
+      if (pattern && pattern.length > 1 && !simpleSecretsWhitelist.includes(pattern)) {
+        secretPatterns.add(pattern);
+      }
+    }
+  };
+  for (const { value } of secrets?.environmentSecrets ?? []) {
+    addBuildLogMask(value);
+  }
+
+  const transformStream = createTransformStream(secretPatterns);
   const discardStream = createDiscardStream();
   transformStream.pipe(discardStream);
 
@@ -123,9 +199,9 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
     level: buildLogger.level(),
   });
 
-  let gcsLoggerStream: GCSLoggerStream | null = null;
+  let remoteLoggerStream: RemoteLoggerStream | null = null;
   if (config.loggers.gcs.signedUploadUrlForLogs) {
-    gcsLoggerStream = new GCSLoggerStream({
+    remoteLoggerStream = new RemoteLoggerStream({
       uploadMethod: { signedUrl: config.loggers.gcs.signedUploadUrlForLogs },
       options: {
         uploadIntervalMs: config.loggers.gcs.uploadIntervalMs,
@@ -133,11 +209,11 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
       },
       logger: defaultLogger,
     });
-    transformStream.pipe(gcsLoggerStream);
-    await gcsLoggerStream.init();
+    transformStream.pipe(remoteLoggerStream);
+    await remoteLoggerStream.init();
   }
 
-  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
+  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER, secretPatterns);
   buildLogger.addStream({
     type: 'raw',
     stream: logBuffer,
@@ -152,7 +228,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
       headers: {
         Authorization: `Bearer ${secrets.robotAccessToken}`,
       },
-      logger: buildLogger,
+      logger: defaultLogger,
       bufferRetentionMs: config.loggers.gcs.signedUploadUrlForLogs
         ? Math.max(30_000, config.loggers.gcs.uploadIntervalMs * 2)
         : null,
@@ -162,8 +238,9 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
 
   return {
     logger: buildLogger,
+    addBuildLogMask,
     cleanUp: async () => {
-      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
+      await Promise.all([remoteLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
     outputStream: transformStream,
     logBuffer,

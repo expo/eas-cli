@@ -23,6 +23,7 @@ import resolveFrom from 'resolve-from';
 
 import { COMMON_FASTLANE_ENV } from '../../common/fastlane';
 import IosCredentialsManager from '../utils/ios/credentials/manager';
+import { resolvePackageVersionAsync } from '../../utils/packageManager';
 
 export function createRepackBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -42,14 +43,30 @@ export function createRepackBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'output_path',
+        id: 'embed_bundle_assets',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
+        id: 'js_bundle_only',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
+        id: 'ios_signing_use_source_app_entitlements',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
+        id: 'ios_signing_app_entitlements_path',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         required: false,
       }),
       BuildStepInput.createProvider({
-        id: 'embed_bundle_assets',
-        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        id: 'ios_signing_backend',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         required: false,
+        allowedValues: ['fastlane', 'zsign'],
       }),
       BuildStepInput.createProvider({
         id: 'repack_version',
@@ -82,7 +99,10 @@ export function createRepackBuildFunction(): BuildFunction {
         );
       }
 
-      const repackSpawnAsync = createSpawnAsyncStepAdapter({ verbose, logger: stepsCtx.logger });
+      const repackSpawnAsync = createSpawnAsyncStepAdapter({
+        verbose,
+        logger: stepsCtx.logger,
+      });
 
       const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-`));
       const workingDirectory = path.join(tmpDir, 'working-directory');
@@ -90,21 +110,29 @@ export function createRepackBuildFunction(): BuildFunction {
       stepsCtx.logger.info(`Created temporary working directory: ${workingDirectory}`);
 
       const sourceAppPath = inputs.source_app_path.value as string;
-      const outputPath =
-        (inputs.output_path.value as string) ??
-        path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
+      const outputPath = createOutputPath({
+        sourceAppPath,
+        tmpDir,
+      });
       const exportEmbedOptions = inputs.embed_bundle_assets.value
         ? {
             sourcemapOutput: undefined,
           }
         : undefined;
+      const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
+      const resolvedRepackVersion =
+        (await resolvePackageVersionAsync({
+          logger: stepsCtx.logger,
+          packageName: inputs.repack_package.value as string,
+          distTag: inputs.repack_version.value as string,
+        })) ?? (inputs.repack_version.value as string);
       stepsCtx.logger.info(
-        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value}`
+        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value} (${resolvedRepackVersion})`
       );
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
-        version: inputs.repack_version.value as string,
+        version: resolvedRepackVersion,
       });
       const { repackAppIosAsync, repackAppAndroidAsync } = repackApp;
 
@@ -118,9 +146,18 @@ export function createRepackBuildFunction(): BuildFunction {
             outputPath,
             workingDirectory,
             exportEmbedOptions,
+            jsBundleOnly,
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
+              backend: inputs.ios_signing_backend.value as 'fastlane' | 'zsign' | undefined,
+              useAppEntitlements: inputs.ios_signing_use_source_app_entitlements.value as
+                | boolean
+                | undefined,
+              entitlementsPath: inputs.ios_signing_app_entitlements_path.value as
+                | string
+                | undefined,
+              tmpDir,
             }),
             logger: stepsCtx.logger,
             spawnAsync: repackSpawnAsync,
@@ -146,6 +183,7 @@ export function createRepackBuildFunction(): BuildFunction {
                 outputPath,
                 workingDirectory,
                 exportEmbedOptions,
+                jsBundleOnly,
                 androidSigningOptions,
                 logger: stepsCtx.logger,
                 spawnAsync: repackSpawnAsync,
@@ -166,6 +204,21 @@ export function createRepackBuildFunction(): BuildFunction {
       outputs.output_path.set(outputPath);
     },
   });
+}
+
+function createOutputPath({
+  sourceAppPath,
+  tmpDir,
+}: {
+  sourceAppPath: string;
+  tmpDir: string;
+}): string {
+  const outputPath = path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
+  const extension = path.extname(outputPath);
+  if (extension.toLowerCase() !== '.aab') {
+    return outputPath;
+  }
+  return `${outputPath.slice(0, -extension.length)}.apk`;
 }
 
 /**
@@ -252,20 +305,51 @@ export async function resolveAndroidSigningOptionsAsync({
 }
 
 /**
- * Resolves iOS signing options from the job secrets.
+ * Resolves iOS signing options from the job secrets, dispatching on the
+ * requested signing backend.
  */
 export async function resolveIosSigningOptionsAsync({
   job,
   logger,
+  backend,
+  useAppEntitlements,
+  entitlementsPath,
+  tmpDir,
 }: {
   job: Job;
   logger: bunyan;
+  backend?: 'fastlane' | 'zsign';
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+  tmpDir: string;
 }): Promise<IosSigningOptions | undefined> {
   const iosJob = job as Ios.Job;
   const buildCredentials = iosJob.secrets?.buildCredentials;
   if (iosJob.simulator || buildCredentials == null) {
     return undefined;
   }
+  const commonOptions = { buildCredentials, logger, useAppEntitlements, entitlementsPath };
+  return backend === 'zsign'
+    ? await createIosZsignOptionsAsync({ ...commonOptions, tmpDir })
+    : await createIosFastlaneOptionsAsync(commonOptions);
+}
+
+/**
+ * Creates signing options for the fastlane backend: certificates are imported
+ * into a temporary keychain and provisioning profiles are parsed with the
+ * macOS `security` tool.
+ */
+async function createIosFastlaneOptionsAsync({
+  buildCredentials,
+  logger,
+  useAppEntitlements,
+  entitlementsPath,
+}: {
+  buildCredentials: Ios.BuildCredentials;
+  logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+}): Promise<IosSigningOptions> {
   const credentialsManager = new IosCredentialsManager(buildCredentials);
   const credentials = await credentialsManager.prepare(logger);
 
@@ -277,5 +361,57 @@ export async function resolveIosSigningOptionsAsync({
     provisioningProfile,
     keychainPath: credentials.keychainPath,
     signingIdentity: credentials.applicationTargetProvisioningProfile.data.certificateCommonName,
+    useAppEntitlements,
+    entitlementsPath,
+  };
+}
+
+/**
+ * Creates signing options for the zsign backend. The distribution certificate
+ * secret is already a PKCS#12 file, so it goes to disk as-is together with the
+ * provisioning profiles.
+ */
+async function createIosZsignOptionsAsync({
+  buildCredentials,
+  logger,
+  useAppEntitlements,
+  entitlementsPath,
+  tmpDir,
+}: {
+  buildCredentials: Ios.BuildCredentials;
+  logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+  tmpDir: string;
+}): Promise<IosSigningOptions> {
+  const targets = Object.entries(buildCredentials);
+  const [targetName, targetCredentials] = targets[0];
+  logger.info(`Using the distribution certificate from target '${targetName}' for zsign`);
+
+  const certificatePath = path.join(tmpDir, `dist-cert-${randomUUID()}.p12`);
+  await fs.promises.writeFile(
+    certificatePath,
+    new Uint8Array(Buffer.from(targetCredentials.distributionCertificate.dataBase64, 'base64'))
+  );
+
+  // zsign matches profiles to bundles by the app-id suffix itself, so the
+  // record keys are informational only.
+  const provisioningProfile: Record<string, string> = {};
+  for (const [target, credentials] of targets) {
+    const profilePath = path.join(tmpDir, `profile-${target}-${randomUUID()}.mobileprovision`);
+    await fs.promises.writeFile(
+      profilePath,
+      new Uint8Array(Buffer.from(credentials.provisioningProfileBase64, 'base64'))
+    );
+    provisioningProfile[target] = profilePath;
+  }
+
+  return {
+    backend: 'zsign',
+    certificatePath,
+    keyPassword: targetCredentials.distributionCertificate.password,
+    provisioningProfile,
+    useAppEntitlements,
+    entitlementsPath,
   };
 }

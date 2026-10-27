@@ -13,4 +13,7 @@ destination("<%- SCHEME_SIMULATOR_DESTINATION %>")
 
 disable_xcpretty(true)
 buildlog_path("<%- LOGS_DIRECTORY %>")
+
+result_bundle(true)
+result_bundle_path("<%- RESULT_BUNDLE_PATH %>")
 `;

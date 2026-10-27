@@ -14,8 +14,8 @@ import slash from 'slash';
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { IosJobSecretsInput } from '../../graphql/generated';
 import { getCustomBuildConfigPathForJob } from '../../project/customBuildConfig';
-import { getUsernameForBuildMetadataAndBuildJob } from '../../project/projectUtils';
 import { BuildContext } from '../context';
+import { getActorUsername } from '../../user/User';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -32,7 +32,7 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData
 ): Promise<Ios.Job> {
-  const username = getUsernameForBuildMetadataAndBuildJob(ctx.user);
+  const username = getActorUsername(ctx.user) ?? undefined;
   const buildProfile: BuildProfile<Platform.IOS> = ctx.buildProfile;
   const projectRootDirectory =
     slash(path.relative(await ctx.vcsClient.getRootPathAsync(), ctx.projectDir)) || '.';
@@ -99,6 +99,7 @@ export async function prepareJobAsync(
     }),
     experimental: {
       prebuildCommand: buildProfile.prebuildCommand,
+      uploadSourceMaps: buildProfile.uploadSourceMaps,
     },
     mode: buildMode,
     triggeredBy: BuildTrigger.EAS_CLI,
@@ -112,6 +113,9 @@ export async function prepareJobAsync(
     // See: https://github.com/expo/eas-build/pull/454
     appId: ctx.projectId,
     initiatingUserId: ctx.user.id,
+    ...(ctx.credentialsCtx.refreshAdHocProvisioningProfile && {
+      refreshAdHocProvisioningProfile: true,
+    }),
   };
   return sanitizeBuildJob(job) as Ios.Job;
 }

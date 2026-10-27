@@ -40,6 +40,11 @@ export default class BuildInternal extends EasCommand {
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
     }),
+    'refresh-ad-hoc-provisioning-profile': Flags.boolean({
+      default: false,
+      description:
+        'Refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials',
+    }),
   };
 
   static override contextDefinition = {
@@ -85,6 +90,7 @@ export default class BuildInternal extends EasCommand {
         profile: flags.profile,
         nonInteractive: true,
         freezeCredentials: false,
+        refreshAdHocProvisioningProfile: flags['refresh-ad-hoc-provisioning-profile'],
         wait: false,
         clearCache: false,
         json: true,

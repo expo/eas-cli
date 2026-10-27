@@ -1,4 +1,4 @@
-import { instance, mock, verify, when } from 'ts-mockito';
+import { anything, instance, mock, verify, when } from 'ts-mockito';
 
 import { createGlobalContextMock } from './utils/context';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
@@ -13,10 +13,10 @@ describe(BuildWorkflow, () => {
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
       const mockBuildStep4 = mock<BuildStep>();
-      when(mockBuildStep4.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep4.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
 
       const buildSteps: BuildStep[] = [
         instance(mockBuildStep1),
@@ -38,9 +38,9 @@ describe(BuildWorkflow, () => {
       const mockBuildStep1 = mock<BuildStep>();
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
 
       const buildSteps: BuildStep[] = [
         instance(mockBuildStep1),
@@ -62,10 +62,10 @@ describe(BuildWorkflow, () => {
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
       const mockBuildStep4 = mock<BuildStep>();
-      when(mockBuildStep4.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(false);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(false);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep4.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(false);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(false);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
 
       const buildSteps: BuildStep[] = [
         instance(mockBuildStep1),
@@ -88,9 +88,9 @@ describe(BuildWorkflow, () => {
       const mockBuildStep1 = mock<BuildStep>();
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(false);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(false);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(false);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(false);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep1.executeAsync()).thenReject(new Error('Step 1 failed'));
 
       const buildSteps: BuildStep[] = [
@@ -112,9 +112,9 @@ describe(BuildWorkflow, () => {
       const mockBuildStep1 = mock<BuildStep>();
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep1.executeAsync()).thenReject(new Error('Step 1 failed'));
 
       const buildSteps: BuildStep[] = [
@@ -136,9 +136,9 @@ describe(BuildWorkflow, () => {
       const mockBuildStep1 = mock<BuildStep>();
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(true);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep1.executeAsync()).thenReject(new Error('Step 1 failed'));
       when(mockBuildStep2.executeAsync()).thenReject(new Error('Step 2 failed'));
       when(mockBuildStep3.executeAsync()).thenReject(new Error('Step 3 failed'));
@@ -175,7 +175,7 @@ describe(BuildWorkflow, () => {
 
     it('collects metrics for steps with __metricsId', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep.executeAsync()).thenResolve();
       when(mockBuildStep.__metricsId).thenReturn('test-step-metrics');
 
@@ -198,7 +198,7 @@ describe(BuildWorkflow, () => {
 
     it('does not collect metrics for steps without __metricsId', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep.executeAsync()).thenResolve();
       when(mockBuildStep.__metricsId).thenReturn(undefined);
 
@@ -213,7 +213,7 @@ describe(BuildWorkflow, () => {
 
     it('collects failed result when step throws', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep.executeAsync()).thenReject(new Error('Step failed'));
       when(mockBuildStep.__metricsId).thenReturn('failing-step-metrics');
 
@@ -236,7 +236,7 @@ describe(BuildWorkflow, () => {
 
     it('does not collect metrics when step is skipped', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(false);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(false);
       when(mockBuildStep.__metricsId).thenReturn('skipped-step-metrics');
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
@@ -252,7 +252,7 @@ describe(BuildWorkflow, () => {
 
     it('collects metrics with darwin platform when runtimePlatform is darwin', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep.executeAsync()).thenResolve();
       when(mockBuildStep.__metricsId).thenReturn('darwin-step');
 
@@ -273,15 +273,15 @@ describe(BuildWorkflow, () => {
       const mockBuildStep2 = mock<BuildStep>();
       const mockBuildStep3 = mock<BuildStep>();
 
-      when(mockBuildStep1.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep1.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep1.executeAsync()).thenResolve();
       when(mockBuildStep1.__metricsId).thenReturn('step-1');
 
-      when(mockBuildStep2.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep2.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep2.executeAsync()).thenResolve();
       when(mockBuildStep2.__metricsId).thenReturn(undefined); // No metricsId
 
-      when(mockBuildStep3.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep3.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep3.executeAsync()).thenResolve();
       when(mockBuildStep3.__metricsId).thenReturn('step-3');
 
@@ -304,7 +304,7 @@ describe(BuildWorkflow, () => {
 
     it('does not throw when reportStepMetric is not provided on the provider', async () => {
       const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.shouldExecuteStep(anything())).thenReturn(true);
       when(mockBuildStep.__metricsId).thenReturn('no-callback-test');
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];

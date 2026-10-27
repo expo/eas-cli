@@ -1,4 +1,5 @@
 import { ProfileType } from '@expo/app-store';
+import { UserRole } from '@expo/apple-utils';
 
 import {
   AscApiKey,
@@ -18,6 +19,7 @@ import {
 } from './ascApiKey';
 import {
   Options as AuthenticateOptions,
+  assertProvisioningAuthCtx,
   assertUserAuthCtx,
   authenticateAsync,
   isUserAuthCtx,
@@ -79,26 +81,38 @@ export default class AppStoreApi {
     return this.authCtx;
   }
 
+  /**
+   * Use for operations against Apple's Provisioning endpoints (bundle IDs, certificates,
+   * profiles, devices).
+   */
+  public async ensureProvisioningAuthenticatedAsync(
+    options?: AuthenticateOptions
+  ): Promise<AuthCtx> {
+    const authCtx = await this.ensureAuthenticatedAsync(options);
+    assertProvisioningAuthCtx(authCtx);
+    return authCtx;
+  }
+
   public async ensureBundleIdExistsAsync(
     app: AppLookupParams,
     options?: IosCapabilitiesOptions
   ): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     await ensureBundleIdExistsAsync(ctx, app, options);
   }
 
   public async listDistributionCertificatesAsync(): Promise<DistributionCertificateStoreInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await listDistributionCertificatesAsync(ctx);
   }
 
   public async createDistributionCertificateAsync(): Promise<DistributionCertificate> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await createDistributionCertificateAsync(ctx);
   }
 
   public async revokeDistributionCertificateAsync(ids: string[]): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     await revokeDistributionCertificateAsync(ctx, ids);
   }
 
@@ -122,7 +136,7 @@ export default class AppStoreApi {
     provisioningProfile: ProvisioningProfile,
     distCert: DistributionCertificate
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await useExistingProvisioningProfileAsync(
       ctx,
       bundleIdentifier,
@@ -136,7 +150,7 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfileStoreInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await listProvisioningProfilesAsync(ctx, bundleIdentifier, applePlatform, profileClass);
   }
 
@@ -147,7 +161,7 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await createProvisioningProfileAsync(
       ctx,
       bundleIdentifier,
@@ -163,7 +177,7 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
   }
 
@@ -173,7 +187,7 @@ export default class AppStoreApi {
     distCertSerialNumber: string,
     profileType: ProfileType
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
+    const ctx = await this.ensureProvisioningAuthenticatedAsync();
     return await createOrReuseAdhocProvisioningProfileAsync(
       ctx,
       udids,
@@ -195,10 +209,10 @@ export default class AppStoreApi {
 
   public async createAscApiKeyAsync(
     analytics: Analytics,
-    { nickname }: { nickname: string }
+    { nickname, roles }: { nickname: string; roles?: UserRole[] }
   ): Promise<AscApiKey> {
     const userCtx = await this.ensureUserAuthenticatedAsync();
-    return await createAscApiKeyAsync(analytics, userCtx, { nickname });
+    return await createAscApiKeyAsync(analytics, userCtx, { nickname, roles });
   }
 
   public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {

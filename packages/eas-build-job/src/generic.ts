@@ -6,6 +6,8 @@ import {
   BuildTrigger,
   EnvironmentSecretZ,
   HooksZ,
+  JobOutputsSchemaZ,
+  SshSettingsZ,
   StaticWorkflowInterpolationContextZ,
 } from './common';
 import { StepZ } from './step';
@@ -47,8 +49,9 @@ export namespace Generic {
     appId: z.string(),
 
     hooks: HooksZ.optional(),
+    ssh: SshSettingsZ.optional(),
     steps: z.array(StepZ).min(1),
-    outputs: z.record(z.string(), z.string()).optional(),
+    outputs: JobOutputsSchemaZ.optional(),
   });
 
   export type PartialJob = z.infer<typeof PartialJobZ>;

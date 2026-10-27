@@ -2,16 +2,13 @@ import { ExpoConfig } from '@expo/config';
 import {
   BuildPhase,
   BuildPhaseResult,
-  BuildPhaseStats,
   Env,
   EnvironmentSecretType,
-  GenericArtifactType,
   Job,
   LogMarker,
   ManagedArtifactType,
   Metadata,
   errors,
-  isGenericArtifact,
 } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
 import { bunyan } from '@expo/logger';
@@ -20,6 +17,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
+import { Datadog } from './datadog';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
@@ -42,9 +40,10 @@ export type ArtifactToUpload =
       paths: string[];
     }
   | {
-      type: GenericArtifactType;
+      type: null;
       name: string;
       paths: string[];
+      metadata?: Record<string, unknown>;
     };
 
 export interface BuildContextOptions {
@@ -62,12 +61,13 @@ export interface BuildContextOptions {
   reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
-  reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
   expoApiV2BaseUrl?: string;
+  mcpServerUrl?: string;
+  addBuildLogMask?: (secret: string) => void;
 }
 
 export class SkipNativeBuildError extends Error {}
@@ -80,10 +80,12 @@ export class BuildContext<TJob extends Job = Job> {
   public readonly reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   public readonly skipNativeBuild?: boolean;
   public readonly expoApiV2BaseUrl?: string;
+  public readonly mcpServerUrl?: string;
+  public readonly addBuildLogMask?: (secret: string) => void;
   public artifacts: Artifacts = {};
 
   private readonly _isLocal: boolean;
@@ -96,8 +98,7 @@ export class BuildContext<TJob extends Job = Job> {
   private buildPhase?: BuildPhase;
   private buildPhaseSkipped = false;
   private buildPhaseHasWarnings = false;
-  private _appConfig?: ExpoConfig;
-  private readonly reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
+  private _appConfig?: Promise<ExpoConfig>;
   public readonly graphqlClient: Client;
 
   constructor(job: TJob, options: BuildContextOptions) {
@@ -113,7 +114,8 @@ export class BuildContext<TJob extends Job = Job> {
     this._metadata = options.metadata;
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
-    this.reportBuildPhaseStats = options.reportBuildPhaseStats;
+    this.mcpServerUrl = options.mcpServerUrl;
+    this.addBuildLogMask = options.addBuildLogMask;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {
@@ -173,16 +175,18 @@ export class BuildContext<TJob extends Job = Job> {
     return path.join(this.workingdir, 'env');
   }
   public get packageManager(): PackageManager {
-    return resolvePackageManager(this.getReactNativeProjectDirectory());
+    return resolvePackageManager(this.getReactNativeProjectDirectory(), {
+      env: this.env,
+    });
   }
-  public get appConfig(): ExpoConfig {
+  public get appConfig(): Promise<ExpoConfig> {
     if (!this._appConfig) {
       this._appConfig = readAppConfig({
         projectDir: this.getReactNativeProjectDirectory(),
         env: this.env,
         logger: this.logger,
         sdkVersion: this.metadata?.sdkVersion,
-      }).exp;
+      }).then(config => config.exp);
     }
     return this._appConfig;
   }
@@ -235,7 +239,7 @@ export class BuildContext<TJob extends Job = Job> {
     logger: bunyan;
   }): Promise<{ artifactId: string | null }> {
     const result = await this._uploadArtifact({ artifact, logger });
-    if (result.filename && !isGenericArtifact(artifact)) {
+    if (result.filename && artifact.type !== null) {
       this.artifacts[artifact.type] = result.filename;
     }
     return { artifactId: result.artifactId ?? null };
@@ -247,9 +251,10 @@ export class BuildContext<TJob extends Job = Job> {
         'Updating environment variables is only allowed when build was triggered by a git-based integration.'
       );
     }
+
     this._env = {
-      ...env,
       ...this._env,
+      ...env,
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
     this._env.PATH = this._env.PATH
@@ -287,7 +292,7 @@ export class BuildContext<TJob extends Job = Job> {
   private async handleBuildPhaseErrorAsync(
     err: any,
     buildPhase: BuildPhase
-  ): Promise<errors.BuildError> {
+  ): Promise<errors.ExpoError> {
     const buildError = await resolveBuildPhaseErrorAsync(
       err,
       this.logBuffer.getPhaseLogs(buildPhase),
@@ -352,7 +357,13 @@ export class BuildContext<TJob extends Job = Job> {
     }
     await this.collectAndUpdateEnvVariablesAsync();
 
-    this.reportBuildPhaseStats?.({ buildPhase: this.buildPhase, result, durationMs });
+    if (this.job.platform) {
+      Datadog.distribution('eas.build.phase_duration', durationMs, {
+        build_phase: this.buildPhase.toLowerCase(),
+        platform: this.job.platform,
+        result,
+      });
+    }
 
     if (!doNotMarkEnd) {
       this.logger.info(

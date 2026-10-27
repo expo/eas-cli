@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import semver from 'semver';
 import { z } from 'zod';
 
 import { BuildPhase, BuildPhaseResult } from './logs';
@@ -44,11 +45,6 @@ export type ArchiveSource =
   | { type: ArchiveSourceType.PATH; path: string }
   | {
       type: ArchiveSourceType.GIT;
-      /**
-       * Url that can be used to clone repository.
-       * It should contain embedded credentials for private registries.
-       */
-      repositoryUrl: string;
       /** A Git ref - points to a branch head, tag head or a branch name. */
       gitRef: string | null;
       /**
@@ -78,7 +74,6 @@ export const ArchiveSourceSchema = Joi.object<ArchiveSource>({
   .when(Joi.object({ type: ArchiveSourceType.GIT }).unknown(), {
     then: Joi.object({
       type: Joi.string().valid(ArchiveSourceType.GIT).required(),
-      repositoryUrl: Joi.string().required(),
       gitCommitHash: Joi.string().required(),
       gitRef: Joi.string().allow(null).required(),
     }),
@@ -93,7 +88,6 @@ export const ArchiveSourceSchema = Joi.object<ArchiveSource>({
 export const ArchiveSourceSchemaZ = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(ArchiveSourceType.GIT),
-    repositoryUrl: z.string().url(),
     gitRef: z.string().nullable(),
     gitCommitHash: z.string(),
   }),
@@ -115,8 +109,8 @@ export const ArchiveSourceSchemaZ = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type Env = Record<string, string>;
-export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string());
+export type Env = Record<string, string | undefined>;
+export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string().optional());
 
 export type EnvironmentSecret = {
   name: string;
@@ -157,6 +151,23 @@ export const HooksSchema = Joi.object().pattern(
 );
 export const HooksZ = z.record(z.string(), z.array(StepZ));
 
+/** Worker-side SSH session settings for workflow VM jobs. Presence enables SSH. */
+export type SshSettings = {
+  idleTimeoutSeconds: number;
+  /** The relay the worker dials. Per-deployment config; the public upterm host is not allowed. */
+  relayServerUrl: string;
+};
+export const SshSettingsSchema = Joi.object({
+  idleTimeoutSeconds: Joi.number().integer().min(0).max(3600).required(),
+  relayServerUrl: Joi.string()
+    .uri({ scheme: ['ws', 'wss'] })
+    .required(),
+});
+export const SshSettingsZ = z.object({
+  idleTimeoutSeconds: z.number().int().min(0).max(3600),
+  relayServerUrl: z.url({ protocol: /^wss?$/ }),
+});
+
 export interface Cache {
   disabled: boolean;
   clear: boolean;
@@ -180,12 +191,6 @@ export const CacheSchema = Joi.object({
   customPaths: Joi.array().items(Joi.string()),
   paths: Joi.array().items(Joi.string()).default([]),
 });
-
-export interface BuildPhaseStats {
-  buildPhase: BuildPhase;
-  result: BuildPhaseResult;
-  durationMs: number;
-}
 
 const GitHubContextZ = z.object({
   triggering_actor: z.string().optional(),
@@ -226,6 +231,119 @@ const GitHubContextZ = z.object({
     .optional(),
 });
 
+const AppStoreConnectContextZ = z.looseObject({
+  app: z.looseObject({
+    id: z.string(),
+  }),
+  app_version: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum([
+        'accepted',
+        'developer_rejected',
+        'in_review',
+        'invalid_binary',
+        'metadata_rejected',
+        'pending_apple_release',
+        'pending_developer_release',
+        'prepare_for_submission',
+        'processing_for_distribution',
+        'ready_for_distribution',
+        'ready_for_review',
+        'rejected',
+        'replaced_with_new_version',
+        'waiting_for_export_compliance',
+        'waiting_for_review',
+      ]),
+    })
+    .optional(),
+  build_upload: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum(['awaiting_upload', 'processing', 'failed', 'complete']),
+      cf_bundle_version: z.string().optional(),
+      cf_bundle_short_version_string: z.string().optional(),
+      platform: z.string().optional(),
+      uploaded_date: z.string().optional(),
+      created_date: z.string().optional(),
+      build: z
+        .looseObject({
+          id: z.string(),
+        })
+        .optional(),
+    })
+    .optional(),
+  external_beta: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum([
+        'processing',
+        'processing_exception',
+        'missing_export_compliance',
+        'ready_for_beta_testing',
+        'in_beta_testing',
+        'expired',
+        'ready_for_beta_submission',
+        'in_export_compliance_review',
+        'waiting_for_beta_review',
+        'in_beta_review',
+        'beta_rejected',
+        'beta_approved',
+      ]),
+    })
+    .optional(),
+  beta_feedback: z
+    .looseObject({
+      id: z.string(),
+      type: z.enum(['crash', 'screenshot']),
+      url: z.string(),
+    })
+    .optional(),
+});
+
+const SentryIssueContextZ = z.looseObject({
+  id: z.string(),
+  short_id: z.string().optional(),
+  title: z.string().optional(),
+  culprit: z.string().nullable().optional(),
+  permalink: z.string().nullable().optional(),
+  level: z.string().optional(),
+  status: z.string().optional(),
+  substatus: z.string().nullable().optional(),
+  platform: z.string().nullable().optional(),
+  first_seen: z.string().optional(),
+  last_seen: z.string().optional(),
+  priority: z.string().nullable().optional(),
+  issue_category: z.string().optional(),
+  issue_type: z.string().optional(),
+  count: z.string().optional(),
+  user_count: z.number().optional(),
+  assigned_to: z
+    .looseObject({
+      type: z.string(),
+      id: z.string(),
+    })
+    .nullable()
+    .optional(),
+  project: z.looseObject({
+    id: z.string(),
+    slug: z.string().optional(),
+    name: z.string().optional(),
+  }),
+});
+
+const SentryContextZ = z.looseObject({
+  action: z.enum(['created', 'resolved', 'assigned', 'archived', 'unresolved']),
+  issue: SentryIssueContextZ,
+  actor: z
+    .looseObject({
+      type: z.string(),
+      id: z.union([z.string(), z.number()]),
+    })
+    .optional(),
+  resolution_type: z.string().optional(),
+});
+
 export const StaticWorkflowInterpolationContextZ = z.object({
   after: z.record(
     z.string(),
@@ -259,6 +377,10 @@ export const StaticWorkflowInterpolationContextZ = z.object({
     id: z.string(),
     name: z.string(),
   }),
+  // We need to .optional() to support jobs that are not triggered by an App Store Connect event.
+  app_store_connect: AppStoreConnectContextZ.optional(),
+  // We need to .optional() to support jobs that are not triggered by a Sentry event.
+  sentry: SentryContextZ.optional(),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<
@@ -284,6 +406,10 @@ export type DynamicInterpolationContext = {
 export type WorkflowInterpolationContext = StaticWorkflowInterpolationContext &
   DynamicInterpolationContext;
 
+export type JobOutputs = Record<string, string>;
+export const JobOutputsSchema = Joi.object<JobOutputs>().pattern(Joi.string(), Joi.string());
+export const JobOutputsSchemaZ = z.record(z.string(), z.string());
+
 export const CustomBuildConfigSchema = Joi.object().when('.mode', {
   is: [BuildMode.CUSTOM, BuildMode.REPACK],
   then: Joi.object().when('.customBuildConfig.path', {
@@ -293,7 +419,6 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
         path: Joi.string().required(),
       }).required(),
       steps: Joi.any().strip(),
-      outputs: Joi.any().strip(),
     }),
     otherwise: Joi.object({
       customBuildConfig: Joi.any().strip(),
@@ -301,17 +426,76 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
         .items(Joi.any())
         .required()
         .custom(steps => validateSteps(steps), 'steps validation'),
-      outputs: Joi.object().pattern(Joi.string(), Joi.string()).required(),
     }),
   }),
   otherwise: Joi.object({
     customBuildConfig: Joi.any().strip(),
     steps: Joi.any().strip(),
-    outputs: Joi.any().strip(),
   }),
 });
 
 export enum EasCliNpmTags {
   STAGING = 'latest-eas-build-staging',
   PRODUCTION = 'latest-eas-build',
+}
+
+/**
+ * The `eas-cli` versions used by EAS Build for the staging and production
+ * environments. Replaces the `latest-eas-build*` npm dist-tags: instead of
+ * moving dist-tags, the versions are committed to `cli-versions.json` at the
+ * root of the expo/eas-cli repository.
+ */
+export interface EasCliVersions {
+  STAGING: string;
+  PRODUCTION: string;
+}
+
+const SemverStringZ = z
+  .string()
+  .refine(value => semver.valid(value) !== null, { message: 'Expected a valid semver version.' });
+
+const EasCliVersionsZ = z.object({
+  STAGING: SemverStringZ,
+  PRODUCTION: SemverStringZ,
+});
+
+const CLI_VERSIONS_URL = 'https://raw.githubusercontent.com/expo/eas-cli/main/cli-versions.json';
+const CLI_VERSIONS_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * Thrown by {@link fetchEasCliVersionsAsync} when the request does not complete
+ * within {@link CLI_VERSIONS_FETCH_TIMEOUT_MS}. Callers can distinguish this
+ * from other fetch failures (e.g. to report it separately).
+ */
+export class EasCliVersionsFetchTimeoutError extends Error {
+  constructor(url: string, timeoutMs: number) {
+    super(`Timed out after ${timeoutMs}ms fetching ${url}.`);
+    this.name = 'EasCliVersionsFetchTimeoutError';
+  }
+}
+
+/**
+ * Fetches and parses `cli-versions.json` from the `main` branch of
+ * expo/eas-cli. Throws {@link EasCliVersionsFetchTimeoutError} if the request
+ * exceeds {@link CLI_VERSIONS_FETCH_TIMEOUT_MS}, or a generic error if the file
+ * cannot be fetched or does not match the expected shape; callers should fall
+ * back to {@link EasCliNpmTags}.
+ */
+export async function fetchEasCliVersionsAsync(): Promise<EasCliVersions> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CLI_VERSIONS_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(CLI_VERSIONS_URL, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${CLI_VERSIONS_URL} (HTTP ${response.status}).`);
+    }
+    return EasCliVersionsZ.parse(await response.json());
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new EasCliVersionsFetchTimeoutError(CLI_VERSIONS_URL, CLI_VERSIONS_FETCH_TIMEOUT_MS);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

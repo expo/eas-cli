@@ -6,6 +6,8 @@ import { WorkerDeploymentAliasFragmentNode } from './fragments/WorkerDeploymentA
 import type { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
 import {
+  DevDomainNameByAppIdQuery,
+  DevDomainNameByAppIdQueryVariables,
   type PaginatedWorkerDeploymentsQuery,
   type PaginatedWorkerDeploymentsQueryVariables,
   SuggestedDevDomainNameQuery,
@@ -87,6 +89,35 @@ export const DeploymentsQuery = {
     );
 
     return data.app.byId.suggestedDevDomainName;
+  },
+
+  async getDevDomainNameByAppIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId }: DevDomainNameByAppIdQueryVariables
+  ): Promise<string | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<DevDomainNameByAppIdQuery, DevDomainNameByAppIdQueryVariables>(
+          gql`
+            query DevDomainNameByAppId($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  devDomainName {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: ['AppDevDomainName'] }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.devDomainName?.name ?? null;
   },
 
   async getAllAliasesPaginatedAsync(

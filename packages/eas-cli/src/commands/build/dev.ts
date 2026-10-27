@@ -12,6 +12,7 @@ import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEn
 import { downloadAndRunAsync, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
+import { preprocessBuildCommandArgs } from '../../commandUtils/buildFlags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { createFingerprintAsync } from '../../fingerprint/cli';
 import { BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
@@ -47,6 +48,15 @@ export default class BuildDev extends EasCommand {
       description: 'Skip build if no successful build with matching fingerprint is found.',
       default: false,
     }),
+    'skip-bundler': Flags.boolean({
+      description: 'Install and run the development build without starting the bundler server.',
+      default: false,
+    }),
+    simulator: Flags.string({
+      description:
+        'iOS simulator name or UDID to install and run the development build on. If no value is provided, you will be prompted to select a simulator.',
+      multiple: false,
+    }),
   };
 
   static override contextDefinition = {
@@ -59,7 +69,7 @@ export default class BuildDev extends EasCommand {
   };
 
   protected override async runAsync(): Promise<any> {
-    const { flags } = await this.parse(BuildDev);
+    const { flags } = await this.parse(BuildDev, preprocessBuildCommandArgs(this.argv));
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -77,6 +87,10 @@ export default class BuildDev extends EasCommand {
     if (process.platform !== 'darwin' && platform === Platform.IOS) {
       Errors.error('Running iOS builds in simulator is only supported on macOS.', { exit: 1 });
     }
+    if (flags.simulator && platform !== Platform.IOS) {
+      Errors.error('The --simulator flag can only be used with --platform ios.', { exit: 1 });
+    }
+    const simulator = flags.simulator === '' ? true : flags.simulator;
 
     await vcsClient.ensureRepoExistsAsync();
     await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
@@ -95,7 +109,7 @@ export default class BuildDev extends EasCommand {
 
     const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
 
-    const { env } = await evaluateConfigWithEnvVarsAsync({
+    const evaluatedConfig = await evaluateConfigWithEnvVarsAsync({
       buildProfile: buildProfile.profile,
       buildProfileName: buildProfile.profileName,
       graphqlClient,
@@ -104,7 +118,7 @@ export default class BuildDev extends EasCommand {
     });
 
     const fingerprint = await createFingerprintAsync(projectDir, {
-      env,
+      env: evaluatedConfig.env,
       workflow,
       platforms: [platform],
     });
@@ -128,8 +142,10 @@ export default class BuildDev extends EasCommand {
       );
 
       if (build.artifacts?.applicationArchiveUrl) {
-        await downloadAndRunAsync(build);
-        await this.startDevServerAsync({ projectDir, platform });
+        await downloadAndRunAsync(build, simulator);
+        if (!flags['skip-bundler']) {
+          await this.startDevServerAsync({ projectDir, platform });
+        }
         return;
       } else {
         Log.warn('Artifacts for this build expired.');
@@ -176,13 +192,16 @@ export default class BuildDev extends EasCommand {
         autoSubmit: false,
         localBuildOptions: {},
         profile: flags.profile ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+        simulator,
       },
       actor,
       getDynamicPrivateProjectConfigAsync,
       downloadSimBuildAutoConfirm: true,
-      envOverride: env,
+      evaluatedConfig,
     });
-    await this.startDevServerAsync({ projectDir, platform });
+    if (!flags['skip-bundler']) {
+      await this.startDevServerAsync({ projectDir, platform });
+    }
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {

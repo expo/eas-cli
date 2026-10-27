@@ -10,6 +10,7 @@ export enum BuildPhase {
   SET_UP_BUILD_ENVIRONMENT = 'SET_UP_BUILD_ENVIRONMENT',
   START_BUILD = 'START_BUILD',
   INSTALL_CUSTOM_TOOLS = 'INSTALL_CUSTOM_TOOLS',
+  SSH_SESSION = 'SSH_SESSION',
   PREPARE_PROJECT = 'PREPARE_PROJECT',
   RESTORE_CACHE = 'RESTORE_CACHE',
   INSTALL_DEPENDENCIES = 'INSTALL_DEPENDENCIES',
@@ -27,6 +28,7 @@ export enum BuildPhase {
    */
   UPLOAD_ARTIFACTS = 'UPLOAD_ARTIFACTS',
   UPLOAD_APPLICATION_ARCHIVE = 'UPLOAD_APPLICATION_ARCHIVE',
+  UPLOAD_EMBEDDED_BUNDLE = 'UPLOAD_EMBEDDED_BUNDLE',
   UPLOAD_BUILD_ARTIFACTS = 'UPLOAD_BUILD_ARTIFACTS',
   PREPARE_ARTIFACTS = 'PREPARE_ARTIFACTS',
   CLEAN_UP_CREDENTIALS = 'CLEAN_UP_CREDENTIALS',
@@ -36,11 +38,13 @@ export enum BuildPhase {
   // ANDROID
   FIX_GRADLEW = 'FIX_GRADLEW',
   RUN_GRADLEW = 'RUN_GRADLEW',
+  GRADLE_BUILD_PROFILE = 'GRADLE_BUILD_PROFILE',
 
   // IOS
   INSTALL_PODS = 'INSTALL_PODS',
   CONFIGURE_XCODE_PROJECT = 'CONFIGURE_XCODE_PROJECT',
   RUN_FASTLANE = 'RUN_FASTLANE',
+  PARSE_XCACTIVITYLOG = 'PARSE_XCACTIVITYLOG',
 
   // HOOKS
   PRE_INSTALL_HOOK = 'PRE_INSTALL_HOOK',
@@ -75,6 +79,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.BUILDER_INFO]: 'Builder environment info',
   [BuildPhase.START_BUILD]: 'Start build',
   [BuildPhase.INSTALL_CUSTOM_TOOLS]: 'Install custom tools',
+  [BuildPhase.SSH_SESSION]: 'Start SSH session',
   [BuildPhase.PREPARE_PROJECT]: 'Prepare project',
   [BuildPhase.RESTORE_CACHE]: 'Restore cache',
   [BuildPhase.INSTALL_DEPENDENCIES]: 'Install dependencies',
@@ -89,6 +94,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.CACHE_STATS]: 'Cache stats',
   [BuildPhase.UPLOAD_ARTIFACTS]: 'Upload artifacts',
   [BuildPhase.UPLOAD_APPLICATION_ARCHIVE]: 'Upload application archive',
+  [BuildPhase.UPLOAD_EMBEDDED_BUNDLE]: 'Upload embedded bundle',
   [BuildPhase.UPLOAD_BUILD_ARTIFACTS]: 'Upload build artifacts',
   [BuildPhase.PREPARE_ARTIFACTS]: 'Prepare artifacts',
   [BuildPhase.CLEAN_UP_CREDENTIALS]: 'Clean up credentials',
@@ -103,11 +109,13 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   // ANDROID
   [BuildPhase.FIX_GRADLEW]: 'Fix gradlew',
   [BuildPhase.RUN_GRADLEW]: 'Run gradlew',
+  [BuildPhase.GRADLE_BUILD_PROFILE]: 'Gradle build profile',
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'Install pods',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'Configure Xcode project',
   [BuildPhase.RUN_FASTLANE]: 'Run fastlane',
+  [BuildPhase.PARSE_XCACTIVITYLOG]: 'Analyze build performance',
 
   // HOOKS
   [BuildPhase.PRE_INSTALL_HOOK]: 'Pre-install hook',
@@ -139,6 +147,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   [BuildPhase.BUILDER_INFO]: 'builder-environment-info',
   [BuildPhase.START_BUILD]: 'start-build',
   [BuildPhase.INSTALL_CUSTOM_TOOLS]: 'install-custom-tools',
+  [BuildPhase.SSH_SESSION]: 'ssh-session',
   [BuildPhase.PREPARE_PROJECT]: 'prepare-project',
   [BuildPhase.RESTORE_CACHE]: 'restore-cache',
   [BuildPhase.INSTALL_DEPENDENCIES]: 'install-dependencies',
@@ -153,6 +162,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   [BuildPhase.CACHE_STATS]: 'cache-stats',
   [BuildPhase.UPLOAD_ARTIFACTS]: 'upload-artifacts',
   [BuildPhase.UPLOAD_APPLICATION_ARCHIVE]: 'upload-application-archive',
+  [BuildPhase.UPLOAD_EMBEDDED_BUNDLE]: 'upload-embedded-bundle',
   [BuildPhase.UPLOAD_BUILD_ARTIFACTS]: 'upload-build-artifacts',
   [BuildPhase.PREPARE_ARTIFACTS]: 'prepare-artifacts',
   [BuildPhase.CLEAN_UP_CREDENTIALS]: 'clean-up-credentials',
@@ -167,11 +177,13 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   // ANDROID
   [BuildPhase.FIX_GRADLEW]: 'fix-gradlew',
   [BuildPhase.RUN_GRADLEW]: 'run-gradlew',
+  [BuildPhase.GRADLE_BUILD_PROFILE]: 'gradle-build-profile',
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'install-pods',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'configure-xcode-project',
   [BuildPhase.RUN_FASTLANE]: 'run-fastlane',
+  [BuildPhase.PARSE_XCACTIVITYLOG]: 'parse-xcactivitylog',
 
   // HOOKS
   [BuildPhase.PRE_INSTALL_HOOK]: 'pre-install-hook',

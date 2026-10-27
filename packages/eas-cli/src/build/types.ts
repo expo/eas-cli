@@ -35,4 +35,5 @@ export interface BuildFlags {
   message?: string;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  refreshAdHocProvisioningProfile?: boolean;
 }

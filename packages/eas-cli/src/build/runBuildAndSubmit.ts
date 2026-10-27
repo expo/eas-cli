@@ -22,6 +22,7 @@ import { createBuildContextAsync } from './createContext';
 import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
+import { ensureLockfileExistsAsync } from './validateLockfile';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -29,6 +30,8 @@ import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import {
   AppPlatform,
   BuildFragment,
@@ -56,7 +59,6 @@ import {
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
-  validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
   ensureAppVersionSourceIsSetAsync,
@@ -65,6 +67,7 @@ import {
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { getEasBuildRunCachedAppPath, runAsync } from '../run/run';
+import { SimulatorRunTarget } from '../run/ios/run';
 import { isRunnableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
@@ -84,6 +87,7 @@ import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
+let lockfileChecked = false;
 let hasWarnedAboutUsageOverages = false;
 
 export interface BuildFlags {
@@ -100,8 +104,10 @@ export interface BuildFlags {
   message?: string;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  refreshAdHocProvisioningProfile?: boolean;
   isVerboseLoggingEnabled?: boolean;
   whatToTest?: string;
+  simulator?: SimulatorRunTarget;
 }
 
 export async function runBuildAndSubmitAsync({
@@ -113,7 +119,9 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
+  experimentation,
+  authenticationInfo,
 }: {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
@@ -123,7 +131,11 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
+  /** Enables the Free plan limit experiments on the build request error path. */
+  experimentation?: LazyExperimentationClient;
+  /** Lets the Free plan limit checkout experiment create a checkout session. */
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
@@ -212,15 +224,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : { env: envOverride };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -232,10 +244,13 @@ export async function runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
-      getDynamicPrivateProjectConfigAsync,
+      exp,
+      projectId,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
+      experimentation,
+      authenticationInfo,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -370,10 +385,13 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
+  experimentation,
+  authenticationInfo,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -384,10 +402,13 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -405,14 +426,25 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     vcsClient,
-    getDynamicPrivateProjectConfigAsync,
+    exp,
+    projectId,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
+    refreshAdHocProvisioningProfile: flags.refreshAdHocProvisioningProfile,
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     whatToTest: flags.whatToTest,
     env,
+    experimentation,
+    authenticationInfo,
   });
+
+  if (!lockfileChecked && !flags.localBuildOptions.localBuildMode) {
+    if (!process.env.EAS_BUILD_SKIP_LOCKFILE_CHECK) {
+      await ensureLockfileExistsAsync(projectDir);
+    }
+    lockfileChecked = true;
+  }
 
   if (!hasWarnedAboutUsageOverages && !flags.localBuildOptions.localBuildMode) {
     hasWarnedAboutUsageOverages = true;
@@ -468,7 +500,6 @@ async function prepareAndStartBuildAsync({
     }
   }
 
-  await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (
     easJsonCliConfig?.appVersionSource === undefined &&
     buildProfile.profile.autoIncrement !== 'version'
@@ -491,7 +522,10 @@ async function prepareAndStartBuildAsync({
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
-  if (buildCtx.workflow === Workflow.MANAGED) {
+  // Custom builds run the steps from the profile's config file instead of the
+  // standard managed pipeline, so the managed-workflow checks do not apply.
+  const isCustomBuild = !!buildProfile.profile.config;
+  if (buildCtx.workflow === Workflow.MANAGED && !isCustomBuild) {
     if (!sdkVersionChecked) {
       await checkExpoSdkIsSupportedAsync(buildCtx);
       sdkVersionChecked = true;
@@ -579,14 +613,17 @@ function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | nul
   }
 }
 
-export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
+export async function downloadAndRunAsync(
+  build: BuildFragment,
+  simulator?: SimulatorRunTarget
+): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
-  const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
+  const cachedAppPath = getEasBuildRunCachedAppPath(build.app.id, build.id, build.platform);
 
   if (await pathExists(cachedAppPath)) {
     Log.newLine();
     Log.log(`Using cached app...`);
-    await runAsync(cachedAppPath, build.platform);
+    await runAsync(cachedAppPath, build.platform, simulator);
     return;
   }
 
@@ -595,7 +632,7 @@ export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
     build.platform,
     cachedAppPath
   );
-  await runAsync(buildPath, build.platform);
+  await runAsync(buildPath, build.platform, simulator);
 }
 
 async function maybeDownloadAndRunSimulatorBuildsAsync(
@@ -617,9 +654,9 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
             } build on ${
               simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'
             }?`,
-          }));
+        }));
         if (confirm) {
-          await downloadAndRunAsync(simBuild);
+          await downloadAndRunAsync(simBuild, flags.simulator);
         }
       }
     }

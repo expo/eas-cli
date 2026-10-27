@@ -1,0 +1,288 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { AppObservePlatform } from '../../../graphql/generated';
+import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
+import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
+import ObserveMetricsSummary from '../metrics-summary';
+
+jest.mock('../../../observe/fetchMetrics', () => {
+  const actual = jest.requireActual('../../../observe/fetchMetrics');
+  return {
+    ...actual,
+    fetchObserveMetricsAsync: jest.fn(),
+  };
+});
+jest.mock('../../../observe/formatMetrics', () => ({
+  ...jest.requireActual('../../../observe/formatMetrics'),
+  buildObserveMetricsTable: jest.fn().mockReturnValue('table'),
+  buildObserveMetricsJson: jest.fn().mockReturnValue([]),
+}));
+jest.mock('../../../log');
+jest.mock('../../../utils/json');
+
+const mockFetchObserveMetricsSummaryAsync = jest.mocked(fetchObserveMetricsAsync);
+const mockBuildObserveMetricsSummaryTable = jest.mocked(buildObserveMetricsTable);
+const mockBuildObserveMetricsSummaryJson = jest.mocked(buildObserveMetricsJson);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
+
+describe(ObserveMetricsSummary, () => {
+  const graphqlClient = {} as any as ExpoGraphqlClient;
+  const mockConfig = getMockOclifConfig();
+  const projectId = 'test-project-id';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetchObserveMetricsSummaryAsync.mockResolvedValue({
+      metricsMap: new Map(),
+      buildNumbersMap: new Map(),
+      updateIdsMap: new Map(),
+      totalEventCounts: new Map(),
+    });
+  });
+
+  function createCommand(argv: string[]): ObserveMetricsSummary {
+    const command = new ObserveMetricsSummary(argv, mockConfig);
+    // @ts-expect-error getContextAsync is a protected method
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      projectId,
+      loggedIn: { graphqlClient },
+    });
+    return command;
+  }
+
+  it('surfaces the server plan-gate message when a metric is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveMetricsSummaryAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand(['--metric', 'nav_tti']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
+  it('fetches metrics with default parameters (both platforms)', async () => {
+    const now = new Date('2025-06-15T12:00:00.000Z');
+    jest.useFakeTimers({ now });
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockFetchObserveMetricsSummaryAsync).toHaveBeenCalledTimes(1);
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Android), target(AppObservePlatform.Ios)]);
+
+    jest.useRealTimers();
+  });
+
+  it('queries only Android when --platform android is passed', async () => {
+    const command = createCommand(['--platform', 'android']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Android)]);
+  });
+
+  it('queries only iOS when --platform ios is passed', async () => {
+    const command = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Ios)]);
+  });
+
+  it('queries one combined target covering every Apple platform when --platform apple is passed', async () => {
+    const command = createCommand(['--platform', 'apple']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([
+      {
+        key: 'APPLE',
+        platforms: [
+          AppObservePlatform.Ios,
+          AppObservePlatform.Ipados,
+          AppObservePlatform.Tvos,
+          AppObservePlatform.Macos,
+        ],
+      },
+    ]);
+  });
+
+  it('queries only macOS when --platform macos is passed', async () => {
+    const command = createCommand(['--platform', 'macos']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Macos)]);
+  });
+
+  it('passes --environment through to fetchObserveMetricsAsync', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockFetchObserveMetricsSummaryAsync.mock.calls[0][6]).toBe('production');
+  });
+
+  it('resolves --metric aliases before passing to fetchObserveMetricsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--metric', 'cold_launch']);
+    await command.runAsync();
+
+    const metricNames = mockFetchObserveMetricsSummaryAsync.mock.calls[0][2];
+    expect(metricNames).toEqual(['expo.app_startup.tti', 'expo.app_startup.cold_launch_time']);
+  });
+
+  it('uses default time range (60 days back) when no --start/--end flags', async () => {
+    const now = new Date('2025-06-15T12:00:00.000Z');
+    jest.useFakeTimers({ now });
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    const startTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][5];
+    expect(endTime).toBe('2025-06-15T12:00:00.000Z');
+    expect(startTime).toBe('2025-04-16T12:00:00.000Z');
+
+    jest.useRealTimers();
+  });
+
+  it('uses explicit --start and --end when provided', async () => {
+    const command = createCommand([
+      '--start',
+      '2025-01-01T00:00:00.000Z',
+      '--end',
+      '2025-02-01T00:00:00.000Z',
+    ]);
+    await command.runAsync();
+
+    const startTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][5];
+    expect(startTime).toBe('2025-01-01T00:00:00.000Z');
+    expect(endTime).toBe('2025-02-01T00:00:00.000Z');
+  });
+
+  it('passes resolved --stat flags to buildObserveMetricsTable', async () => {
+    const command = createCommand(['--stat', 'p90', '--stat', 'eventCount']);
+    await command.runAsync();
+
+    expect(mockBuildObserveMetricsSummaryTable).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.any(Array),
+      ['p90', 'eventCount'],
+      expect.objectContaining({ daysBack: 60 })
+    );
+  });
+
+  it('deduplicates --stat flags that resolve to the same key', async () => {
+    const command = createCommand(['--stat', 'median', '--stat', 'median']);
+    await command.runAsync();
+
+    expect(mockBuildObserveMetricsSummaryTable).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.any(Array),
+      ['median'],
+      expect.objectContaining({ daysBack: 60 })
+    );
+  });
+
+  it('uses --days to compute start/end time range', async () => {
+    const now = new Date('2025-06-15T12:00:00.000Z');
+    jest.useFakeTimers({ now });
+
+    const command = createCommand(['--days', '7']);
+    await command.runAsync();
+
+    const startTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricsSummaryAsync.mock.calls[0][5];
+    expect(endTime).toBe('2025-06-15T12:00:00.000Z');
+    expect(startTime).toBe('2025-06-08T12:00:00.000Z');
+
+    jest.useRealTimers();
+  });
+
+  it('rejects --days combined with --start', async () => {
+    const command = createCommand(['--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
+
+    await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('rejects --days combined with --end', async () => {
+    const command = createCommand(['--days', '7', '--end', '2025-02-01T00:00:00.000Z']);
+
+    await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('uses default stats when --stat is not provided', async () => {
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockBuildObserveMetricsSummaryTable).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.any(Array),
+      ['median', 'eventCount'],
+      expect.objectContaining({ daysBack: 60 })
+    );
+  });
+
+  it('passes resolved --stat flags to buildObserveMetricsJson when --json is used', async () => {
+    const command = createCommand([
+      '--json',
+      '--non-interactive',
+      '--stat',
+      'min',
+      '--stat',
+      'average',
+    ]);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveMetricsSummaryJson).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.any(Array),
+      ['min', 'average'],
+      expect.any(Map),
+      expect.any(Map),
+      expect.any(Map)
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+});
+
+describe(validateDateFlag, () => {
+  it('throws on invalid --start date', () => {
+    expect(() => {
+      validateDateFlag('not-a-date', '--start');
+    }).toThrow('Invalid --start date: "not-a-date"');
+  });
+
+  it('throws on invalid --end date', () => {
+    expect(() => {
+      validateDateFlag('also-bad', '--end');
+    }).toThrow('Invalid --end date: "also-bad"');
+  });
+
+  it('accepts valid ISO date in --start', () => {
+    expect(() => {
+      validateDateFlag('2025-01-01', '--start');
+    }).not.toThrow();
+  });
+});

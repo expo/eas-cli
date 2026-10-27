@@ -5,10 +5,15 @@ import path from 'path';
 import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { UserQuery } from '../../graphql/queries/UserQuery';
 import Log from '../../log';
-import { promptAsync, selectAsync } from '../../prompts';
+import { promptAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
-import SessionManager, { UserSecondFactorDeviceMethod } from '../SessionManager';
+import SessionManager from '../SessionManager';
 import { fetchSessionSecretAndUserAsync } from '../fetchSessionSecretAndUser';
 import { fetchSessionSecretAndUserFromBrowserAuthFlowAsync } from '../fetchSessionSecretAndUserFromBrowserAuthFlow';
 
@@ -17,16 +22,17 @@ jest.mock('../../log');
 jest.mock('fs');
 jest.mock('../../graphql/queries/UserQuery', () => ({
   UserQuery: {
-    currentUserAsync: async () => ({
+    currentUserAsync: jest.fn(async () => ({
       __typename: 'User',
       username: 'USERNAME',
       id: 'USER_ID',
-    }),
+    })),
   },
 }));
 jest.mock('../fetchSessionSecretAndUser');
 jest.mock('../fetchSessionSecretAndUserFromBrowserAuthFlow');
 jest.mock('../../api');
+jest.mock('../../commandUtils/context/contextUtils/createGraphqlClient');
 
 const authStub: any = {
   sessionSecret: 'SESSION_SECRET',
@@ -41,6 +47,7 @@ const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
   setActor: jest.fn((): void => {}),
   flushAsync: jest.fn(async (): Promise<void> => {}),
+  getDeviceId: jest.fn((): string | null => null),
 };
 
 beforeEach(() => {
@@ -109,6 +116,28 @@ describe(SessionManager, () => {
     });
   });
 
+  describe('getGraphqlClient', () => {
+    beforeEach(() => {
+      jest.mocked(createGraphqlClient).mockImplementation(() => ({}) as ExpoGraphqlClient);
+    });
+
+    it('returns the same client for the same credential', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: null });
+      expect(
+        sessionManager.getGraphqlClient({ accessToken: 'token', sessionSecret: 'secret' })
+      ).toBe(client);
+    });
+
+    it('returns a new client when the credential changes', () => {
+      const sessionManager = new SessionManager(analytics);
+      const client = sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'a' });
+      expect(sessionManager.getGraphqlClient({ accessToken: null, sessionSecret: 'b' })).not.toBe(
+        client
+      );
+    });
+  });
+
   describe('getUserAsync', () => {
     it('skips fetching user without access token or session secret', async () => {
       const sessionManager = new SessionManager(analytics);
@@ -130,6 +159,36 @@ describe(SessionManager, () => {
         currentConnection: 'Username-Password-Authentication',
       });
       expect(await sessionManager.getUserAsync()).toMatchObject({ __typename: 'User' });
+    });
+
+    it('creates the GraphQL client without a timeout and keeps retries by default', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync();
+      expect(createGraphqlClient).toHaveBeenCalledWith(
+        { accessToken: 'accesstoken', sessionSecret: null },
+        { requestTimeoutMs: undefined }
+      );
+      expect(jest.mocked(UserQuery.currentUserAsync).mock.calls[0][1]).toEqual({ noRetry: false });
+    });
+
+    it('forwards the request timeout to the GraphQL client and disables retries', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync({ requestTimeoutMs: 1234 });
+      expect(createGraphqlClient).toHaveBeenCalledWith(
+        { accessToken: 'accesstoken', sessionSecret: null },
+        { requestTimeoutMs: 1234 }
+      );
+      expect(jest.mocked(UserQuery.currentUserAsync).mock.calls[0][1]).toEqual({ noRetry: true });
+    });
+
+    it('skips the request once an actor is cached', async () => {
+      process.env.EXPO_TOKEN = 'accesstoken';
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager.getUserAsync();
+      await sessionManager.getUserAsync({ requestTimeoutMs: 1234 });
+      expect(createGraphqlClient).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -219,6 +278,38 @@ describe(SessionManager, () => {
       await sessionManager.logoutAsync();
       expect(sessionManager['getSessionSecret']()).toBe(null);
     });
+
+    it('calls the server logout endpoint when session secret exists', async () => {
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
+
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
+      await sessionManager.logoutAsync();
+
+      expect(apiV2PostSpy).toHaveBeenCalledWith('auth/logout', { body: {} });
+    });
+
+    it('clears the local session even if the server logout call fails', async () => {
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      jest
+        .spyOn(ApiV2Client.prototype, 'postAsync')
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
+      await sessionManager.logoutAsync();
+
+      expect(sessionManager['getSessionSecret']()).toBe(null);
+    });
   });
 
   describe('showLoginPromptAsync', () => {
@@ -243,17 +334,6 @@ describe(SessionManager, () => {
           throw new ApiV2Error({
             message: 'An OTP is required',
             code: 'ONE_TIME_PASSWORD_REQUIRED',
-            metadata: {
-              secondFactorDevices: [
-                {
-                  id: 'p0',
-                  is_primary: true,
-                  method: UserSecondFactorDeviceMethod.SMS,
-                  sms_phone_number: 'testphone',
-                },
-              ],
-              smsAutomaticallySent: true,
-            },
           });
         })
         .mockResolvedValueOnce({
@@ -262,26 +342,15 @@ describe(SessionManager, () => {
           username: 'USERNAME',
         });
 
-      await sessionManager.showLoginPromptAsync();
+      await sessionManager.showLoginPromptAsync({ browser: false });
 
       expect(sessionManagerRetryUsernamePasswordAuthWithOTPAsyncSpy).toHaveBeenCalledWith(
         'hello',
-        'world',
-        {
-          secondFactorDevices: [
-            {
-              id: 'p0',
-              is_primary: true,
-              method: UserSecondFactorDeviceMethod.SMS,
-              sms_phone_number: 'testphone',
-            },
-          ],
-          smsAutomaticallySent: true,
-        }
+        'world'
       );
     });
 
-    it('calls regular login if the sso flag is false', async () => {
+    it('calls regular login by default', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -289,14 +358,19 @@ describe(SessionManager, () => {
           throw new Error("shouldn't happen");
         });
 
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
       const sessionManager = new SessionManager(analytics);
 
-      // Regular login
-      await sessionManager.showLoginPromptAsync({ sso: false });
+      await sessionManager.showLoginPromptAsync();
+
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
     });
 
-    it('calls regular login if the sso flag is undefined', async () => {
+    it('calls regular login when browser is false', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -306,8 +380,21 @@ describe(SessionManager, () => {
 
       const sessionManager = new SessionManager(analytics);
 
-      // Regular login
-      await sessionManager.showLoginPromptAsync({ sso: undefined });
+      await sessionManager.showLoginPromptAsync({ browser: false });
+      expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
+    });
+
+    it('calls regular login if the sso flag is false and browser is false', async () => {
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
+        .mockImplementation(() => {
+          throw new Error("shouldn't happen");
+        });
+
+      const sessionManager = new SessionManager(analytics);
+
+      await sessionManager.showLoginPromptAsync({ sso: false, browser: false });
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
     });
 
@@ -333,7 +420,7 @@ describe(SessionManager, () => {
   });
 
   describe('retryUsernamePasswordAuthWithOTPAsync', () => {
-    it('shows SMS OTP prompt when SMS is primary and code was automatically sent', async () => {
+    it('shows authenticator OTP prompt', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ otp: 'hello' }))
@@ -343,246 +430,24 @@ describe(SessionManager, () => {
       const sessionManager = new SessionManager(analytics);
       const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
 
-      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.SMS,
-            sms_phone_number: 'testphone',
-          },
-        ],
-        smsAutomaticallySent: true,
-      });
-
-      expect(Log.log).toHaveBeenCalledWith(
-        'One-time password was sent to the phone number ending in testphone.'
-      );
-
-      expect(sessionManagerLoginAsyncSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows authenticator OTP prompt when authenticator is primary', async () => {
-      jest
-        .mocked(promptAsync)
-        .mockImplementationOnce(async () => ({ otp: 'hello' }))
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-      const sessionManager = new SessionManager(analytics);
-      const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
-
-      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-        ],
-        smsAutomaticallySent: false,
-      });
+      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah');
 
       expect(Log.log).toHaveBeenCalledWith('One-time password from authenticator required.');
       expect(sessionManagerLoginAsyncSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('shows menu when user bails on primary', async () => {
-      jest
-        .mocked(promptAsync)
-        .mockImplementationOnce(async () => ({ otp: null }))
-        .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      jest
-        .mocked(selectAsync)
-        .mockImplementationOnce(async () => -1)
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-      const sessionManager = new SessionManager(analytics);
-
-      const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
-
-      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-          {
-            id: 'p2',
-            is_primary: false,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-        ],
-        smsAutomaticallySent: false,
-      });
-
-      expect(jest.mocked(selectAsync).mock.calls.length).toEqual(1);
-      expect(sessionManagerLoginAsyncSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows a warning when when user bails on primary and does not have any secondary set up', async () => {
+    it('exits when user bails', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ otp: null }))
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
+
       const sessionManager = new SessionManager(analytics);
 
       await expect(
-        sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-          secondFactorDevices: [
-            {
-              id: 'p0',
-              is_primary: true,
-              method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-              sms_phone_number: null,
-            },
-          ],
-          smsAutomaticallySent: false,
-        })
-      ).rejects.toThrowError(
-        'No other second-factor devices set up. Ensure you have set up and certified a backup device.'
-      );
-    });
-
-    it('prompts for authenticator OTP when user selects authenticator secondary', async () => {
-      jest
-        .mocked(promptAsync)
-        .mockImplementationOnce(async () => ({ otp: null }))
-        .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      jest
-        .mocked(selectAsync)
-        .mockImplementationOnce(async () => -1)
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-      const sessionManager = new SessionManager(analytics);
-
-      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-          {
-            id: 'p2',
-            is_primary: false,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-        ],
-        smsAutomaticallySent: false,
-      });
-
-      expect(jest.mocked(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
-    });
-
-    it('requests SMS OTP and prompts for SMS OTP when user selects SMS secondary', async () => {
-      jest
-        .mocked(promptAsync)
-        .mockImplementationOnce(async () => ({ otp: null }))
-        .mockImplementationOnce(async () => ({ otp: 'hello' })) // second time it is prompted after selecting backup code
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      jest
-        .mocked(selectAsync)
-        .mockImplementationOnce(async () => 0)
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
-        sessionSecret: 'SESSION_SECRET',
-        id: 'USER_ID',
-        username: 'USERNAME',
-      });
-      const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
-
-      const sessionManager = new SessionManager(analytics);
-      await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-        secondFactorDevices: [
-          {
-            id: 'p0',
-            is_primary: true,
-            method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-            sms_phone_number: null,
-          },
-          {
-            id: 'p2',
-            is_primary: false,
-            method: UserSecondFactorDeviceMethod.SMS,
-            sms_phone_number: 'wat',
-          },
-        ],
-        smsAutomaticallySent: false,
-      });
-
-      expect(jest.mocked(promptAsync).mock.calls.length).toBe(2); // first OTP, second OTP
-
-      expect(apiV2PostSpy.mock.calls[0]).toEqual([
-        'auth/send-sms-otp',
-        {
-          body: {
-            username: 'blah',
-            password: 'blah',
-            secondFactorDeviceID: 'p2',
-          },
-        },
-      ]);
-    });
-
-    it('exits when user bails on primary and backup', async () => {
-      jest
-        .mocked(promptAsync)
-        .mockImplementationOnce(async () => ({ otp: null }))
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-
-      jest
-        .mocked(selectAsync)
-        .mockImplementationOnce(async () => -2)
-        .mockImplementation(() => {
-          throw new Error("shouldn't happen");
-        });
-      const sessionManager = new SessionManager(analytics);
-
-      await expect(
-        sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
-          secondFactorDevices: [
-            {
-              id: 'p0',
-              is_primary: true,
-              method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-              sms_phone_number: null,
-            },
-            {
-              id: 'p2',
-              is_primary: false,
-              method: UserSecondFactorDeviceMethod.AUTHENTICATOR,
-              sms_phone_number: null,
-            },
-          ],
-          smsAutomaticallySent: false,
-        })
+        sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah')
       ).rejects.toThrowError('Cancelled login');
     });
   });

@@ -1,0 +1,1047 @@
+import { SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import {
+  BuildRuntimePlatform,
+  BuildStepEnv,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  spawnAsync,
+} from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
+import * as ngrok from '@ngrok/ngrok';
+import { z } from 'zod';
+import { randomBytes } from 'node:crypto';
+import fs from 'node:fs';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { clearTimeout, setTimeout } from 'node:timers';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
+
+import { CustomBuildContext } from '../../customBuildContext';
+import {
+  parseLaunchArgsInput,
+  parseNonEmptyStringInput,
+  parseOpenUrlInput,
+} from '../functions/launchApplication';
+import { Sentry } from '../../sentry';
+import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
+import { sleepAsync } from '../../utils/retry';
+import { createProcessOutput } from './processOutput';
+import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  type DeviceRunSessionStatus,
+  DeviceRunSessionWorkerApiError,
+  requireDeviceRunSessionWorkerApi,
+} from './deviceRunSessionWorkerApi';
+
+const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
+
+const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
+// A request to the device run session worker API that hangs counts as a failed poll or stop.
+const DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS = 30_000;
+
+export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
+  const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
+  if (!deviceRunSessionId) {
+    throw new SystemError(
+      'DEVICE_RUN_SESSION_ID is not set. ' +
+        'This step must run as part of a device run session ' +
+        'which injects DEVICE_RUN_SESSION_ID into the job environment.'
+    );
+  }
+  return deviceRunSessionId;
+}
+
+export function getNgrokTunnelDomainOrThrow(env: BuildStepEnv): string {
+  const baseDomain = env.EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN;
+  if (!baseDomain) {
+    throw new SystemError(
+      'EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN is not set. ' +
+        'This step must run as part of a device run session ' +
+        'which injects EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN into the job environment.'
+    );
+  }
+  return baseDomain;
+}
+
+export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
+  const authtoken = env.NGROK_AUTHTOKEN;
+  if (!authtoken) {
+    throw new SystemError(
+      'NGROK_AUTHTOKEN is not set. ' +
+        'This step must run as part of a device run session ' +
+        'which injects NGROK_AUTHTOKEN into the job environment.'
+    );
+  }
+  return authtoken;
+}
+
+/**
+ * Returns the step env without NGROK_AUTHTOKEN, for everything the step spawns.
+ * Only the step process opens ngrok tunnels. The processes it starts (daemons,
+ * preview servers, package installs) are reachable by whoever controls the
+ * session, and the token can run tunnels on Expo's ngrok account.
+ */
+export function omitNgrokAuthtoken(env: BuildStepEnv): BuildStepEnv {
+  const { NGROK_AUTHTOKEN: _ngrokAuthtoken, ...childEnv } = env;
+  return childEnv;
+}
+
+const TurnIceServersSchema = z.array(
+  z.object({
+    urls: z.array(z.string()),
+    username: z.string().optional(),
+    credential: z.string().optional(),
+  })
+);
+
+export type TurnIceServers = z.infer<typeof TurnIceServersSchema>;
+
+export async function selectXcodeDeveloperDirectoryAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (process.env.ENVIRONMENT === 'development') {
+    logger.info('Job running outside of EAS, not selecting Xcode developer directory.');
+    return;
+  }
+
+  logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
+  await spawnAsync('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], {
+    env,
+    logger,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+export type DeviceRunSessionIdleTimeout = {
+  /** Stop the session after this many minutes without observed activity. */
+  maxIdleTimeMinutes: number;
+  /**
+   * Local arrival time of the most recent session event, or `undefined` when
+   * no event has been observed yet. The idle clock starts when the wait
+   * begins, so a session nobody ever connects to still times out.
+   */
+  getLastEventObservedAt: () => Date | undefined;
+  /** Last observed preview input, counted like a session event. */
+  getLastPreviewActivityAt?: () => Date | undefined;
+};
+
+export async function waitForDeviceRunSessionStoppedAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+  maxDurationSeconds,
+  signal: cancelSignal,
+  idleTimeout,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+  maxDurationSeconds?: number;
+  signal?: AbortSignal;
+  idleTimeout?: DeviceRunSessionIdleTimeout;
+}): Promise<void> {
+  const durationAbortController = new AbortController();
+  const signal = cancelSignal
+    ? AbortSignal.any([cancelSignal, durationAbortController.signal])
+    : durationAbortController.signal;
+  // Nothing to wait for if the step was already aborted before we started;
+  // return before logging so we don't claim to be polling a session we never poll.
+  if (signal.aborted) {
+    return;
+  }
+  const durationTimeout =
+    maxDurationSeconds === undefined
+      ? undefined
+      : setTimeout(() => {
+          logger.info(`Device run session ${deviceRunSessionId} reached its maximum duration.`);
+          durationAbortController.abort();
+        }, maxDurationSeconds * 1_000);
+
+  try {
+    logger.info(
+      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+    );
+    if (durationTimeout !== undefined) {
+      logger.info(
+        `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
+      );
+    }
+    if (idleTimeout) {
+      logger.info(
+        `The session stops automatically after ${idleTimeout.maxIdleTimeMinutes} minute(s) without activity.`
+      );
+    }
+    let pollErrorCount = 0;
+    let lastActivityAt = new Date();
+
+    while (!signal.aborted) {
+      if (idleTimeout) {
+        for (const observedAt of [
+          idleTimeout.getLastEventObservedAt(),
+          idleTimeout.getLastPreviewActivityAt?.(),
+        ]) {
+          if (observedAt && observedAt > lastActivityAt) {
+            lastActivityAt = observedAt;
+          }
+        }
+        if (Date.now() - lastActivityAt.getTime() >= idleTimeout.maxIdleTimeMinutes * 60_000) {
+          logger.info(
+            `Device run session ${deviceRunSessionId} had no activity for ` +
+              `${idleTimeout.maxIdleTimeMinutes} minute(s) (max idle time). Stopping the session.`
+          );
+          await ensureDeviceRunSessionStoppedSafelyAsync({ ctx, deviceRunSessionId, logger });
+          return;
+        }
+      }
+      try {
+        const status = await fetchDeviceRunSessionStatusAsync(ctx, deviceRunSessionId, signal);
+        pollErrorCount = 0;
+        if (status === 'stopped') {
+          logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+          return;
+        }
+        if (status === 'errored') {
+          throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+        }
+      } catch (err) {
+        if (err instanceof SystemError) {
+          throw err;
+        }
+
+        const error = err instanceof Error ? err : new Error(String(err));
+        pollErrorCount += 1;
+        if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+          Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+          logger.warn(
+            { err: error, failedStatusPollCount: pollErrorCount },
+            'Could not poll device run session status; will retry.'
+          );
+        }
+      }
+      await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    }
+  } finally {
+    if (durationTimeout !== undefined) {
+      clearTimeout(durationTimeout);
+    }
+  }
+}
+
+async function fetchDeviceRunSessionStatusAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<DeviceRunSessionStatus['status']> {
+  // One request per poll; the polling loop retries on its own schedule.
+  return (
+    await requireDeviceRunSessionWorkerApi(ctx).getSessionAsync({
+      signal,
+      timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+    })
+  ).status;
+}
+
+// Best effort: when this fails, the caller still tears the session down and the
+// job run finishes, which clients also treat as the session ending.
+async function ensureDeviceRunSessionStoppedSafelyAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await requireDeviceRunSessionWorkerApi(ctx).stopAsync({
+      timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not mark idle device run session as stopped', error, {
+      level: 'warning',
+      extras: { deviceRunSessionId },
+    });
+    logger.warn(
+      { err: error },
+      `Could not mark device run session ${deviceRunSessionId} as stopped. The session job ends anyway.`
+    );
+  }
+}
+
+async function sleepUntilAbortedAsync(
+  timeoutMs: number,
+  signal: AbortSignal | undefined
+): Promise<void> {
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, signal ? { signal } : undefined);
+  } catch (err) {
+    if (!signal?.aborted) {
+      throw err;
+    }
+  }
+}
+
+// Look up ffmpeg on PATH like device-session tools do. Running it on a fresh VM is slow
+// (about 13 s for ffmpeg-full on macos-tahoe-26.6-xcode-27.1).
+async function findFfmpegOnPathAsync(env: BuildStepEnv): Promise<string | null> {
+  for (const directory of (env.PATH ?? '').split(path.delimiter)) {
+    // An empty entry is the current directory.
+    const candidate = path.join(directory || '.', 'ffmpeg');
+    const stats = await asyncResult(fs.promises.stat(candidate));
+    if (
+      stats.ok &&
+      stats.value.isFile() &&
+      (await asyncResult(fs.promises.access(candidate, fs.constants.X_OK))).ok
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+// Load ffmpeg in the background so its first real use skips the cold start.
+function warmUpFfmpeg(env: BuildStepEnv): void {
+  void asyncResult(
+    (async () => {
+      await spawn('ffmpeg', ['-version'], { env });
+    })()
+  );
+}
+
+async function installFfmpegWithHomebrewAsync({
+  env,
+  logger,
+  signal,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<void> {
+  signal?.throwIfAborted();
+  const install = spawn('brew', ['install', 'ffmpeg'], {
+    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+    logger,
+    ...(signal ? { detached: true } : {}),
+  });
+  const abort = (): void => killProcessGroup(install.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await install;
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
+async function installFfmpegWithAptAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  const aptEnv = { ...env, DEBIAN_FRONTEND: 'noninteractive' };
+  // The worker's package index can be older than the image it booted from, which
+  // makes the install 404 on a moved package. Refreshing first avoids that; a
+  // failed refresh is not fatal because the existing index may still resolve.
+  await asyncResult(spawn('sudo', ['apt-get', 'update'], { env: aptEnv, logger }));
+  await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
+}
+
+let ffmpegSetupPromise: Promise<'aborted' | void> | undefined;
+
+/**
+ * Install ffmpeg when the runtime does not already provide it. Device-session
+ * tools use it for video encoding on macOS (iOS simulators) and Linux (Android
+ * emulators) alike, but the worker images do not ship it yet.
+ *
+ * Best-effort by design: a failure here is logged and the session continues
+ * without FFmpeg-dependent features.
+ *
+ * The whole body is wrapped because the caller runs this in the background with
+ * `void`. There is no unhandledRejection handler in the worker, so a rejection
+ * escaping here would crash the process and take the live session with it.
+ * `spawn` is not an async function and can throw synchronously, which
+ * `asyncResult` cannot catch — it only wraps an already-created promise.
+ */
+async function ensureFfmpegInstalledAsync({
+  runtimePlatform,
+  env,
+  logger,
+  signal,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<'aborted' | void> {
+  try {
+    const ffmpegPath = await findFfmpegOnPathAsync(env);
+    signal?.throwIfAborted();
+    if (ffmpegPath) {
+      logger.info(`ffmpeg is already installed at ${ffmpegPath}.`);
+      warmUpFfmpeg(env);
+      return;
+    }
+
+    const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
+    logger.info(
+      `ffmpeg is not installed, installing it with ${
+        isDarwin ? 'Homebrew' : 'apt'
+      } for the device session.`
+    );
+    if (isDarwin) {
+      await installFfmpegWithHomebrewAsync({ env, logger, signal });
+    } else {
+      await installFfmpegWithAptAsync({ env, logger });
+    }
+    signal?.throwIfAborted();
+    logger.info('Installed ffmpeg.');
+    warmUpFfmpeg(env);
+  } catch (err) {
+    if (signal?.aborted) {
+      return 'aborted';
+    }
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not install ffmpeg for the device session', error, {
+      level: 'warning',
+    });
+    logger.warn(
+      { err: error },
+      'Could not install ffmpeg. FFmpeg-dependent features may not work in this session.'
+    );
+  }
+}
+
+export async function ensureFfmpegInstalledOnceAsync({
+  runtimePlatform,
+  env,
+  logger,
+  signal,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<void> {
+  signal?.throwIfAborted();
+  if (ffmpegSetupPromise) {
+    const sharedSetup = ffmpegSetupPromise;
+    let outcome: 'aborted' | void;
+    if (signal) {
+      outcome = await new Promise<'aborted' | void>((resolve, reject) => {
+        const abort = (): void => reject(signal.reason);
+        signal.addEventListener('abort', abort, { once: true });
+        void sharedSetup.then(result => {
+          signal.removeEventListener('abort', abort);
+          resolve(result);
+        });
+        if (signal.aborted) {
+          abort();
+        }
+      });
+    } else {
+      outcome = await sharedSetup;
+    }
+    if (outcome === 'aborted') {
+      if (ffmpegSetupPromise === sharedSetup) {
+        ffmpegSetupPromise = undefined;
+      }
+      await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal });
+    }
+    return;
+  }
+
+  const setupPromise = ensureFfmpegInstalledAsync({ runtimePlatform, env, logger, signal });
+  ffmpegSetupPromise = setupPromise;
+  try {
+    await setupPromise;
+    signal?.throwIfAborted();
+  } finally {
+    if (ffmpegSetupPromise === setupPromise) {
+      ffmpegSetupPromise = undefined;
+    }
+  }
+}
+
+/**
+ * Translate Cloudflare ICE servers into web preview CLI flags: `--stun-url` (the
+ * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
+ * (the entry carrying the short-lived credentials). serve-sim and expo-device-hub
+ * intentionally expose the same ICE flag contract.
+ */
+export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): string[] {
+  const stunUrls = iceServers
+    .filter(server => !server.username && !server.credential)
+    .flatMap(server => server.urls);
+  const turnServer = iceServers.find(server => server.username && server.credential);
+
+  const args: string[] = [];
+  if (stunUrls.length > 0) {
+    args.push('--stun-url', stunUrls.join(','));
+  }
+  if (turnServer?.username && turnServer.credential && turnServer.urls.length > 0) {
+    args.push(
+      '--turn-url',
+      turnServer.urls.join(','),
+      '--turn-username',
+      turnServer.username,
+      '--turn-credential',
+      turnServer.credential
+    );
+  }
+  return args;
+}
+
+/**
+ * Fetch short-lived Cloudflare TURN ICE servers for this job run from www
+ * (minted on demand, mirroring how the worker fetches project clone URLs) and
+ * translate them into web preview CLI flags.
+ *
+ * Best-effort: on any failure we log and return [] so the preview server falls
+ * back to its built-in P2P/STUN behavior. The credential is passed as a process
+ * arg and deliberately not logged (turtle-spawn never logs argv and the worker
+ * is single-tenant).
+ */
+export async function fetchWebPreviewTurnArgsAsync(
+  ctx: CustomBuildContext,
+  { logger }: { logger: bunyan }
+): Promise<string[]> {
+  try {
+    const iceServers = await fetchTurnIceServersAsync(ctx, { logger });
+    const args = turnIceServersToWebPreviewArgs(iceServers);
+    if (args.length > 0) {
+      logger.info('Configured the web preview with Cloudflare TURN ICE servers.');
+    }
+    return args;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
+    logger.warn(
+      { err: error },
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
+    );
+    return [];
+  }
+}
+
+async function fetchTurnIceServersAsync(
+  ctx: CustomBuildContext,
+  { logger }: { logger: bunyan }
+): Promise<TurnIceServers> {
+  return await requireDeviceRunSessionWorkerApi(ctx).fetchTurnIceServersAsync({
+    timeoutMs: 5000,
+    retries: 1,
+    logger,
+  });
+}
+
+export async function uploadRemoteSessionConfigAsync({
+  ctx,
+  deviceRunSessionId,
+  remoteConfig,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  remoteConfig: Record<string, unknown>;
+  logger: bunyan;
+}): Promise<'started' | 'stopped'> {
+  logger.info(
+    `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
+  );
+  const workerApi = requireDeviceRunSessionWorkerApi(ctx);
+  try {
+    await workerApi.startAsync(
+      { remoteConfig },
+      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger }
+    );
+    return 'started';
+  } catch (err) {
+    if (
+      err instanceof DeviceRunSessionWorkerApiError &&
+      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
+    ) {
+      logger.info(`Device run session ${deviceRunSessionId} was stopped during startup.`);
+      return 'stopped';
+    }
+
+    throw new SystemError(
+      `Failed to start device run session ${deviceRunSessionId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
+    );
+  }
+}
+
+export type DetachedProcessHandle = {
+  /** PID of the directly spawned process, if the OS assigned one. */
+  pid: number | undefined;
+  getOutput: () => string;
+  getExitError: () => Error | undefined;
+  stopAsync: () => Promise<void>;
+};
+
+export function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function stopDetachedProcessAsync(
+  pid: number | undefined,
+  gracePeriodMs = 5_000
+): Promise<void> {
+  if (pid === undefined || !isProcessGroupRunning(pid)) {
+    return;
+  }
+  try {
+    // spawnDetached creates a dedicated process group. Signaling the group also
+    // terminates npx/bun descendants instead of leaving the actual daemon alive.
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      return;
+    }
+  }
+
+  const deadline = Date.now() + gracePeriodMs;
+  while (Date.now() < deadline && isProcessGroupRunning(pid)) {
+    await sleepAsync(100);
+  }
+  if (!isProcessGroupRunning(pid)) {
+    return;
+  }
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {}
+  }
+  // kill(pid, 0) succeeds on the zombie until libuv reaps it on a later loop turn.
+  const killDeadline = Date.now() + 5_000;
+  while (Date.now() < killDeadline && isProcessGroupRunning(pid)) {
+    await sleepAsync(100);
+  }
+}
+
+/**
+ * Runs every named teardown to completion and logs each failure. The first failure is rethrown
+ * only when the session body succeeded, so a teardown error cannot replace the error that ended it.
+ */
+export async function finishRemoteSessionAsync({
+  teardown,
+  sessionFailed,
+  logger,
+}: {
+  teardown: [name: string, task: Promise<unknown> | undefined][];
+  sessionFailed: boolean;
+  logger: bunyan;
+}): Promise<void> {
+  const results = await Promise.allSettled(teardown.map(([, task]) => task));
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected' ? [{ name: teardown[index][0], err: result.reason }] : []
+  );
+  for (const { name, err } of failures) {
+    logger.warn({ err }, `Could not stop the ${name} during remote session teardown.`);
+    if (sessionFailed) {
+      // The session error is what the step reports, so a swallowed teardown failure goes to Sentry.
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture(`Could not stop the ${name} after the remote session failed`, error, {
+        level: 'warning',
+      });
+    }
+  }
+  if (!sessionFailed && failures.length > 0) {
+    throw failures[0].err;
+  }
+}
+
+export function spawnDetached({
+  command,
+  args,
+  cwd,
+  env,
+  stopGracePeriodMs,
+  logger,
+  secrets,
+}: {
+  command: string;
+  args: string[];
+  cwd?: string;
+  env: BuildStepEnv;
+  stopGracePeriodMs?: number;
+  logger?: bunyan;
+  secrets?: string[];
+}): DetachedProcessHandle {
+  const promise = spawn(command, args, {
+    cwd,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
+    ignoreStdio: true,
+  });
+  const output = createProcessOutput(logger, secrets);
+  const outputDrained = new Promise<void>(resolve =>
+    promise.child.once('close', () => {
+      output.finish();
+      resolve();
+    })
+  );
+  // Observe completion without rejecting in the background. Startup callers can
+  // distinguish a dead process from one that is still preparing its state file.
+  let exitError: Error | undefined;
+  promise.child.once('exit', (code, signal) => {
+    exitError = new Error(
+      signal ? `Process exited with signal ${signal}.` : `Process exited with code ${code}.`
+    );
+  });
+  void promise.then(
+    () => {
+      exitError ??= new Error('Process exited with code 0.');
+    },
+    error => {
+      exitError ??= error instanceof Error ? error : new Error(String(error));
+    }
+  );
+  promise.child.unref();
+
+  promise.child.stdout?.on('data', chunk => output.stdout.append(chunk));
+  promise.child.stderr?.on('data', chunk => output.stderr.append(chunk));
+
+  const pid = promise.child.pid;
+  return {
+    pid,
+    getOutput: output.getOutput,
+    getExitError: () => exitError,
+    stopAsync: async () => {
+      await stopDetachedProcessAsync(pid, stopGracePeriodMs);
+      try {
+        await withDeviceRunSessionTimeoutAsync(
+          { name: 'Process output drain', timeoutMs: 5_000 },
+          async () => await outputDrained
+        );
+      } catch (err) {
+        promise.child.stdout?.destroy();
+        promise.child.stderr?.destroy();
+        output.finish();
+        throw err;
+      }
+    },
+  };
+}
+
+export function createIosSessionStartupInputProviders(): ReturnType<
+  typeof BuildStepInput.createProvider
+>[] {
+  return [
+    BuildStepInput.createProvider({
+      id: 'boot_simulator',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    }),
+    ...['device_identifier', 'install_app_path'].map(id =>
+      BuildStepInput.createProvider({
+        id,
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      })
+    ),
+  ];
+}
+
+export type ServeSimApplicationOptions = ServeSimLaunchOptions & {
+  installAppPath: string;
+  launchAppIdentifier: string;
+};
+
+export function validateServeSimLaunchOptions({
+  launchArgs = [],
+  openUrl,
+}: Pick<ServeSimLaunchOptions, 'launchArgs' | 'openUrl'>): void {
+  // Reject oversized iOS command arguments before starting the host.
+  if (
+    launchArgs.length > 256 ||
+    launchArgs.some(arg => arg.length > 8192 || arg.includes('\0')) ||
+    launchArgs.reduce((bytes, arg) => bytes + Buffer.byteLength(arg) + 1, 0) > 128 * 1024
+  ) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'iOS launch_args supports up to 256 arguments of 8192 characters each, without NUL, and at most 128 KiB total UTF-8 bytes including terminators.'
+    );
+  }
+  if (openUrl && (openUrl.length > 8192 || openUrl.includes('\0'))) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'iOS open_url supports at most 8192 characters, without NUL.'
+    );
+  }
+}
+
+export interface ServeSimLaunchOptions {
+  launchAppIdentifier?: string;
+  launchArgs?: string[];
+  openUrl?: string;
+}
+
+/**
+ * serve-sim performs the launch so the application starts under its instrumentation.
+ */
+export function createServeSimLaunchInputProviders(): ReturnType<
+  typeof BuildStepInput.createProvider
+>[] {
+  return [
+    BuildStepInput.createProvider({
+      id: 'launch_app_identifier',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    }),
+    BuildStepInput.createProvider({
+      id: 'launch_args',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    }),
+    BuildStepInput.createProvider({
+      id: 'open_url',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    }),
+  ];
+}
+
+/** Older session jobs omit this input and keep their existing Share button. */
+export function createPublicPreviewInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'public_preview',
+    required: false,
+    defaultValue: true,
+    allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+  });
+}
+
+export function createPrivatePreviewUrlInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'private_preview_url',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+  });
+}
+
+/**
+ * Origins that may embed the preview host in a frame, next to the website origins. The host
+ * drops values that are not an origin or a subdomain wildcard, so this parser only guards
+ * the input shape.
+ */
+export function createFrameAncestorsInputProvider(): ReturnType<
+  typeof BuildStepInput.createProvider
+> {
+  return BuildStepInput.createProvider({
+    id: 'frame_ancestors',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseFrameAncestorsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'frame_ancestors', 'EAS_FRAME_ANCESTORS_INVALID_INPUT');
+}
+
+/**
+ * Origins whose pages may call the preview host's API cross-origin, such as a page that renders
+ * the device with @expo/hub-client. Framing alone does not need it. The host refuses values that
+ * are not an origin or a subdomain wildcard, so this parser only guards the input shape.
+ */
+export function createCorsOriginsInputProvider(): ReturnType<typeof BuildStepInput.createProvider> {
+  return BuildStepInput.createProvider({
+    id: 'cors_origins',
+    required: false,
+    allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+  });
+}
+
+export function parseCorsOriginsInput(value: unknown): string[] {
+  return parseOriginListInput(value, 'cors_origins', 'EAS_CORS_ORIGINS_INVALID_INPUT');
+}
+
+function parseOriginListInput(value: unknown, inputId: string, errorCode: string): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every(origin => typeof origin === 'string' && origin.trim().length > 0)
+  ) {
+    throw new UserError(
+      errorCode,
+      `Input "${inputId}" must be an array of non-empty strings, one origin each.`
+    );
+  }
+  return value;
+}
+
+export function parseServeSimLaunchInputs(
+  {
+    launchAppIdentifier: rawLaunchAppIdentifier,
+    launchArgs: rawLaunchArgs,
+    openUrl: rawOpenUrl,
+  }: { launchAppIdentifier?: unknown; launchArgs?: unknown; openUrl?: unknown },
+  { runtimePlatform }: { runtimePlatform: BuildRuntimePlatform }
+): ServeSimLaunchOptions {
+  const launchAppIdentifier =
+    rawLaunchAppIdentifier === undefined
+      ? undefined
+      : parseNonEmptyStringInput(rawLaunchAppIdentifier, 'launch_app_identifier');
+  const launchArgs = parseLaunchArgsInput(rawLaunchArgs);
+  const openUrl = rawOpenUrl === undefined ? undefined : parseOpenUrlInput(rawOpenUrl);
+  if (!launchAppIdentifier && (launchArgs.length > 0 || openUrl)) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Inputs "launch_args" and "open_url" only work with an application launch. Pass "launch_app_identifier", or remove them.'
+    );
+  }
+  if (launchAppIdentifier && runtimePlatform !== BuildRuntimePlatform.DARWIN) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      `Input "launch_app_identifier" launches an application on an iOS simulator, and this session runs on ${runtimePlatform}. Run the session on an iOS simulator, or drop the launch inputs.`
+    );
+  }
+  return { launchAppIdentifier, launchArgs, openUrl };
+}
+
+export function describeServeSimLaunch({
+  launchAppIdentifier,
+  launchArgs = [],
+  openUrl,
+}: ServeSimLaunchOptions): string | null {
+  if (!launchAppIdentifier) {
+    return null;
+  }
+  const withArguments =
+    launchArgs.length > 0 ? ` with arguments ${JSON.stringify(launchArgs)}` : '';
+  const thenOpen = openUrl ? `, then open ${openUrl}` : '';
+  return `serve-sim will launch ${launchAppIdentifier}${withArguments}${thenOpen}.`;
+}
+
+export async function findAvailablePortAsync(): Promise<number> {
+  const server = createServer();
+  server.unref();
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const address = server.address();
+  await new Promise<void>((resolve, reject) => {
+    server.close(err => (err ? reject(err) : resolve()));
+  });
+  if (!address || typeof address === 'string') {
+    throw new SystemError('Could not allocate a local port for the web preview.');
+  }
+  return address.port;
+}
+
+export type NgrokTunnelHandle = {
+  url: string;
+  subdomainId: string;
+  stopAsync: () => Promise<void>;
+};
+
+export async function startNgrokTunnelAsync({
+  port,
+  subdomainPrefix,
+  subdomainId: subdomainIdArg,
+  baseDomain,
+  authtoken,
+  rewriteHostHeader,
+  logger,
+}: {
+  port: number;
+  subdomainPrefix: string;
+  subdomainId?: string;
+  baseDomain: string;
+  authtoken: string;
+  rewriteHostHeader?: boolean;
+  logger: bunyan;
+}): Promise<NgrokTunnelHandle> {
+  const subdomainId = subdomainIdArg ?? randomBytes(16).toString('hex');
+  const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
+  logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
+  // Run the ngrok agent in-process via the SDK; it keeps the session alive until
+  // the process exits, and the step blocks forever to hold it open.
+  const listener = await ngrok.forward({
+    addr: port,
+    authtoken,
+    domain,
+    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
+  });
+  const url = listener.url();
+  if (!url) {
+    await listener.close();
+    throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
+  }
+  let stopTask: Promise<void> | undefined;
+  return {
+    url,
+    subdomainId,
+    stopAsync: () =>
+      (stopTask ??= (async () => {
+        try {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: 'Ngrok tunnel stop', timeoutMs: 4_000 },
+            async () => await listener.close()
+          );
+        } catch (error) {
+          logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+          throw error;
+        }
+      })()),
+  };
+}
+
+export async function waitForFileAsync<T>({
+  filePath,
+  timeoutMs,
+  description,
+  parse,
+}: {
+  filePath: string;
+  timeoutMs: number;
+  description: string;
+  parse: (raw: string) => T;
+}): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const raw = await fs.promises.readFile(filePath, 'utf8');
+      return parse(raw);
+    } catch (err) {
+      lastError = err;
+    }
+    await sleepAsync(1_000);
+  }
+  throw new SystemError(
+    `Timed out waiting for ${description} to be ready at ${filePath}${
+      lastError instanceof Error ? `: ${lastError.message}` : ''
+    }.`
+  );
+}

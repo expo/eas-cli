@@ -67,28 +67,26 @@ export async function resolveBuildPhaseErrorAsync(
   logLines: string[],
   errorContext: ErrorContext,
   buildLogsDirectory: string
-): Promise<errors.BuildError> {
+): Promise<errors.ExpoError> {
   const { phase } = errorContext;
-  if (error instanceof errors.BuildError) {
+  if (error instanceof errors.ExpoError) {
+    error.buildPhase ??= phase;
     return error;
   }
   const xcodeBuildLogs = await maybeReadXcodeBuildLogs(phase, buildLogsDirectory);
   const userError =
-    error instanceof errors.UserError
-      ? error
-      : (resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
-        new errors.UnknownError(errorContext.phase));
+    resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
+    new errors.UnknownError(errorContext.phase);
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
   const trackingCode =
     buildError && buildError.errorCode !== userError.errorCode ? buildError.errorCode : undefined;
 
-  return new errors.BuildError(userError.message, {
-    errorCode: userError.errorCode,
+  return new errors.UserError(userError.errorCode, userError.message, {
     trackingCode,
     docsUrl: userError.docsUrl,
-    cause: error,
     buildPhase: phase,
     metadata: buildError?.metadata,
+    cause: error,
   });
 }

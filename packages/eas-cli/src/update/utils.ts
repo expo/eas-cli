@@ -7,12 +7,14 @@ import semver from 'semver';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
+  PartnerActor,
   Robot,
   SsoUser,
   Update,
   UpdateBranchFragment,
   UpdateFragment,
   UpdatePublishMutation,
+  UpdateWithFileUrlsFragment,
   User,
 } from '../graphql/generated';
 import { AssetQuery } from '../graphql/queries/AssetQuery';
@@ -29,20 +31,17 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
     | Pick<Robot, '__typename' | 'firstName'>
     | Pick<User, '__typename' | 'username'>
     | Pick<SsoUser, '__typename' | 'username'>
+    | Pick<PartnerActor, '__typename' | 'username'>
     | null;
 };
 
-export type UpdateJsonInfo = { branch: string } & Pick<
+export type UpdateJsonInfo = { branch: string; runtimeVersion: string } & Pick<
   UpdateFragment,
-  | 'id'
-  | 'createdAt'
-  | 'group'
-  | 'message'
-  | 'runtimeVersion'
-  | 'platform'
-  | 'manifestPermalink'
-  | 'gitCommitHash'
+  'id' | 'createdAt' | 'group' | 'message' | 'platform' | 'manifestPermalink' | 'gitCommitHash'
 >;
+
+export type UpdateWithFileUrlsJsonInfo = UpdateJsonInfo &
+  Pick<UpdateWithFileUrlsFragment, 'assetMapUrl' | 'sourceMapUrl'>;
 
 export type UpdateGroupDescription = FormatUpdateParameter & {
   branch: string;
@@ -189,11 +188,12 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
 }
 
 export function formatUpdateTitle(update: UpdateFragment): string {
-  const { message, createdAt, actor, runtimeVersion } = update;
+  const { message, createdAt, actor, runtime } = update;
 
   let actorName: string;
   switch (actor?.__typename) {
     case 'User':
+    case 'PartnerActor':
     case 'SSOUser': {
       actorName = actor.username;
       break;
@@ -210,7 +210,7 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   return `[${dateFormat(
     createdAt,
     'mmm dd HH:MM'
-  )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+  )} by ${actorName}, runtimeVersion: ${runtime.version}] ${message}`;
 }
 
 export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJsonInfo[] {
@@ -220,11 +220,27 @@ export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJ
     group: update.group,
     branch: update.branch.name,
     message: update.message,
-    runtimeVersion: update.runtimeVersion,
+    runtimeVersion: update.runtime.version,
     platform: update.platform,
     manifestPermalink: update.manifestPermalink,
     isRollBackToEmbedded: update.isRollBackToEmbedded,
     gitCommitHash: update.gitCommitHash,
+  }));
+}
+
+/**
+ * Same as getUpdateJsonInfosForUpdates, with the stored file URLs. Only `eas update:view` queries
+ * those, because the server signs each one per request.
+ */
+export function getUpdateWithFileUrlsJsonInfosForUpdates(
+  updates: UpdateWithFileUrlsFragment[]
+): UpdateWithFileUrlsJsonInfo[] {
+  return getUpdateJsonInfosForUpdates(updates).map((info, index) => ({
+    ...info,
+    // Null unless the update was published with an asset map. The URL is signed and expires.
+    assetMapUrl: updates[index].assetMapUrl ?? null,
+    // Null unless published with `--upload-source-maps`. The URL is signed and expires.
+    sourceMapUrl: updates[index].sourceMapUrl ?? null,
   }));
 }
 
@@ -233,7 +249,7 @@ export function getUpdateGroupDescriptions(
 ): FormattedUpdateGroupDescription[] {
   return updateGroups.map(updateGroup => ({
     message: formatUpdateMessage(updateGroup[0]),
-    runtimeVersion: updateGroup[0].runtimeVersion,
+    runtimeVersion: updateGroup[0].runtime.version,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
     rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
@@ -248,7 +264,7 @@ export function getUpdateGroupDescriptionsWithBranch(
   return updateGroups.map(updateGroup => ({
     branch: updateGroup[0].branch.name,
     message: formatUpdateMessage(updateGroup[0]),
-    runtimeVersion: updateGroup[0].runtimeVersion,
+    runtimeVersion: updateGroup[0].runtime.version,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
     rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
@@ -267,7 +283,7 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
     branch: branch.name,
     update: {
       message: formatUpdateMessage(latestUpdate),
-      runtimeVersion: latestUpdate.runtimeVersion,
+      runtimeVersion: latestUpdate.runtime.version,
       isRollBackToEmbedded: latestUpdate.isRollBackToEmbedded,
       rolloutPercentage: latestUpdate.rolloutPercentage ?? undefined,
       codeSigningKey: latestUpdate.codeSigningInfo?.keyid,
@@ -319,7 +335,7 @@ export async function prewarmDiffingAsync(
           appId,
           branchName: update.branch.name,
           platform: updatePublishPlatformToAppPlatform[updatePublishPlatform],
-          runtimeVersion: update.runtimeVersion,
+          runtimeVersion: update.runtime.version,
           limit: 2,
         });
         if (updateIds.length !== 2) {

@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, Role } from '../../../../graphql/generated';
@@ -40,14 +41,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -71,14 +65,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -102,14 +89,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -133,14 +113,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
       };
       const appleTeam = {
         id: 'apple-team-id',

@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "target": "es2022",
     "module": "commonjs",
     "strict": true,
@@ -11,6 +12,7 @@
     "composite": true,
     "rootDir": "./src",
     "outDir": "./dist",
+    "types": ["jest", "node"],
     "plugins": [
       {
         "name": "gql.tada/ts-plugin",

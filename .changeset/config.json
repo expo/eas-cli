@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "changelog": "./changelog.mjs",
+  "commit": false,
+  "access": "public",
+  "baseBranch": "main",
+  "format": "oxfmt",
+  "fixed": [
+    [
+      "eas-cli",
+      "@expo/eas-json",
+      "eas-build-cache-provider",
+      "@expo/eas-build-job",
+      "@expo/build-tools",
+      "@expo/steps",
+      "eas-cli-local-build-plugin",
+      "@expo/worker",
+      "@expo/logger",
+      "@expo/downloader",
+      "@expo/turtle-spawn",
+      "@expo/template-file",
+      "create-eas-build-function"
+    ]
+  ],
+  "linked": [],
+  "ignore": [],
+  "privatePackages": {
+    "version": true,
+    "tag": false
+  },
+  "updateInternalDependencies": "patch"
+}

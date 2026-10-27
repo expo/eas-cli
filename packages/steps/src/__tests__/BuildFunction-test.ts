@@ -1,5 +1,5 @@
 import { createGlobalContextMock } from './utils/context';
-import { UUID_REGEX } from './utils/uuid';
+import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildStep, BuildStepFunction } from '../BuildStep';
 import {
@@ -86,8 +86,8 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
+      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
+      expect(step.displayName).toBe('Test function');
       expect(step.command).toBe('echo 123');
     });
     it('works with build step function', () => {
@@ -102,9 +102,33 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
+      expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
+    });
+    it('stamps the declared hook anchor on created build steps', () => {
+      const ctx = createGlobalContextMock();
+      const buildFunction = new BuildFunction({
+        namespace: 'eas',
+        id: 'install_node_modules',
+        command: 'npm install',
+        __hookId: 'install_node_modules',
+      });
+      const step = buildFunction.createBuildStepFromFunctionCall(ctx, {
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__hookId).toBe('install_node_modules');
+    });
+    it('passes the function metrics id to created build steps', () => {
+      const ctx = createGlobalContextMock();
+      const buildFunction = new BuildFunction({
+        id: 'test1',
+        command: 'echo 123',
+        __metricsId: 'eas/test1',
+      });
+      const step = buildFunction.createBuildStepFromFunctionCall(ctx, {
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__metricsId).toBe('eas/test1');
     });
     it('works with custom JS/TS function', () => {
       const ctx = createGlobalContextMock();
@@ -117,9 +141,20 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
+      expect(step.displayName).toBe('Test function');
       expect(step.fn).toEqual(expect.any(Function));
+    });
+    it('uses the function id as the display name when the function name is not defined', () => {
+      const ctx = createGlobalContextMock();
+      const func = new BuildFunction({
+        namespace: 'eas',
+        id: 'test1',
+        command: 'echo 123',
+      });
+      const step = func.createBuildStepFromFunctionCall(ctx, {
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.displayName).toBe('eas/test1');
     });
     it('can override id and shell from function definition', () => {
       const ctx = createGlobalContextMock();
@@ -138,6 +173,7 @@ describe(BuildFunction, () => {
       expect(func.shell).toBe('/bin/bash');
       expect(step.id).toBe('test2');
       expect(step.shell).toBe('/bin/zsh');
+      expect(step.displayName).toBe('Test function');
     });
     it('creates function inputs and outputs', () => {
       const ctx = createGlobalContextMock();

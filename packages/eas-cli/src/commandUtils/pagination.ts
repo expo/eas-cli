@@ -23,8 +23,8 @@ const parseFlagInputStringAsInteger = (
   upperLimit: number
 ): number => {
   const inputAsNumber = Number(input);
-  if (isNaN(inputAsNumber)) {
-    throw new Error(`Unable to parse ${input} as a number`);
+  if (!Number.isInteger(inputAsNumber)) {
+    throw new Error(`Unable to parse ${input} as an integer`);
   }
   if (inputAsNumber < lowerLimit || inputAsNumber > upperLimit) {
     throw new Error(`--${flagName} must be between ${lowerLimit} and ${upperLimit}`);
@@ -35,12 +35,16 @@ const parseFlagInputStringAsInteger = (
 export const getLimitFlagWithCustomValues = ({
   defaultTo,
   limit,
+  description,
 }: {
   defaultTo: number;
   limit: number;
+  description?: string;
 }): Interfaces.OptionFlag<number | undefined> =>
   Flags.integer({
-    description: `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
+    description:
+      description ??
+      `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
     // eslint-disable-next-line async-protect/async-suffix
     parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, limit),
   });

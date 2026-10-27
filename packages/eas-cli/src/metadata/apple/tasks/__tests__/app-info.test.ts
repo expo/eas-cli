@@ -23,6 +23,7 @@ describe(AppInfoTask, () => {
 
       const context: PartialAppleData = {
         app: new App(requestContext, 'stub-id', {} as any),
+        projectDir: '/test/project',
       };
 
       await new AppInfoTask().prepareAsync({ context });

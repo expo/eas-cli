@@ -1,5 +1,0 @@
-appId: com.example.app
-name: "top-level-flow"
-tags: ["basic"]
----
-- assertTrue: true

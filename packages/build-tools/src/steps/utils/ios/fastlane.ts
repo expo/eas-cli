@@ -3,8 +3,8 @@ import { BuildStepEnv } from '@expo/steps';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import path from 'path';
 
-import { XcodeBuildLogger } from './xcpretty';
 import { COMMON_FASTLANE_ENV } from '../../../common/fastlane';
+import { XcodeBuildLogger } from '../../../common/xcpretty';
 
 export async function runFastlaneGym({
   workingDir,

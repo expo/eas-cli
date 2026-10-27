@@ -90,6 +90,23 @@ test(`createAscApiKeyAsync`, async () => {
   expect(result).toEqual({ ...mockAscApiKeyInfo, keyP8: 'super secret' });
 });
 
+test(`createAscApiKeyAsync forwards explicit roles`, async () => {
+  const analytics = instance(mock<Analytics>());
+  const mockRequestContext = {};
+  jest.spyOn(ApiKey, 'createAsync').mockImplementation(async () => mockApiKey);
+  jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
+  await createAscApiKeyAsync(analytics, mockAuthCtx, {
+    nickname: 'test-name',
+    roles: [UserRole.APP_MANAGER],
+  });
+  expect(ApiKey.createAsync).toHaveBeenLastCalledWith(mockRequestContext, {
+    nickname: 'test-name',
+    allAppsVisible: true,
+    roles: [UserRole.APP_MANAGER],
+    keyType: ApiKeyType.PUBLIC_API,
+  });
+});
+
 test(`revokeAscApiKeyAsync`, async () => {
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'infoAsync').mockImplementation(async () => mockApiKey);

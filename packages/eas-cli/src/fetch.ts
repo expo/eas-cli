@@ -1,5 +1,5 @@
 import { Agent } from 'https';
-import createHttpsProxyAgent from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 
 export { Headers, RequestInfo, RequestInit, Response } from 'node-fetch';
@@ -18,7 +18,7 @@ function createHttpsAgent(): Agent | null {
   if (!httpsProxyUrl) {
     return null;
   }
-  return createHttpsProxyAgent(httpsProxyUrl);
+  return new HttpsProxyAgent(httpsProxyUrl);
 }
 
 export const httpsProxyAgent: Agent | null = createHttpsAgent();

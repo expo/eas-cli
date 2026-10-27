@@ -35,14 +35,14 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
           outputs.application_archive_path.set(archivePath);
         }
       } catch (err: unknown) {
-        stepCtx.logger.error(`Failed to upload application archives.`, err);
+        stepCtx.logger.error({ err }, `Failed to upload application archives.`);
         firstError ||= err;
       }
 
       try {
         await uploadBuildArtifacts({ ctx, stepCtx });
       } catch (err: unknown) {
-        stepCtx.logger.error(`Failed to upload build artifacts.`, err);
+        stepCtx.logger.error({ err }, `Failed to upload build artifacts.`);
         firstError ||= err;
       }
 

@@ -120,4 +120,50 @@ describe(createUploadArtifactBuildFunction, () => {
     const typeInput = buildStep.inputs?.find(input => input.id === 'type')!;
     expect(typeInput.isRawValueOneOfAllowedValues()).toBe(false);
   });
+
+  it.each(['other', 'android-apk', 'android-aab', 'ios-simulator-app', 'ios-ipa'])(
+    'uploads %s as a workflow artifact with metadata',
+    async type => {
+      contextUploadArtifact.mockClear();
+      const metadata = { kind: 'screen-recording', startedAtMs: '123', device: 'emulator-5554' };
+      const buildStep = uploadArtifact.createBuildStepFromFunctionCall(
+        createGlobalContextMock({}),
+        {
+          callInputs: {
+            type,
+            key: 'Screen Recording',
+            path: '/',
+            metadata,
+          },
+        }
+      );
+
+      await buildStep.executeAsync();
+
+      expect(contextUploadArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifact: expect.objectContaining({ type: null, metadata }),
+        })
+      );
+    }
+  );
+
+  it('does not attach metadata to managed artifact types (the worker drops it)', async () => {
+    contextUploadArtifact.mockClear();
+    const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: {
+        type: 'build-artifact',
+        path: '/',
+        metadata: { kind: 'screen-recording' },
+      },
+    });
+
+    await buildStep.executeAsync();
+
+    expect(contextUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.not.objectContaining({ metadata: expect.anything() }),
+      })
+    );
+  });
 });

@@ -2,7 +2,10 @@ import { BuildJob } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { SpawnOptions } from '@expo/turtle-spawn';
 
-import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
+import {
+  installDependenciesWithNpmCacheFallbackAsync,
+  resolvePackagerDir,
+} from './installDependencies';
 import { BuildContext } from '../context';
 import { runExpoCliCommand } from '../utils/project';
 
@@ -30,17 +33,14 @@ export async function prebuildAsync<TJob extends BuildJob>(
     options: spawnOptions,
     packageManager: ctx.packageManager,
   });
-  const installDependenciesSpawnPromise = (
-    await installDependenciesAsync({
-      packageManager: ctx.packageManager,
-      env: ctx.env,
-      logger,
-      cwd: resolvePackagerDir(ctx),
-      // prebuild sometimes modifies package.json, so we don't want to use frozen lockfile
-      useFrozenLockfile: false,
-    })
-  ).spawnPromise;
-  await installDependenciesSpawnPromise;
+  await installDependenciesWithNpmCacheFallbackAsync({
+    packageManager: ctx.packageManager,
+    env: ctx.env,
+    logger,
+    cwd: resolvePackagerDir(ctx),
+    // prebuild sometimes modifies package.json, so we don't want to use frozen lockfile
+    useFrozenLockfile: false,
+  });
 }
 
 function getPrebuildCommandArgs<TJob extends BuildJob>(ctx: BuildContext<TJob>): string[] {

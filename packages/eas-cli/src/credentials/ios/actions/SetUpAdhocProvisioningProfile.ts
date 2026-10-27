@@ -6,7 +6,12 @@ import nullthrows from 'nullthrows';
 
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
+import {
+  chooseDevicesAsync,
+  filterDevicesForApplePlatform,
+  formatDeviceLabel,
+} from './DeviceUtils';
+import { resolveAscApiKeyForAppCredentialsAsync } from './AscApiKeyUtils';
 import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
@@ -30,8 +35,10 @@ import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
+import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { ApplePlatform } from '../appstore/constants';
+import { hasAscEnvVars } from '../appstore/resolveCredentials';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -51,10 +58,22 @@ export class SetUpAdhocProvisioningProfile {
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const { app } = this.options;
+
+    if (ctx.refreshAdHocProvisioningProfile && ctx.freezeCredentials) {
+      throw new Error(
+        'Cannot refresh ad-hoc provisioning profile when credentials are frozen. Remove --freeze-credentials or --refresh-ad-hoc-provisioning-profile.'
+      );
+    }
+
     const distCert = await new SetUpDistributionCertificate(
       app,
       IosDistributionType.AdHoc
     ).runAsync(ctx);
+
+    if (ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile) {
+      await this.ensureAppStoreAuthenticatedForAdhocRefreshAsync(ctx, app);
+      return await this.runWithDistributionCertificateAsync(ctx, distCert);
+    }
 
     const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
 
@@ -111,6 +130,11 @@ export class SetUpAdhocProvisioningProfile {
       appleTeam
     );
     if (registeredAppleDevices.length === 0) {
+      if (ctx.nonInteractive) {
+        throw new Error(
+          'No devices are registered for this Apple team. Register devices with eas device:create first.'
+        );
+      }
       const shouldRegisterDevices = await confirmAsync({
         message: `You don't have any registered devices yet. Would you like to register them now?`,
         initial: true,
@@ -127,13 +151,13 @@ export class SetUpAdhocProvisioningProfile {
     const provisionedDeviceIdentifiers = (
       currentBuildCredentials?.provisioningProfile?.appleDevices ?? []
     ).map(i => i.identifier);
-    const chosenDevices = await chooseDevicesAsync(
-      registeredAppleDevices,
-      provisionedDeviceIdentifiers
-    );
+    const applePlatform = getApplePlatformFromTarget(target);
+    const chosenDevices =
+      ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile
+        ? filterDevicesForApplePlatform(registeredAppleDevices, applePlatform)
+        : await chooseDevicesAsync(registeredAppleDevices, provisionedDeviceIdentifiers);
 
     // 4. Reuse or create the profile on Apple Developer Portal
-    const applePlatform = getApplePlatformFromTarget(target);
     const profileType =
       applePlatform === ApplePlatform.TV_OS
         ? ProfileType.TVOS_APP_ADHOC
@@ -187,21 +211,25 @@ export class SetUpAdhocProvisioningProfile {
       Log.log(
         'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
       );
-      const shouldContinue = await selectAsync(
-        'Do you want to continue without provisioning these devices?',
-        [
-          {
-            title: 'Yes',
-            value: true,
-          },
-          {
-            title: 'No (EAS CLI will exit)',
-            value: false,
-          },
-        ]
-      );
-      if (!shouldContinue) {
-        Errors.exit(1);
+      if (ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile) {
+        // Continue without prompting in non-interactive refresh mode.
+      } else {
+        const shouldContinue = await selectAsync(
+          'Do you want to continue without provisioning these devices?',
+          [
+            {
+              title: 'Yes',
+              value: true,
+            },
+            {
+              title: 'No (EAS CLI will exit)',
+              value: false,
+            },
+          ]
+        );
+        if (!shouldContinue) {
+          Errors.exit(1);
+        }
       }
     }
 
@@ -370,6 +398,39 @@ export class SetUpAdhocProvisioningProfile {
         return devices;
       }
     }
+  }
+
+  private async ensureAppStoreAuthenticatedForAdhocRefreshAsync(
+    ctx: CredentialsContext,
+    app: AppLookupParams
+  ): Promise<void> {
+    if (hasAscEnvVars()) {
+      await ctx.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
+      return;
+    }
+
+    const resolvedKey = await resolveAscApiKeyForAppCredentialsAsync({
+      graphqlClient: ctx.graphqlClient,
+      app,
+    });
+    if (!resolvedKey) {
+      throw new Error(
+        'No App Store Connect API Key found for ad-hoc provisioning profile refresh. In non-interactive mode, provide one via:\n' +
+          '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
+          '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
+      );
+    }
+
+    Log.log('Using App Store Connect API Key from EAS credentials service.');
+    await ctx.appStore.ensureAuthenticatedAsync({
+      mode: AuthenticationMode.API_KEY,
+      ascApiKey: resolvedKey.ascApiKey,
+      teamId: resolvedKey.teamId,
+      teamName: resolvedKey.teamName,
+      // Provide a non-enterprise team type to avoid interactive team-type resolution.
+      // Ad-hoc profile handling below uses explicit ProfileType and does not branch on team.inHouse.
+      teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
+    });
   }
 }
 

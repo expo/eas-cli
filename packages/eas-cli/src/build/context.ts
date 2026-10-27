@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 import { LoggerLevel } from '@expo/logger';
 import { NodePackageManager } from '@expo/package-manager';
@@ -8,9 +8,11 @@ import { LocalBuildOptions } from './local';
 import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import { Target } from '../credentials/ios/types';
 import { BuildResourceClass } from '../graphql/generated';
 import { GradleBuildContext } from '../project/android/gradle';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
@@ -65,5 +67,7 @@ export interface BuildContext<T extends Platform> {
   loggerLevel?: LoggerLevel;
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
-  env: Record<string, string>;
+  env: Env;
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }

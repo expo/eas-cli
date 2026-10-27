@@ -7,7 +7,6 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import fs from 'fs-extra';
-import * as jose from 'jose';
 import fetch from 'node-fetch';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -23,6 +22,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
     id: 'upload_to_asc',
     name: 'Upload to App Store Connect',
     __metricsId: 'eas/upload_to_asc',
+    __hookId: 'submit',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'ipa_path',
@@ -86,24 +86,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
       }
 
-      const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
-      const ascApiKey = z
-        .object({
-          issuer_id: z.string(),
-          key_id: z.string(),
-          key: z.string(),
-        })
-        .parse(ascApiKeyJson);
-
-      const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
-      const token = await new jose.SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
-        .setIssuer(ascApiKey.issuer_id)
-        .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m')
-        .sign(privateKey);
-
-      const client = new AscApiClient({ token, logger: stepsCtx.logger });
+      const key = await AscApiUtils.loadApiKeyAsync({ keyPath: ascApiKeyPath });
+      const client = new AscApiClient({ key, logger: stepsCtx.logger });
 
       stepsCtx.logger.info(
         `Reading App information for Apple app identifier: ${appleAppIdentifier}...`
@@ -114,16 +98,27 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         `Uploading Build to "${appResponse.data.attributes.name}" (${ascAppBundleIdentifier})...`
       );
 
+      // Derive the App Store Connect platform from the IPA itself so tvOS (and
+      // other) binaries are uploaded to the correct version train instead of the
+      // iOS one. Falls back to `IOS` if the platform cannot be read.
+      const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
+      const platform = ipaInfoResult.ok
+        ? AscApiUtils.ascPlatformFromDtPlatformName(ipaInfoResult.value.dtPlatformName)
+        : 'IOS';
+      stepsCtx.logger.info(`Detected App Store Connect platform: ${platform}`);
+
       stepsCtx.logger.info('Creating Build Upload...');
       const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
         client,
         appleAppIdentifier,
         bundleShortVersion,
         bundleVersion,
+        platform,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
-      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/ios/${buildUploadId}`;
+      const platformPathSegment = AscApiUtils.testFlightPlatformPathSegment(platform);
+      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/${platformPathSegment}/${buildUploadId}`;
       outputs.build_upload_id.set(buildUploadId);
       outputs.build_upload_url.set(buildUploadUrl);
 
@@ -160,21 +155,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       });
 
       stepsCtx.logger.info('Committing upload...');
-      await client.patchAsync(
-        `/v1/buildUploadFiles/:id`,
-        {
-          data: {
-            type: 'buildUploadFiles',
-            id: buildFileResponse.data.id,
-            attributes: {
-              uploaded: true,
-            },
-          },
-        },
-        {
-          id: buildFileResponse.data.id,
-        }
-      );
+      await AscApiUtils.commitBuildUploadFileAsync({
+        client,
+        fileId: buildFileResponse.data.id,
+        logger: stepsCtx.logger,
+      });
 
       stepsCtx.logger.info('Checking upload file status...');
       const waitingForFileStartedAt = Date.now();
@@ -266,11 +251,30 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isSdkVersionIssueError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
+              'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
+                'In an Expo project, this usually means the build used an outdated EAS iOS image or the project still depends on an Expo SDK / native setup that does not support the required Xcode toolchain. ' +
+                'Upgrade to a supported Expo SDK if needed and/or select a newer iOS image in `eas.json`, rebuild, and submit again.',
+              {
+                docsUrl: 'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
               ? ipaInfoResult.value.bundleIdentifier
               : null;
+
+            let visibleAppsSummary: string | null = null;
+            try {
+              const apps = await AscApiUtils.getAppsAsync({ client, limit: 5 });
+              visibleAppsSummary = AscApiUtils.formatAppsList(apps);
+            } catch {
+              // Ok to fail, this is just trying to be helpful.
+            }
 
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
@@ -279,7 +283,12 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
-                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).' +
+                '\n\nOther App Store Connect apps visible to this API key:\n' +
+                (visibleAppsSummary ?? '  (unable to retrieve)'),
+              {
+                docsUrl: 'https://expo.fyi/asc-app-id',
+              }
             );
           }
           if (isMissingPurposeStringError(errors)) {
@@ -329,6 +338,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
     messages.length > 0 &&
     messages.every(message => ['90062', '90186', '90478'].includes(message.code))
   );
+}
+
+export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90725');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {

@@ -7,26 +7,26 @@ import {
   WorkflowCommandSelectionStateValue,
   executeWorkflowSelectionActionsAsync,
 } from '../../commandUtils/workflow/stateMachine';
-import { WorkflowLogLine, WorkflowLogs } from '../../commandUtils/workflow/types';
+import { JobLogs, LogLine } from '../../commandUtils/logs/types';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-function printLogsForAllSteps(logs: WorkflowLogs): void {
-  [...logs.keys()].forEach(step => {
-    const logLines = logs.get(step);
-    if (logLines) {
-      Log.log(`Step: ${step}`);
-      logLines.forEach(line => {
-        Log.log(`  ${line.time} ${line.msg}`);
-      });
+function printLogsForAllSteps(logs: JobLogs): void {
+  [...logs.values()].forEach(({ label, logLines }) => {
+    if (logLines.length === 0) {
+      return;
     }
+    Log.log(`Step: ${label}`);
+    logLines.forEach(line => {
+      Log.log(`  ${line.time} ${line.msg}`);
+    });
     Log.addNewLineIfNone();
   });
 }
 
 export default class WorkflowLogView extends EasCommand {
   static override description =
-    'view logs for a workflow run, selecting a job and step to view. You can pass in either a workflow run ID or a job ID. If no ID is passed in, you will be prompted to select from recent workflow runs for the current project.';
+    'view logs for a workflow run, selecting a job and step to view. You can pass in either a workflow run ID or a job ID. If no ID is passed in, you will be prompted to select from recent workflow runs for the current project';
 
   static override flags = {
     ...EasJsonOnlyFlag,
@@ -85,25 +85,29 @@ export default class WorkflowLogView extends EasCommand {
       return;
     }
 
-    const logs = finalSelectionState?.logs as unknown as WorkflowLogs | null;
+    const logs = finalSelectionState?.logs;
     if (allSteps) {
       if (logs) {
         if (flags.json) {
-          printJsonOnlyOutput(Object.fromEntries(logs));
+          printJsonOnlyOutput(
+            Object.fromEntries(
+              Array.from(logs.entries()).map(([key, value]) => [key, value.logLines])
+            )
+          );
         } else {
           printLogsForAllSteps(logs);
         }
       }
     } else {
       const selectedStep = finalSelectionState?.step as unknown as string;
-      const logLines = logs?.get(selectedStep);
-      if (logLines) {
+      const logGroup = logs?.get(selectedStep);
+      if (logGroup) {
         if (flags.json) {
-          const output: { [key: string]: WorkflowLogLine[] | null } = {};
-          output[selectedStep] = logLines ?? null;
+          const output: { [key: string]: LogLine[] | null } = {};
+          output[selectedStep] = logGroup.logLines;
           printJsonOnlyOutput(output);
         } else {
-          logLines.forEach(line => {
+          logGroup.logLines.forEach(line => {
             Log.log(`  ${line.time} ${line.msg}`);
           });
         }

@@ -44,6 +44,20 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
 
   const updateRequest: UpdateCapabilityRequest = [];
 
+  // Fetch the bundle with its linked capability identifiers to check for already linked identifiers.
+  const bundleWithRelationships = await BundleId.infoAsync(bundleId.context, {
+    id: bundleId.id,
+    query: {
+      includes: [
+        'bundleIdCapabilities',
+        'bundleIdCapabilities.appGroups',
+        'bundleIdCapabilities.merchantIds',
+        'bundleIdCapabilities.cloudContainers',
+      ],
+    },
+  });
+  const linkedBundleCapabilities = bundleWithRelationships.attributes.bundleIdCapabilities ?? [];
+
   // Iterate through the supported capabilities to build the request.
   for (const classifier of CapabilityIdMapping) {
     const CapabilityModel = classifier.capabilityIdModel;
@@ -73,15 +87,29 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
     // Get a list of all of the capability IDs that are already created on the server.
     const existingIds = await CapabilityModel.getAsync(bundleId.context);
 
-    // A list of server IDs for linking.
-    const capabilityIdOpaqueIds = [];
-
-    const capabilitiesWithoutRemoteModels = capabilityIds.filter(
-      localId => existingIds.find(model => model.attributes.identifier === localId) === undefined
+    // Opaque ids of identifiers already linked to this capability.
+    const remoteLinkedIds = linkedBundleCapabilities.find(c => c.isType(classifier.capability))
+      ?.attributes as Record<string, { id: string }[] | undefined> | undefined;
+    const alreadyLinkedOpaqueIds = new Set<string>(
+      (remoteLinkedIds?.[CapabilityModel.type] ?? []).map(model => model.id)
     );
+
+    // A list of server IDs for linking.
+    const capabilityIdOpaqueIds: string[] = [];
+
     // Iterate through all the local IDs and see if they exist on the server.
-    for (const localId of capabilitiesWithoutRemoteModels) {
-      let remoteIdModel = undefined;
+    for (const localId of capabilityIds) {
+      let remoteIdModel = existingIds.find(model => model.attributes.identifier === localId);
+
+      // Identifier already exists.
+      if (remoteIdModel) {
+        if (!alreadyLinkedOpaqueIds.has(remoteIdModel.id)) {
+          // Link the existing identifier to this bundle.
+          linkedIds.push(remoteIdModel.attributes.identifier);
+          capabilityIdOpaqueIds.push(remoteIdModel.id);
+        }
+        continue;
+      }
 
       if (Log.isDebug) {
         Log.log(`Creating capability ID: ${localId} (${CapabilityModel.type})`);

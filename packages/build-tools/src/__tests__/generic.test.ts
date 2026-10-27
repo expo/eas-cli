@@ -4,9 +4,11 @@ import { BuildStepGlobalContext, StepsConfigParser } from '@expo/steps';
 import { runGenericJobAsync } from '../generic';
 import { CustomBuildContext } from '../customBuildContext';
 import { uploadJobOutputsToWwwAsync } from '../utils/outputs';
+import { stopLocalEgressResourcesAsync } from '../steps/utils/localEgress';
 
 jest.mock('../customBuildContext');
 jest.mock('../utils/outputs');
+jest.mock('../steps/utils/localEgress', () => ({ stopLocalEgressResourcesAsync: jest.fn() }));
 jest.mock('../common/projectSources');
 jest.mock('../steps/easFunctions', () => ({ getEasFunctions: jest.fn().mockReturnValue([]) }));
 jest.mock('../steps/easFunctionGroups', () => ({
@@ -52,10 +54,30 @@ describe(runGenericJobAsync, () => {
         child: jest.fn().mockReturnThis(),
       },
       runBuildPhase: jest.fn(async (_phase: BuildPhase, fn: () => Promise<any>) => fn()),
+      getReactNativeProjectDirectory: jest.fn(() => '/tmp/src'),
     };
 
     mockUploadJobOutputsToWwwAsync.mockResolvedValue(undefined);
   });
+
+  it.each(['success', 'failure'])(
+    'releases local egress after workflow %s, before uploading outputs',
+    async outcome => {
+      const executeAsync =
+        outcome === 'success'
+          ? jest.fn().mockResolvedValue(undefined)
+          : jest.fn().mockRejectedValue(new Error(outcome));
+      (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+        parseAsync: jest.fn().mockResolvedValue({ executeAsync }),
+      }));
+      const { runResult } = await runGenericJobAsync(mockCtx);
+      expect(runResult.ok).toBe(outcome === 'success');
+      expect(stopLocalEgressResourcesAsync).toHaveBeenCalledWith(mockCtx.logger);
+      expect(jest.mocked(stopLocalEgressResourcesAsync).mock.invocationCallOrder[0]).toBeLessThan(
+        mockUploadJobOutputsToWwwAsync.mock.invocationCallOrder[0]
+      );
+    }
+  );
 
   it('awaits drainPendingMetricUploads in COMPLETE_JOB phase', async () => {
     const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
@@ -109,6 +131,37 @@ describe(runGenericJobAsync, () => {
     resolveDrain();
     await expect(resultPromise).rejects.toThrow('outputs upload failed');
     expect(rejected).toBe(true);
+  });
+
+  it('passes the job hooks into the steps parser', async () => {
+    // @expo/steps is fully mocked here — assert the plumbing only (real
+    // insertion behavior is covered by the parser's own tests).
+    const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
+    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
+    }));
+
+    mockCtx.job.hooks = { before_install_node_modules: [{ run: 'echo hi' }] };
+    await runGenericJobAsync(mockCtx);
+
+    expect(StepsConfigParser).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hooks: mockCtx.job.hooks })
+    );
+  });
+
+  it('passes hooks: undefined into the steps parser for a hook-less job (dormancy)', async () => {
+    const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
+    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
+    }));
+
+    await runGenericJobAsync(mockCtx);
+
+    expect(StepsConfigParser).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hooks: undefined })
+    );
   });
 
   it('throws before workflow execution when expoApiV2BaseUrl is missing', async () => {

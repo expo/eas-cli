@@ -1,7 +1,7 @@
 import path from 'path';
 
 import { runAppOnAndroidEmulatorAsync } from './android/run';
-import { runAppOnIosSimulatorAsync } from './ios/run';
+import { SimulatorRunTarget, runAppOnIosSimulatorAsync } from './ios/run';
 import { AppPlatform } from '../graphql/generated';
 import { getEasBuildRunCacheDirectoryPath } from '../utils/paths';
 
@@ -14,10 +14,11 @@ export interface RunArchiveFlags {
 
 export async function runAsync(
   simulatorBuildPath: string,
-  selectedPlatform: AppPlatform
+  selectedPlatform: AppPlatform,
+  simulator?: SimulatorRunTarget
 ): Promise<void> {
   if (selectedPlatform === AppPlatform.Ios) {
-    await runAppOnIosSimulatorAsync(simulatorBuildPath);
+    await runAppOnIosSimulatorAsync(simulatorBuildPath, simulator);
   } else {
     await runAppOnAndroidEmulatorAsync(simulatorBuildPath);
   }

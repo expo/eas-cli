@@ -5,6 +5,13 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  ExpoGoProjectConfiguration,
+  ExpoGoRepackConfigurationQuery,
+  ExpoGoRepackConfigurationQueryVariables,
+  ExpoGoRepackInput,
+  ExpoGoSdkVersion,
+  ExpoGoSupportedSdkVersionsQuery,
+  ExpoGoSupportedSdkVersionsQueryVariables,
   WorkflowRunByIdQuery,
   WorkflowRunByIdQueryVariables,
   WorkflowRunByIdWithJobsQuery,
@@ -17,6 +24,59 @@ import { WorkflowJobFragmentNode } from '../types/WorkflowJob';
 import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
 
 export const WorkflowRunQuery = {
+  async expoGoSupportedSdkVersionsAsync(
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<ExpoGoSdkVersion[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ExpoGoSupportedSdkVersionsQuery, ExpoGoSupportedSdkVersionsQueryVariables>(
+          gql`
+            query ExpoGoSupportedSdkVersions {
+              expoGoBuild {
+                supportedSdkVersions {
+                  sdkVersion
+                  isLatest
+                  isBeta
+                  isDeprecated
+                  sourceIpaUrl
+                }
+              }
+            }
+          `,
+          {},
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.expoGoBuild.supportedSdkVersions;
+  },
+  async expoGoRepackConfigurationAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: ExpoGoRepackInput
+  ): Promise<ExpoGoProjectConfiguration> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ExpoGoRepackConfigurationQuery, ExpoGoRepackConfigurationQueryVariables>(
+          gql`
+            query ExpoGoRepackConfiguration($input: ExpoGoRepackInput!) {
+              expoGoBuild {
+                repackConfiguration(input: $input) {
+                  sdkVersion
+                  files {
+                    fileName
+                    fileContents
+                  }
+                }
+              }
+            }
+          `,
+          { input },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.expoGoBuild.repackConfiguration;
+  },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     workflowRunId: string,

@@ -22,6 +22,10 @@ export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /Users/expo/Library/Keychains
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
 
+derived_data_path("./build")
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
+
 output_directory("/tmp/output")
 "
 `;
@@ -44,6 +48,10 @@ export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
 
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
+
+derived_data_path("./build")
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
 
 output_directory("/tmp/output")
 "
@@ -69,6 +77,10 @@ export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
 
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
+
+derived_data_path("./build")
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
 
 output_directory("/tmp/output")
 "
@@ -97,6 +109,10 @@ export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
 
+derived_data_path("./build")
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
+
 output_directory("/tmp/output")
 "
 `;
@@ -117,6 +133,9 @@ destination("generic/platform=iOS Simulator")
 
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
+
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
 "
 `;
 
@@ -134,6 +153,9 @@ destination("platform=iOS Simulator,name=iPhone 15")
 
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
+
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
 "
 `;
 
@@ -153,5 +175,8 @@ destination("generic/platform=tvOS Simulator")
 
 disable_xcpretty(true)
 buildlog_path("/tmp/logs")
+
+result_bundle(true)
+result_bundle_path("./build/result-bundle.xcresult")
 "
 `;

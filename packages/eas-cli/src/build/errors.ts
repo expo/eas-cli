@@ -22,4 +22,6 @@ export class EasBuildDownForMaintenanceError extends EasCommandError {}
 
 export class EasBuildTooManyPendingBuildsError extends EasCommandError {}
 
+export class EasBuildUnauthorizedError extends EasCommandError {}
+
 export class EasBuildProjectArchiveUploadError extends EasCommandError {}

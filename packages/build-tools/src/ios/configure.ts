@@ -6,6 +6,7 @@ import uniq from 'lodash/uniq';
 import path from 'path';
 
 import { Credentials } from './credentials/manager';
+import { DistributionType } from './credentials/provisioningProfile';
 import { BuildContext } from '../context';
 
 async function configureXcodeProject(
@@ -56,6 +57,9 @@ async function configureCredentialsAsync(
         profileName: profile.name,
         appleTeamId: profile.teamId,
         buildConfiguration,
+        ...(credentials.distributionType === DistributionType.DEVELOPMENT && {
+          codeSignIdentity: profile.certificateCommonName,
+        }),
       }
     );
   }

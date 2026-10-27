@@ -1,4 +1,4 @@
-import { BuildContext } from '@expo/build-tools';
+import { BuildContext, RuntimeSettings } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
@@ -23,25 +23,26 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  if (config.npmCacheUrl) {
-    // create ~/.npmrc
-    await spawn('npm', ['config', 'set', 'registry', config.npmCacheUrl]);
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
+
+  if (npmCacheUrl) {
     // create ~/.yarnrc.yml
     await templateFile(
       path.join(__dirname, '../src/templates/yarnrc.yml'),
       {
-        URL: config.npmCacheUrl,
+        URL: npmCacheUrl,
       },
       path.join(os.homedir(), '.yarnrc.yml')
     );
   }
 
-  if (config.mavenCacheUrl) {
+  if (mavenCacheUrl) {
     await fs.mkdirp(path.join(os.homedir(), '.gradle'));
     await templateFile(
       path.join(__dirname, '../src/templates/init.gradle'),
       {
-        URL: config.mavenCacheUrl,
+        URL: mavenCacheUrl,
       },
       path.join(os.homedir(), '.gradle/init.gradle')
     );
@@ -135,15 +136,32 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
   let sanitizedVersion = version.startsWith('v') ? version.slice(1) : version;
   try {
     ctx.logger.info(`Installing node v${sanitizedVersion}`);
-    const { stdout } = await spawn(
-      'bash',
-      ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`],
-      {
+    const installAsync = async () => {
+      return await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`], {
         logger: ctx.logger,
         env: ctx.env,
+      });
+    };
+    let result;
+    try {
+      result = await installAsync();
+    } catch (err) {
+      const mirror = ctx.env.NVM_NODEJS_ORG_MIRROR;
+      // Only bypass the internal mirror enabled by the runtime settings.
+      if (!mirror || mirror !== RuntimeSettings.getNodeJsCacheUrl()) {
+        throw err;
       }
-    );
 
+      ctx.logger.warn(
+        { err },
+        'Failed to install Node.js using the worker mirror. Removing NVM_NODEJS_ORG_MIRROR from the build environment for the rest of this build and retrying with the default download source.'
+      );
+      // Keep the failed mirror disabled for the rest of this build.
+      delete ctx.env.NVM_NODEJS_ORG_MIRROR;
+      result = await installAsync();
+    }
+
+    const { stdout } = result;
     sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
     await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
       logger: ctx.logger,

@@ -29,7 +29,7 @@ export function eagerBundleBuildFunction(): BuildFunction {
         throw new Error('Eager bundle is not supported for SDK version < 52');
       }
 
-      const packageManager = resolvePackageManager(stepsCtx.workingDirectory);
+      const packageManager = resolvePackageManager(stepsCtx.workingDirectory, { env });
       const resolvedEASUpdateRuntimeVersion = inputs.resolved_eas_update_runtime_version.value as
         | string
         | undefined;

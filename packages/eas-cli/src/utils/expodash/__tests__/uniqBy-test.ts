@@ -18,4 +18,12 @@ describe(uniqBy, () => {
       { a: 4, b: 12 },
     ]);
   });
+
+  it('calls getKey once per item', () => {
+    const getKey = jest.fn(({ a }: { a: number }) => a);
+
+    uniqBy([{ a: 1 }, { a: 2 }, { a: 2 }], getKey);
+
+    expect(getKey).toHaveBeenCalledTimes(3);
+  });
 });

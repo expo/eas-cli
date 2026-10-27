@@ -6,6 +6,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import { templateString } from '@expo/template-file';
 import assert from 'assert';
 import fs from 'fs-extra';
+import os from 'os';
 import path from 'path';
 
 import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
@@ -36,6 +37,10 @@ const DEFAULT_CREDENTIALS_TEMPLATE = `
     disable_xcpretty(true)
     buildlog_path("<%- LOGS_DIRECTORY %>")
 
+    derived_data_path("<%- DERIVED_DATA_PATH %>")
+    result_bundle(true)
+    result_bundle_path("<%- RESULT_BUNDLE_PATH %>")
+
     output_directory("<%- OUTPUT_DIRECTORY %>")
 `;
 
@@ -55,6 +60,9 @@ const DEFAULT_SIMULATOR_TEMPLATE = `
 
     disable_xcpretty(true)
     buildlog_path("<%- LOGS_DIRECTORY %>")
+
+    result_bundle(true)
+    result_bundle_path("<%- RESULT_BUNDLE_PATH %>")
 `;
 
 export function generateGymfileFromTemplateFunction(): BuildFunction {
@@ -181,6 +189,7 @@ export function generateGymfileFromTemplateFunction(): BuildFunction {
           ICLOUD_CONTAINER_ENVIRONMENT,
           SCHEME_SIMULATOR_DESTINATION: simulatorDestination,
           DERIVED_DATA_PATH: './build',
+          RESULT_BUNDLE_PATH: path.join(os.tmpdir(), `result-bundle-${Date.now()}.xcresult`),
           ...(PROFILES ? { PROFILES } : {}),
           ...(credentials
             ? {

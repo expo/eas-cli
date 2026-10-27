@@ -3,7 +3,7 @@ import { ExpoConfig } from '@expo/config';
 import ContextField, { ContextOptions } from './ContextField';
 import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
-import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { getProjectIdAsync, isProjectIdInAppConfig } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 
@@ -39,7 +39,10 @@ export class PrivateProjectConfigContextField extends ContextField<{
       });
       serverSideEnvVars = serverSideEnvironmentVariables;
     }
-    const exp = await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars });
+    const exp =
+      withServerSideEnvironment || !isProjectIdInAppConfig(expBefore, projectId)
+        ? await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars })
+        : expBefore;
 
     return {
       projectId,

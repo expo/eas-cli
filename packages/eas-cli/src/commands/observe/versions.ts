@@ -1,0 +1,71 @@
+import EasCommand from '../../commandUtils/EasCommand';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasProjectIdFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import Log from '../../log';
+import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
+import {
+  ObserveEnvironmentFlag,
+  ObservePlatformFlag,
+  ObserveTimeRangeFlags,
+} from '../../observe/flags';
+import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
+import { observePlatformTargetsFromFlag } from '../../observe/platforms';
+import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+export default class ObserveVersions extends EasCommand {
+  static override description = 'display app versions with build and update details';
+
+  static override flags = {
+    ...ObservePlatformFlag,
+    ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
+    ...EasProjectIdFlag,
+    ...EasNonInteractiveAndJsonFlags,
+  };
+
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.LoggedIn,
+  };
+
+  async runAsync(): Promise<void> {
+    const { flags } = await this.parse(ObserveVersions);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ObserveVersions, {
+      nonInteractive,
+      projectIdOverride: flags['project-id'],
+    });
+
+    if (json) {
+      enableJsonOutput();
+    }
+
+    const { startTime, endTime } = resolveTimeRange(flags);
+
+    const targets = observePlatformTargetsFromFlag(flags.platform);
+
+    const results = await fetchObserveVersionsAsync(
+      graphqlClient,
+      projectId,
+      targets,
+      startTime,
+      endTime,
+      flags.environment
+    );
+
+    if (json) {
+      printJsonOnlyOutput(buildObserveVersionsJson(results));
+    } else {
+      Log.addNewLineIfNone();
+      Log.log(buildObserveVersionsTable(results));
+    }
+  }
+}

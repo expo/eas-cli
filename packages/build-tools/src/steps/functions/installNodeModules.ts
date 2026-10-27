@@ -16,6 +16,7 @@ export function createInstallNodeModulesBuildFunction(): BuildFunction {
     id: 'install_node_modules',
     name: 'Install node modules',
     __metricsId: 'eas/install_node_modules',
+    __hookId: 'install_node_modules',
     fn: async (stepCtx, { env }) => {
       await installNodeModules(stepCtx, env);
     },
@@ -27,7 +28,7 @@ export async function installNodeModules(
   env: BuildStepEnv
 ): Promise<void> {
   const { logger } = stepCtx;
-  const packageManager = resolvePackageManager(stepCtx.workingDirectory);
+  const packageManager = resolvePackageManager(stepCtx.workingDirectory, { env });
   const packagerRunDir = findPackagerRootDir(stepCtx.workingDirectory);
 
   if (packagerRunDir !== stepCtx.workingDirectory) {

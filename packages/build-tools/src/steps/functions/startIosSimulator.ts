@@ -4,8 +4,16 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
+import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
+
+import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
+import {
+  installLocalEgressGuardAsync,
+  resolveLocalEgressBootEnvironmentAsync,
+  verifyLocalEgressGuardAsync,
+} from '../utils/localEgressGuard';
 
 import {
   IosSimulatorName,
@@ -31,47 +39,26 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         defaultValue: 1,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      BuildStepInput.createProvider({
+        id: 'enable_accessibility_settings',
+        required: false,
+        defaultValue: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
     ],
     fn: async ({ logger }, { inputs, env }) => {
-      try {
-        const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
-          env,
-          filter: 'available',
-        });
-        logger.info(
-          `Available Simulator devices:\n- ${availableDevices
-            .map(device => device.displayName)
-            .join(`\n- `)}`
-        );
-      } catch (error) {
-        logger.info('Failed to list available Simulator devices.', error);
-      } finally {
-        logger.info('');
-      }
-
       const deviceIdentifierInput = inputs.device_identifier.value?.toString() as
         | IosSimulatorUuid
         | IosSimulatorName
         | undefined;
-      const originalDeviceIdentifier =
-        deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
-
-      if (!originalDeviceIdentifier) {
-        throw new Error('Could not find an iPhone among available simulator devices.');
-      }
-
-      const { udid } = await IosSimulatorUtils.startAsync({
-        deviceIdentifier: originalDeviceIdentifier,
-        env,
-      });
-
-      await IosSimulatorUtils.waitForReadyAsync({ udid, env });
-
-      logger.info('');
-
-      const device = await IosSimulatorUtils.getDeviceAsync({ udid, env });
-      const formattedDevice = device?.displayName ?? originalDeviceIdentifier;
-      logger.info(`${formattedDevice} is ready.`);
+      const enableAccessibilitySettings = Boolean(inputs.enable_accessibility_settings.value);
+      const { deviceIdentifier: originalDeviceIdentifier, displayName: formattedDevice } =
+        await bootIosSimulatorAsync({
+          deviceIdentifier: deviceIdentifierInput,
+          enableAccessibilitySettings,
+          env,
+          logger,
+        });
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
@@ -91,10 +78,23 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             env,
           });
 
-          const { udid: cloneUdid } = await IosSimulatorUtils.startAsync({
+          if (enableAccessibilitySettings) {
+            await IosSimulatorUtils.enableAccessibilitySettingsAsync({
+              deviceIdentifier: cloneDeviceName,
+              env,
+            });
+          }
+          const cloneUdid = await bootWithLocalEgressAsync({
             deviceIdentifier: cloneDeviceName,
             env,
+            logger,
           });
+
+          try {
+            await IosSimulatorUtils.disableApsdAsync({ udid: cloneUdid, env });
+          } catch (err) {
+            logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+          }
 
           await IosSimulatorUtils.waitForReadyAsync({
             udid: cloneUdid,
@@ -107,6 +107,104 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+/**
+ * Boots one iOS Simulator and waits until it is ready: the requested device, or the
+ * most generic iPhone when none is given.
+ */
+export async function bootIosSimulatorAsync({
+  deviceIdentifier: deviceIdentifierInput,
+  enableAccessibilitySettings = false,
+  env,
+  logger,
+}: {
+  deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
+  enableAccessibilitySettings?: boolean;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<{
+  deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  udid: IosSimulatorUuid;
+  displayName: string;
+}> {
+  try {
+    const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
+      env,
+      filter: 'available',
+    });
+    logger.info(
+      `Available Simulator devices:\n- ${availableDevices
+        .map(device => device.displayName)
+        .join(`\n- `)}`
+    );
+  } catch (error) {
+    logger.info('Failed to list available Simulator devices.', error);
+  } finally {
+    logger.info('');
+  }
+
+  const deviceIdentifier = deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
+  if (!deviceIdentifier) {
+    throw new Error('Could not find an iPhone among available simulator devices.');
+  }
+
+  if (enableAccessibilitySettings) {
+    await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
+  }
+  const udid = await bootWithLocalEgressAsync({ deviceIdentifier, env, logger });
+
+  try {
+    await IosSimulatorUtils.disableApsdAsync({ udid, env });
+  } catch (err) {
+    logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
+  }
+
+  await IosSimulatorUtils.waitForReadyAsync({ udid, env });
+
+  logger.info('');
+
+  const device = await IosSimulatorUtils.getDeviceAsync({ udid, env });
+  const displayName = device?.displayName ?? deviceIdentifier;
+  logger.info(`${displayName} is ready.`);
+  return { deviceIdentifier, udid, displayName };
+}
+
+/**
+ * Boot a device with the local egress environment in place before anything
+ * inside it starts. `simctl boot` returns once the simulator's launchd is up
+ * and before it has spawned anything else, which is the only moment at which
+ * launchd environment reaches every process of the boot. The proxy variables
+ * and the guard are set in that gap; then the boot is waited for and the
+ * guard is verified in a fresh process. Nothing here applies when no local
+ * egress session is active.
+ */
+async function bootWithLocalEgressAsync({
+  deviceIdentifier,
+  env,
+  logger,
+}: {
+  deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<IosSimulatorUuid> {
+  const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
+  // The guard and proxy variables ride the boot itself, so launchd has them
+  // before it spawns its first process.
+  const launchdEnvironment = await resolveLocalEgressBootEnvironmentAsync();
+  await IosSimulatorUtils.bootAsync({
+    deviceIdentifier: udid,
+    env,
+    launchdEnvironment: launchdEnvironment ?? {},
+  });
+  // Also set them through launchctl, for a device that was already booted.
+  const guardInstalled = await installLocalEgressGuardAsync({ udid, env, logger });
+  await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
+  await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
+  if (guardInstalled) {
+    await verifyLocalEgressGuardAsync({ udid, env, logger });
+  }
+  return udid;
 }
 
 async function findMostGenericIphoneUuidAsync({

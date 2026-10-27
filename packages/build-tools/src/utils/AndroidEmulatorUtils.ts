@@ -1,14 +1,18 @@
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
 import FastGlob from 'fast-glob';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { Socket } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
+import { Sentry } from '../sentry';
 import { retryAsync } from './retry';
 
 /** Android Virtual Device is the device we run. */
@@ -16,6 +20,17 @@ export type AndroidVirtualDeviceName = string & z.BRAND<'AndroidVirtualDeviceNam
 /** Android device is configuration for the AVD -- screen size, etc. */
 export type AndroidDeviceName = string & z.BRAND<'AndroidDeviceName'>;
 export type AndroidDeviceSerialId = string & z.BRAND<'AndroidDeviceSerialId'>;
+
+/**
+ * Starts the emulator through a wrapper that waits on stdin, so the wrapper's
+ * pid can be placed (for example, into a cgroup) before the emulator execs.
+ */
+export type AndroidEmulatorLaunchGate = {
+  emulatorArgs: string[];
+  wrapperCommand: string;
+  wrapperArgs: string[];
+  admitAsync: (pid: number) => Promise<void>;
+};
 
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
@@ -95,12 +110,18 @@ export namespace AndroidEmulatorUtils {
     deviceName,
     systemImagePackage,
     deviceIdentifier,
+    lcdWidth,
+    lcdHeight,
+    lcdDensity,
     env,
     logger,
   }: {
     deviceName: AndroidVirtualDeviceName;
     systemImagePackage: string;
     deviceIdentifier: AndroidDeviceName | null;
+    lcdWidth: number | null;
+    lcdHeight: number | null;
+    lcdDensity: number | null;
     env: NodeJS.ProcessEnv;
     logger: bunyan;
   }): Promise<void> {
@@ -133,8 +154,11 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      logger.info('Setting hw.ramSize to 2048.');
-      configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
+      // Keep the lower RAM default for older images; newer guests need more headroom for ADB.
+      const apiLevel = systemImagePackage.match(/^system-images;android-(\d+)/)?.[1];
+      const ramSize = !env.DEVICE_RUN_SESSION_ID && apiLevel && Number(apiLevel) < 35 ? 2048 : 4096;
+      logger.info(`Setting hw.ramSize to ${ramSize}.`);
+      configIniFileContent = `${configIniFileContent}\nhw.ramSize=${ramSize}\n`;
 
       const shouldResizeScreen =
         env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';
@@ -170,6 +194,13 @@ export namespace AndroidEmulatorUtils {
             configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${1170}\nhw.lcd.width=${540}\nhw.lcd.density=220\n`;
           }
         }
+      }
+
+      if (lcdWidth !== null && lcdHeight !== null && lcdDensity !== null) {
+        logger.info(
+          `Setting screen resolution to ${lcdWidth}x${lcdHeight} and density to ${lcdDensity} ppi.`
+        );
+        configIniFileContent = `${configIniFileContent}\nhw.lcd.height=${lcdHeight}\nhw.lcd.width=${lcdWidth}\nhw.lcd.density=${lcdDensity}\n`;
       }
 
       const shouldAdjustHeapSize =
@@ -294,41 +325,134 @@ export namespace AndroidEmulatorUtils {
   export async function startAsync({
     deviceName,
     env,
+    logcatDirectory,
+    launchGate,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
-  }): Promise<{ emulatorPromise: SpawnPromise<SpawnResult>; serialId: AndroidDeviceSerialId }> {
-    const emulatorPromise = spawn(
-      `${process.env.ANDROID_HOME}/emulator/emulator`,
-      [
-        '-no-window',
-        '-no-boot-anim',
-        '-writable-system',
-        '-noaudio',
-        '-no-snapshot-save',
-        '-avd',
-        deviceName,
-        '-accel',
-        'on',
-        ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
-          ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
-          : []),
-      ],
-      {
-        detached: true,
-        stdio: 'inherit',
-        env: {
-          ...env,
-          // We don't need to wait for emulator to exit gracefully.
-          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
-        },
+    logcatDirectory: string;
+    launchGate?: AndroidEmulatorLaunchGate;
+  }): Promise<{
+    emulatorPromise: SpawnPromise<SpawnResult>;
+    serialId: AndroidDeviceSerialId;
+    logcatOutputPath: string;
+    emulatorOutputPath: string;
+  }> {
+    let logcatOutputPath: string;
+    let emulatorOutputPath: string;
+    try {
+      await fs.promises.mkdir(logcatDirectory, { recursive: true });
+      const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const timestamp = Math.floor(Date.now() / 1000)
+        .toString(16)
+        .padStart(8, '0');
+      const outputName = `${safeDeviceName}-${timestamp}-${randomBytes(2).toString('hex')}`;
+      logcatOutputPath = path.join(logcatDirectory, `${outputName}-logcat.log`);
+      emulatorOutputPath = path.join(logcatDirectory, `${outputName}-emulator.log`);
+      await fs.promises.writeFile(logcatOutputPath, '');
+      await fs.promises.writeFile(emulatorOutputPath, '');
+    } catch (err) {
+      throw new SystemError(`Failed to prepare Android emulator output for ${deviceName}.`, {
+        cause: err,
+      });
+    }
+
+    const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
+    const emulatorArgs = [
+      '-no-window',
+      '-no-boot-anim',
+      '-writable-system',
+      '-noaudio',
+      '-no-snapshot-save',
+      '-logcat',
+      '*:v',
+      '-logcat-output',
+      logcatOutputPath,
+      '-avd',
+      deviceName,
+      '-accel',
+      'on',
+      ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
+        ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
+        : []),
+    ];
+    const emulatorEnv = {
+      ...env,
+      // We don't need to wait for emulator to exit gracefully.
+      ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+    };
+    const emulatorPromise = launchGate
+      ? spawn(
+          launchGate.wrapperCommand,
+          [...launchGate.wrapperArgs, emulatorCommand, ...emulatorArgs, ...launchGate.emulatorArgs],
+          {
+            detached: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ignoreStdio: true,
+            env: emulatorEnv,
+          }
+        )
+      : spawn(emulatorCommand, emulatorArgs, {
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          ignoreStdio: true,
+          env: emulatorEnv,
+        });
+    const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
+    let reportedEmulatorOutputError = false;
+    emulatorOutputStream.on('error', err => {
+      process.stderr.write(
+        `Failed to write Android emulator output to ${emulatorOutputPath}: ${err}\n`
+      );
+      if (!reportedEmulatorOutputError) {
+        reportedEmulatorOutputError = true;
+        Sentry.capture('Failed to write Android emulator process output', err, {
+          level: 'warning',
+          tags: {
+            errorCode: (err as NodeJS.ErrnoException).code ?? 'unknown',
+          },
+          extras: {
+            deviceName,
+            emulatorOutputPath,
+          },
+        });
       }
-    );
+    });
+    // Only into the log file -- this process' stdout/stderr is not watched or uploaded.
+    emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
+    emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
+    emulatorPromise.child.once('close', () => {
+      emulatorOutputStream.end();
+    });
+    // Piped stdio creates socket handles in this process which, unlike inherited
+    // file descriptors, keep the event loop alive for as long as the emulator runs.
+    // We never stop the emulator explicitly, so without unref-ing these the process
+    // would never exit on its own -- defeating the `detached` + `unref()` below.
+    // Output is still captured for as long as this process lives.
+    if (emulatorPromise.child.stdout instanceof Socket) {
+      emulatorPromise.child.stdout.unref();
+    }
+    if (emulatorPromise.child.stderr instanceof Socket) {
+      emulatorPromise.child.stderr.unref();
+    }
     // If emulator fails to start, throw its error.
     if (!emulatorPromise.child.pid) {
       await emulatorPromise;
     }
+    if (launchGate && emulatorPromise.child.pid) {
+      try {
+        await launchGate.admitAsync(emulatorPromise.child.pid);
+      } catch (err) {
+        emulatorPromise.child.kill('SIGKILL');
+        await asyncResult(emulatorPromise);
+        throw err;
+      }
+      emulatorPromise.child.stdin?.end('go\n');
+    }
     emulatorPromise.child.unref();
+    // The emulator is detached and managed through adb. Observe its process promise
+    // immediately so expected exits during retry cleanup do not become unhandled rejections.
+    void asyncResult(emulatorPromise);
 
     const serialId = await retryAsync(
       async () => {
@@ -349,7 +473,7 @@ export namespace AndroidEmulatorUtils {
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
-    return { emulatorPromise, serialId };
+    return { emulatorPromise, serialId, logcatOutputPath, emulatorOutputPath };
   }
 
   export async function waitForReadyAsync({
@@ -357,11 +481,14 @@ export namespace AndroidEmulatorUtils {
     env,
     timeoutMs = 3 * 60 * 1_000,
     logger,
+    networkReadyTarget,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
     timeoutMs?: number;
     logger?: bunyan;
+    /** Host and port the guest must reach; 1.1.1.1:443 unless set. */
+    networkReadyTarget?: { host: string; port: number };
   }): Promise<void> {
     const retries = Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1);
     await retryAsync(
@@ -376,7 +503,11 @@ export namespace AndroidEmulatorUtils {
           throw new Error(`Emulator (${serialId}) boot has not completed.`);
         }
 
-        const hasNetworkConnection = await hasNetworkConnectionAsync({ serialId, env });
+        const hasNetworkConnection = await hasNetworkConnectionAsync({
+          serialId,
+          env,
+          target: networkReadyTarget,
+        });
         if (!hasNetworkConnection) {
           throw new Error(`Emulator (${serialId}) network is not ready.`);
         }
@@ -391,12 +522,46 @@ export namespace AndroidEmulatorUtils {
     );
   }
 
-  async function hasNetworkConnectionAsync({
+  export async function disableWindowAndTransitionAnimationsAsync({
     serialId,
     env,
+    logger,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
+    logger: bunyan;
+  }): Promise<void> {
+    logger.info('Disabling Android emulator window animations.');
+    try {
+      await spawn(
+        'adb',
+        ['-s', serialId, 'shell', 'settings', 'put', 'global', 'window_animation_scale', '0'],
+        { env }
+      );
+    } catch (err) {
+      logger.warn({ err }, 'Failed to disable Android emulator window animations.');
+    }
+
+    logger.info('Disabling Android emulator transition animations.');
+    try {
+      await spawn(
+        'adb',
+        ['-s', serialId, 'shell', 'settings', 'put', 'global', 'transition_animation_scale', '0'],
+        { env }
+      );
+    } catch (err) {
+      logger.warn({ err }, 'Failed to disable Android emulator transition animations.');
+    }
+  }
+
+  async function hasNetworkConnectionAsync({
+    serialId,
+    env,
+    target = { host: '1.1.1.1', port: 443 },
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    target?: { host: string; port: number };
   }): Promise<boolean> {
     const networkReadyCheckCommand = env.ANDROID_EMULATOR_NETWORK_READY_COMMAND?.trim();
     if (networkReadyCheckCommand) {
@@ -409,7 +574,7 @@ export namespace AndroidEmulatorUtils {
     const netcatResult = await asyncResult(
       spawn(
         'adb',
-        ['-s', serialId, 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
+        ['-s', serialId, 'shell', 'nc', '-w', '1', target.host, String(target.port)],
         // Close stdin to make netcat exit cleanly on Android images that don't support `-z`.
         { env, stdio: ['ignore', 'pipe', 'pipe'] }
       )

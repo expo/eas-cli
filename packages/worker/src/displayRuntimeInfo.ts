@@ -1,25 +1,11 @@
 import { BuildContext } from '@expo/build-tools';
 import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
+import formatBytes from 'filesize';
 import fs from 'fs-extra';
+import os from 'os';
 
 import config from './config';
 import { Environment } from './constants';
-import { ResourceClass } from './external/turtle';
-
-const RESOURCE_CLASS_DESCRIPTION: Record<ResourceClass, string> = {
-  [ResourceClass.ANDROID_N2_1_3_12]: 'Intel, 4 vCPUs, 16 GB RAM',
-  [ResourceClass.ANDROID_N2_2_6_24]: 'Intel, 8 vCPUs, 32 GB RAM',
-  [ResourceClass.IOS_M1_4_16]: 'M1, 2 cores, 8 GB RAM',
-  [ResourceClass.IOS_M2_2_8]: 'M2, 2 cores, 8 GB RAM',
-  [ResourceClass.IOS_M2_PRO_4_12]: 'M2 Pro, 4 cores, 12 GB RAM',
-  [ResourceClass.IOS_M4_PRO_5_20]: 'M4 Pro, 5 cores, 20 GB RAM',
-  [ResourceClass.IOS_M4_PRO_10_40]: 'M4 Pro, 10 cores, 40 GB RAM',
-  [ResourceClass.IOS_M2_4_22]: 'M2, 4 cores, 22 GB RAM',
-  [ResourceClass.LINUX_C3D_STANDARD_4]: 'AMD, 4 vCPUs, 16 GB RAM',
-  [ResourceClass.LINUX_C3D_STANDARD_8]: 'AMD, 8 vCPUs, 32 GB RAM',
-  [ResourceClass.LINUX_C4D_STANDARD_4]: 'AMD, 4 vCPUs, 15 GB RAM',
-  [ResourceClass.LINUX_C4D_STANDARD_8]: 'AMD, 8 vCPUs, 31 GB RAM',
-};
 
 export function displayWorkerRuntimeInfo(ctx: BuildContext<Job>): void {
   printVMSpecs(ctx);
@@ -29,22 +15,29 @@ export function displayWorkerRuntimeInfo(ctx: BuildContext<Job>): void {
 }
 
 function printVMSpecs(ctx: BuildContext<Job>): void {
-  const { resourceClass } = config;
+  const specs = [
+    getCpuModelDescription(),
+    `${os.cpus().length} vCPUs`,
+    `${formatBytes(os.totalmem())} RAM`,
+  ].flatMap(spec => spec || []);
 
-  if (resourceClass) {
-    const resourceClassDescription = RESOURCE_CLASS_DESCRIPTION[resourceClass];
+  ctx.logger.info(specs.join(', '));
+  ctx.logger.info('');
+}
 
-    if (resourceClassDescription) {
-      ctx.logger.info(resourceClassDescription);
-    } else {
-      ctx.logger.debug(
-        `Resource class is unsupported: ${resourceClass}, valid values: ${Object.keys(
-          RESOURCE_CLASS_DESCRIPTION
-        )}}`
-      );
-    }
-    ctx.logger.info('');
+function getCpuModelDescription(): string | null {
+  const cpuModel = os.cpus()[0]?.model.trim().replaceAll(/\s+/g, ' ').replace(' (Virtual)', '');
+  if (!cpuModel) {
+    return null;
   }
+
+  if (cpuModel.toLowerCase().includes('intel')) {
+    return 'Intel';
+  } else if (cpuModel.toLowerCase().includes('amd')) {
+    return 'AMD';
+  }
+
+  return cpuModel;
 }
 
 function printImageMessage(ctx: BuildContext<Job>): void {
@@ -77,24 +70,30 @@ function printImageDescription(ctx: BuildContext<Job>): void {
 function printEnvs(ctx: BuildContext<Job>): void {
   const { logger, job } = ctx;
   const publicEnv: Record<string, string> = {};
-  const secretEnv: Record<string, string> = {};
+  // We don't expect environment secrets to be missing from ctx.env,
+  // but if they do we want to see it in logs as "=undefined".
+  const secretEnv: Record<string, string | undefined> = {};
   const instanceEnv: Record<string, string> = {};
 
   // skip development and testing to avoid leaking local credentials from envs to bucket
   if (config.env !== Environment.DEVELOPMENT && config.env !== Environment.TEST) {
     Object.entries(ctx.env).forEach(([key, value]) => {
-      instanceEnv[key] = value;
+      if (value !== undefined) {
+        instanceEnv[key] = value;
+      }
     });
   }
-  Object.entries(job.builderEnvironment?.env ?? ({} as Record<string, string>)).forEach(
-    ([key, value]) => {
+  Object.entries(job.builderEnvironment?.env ?? {}).forEach(([key, value]) => {
+    if (value !== undefined) {
       publicEnv[key] = value;
       delete instanceEnv[key];
     }
-  );
+  });
 
   job.secrets?.environmentSecrets?.forEach(({ name, type }) => {
     if (type === EnvironmentSecretType.FILE) {
+      // ctx.env[name] for a FILE-typed environment secret
+      // should be a path to the file.
       secretEnv[name] = ctx.env[name];
     } else {
       secretEnv[name] = '********';

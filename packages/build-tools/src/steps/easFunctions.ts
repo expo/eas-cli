@@ -1,6 +1,7 @@
 import { BuildFunction } from '@expo/steps';
 
 import { calculateEASUpdateRuntimeVersionFunction } from './functions/calculateEASUpdateRuntimeVersion';
+import { createCapturePosthogEventFunction } from './functions/capturePosthogEvent';
 import { createCheckoutBuildFunction } from './functions/checkout';
 import { configureAndroidVersionFunction } from './functions/configureAndroidVersion';
 import { configureEASUpdateIfInstalledFunction } from './functions/configureEASUpdateIfInstalled';
@@ -9,17 +10,27 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createDownloadSubmissionArchiveFunction } from './functions/downloadSubmissionArchive';
+import { createEasDeployBuildFunction } from './functions/deploy';
+import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
+import { createFinishIosSimulatorRecordingsBuildFunction } from './functions/finishIosSimulatorRecordings';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallMitmproxyBuildFunction } from './functions/installMitmproxy';
+import { createInstallBuildFunction } from './functions/installBuild';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
-import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
+import { createLaunchApplicationFunction } from './functions/launchApplication';
 import { createPrebuildBuildFunction } from './functions/prebuild';
+import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
+import { createReadAndroidAppInfoBuildFunction } from './functions/readAndroidAppInfo';
+import { createSubmitToGooglePlayBuildFunction } from './functions/submitToGooglePlay';
+import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { createReportResolvedVersionBuildFunction } from './functions/reportResolvedVersion';
@@ -30,17 +41,39 @@ import {
   createRestoreBuildCacheFunction,
 } from './functions/restoreBuildCache';
 import { createRestoreCacheFunction } from './functions/restoreCache';
+import { parseXcactivitylogFunction } from './functions/parseXcactivitylog';
 import { runFastlaneFunction } from './functions/runFastlane';
 import { runGradleFunction } from './functions/runGradle';
+import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
+import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag';
+import { createRunAgentBuildFunction } from './functions/runAgent';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
+import { createStartAgentDeviceSessionBuildFunction } from './functions/startAgentDeviceSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
+import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
+import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
+import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
+import { createStartLocalEgressBuildFunction } from './functions/startLocalEgress';
+import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/startWebPreviewRemoteSession';
+import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
+import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
+import { createStartSandboxBuildFunction } from './functions/startSandbox';
+import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
+import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
+import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbeddedBundle';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
+import { createUpdateTestFlightMetadataBuildFunction } from './functions/updateTestFlightMetadata';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
+import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
+import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
+import { createPosthogAnnotationFunction } from './functions/createPosthogAnnotation';
+import { createWaitForPosthogQueryFunction } from './functions/waitForPosthogQuery';
 import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
@@ -49,10 +82,18 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createDownloadArtifactFunction(),
     createUploadArtifactBuildFunction(ctx),
     createSetUpNpmrcBuildFunction(),
+    createReadPackageJsonBuildFunction(),
+    createReadAppConfigBuildFunction(),
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
-    createDownloadBuildFunction(),
+    createReadAndroidAppInfoBuildFunction(),
+    createDownloadBuildFunction(ctx),
+    createDownloadSubmissionArchiveFunction(ctx),
+    createInstallBuildFunction(),
+    createLaunchApplicationFunction(),
+    createEasExportBuildFunction(),
+    createEasDeployBuildFunction(),
     createRepackBuildFunction(),
     createRestoreCacheFunction(),
     createRestoreBuildCacheFunction(),
@@ -69,22 +110,45 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     configureIosVersionFunction(),
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
+    parseXcactivitylogFunction(),
+    createStartAgentDeviceSessionBuildFunction(ctx),
+    createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
+    createStartLocalEgressBuildFunction(),
+    createStartIosSimulatorRecordingsBuildFunction(),
+    createFinishIosSimulatorRecordingsBuildFunction(),
+    createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
+    createStartWebPreviewRemoteSessionBuildFunction(ctx),
+    createStartServeSimMetricsBuildFunction(),
+    createStartServeSimLogsBuildFunction(),
+    createCollectServeSimLogsBuildFunction(ctx),
+    createStartSandboxBuildFunction(ctx),
+    createRunAgentBuildFunction(ctx),
+    createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
+    createInstallMitmproxyBuildFunction(),
 
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),
+    createCapturePosthogEventFunction(),
+    createRolloutPosthogFlagFunction(),
+    createWaitForPosthogMetricFunction(),
+    createUploadPosthogSourcemapsFunction(),
+    createPosthogAnnotationFunction(),
+    createWaitForPosthogQueryFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
     createSubmissionEntityFunction(),
+    createSubmitToGooglePlayBuildFunction(),
     createUploadToAscBuildFunction(),
-
-    createInternalEasMaestroTestFunction(ctx),
+    createUpdateTestFlightMetadataBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
+    createMaestroTestsBuildFunction(ctx),
   ];
 
   if (ctx.hasBuildJob()) {
@@ -92,6 +156,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
         createReportResolvedVersionBuildFunction(ctx),
+        createUploadEmbeddedBundleBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),
       ]

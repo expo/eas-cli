@@ -107,7 +107,7 @@ async function validateAndroidPNGsAsync(ctx: CommonContext<Platform.ANDROID>): P
     },
     {
       configPath: 'exp.notification.icon',
-      pngPath: ctx.exp.notification?.icon,
+      pngPath: (ctx.exp as Record<string, any>).notification?.icon,
     },
   ];
   await validatePNGsAsync(pngs);

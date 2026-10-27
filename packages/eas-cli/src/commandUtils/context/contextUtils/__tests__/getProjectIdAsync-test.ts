@@ -2,12 +2,15 @@ import { getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 import { anything, instance, mock, when } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
-import { learnMore } from '../../../../log';
+import Log, { learnMore } from '../../../../log';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { isExpoInstalled } from '../../../../project/projectUtils';
+import { promptAsync } from '../../../../prompts';
 import SessionManager from '../../../../user/SessionManager';
+import { ExpoGraphqlClient } from '../createGraphqlClient';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from '../getProjectIdAsync';
 
@@ -23,42 +26,43 @@ jest.mock('../../../../ora', () => ({
 }));
 jest.mock('../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../../project/projectUtils');
+jest.mock('../../../../prompts');
 
 describe(getProjectIdAsync, () => {
   let sessionManager: SessionManager;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
+    jest.spyOn(Log, 'warn').mockImplementation(() => {});
+
     jest
       .mocked(getConfigFilePaths)
       .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
 
     const sessionManagerMock = mock<SessionManager>();
+
+    when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
     when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
       actor: {
         __typename: 'User',
         id: 'user_id',
         email: 'notnotbrent@example.com',
         username: 'notnotbrent',
-        primaryAccount: {
-          id: 'account_id_1',
-          name: 'notnotbrent',
-          users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
-        },
         accounts: [
           {
             id: 'account_id_1',
             name: 'notnotbrent',
-            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           {
             id: 'account_id_2',
             name: 'dominik',
-            users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
+            viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
           },
         ],
         isExpoAdmin: false,
         featureGates: {},
-        preferences: {},
       },
       authenticationInfo: { accessToken: 'fake', sessionSecret: null },
     });
@@ -74,7 +78,14 @@ describe(getProjectIdAsync, () => {
     );
 
     jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
-    jest.mocked(isExpoInstalled).mockReturnValue(true);
+
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValue({ account: { id: 'account_id_1', name: 'notnotbrent' } });
+
+    // NOTE(@kitten): Updating this test is easiest by letting it fallback to `@expo/config`
+    // This isn't a great solution, but the test is pretty involved
+    jest.mocked(isExpoInstalled).mockReturnValue(false);
   });
 
   it('gets the project ID from app config if exists', async () => {
@@ -178,6 +189,7 @@ describe(getProjectIdAsync, () => {
 
     it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'Robot',
@@ -186,12 +198,12 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
             },
             {
               id: 'account_id_2',
               name: 'dominik',
-              users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
+              viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
             },
           ],
           isExpoAdmin: false,
@@ -334,6 +346,223 @@ describe(getProjectIdAsync, () => {
       },
       { skipSDKVersionRequirement: true }
     );
+  });
+
+  describe('account selection when project is not configured', () => {
+    beforeEach(() => {
+      jest
+        .mocked(getConfig)
+        .mockReturnValue({ exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test' } } as any);
+      jest.mocked(modifyConfigAsync).mockResolvedValue({
+        type: 'success',
+        config: {
+          sdkVersion: '52.0.0',
+          name: 'test',
+          slug: 'test',
+          extra: { eas: { projectId: '2345' } },
+        },
+      });
+      jest
+        .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
+        .mockImplementation(async () => '2345');
+    });
+
+    it('prompts for the account when the user has multiple accounts and no owner is set', async () => {
+      jest
+        .mocked(promptAsync)
+        .mockResolvedValue({ account: { id: 'account_id_2', name: 'dominik' } });
+
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: false }
+        )
+      ).resolves.toEqual('2345');
+
+      expect(promptAsync).toHaveBeenCalledTimes(1);
+      expect(Log.warn).toHaveBeenCalledWith('EAS project not configured.');
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        { accountName: 'dominik', projectName: 'test' },
+        { nonInteractive: false },
+        expect.anything()
+      );
+    });
+
+    it('uses the owner from the app config without prompting', async () => {
+      jest.mocked(getConfig).mockReturnValue({
+        exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test', owner: 'dominik' },
+      } as any);
+
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test', owner: 'dominik' },
+          { nonInteractive: false }
+        )
+      ).resolves.toEqual('2345');
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        { accountName: 'dominik', projectName: 'test' },
+        { nonInteractive: false },
+        expect.anything()
+      );
+    });
+
+    it('uses the only account without prompting when the user has a single account', async () => {
+      const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
+      when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+        actor: {
+          __typename: 'User',
+          id: 'user_id',
+          email: 'notnotbrent@example.com',
+          username: 'notnotbrent',
+          accounts: [
+            {
+              id: 'account_id_1',
+              name: 'notnotbrent',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+            },
+          ],
+          isExpoAdmin: false,
+          featureGates: {},
+        },
+        authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+      } as any);
+
+      await expect(
+        getProjectIdAsync(
+          instance(sessionManagerMock),
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: false }
+        )
+      ).resolves.toEqual('2345');
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        { accountName: 'notnotbrent', projectName: 'test' },
+        { nonInteractive: false },
+        expect.anything()
+      );
+    });
+
+    it('throws for a robot user when no owner is set', async () => {
+      const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
+      when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+        actor: {
+          __typename: 'Robot',
+          id: 'robot_id',
+          accounts: [
+            {
+              id: 'account_id_1',
+              name: 'notnotbrent',
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
+            },
+          ],
+          isExpoAdmin: false,
+          featureGates: {},
+        },
+        authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+      } as any);
+
+      await expect(
+        getProjectIdAsync(
+          instance(sessionManagerMock),
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: false }
+        )
+      ).rejects.toThrow(
+        `EAS project not configured. A robot access token cannot configure it interactively. ` +
+          `Run one of the following, then re-run this command:\n\n` +
+          `To link an existing project:\n\n` +
+          `  eas init --id <project-id> --non-interactive\n\n` +
+          `To create a new project:\n\n` +
+          `  eas init --account <account-name> --non-interactive\n\n` +
+          `Accounts you can create projects in: notnotbrent\n\n` +
+          `Alternatively, set the "owner" field in your app config.`
+      );
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws in non-interactive mode when the user has multiple accounts and no owner is set', async () => {
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).rejects.toThrow(
+        `EAS project not configured. This command cannot configure it in non-interactive mode. ` +
+          `Run one of the following, then re-run this command:\n\n` +
+          `To link an existing project:\n\n` +
+          `  eas init --id <project-id> --non-interactive\n\n` +
+          `To create a new project:\n\n` +
+          `  eas init --account <account-name> --non-interactive\n\n` +
+          `Accounts you can create projects in: notnotbrent`
+      );
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).not.toHaveBeenCalled();
+    });
+
+    it('defers to the project fetch in non-interactive mode when the account is already known', async () => {
+      const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
+      when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+        actor: {
+          __typename: 'User',
+          id: 'user_id',
+          email: 'notnotbrent@example.com',
+          username: 'notnotbrent',
+          accounts: [
+            {
+              id: 'account_id_1',
+              name: 'notnotbrent',
+              users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+            },
+          ],
+          isExpoAdmin: false,
+          featureGates: {},
+        },
+        authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+      } as any);
+
+      await expect(
+        getProjectIdAsync(
+          instance(sessionManagerMock),
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).resolves.toEqual('2345');
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        { accountName: 'notnotbrent', projectName: 'test' },
+        { nonInteractive: true },
+        expect.anything()
+      );
+    });
+
+    it('does not warn that the project is not configured in non-interactive mode', async () => {
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).rejects.toThrow();
+
+      expect(Log.warn).not.toHaveBeenCalledWith('EAS project not configured.');
+    });
   });
 
   it('throws if writing the ID back to the config fails', async () => {

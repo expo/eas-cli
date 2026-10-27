@@ -47,6 +47,9 @@ describe('Android.JobSchema', () => {
         },
       },
       expoBuildUrl: 'https://expo.dev/fake/build/url',
+      experimental: {
+        uploadSourceMaps: true,
+      },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),
     };
@@ -237,7 +240,6 @@ describe('Android.JobSchema', () => {
       username: 'turtle-tutorial',
       projectArchive: {
         type: ArchiveSourceType.GIT,
-        repositoryUrl: 'http://localhost:3000',
         gitRef: 'master',
         gitCommitHash: '1b57db5b1cd12638aba0d12da71a2d691416700d',
       },
@@ -265,6 +267,9 @@ describe('Android.JobSchema', () => {
       projectRootDirectory: '.',
       customBuildConfig: {
         path: 'production.android.yml',
+      },
+      outputs: {
+        android_build_type: 'apk',
       },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),
@@ -337,6 +342,28 @@ describe('Android.JobSchema', () => {
 
     const { value, error } = Android.JobSchema.validate(customBuildJob, joiOptions);
     expect(value).toMatchObject(customBuildJob);
+    expect(error).toBeFalsy();
+  });
+
+  test('preserves outputs for build jobs', () => {
+    const job = {
+      mode: BuildMode.BUILD,
+      type: Workflow.GENERIC,
+      platform: Platform.ANDROID,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'https://expo.dev/builds/123',
+      },
+      projectRootDirectory: '.',
+      outputs: {
+        android_build_type: 'apk',
+      },
+      secrets,
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(value).toMatchObject(job);
     expect(error).toBeFalsy();
   });
 

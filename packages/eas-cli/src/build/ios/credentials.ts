@@ -17,14 +17,22 @@ export async function ensureIosCredentialsAsync(
     return;
   }
 
+  const { credentialsSource } = buildCtx.buildProfile;
+  if (
+    buildCtx.credentialsCtx.refreshAdHocProvisioningProfile &&
+    credentialsSource === 'local'
+  ) {
+    throw new Error(
+      '--refresh-ad-hoc-provisioning-profile cannot be used with credentialsSource "local". Use remote credentials or omit the flag.'
+    );
+  }
+
   const provider = new IosCredentialsProvider(buildCtx.credentialsCtx, {
     app: await getAppFromContextAsync(buildCtx.credentialsCtx),
     targets,
     distribution: buildCtx.buildProfile.distribution ?? 'store',
     enterpriseProvisioning: buildCtx.buildProfile.enterpriseProvisioning,
   });
-
-  const { credentialsSource } = buildCtx.buildProfile;
 
   logCredentialsSource(credentialsSource, Platform.IOS);
   return {

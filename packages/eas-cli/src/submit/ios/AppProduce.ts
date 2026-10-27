@@ -94,7 +94,7 @@ async function createAppStoreConnectAppAsync(
   });
 
   try {
-    await ensureTestFlightGroupExistsAsync(app);
+    await ensureTestFlightGroupExistsAsync(app, { nonInteractive: ctx.nonInteractive });
   } catch (error: any) {
     // This process is not critical to the app submission so we shouldn't let it fail the entire process.
     Log.error(

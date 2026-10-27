@@ -21,6 +21,7 @@ import {
   getManifestBodyAsync,
   signBody,
 } from '../../../utils/code-signing';
+import { republishAsync } from '../../../update/republish';
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
@@ -30,7 +31,7 @@ const updateStub: UpdateFragment = {
   group: 'group-1234',
   branch: { id: 'branch-1234', name: 'main' },
   message: 'test message',
-  runtimeVersion: 'exposdk:47.0.0',
+  runtime: { id: 'runtime-1234', version: 'exposdk:47.0.0' },
   platform: 'ios',
   gitCommitHash: 'commit',
   isGitWorkingTreeDirty: false,
@@ -131,6 +132,45 @@ describe(UpdateRepublish.name, () => {
     );
   });
 
+  it('republishes without checking rollouts when no caller opts in', async () => {
+    mockTestProject();
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([{ ...updateStub, id: 'update-new', platform: 'ios' }]);
+
+    await republishAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      app: { exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig, projectId: '1234' },
+      updatesToPublish: [
+        {
+          ...updateStub,
+          groupId: updateStub.group,
+          branchId: updateStub.branch.id,
+          branchName: updateStub.branch.name,
+        },
+      ],
+      targetBranch: { branchId: updateStub.branch.id, branchName: updateStub.branch.name },
+      updateMessage: 'no rollout check',
+      json: false,
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed republish and rethrows', async () => {
+    const flags = ['--group=1234', '--message=test-republish'];
+
+    mockTestProject();
+    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockRejectedValue(new Error('republish exploded'));
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      'republish exploded'
+    );
+  });
+
   it('re-creates update with --group and --message', async () => {
     const flags = ['--group=1234', '--message=test-republish'];
 
@@ -154,7 +194,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -225,7 +265,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -270,7 +310,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -313,7 +353,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -357,7 +397,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: 'other-id',
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -401,7 +441,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: 'blah-id',
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),

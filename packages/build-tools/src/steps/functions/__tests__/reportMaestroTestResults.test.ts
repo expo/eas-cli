@@ -3,6 +3,7 @@ import { vol } from 'memfs';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import * as discovery from '../maestroFlowDiscovery';
 import { createReportMaestroTestResultsFunction } from '../reportMaestroTestResults';
 
 const JUNIT_PASS = [
@@ -43,15 +44,24 @@ describe(createReportMaestroTestResultsFunction, () => {
     } as unknown as Client;
   });
 
+  // Returns a mock logger whose child() is itself, so step-level log calls can
+  // be asserted on the returned object.
+  function createSelfChildedLogger(): ReturnType<typeof createMockLogger> {
+    const logger = createMockLogger();
+    (logger.child as jest.Mock).mockReturnValue(logger);
+    return logger;
+  }
+
   function createStep(overrides?: {
     callInputs?: Record<string, unknown>;
     staticContextContent?: Record<string, unknown>;
     env?: Record<string, string>;
+    logger?: ReturnType<typeof createMockLogger>;
   }) {
     const ctx = { graphqlClient: mockGraphqlClient };
     const fn = createReportMaestroTestResultsFunction(ctx as any);
     const globalCtx = createGlobalContextMock({
-      logger: createMockLogger(),
+      logger: overrides?.logger ?? createMockLogger(),
       projectTargetDirectory: '/root/project',
       staticContextContent: {
         expoApiServerURL: 'https://api.expo.test',
@@ -72,7 +82,7 @@ describe(createReportMaestroTestResultsFunction, () => {
   it('parses JUnit results and calls GraphQL mutation', async () => {
     vol.fromJSON({
       '/junit/report.xml': JUNIT_PASS,
-      '/tests/2026-01-28_055409/ai-home.json': FLOW_AI,
+      '/root/project/.maestro/home.yml': '',
     });
 
     mockMutationFn.mockResolvedValue({
@@ -83,7 +93,11 @@ describe(createReportMaestroTestResultsFunction, () => {
       },
     });
 
-    await createStep().executeAsync();
+    await createStep({
+      callInputs: {
+        flow_path: ['.maestro/home.yml'],
+      },
+    }).executeAsync();
 
     expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
     const [, variables] = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0];
@@ -99,6 +113,54 @@ describe(createReportMaestroTestResultsFunction, () => {
         properties: {},
       }),
     ]);
+  });
+
+  it('reports both flows when two share a name but have distinct file= paths', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="a/login.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="login" file="b/login.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    mockMutationFn.mockResolvedValue({
+      data: {
+        workflowDeviceTestCaseResult: {
+          createWorkflowDeviceTestCaseResults: [{ id: '1' }, { id: '2' }],
+        },
+      },
+    });
+    await createStep().executeAsync();
+    expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
+    const [, variables] = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0];
+    expect(variables.input.testCaseResults.map((r: any) => r.path).sort()).toEqual([
+      'a/login.yaml',
+      'b/login.yaml',
+    ]);
+  });
+
+  it('never scans flow files for a file= report, even when flow_path is provided', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="flows/login.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const discoverySpy = jest.spyOn(discovery, 'buildFlowNameToPathMap');
+    mockMutationFn.mockResolvedValue({
+      data: {
+        workflowDeviceTestCaseResult: { createWorkflowDeviceTestCaseResults: [{ id: '1' }] },
+      },
+    });
+
+    await createStep({ callInputs: { flow_path: ['flows/login.yaml'] } }).executeAsync();
+
+    expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
+    expect(discoverySpy).not.toHaveBeenCalled();
   });
 
   it('sends tags and properties from JUnit XML', async () => {
@@ -217,7 +279,7 @@ describe(createReportMaestroTestResultsFunction, () => {
     await createStep().executeAsync();
   });
 
-  it('skips report when duplicate testcase names found', async () => {
+  it('skips report when duplicate testcase names found (legacy), advising unique names', async () => {
     vol.fromJSON({
       '/junit/report.xml': [
         '<?xml version="1.0"?>',
@@ -234,8 +296,66 @@ describe(createReportMaestroTestResultsFunction, () => {
       }),
     });
 
-    await createStep().executeAsync();
+    const logger = createSelfChildedLogger();
+    await createStep({ logger }).executeAsync();
     expect(mockGraphqlClient.mutation).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('unique name'));
+  });
+
+  it('skips report when the same flow file appears twice in one attempt, advising flow_path check', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="flows/login.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="login" file="flows/login.yaml" status="SUCCESS" time="2.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+
+    const logger = createSelfChildedLogger();
+    await createStep({ logger }).executeAsync();
+    expect(mockGraphqlClient.mutation).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('flow_path entries'));
+  });
+
+  it('sends per-attempt results with same name but different retryCount', async () => {
+    vol.fromJSON({
+      // Two JUnit files for same flow (per-attempt)
+      '/junit/junit-report-flow-1-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="1" failures="1">',
+        '    <testcase id="home" name="home" classname="home" time="5.0" status="ERROR">',
+        '      <failure>Tap failed</failure>',
+        '    </testcase>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      '/junit/junit-report-flow-1-attempt-1.xml': JUNIT_PASS,
+      '/tests/2026-01-28_055409/ai-home.json': FLOW_AI,
+      '/tests/2026-01-28_055420/ai-home.json': FLOW_AI,
+    });
+
+    mockMutationFn.mockResolvedValue({
+      data: {
+        workflowDeviceTestCaseResult: {
+          createWorkflowDeviceTestCaseResults: [{ id: 'id-1' }, { id: 'id-2' }],
+        },
+      },
+    });
+
+    await createStep().executeAsync();
+
+    expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
+    const [, variables] = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0];
+    expect(variables.input.testCaseResults).toHaveLength(2);
+    expect(variables.input.testCaseResults[0]).toEqual(
+      expect.objectContaining({ name: 'home', status: 'FAILED', retryCount: 0 })
+    );
+    expect(variables.input.testCaseResults[1]).toEqual(
+      expect.objectContaining({ name: 'home', status: 'PASSED', retryCount: 1 })
+    );
   });
 
   it('uses default directories when inputs are not provided', async () => {

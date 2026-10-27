@@ -34,6 +34,7 @@ interface RawCommandFlags {
   verbose: boolean;
   wait: boolean;
   'non-interactive': boolean;
+  'auto-testflight-setup': boolean;
   'verbose-fastlane': boolean;
   groups?: string[];
 }
@@ -46,6 +47,7 @@ interface CommandFlags {
   verbose: boolean;
   wait: boolean;
   nonInteractive: boolean;
+  autoTestFlightSetup: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups?: string[];
 }
@@ -106,6 +108,11 @@ export default class Submit extends EasCommand {
       default: false,
       description: 'Run command in non-interactive mode',
     }),
+    'auto-testflight-setup': Flags.boolean({
+      default: true,
+      allowNo: true,
+      description: 'Set up an internal TestFlight group for the app (iOS only)',
+    }),
   };
 
   static override contextDefinition = {
@@ -152,6 +159,7 @@ export default class Submit extends EasCommand {
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
+        autoTestFlightSetup: flagsWithPlatform.autoTestFlightSetup,
         isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
         groups: flagsWithPlatform.groups,
         actor,
@@ -198,6 +206,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       'non-interactive': nonInteractive,
+      'auto-testflight-setup': autoTestFlightSetup,
       'verbose-fastlane': isVerboseFastlaneEnabled,
       groups,
       'what-to-test': whatToTest,
@@ -221,6 +230,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
+      autoTestFlightSetup,
       whatToTest,
       isVerboseFastlaneEnabled,
       groups,

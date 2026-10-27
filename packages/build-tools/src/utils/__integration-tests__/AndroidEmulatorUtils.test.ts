@@ -1,6 +1,9 @@
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { setTimeout } from 'timers/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -16,6 +19,8 @@ jest.unmock('fs');
 jest.unmock('node:fs');
 
 describe('AndroidEmulatorUtils', () => {
+  const logcatDirectory = path.join(os.tmpdir(), 'android-emulator-utils-integration-logs');
+
   beforeEach(async () => {
     const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env: process.env });
     for (const { serialId } of devices) {
@@ -42,6 +47,7 @@ describe('AndroidEmulatorUtils', () => {
         console.error('Failed to delete emulator', error);
       }
     }
+    await fs.promises.rm(logcatDirectory, { force: true, recursive: true });
   });
 
   describe('getAvailableDevicesAsync', () => {
@@ -65,12 +71,16 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
         deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
         env: process.env,
         logger: createMockLogger({ logToConsole: true }),
       });
       ({ serialId } = await AndroidEmulatorUtils.startAsync({
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcatDirectory,
       }));
       await AndroidEmulatorUtils.waitForReadyAsync({
         serialId,
@@ -88,12 +98,16 @@ describe('AndroidEmulatorUtils', () => {
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId,
@@ -123,6 +137,7 @@ describe('AndroidEmulatorUtils', () => {
       await AndroidEmulatorUtils.startAsync({
         deviceName: cloneDeviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcatDirectory,
       });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId: serialIdClone,
@@ -149,6 +164,9 @@ describe('AndroidEmulatorUtils', () => {
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });
@@ -156,6 +174,7 @@ describe('AndroidEmulatorUtils', () => {
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId,
@@ -199,6 +218,9 @@ describe('AndroidEmulatorUtils', () => {
             deviceName,
             systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
             deviceIdentifier: null,
+            lcdWidth: null,
+            lcdHeight: null,
+            lcdDensity: null,
             env: envForAttempt,
             logger: createMockLogger({ logToConsole: true }),
           });
@@ -206,6 +228,7 @@ describe('AndroidEmulatorUtils', () => {
           const startResult = await AndroidEmulatorUtils.startAsync({
             deviceName,
             env: envForAttempt,
+            logcatDirectory,
           });
           serialId = startResult.serialId;
           emulatorPromise = asyncResult(startResult.emulatorPromise);
@@ -262,12 +285,100 @@ describe('AndroidEmulatorUtils', () => {
     expect(attemptCounter).toBe(2);
   }, 360_000);
 
+  it('captures emulator and native logcat output across an ADB server restart', async () => {
+    const testLogcatDirectory = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'android-emulator-logcat-e2e-')
+    );
+    const deviceName =
+      `android-emulator-logcat-e2e-${randomUUID().slice(0, 8)}` as AndroidVirtualDeviceName;
+    let emulatorPromise: Promise<unknown> | null = null;
+    let serialId: AndroidDeviceSerialId | null = null;
+
+    try {
+      const logger = createMockLogger({ logToConsole: true });
+      const marker = `ENG-20762-${randomUUID()}`;
+
+      await AndroidEmulatorUtils.createAsync({
+        deviceName,
+        systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+        deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
+        env: process.env,
+        logger,
+      });
+      const startResult = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcatDirectory: testLogcatDirectory,
+      });
+      serialId = startResult.serialId;
+      emulatorPromise = asyncResult(startResult.emulatorPromise);
+
+      await AndroidEmulatorUtils.waitForReadyAsync({ serialId, env: process.env });
+      await retryAsync(
+        async () => {
+          const contents = await fs.promises.readFile(startResult.emulatorOutputPath, 'utf-8');
+          if (!contents.includes('Android emulator version')) {
+            throw new Error('Did not find the emulator version in emulator process output yet.');
+          }
+        },
+        {
+          logger,
+          retryOptions: {
+            retries: 10,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
+      await spawn('adb', ['kill-server'], { env: process.env });
+      await spawn('adb', ['start-server'], { env: process.env });
+      await spawn('adb', ['-s', serialId, 'shell', 'log', '-t', 'EAS_CLI_TEST', marker], {
+        env: process.env,
+      });
+
+      await retryAsync(
+        async () => {
+          const contents = await fs.promises.readFile(startResult.logcatOutputPath, 'utf-8');
+          if (!contents.includes(marker)) {
+            throw new Error(`Did not find marker ${marker} in logcat output yet.`);
+          }
+        },
+        {
+          logger,
+          retryOptions: {
+            retries: 10,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
+    } finally {
+      try {
+        await AndroidEmulatorUtils.deleteAsync({
+          ...(serialId ? { serialId } : {}),
+          deviceName,
+          env: process.env,
+        });
+      } catch (error) {
+        console.warn('Failed to clean up emulator during logcat integration test', error);
+      }
+      if (emulatorPromise) {
+        await emulatorPromise;
+      }
+      await fs.promises.rm(testLogcatDirectory, { recursive: true, force: true });
+    }
+  }, 180_000);
+
   it('should work with screen recording', async () => {
     const deviceName = 'android-emulator-screen-recording-test' as AndroidVirtualDeviceName;
     await AndroidEmulatorUtils.createAsync({
       deviceName,
       systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
       deviceIdentifier: null,
+      lcdWidth: null,
+      lcdHeight: null,
+      lcdDensity: null,
       env: process.env,
       logger: createMockLogger({ logToConsole: true }),
     });
@@ -275,6 +386,7 @@ describe('AndroidEmulatorUtils', () => {
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
 
     await AndroidEmulatorUtils.waitForReadyAsync({

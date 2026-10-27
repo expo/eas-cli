@@ -8,6 +8,8 @@
   "endOfLine": "lf",
   "ignorePatterns": [
     ".github",
+    ".claude",
+    ".expo-code-review",
     "lerna.json",
     "**/build/**",
     "**/dist/**",
@@ -16,6 +18,7 @@
     "packages/eas-cli/README.md",
     "packages/eas-cli/schema/**",
     "packages/eas-cli/graphql.schema.json",
+    "packages/eas-cli/src/graphql/generated.ts",
     "packages/build-tools/schema.graphql"
   ]
 }

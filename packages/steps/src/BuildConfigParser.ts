@@ -33,6 +33,7 @@ import {
 } from './BuildStepInput';
 import { BuildStepOutput, BuildStepOutputProvider } from './BuildStepOutput';
 import { BuildConfigError } from './errors';
+import { AnchorHooks } from './hooks';
 
 export class BuildConfigParser extends AbstractConfigParser {
   private readonly configPath: string;
@@ -59,6 +60,7 @@ export class BuildConfigParser extends AbstractConfigParser {
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
     buildSteps: BuildStep[];
     buildFunctionById: BuildFunctionById;
+    hooksByAnchorStep: ReadonlyMap<BuildStep, AnchorHooks>;
   }> {
     const config = await readAndValidateBuildConfigFromPathAsync(this.configPath, {
       externalFunctionIds: this.getExternalFunctionFullIds(),
@@ -81,6 +83,9 @@ export class BuildConfigParser extends AbstractConfigParser {
     return {
       buildSteps,
       buildFunctionById: buildFunctions,
+      // config.yml builds have no hooks — the payload `hooks` field never
+      // reaches this parser.
+      hooksByAnchorStep: new Map(),
     };
   }
 
@@ -127,7 +132,14 @@ export class BuildConfigParser extends AbstractConfigParser {
       __metrics_id,
     } = run;
     const id = BuildStep.getNewId(maybeId);
-    const displayName = BuildStep.getDisplayName({ id, name, command });
+    const displayName =
+      name ??
+      maybeId ??
+      command
+        .split('\n')
+        .find(line => line.trim())
+        ?.trim() ??
+      command;
     const inputs =
       inputsConfig && this.createBuildStepInputsFromDefinition(inputsConfig, displayName);
     const outputs =
@@ -135,10 +147,9 @@ export class BuildConfigParser extends AbstractConfigParser {
     const timeoutMs = timeout_minutes !== undefined ? timeout_minutes * 60 * 1000 : undefined;
     return new BuildStep(this.ctx, {
       id,
+      displayName,
       inputs,
       outputs,
-      name,
-      displayName,
       workingDirectory,
       shell,
       command,
@@ -153,7 +164,11 @@ export class BuildConfigParser extends AbstractConfigParser {
     run: command,
   }: BuildStepBareCommandRun): BuildStep {
     const id = BuildStep.getNewId();
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName =
+      command
+        .split('\n')
+        .find(line => line.trim())
+        ?.trim() ?? command;
     return new BuildStep(this.ctx, {
       id,
       displayName,

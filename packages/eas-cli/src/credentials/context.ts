@@ -27,6 +27,7 @@ export class CredentialsContext {
   public readonly nonInteractive: boolean;
   public readonly autoAcceptCredentialReuse: boolean;
   public readonly freezeCredentials: boolean = false;
+  public readonly refreshAdHocProvisioningProfile: boolean = false;
   public readonly projectDir: string;
   public readonly user: Actor;
   public readonly graphqlClient: ExpoGraphqlClient;
@@ -52,6 +53,7 @@ export class CredentialsContext {
       vcsClient: Client;
       freezeCredentials?: boolean;
       autoAcceptCredentialReuse?: boolean;
+      refreshAdHocProvisioningProfile?: boolean;
       env?: Env;
     }
   ) {
@@ -65,6 +67,7 @@ export class CredentialsContext {
     this.autoAcceptCredentialReuse = options.autoAcceptCredentialReuse ?? false;
     this.projectInfo = options.projectInfo;
     this.freezeCredentials = options.freezeCredentials ?? false;
+    this.refreshAdHocProvisioningProfile = options.refreshAdHocProvisioningProfile ?? false;
     this.usesBroadcastPushNotifications =
       options.projectInfo?.exp.ios?.usesBroadcastPushNotifications ?? false;
   }
@@ -102,6 +105,17 @@ export class CredentialsContext {
     }
 
     if (this.appStore.defaultAuthenticationMode === AuthenticationMode.API_KEY) {
+      if (
+        process.env.EXPO_ASC_API_KEY_PATH &&
+        process.env.EXPO_ASC_KEY_ID &&
+        !process.env.EXPO_ASC_ISSUER_ID
+      ) {
+        Log.debug(
+          `App Store Connect API key ${process.env.EXPO_ASC_KEY_ID} has no Issuer ID (individual key). Skipping authentication with Apple. Set EXPO_ASC_ISSUER_ID if this is a team key.`
+        );
+        this.shouldAskAuthenticateAppStore = false;
+        return;
+      }
       await this.appStore.ensureAuthenticatedAsync();
       return;
     }

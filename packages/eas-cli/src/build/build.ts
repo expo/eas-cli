@@ -25,12 +25,30 @@ import {
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
+  EasBuildUnauthorizedError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
+import {
+  FreeTierLimitCheckoutExperiment,
+  getFreeTierLimitCheckoutExperiment,
+  maybeOfferFreeTierLimitCheckoutAsync,
+} from './freeTierLimitCheckout';
+import {
+  FreeTierLimitAgentGuidanceExperiment,
+  getFreeTierLimitAgentGuidanceExperiment,
+  maybeAppendFreeTierLimitAgentGuidanceAsync,
+} from './freeTierLimitGuidance';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
+import {
+  formatActiveBuildText,
+  formatActiveBuildsText,
+  isBuildCompleted,
+  logSourceForBuild,
+} from './logs';
 import { collectMetadataAsync } from './metadata';
+import { resolveJobExpoTokenRole } from './utils/expoTokenRole';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
@@ -40,11 +58,14 @@ import {
   maybeWarnAboutProjectTarballSize,
   reviewAndCommitChangesAsync,
 } from './utils/repository';
+import { getAccountBillingUrl } from './utils/url';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
+import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
+import { LogsState } from '../commandUtils/logs/state';
+import { LogsWatcher } from '../commandUtils/logs/watcher';
 import { createFingerprintAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
@@ -59,7 +80,7 @@ import {
 import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore, link } from '../log';
-import { Ora, ora } from '../ora';
+import { Ora, isSpinnerEnabled, ora, updateSpinnerText } from '../ora';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -69,6 +90,7 @@ import {
 import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAsync';
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { createRealtimeLogsClient } from '../utils/centrifuge';
 import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
@@ -110,6 +132,7 @@ function resolveBuildParamsInput<T extends Platform>(
     resourceClass: ctx.resourceClass,
     sdkVersion: metadata.sdkVersion,
     reactNativeVersion: metadata.reactNativeVersion,
+    expoTokenRole: resolveJobExpoTokenRole(ctx.buildProfile),
   };
 }
 
@@ -209,7 +232,13 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform);
+        return await handleBuildRequestErrorAsync(
+          error,
+          job.platform,
+          ctx.accountName,
+          getFreeTierLimitAgentGuidanceExperiment(ctx),
+          getFreeTierLimitCheckoutExperiment(ctx)
+        );
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -230,13 +259,40 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-export function handleBuildRequestError(error: any, platform: Platform): never {
-  Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
+export async function handleBuildRequestErrorAsync(
+  error: any,
+  platform: Platform,
+  accountName?: string,
+  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment,
+  freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
+): Promise<never> {
+  logBuildRequestErrorDebugInfo(error);
 
-  const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
-  if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
+  const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
+    ? error.graphQLErrors
+    : [];
+  const graphQLErrorCode: string | undefined = graphQLErrors[0]?.extensions?.errorCode as
+    | string
+    | undefined;
+  if (graphQLErrorCode && graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+    const message = graphQLErrors[0]?.message;
+    const isFreeTierLimitError =
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
+    if (!isFreeTierLimitError) {
+      throw new ErrorClass(message);
+    }
+    const limitMessage = await maybeAppendFreeTierLimitAgentGuidanceAsync(
+      `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
+      platform,
+      freeTierLimitAgentGuidanceExperiment
+    );
+    const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
+      limitMessage,
+      freeTierLimitCheckoutExperiment
+    );
+    throw new ErrorClass(limitMessage, { messageAlreadyPrinted });
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -247,23 +303,137 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
-  } else if (error?.graphQLErrors) {
-    const errorMessage = error.graphQLErrors
-      .map((graphQLError: GraphQLError) => {
-        const requestIdLine = graphQLError?.extensions?.requestId
-          ? `\nRequest ID: ${graphQLError.extensions.requestId}`
-          : '';
-        const errorMessageLine = graphQLError?.message
-          ? `\nError message: ${graphQLError.message}`
-          : '';
-        return `${requestIdLine}${errorMessageLine}`;
-      })
-      .join('');
+  } else if (graphQLErrorCode === 'UNAUTHORIZED') {
+    const requestId = graphQLErrors[0]?.extensions?.requestId;
+    throw new EasBuildUnauthorizedError(
+      `${graphQLErrors[0]?.message}${requestId ? `\nRequest ID: ${requestId}` : ''}\n\nRun ${chalk.bold(
+        'eas whoami'
+      )} to check the user you are logged in as and your permission grant. Run ${chalk.bold(
+        'eas login'
+      )} to change the user or permission grant.\n\nIf your build profile in eas.json uses ${chalk.bold(
+        'permissions.account.role'
+      )}, it may mean your credentials do not grant the requested role.`
+    );
+  } else if (Array.isArray(error?.graphQLErrors)) {
+    const errorDetails = formatBuildRequestErrorDetails(error, graphQLErrors);
     throw new Error(
-      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorMessage}`
+      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorDetails}`
     );
   }
   throw error;
+}
+
+function formatBuildRequestErrorDetails(error: any, graphQLErrors: GraphQLError[]): string {
+  const details: string[] = graphQLErrors
+    .map((graphQLError: GraphQLError) => {
+      const requestIdLine = graphQLError?.extensions?.requestId
+        ? `\nRequest ID: ${graphQLError.extensions.requestId}`
+        : '';
+      const errorMessageLine = graphQLError?.message
+        ? `\nError message: ${graphQLError.message}`
+        : '';
+      return `${requestIdLine}${errorMessageLine}`;
+    })
+    .filter(Boolean);
+
+  if (error?.networkError?.message) {
+    details.push(`\nNetwork error: ${error.networkError.message}`);
+  }
+
+  const response = error?.response;
+  if (response?.status !== undefined || response?.statusText) {
+    const status = [response.status, response.statusText]
+      .filter(value => value !== undefined && value !== '')
+      .join(' ');
+    details.push(`\nResponse status: ${status}`);
+  }
+
+  const responseRequestId = getResponseRequestId(response);
+  const graphQLRequestIds = new Set(
+    graphQLErrors.map(graphQLError => graphQLError?.extensions?.requestId)
+  );
+  if (responseRequestId && !graphQLRequestIds.has(responseRequestId)) {
+    details.push(`\nRequest ID: ${responseRequestId}`);
+  }
+
+  if (details.length === 0 && error?.message) {
+    details.push(`\nError message: ${error.message}`);
+  }
+
+  return details.join('');
+}
+
+function getResponseRequestId(response: any): string | null {
+  return (
+    response?.headers?.get?.('expo-request-id') ?? response?.headers?.get?.('x-request-id') ?? null
+  );
+}
+
+function logBuildRequestErrorDebugInfo(error: any): void {
+  const debugInfo = collectBuildRequestErrorDebugInfo(error);
+  if (debugInfo) {
+    Log.debug(`Build request error details:\n${JSON.stringify(debugInfo, null, 2)}`);
+  }
+}
+
+function collectBuildRequestErrorDebugInfo(error: any): Record<string, unknown> | null {
+  if (!Array.isArray(error?.graphQLErrors) && !error?.response && !error?.networkError) {
+    return null;
+  }
+
+  const debugInfo: Record<string, unknown> = {};
+  if (error?.message) {
+    debugInfo.message = error.message;
+  }
+  if (Array.isArray(error?.graphQLErrors)) {
+    debugInfo.graphQLErrors = error.graphQLErrors;
+  }
+  if (error?.networkError) {
+    debugInfo.networkError = collectErrorDebugInfo(error.networkError);
+  }
+
+  const response = collectResponseDebugInfo(error?.response);
+  if (response) {
+    debugInfo.response = response;
+  }
+
+  return debugInfo;
+}
+
+function collectErrorDebugInfo(error: any): Record<string, unknown> {
+  const debugInfo: Record<string, unknown> = {};
+  for (const property of ['name', 'message', 'code', 'type', 'errno', 'syscall', 'stack']) {
+    if (error?.[property]) {
+      debugInfo[property] = error[property];
+    }
+  }
+  return debugInfo;
+}
+
+function collectResponseDebugInfo(response: any): Record<string, unknown> | null {
+  if (!response) {
+    return null;
+  }
+
+  const debugInfo: Record<string, unknown> = {};
+  for (const property of ['status', 'statusText', 'url']) {
+    if (response[property] !== undefined && response[property] !== '') {
+      debugInfo[property] = response[property];
+    }
+  }
+
+  const headers: Record<string, string> = {};
+  for (const headerName of ['expo-request-id', 'x-request-id', 'content-type']) {
+    const headerValue = response?.headers?.get?.(headerName);
+    if (headerValue) {
+      headers[headerName] = headerValue;
+    }
+  }
+  if (Object.keys(headers).length > 0) {
+    debugInfo.headers = headers;
+  }
+
+  return Object.keys(debugInfo).length > 0 ? debugInfo : null;
 }
 
 async function uploadProjectAsync<TPlatform extends Platform>(
@@ -417,17 +587,62 @@ export async function waitForBuildEndAsync(
     originalSpinnerText = 'Waiting for builds to complete. You can press Ctrl+C to exit.';
     spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
   }
-  while (true) {
-    const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
-    const { refetch } =
-      builds.length === 1
-        ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
-        : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
-    if (!refetch) {
-      return builds;
+  let render = (): void => {};
+  const watcher = isSpinnerEnabled()
+    ? new LogsWatcher(
+        () => createRealtimeLogsClient(graphqlClient),
+        () => {
+          render();
+        }
+      )
+    : null;
+
+  try {
+    while (true) {
+      render = (): void => {};
+      const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
+      const logsStates = await syncBuildLogsAsync(watcher, builds);
+      const installRender = (nextRender: () => void): void => {
+        render = nextRender;
+      };
+      const { refetch } =
+        builds.length === 1
+          ? await handleSingleBuildProgressAsync(
+              { build: builds[0], accountName },
+              { spinner, logsStates, installRender }
+            )
+          : await handleMultipleBuildsProgressAsync(
+              { builds },
+              { spinner, originalSpinnerText, logsStates, installRender }
+            );
+      if (!refetch) {
+        return builds;
+      }
+      await sleepAsync(intervalSec * 1000);
     }
-    await sleepAsync(intervalSec * 1000);
+  } finally {
+    watcher?.close();
   }
+}
+
+async function syncBuildLogsAsync(
+  watcher: LogsWatcher | null,
+  builds: MaybeBuildFragment[]
+): Promise<Map<string, LogsState>> {
+  if (!watcher) {
+    return new Map();
+  }
+  const existingBuilds = builds.filter(isBuildFragment);
+  const logsStates = await watcher.syncAsync(existingBuilds.map(build => logSourceForBuild(build)));
+  for (const build of existingBuilds) {
+    if (isBuildCompleted(build.status)) {
+      nullthrows(
+        logsStates.get(build.id),
+        'syncAsync must have been called before markCompleted'
+      ).markCompleted();
+    }
+  }
+  return logsStates;
 }
 
 async function getBuildsSafelyAsync(
@@ -449,11 +664,19 @@ interface BuildProgressResult {
   refetch: boolean;
 }
 
+type BuildLogsProgressOptions = {
+  logsStates: Map<string, LogsState>;
+  installRender: (render: () => void) => void;
+};
+
 let queueProgressBarStarted = false;
 const queueProgressBar = new cliProgress.SingleBar(
   { format: '|{bar}| {estimatedWaitTime}' },
   cliProgress.Presets.rect
 );
+
+let statusNewSetAt: number | null = null;
+const NEW_STATUS_GRACE_PERIOD_MS = 15_000;
 
 async function handleSingleBuildProgressAsync(
   {
@@ -463,10 +686,12 @@ async function handleSingleBuildProgressAsync(
     build: MaybeBuildFragment;
     accountName: string;
   },
-  { spinner }: { spinner: Ora }
+  { spinner, logsStates, installRender }: { spinner: Ora } & BuildLogsProgressOptions
 ): Promise<BuildProgressResult> {
   if (build === null) {
-    spinner.text = 'Could not fetch the build status. Check your network connection.';
+    updateSpinnerText(spinner, {
+      text: 'Could not fetch the build status. Check your network connection.',
+    });
     return { refetch: true };
   }
 
@@ -486,13 +711,23 @@ async function handleSingleBuildProgressAsync(
     case BuildStatus.Finished:
       spinner.succeed('Build finished');
       return { refetch: false };
-    case BuildStatus.New:
-      spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-        formatAccountBillingUrl(accountName)
-      )}.`;
+    case BuildStatus.New: {
+      const now = Date.now();
+      statusNewSetAt ??= now;
+      const newStatusDurationMs = now - statusNewSetAt;
+      if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
+        updateSpinnerText(spinner, { text: 'Waiting for build to get enqueued…' });
+      } else {
+        updateSpinnerText(spinner, {
+          text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
+            getAccountBillingUrl(accountName)
+          )}.`,
+        });
+      }
       break;
+    }
     case BuildStatus.InQueue: {
-      spinner.text = 'Build queued...';
+      updateSpinnerText(spinner, { text: 'Build queued...' });
       const progressBarPayload =
         typeof build.estimatedWaitTimeLeftSeconds === 'number'
           ? { estimatedWaitTime: formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds) }
@@ -508,7 +743,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
+          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
@@ -529,9 +764,17 @@ async function handleSingleBuildProgressAsync(
     case BuildStatus.Canceled:
       spinner.fail('Build canceled');
       return { refetch: false };
-    case BuildStatus.InProgress:
-      spinner.text = 'Build in progress...';
+    case BuildStatus.InProgress: {
+      const logsState = logsStates.get(build.id);
+      const render = (): void => {
+        updateSpinnerText(spinner, {
+          text: formatActiveBuildText('Build in progress...', logsState?.getLogs() ?? new Map()),
+        });
+      };
+      installRender(render);
+      render();
       break;
+    }
     case BuildStatus.Errored:
       spinner.fail('Build failed');
       if (build.error) {
@@ -553,7 +796,7 @@ const priorityToQueueDisplayName: Record<BuildPriority, string> = {
 };
 
 const statusToDisplayName: Record<BuildStatus, string> = {
-  [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
+  [BuildStatus.New]: 'waiting to enter the queue',
   [BuildStatus.InQueue]: 'in queue',
   [BuildStatus.InProgress]: 'in progress',
   [BuildStatus.PendingCancel]: 'canceled',
@@ -566,11 +809,17 @@ const platforms = [AppPlatform.Android, AppPlatform.Ios];
 
 async function handleMultipleBuildsProgressAsync(
   { builds: maybeBuilds }: { builds: MaybeBuildFragment[] },
-  { spinner, originalSpinnerText }: { spinner: Ora; originalSpinnerText: string }
+  {
+    spinner,
+    originalSpinnerText,
+    logsStates,
+    installRender,
+  }: { spinner: Ora; originalSpinnerText: string } & BuildLogsProgressOptions
 ): Promise<BuildProgressResult> {
   const buildCount = maybeBuilds.length;
   const builds = maybeBuilds.filter<BuildFragment>(isBuildFragment);
 
+  const someNew = builds.some(build => build.status === BuildStatus.New);
   const allFinished =
     builds.filter(build => build.status === BuildStatus.Finished).length === buildCount;
   const allSettled =
@@ -583,6 +832,10 @@ async function handleMultipleBuildsProgressAsync(
       ].includes(build.status)
     ).length === buildCount;
 
+  if (someNew && statusNewSetAt === null) {
+    statusNewSetAt = Date.now();
+  }
+
   if (allSettled) {
     if (allFinished) {
       spinner.succeed(formatSettledBuildsText(builds));
@@ -591,7 +844,28 @@ async function handleMultipleBuildsProgressAsync(
     }
     return { refetch: false };
   } else {
-    spinner.text = formatPendingBuildsText(originalSpinnerText, builds);
+    const showConcurrencyWarning =
+      someNew &&
+      statusNewSetAt !== null &&
+      Date.now() - statusNewSetAt >= NEW_STATUS_GRACE_PERIOD_MS;
+    const pendingBuildsText = formatPendingBuildsText(
+      originalSpinnerText,
+      builds,
+      showConcurrencyWarning
+    );
+    const inProgressBuilds = builds.filter(build => build.status === BuildStatus.InProgress);
+    const render = (): void => {
+      const text = formatActiveBuildsText(
+        pendingBuildsText,
+        inProgressBuilds.map(build => ({
+          build,
+          logs: logsStates.get(build.id)?.getLogs() ?? new Map(),
+        }))
+      );
+      updateSpinnerText(spinner, { text });
+    };
+    installRender(render);
+    render();
     return { refetch: true };
   }
 }
@@ -610,12 +884,20 @@ function formatSettledBuildsText(builds: BuildFragment[]): string {
     .join('\n  ');
 }
 
-function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragment[]): string {
+function formatPendingBuildsText(
+  originalSpinnerText: string,
+  builds: BuildFragment[],
+  showConcurrencyWarning: boolean
+): string {
   return [
     originalSpinnerText,
     ...platforms.map(platform => {
       const build = builds.find(build => build.platform === platform);
       const status = build ? statusToDisplayName[build.status] : 'unknown';
+      const concurrencyWarning =
+        showConcurrencyWarning && build?.status === BuildStatus.New
+          ? ' (concurrency limit reached)'
+          : '';
       let extraInfo = '';
       if (
         build?.status === BuildStatus.InQueue &&
@@ -635,7 +917,7 @@ function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragm
       }
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
-      } build - status: ${chalk.bold(status)}${extraInfo}`;
+      } build - status: ${chalk.bold(status)}${concurrencyWarning}${extraInfo}`;
     }),
   ].join('\n  ');
 }
@@ -651,10 +933,6 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
     return `starting in about ${n}0 minutes...`;
   }
-}
-
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(

@@ -1,15 +1,16 @@
 import {
   Artifacts,
   BuildContext,
+  Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
+  getDeviceRunSessionTokenFromEnvironmentSecrets,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
   BuildJob,
   BuildMode,
   BuildPhase,
-  BuildPhaseStats,
   Ios,
   Job,
   Metadata,
@@ -17,9 +18,12 @@ import {
   errors,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import spawn from '@expo/turtle-spawn';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
+import semver from 'semver';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import { build } from './build';
@@ -31,7 +35,6 @@ import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -96,9 +99,9 @@ export default class BuildService {
 
     const taskId = rest.jobType === 'jobRun' ? rest.jobRunId : rest.buildId;
     if (taskId !== this.buildId) {
-      sentry.handleError(
-        `Launcher handling build with ID ${taskId} attempted to start build on worker assigned for handling build with ID ${this.buildId} (no action needed)`
-      );
+      const mismatchMsg = `Launcher handling build with ID ${taskId} attempted to start build on worker assigned for handling build with ID ${this.buildId} (no action needed)`;
+      logger.warn(mismatchMsg);
+      sentry.capture(mismatchMsg);
       return;
     }
 
@@ -109,17 +112,18 @@ export default class BuildService {
     this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
-  public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
+  public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
       buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-      userError: err,
+      expoError: err,
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
     await setTimeoutAsync(5 * 1000);
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - error');
@@ -127,7 +131,7 @@ export default class BuildService {
         type: WorkerMessage.MessageType.ERROR,
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-        externalBuildError: err.format(),
+        externalBuildError: err.toExternalExpoError(),
         internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
@@ -141,6 +145,7 @@ export default class BuildService {
       buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
     });
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - success');
@@ -193,6 +198,7 @@ export default class BuildService {
     }
 
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - aborted');
@@ -217,33 +223,22 @@ export default class BuildService {
   }
 
   public async reportHangingWorker(wasSocketClosedAtBuildFinish: boolean): Promise<void> {
-    sentry.handleError(
-      'Worker still alive 5 minutes after sending BuildSuccess/BuildError message - possibly hanging',
-      undefined,
-      {
-        tags: {
-          errorCode: 'WORKER_POSSIBLY_HANGING',
-        },
-        extras: {
-          buildId: this.buildId,
-          state: this.state.stateResponse().status,
-          shouldCloseWorker: String(this.shouldCloseWorker),
-          startBuildTime: String(this.startBuildTime),
-          isSockedClosed: String(!this.ws),
-          wasSocketClosedAtBuildFinish: String(wasSocketClosedAtBuildFinish),
-        },
-      }
-    );
-  }
-
-  public reportBuildPhaseStats(stats: BuildPhaseStats): void {
-    if (this.ws) {
-      logger.info(stats, 'Sending build phase stats');
-      this.ws.send({
-        type: WorkerMessage.MessageType.BUILD_PHASE_STATS,
-        ...stats,
-      });
-    }
+    const hangingMsg =
+      'Worker still alive 5 minutes after sending BuildSuccess/BuildError message - possibly hanging';
+    logger.error(hangingMsg);
+    sentry.capture(hangingMsg, {
+      tags: {
+        errorCode: 'WORKER_POSSIBLY_HANGING',
+      },
+      extras: {
+        buildId: this.buildId,
+        state: this.state.stateResponse().status,
+        shouldCloseWorker: String(this.shouldCloseWorker),
+        startBuildTime: String(this.startBuildTime),
+        isSockedClosed: String(!this.ws),
+        wasSocketClosedAtBuildFinish: String(wasSocketClosedAtBuildFinish),
+      },
+    });
   }
 
   public syncLauncherState({ buildId }: LauncherMessage.StateQuery): void {
@@ -279,14 +274,39 @@ export default class BuildService {
     try {
       const {
         logger: buildLogger,
+        addBuildLogMask,
         cleanUp,
         logBuffer,
       } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
+      const robotAccessToken = job.secrets?.robotAccessToken;
+      // Resolves duplicate secrets like the build env does, so metrics and steps use one token.
+      const deviceRunSessionToken = getDeviceRunSessionTokenFromEnvironmentSecrets(
+        job.secrets?.environmentSecrets
+      );
+      if (!job.platform && deviceRunSessionToken) {
+        // A device run session job reports metrics with its session token, which names the
+        // session and its job run, so it does not need the account-wide robot access token.
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          deviceRunSessionToken,
+          target: { kind: 'deviceRunSession' },
+        });
+      } else if (robotAccessToken) {
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          robotAccessToken,
+          // job.platform is set only for build jobs; for a jobRun, this.buildId is the
+          // turtle-job-run id (verified by the jobType === 'jobRun' guard in startBuild()).
+          target: job.platform
+            ? { kind: 'build', turtleBuildId: this.buildId }
+            : { kind: 'jobRun', turtleJobRunId: this.buildId },
+        });
+      }
 
-      const ctx = createBuildContext({
+      const ctx = await createBuildContext({
         job,
         logBuffer,
         analytics,
@@ -294,9 +314,7 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
-        reportBuildPhaseStatsFn: stats => {
-          this.reportBuildPhaseStats(stats);
-        },
+        addBuildLogMask,
       });
       this.buildContext = ctx;
 
@@ -308,51 +326,29 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-      const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? (error.cause ?? error) : error;
-      const internalErrorCode = err.trackingCode ?? err.errorCode;
+      const err =
+        error instanceof errors.ExpoError
+          ? error
+          : 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+            ? new errors.UnknownCustomBuildError()
+            : new errors.UnknownBuildError();
+      const maybeRawError =
+        error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
-      sentry.handleError(err.message, maybeRawError, {
+      logger.error({ err: maybeRawError }, err.message);
+      sentry.capture(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: internalErrorCode,
+          errorCode: err.trackingCode ?? err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
           ...(err.metadata ? { errorMetadata: err.metadata } : {}),
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(maybeRawError?.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
+          ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
-
-      const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
-        let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
-        }
-        if (maybeRawError.stdout) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
-        }
-
-        await turtleFetch(
-          new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
-          'POST',
-          {
-            json: {
-              buildId: this.buildId,
-              message: rawErrorMessage,
-              buildPhase: err.buildPhase ?? null,
-              errorCode: err.errorCode,
-            },
-            headers: {
-              Authorization: `Bearer ${robotAccessToken}`,
-            },
-            shouldThrowOnNotOk: false,
-          }
-        );
-      }
 
       await this.finishError(err, maybeArtifacts);
     }
@@ -369,25 +365,6 @@ export default class BuildService {
   }
 }
 
-function toBuildError(error: unknown, job: Job): errors.BuildError {
-  if (error instanceof errors.BuildError) {
-    return error;
-  }
-
-  if (error instanceof errors.UserError) {
-    return new errors.BuildError(error.message, {
-      errorCode: error.errorCode,
-      docsUrl: error.docsUrl,
-      cause: error.cause ?? error,
-      metadata: error.metadata,
-    });
-  }
-
-  return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-    ? new errors.UnknownCustomBuildError()
-    : new errors.UnknownBuildError();
-}
-
 function getLastNLines(numberOfLines: number, stream: string): string {
   const lines = stream.split('\n');
   if (lines.length <= numberOfLines) {
@@ -395,4 +372,42 @@ function getLastNLines(numberOfLines: number, stream: string): string {
   } else {
     return lines.slice(lines.length - numberOfLines, lines.length).join('\n');
   }
+}
+
+export async function getExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
+  const reactNativeProjectDirectory = ctx.getReactNativeProjectDirectory();
+  const expoPackageJsonPathResult = await asyncResult(
+    spawn('node', ['--print', "require.resolve('expo/package.json')"], {
+      cwd: reactNativeProjectDirectory,
+      env: ctx.env,
+      stdio: 'pipe',
+    })
+  );
+  if (!expoPackageJsonPathResult.ok) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
+      'Cannot resolve the installed expo package version because require.resolve("expo/package.json") failed.',
+      { cause: expoPackageJsonPathResult.reason }
+    );
+  }
+
+  const expoPackageJsonPath = expoPackageJsonPathResult.value.stdout.toString().trim();
+  const expoPackageJsonResult = await asyncResult(fs.readJson(expoPackageJsonPath));
+  if (!expoPackageJsonResult.ok) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_READ_FAILED',
+      'Cannot resolve the installed expo package version because expo/package.json could not be read.',
+      { cause: expoPackageJsonResult.reason }
+    );
+  }
+
+  const expoPackageVersion = expoPackageJsonResult.value.version;
+  if (typeof expoPackageVersion !== 'string' || !semver.valid(expoPackageVersion)) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
+      'Cannot resolve the installed expo package version because expo/package.json has an invalid version.'
+    );
+  }
+
+  return expoPackageVersion;
 }

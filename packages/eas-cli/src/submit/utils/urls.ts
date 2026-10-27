@@ -1,6 +1,4 @@
-import { URL } from 'url';
-
-import { getExpoWebsiteBaseUrl } from '../../api';
+import { getSubmissionUrl } from '../../build/utils/url';
 import { SubmissionFragment } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
@@ -22,8 +20,5 @@ export function printSubmissionDetailsUrls(submissions: SubmissionFragment[]): v
 
 export function getSubmissionDetailsUrl(submission: SubmissionFragment): string {
   const { id, app } = submission;
-  return new URL(
-    `/accounts/${app.ownerAccount.name}/projects/${app.slug}/submissions/${id}`,
-    getExpoWebsiteBaseUrl()
-  ).toString();
+  return getSubmissionUrl(app.ownerAccount.name, app.slug, id);
 }

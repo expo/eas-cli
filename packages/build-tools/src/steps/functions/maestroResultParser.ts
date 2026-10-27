@@ -1,4 +1,5 @@
-import { XMLParser } from 'fast-xml-parser';
+import { asyncResult } from '@expo/results';
+import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
@@ -14,16 +15,12 @@ export interface MaestroFlowResult {
   properties: Record<string, string>;
 }
 
-// Maestro's TestDebugReporter creates timestamped directories, e.g. "2024-06-15_143022"
-const TIMESTAMP_DIR_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{6}$/;
-
-export function extractFlowKey(filename: string, prefix: string): string | null {
-  const match = filename.match(new RegExp(`^${prefix}-(.+)\\.json$`));
-  return match?.[1] ?? null;
-}
+// Per-attempt JUnit XML files use `*-attempt-N.xml` names; this extracts N.
+const ATTEMPT_PATTERN = /attempt-(\d+)/;
 
 export interface JUnitTestCaseResult {
   name: string;
+  file: string | undefined;
   status: 'passed' | 'failed';
   duration: number; // milliseconds
   errorMessage: string | null;
@@ -38,6 +35,132 @@ const xmlParser = new XMLParser({
   isArray: name => ['testsuite', 'testcase', 'property'].includes(name),
 });
 
+// Official Maestro writes the flow path as a `file=` testcase attribute. maestro-runner writes
+// the same value as a `<property name="file" value="..."/>` child.
+function fileAttrOf(tc: any): string | undefined {
+  const f = tc?.['@_file'];
+  if (typeof f === 'string' && f.length > 0) {
+    return f;
+  }
+  const properties: { '@_name'?: unknown; '@_value'?: unknown }[] = tc?.properties?.property ?? [];
+  const fileProperty = properties.find(property => property['@_name'] === 'file')?.['@_value'];
+  return typeof fileProperty === 'string' && fileProperty.length > 0 ? fileProperty : undefined;
+}
+
+function parseJUnitContent(content: string): JUnitTestCaseResult[] {
+  const results: JUnitTestCaseResult[] = [];
+  try {
+    const parsed = xmlParser.parse(content);
+
+    const testsuites = parsed?.testsuites?.testsuite;
+    if (!Array.isArray(testsuites)) {
+      return results;
+    }
+
+    for (const suite of testsuites) {
+      const testcases = suite?.testcase;
+      if (!Array.isArray(testcases)) {
+        continue;
+      }
+
+      for (const tc of testcases) {
+        const name = tc['@_name'];
+        if (!name) {
+          continue;
+        }
+
+        // Standard JUnit marks skipped tests with a <skipped/> child (no failure/error). Exclude
+        // them so they aren't miscounted as passed, matching the report.json path which drops
+        // skipped flows.
+        if (tc.skipped != null) {
+          continue;
+        }
+
+        const file = fileAttrOf(tc);
+
+        const timeStr = tc['@_time'];
+        const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
+        const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
+
+        // maestro-runner puts the real error in the `message` attribute and the command
+        // label (e.g. `tapOn`) in the body; official Maestro only writes the body. Prefer
+        // `@_message` and fall back to `#text` so both stay correct.
+        const failureText =
+          tc.failure != null
+            ? typeof tc.failure === 'string'
+              ? tc.failure
+              : (tc.failure?.['@_message'] ?? tc.failure?.['#text'] ?? null)
+            : null;
+        const errorText =
+          tc.error != null
+            ? typeof tc.error === 'string'
+              ? tc.error
+              : (tc.error?.['@_message'] ?? tc.error?.['#text'] ?? null)
+            : null;
+        const errorMessage: string | null = failureText ?? errorText ?? null;
+        // Official Maestro uses status="SUCCESS". maestro-runner uses standard JUnit semantics:
+        // a testcase passes when it has no failure or error child.
+        const statusAttribute = tc['@_status'];
+        const status: 'passed' | 'failed' =
+          typeof statusAttribute === 'string'
+            ? statusAttribute === 'SUCCESS'
+              ? 'passed'
+              : 'failed'
+            : tc.failure == null && tc.error == null
+              ? 'passed'
+              : 'failed';
+
+        const rawProperties: { '@_name': string; '@_value': string }[] =
+          tc.properties?.property ?? [];
+        const properties: Record<string, string> = {};
+        for (const prop of rawProperties) {
+          const propName = prop['@_name'];
+          const value = prop['@_value'];
+          if (typeof propName !== 'string' || typeof value !== 'string') {
+            continue;
+          }
+          properties[propName] = value;
+        }
+
+        const tagsValue = properties['tags'];
+        const tags: string[] = tagsValue
+          ? tagsValue
+              .split(',')
+              .map(t => t.trim())
+              .filter(Boolean)
+          : [];
+        delete properties['tags'];
+
+        results.push({ name, file, status, duration, errorMessage, tags, properties });
+      }
+    }
+  } catch {
+    // Malformed XML — return whatever we collected before the parser bailed.
+  }
+  return results;
+}
+
+async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return parseJUnitContent(content);
+  } catch {
+    return [];
+  }
+}
+
+// Raw names (slashes kept) of the testcases a single JUnit file marks failed. Best-effort: an
+// unreadable or malformed file yields an empty set rather than throwing.
+export async function parseFailedFlowNamesFromJUnitFile(junitFile: string): Promise<Set<string>> {
+  const failed = new Set<string>();
+  for (const testcase of await parseJUnitFile(junitFile)) {
+    if (testcase.status === 'failed') {
+      failed.add(testcase.name);
+    }
+  }
+  return failed;
+}
+
 export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnitTestCaseResult[]> {
   let entries: string[];
   try {
@@ -51,214 +174,514 @@ export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnit
     return [];
   }
 
-  const results: JUnitTestCaseResult[] = [];
-
-  for (const xmlFile of xmlFiles) {
-    try {
-      const content = await fs.readFile(path.join(junitDirectory, xmlFile), 'utf-8');
-      const parsed = xmlParser.parse(content);
-
-      const testsuites = parsed?.testsuites?.testsuite;
-      if (!Array.isArray(testsuites)) {
-        continue;
-      }
-
-      for (const suite of testsuites) {
-        const testcases = suite?.testcase;
-        if (!Array.isArray(testcases)) {
-          continue;
-        }
-
-        for (const tc of testcases) {
-          const name = tc['@_name'];
-          if (!name) {
-            continue;
-          }
-
-          const timeStr = tc['@_time'];
-          const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
-          const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
-
-          // Use @_status as primary indicator (more robust than checking <failure> presence)
-          const status: 'passed' | 'failed' = tc['@_status'] === 'SUCCESS' ? 'passed' : 'failed';
-          // Extract error message from <failure> or <error> elements
-          const failureText =
-            tc.failure != null
-              ? typeof tc.failure === 'string'
-                ? tc.failure
-                : (tc.failure?.['#text'] ?? null)
-              : null;
-          const errorText =
-            tc.error != null
-              ? typeof tc.error === 'string'
-                ? tc.error
-                : (tc.error?.['#text'] ?? null)
-              : null;
-          const errorMessage: string | null = failureText ?? errorText ?? null;
-
-          // Extract properties
-          const rawProperties: { '@_name': string; '@_value': string }[] =
-            tc.properties?.property ?? [];
-          const properties: Record<string, string> = {};
-
-          for (const prop of rawProperties) {
-            const propName = prop['@_name'];
-            const value = prop['@_value'];
-            if (typeof propName !== 'string' || typeof value !== 'string') {
-              continue;
-            }
-            properties[propName] = value;
-          }
-
-          // Extract tags from "tags" property (Maestro 2.2.0+, comma-separated)
-          const tagsValue = properties['tags'];
-          const tags: string[] = tagsValue
-            ? tagsValue
-                .split(',')
-                .map(t => t.trim())
-                .filter(Boolean)
-            : [];
-          delete properties['tags'];
-
-          results.push({ name, status, duration, errorMessage, tags, properties });
-        }
-      }
-    } catch {
-      // Skip malformed XML files
-      continue;
-    }
-  }
-
-  return results;
+  const perFile = await Promise.all(
+    xmlFiles.map(f => parseJUnitFile(path.join(junitDirectory, f)))
+  );
+  return perFile.flat();
 }
 
-const FlowMetadataFileSchema = z.object({
-  flow_name: z.string(),
-  flow_file_path: z.string(),
+// ---------------------------------------------------------------------------
+// Maestro >= 2.6.0 code path: every <testcase> carries a `file=` attribute with
+// its flow's own path (all-or-none per run). Callers check the report first
+// (isFileAttrRun / junitFileHasFileAttrs) and route here; the legacy name→path
+// scan is then never consulted.
+// ---------------------------------------------------------------------------
+
+export function isFileAttrRun(
+  testcases: JUnitTestCaseResult[]
+): testcases is (JUnitTestCaseResult & { file: string })[] {
+  return testcases.length > 0 && testcases.every(tc => tc.file !== undefined);
+}
+
+// Unreadable or attribute-less reports ⇒ false: the caller then takes the
+// legacy path, whose own guards degrade safely.
+export async function junitFileHasFileAttrs(junitFile: string): Promise<boolean> {
+  return isFileAttrRun(await parseJUnitFile(junitFile));
+}
+
+async function fileExists(absPath: string): Promise<boolean> {
+  return (await asyncResult(fs.stat(absPath))).ok;
+}
+
+// maestro-runner writes report.json as the source of truth for a run. Use it for runner control
+// flow because sourceFile preserves the exact flow path, while older runner JUnit reports flatten
+// it to a basename. Keep only passed and failed flows so the result matches Maestro JUnit reports,
+// which do not include skipped flows.
+const MaestroRunnerRecordedFlowSchema = z.object({
+  name: z.string().min(1),
+  sourceFile: z.string().min(1),
+  status: z.enum(['passed', 'failed']),
+});
+const MaestroRunnerReportSchema = z.object({
+  flows: z
+    .array(
+      z.discriminatedUnion('status', [
+        MaestroRunnerRecordedFlowSchema,
+        z.object({ status: z.literal('skipped') }),
+      ])
+    )
+    .transform(flows =>
+      flows.filter(
+        (flow): flow is z.infer<typeof MaestroRunnerRecordedFlowSchema> => flow.status !== 'skipped'
+      )
+    ),
 });
 
-type FlowMetadata = z.output<typeof FlowMetadataFileSchema>;
+type MaestroRunnerReport = z.infer<typeof MaestroRunnerReportSchema>;
 
-/**
- * Parses an `ai-*.json` file produced by Maestro's TestDebugReporter.
- *
- * The file contains:
- * - `flow_name`: derived from the YAML `config.name` field if present, otherwise
- *   the flow filename without extension.
- *   See: https://github.com/mobile-dev-inc/Maestro/blob/c0e95fd/maestro-cli/src/main/java/maestro/cli/runner/TestRunner.kt#L70
- * - `flow_file_path`: absolute path to the original flow YAML file.
- * - `outputs`: screenshot defect data (unused here).
- *
- * Filename format: `ai-(flowName).json` where `/` in flowName is replaced with `_`.
- * See: https://github.com/mobile-dev-inc/Maestro/blob/c0e95fd/maestro-cli/src/main/java/maestro/cli/report/TestDebugReporter.kt#L67
- */
-export async function parseFlowMetadata(filePath: string): Promise<FlowMetadata | null> {
+export async function parseFailedFlowsFromMaestroRunnerReport(args: {
+  reportDirectory: string;
+  workingDirectory: string;
+}): Promise<string[] | null> {
+  const report = await parseMaestroRunnerReport(args.reportDirectory);
+  if (report === null) {
+    return null;
+  }
+
+  const failedPaths = [
+    ...new Set(report.flows.filter(flow => flow.status === 'failed').map(flow => flow.sourceFile)),
+  ];
+  if (failedPaths.length === 0) {
+    return null;
+  }
+
+  for (const flowPath of failedPaths) {
+    if (!(await fileExists(path.resolve(args.workingDirectory, flowPath)))) {
+      return null;
+    }
+  }
+  return failedPaths;
+}
+
+export async function parseMaestroRunnerReport(
+  reportDirectory: string
+): Promise<MaestroRunnerReport | null> {
+  let report: unknown;
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    const data = JSON.parse(content);
-    return FlowMetadataFileSchema.parse(data);
+    report = JSON.parse(await fs.readFile(path.join(reportDirectory, 'report.json'), 'utf8'));
   } catch {
     return null;
   }
+  const result = MaestroRunnerReportSchema.safeParse(report);
+  return result.success ? result.data : null;
+}
+
+// Group by `file=` so two same-named flows in different files stay separate.
+export async function parseMaestroResultsFromFileAttrs(
+  junitDirectory: string
+): Promise<MaestroFlowResult[]> {
+  interface JUnitEntry {
+    result: JUnitTestCaseResult;
+    sourceFile: string;
+  }
+
+  let junitEntries: string[];
+  try {
+    junitEntries = await fs.readdir(junitDirectory);
+  } catch {
+    return [];
+  }
+  const xmlFiles = junitEntries.filter(f => f.endsWith('.xml')).sort();
+
+  const entries: JUnitEntry[] = [];
+  for (const xmlFile of xmlFiles) {
+    const fileResults = await parseJUnitFile(path.join(junitDirectory, xmlFile));
+    for (const result of fileResults) {
+      entries.push({ result, sourceFile: xmlFile });
+    }
+  }
+
+  const byPath = new Map<string, JUnitEntry[]>();
+  for (const entry of entries) {
+    // Callers verify the report with isFileAttrRun/junitFileHasFileAttrs first;
+    // skip (rather than emit an undefined path) if that contract is violated.
+    const flowPath = entry.result.file;
+    if (flowPath === undefined) {
+      continue;
+    }
+    const group = byPath.get(flowPath) ?? [];
+    group.push(entry);
+    byPath.set(flowPath, group);
+  }
+
+  const results: MaestroFlowResult[] = [];
+  for (const [flowPath, group] of byPath) {
+    // retryCount is derived from each entry's source filename (`attempt-N`);
+    // a single entry from `report.xml` (no marker) collapses to attempt 0.
+    const sorted = group
+      .map(entry => {
+        const match = entry.sourceFile.match(ATTEMPT_PATTERN);
+        const attemptIndex = match ? parseInt(match[1], 10) : 0;
+        return { ...entry, attemptIndex };
+      })
+      .sort((a, b) => a.attemptIndex - b.attemptIndex);
+
+    for (const { result, attemptIndex } of sorted) {
+      results.push({
+        name: result.name,
+        path: flowPath,
+        status: result.status,
+        errorMessage: result.errorMessage,
+        duration: result.duration,
+        retryCount: attemptIndex,
+        tags: result.tags,
+        properties: result.properties,
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * Returns the `file=` paths of the failing testcases in the given attempt's
+ * JUnit file, or `null` when the result cannot be trusted (caller then falls
+ * back to dumb retry — re-run everything; never the legacy scan).
+ *
+ * Callers verify the report carries `file=` attributes first
+ * (junitFileHasFileAttrs).
+ */
+export async function parseFailedFlowsFromFileAttrs(args: {
+  junitFile: string;
+  workingDirectory: string;
+}): Promise<string[] | null> {
+  // Same hardening as the legacy parser: fast-xml-parser is lenient — a
+  // truncated XML could drop testcases, and trusting that partial failing set
+  // would skip retries for cut-off flows.
+  let content: string;
+  try {
+    content = await fs.readFile(args.junitFile, 'utf-8');
+  } catch {
+    return null;
+  }
+  if (XMLValidator.validate(content) !== true) {
+    return null;
+  }
+
+  const testcases = parseJUnitContent(content);
+  if (!isFileAttrRun(testcases)) {
+    return null;
+  }
+
+  const failing = testcases.filter(tc => tc.status === 'failed');
+  if (failing.length === 0) {
+    return [];
+  }
+
+  // Each failing testcase is self-identifying via `file=`, so duplicate flow
+  // names retry correctly. path.resolve (not join): `file=` may be absolute
+  // when the flow lives outside the working directory.
+  const paths = [...new Set(failing.map(tc => tc.file))];
+  for (const p of paths) {
+    if (!(await fileExists(path.resolve(args.workingDirectory, p)))) {
+      return null;
+    }
+  }
+  return paths;
 }
 
 export async function parseMaestroResults(
   junitDirectory: string,
-  testsDirectory: string,
-  projectRoot: string
+  nameToPath: Map<string, string> | null
 ): Promise<MaestroFlowResult[]> {
-  // 1. Parse JUnit XML files (primary source)
-  const junitResults = await parseJUnitTestCases(junitDirectory);
-  if (junitResults.length === 0) {
+  let junitEntries: string[];
+  try {
+    junitEntries = await fs.readdir(junitDirectory);
+  } catch {
+    return [];
+  }
+  const xmlFiles = junitEntries.filter(f => f.endsWith('.xml')).sort();
+  if (xmlFiles.length === 0) {
     return [];
   }
 
-  // 2. Parse ai-*.json from debug output for flow_file_path + retryCount
-  const flowPathMap = new Map<string, string>(); // flowName → flowFilePath
-  const flowOccurrences = new Map<string, number>(); // flowName → count
-
-  let entries: string[];
-  try {
-    entries = await fs.readdir(testsDirectory);
-  } catch {
-    entries = [];
+  interface JUnitResultWithSource {
+    result: JUnitTestCaseResult;
+    sourceFile: string;
   }
 
-  const timestampDirs = entries.filter(name => TIMESTAMP_DIR_PATTERN.test(name)).sort();
-
-  for (const dir of timestampDirs) {
-    const dirPath = path.join(testsDirectory, dir);
-    let files: string[];
-    try {
-      files = await fs.readdir(dirPath);
-    } catch {
-      continue;
-    }
-
-    for (const file of files) {
-      const flowKey = extractFlowKey(file, 'ai');
-      if (!flowKey) {
-        continue;
-      }
-
-      const metadata = await parseFlowMetadata(path.join(dirPath, file));
-      if (!metadata) {
-        continue;
-      }
-
-      // Track latest path (last timestamp dir wins)
-      flowPathMap.set(metadata.flow_name, metadata.flow_file_path);
-
-      // Count occurrences for retryCount
-      flowOccurrences.set(metadata.flow_name, (flowOccurrences.get(metadata.flow_name) ?? 0) + 1);
+  const junitResultsWithSource: JUnitResultWithSource[] = [];
+  for (const xmlFile of xmlFiles) {
+    const fileResults = await parseJUnitFile(path.join(junitDirectory, xmlFile));
+    for (const result of fileResults) {
+      junitResultsWithSource.push({ result, sourceFile: xmlFile });
     }
   }
 
-  // 3. Merge: JUnit results + ai-*.json metadata
+  if (junitResultsWithSource.length === 0) {
+    return [];
+  }
+
   const results: MaestroFlowResult[] = [];
 
-  for (const junit of junitResults) {
-    const flowFilePath = flowPathMap.get(junit.name);
-    const relativePath = flowFilePath
-      ? await relativizePathAsync(flowFilePath, projectRoot)
-      : junit.name; // fallback: use flow name if ai-*.json not found
+  const resultsByName = new Map<string, JUnitResultWithSource[]>();
+  for (const entry of junitResultsWithSource) {
+    const group = resultsByName.get(entry.result.name) ?? [];
+    group.push(entry);
+    resultsByName.set(entry.result.name, group);
+  }
 
-    const occurrences = flowOccurrences.get(junit.name) ?? 0;
-    const retryCount = Math.max(0, occurrences - 1);
+  for (const [flowName, flowEntries] of resultsByName) {
+    const flowPath = nameToPath?.get(flowName) ?? flowName;
+    // retryCount is derived from each entry's source filename (`attempt-N`);
+    // a single entry from `report.xml` (no marker) collapses to attempt 0.
+    const sorted = flowEntries
+      .map(entry => {
+        const match = entry.sourceFile.match(ATTEMPT_PATTERN);
+        const attemptIndex = match ? parseInt(match[1], 10) : 0;
+        return { ...entry, attemptIndex };
+      })
+      .sort((a, b) => a.attemptIndex - b.attemptIndex);
 
-    results.push({
-      name: junit.name,
-      path: relativePath,
-      status: junit.status,
-      errorMessage: junit.errorMessage,
-      duration: junit.duration,
-      retryCount,
-      tags: junit.tags,
-      properties: junit.properties,
-    });
+    for (const { result, attemptIndex } of sorted) {
+      results.push({
+        name: flowName,
+        path: flowPath,
+        status: result.status,
+        errorMessage: result.errorMessage,
+        duration: result.duration,
+        retryCount: attemptIndex,
+        tags: result.tags,
+        properties: result.properties,
+      });
+    }
   }
 
   return results;
 }
 
-async function relativizePathAsync(flowFilePath: string, projectRoot: string): Promise<string> {
-  if (!path.isAbsolute(flowFilePath)) {
-    return flowFilePath;
+/**
+ * Returns the subset of `inputFlowPaths` whose testcases failed in the given
+ * attempt's JUnit file, or `null` when the result cannot be trusted (caller
+ * then falls back to dumb retry — re-run everything).
+ *
+ * Caller passes a precomputed `nameToPath` map built from the user's
+ * `inputFlowPaths`. We translate failed testcase names to flow paths via
+ * that map; unknown names → null.
+ */
+export async function parseFailedFlowsFromJUnit(args: {
+  junitFile: string;
+  nameToPath: Map<string, string>;
+}): Promise<string[] | null> {
+  // fast-xml-parser is lenient — truncated XML can produce a partial parse
+  // with some testcases dropped. Trusting that subset for retry-failed-only would
+  // skip retries for cut-off flows; reject any malformed XML and fall back
+  // to dumb retry.
+  let content: string;
+  try {
+    content = await fs.readFile(args.junitFile, 'utf-8');
+  } catch {
+    return null;
+  }
+  if (XMLValidator.validate(content) !== true) {
+    return null;
   }
 
-  // Resolve symlinks (e.g., /tmp -> /private/tmp on macOS) for consistent comparison
-  let resolvedRoot = projectRoot;
-  let resolvedFlow = flowFilePath;
-  try {
-    resolvedRoot = await fs.realpath(projectRoot);
-  } catch {}
-  try {
-    resolvedFlow = await fs.realpath(flowFilePath);
-  } catch {}
-
-  const relative = path.relative(resolvedRoot, resolvedFlow);
-  if (relative.startsWith('..')) {
-    return flowFilePath;
+  const testcases = parseJUnitContent(content);
+  if (testcases.length === 0) {
+    return null;
   }
-  return relative;
+
+  const failing = testcases.filter(tc => tc.status === 'failed');
+  if (failing.length === 0) {
+    return [];
+  }
+
+  // Two testcases with the same name (pass+fail or fail+fail) make it
+  // impossible to map back to a single input flow_path. Signal "unknown".
+  // Complementary to the map-build duplicate check (which catches the case
+  // where tag filter hides duplication from JUnit).
+  const allNameCounts = new Map<string, number>();
+  for (const tc of testcases) {
+    allNameCounts.set(tc.name, (allNameCounts.get(tc.name) ?? 0) + 1);
+  }
+  for (const count of allNameCounts.values()) {
+    if (count > 1) {
+      return null;
+    }
+  }
+
+  const matched: string[] = [];
+  for (const tc of failing) {
+    const p = args.nameToPath.get(tc.name);
+    if (p === undefined) {
+      return null;
+    }
+    matched.push(p);
+  }
+  return matched;
+}
+
+/**
+ * Reads every *.xml in sourceDir (per-attempt JUnit files), picks the latest
+ * attempt's <testcase> per unique flow name (latest determined from the
+ * filename's `attempt-(\d+)` marker; files without the marker = attempt 0),
+ * and writes a merged document to outputPath.
+ *
+ * Throws on empty/malformed/no-testcase input so the caller can fall back to
+ * copyLatestAttemptXml — silently dropping bad attempts could keep stale
+ * failure rows around and produce a misleading merged report.
+ */
+export async function mergeJUnitReports(args: {
+  sourceDir: string;
+  outputPath: string;
+}): Promise<void> {
+  const entries = await fs.readdir(args.sourceDir);
+  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
+
+  if (xmlFiles.length === 0) {
+    throw new Error(`mergeJUnitReports: no *.xml files found in ${args.sourceDir}`);
+  }
+
+  interface FileGroup {
+    attemptIndex: number;
+    filename: string;
+    content: string;
+    testcasesByName: Map<string, unknown[]>;
+  }
+  const contents = await Promise.all(
+    xmlFiles.map(async f => ({
+      filename: f,
+      content: await fs.readFile(path.join(args.sourceDir, f), 'utf-8'),
+    }))
+  );
+  const fileGroups: FileGroup[] = [];
+  for (const { filename, content } of contents) {
+    if (XMLValidator.validate(content) !== true) {
+      throw new Error(`mergeJUnitReports: invalid XML in ${filename}`);
+    }
+    let parsed: any;
+    try {
+      parsed = xmlParser.parse(content);
+    } catch (err) {
+      throw new Error(`mergeJUnitReports: failed to parse ${filename}`, { cause: err });
+    }
+    const testsuites = parsed?.testsuites?.testsuite;
+    if (!Array.isArray(testsuites)) {
+      throw new Error(`mergeJUnitReports: no <testsuite> array in ${filename}`);
+    }
+    const match = filename.match(ATTEMPT_PATTERN);
+    const attemptIndex = match ? parseInt(match[1], 10) : 0;
+    // Maestro >= 2.6.0 reports: key by `file=` so two same-named flows in
+    // different files merge separately. Legacy reports keep name keying.
+    const allCases = testsuites.flatMap((suite: any) =>
+      Array.isArray(suite?.testcase) ? suite.testcase : []
+    );
+    const useFileKeys =
+      allCases.length > 0 && allCases.every((tc: any) => fileAttrOf(tc) !== undefined);
+    const testcasesByName = new Map<string, unknown[]>();
+    for (const suite of testsuites) {
+      const cases = suite?.testcase;
+      if (!Array.isArray(cases)) {
+        continue;
+      }
+      for (const tc of cases) {
+        const name = tc?.['@_name'];
+        if (typeof name !== 'string') {
+          continue;
+        }
+        const key = useFileKeys ? fileAttrOf(tc)! : name;
+        const group = testcasesByName.get(key) ?? [];
+        group.push(tc);
+        testcasesByName.set(key, group);
+      }
+    }
+    if (testcasesByName.size === 0) {
+      throw new Error(`mergeJUnitReports: no parseable testcases in ${filename}`);
+    }
+    fileGroups.push({ attemptIndex, filename, content, testcasesByName });
+  }
+
+  // Single attempt: copy the original XML so suite-level metadata (testsuite
+  // attributes, <system-out>, etc.) survives. The rebuild path below would
+  // collapse those to a single attribute-less <testsuite>.
+  if (fileGroups.length === 1) {
+    await fs.writeFile(args.outputPath, fileGroups[0].content);
+    return;
+  }
+
+  // For each unique name, pick the file with the highest attempt index that
+  // contains it (ties broken by sorted filename — later wins). Preserve every
+  // <testcase> element from the winning file for that name, so same-attempt
+  // duplicates survive.
+  const nameToWinningFile = new Map<string, FileGroup>();
+  for (const group of fileGroups) {
+    for (const name of group.testcasesByName.keys()) {
+      const current = nameToWinningFile.get(name);
+      if (!current || group.attemptIndex >= current.attemptIndex) {
+        nameToWinningFile.set(name, group);
+      }
+    }
+  }
+
+  // Emit in first-seen order (iteration over `fileGroups` yields stable order
+  // matching the sorted filename list).
+  const testcases: unknown[] = [];
+  const emitted = new Set<string>();
+  for (const group of fileGroups) {
+    for (const [name, cases] of group.testcasesByName) {
+      if (emitted.has(name)) {
+        continue;
+      }
+      const winner = nameToWinningFile.get(name);
+      if (winner === group) {
+        for (const tc of cases) {
+          testcases.push(tc);
+        }
+        emitted.add(name);
+      }
+    }
+  }
+
+  const builder = new XMLBuilder({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    format: true,
+    suppressEmptyNode: true,
+  });
+  const xml = builder.build({
+    testsuites: {
+      testsuite: {
+        testcase: testcases,
+      },
+    },
+  });
+  await fs.writeFile(args.outputPath, xml);
+}
+
+/**
+ * Copies the highest-attempt-index *.xml file from sourceDir to outputPath.
+ * Used as a fallback when mergeJUnitReports fails due to data issues but the
+ * step still needs to produce final_report_path.
+ *
+ * Throws if sourceDir contains no *.xml files or if the copy fails.
+ */
+export async function copyLatestAttemptXml(args: {
+  sourceDir: string;
+  outputPath: string;
+}): Promise<void> {
+  const entries = await fs.readdir(args.sourceDir);
+  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
+  if (xmlFiles.length === 0) {
+    throw new Error(`No *.xml files found in ${args.sourceDir}`);
+  }
+
+  // Pick the file with the highest attempt index. Files without the marker are
+  // treated as attempt 0. Ties are broken by sorted filename — later wins
+  // (same rule as mergeJUnitReports).
+  let winner = xmlFiles[0];
+  let winnerAttempt = (() => {
+    const m = winner.match(ATTEMPT_PATTERN);
+    return m ? parseInt(m[1], 10) : 0;
+  })();
+  for (let i = 1; i < xmlFiles.length; i++) {
+    const candidate = xmlFiles[i];
+    const match = candidate.match(ATTEMPT_PATTERN);
+    const attempt = match ? parseInt(match[1], 10) : 0;
+    if (attempt >= winnerAttempt) {
+      winner = candidate;
+      winnerAttempt = attempt;
+    }
+  }
+
+  await fs.copyFile(path.join(args.sourceDir, winner), args.outputPath);
 }

@@ -1,0 +1,60 @@
+import { validateDateFlag } from './fetchMetrics';
+import { EasCommandError } from '../commandUtils/errors';
+
+export const DEFAULT_DAYS_BACK = 60;
+
+export function startAndEndTime({
+  daysBack,
+  start,
+  end,
+}: {
+  daysBack?: number;
+  start?: string;
+  end?: string;
+}): { startTime: string; endTime: string } {
+  let startTime: string;
+  let endTime: string;
+
+  if (daysBack) {
+    endTime = new Date().toISOString();
+    startTime = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+  } else {
+    endTime = end ?? new Date().toISOString();
+    startTime =
+      start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+  }
+  return { startTime, endTime };
+}
+
+export function resolveTimeRange(flags: { days?: number; start?: string; end?: string }): {
+  daysBack?: number;
+  startTime: string;
+  endTime: string;
+} {
+  if (flags.start) {
+    validateDateFlag(flags.start, '--start');
+  }
+  if (flags.end) {
+    validateDateFlag(flags.end, '--end');
+  }
+  if (flags.end && !flags.start) {
+    throw new EasCommandError('--end requires --start. Pass both, or use --days instead.');
+  }
+
+  const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
+  const { startTime, endTime } = startAndEndTime({
+    daysBack,
+    start: flags.start,
+    end: flags.end,
+  });
+
+  // Reachable by swapping --start and --end, or by passing a --start in the future, since --end
+  // defaults to now.
+  if (new Date(startTime) >= new Date(endTime)) {
+    throw new EasCommandError(
+      `The requested time range is empty: --start (${startTime}) must be earlier than the end of the range (${endTime}). Pass a --start earlier than the end, or use --days instead.`
+    );
+  }
+
+  return { daysBack, startTime, endTime };
+}

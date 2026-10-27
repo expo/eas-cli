@@ -3,18 +3,70 @@ import { Env } from '@expo/eas-build-job';
 import { load } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
+import { expoCommandAsync } from './expoCli';
 
-export function readAppConfig({
-  projectDir,
-  env,
-  logger,
-  sdkVersion,
-}: {
+interface ReadAppConfigParams {
   projectDir: string;
   env: Env;
   logger: bunyan;
   sdkVersion?: string;
-}): ProjectConfig {
+}
+
+export async function readAppConfig(params: ReadAppConfigParams): Promise<ProjectConfig> {
+  const shouldLoadEnvVarsFromDotenvFile =
+    params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
+  if (shouldLoadEnvVarsFromDotenvFile) {
+    const envVarsFromDotenvFile = load(params.projectDir) as Env;
+    const env = { ...params.env, ...envVarsFromDotenvFile };
+    params = { ...params, env };
+  }
+
+  // Reading the app config is done in two steps/attempts. We first attempt to run `expo config` as a CLI,
+  try {
+    return await getAppConfigFromExpo(params);
+  } catch (error: any) {
+    params.logger.warn(
+      'Failed to read the app config file with `expo config` command:\n' +
+        `${error?.message || error}`
+    );
+  }
+
+  // If this fails, we fall back to directly using `@expo/config`
+  // This can fail, since it's tied to a specific SDK version, so reading for older SDKs isn't guaranteed to work
+  return getAppConfigFromExpoConfig(params);
+}
+
+async function getAppConfigFromExpo({
+  projectDir,
+  env,
+}: ReadAppConfigParams): Promise<ProjectConfig> {
+  const result = await expoCommandAsync(
+    projectDir,
+    ['config', '--json', '--full', '--type', 'public'],
+    { env }
+  );
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    throw new Error(
+      `Failed to parse JSON output from 'expo config'.\nOutput: ${result.stdout.slice(0, 500)}`
+    );
+  }
+
+  if (!('exp' in parsed)) {
+    throw new Error(`Unexpected output from 'expo config': missing 'exp' field.`);
+  }
+
+  return parsed;
+}
+
+function getAppConfigFromExpoConfig({
+  projectDir,
+  env,
+  logger,
+}: ReadAppConfigParams): ProjectConfig {
   const originalProcessExit = process.exit;
   const originalProcessCwd = process.cwd;
   const originalStdoutWrite = process.stdout.write;
@@ -22,11 +74,8 @@ export function readAppConfig({
   const originalProcessEnv = process.env;
 
   const stdoutStore: { text: string; level: LoggerLevel }[] = [];
-  const shouldLoadEnvVarsFromDotenvFile = sdkVersion && semver.satisfies(sdkVersion, '>=49');
-  const envVarsFromDotenvFile = shouldLoadEnvVarsFromDotenvFile ? load(projectDir) : {};
-  const newEnvsToUse = { ...env, ...envVarsFromDotenvFile };
   try {
-    process.env = newEnvsToUse;
+    process.env = env;
     process.exit = () => {
       throw new Error('Failed to evaluate app config file');
     };

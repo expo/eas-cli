@@ -12,11 +12,12 @@ import {
   ExternalBuildContextProvider,
 } from '../../BuildStepContext';
 import { BuildStepEnv } from '../../BuildStepEnv';
-import { StepMetric } from '../../StepMetrics';
+import { StepMetric, WorkflowHookMetric } from '../../StepMetrics';
 
 export class MockContextProvider implements ExternalBuildContextProvider {
   private _env: BuildStepEnv = {};
   public reportStepMetric?: (metric: StepMetric) => void;
+  public reportWorkflowHookMetric?: (metric: WorkflowHookMetric) => void;
 
   constructor(
     public readonly logger: bunyan,
@@ -48,6 +49,7 @@ interface BuildContextParams {
   relativeWorkingDirectory?: string;
   staticContextContent?: JobInterpolationContext;
   reportStepMetric?: (metric: StepMetric) => void;
+  reportWorkflowHookMetric?: (metric: WorkflowHookMetric) => void;
 }
 
 export function createStepContextMock({
@@ -85,6 +87,7 @@ export function createGlobalContextMock({
   relativeWorkingDirectory,
   staticContextContent,
   reportStepMetric,
+  reportWorkflowHookMetric,
 }: BuildContextParams = {}): BuildStepGlobalContext {
   const resolvedProjectTargetDirectory =
     projectTargetDirectory ?? path.join(os.tmpdir(), 'eas-build', uuidv4());
@@ -101,6 +104,9 @@ export function createGlobalContextMock({
   );
   if (reportStepMetric) {
     provider.reportStepMetric = reportStepMetric;
+  }
+  if (reportWorkflowHookMetric) {
+    provider.reportWorkflowHookMetric = reportWorkflowHookMetric;
   }
   return new BuildStepGlobalContext(provider, skipCleanup ?? false);
 }

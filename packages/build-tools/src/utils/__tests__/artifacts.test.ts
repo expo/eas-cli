@@ -71,6 +71,26 @@ describe(findArtifacts, () => {
     expect(paths.length).toBe(2);
   });
 
+  test('with absolute glob pattern', async () => {
+    await fs.mkdirp('/tmp');
+    await fs.mkdirp('/tmp/maestro_xctestrunner_xcodebuild_output123');
+    await fs.mkdirp('/tmp/maestro_xctestrunner_xcodebuild_output456');
+    const loggerMock = {
+      info: jest.fn(),
+      error: jest.fn(),
+    };
+    const paths = await findArtifacts({
+      rootDir: '/Users/expo/build',
+      patternOrPath: '/tmp/maestro_xctestrunner_xcodebuild_output*',
+      logger: loggerMock as any,
+    });
+    expect(loggerMock.error).toHaveBeenCalledTimes(0);
+    expect(paths).toEqual([
+      '/tmp/maestro_xctestrunner_xcodebuild_output123',
+      '/tmp/maestro_xctestrunner_xcodebuild_output456',
+    ]);
+  });
+
   test('with missing file in empty directory', async () => {
     await fs.mkdirp('/dir1/dir2/dir3');
     let errMsg = '';

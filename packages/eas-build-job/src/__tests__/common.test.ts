@@ -1,4 +1,45 @@
-import { StaticWorkflowInterpolationContextZ } from '../common';
+import {
+  ArchiveSource,
+  ArchiveSourceSchema,
+  ArchiveSourceSchemaZ,
+  ArchiveSourceType,
+  EasCliVersionsFetchTimeoutError,
+  EnvSchema,
+  SshSettingsZ,
+  StaticWorkflowInterpolationContextZ,
+  fetchEasCliVersionsAsync,
+} from '../common';
+
+describe('EnvSchema', () => {
+  it('accepts explicit undefined values', () => {
+    const env = {
+      DEFINED_ENV: 'value',
+      UNDEFINED_ENV: undefined,
+    };
+
+    const { value, error } = EnvSchema.validate(env);
+
+    expect(error).toBeUndefined();
+    expect(value).toEqual(env);
+  });
+});
+
+describe('SshSettingsZ', () => {
+  it('accepts ws and wss relay URLs', () => {
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' })
+    ).toEqual({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' });
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' })
+    ).toEqual({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' });
+  });
+
+  it('rejects non-websocket relay URL schemes', () => {
+    expect(() =>
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'https://ssh.expo.dev' })
+    ).toThrow(/Invalid URL|Invalid protocol/);
+  });
+});
 
 describe('StaticWorkflowInterpolationContextZ', () => {
   it('accepts app and account context', () => {
@@ -22,6 +63,787 @@ describe('StaticWorkflowInterpolationContextZ', () => {
     };
 
     expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect context', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'processing',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect build_upload with cf_bundle_version', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'processing',
+          cf_bundle_version: '42',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect build_upload with build.id', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'complete',
+          build: {
+            id: 'build-abc123',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect build_upload with both cf_bundle_version and build.id', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'complete',
+          cf_bundle_version: '42',
+          build: {
+            id: 'build-abc123',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect build_upload with version, platform, and date fields', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'complete',
+          cf_bundle_version: '42',
+          cf_bundle_short_version_string: '1.2.3',
+          platform: 'ios',
+          uploaded_date: '2026-01-01T00:00:00.000Z',
+          created_date: '2026-01-01T00:00:00.000Z',
+          build: {
+            id: 'build-abc123',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect context without build_upload', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect context with app_version', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        app_version: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'ready_for_review',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('rejects invalid app_store_connect app_version state', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        app_version: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'invalid-state',
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('accepts app_store_connect context with external_beta', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        external_beta: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'beta_approved',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('rejects invalid app_store_connect external_beta state', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        external_beta: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'invalid-state',
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('accepts app_store_connect context with beta_feedback', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        beta_feedback: {
+          id: 'AD8JvKbr0BK0Cj9OnM6WO6I',
+          type: 'screenshot',
+          url: 'https://api.appstoreconnect.apple.com/v1/betaFeedbackScreenshotSubmissions/AD8JvKbr0BK0Cj9OnM6WO6I',
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('rejects app_store_connect beta_feedback without url', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        beta_feedback: {
+          id: 'AD8JvKbr0BK0Cj9OnM6WO6I',
+          type: 'crash',
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('rejects invalid app_store_connect beta_feedback type', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        beta_feedback: {
+          id: 'AD8JvKbr0BK0Cj9OnM6WO6I',
+          type: 'invalid-type',
+          url: 'https://api.appstoreconnect.apple.com/v1/betaFeedbackScreenshotSubmissions/AD8JvKbr0BK0Cj9OnM6WO6I',
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('rejects invalid app_store_connect build_upload context', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: 'not-a-uuid',
+          state: 'invalid-state',
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('accepts sentry context', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'assigned',
+        issue: {
+          id: '149381254',
+          short_id: 'TEST-PROJECT-1',
+          title: 'webhook test 1790338443',
+          culprit: '',
+          permalink: 'https://sswrk.sentry.io/issues/149381254/',
+          level: 'error',
+          status: 'unresolved',
+          substatus: 'regressed',
+          platform: 'native',
+          first_seen: '2026-09-25T12:03:52.754394Z',
+          last_seen: '2026-09-25T12:14:03.693515Z',
+          priority: 'high',
+          issue_category: 'error',
+          issue_type: 'error',
+          count: '4',
+          user_count: 1,
+          assigned_to: {
+            type: 'user',
+            id: '3379782',
+          },
+          project: {
+            id: '4512146882822224',
+            slug: 'test-project',
+            name: 'test-project',
+          },
+        },
+        actor: {
+          type: 'user',
+          id: 3379782,
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts sentry context with unassigned issue and application actor', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'unresolved',
+        issue: {
+          id: '149381254',
+          status: 'unresolved',
+          substatus: 'regressed',
+          assigned_to: null,
+          project: {
+            id: '4512146882822224',
+          },
+        },
+        actor: {
+          type: 'application',
+          id: 'sentry',
+        },
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed).toEqual(context);
+    expect(parsed.sentry?.issue.assigned_to).toBeNull();
+    expect(parsed.sentry?.actor?.id).toBe('sentry');
+  });
+
+  it('accepts sentry actor with numeric id', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'archived',
+        issue: {
+          id: '149381254',
+          status: 'ignored',
+          substatus: 'archived_until_escalating',
+          project: {
+            id: '4512146882822224',
+          },
+        },
+        actor: {
+          type: 'user',
+          id: 3379782,
+        },
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed).toEqual(context);
+    expect(parsed.sentry?.actor?.id).toBe(3379782);
+  });
+
+  it('preserves sentry resolution_type', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'resolved',
+        issue: {
+          id: '149381254',
+          status: 'resolved',
+          project: {
+            id: '4512146882822224',
+          },
+        },
+        resolution_type: 'now',
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed).toEqual(context);
+    expect(parsed.sentry?.resolution_type).toBe('now');
+  });
+
+  it('accepts sentry context with null culprit, permalink, substatus, and platform', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'resolved',
+        issue: {
+          id: '123456789',
+          short_id: 'MYAPP-1A',
+          title: 'TypeError: Cannot read properties of undefined',
+          culprit: null,
+          permalink: null,
+          level: 'error',
+          status: 'unresolved',
+          substatus: null,
+          platform: null,
+          first_seen: '2026-09-20T10:00:00.000Z',
+          last_seen: '2026-09-21T10:00:00.000Z',
+          project: {
+            id: '987654321',
+            slug: 'my-app',
+            name: 'My App',
+          },
+        },
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed).toEqual(context);
+    expect(parsed.sentry?.issue.culprit).toBeNull();
+  });
+
+  it('rejects invalid sentry action', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'ignored',
+        issue: {
+          id: '123456789',
+          project: {
+            id: '987654321',
+          },
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('rejects sentry issue without project id', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry: {
+        action: 'created',
+        issue: {
+          id: '123456789',
+          project: {
+            slug: 'my-app',
+          },
+        },
+      },
+    };
+
+    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
+  });
+
+  it('preserves sentry on the parsed output', () => {
+    const sentry = {
+      action: 'assigned',
+      issue: {
+        id: '123456789',
+        project: {
+          id: '987654321',
+        },
+      },
+    };
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      sentry,
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+    expect(parsed.sentry).toEqual(sentry);
   });
 
   it('rejects invalid app and account context', () => {
@@ -99,5 +921,113 @@ describe('GitHub context event payload passthrough', () => {
     const parsed = StaticWorkflowInterpolationContextZ.parse(context);
 
     expect(parsed.github?.event).toMatchObject(context.github.event);
+  });
+});
+
+describe('fetchEasCliVersionsAsync', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('fetches and parses cli-versions.json', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).resolves.toEqual({
+      STAGING: '21.5.1',
+      PRODUCTION: '21.5.0',
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://raw.githubusercontent.com/expo/eas-cli/main/cli-versions.json',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('throws on a non-OK response', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow(/HTTP 404/);
+  });
+
+  it('throws when the payload is missing a required property', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws when a version is not valid semver', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: 'latest-eas-build-staging', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws a timeout error when the request exceeds the timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.spyOn(global, 'fetch').mockImplementation(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            (init?.signal as AbortSignal | undefined)?.addEventListener('abort', () => {
+              reject(new Error('The operation was aborted.'));
+            });
+          })
+      );
+
+      const assertion = expect(fetchEasCliVersionsAsync()).rejects.toBeInstanceOf(
+        EasCliVersionsFetchTimeoutError
+      );
+      await jest.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('Git archive sources', () => {
+  const source: ArchiveSource = {
+    type: ArchiveSourceType.GIT,
+    gitRef: null,
+    gitCommitHash: '1234567890',
+  };
+
+  it('accepts Git job sources without a repository URL', () => {
+    expect(ArchiveSourceSchema.validate(source)).toMatchObject({ value: source });
+    expect(ArchiveSourceSchema.validate(source).error).toBeUndefined();
+    expect(ArchiveSourceSchemaZ.parse(source)).toEqual(source);
+  });
+
+  it('strips the legacy repository URL with the job validation options', () => {
+    const archive = {
+      ...source,
+      repositoryUrl: 'https://x-access-token:old-token@github.com/expo/eas-cli.git',
+    };
+    const result = ArchiveSourceSchema.validate(archive, { stripUnknown: true });
+    expect(result.error).toBeUndefined();
+    expect(result.value).toEqual(source);
+    expect(ArchiveSourceSchemaZ.parse(archive)).toEqual(source);
+  });
+
+  it('still requires the commit and ref', () => {
+    for (const field of ['gitCommitHash', 'gitRef'] as const) {
+      const archive = { ...source, [field]: undefined };
+      expect(ArchiveSourceSchema.validate(archive).error).toBeDefined();
+      expect(ArchiveSourceSchemaZ.safeParse(archive).success).toBe(false);
+    }
   });
 });

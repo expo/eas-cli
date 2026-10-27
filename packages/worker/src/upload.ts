@@ -1,5 +1,5 @@
-import { BuildContext, GCS } from '@expo/build-tools';
-import { ArchiveSourceType } from '@expo/eas-build-job';
+import { BuildContext, type SignedUrl, uploadWithSignedUrl } from '@expo/build-tools';
+import { ArchiveSourceType, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
@@ -12,6 +12,9 @@ import config from './config';
 import { Analytics, Event } from './external/analytics';
 import sentry from './sentry';
 import { TurtleFetchError, turtleFetch } from './utils/turtleFetch';
+
+const UPLOAD_API_REQUEST_RETRIES = 2;
+const UPLOAD_API_REQUEST_RETRY_INTERVAL_MS = 1000;
 
 class ErrorWithMetadata extends Error {
   constructor(
@@ -39,7 +42,7 @@ export async function uploadApplicationArchiveAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `application-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -51,7 +54,7 @@ export async function uploadApplicationArchiveAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -65,37 +68,19 @@ export async function uploadApplicationArchiveAsync(
     return { filename: null };
   } catch (err: any) {
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
-    sentry.handleError('Upload to upload session failed', err, {
-      extras: {
+    logger.error({ err, filename, size }, 'Upload to upload session failed');
+
+    throw new errors.SystemError('Failed to upload application archive.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      metadata: {
         filename,
         size,
         ...uploadSession,
         ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
       },
-    });
-
-    // Lack of `gcsSignedUploadUrlForApplicationArchive` means we're being run by workflow-orchestration.
-    if (!config.gcsSignedUploadUrlForApplicationArchive) {
-      throw new Error(`Failed to upload application archive: ${err?.message}\n${err?.stack}`, {
-        cause: err,
-      });
-    }
-  }
-
-  try {
-    await GCS.uploadWithSignedUrl({
-      signedUrl: config.gcsSignedUploadUrlForApplicationArchive,
-      srcGeneratorAsync: async () => {
-        return fs.createReadStream(localPath);
-      },
-    });
-  } catch (err: any) {
-    throw new Error(`Failed to upload application archive: ${err?.message}\n${err?.stack}`, {
       cause: err,
     });
   }
-
-  return { filename };
 }
 
 export async function uploadBuildArtifactsAsync(
@@ -113,7 +98,7 @@ export async function uploadBuildArtifactsAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `artifacts-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -125,7 +110,7 @@ export async function uploadBuildArtifactsAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -138,37 +123,71 @@ export async function uploadBuildArtifactsAsync(
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
   } catch (err: any) {
-    // Lack of `gcsSignedUploadUrlForBuildArtifacts` means we're being run by workflow-orchestration.
-    if (!config.gcsSignedUploadUrlForBuildArtifacts) {
-      throw new Error(`Failed to upload build artifact: ${err?.message}\n${err?.stack}`, {
-        cause: err,
-      });
-    }
+    logger.error({ err, filename, size }, 'Upload to upload session failed');
 
-    // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
-    sentry.handleError('Upload to upload session failed', err, {
-      extras: {
+    throw new errors.SystemError('Failed to upload build artifacts.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      metadata: {
         filename,
         size,
         ...uploadSession,
       },
+      cause: err,
     });
   }
+}
+
+export async function uploadSourceMapAsync(
+  ctx: BuildContext,
+  {
+    sourceMapPath,
+    buildId,
+    logger,
+  }: {
+    sourceMapPath: string;
+    buildId: string;
+    logger: bunyan;
+  }
+): Promise<{ filename: string | null }> {
+  const { localPath, size } = await prepareArtifactsForUploadAsync(logger, [sourceMapPath]);
+  const filename = `source-map-${buildId}.map`;
+
+  let uploadSession: SignedUrl | null = null;
 
   try {
-    await GCS.uploadWithSignedUrl({
-      signedUrl: config.gcsSignedUploadUrlForBuildArtifacts,
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Source Map',
+      size,
+      artifactType: 'sourceMap',
+    });
+
+    uploadSession = signedUrl;
+
+    await uploadWithSignedUrl({
+      signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
       },
     });
+
+    await saveArtifactAsync(ctx, { bucketKey, type: 'sourceMap', storageType });
+
+    return { filename: null };
   } catch (err: any) {
-    throw new Error(`Failed to upload build artifact: ${err?.message}\n${err?.stack}`, {
+    logger.error({ err, filename, size }, 'Source map upload failed');
+
+    throw new errors.SystemError('Failed to upload source map.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_SOURCE_MAP_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
       cause: err,
     });
   }
-
-  return { filename };
 }
 
 export async function uploadWorkflowArtifactAsync(
@@ -177,10 +196,12 @@ export async function uploadWorkflowArtifactAsync(
     name: _name,
     logger,
     artifactPaths,
+    metadata,
   }: {
     name: string;
     logger: bunyan;
     artifactPaths: string[];
+    metadata?: Record<string, unknown>;
   }
 ): Promise<{ artifactId: string | null }> {
   const { localPath, filename, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
@@ -191,9 +212,10 @@ export async function uploadWorkflowArtifactAsync(
       filename,
       name,
       size,
+      metadata,
     });
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl: uploadSession,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -202,7 +224,9 @@ export async function uploadWorkflowArtifactAsync(
 
     return { artifactId };
   } catch (err: any) {
-    sentry.handleError('Failed to upload workflow artifact', err);
+    const msg = 'Failed to upload workflow artifact';
+    logger.error({ err }, msg);
+    sentry.capture(msg, err);
     throw new Error(`Failed to upload the file: ${err?.message}\n${err?.stack}`);
   }
 }
@@ -270,10 +294,22 @@ function getCommonParentDir(path1: string, path2: string): string {
 
 async function createUploadSessionAsync(
   ctx: BuildContext,
-  { filename, name, size }: { filename: string; name: string; size: number }
+  {
+    filename,
+    name,
+    size,
+    metadata,
+    artifactType,
+  }: {
+    filename: string;
+    name: string;
+    size: number;
+    metadata?: Record<string, unknown>;
+    artifactType?: 'sourceMap';
+  }
 ): Promise<{
   bucketKey: string;
-  signedUrl: GCS.SignedUrl;
+  signedUrl: SignedUrl;
   storageType: ArchiveSourceType;
   artifactId: string | null;
 }> {
@@ -297,11 +333,20 @@ async function createUploadSessionAsync(
         'POST',
         // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
         {
-          json: { filename, name, size },
+          json: {
+            filename,
+            name,
+            size,
+            metadata,
+            ...(artifactType ? { type: artifactType } : {}),
+          },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
           shouldThrowOnNotOk: false,
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger: ctx.logger,
         }
       )
     );
@@ -311,11 +356,14 @@ async function createUploadSessionAsync(
         new URL(`workflows/${workflowJobId}/upload-sessions/`, config.wwwApiV2BaseUrl).toString(),
         'POST',
         {
-          json: { filename, name, size },
+          json: { filename, name, size, metadata },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
           shouldThrowOnNotOk: false,
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger: ctx.logger,
         }
       )
     );
@@ -395,7 +443,7 @@ async function saveArtifactAsync(
     storageType,
   }: {
     bucketKey: string;
-    type: 'applicationArchive' | 'buildArtifacts';
+    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap';
     storageType: ArchiveSourceType | null;
   }
 ): Promise<void> {
@@ -423,6 +471,9 @@ async function saveArtifactAsync(
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger: ctx.logger,
         }
       )
     );
@@ -436,6 +487,9 @@ async function saveArtifactAsync(
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger: ctx.logger,
         }
       )
     );

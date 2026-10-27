@@ -88,8 +88,10 @@ export class BuildStepInput<
 
   public getValue({
     interpolationContext,
+    skipLegacyOutputInterpolation = false,
   }: {
     interpolationContext: JobInterpolationContext;
+    skipLegacyOutputInterpolation?: boolean;
   }): R extends true ? BuildStepInputValueType<T> : BuildStepInputValueType<T> | undefined {
     const rawValue = this._value ?? this.defaultValue;
     if (this.required && rawValue === undefined) {
@@ -124,10 +126,13 @@ export class BuildStepInput<
       // so this will never be true.
       assert(interpolatedValue !== undefined);
       const valueInterpolatedWithGlobalContext = this.ctx.interpolate(interpolatedValue);
-      const valueInterpolatedWithOutputsAndGlobalContext = interpolateWithOutputs(
-        valueInterpolatedWithGlobalContext,
-        path => this.ctx.getStepOutputValue(path) ?? ''
-      );
+      // Composite functions support only `${{ }}`; legacy `${ steps.* }` stays literal in composite-function-scoped inputs.
+      const valueInterpolatedWithOutputsAndGlobalContext = skipLegacyOutputInterpolation
+        ? valueInterpolatedWithGlobalContext
+        : interpolateWithOutputs(
+            valueInterpolatedWithGlobalContext,
+            path => this.ctx.getStepOutputValue(path) ?? ''
+          );
       returnValue = this.parseInputValueToAllowedType(valueInterpolatedWithOutputsAndGlobalContext);
     }
     return returnValue;
@@ -229,6 +234,25 @@ export class BuildStepInput<
       );
     }
   }
+}
+
+/** Raw allowed-values check; skips step/context refs that only resolve at runtime. */
+export function getDisallowedInputValueError(
+  input: BuildStepInput,
+  stepDisplayName: string
+): string | undefined {
+  if (input.rawValue === undefined) {
+    return undefined;
+  }
+  if (input.isRawValueStepOrContextReference() || input.isRawValueOneOfAllowedValues()) {
+    return undefined;
+  }
+  const rendered =
+    typeof input.rawValue === 'object' ? JSON.stringify(input.rawValue) : String(input.rawValue);
+  const allowedValues = (input.allowedValues ?? [])
+    .map(value => (typeof value === 'object' ? JSON.stringify(value) : `"${value}"`))
+    .join(', ');
+  return `Input parameter "${input.id}" for step "${stepDisplayName}" is set to "${rendered}" which is not one of the allowed values: ${allowedValues}.`;
 }
 
 export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
