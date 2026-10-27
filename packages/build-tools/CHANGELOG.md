@@ -1,5 +1,16 @@
 # @expo/build-tools
 
+## 27.0.0
+
+### Patch Changes
+
+- Keep the launched app open when an Appium iOS session starts. ([#4699](https://github.com/expo/eas-cli/pull/4699) by [@gwdp](https://github.com/gwdp))
+- Run Appium through the prepared Full Disk Access helper when available on macOS. ([#4622](https://github.com/expo/eas-cli/pull/4622) by [@gwdp](https://github.com/gwdp))
+- Identify the build or application archive when a download fails, and explain when the archive is no longer available. ([#4703](https://github.com/expo/eas-cli/pull/4703) by [@gwdp](https://github.com/gwdp))
+- Run apsd setup in the background without delaying iOS app launch or preview readiness. ([#4706](https://github.com/expo/eas-cli/pull/4706) by [@gwdp](https://github.com/gwdp))
+- Handle a device session stopped during startup as normal cleanup instead of reporting a startup error. ([#4716](https://github.com/expo/eas-cli/pull/4716) by [@gwdp](https://github.com/gwdp))
+- Support idle timeouts for iOS web-preview-only sessions, resetting the timer when preview input arrives. ([#4731](https://github.com/expo/eas-cli/pull/4731) by [@gwdp](https://github.com/gwdp))
+
 ## 26.0.0
 
 ### Major Changes
