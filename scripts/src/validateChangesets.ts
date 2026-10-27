@@ -1,11 +1,12 @@
 /* eslint-disable no-console */
 
+import { parseChangesetFile } from '@changesets/parse';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { ROOT_DIR, readPackageDirsByNameAsync } from './changesets/packages.js';
-import { hasChangelogContentChanges, validateChangeset } from './changesets/validation.js';
 
 const CHANGESET_FILE = /^\.changeset\/[^/]+\.md$/;
 
@@ -18,32 +19,53 @@ function getChangedFiles(baseRef: string): string[] {
   return output.split('\n').filter(Boolean);
 }
 
+export async function validateChangesetAsync(
+  file: string,
+  packageNames: ReadonlySet<string>
+): Promise<string[]> {
+  let changeset: ReturnType<typeof parseChangesetFile>;
+  try {
+    changeset = parseChangesetFile(await readFile(path.join(ROOT_DIR, file), 'utf8'));
+  } catch (error) {
+    return [`${file}: cannot parse the changeset. ${(error as Error).message}`];
+  }
+  const errors: string[] = [];
+  if (!changeset.summary.trim()) {
+    errors.push(`${file}: the summary is empty. Describe the change below the front matter.`);
+  } else if (/[\r\n]/.test(changeset.summary.trim())) {
+    errors.push(`${file}: the changeset body must contain exactly one nonempty line.`);
+  }
+  for (const release of changeset.releases) {
+    if (!packageNames.has(release.name)) {
+      errors.push(`${file}: "${release.name}" is not a package in packages/.`);
+    }
+  }
+  return errors;
+}
+
 async function mainAsync(): Promise<void> {
   const baseRef = process.argv[2];
   if (!baseRef) {
-    throw new Error('Usage: validate-changesets <base-ref> [--allow-no-changeset]');
+    throw new Error('Usage: validate-changesets <base-ref>');
   }
   const changedFiles = getChangedFiles(baseRef);
   const errors: string[] = changedFiles
     .filter(file => path.basename(file) === 'CHANGELOG.md')
-    .filter(file => hasChangelogContentChanges(baseRef, file, ROOT_DIR))
     .map(
       file =>
-        `${file}: do not edit generated changelog text. Only blank-line repairs are allowed. Run \`yarn changeset\` instead.`
+        `${file}: do not edit CHANGELOG.md files. The release generates them from changesets. Run \`yarn changeset\` instead.`
     );
 
   const changesetFiles = changedFiles.filter(
     file => CHANGESET_FILE.test(file) && file !== '.changeset/README.md'
   );
-  if (changesetFiles.length === 0 && !process.argv.includes('--allow-no-changeset')) {
+  if (changesetFiles.length === 0) {
     errors.push('This PR has no changeset. Run `yarn changeset` and commit the new file.');
   }
 
   const packageNames = new Set((await readPackageDirsByNameAsync()).keys());
   for (const file of changesetFiles) {
-    errors.push(
-      ...validateChangeset(file, await readFile(path.join(ROOT_DIR, file), 'utf8'), packageNames)
-    );
+    errors.push(...(await validateChangesetAsync(file, packageNames)));
   }
 
   if (errors.length > 0) {
@@ -55,7 +77,9 @@ async function mainAsync(): Promise<void> {
   console.log(`✅ Found ${changesetFiles.length} valid changeset(s): ${changesetFiles.join(', ')}`);
 }
 
-mainAsync().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  mainAsync().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
+}
