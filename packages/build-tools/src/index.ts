@@ -3,8 +3,16 @@ import HttpLogStream from './logging/HttpLogStream';
 import RemoteLoggerStream from './logging/RemoteLoggerStream';
 
 export { Builders, HttpLogStream, RemoteLoggerStream };
-export { uploadWithSignedUrl } from './storage/uploadWithSignedUrl';
-export type { SignedUrl, UploadWithSignedUrlParams } from './storage/uploadWithSignedUrl';
+export {
+  SignedUrlUploadApiError,
+  SignedUrlUploadNetworkError,
+  uploadWithSignedUrl,
+} from './storage/uploadWithSignedUrl';
+export type {
+  SignedUrl,
+  UploadWithSignedUrlOptions,
+  UploadWithSignedUrlParams,
+} from './storage/uploadWithSignedUrl';
 export { downloadCacheAsync } from './steps/functions/restoreCache';
 export { uploadCacheAsync } from './steps/functions/saveCache';
 

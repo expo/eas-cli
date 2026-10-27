@@ -7,7 +7,7 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import { Client } from '@urql/core';
+import { Client, CombinedError } from '@urql/core';
 import contentDisposition from 'content-disposition';
 import { glob } from 'fast-glob';
 import { graphql } from 'gql.tada';
@@ -26,10 +26,16 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
+import {
+  describeError,
+  isTransferFailure,
+  isTransientGraphqlError,
+} from '../../utils/networkErrors';
+import { retryOnNetworkFailureAsync } from '../../utils/retryOnNetworkFailure';
 import { pluralize } from '../../utils/strings';
 import {
   type DeviceRunSessionWorkerApi,
+  DeviceRunSessionWorkerApiError,
   getDeviceRunSessionWorkerApi,
 } from '../utils/deviceRunSessionWorkerApi';
 
@@ -152,21 +158,34 @@ async function fetchApplicationArchiveUrlAsync({
       signal,
     });
   }
-  const result = await graphqlClient
-    .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
-    .toPromise();
+  let data;
+  try {
+    data = await retryOnNetworkFailureAsync(
+      async () => {
+        const queryResult = await graphqlClient
+          .query(BUILD_BY_ID_QUERY, { buildId }, graphqlAbortContext(signal))
+          .toPromise();
+        if (queryResult.error) {
+          throw queryResult.error;
+        }
+        return queryResult.data;
+      },
+      {
+        operation: 'download_build.build_lookup',
+        signal,
+        isRetryable: error => error instanceof CombinedError && isTransientGraphqlError(error),
+      }
+    );
+  } catch (error) {
+    signal?.throwIfAborted();
+    const message = `Could not fetch build ${buildId}: ${describeError(error)}`;
+    throw error instanceof CombinedError && !isTransientGraphqlError(error)
+      ? new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: error })
+      : new SystemError(message, { cause: error });
+  }
   signal?.throwIfAborted();
 
-  if (result.error) {
-    const { error } = result;
-    const message = `Could not fetch build ${buildId}: ${error.message}`;
-
-    throw error.networkError || result.error.response?.status >= 500
-      ? new SystemError(message, { cause: error })
-      : new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: error });
-  }
-
-  const applicationArchiveUrl = result.data?.builds.byId?.artifacts?.applicationArchiveUrl;
+  const applicationArchiveUrl = data?.builds.byId?.artifacts?.applicationArchiveUrl;
   if (!applicationArchiveUrl) {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_NO_APPLICATION_ARCHIVE',
@@ -195,13 +214,18 @@ async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
 }): Promise<string> {
   let application;
   try {
-    application = await deviceRunSessionWorkerApi.getApplicationAsync({ signal });
+    application = await retryOnNetworkFailureAsync(
+      () => deviceRunSessionWorkerApi.getApplicationAsync({ signal }),
+      {
+        operation: 'download_build.session_build_lookup',
+        signal,
+        isRetryable: error => error instanceof DeviceRunSessionWorkerApiError && error.isTransient,
+      }
+    );
   } catch (err) {
     signal?.throwIfAborted();
     throw new SystemError(
-      `Could not fetch build ${buildId} for this device run session: ${
-        err instanceof Error ? err.message : String(err)
-      }`,
+      `Could not fetch build ${buildId} for this device run session: ${describeError(err)}`,
       { cause: err }
     );
   }
@@ -281,18 +305,48 @@ export async function downloadBuildAsync(
   );
 
   signal?.throwIfAborted();
-  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers, signal });
-
-  if (!response.ok) {
-    const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+  let archivePath: string;
+  try {
+    archivePath = await retryOnNetworkFailureAsync(
+      async () => {
+        const response = await fetch(downloadUrl, { headers, signal });
+        if (!response.ok) {
+          const textResult = await asyncResult(response.text());
+          const archiveUrl = new URL(downloadUrl);
+          const source = params.buildId
+            ? `application archive for build ${params.buildId}`
+            : `archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
+          if (response.status === 404 || response.status === 410) {
+            throw new UserError(
+              'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
+              `Failed to download the ${source} (HTTP ${response.status}). ` +
+                'The archive is unavailable. ' +
+                (params.buildId
+                  ? 'Check that the archive still exists and try again.'
+                  : 'Check that the URL is correct and the archive still exists, then try again.')
+            );
+          }
+          throw new Error(
+            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
+          );
+        }
+        const archiveFilename = resolveArchiveFilename({ response, extensions });
+        const attemptArchivePath = path.join(downloadDestinationDirectory, archiveFilename);
+        // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
+        await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
+        return attemptArchivePath;
+      },
+      { operation: 'download_build.archive_download', signal, isRetryable: isTransferFailure }
+    );
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (params.buildId && isTransferFailure(error)) {
+      throw new SystemError(`Could not download the application archive: ${describeError(error)}`, {
+        cause: error,
+      });
+    }
+    throw error;
   }
-
-  const archiveFilename = resolveArchiveFilename({ response, extensions });
-  const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
-
-  // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
-  await streamPipeline(response.body, fs.createWriteStream(archivePath));
   signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(archivePath);

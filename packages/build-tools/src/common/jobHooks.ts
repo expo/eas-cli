@@ -53,19 +53,17 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
   const globalContext = new BuildStepGlobalContext(customBuildContext, false);
   // Hook steps run in the checked-out project directory, not the pre-checkout
   // target directory the global context defaults to.
-  globalContext.markAsCheckedOut(ctx.logger);
+  globalContext.markAsCheckedOut();
 
   const externalFunctions = getEasFunctions(customBuildContext);
   const externalFunctionGroups = getEasFunctionGroups(customBuildContext);
 
   // Shape-validate every REGISTERED key, reachable or not (steps-world parity:
-  // a malformed `before_submit` fails a steps build, so it fails here too), and
-  // warn on keys this build won't run. An unknown key is inert — a key newer
-  // than this worker must be ignored, never fail the job.
+  // a malformed `before_submit` fails a steps build, so it fails here too). An
+  // unknown key is inert — a key newer than this worker must be ignored, never
+  // fail the job.
   for (const [key, steps] of Object.entries(hooks)) {
-    const parsed = parseHookKey(key);
-    if (parsed === null) {
-      ctx.logger.warn(`Ignoring unknown hook key "${key}".`);
+    if (parseHookKey(key) === null) {
       continue;
     }
     if (Array.isArray(steps) && steps.length === 0) {
@@ -79,15 +77,6 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
         ErrorCode.HOOKS_ERROR,
         `Invalid steps in "hooks.${key}": ${err instanceof Error ? err.message : String(err)}`,
         { cause: err }
-      );
-    }
-    // Registered but not wrapped by this build: shape-checked above, then
-    // skipped. Function existence is deliberately NOT checked (that happens only
-    // during construction) — an unknown `uses:` under an unwrapped key warns
-    // rather than failing the build.
-    if (!wrappedAnchors.includes(parsed.anchorId)) {
-      ctx.logger.warn(
-        `Ignoring "hooks.${key}": this build does not run the "${parsed.anchorId}" step.`
       );
     }
   }

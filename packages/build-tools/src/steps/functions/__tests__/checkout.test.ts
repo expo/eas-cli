@@ -48,7 +48,10 @@ describe(createCheckoutBuildFunction, () => {
   });
 
   it('moves project sources to the target directory when no inputs are given', async () => {
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
     const { globalCtx, executeAsync } = createCheckoutStep({
+      logger,
       projectArchive: GIT_PROJECT_ARCHIVE,
     });
 
@@ -56,6 +59,9 @@ describe(createCheckoutBuildFunction, () => {
 
     expect(await vol.promises.readFile(`${projectTargetDirectory}/app.json`, 'utf8')).toBe('{}');
     expect(globalCtx.wasCheckedOut()).toBe(true);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Changing default working directory to')
+    );
     expect(fetchAndCheckoutRefAsync).not.toHaveBeenCalled();
   });
 
@@ -96,14 +102,11 @@ describe(createCheckoutBuildFunction, () => {
   });
 
   it('rejects the ref input when the project is already checked out', async () => {
-    const logger = createMockLogger();
-    jest.mocked(logger.child).mockReturnValue(logger);
     const { globalCtx, executeAsync } = createCheckoutStep({
-      logger,
       projectArchive: GIT_PROJECT_ARCHIVE,
       callInputs: { ref: 'feature/add-icon' },
     });
-    globalCtx.markAsCheckedOut(logger);
+    globalCtx.markAsCheckedOut();
 
     await expect(executeAsync()).rejects.toMatchObject({
       errorCode: 'EAS_CHECKOUT_REF_AFTER_CHECKOUT',

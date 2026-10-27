@@ -65,7 +65,7 @@ describe(BuildStepGlobalContext, () => {
         ),
         false
       );
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
       expect(ctx.defaultWorkingDirectory).toBe(workingDirectory);
     });
   });
@@ -136,7 +136,7 @@ describe(BuildStepGlobalContext, () => {
         },
         createMockLogger()
       );
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
       expect(ctx.stepsInternalBuildDirectory).toBe('/m/n/o');
       expect(ctx.defaultWorkingDirectory).toBe('/g/h/i');
       expect(ctx.runtimePlatform).toBe(BuildRuntimePlatform.DARWIN);
@@ -199,7 +199,7 @@ describe(BuildStepGlobalContext, () => {
       const ctx = createGlobalContextMock({
         relativeWorkingDirectory: 'apps/mobile',
       });
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
 
       const relativeChildCtx = ctx.stepCtx({
         relativeWorkingDirectory: 'scripts',
@@ -230,7 +230,7 @@ describe(BuildStepGlobalContext, () => {
         projectTargetDirectory: tempDir,
         relativeWorkingDirectory: '',
       });
-      ctx.markAsCheckedOut(ctx.baseLogger);
+      ctx.markAsCheckedOut();
     });
 
     afterEach(() => {

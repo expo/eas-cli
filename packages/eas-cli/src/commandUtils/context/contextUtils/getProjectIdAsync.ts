@@ -3,7 +3,7 @@ import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import semver from 'semver';
 
-import { ExpoGraphqlClient, createGraphqlClient } from './createGraphqlClient';
+import { ExpoGraphqlClient } from './createGraphqlClient';
 import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
@@ -92,10 +92,14 @@ export async function getProjectIdAsync(
   const { actor, authenticationInfo } = await sessionManager.ensureLoggedInAsync({
     nonInteractive: options.nonInteractive,
   });
-  const graphqlClient = createGraphqlClient(authenticationInfo);
+  const graphqlClient = sessionManager.getGraphqlClient(authenticationInfo);
 
   const projectId = await validateOrSetProjectIdAsync({ exp, graphqlClient, actor, options });
   return projectId;
+}
+
+export function isProjectIdInAppConfig(exp: Pick<ExpoConfig, 'extra'>, projectId: string): boolean {
+  return exp.extra?.eas?.projectId === projectId;
 }
 
 export async function validateOrSetProjectIdAsync({
