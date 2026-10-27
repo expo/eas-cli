@@ -1,3 +1,4 @@
+import { once } from 'node:events';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { createAgentDeviceTool } from '../utils/agentDevice';
@@ -35,7 +36,7 @@ const LAUNCHER_VERSION: string = require('../../package.json').version;
 
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
-  startRemainingDevices(): void;
+  startExtraWarmupInBackground(): void;
   claimAsync(request: ClaimInput): Promise<{
     device: WarmSimulatorDevice;
     preinstalledExpoGo?: PreinstalledApp;
@@ -128,56 +129,54 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
       requestShutdown();
     }
   });
-  try {
-    try {
-      if (process.env.EXPO_SIMULATOR_STARTUP !== '1') {
-        requestShutdown();
+  async function prepareDefaultDeviceAsync(): Promise<void> {
+    await throwIfStoppingAsync();
+    warm = await session.prepareAsync();
+    await updateLauncherStateAsync(
+      bootUuid,
+      state => ({
+        ...requireOwnedState(state, 'starting'),
+        ...warm!,
+        status: 'ready',
+      }),
+      signal
+    );
+  }
+
+  async function handleOneClaimAsync(): Promise<void> {
+    while (!signal.aborted) {
+      const state = requireOwnedState(await readLauncherStateAsync(bootUuid));
+      if (state.status === 'claiming') {
+        const request = ClaimInputSchema.parse(state);
+        const { device, preinstalledExpoGo } = await session.claimAsync(request);
+        // Stop can arrive during native work; recheck ownership under the state lock.
+        await updateLauncherStateAsync(
+          bootUuid,
+          current => {
+            const owned = requireOwnedState(current, 'claiming');
+            if (
+              owned.engine !== request.engine ||
+              owned.requestedDevice !== request.requestedDevice
+            ) {
+              throw interruption;
+            }
+            return {
+              ...owned,
+              status: 'claimed',
+              device,
+              ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
+            };
+          },
+          signal
+        );
+        return;
       }
-      await throwIfStoppingAsync();
-      warm = await session.prepareAsync();
-      await updateLauncherStateAsync(
-        bootUuid,
-        state => ({
-          ...requireOwnedState(state, 'starting'),
-          ...warm!,
-          status: 'ready',
-        }),
-        signal
-      );
-      session.startRemainingDevices();
-      while (!signal.aborted) {
-        const state = requireOwnedState(await readLauncherStateAsync(bootUuid));
-        if (state.status === 'claiming') {
-          const request = ClaimInputSchema.parse(state);
-          const { device, preinstalledExpoGo } = await session.claimAsync(request);
-          // Stop can arrive during native work; recheck ownership under the state lock.
-          await updateLauncherStateAsync(
-            bootUuid,
-            current => {
-              const owned = requireOwnedState(current, 'claiming');
-              if (
-                owned.engine !== request.engine ||
-                owned.requestedDevice !== request.requestedDevice
-              ) {
-                throw interruption;
-              }
-              return {
-                ...owned,
-                status: 'claimed',
-                device,
-                ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
-              };
-            },
-            signal
-          );
-        }
-        await sleepAsync(100, undefined, { signal });
-      }
-    } catch (error) {
-      if (!signal.aborted) {
-        sessionError ??= error;
-      }
+      await sleepAsync(100, undefined, { signal });
     }
+    signal.throwIfAborted();
+  }
+
+  async function finishSessionAsync(): Promise<void> {
     await updateLauncherStateAsync(bootUuid, state => ({
       ...requireOwnedState(state),
       status: 'stopping',
@@ -205,6 +204,26 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
     if (sessionError) {
       throw sessionError;
     }
+  }
+
+  try {
+    try {
+      if (process.env.EXPO_SIMULATOR_STARTUP !== '1') {
+        requestShutdown();
+      }
+      await prepareDefaultDeviceAsync();
+      session.startExtraWarmupInBackground();
+      await handleOneClaimAsync();
+      if (!signal.aborted) {
+        await once(signal, 'abort');
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        sessionError ??= error;
+      }
+    }
+
+    await finishSessionAsync();
   } finally {
     watcherAbort.abort();
     await watcher;
@@ -215,16 +234,21 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
 
 type WarmDeviceSession = {
   device: WarmSimulatorDevice;
-  shutdown: AbortController;
   ready: Promise<void>;
-  failed?: boolean;
-  serveSim?: ChildProcessHandle;
-  expoGo?: ReturnType<typeof startExpoGoPreinstall>;
+  startupSignal: AbortSignal;
+  readonly canClaim: boolean;
+  readonly expoGo?: ReturnType<typeof startExpoGoPreinstall>;
+  cancelStartup(): void;
+  /** Release an unclaimed server quickly before reusing its port. */
+  releaseServerAsync(): Promise<void>;
+  /** Confirm descendant cleanup at the end of the job. */
+  stopServerAsync(): Promise<void>;
+  shutdownAsync(): Promise<void>;
 };
 
 /** Own resources before preparation starts so every partial attempt can be stopped. */
 export function createWarmSimulatorSession({
-  signal,
+  signal: parentSignal,
   throwIfStoppingAsync,
   isReadyAsync,
   onPreparationFailure,
@@ -236,22 +260,23 @@ export function createWarmSimulatorSession({
   onPreparationFailure(error: unknown): void;
   onBackgroundFailure(error: unknown): void;
 }): WarmSimulatorSession {
+  const lifetime = new AbortController();
+  const signal = AbortSignal.any([parentSignal, lifetime.signal]);
+  let preparation: Promise<WarmSessionInfo> | undefined;
   const warmTools = [createAgentDeviceTool(), createArgentTool()];
-  const serveSims = new Set<ChildProcessHandle>();
-  const expoGoPreinstalls = new Set<ReturnType<typeof startExpoGoPreinstall>>();
+  // Attempts can reuse a UDID; physical boot ownership is shared until shutdown succeeds.
   const ownedSimulatorUdids = new Set<string>();
-  const devices = new Map<string, WarmDeviceSession>();
+  const deviceSessions = new Set<WarmDeviceSession>();
   const startedTools = new Map<WarmTool, StartedTool>();
   let warmDevices: WarmSimulatorDevice[];
-  let currentDevice: WarmSimulatorDevice;
+  let currentDevice: WarmDeviceSession;
   let availableDevices: SimulatorDevice[];
   let claimed = false;
   let stopping = false;
-  let unusedToolsCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
-  let unusedDevicesCleanup: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
-  let previousDeviceShutdown: Promise<void> = Promise.resolve();
+  let toolRetirement: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
+  const deviceRetirements: Promise<void>[] = [];
   let launcherCachePriming: Promise<void> = Promise.resolve();
-  let additionalWarmup: Promise<void> | undefined;
+  let extraWarmup: Promise<void> | undefined;
 
   async function resolveDeviceAsync(
     selector?: string,
@@ -278,28 +303,31 @@ export function createWarmSimulatorSession({
     preinstallExpoGo: boolean,
     servicesAllowed: Promise<unknown> = Promise.resolve()
   ): WarmDeviceSession {
-    const session: WarmDeviceSession = {
-      device,
-      shutdown: new AbortController(),
-      ready: Promise.resolve(),
-    };
-    devices.set(device.udid, session);
-    session.ready = (async () => {
+    const cancellation = new AbortController();
+    const deviceSignal = AbortSignal.any([signal, cancellation.signal]);
+    let bootStarted = false;
+    let failed = false;
+    let retiring = false;
+    let serveSim: ChildProcessHandle | undefined;
+    let expoGo: ReturnType<typeof startExpoGoPreinstall> | undefined;
+    const ready = (async () => {
       await throwIfStoppingAsync();
-      const deviceSignal = AbortSignal.any([signal, session.shutdown.signal]);
       const isAdditional = preinstallExpoGo && device.udid !== warmDevices[0].udid;
       if (isAdditional && (claimed || stopping || !(await isReadyAsync()))) {
-        session.failed = true;
+        failed = true;
         return;
       }
       deviceSignal.throwIfAborted();
       const udid = device.udid;
+      bootStarted = true;
       ownedSimulatorUdids.add(udid);
       const boot = bootSimulatorAsync(udid, deviceSignal);
       if (preinstallExpoGo && !claimed && !stopping) {
-        const shared = devices.get(warmDevices[0].udid)?.expoGo;
+        const shared = [...deviceSessions].find(
+          owner => owner.device.udid === warmDevices[0].udid
+        )?.expoGo;
         if (isAdditional && shared) {
-          session.expoGo = {
+          expoGo = {
             ...shared,
             resultPromise: shared.preinstallOnDeviceAsync(udid, boot, deviceSignal),
             async claimAsync() {
@@ -309,30 +337,25 @@ export function createWarmSimulatorSession({
               await shared.stopAsync(udid);
             },
           };
-          void session.expoGo.resultPromise.catch(error => {
-            session.failed = true;
+          void expoGo.resultPromise.catch(error => {
+            failed = true;
             process.stderr.write(
               `Expo Go preinstall on unused Simulator ${udid} failed; final stop will drain it: ${error}\n`
             );
           });
         } else {
-          session.expoGo = startExpoGoPreinstall(
+          expoGo = startExpoGoPreinstall(
             udid,
             boot,
             deviceSignal,
             /* reuseArchive */ warmDevices.length > 1
           );
-          void session.expoGo.resultPromise.catch(onBackgroundFailure);
+          void expoGo.resultPromise.catch(onBackgroundFailure);
         }
-      }
-      if (session.expoGo) {
-        // Replacing a device entry must not forget an unconfirmed native install.
-        expoGoPreinstalls.add(session.expoGo);
       }
       const serveSimReady = Promise.all([boot, servicesAllowed]).then(async () => {
         const handle = startServeSim(udid, deviceSignal, device.port);
-        session.serveSim = handle;
-        serveSims.add(handle);
+        serveSim = handle;
         await waitForServeSimReadyAsync(udid, handle, deviceSignal, device.port);
       });
       for (const tool of tools) {
@@ -347,8 +370,8 @@ export function createWarmSimulatorSession({
       try {
         await Promise.all([serveSimReady, apsd]);
       } catch (error) {
-        session.failed = true;
-        if (!session.shutdown.signal.aborted) {
+        failed = true;
+        if (!cancellation.signal.aborted) {
           if (preinstallExpoGo && device.udid !== warmDevices[0].udid) {
             process.stderr.write(
               `Could not warm additional Simulator ${device.udid}; a claim will start it normally: ${error}\n`
@@ -361,31 +384,58 @@ export function createWarmSimulatorSession({
         throw error;
       }
     })();
-    void session.ready.catch(() => {});
-    return session;
-  }
-
-  /** Cancel startup, drain it, then release this device's unclaimed server and its port. */
-  async function stopDeviceServerAsync(session: WarmDeviceSession): Promise<void> {
-    session.shutdown.abort();
-    await session.ready.catch(() => {});
-    if (session.serveSim) {
-      await terminateProcessGroupAsync(session.serveSim);
-      serveSims.delete(session.serveSim);
-    }
+    void ready.catch(() => {});
+    const owner: WarmDeviceSession = {
+      device,
+      ready,
+      startupSignal: deviceSignal,
+      get canClaim() {
+        return bootStarted && ownedSimulatorUdids.has(device.udid) && !failed && !retiring;
+      },
+      get expoGo() {
+        return expoGo;
+      },
+      cancelStartup() {
+        cancellation.abort();
+      },
+      async releaseServerAsync() {
+        retiring = true;
+        cancellation.abort();
+        await ready.catch(() => {});
+        if (serveSim) {
+          await terminateProcessGroupAsync(serveSim);
+          serveSim = undefined;
+        }
+      },
+      async stopServerAsync() {
+        if (serveSim) {
+          await stopProcessAndDescendantsAsync(serveSim);
+          serveSim = undefined;
+        }
+      },
+      async shutdownAsync() {
+        if (ownedSimulatorUdids.has(device.udid)) {
+          await shutdownSimulatorAsync(device.udid);
+          ownedSimulatorUdids.delete(device.udid);
+        }
+      },
+    };
+    // Keep every attempt owned, including one replaced by another attempt on the same UDID.
+    deviceSessions.add(owner);
+    return owner;
   }
 
   async function replaceDeviceAsync(
     device: SimulatorDevice,
     requestedTool?: WarmTool
   ): Promise<void> {
-    const previousDevices = [...devices.values()];
+    const previousDevices = [...deviceSessions];
     const previousTools = [...startedTools.values()];
     startedTools.clear();
     const release = (async () => {
       const results = await Promise.allSettled([
         ...previousTools.map(tool => tool.stopAsync()),
-        ...previousDevices.map(session => stopDeviceServerAsync(session)),
+        ...previousDevices.map(session => session.releaseServerAsync()),
       ]);
       const failed = results.find(result => result.status === 'rejected');
       if (failed?.status === 'rejected') {
@@ -394,7 +444,7 @@ export function createWarmSimulatorSession({
       await throwIfStoppingAsync();
     })();
     // Release the old ports before shutdown; final stop still drains this background work.
-    previousDeviceShutdown = release.then(async () => {
+    const retirement = release.then(async () => {
       const results = await Promise.allSettled(
         previousDevices.map(async session => {
           try {
@@ -403,14 +453,8 @@ export function createWarmSimulatorSession({
             // Failed preinstall cleanup must not skip an old device's shutdown.
             // Never shut down the replacement when it reuses a failed warm UDID.
             if (session.device.udid !== device.udid) {
-              await shutdownSimulatorAsync(session.device.udid);
+              await session.shutdownAsync();
             }
-          }
-          if (session.device.udid !== device.udid) {
-            ownedSimulatorUdids.delete(session.device.udid);
-          }
-          if (devices.get(session.device.udid) === session) {
-            devices.delete(session.device.udid);
           }
         })
       );
@@ -419,7 +463,14 @@ export function createWarmSimulatorSession({
         throw failed.reason;
       }
     });
-    void previousDeviceShutdown.catch(() => {});
+    deviceRetirements.push(
+      retirement.catch(error => {
+        // The claim observes release failures; final stop retries resources still owned here.
+        process.stderr.write(
+          `Could not finish replaced Simulator cleanup; final stop will retry: ${error}\n`
+        );
+      })
+    );
     // Boot overlaps the release; new services wait for the old ones to exit.
     const replacement = startDevice(
       { ...device, port: 3200 },
@@ -428,22 +479,23 @@ export function createWarmSimulatorSession({
       release
     );
     await replacement.ready;
-    currentDevice = replacement.device;
+    currentDevice = replacement;
   }
 
   /** Stops services before shutting down every device whose boot was attempted. */
   async function stopServicesAndDevicesAsync(): Promise<void> {
     const cleanupErrors: unknown[] = [];
     const attempt = (step: Promise<void>) => step.catch(error => cleanupErrors.push(error));
-    for (const handle of serveSims) {
-      await attempt(stopProcessAndDescendantsAsync(handle));
+    for (const owner of deviceSessions) {
+      await attempt(owner.stopServerAsync());
     }
     if (ownedSimulatorUdids.size) {
       for (const tool of warmTools) {
         await attempt(tool.stopAsync());
       }
     }
-    await Promise.all([...ownedSimulatorUdids].map(udid => attempt(shutdownSimulatorAsync(udid))));
+    const physicalDevices = new Map([...deviceSessions].map(owner => [owner.device.udid, owner]));
+    await Promise.all([...physicalDevices.values()].map(owner => attempt(owner.shutdownAsync())));
     try {
       commands.throwIfCommandCloseTimedOut();
     } catch (error) {
@@ -457,57 +509,121 @@ export function createWarmSimulatorSession({
     }
   }
 
+  async function claimExistingDeviceAsync(
+    existing: WarmDeviceSession,
+    requestedTool?: WarmTool
+  ): Promise<void> {
+    const movingTools =
+      existing.device.udid !== currentDevice.device.udid && requestedTool?.name === 'agent-device';
+    toolRetirement = Promise.allSettled(
+      [...startedTools]
+        .filter(([tool]) => movingTools || tool !== requestedTool)
+        .map(([tool, started]) => {
+          startedTools.delete(tool);
+          return started.stopAsync().catch(error => {
+            onBackgroundFailure(error);
+            throw error;
+          });
+        })
+    );
+    for (const owner of deviceSessions) {
+      if (owner === existing) {
+        continue;
+      }
+      const retirement = (async () => {
+        await owner.releaseServerAsync();
+        await owner.expoGo?.stopAsync();
+        await toolRetirement;
+        await owner.shutdownAsync();
+      })().catch(error => {
+        process.stderr.write(
+          `Could not release unused Simulator ${owner.device.udid}; final stop will retry: ${error}\n`
+        );
+      });
+      deviceRetirements.push(retirement);
+    }
+    if (movingTools && requestedTool) {
+      const stopped = await toolRetirement;
+      const failed = stopped.find(result => result.status === 'rejected');
+      if (failed?.status === 'rejected') {
+        throw failed.reason;
+      }
+      await throwIfStoppingAsync();
+      startedTools.set(
+        requestedTool,
+        startTool(
+          requestedTool,
+          existing.device.udid,
+          existing.ready,
+          AbortSignal.any([signal, existing.startupSignal]),
+          onPreparationFailure
+        )
+      );
+    }
+    await existing.ready;
+    currentDevice = existing;
+  }
+
+  async function primeLauncherCacheAsync(first: WarmDeviceSession): Promise<void> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await commands.runAsync(
+          'bun',
+          ['x', `@expo/simulator-launcher@${LAUNCHER_VERSION}`, '--version'],
+          AbortSignal.any([signal, first.startupSignal, AbortSignal.timeout(30_000)])
+        );
+        return;
+      } catch (error) {
+        signal.throwIfAborted();
+        first.startupSignal.throwIfAborted();
+        if (attempt === 1) {
+          process.stderr.write(
+            `Could not cache the Simulator launcher version; claim/stop may need the registry: ${error}\n`
+          );
+        }
+      }
+    }
+  }
+
+  async function prepareDefaultAsync(): Promise<WarmSessionInfo> {
+    signal.throwIfAborted();
+    availableDevices = await listAvailableSimulatorsAsync(signal);
+    signal.throwIfAborted();
+    warmDevices = selectWarmupSimulators(availableDevices, process.env.EXPO_SIMULATOR_DEVICE).map(
+      (device, index) => ({ ...device, port: 3200 + index * 2 })
+    );
+    const controllerStartTime = (
+      await commands.runAsync('ps', ['-p', String(process.pid), '-o', 'lstart='], signal)
+    ).trim();
+    signal.throwIfAborted();
+    if (!controllerStartTime) {
+      throw new Error(
+        'Could not read the Simulator launcher process start time; the warm session cannot be verified.'
+      );
+    }
+    const first = startDevice(warmDevices[0], warmTools, /* preinstallExpoGo */ true);
+    launcherCachePriming = primeLauncherCacheAsync(first);
+    await Promise.all([first.ready, launcherCachePriming]);
+    currentDevice = first;
+    return {
+      device: currentDevice.device,
+      controllerPid: process.pid,
+      controllerStartTime,
+      agentDeviceStateDir: process.env.AGENT_DEVICE_STATE_DIR!,
+      argentEventLogPath: process.env.ARGENT_EVENT_LOG!,
+    };
+  }
+
   return {
     async prepareAsync(): Promise<WarmSessionInfo> {
-      availableDevices = await listAvailableSimulatorsAsync(signal);
-      warmDevices = selectWarmupSimulators(availableDevices, process.env.EXPO_SIMULATOR_DEVICE).map(
-        (device, index) => ({ ...device, port: 3200 + index * 2 })
-      );
-      const controllerStartTime = (
-        await commands.runAsync('ps', ['-p', String(process.pid), '-o', 'lstart='], signal)
-      ).trim();
-      if (!controllerStartTime) {
-        throw new Error(
-          'Could not read the Simulator launcher process start time; the warm session cannot be verified.'
-        );
-      }
-      const first = startDevice(warmDevices[0], warmTools, /* preinstallExpoGo */ true);
-      launcherCachePriming = (async () => {
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            await commands.runAsync(
-              'bun',
-              ['x', `@expo/simulator-launcher@${LAUNCHER_VERSION}`, '--version'],
-              AbortSignal.any([signal, first.shutdown.signal, AbortSignal.timeout(30_000)])
-            );
-            return;
-          } catch (error) {
-            signal.throwIfAborted();
-            first.shutdown.signal.throwIfAborted();
-            if (attempt === 1) {
-              process.stderr.write(
-                `Could not cache the Simulator launcher version; claim/stop may need the registry: ${error}\n`
-              );
-            }
-          }
-        }
-      })();
-      await Promise.all([first.ready, launcherCachePriming]);
-      currentDevice = first.device;
-      return {
-        device: currentDevice,
-        controllerPid: process.pid,
-        controllerStartTime,
-        agentDeviceStateDir: process.env.AGENT_DEVICE_STATE_DIR!,
-        argentEventLogPath: process.env.ARGENT_EVENT_LOG!,
-      };
+      return await (preparation ??= prepareDefaultAsync());
     },
-    startRemainingDevices(): void {
-      if (claimed || stopping || additionalWarmup) {
+    startExtraWarmupInBackground(): void {
+      if (claimed || stopping || extraWarmup) {
         return;
       }
-      additionalWarmup = (async () => {
-        const first = devices.get(warmDevices[0].udid)!;
+      extraWarmup = (async () => {
+        const first = currentDevice;
         // Keep second-device work out of the default Expo Go and tool startup critical path.
         await Promise.all([
           first.expoGo?.resultPromise,
@@ -517,7 +633,7 @@ export function createWarmSimulatorSession({
           return;
         }
         for (const device of warmDevices.slice(1)) {
-          if (!devices.has(device.udid)) {
+          if (![...deviceSessions].some(owner => owner.device.udid === device.udid)) {
             startDevice(device, [], /* preinstallExpoGo */ true);
           }
         }
@@ -530,11 +646,11 @@ export function createWarmSimulatorSession({
     async claimAsync(request: ClaimInput) {
       claimed = true;
       const preinstalls = new Map(
-        [...devices].map(([udid, session]) => {
+        [...deviceSessions].map(session => {
           const result = session.expoGo?.claimAsync() ?? Promise.resolve(undefined);
           // Only the selected device's installation can fail the claim below.
           void result.catch(() => {});
-          return [udid, result];
+          return [session.device.udid, result];
         })
       );
       await throwIfStoppingAsync();
@@ -546,12 +662,11 @@ export function createWarmSimulatorSession({
           `More than one warm Simulator matches ${request.requestedDevice}. Use an exact UDID.`
         );
       }
-      const matches = [...devices.values()].filter(
+      const matches = [...deviceSessions].filter(
         session =>
-          ownedSimulatorUdids.has(session.device.udid) &&
-          !session.failed &&
+          session.canClaim &&
           (!request.requestedDevice
-            ? session.device.udid === currentDevice.udid
+            ? session.device.udid === currentDevice.device.udid
             : session.device.name === request.requestedDevice ||
               session.device.udid.toLowerCase() === request.requestedDevice.toLowerCase())
       );
@@ -566,87 +681,37 @@ export function createWarmSimulatorSession({
         const device = await resolveDeviceAsync(request.requestedDevice, /* refreshOnMiss */ true);
         await replaceDeviceAsync(device, requestedTool);
       } else {
-        const movingTools =
-          existing.device.udid !== currentDevice.udid && requestedTool?.name === 'agent-device';
-        unusedToolsCleanup = Promise.allSettled(
-          [...startedTools]
-            .filter(([tool]) => movingTools || tool !== requestedTool)
-            .map(([tool, started]) => {
-              startedTools.delete(tool);
-              return started.stopAsync().catch(error => {
-                onBackgroundFailure(error);
-                throw error;
-              });
-            })
-        );
-        unusedDevicesCleanup = Promise.allSettled(
-          [...devices.values()]
-            .filter(session => session !== existing)
-            .map(async session => {
-              try {
-                await stopDeviceServerAsync(session);
-                await session.expoGo?.stopAsync();
-                // A native tool startup/stop must settle before its Simulator shuts down.
-                await unusedToolsCleanup;
-                if (ownedSimulatorUdids.has(session.device.udid)) {
-                  await shutdownSimulatorAsync(session.device.udid);
-                  ownedSimulatorUdids.delete(session.device.udid);
-                }
-                devices.delete(session.device.udid);
-              } catch (error) {
-                // Keep the unused device owned for final cleanup without interrupting the job.
-                process.stderr.write(
-                  `Could not release unused Simulator ${session.device.udid}; final stop will retry: ${error}\n`
-                );
-              }
-            })
-        );
-        if (movingTools && requestedTool) {
-          const stopped = await unusedToolsCleanup;
-          const failed = stopped.find(result => result.status === 'rejected');
-          if (failed?.status === 'rejected') {
-            throw failed.reason;
-          }
-          await throwIfStoppingAsync();
-          startedTools.set(
-            requestedTool,
-            startTool(
-              requestedTool,
-              existing.device.udid,
-              existing.ready,
-              AbortSignal.any([signal, existing.shutdown.signal]),
-              onPreparationFailure
-            )
-          );
-        }
-        await existing.ready;
-        currentDevice = existing.device;
+        await claimExistingDeviceAsync(existing, requestedTool);
       }
       if (requestedTool) {
         await startedTools.get(requestedTool)!.ready;
       }
-      const preinstalledExpoGo = await preinstalls.get(currentDevice.udid);
-      return { device: currentDevice, ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}) };
+      const preinstalledExpoGo = await preinstalls.get(currentDevice.device.udid);
+      return {
+        device: currentDevice.device,
+        ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
+      };
     },
     async stopAsync(): Promise<void> {
       stopping = true;
       const cancellingTools = [...startedTools.values()].map(tool => tool.cancelAsync());
-      for (const session of devices.values()) {
-        session.shutdown.abort();
+      lifetime.abort();
+      for (const owner of deviceSessions) {
+        owner.cancelStartup();
       }
       await Promise.all(cancellingTools);
-      await additionalWarmup;
-      const [unusedToolsResults, unusedDeviceResults, expoGoResults] = await Promise.all([
-        unusedToolsCleanup,
-        unusedDevicesCleanup,
-        Promise.allSettled([...expoGoPreinstalls].map(preinstall => preinstall.stopAsync())),
+      await preparation?.catch(() => {});
+      await extraWarmup;
+      const [unusedToolsResults, expoGoResults] = await Promise.all([
+        toolRetirement,
+        Promise.allSettled([...deviceSessions].map(owner => owner.expoGo?.stopAsync())),
       ]);
-      await Promise.allSettled([...devices.values()].map(session => session.ready));
-      await previousDeviceShutdown.catch(() => {});
+      await Promise.allSettled([...deviceSessions].map(owner => owner.ready));
+      await Promise.all(deviceRetirements);
       await launcherCachePriming.catch(() => {});
       await stopServicesAndDevicesAsync();
-      const errors = [...unusedToolsResults, ...unusedDeviceResults, ...expoGoResults].flatMap(
-        result => (result.status === 'rejected' ? [result.reason] : [])
+      const errors = [...unusedToolsResults, ...expoGoResults].flatMap(result =>
+        result.status === 'rejected' ? [result.reason] : []
       );
       if (errors.length) {
         throw new AggregateError(
