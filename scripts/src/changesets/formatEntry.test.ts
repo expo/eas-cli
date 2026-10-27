@@ -19,14 +19,14 @@ describe(formatEntry.name, () => {
     assert.equal(formatEntry('\n  Add a flag  \n\n', ATTRIBUTION), `Add a flag. ${ATTRIBUTION}`);
   });
 
-  it('indents later lines and keeps blank lines', () => {
-    assert.equal(
-      formatEntry('Add a flag\n\nDetails here.\n- item', ATTRIBUTION),
-      `Add a flag. ${ATTRIBUTION}\n\n  Details here.\n  - item`
+  it('rejects multiline summaries before generating an entry', () => {
+    assert.throws(
+      () => formatEntry('Add a flag\n\nDetails here.\n- item', ATTRIBUTION),
+      /exactly one nonempty line/
     );
   });
 
   it('throws on an empty summary', () => {
-    assert.throws(() => formatEntry('  \n ', ATTRIBUTION), /summary is empty/);
+    assert.throws(() => formatEntry('  \n ', ATTRIBUTION), /exactly one nonempty line/);
   });
 });
