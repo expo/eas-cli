@@ -220,12 +220,13 @@ function watchLogSourceHealth(
       if (!failing && status !== 'streaming') {
         failing = true;
         const reason = streamError ? `: ${stripTerminalControlCharacters(streamError)}` : '';
-        Log.warn(
+        // stderr, so the notice stays out of `--follow > logs.txt`.
+        Log.warnToStderr(
           `Simulator logs are not being collected. The session's log source stopped${reason}. It restarts automatically, and logs from this gap are missing.`
         );
       } else if (failing && status === 'streaming' && !streamError) {
         failing = false;
-        Log.log('Simulator log collection resumed.');
+        Log.warnToStderr('Simulator log collection resumed.');
       }
     } catch {
       // The stream itself reports connection failures.

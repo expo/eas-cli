@@ -41,6 +41,7 @@ const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
 const mockWarn = jest.mocked(Log.warn);
+const mockWarnToStderr = jest.mocked(Log.warnToStderr);
 const originalColorLevel = chalk.level;
 const preview = {
   deviceRunSessionId: 'session-id',
@@ -334,11 +335,15 @@ describe(SimulatorLogs, () => {
       expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/logs', {
         query: { scope: 'all', limit: '1', snapshot: '1' },
       });
-      expect(mockWarn).toHaveBeenCalledTimes(1);
-      expect(mockWarn).toHaveBeenCalledWith(
-        "Simulator logs are not being collected. The session's log source stopped: log stream exited (code 1, signal null). It restarts automatically, and logs from this gap are missing."
-      );
-      expect(mockLog).toHaveBeenCalledWith('Simulator log collection resumed.');
+      // Both notices go to stderr, so `--follow > logs.txt` keeps only log lines.
+      expect(mockWarnToStderr.mock.calls).toEqual([
+        [
+          "Simulator logs are not being collected. The session's log source stopped: log stream exited (code 1, signal null). It restarts automatically, and logs from this gap are missing.",
+        ],
+        ['Simulator log collection resumed.'],
+      ]);
+      expect(mockWarn).not.toHaveBeenCalled();
+      expect(mockLog).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }
