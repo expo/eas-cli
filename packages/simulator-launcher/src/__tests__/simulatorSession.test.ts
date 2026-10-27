@@ -676,3 +676,51 @@ it('starts each warm serve-sim as an explicit orphan on its device port', () => 
   }
   expect(launches.map(([, args]) => args[args.indexOf('--port') + 1])).toEqual(['3200', '3202']);
 });
+
+it('a stopped session cannot begin preparation later', async () => {
+  const session = createSession();
+  await session.stopAsync();
+  try {
+    await expect(session.prepareAsync()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(commands.runAsync).not.toHaveBeenCalled();
+    expect(startServeSim).not.toHaveBeenCalled();
+  } finally {
+    await session.stopAsync();
+  }
+});
+
+it('stop cancels and drains the initial device listing before returning', async () => {
+  const listing = deferred<string>();
+  let listingSignal: AbortSignal | undefined;
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation((file, args, signal) => {
+    if (args.includes('devices')) {
+      listingSignal = signal;
+      return listing.promise;
+    }
+    return original(file, args, signal);
+  });
+  const session = createSession();
+  const preparing = session.prepareAsync().catch(error => error);
+  await until(() => listingSignal !== undefined);
+  let stopped = false;
+  const stopping = session.stopAsync().then(() => {
+    stopped = true;
+  });
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    expect(listingSignal!.aborted).toBe(true);
+    expect(stopped).toBe(false);
+    listing.resolve(JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } }));
+    await stopping;
+    expect(await preparing).toMatchObject({ name: 'AbortError' });
+    expect(startServeSim).not.toHaveBeenCalled();
+    expect(ran('bootstatus')).toHaveLength(0);
+    expect(shutdownSimulatorAsync).not.toHaveBeenCalled();
+  } finally {
+    listing.resolve(JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } }));
+    await preparing;
+    await stopping;
+    await session.stopAsync();
+  }
+});
