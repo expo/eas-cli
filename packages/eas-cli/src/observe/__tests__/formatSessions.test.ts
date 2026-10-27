@@ -52,7 +52,62 @@ function makeLogEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventE
   };
 }
 
+function makeSpanEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventEntry {
+  return {
+    source: 'span',
+    id: 'span-1',
+    timestamp: '2025-01-15T10:00:01.000Z',
+    sessionId: 'session-1',
+    appVersion: '1.0.0',
+    appBuildNumber: '42',
+    appUpdateId: null,
+    deviceModel: 'iPhone 15',
+    deviceOs: 'iOS',
+    deviceOsVersion: '17.0',
+    countryCode: 'US',
+    easClientId: 'client-1',
+    name: 'GET',
+    environment: 'production',
+    traceId: 'a'.repeat(32),
+    spanId: '1'.repeat(16),
+    parentSpanId: null,
+    durationMs: 123.4,
+    statusCode: 'OK',
+    httpMethod: 'GET',
+    httpStatusCode: 200,
+    httpErrorType: null,
+    urlHost: 'api.example.com',
+    urlFull: 'https://api.example.com/users?page=1',
+    ...overrides,
+  };
+}
+
 describe(buildObserveSessionEventsTable, () => {
+  it('renders a span row with its method, host and path, duration, and status', () => {
+    const output = buildObserveSessionEventsTable([makeMetricEntry(), makeSpanEntry()]);
+    const spanLine = output.split('\n').find(line => line.includes('span'));
+    expect(spanLine).toContain('1.00s');
+    expect(spanLine).toContain('GET api.example.com/users?page=1');
+    expect(spanLine).toContain('123ms');
+    expect(spanLine).toContain('status=OK http=200');
+  });
+
+  it('shows the client error type for a span whose request got no response', () => {
+    const output = buildObserveSessionEventsTable([
+      makeSpanEntry({
+        statusCode: 'ERROR',
+        httpStatusCode: null,
+        httpErrorType: 'NSURLErrorTimedOut',
+      }),
+    ]);
+    expect(output).toContain('status=ERROR error=NSURLErrorTimedOut');
+  });
+
+  it('names spans in the "more available" note', () => {
+    const output = buildObserveSessionEventsTable([makeSpanEntry()], { hasMoreSpans: true });
+    expect(output).toContain('More spans are available for this session');
+  });
+
   it('renders a chronological table with display name for metric rows and event name for log rows', () => {
     const entries: SessionEventEntry[] = [
       makeMetricEntry(),
@@ -234,19 +289,20 @@ describe(buildObserveSessionEventsJson, () => {
       firstSeenAt: '2025-01-15T10:00:00.000Z',
       lastSeenAt: '2025-01-15T10:05:00.000Z',
     };
-    const result = buildObserveSessionEventsJson(entries, 'session-1', metadata, false, true);
+    const result = buildObserveSessionEventsJson(entries, 'session-1', metadata, false, true, true);
     expect(result).toEqual({
       sessionId: 'session-1',
       metadata,
       entries,
       hasMoreMetricEvents: false,
       hasMoreLogEvents: true,
+      hasMoreSpans: true,
     });
     expect(result.entries[0].id).toBe('evt-m-1');
   });
 
   it('returns null metadata when there were no entries', () => {
-    const result = buildObserveSessionEventsJson([], 'session-1', null, false, false);
+    const result = buildObserveSessionEventsJson([], 'session-1', null, false, false, false);
     expect(result.metadata).toBeNull();
   });
 });
