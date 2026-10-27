@@ -198,6 +198,51 @@ describe(fetchSimulatorPreviewAsync, () => {
     await expect(error).rejects.not.toThrow('secret');
   });
 
+  it('closes the connection of an unfinished error response and keeps its body out of the error', async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(403, { 'content-type': 'text/plain' });
+      response.write('secret response that never ends');
+    });
+    const closed = new Promise<void>(resolve => {
+      server.once('connection', socket => socket.once('close', resolve));
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    jest
+      .mocked(fetch)
+      .mockImplementationOnce(
+        jest.requireActual<typeof import('../../fetch')>('../../fetch').default
+      );
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      const error = fetchSimulatorPreviewJsonAsync(
+        {
+          ...preview,
+          baseUrl: new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}`),
+        },
+        '/logs',
+        { query: { snapshot: '1' } }
+      );
+      await expect(error).rejects.toThrow('refused access');
+      await expect(error).rejects.not.toThrow('secret');
+      await Promise.race([
+        closed,
+        new Promise<void>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error('The error response connection stayed open.'));
+          }, 1000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeout);
+      server.closeAllConnections();
+      await new Promise<void>(resolve =>
+        server.close(() => {
+          resolve();
+        })
+      );
+    }
+  });
+
   it('uses the caller message for a missing route', async () => {
     rejectWithStatus(404);
     await expect(

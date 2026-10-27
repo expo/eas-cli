@@ -71,11 +71,13 @@ export async function fetchSimulatorPreviewAsync(
   for (const [key, value] of Object.entries(query ?? {})) {
     url.searchParams.set(key, value);
   }
+  // Aborting closes the connection of an error response, whose body is never read.
+  const controller = new AbortController();
   try {
     return await fetch(url.toString(), {
       timeout: PREVIEW_API_TIMEOUT_MS,
       redirect: 'error',
-      signal,
+      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
       headers: {
         Authorization: `Bearer ${preview.token}`,
         ...(accept ? { Accept: accept } : {}),
@@ -86,6 +88,7 @@ export async function fetchSimulatorPreviewAsync(
       throw error;
     }
     if (error instanceof RequestError) {
+      controller.abort();
       if (error.response.headers.get('ngrok-error-code') === 'ERR_NGROK_3200') {
         throw new Error(
           'The simulator preview is offline. The session may have stopped or reached its time limit. Start a new session with `eas simulator:start`.'
