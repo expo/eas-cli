@@ -28,7 +28,7 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'no changelog') ||
           github.event.pull_request.user.login == 'dependabot[bot]'
         }}
-      BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+      BASE_REF: origin/${{ github.base_ref || 'main' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
