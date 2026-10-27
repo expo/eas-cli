@@ -30,9 +30,9 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
       let firstError: any = null;
 
       try {
-        const archivePath = await uploadApplicationArchivesAsync({ ctx, stepCtx });
-        if (archivePath) {
-          outputs.application_archive_path.set(archivePath);
+        const [firstArchivePath] = await uploadApplicationArchivesAsync({ ctx, stepCtx });
+        if (firstArchivePath) {
+          outputs.application_archive_path.set(firstArchivePath);
         }
       } catch (err: unknown) {
         stepCtx.logger.error({ err }, `Failed to upload application archives.`);
@@ -77,7 +77,7 @@ async function uploadApplicationArchivesAsync({
 }: {
   ctx: CustomBuildContext<BuildJob>;
   stepCtx: BuildStepContext;
-}): Promise<string | undefined> {
+}): Promise<string[]> {
   const applicationArchivePatternOrPath =
     ctx.job.platform === Platform.ANDROID
       ? (ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}')
@@ -109,7 +109,7 @@ async function uploadApplicationArchivesAsync({
   });
   logger.info('Done.');
 
-  return applicationArchives[0];
+  return applicationArchives;
 }
 
 async function uploadBuildArtifacts({

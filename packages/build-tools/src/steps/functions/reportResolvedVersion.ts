@@ -177,8 +177,8 @@ export async function reportResolvedVersionAsync(
     appVersion,
     appBuildVersion,
   }: {
-    appVersion?: string;
-    appBuildVersion?: string;
+    appVersion: string | undefined;
+    appBuildVersion: string | undefined;
   }
 ): Promise<void> {
   const result = await graphqlClient
@@ -204,8 +204,8 @@ export async function reportResolvedVersionAsync(
       `),
       {
         buildId,
-        appVersion: appVersion ?? null,
-        appBuildVersion: appBuildVersion ?? null,
+        appVersion,
+        appBuildVersion,
       }
     )
     .toPromise();

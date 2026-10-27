@@ -239,15 +239,15 @@ async function buildInnerAsync(
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
-  const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
-    return await uploadApplicationArchive(ctx, {
+  await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
+    const [archivePath] = await uploadApplicationArchive(ctx, {
       patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
-  });
-
-  if (archivePath) {
+    if (!archivePath) {
+      return;
+    }
     try {
       const { appVersion, appBuildVersion } = await extractIosVersionAsync(archivePath);
       const buildId = ctx.env.EAS_BUILD_ID;
@@ -263,7 +263,7 @@ async function buildInnerAsync(
     } catch (err) {
       ctx.logger.warn({ err }, 'Failed to report resolved version (non-fatal)');
     }
-  }
+  });
 
   if (shouldUploadEmbeddedBundle(ctx)) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
