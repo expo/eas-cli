@@ -4,7 +4,6 @@ import { parseChangesetFile } from '@changesets/parse';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { ROOT_DIR, readPackageDirsByNameAsync } from './changesets/packages.js';
 
@@ -19,7 +18,7 @@ function getChangedFiles(baseRef: string): string[] {
   return output.split('\n').filter(Boolean);
 }
 
-export async function validateChangesetAsync(
+async function validateChangesetAsync(
   file: string,
   packageNames: ReadonlySet<string>
 ): Promise<string[]> {
@@ -77,9 +76,7 @@ async function mainAsync(): Promise<void> {
   console.log(`✅ Found ${changesetFiles.length} valid changeset(s): ${changesetFiles.join(', ')}`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  mainAsync().catch(error => {
-    console.error(error);
-    process.exit(1);
-  });
-}
+mainAsync().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
