@@ -9,6 +9,7 @@ import path from 'path';
 
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { maybeShowSimulatorsLaunchHintAsync } from '../../build/simulatorsLaunchHint';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -192,6 +193,12 @@ export default class Build extends EasCommand {
       buildProfiles,
       nonInteractive: flags.nonInteractive,
     });
+
+    if (buildProfiles) {
+      await maybeShowSimulatorsLaunchHintAsync(graphqlClient, analytics, {
+        nonInteractive: flags.nonInteractive,
+      });
+    }
   }
 
   private sanitizeFlags(
