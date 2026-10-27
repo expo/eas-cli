@@ -8,43 +8,38 @@ jest.mock('@expo/turtle-spawn');
 jest.mock('node:fs/promises', () => ({ access: jest.fn(), readFile: jest.fn() }));
 
 const originalPlatform = process.platform;
-let savedEnvironment: NodeJS.ProcessEnv;
-
+const startup = '/usr/local/share/vm-tools/startup.sh';
+const state = '/tmp/expo-simulator-startup.json';
+let environment: NodeJS.ProcessEnv;
 beforeEach(() => {
-  savedEnvironment = { ...process.env };
-  jest.mocked(fs.access).mockReset().mockResolvedValue(undefined);
+  environment = { ...process.env };
+  delete process.env.EAS_OVERRIDE_PACKAGE_MANAGER;
+  delete process.env.EAS_FALLBACK_PACKAGE_MANAGER;
+  jest.mocked(fs.access).mockReset().mockResolvedValue();
   jest
     .mocked(fs.readFile)
     .mockReset()
-    .mockRejectedValue(Object.assign(new Error('no state'), { code: 'ENOENT' }));
-  delete process.env.EAS_OVERRIDE_PACKAGE_MANAGER;
-  delete process.env.EAS_FALLBACK_PACKAGE_MANAGER;
-  Object.defineProperty(process, 'platform', { value: 'darwin' });
+    .mockResolvedValue(
+      JSON.stringify({
+        bootUuid: 'current-boot',
+        status: 'disabled',
+        launcherVersion: '25.3.0',
+      })
+    );
   jest
     .mocked(spawn)
     .mockReset()
     .mockResolvedValue({ stdout: '' } as Awaited<ReturnType<typeof spawn>>);
+  Object.defineProperty(process, 'platform', { value: 'darwin' });
 });
 afterEach(() => {
+  process.env = environment;
   Object.defineProperty(process, 'platform', { value: originalPlatform });
-  process.env = savedEnvironment;
 });
 
-it('retains preparation for the exact job opt-in', async () => {
-  await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: '1' } },
-  } as unknown as Job);
-  expect(spawn).not.toHaveBeenCalled();
-});
-
-it.each([
-  ['missing builder environment', {}],
-  ['missing environment', { builderEnvironment: {} }],
-  ['missing flag', { builderEnvironment: { env: {} } }],
-  ['disabled flag', { builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: '0' } } }],
-  ['non-1 flag', { builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: 'true' } } }],
-])('directly awaits launcher stop for a %s', async (_, job) => {
-  await maybeStopWarmSimulatorAsync(job as Job);
+it('delegates state and boot handling to one launcher stop command', async () => {
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(fs.readFile).not.toHaveBeenCalled();
   expect(spawn).toHaveBeenCalledTimes(1);
   expect(spawn).toHaveBeenCalledWith('bun', ['x', '@expo/simulator-launcher@latest', 'stop'], {
     env: expect.objectContaining({ PATH: process.env.PATH }),
@@ -53,188 +48,85 @@ it.each([
   });
 });
 
-it('uses the job package manager preference over the host preference', async () => {
-  process.env.EAS_OVERRIDE_PACKAGE_MANAGER = 'npm';
-  await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' } },
-  } as unknown as Job);
-  expect(spawn).toHaveBeenCalledWith('bun', ['x', '@expo/simulator-launcher@latest', 'stop'], {
-    env: expect.objectContaining({ EAS_OVERRIDE_PACKAGE_MANAGER: 'bun', PATH: process.env.PATH }),
-    stdio: 'pipe',
-    timeout: 150_000,
-  });
-});
-
-it('honors a job package manager fallback', async () => {
-  await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'npm' } },
-  } as unknown as Job);
-  expect(spawn).toHaveBeenCalledWith(
-    'npx',
-    ['--yes', '@expo/simulator-launcher@latest', 'stop'],
-    expect.anything()
+it('waits for the launcher to confirm cleanup', async () => {
+  let finish!: (value: Awaited<ReturnType<typeof spawn>>) => void;
+  jest.mocked(spawn).mockReturnValue(
+    new Promise(resolve => {
+      finish = resolve;
+    }) as ReturnType<typeof spawn>
   );
+  let finished = false;
+  const stopping = maybeStopWarmSimulatorAsync({} as Job).then(() => {
+    finished = true;
+  });
+  for (let turn = 0; turn < 20 && !finish; turn++) {
+    await Promise.resolve();
+  }
+  expect(finish).toBeDefined();
+  expect(finished).toBe(false);
+  finish({ stdout: '' } as Awaited<ReturnType<typeof spawn>>);
+  await stopping;
+  expect(finished).toBe(true);
 });
 
-it('uses the job opt-in instead of the host flag', async () => {
-  process.env.EAS_USE_WARM_SIMULATOR = '1';
-  await maybeStopWarmSimulatorAsync({ builderEnvironment: { env: {} } } as Job);
-  expect(spawn).toHaveBeenCalledTimes(1);
-  process.env.EAS_USE_WARM_SIMULATOR = '0';
-  jest.mocked(spawn).mockClear();
-  await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: '1' } },
-  } as unknown as Job);
-  expect(spawn).not.toHaveBeenCalled();
-});
+it.each(['cleanup failed', "Could not find an existing 'simulator-launcher' binary --no-install"])(
+  'propagates stop failure without retrying: %s',
+  async stderr => {
+    const error = Object.assign(new Error(stderr), { status: 1, stdout: '', stderr });
+    jest.mocked(spawn).mockRejectedValueOnce(error);
+    await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
+    expect(spawn).toHaveBeenCalledTimes(1);
+  }
+);
 
 it('does nothing on non-Darwin', async () => {
   Object.defineProperty(process, 'platform', { value: 'linux' });
   await maybeStopWarmSimulatorAsync({} as Job);
+  expect(fs.access).not.toHaveBeenCalled();
   expect(spawn).not.toHaveBeenCalled();
 });
-
-it('propagates command failure instead of allowing job setup', async () => {
-  const error = new Error('Stop acknowledgement timed out');
-  jest.mocked(spawn).mockRejectedValueOnce(error);
-  await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
-});
-
-it('does not resolve a package on images without the startup script', async () => {
-  jest
-    .mocked(fs.access)
-    .mockRejectedValue(Object.assign(new Error('missing script'), { code: 'ENOENT' }));
+it('keeps warmup only for the job opt-in, independently of the host flag', async () => {
+  await maybeStopWarmSimulatorAsync({
+    builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: '1' } },
+  } as Job);
+  expect(fs.access).not.toHaveBeenCalled();
+  expect(spawn).not.toHaveBeenCalled();
+  process.env.EAS_USE_WARM_SIMULATOR = '1';
   await maybeStopWarmSimulatorAsync({} as Job);
-  expect(fs.readFile).toHaveBeenCalledTimes(1);
+  expect(spawn).toHaveBeenCalledTimes(1);
+});
+it.each([startup, state])('stops when the image has only %s', async present => {
+  jest.mocked(fs.access).mockImplementation(async file => {
+    if (file !== present) {
+      throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+    }
+  });
+  await maybeStopWarmSimulatorAsync({} as Job);
+  expect(spawn).toHaveBeenCalledTimes(1);
+});
+it('makes no package-manager call on an image with neither warmup file', async () => {
+  jest.mocked(fs.access).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+  await maybeStopWarmSimulatorAsync({} as Job);
   expect(spawn).not.toHaveBeenCalled();
 });
-it.each(['EACCES', 'EIO'])('fails closed on a startup script %s error', async code => {
-  const error = Object.assign(new Error(code), { code });
-  jest.mocked(fs.access).mockRejectedValue(error);
+it.each([startup, state])('fails closed if checking %s fails', async inaccessible => {
+  const error = Object.assign(new Error('permission denied'), { code: 'EACCES' });
+  jest.mocked(fs.access).mockImplementation(async file => {
+    if (file === inaccessible) {
+      throw error;
+    }
+  });
   await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(error);
   expect(spawn).not.toHaveBeenCalled();
 });
-it('uses the configured package manager with the recorded launcher version', async () => {
-  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
+it('preserves the job package-manager override and environment', async () => {
+  process.env.EAS_OVERRIDE_PACKAGE_MANAGER = 'bun';
   await maybeStopWarmSimulatorAsync({
     builderEnvironment: { env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' } },
-  } as unknown as Job);
-  expect(spawn).toHaveBeenCalledWith(
-    'npx',
-    ['--yes', '@expo/simulator-launcher@25.3.0', 'stop'],
-    expect.anything()
-  );
-});
-
-it('retries once without --no-install only when Bun cannot resolve the cached binary', async () => {
-  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
-  const failure = Object.assign(new Error('Bun resolution failed'), {
-    status: 1,
-    stdout: '',
-    stderr:
-      "error: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.",
+  } as Job);
+  expect(spawn).toHaveBeenCalledWith('npx', ['--yes', '@expo/simulator-launcher@latest', 'stop'], {
+    env: expect.objectContaining({ EAS_OVERRIDE_PACKAGE_MANAGER: 'npm', PATH: process.env.PATH }),
+    stdio: 'pipe',
+    timeout: 150_000,
   });
-  jest.mocked(spawn).mockRejectedValueOnce(failure);
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(jest.mocked(spawn).mock.calls.map(([file, args]) => [file, args])).toEqual([
-    ['bun', ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop']],
-    ['bun', ['x', '@expo/simulator-launcher@25.3.0', 'stop']],
-  ]);
-});
-it.each(['cleanup failed', 'error: failed to install package'])(
-  'does not retry a launcher or other Bun failure: %s',
-  async stderr => {
-    jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
-    const failure = Object.assign(new Error(stderr), { status: 1, stdout: '', stderr });
-    jest.mocked(spawn).mockRejectedValueOnce(failure);
-    await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(failure);
-    expect(spawn).toHaveBeenCalledTimes(1);
-  }
-);
-it('propagates failure of the single cache-resolution retry', async () => {
-  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
-  const missing = Object.assign(new Error('Bun resolution failed'), {
-    status: 1,
-    stdout: '',
-    stderr:
-      "error: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.",
-  });
-  const failure = new Error('retry failed');
-  jest.mocked(spawn).mockRejectedValueOnce(missing).mockRejectedValueOnce(failure);
-  await expect(maybeStopWarmSimulatorAsync({} as Job)).rejects.toBe(failure);
-  expect(spawn).toHaveBeenCalledTimes(2);
-});
-
-it('stops a current-boot launcher even if its startup script is no longer present', async () => {
-  jest.mocked(fs.access).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
-  jest
-    .mocked(fs.readFile)
-    .mockResolvedValue(
-      JSON.stringify({ bootUuid: 'boot-one', status: 'ready', launcherVersion: '25.3.0' })
-    );
-  jest
-    .mocked(spawn)
-    .mockImplementation(
-      file =>
-        Promise.resolve({ stdout: file === '/usr/sbin/sysctl' ? 'boot-one\n' : '' }) as ReturnType<
-          typeof spawn
-        >
-    );
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(spawn).toHaveBeenCalledWith(
-    'bun',
-    ['x', '--no-install', '@expo/simulator-launcher@25.3.0', 'stop'],
-    expect.anything()
-  );
-});
-it('ignores an old-boot launcher state when the startup script is absent', async () => {
-  jest.mocked(fs.access).mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
-  jest
-    .mocked(fs.readFile)
-    .mockResolvedValue(
-      JSON.stringify({ bootUuid: 'old-boot', status: 'ready', launcherVersion: '25.3.0' })
-    );
-  jest
-    .mocked(spawn)
-    .mockResolvedValue({ stdout: 'boot-one\n' } as Awaited<ReturnType<typeof spawn>>);
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(jest.mocked(spawn).mock.calls.every(([file]) => file === '/usr/sbin/sysctl')).toBe(true);
-});
-it('skips the package manager when cleanup is already confirmed for this boot', async () => {
-  jest
-    .mocked(fs.readFile)
-    .mockResolvedValue(
-      JSON.stringify({ bootUuid: 'boot-one', status: 'disabled', launcherVersion: '25.3.0' })
-    );
-  jest
-    .mocked(spawn)
-    .mockResolvedValue({ stdout: 'boot-one\n' } as Awaited<ReturnType<typeof spawn>>);
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(jest.mocked(spawn).mock.calls.map(([file]) => file)).toEqual(['/usr/sbin/sysctl']);
-});
-it('retries a Bun cache miss with additional warning output', async () => {
-  jest.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ launcherVersion: '25.3.0' }));
-  jest.mocked(spawn).mockRejectedValueOnce(
-    Object.assign(new Error('cache miss'), {
-      status: 1,
-      stdout: '',
-      stderr:
-        "warning: a new Bun setting\nerror: Could not find an existing 'simulator-launcher' binary to run. Stopping because --no-install was passed.\n",
-    })
-  );
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(spawn).toHaveBeenCalledTimes(2);
-});
-it.each([
-  '{',
-  '{}',
-  JSON.stringify({ launcherVersion: '25.3.0' }),
-  JSON.stringify({ bootUuid: '  ' }),
-])('does not resolve a package for invalid state without a startup script: %s', async contents => {
-  jest
-    .mocked(fs.access)
-    .mockRejectedValue(Object.assign(new Error('missing script'), { code: 'ENOENT' }));
-  jest.mocked(fs.readFile).mockResolvedValue(contents);
-  await maybeStopWarmSimulatorAsync({} as Job);
-  expect(spawn).not.toHaveBeenCalled();
 });
