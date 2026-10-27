@@ -2,7 +2,7 @@
 
 Warm iOS Simulators before an EAS job arrives. Requires macOS.
 The image installs vm-tools and writes its startup script at
-`/Volumes/My Shared Files/expo-startup/startup.sh`:
+`/usr/local/share/vm-tools/startup.sh`:
 
 ```sh
 export EXPO_SIMULATOR_STARTUP=1

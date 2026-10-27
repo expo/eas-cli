@@ -17,7 +17,7 @@ export async function maybeStopWarmSimulatorAsync(job: Job): Promise<void> {
   }
   let hasStartupScript = true;
   try {
-    await fs.access('/Volumes/My Shared Files/expo-startup/startup.sh');
+    await fs.access('/usr/local/share/vm-tools/startup.sh');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error;
