@@ -2821,7 +2821,7 @@ EXAMPLES
 
   $ eas simulator:control permissions.set grant camera com.example.app
 
-  $ eas simulator:control app.install ./MyApp.ipa
+  $ eas simulator:control app.install ./MyApp.app
 
   $ eas simulator:control screenshot.capture --output ./screenshot.png
 
@@ -3296,7 +3296,7 @@ EXAMPLES
 
   $ eas simulator:control permissions.set grant camera com.example.app
 
-  $ eas simulator:control app.install ./MyApp.ipa
+  $ eas simulator:control app.install ./MyApp.app
 
   $ eas simulator:control screenshot.capture --output ./screenshot.png
 

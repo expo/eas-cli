@@ -30,6 +30,7 @@ import {
   uploadFileAsync,
 } from '../../simulator/hostActions';
 import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
+import { createAppArchiveAsync } from '../../simulator/appArchive';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorControl extends EasCommand {
@@ -45,7 +46,7 @@ export default class SimulatorControl extends EasCommand {
     '$ eas simulator:control clipboard.write -- --some-text',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
-    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control app.install ./MyApp.app',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
@@ -220,21 +221,23 @@ export default class SimulatorControl extends EasCommand {
   ): Promise<void> {
     const params = buildHostActionParams(action, entry, values);
     await assertHostActionOutputAsync(action, entry, outputPath);
-    const localFile = await findLocalUploadAsync(entry, params);
-
-    const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
+    const spinner = ora(`Preparing ${action} on simulator session ${sessionId}`).start();
+    let localFile: Awaited<ReturnType<typeof findLocalUploadAsync>> = null;
     let uploadId: string | undefined;
     let succeeded = false;
     let output: string;
     let savedFile: string | null;
     try {
+      localFile = await findLocalUploadAsync(action, entry, params, () => {
+        spinner.text = 'Packaging app';
+      });
       if (localFile) {
         spinner.text = `Uploading ${localFile.path}`;
         const upload = await uploadFileAsync(connection, localFile.path);
         uploadId = upload.uploadId;
         params[localFile.param] = entry.uploadAs === 'id' ? upload.uploadId : upload.path;
-        spinner.text = `Running ${action} on simulator session ${sessionId}`;
       }
+      spinner.text = `Running ${action} on simulator session ${sessionId}`;
       const result = await connection.requestAsync(action, params);
       if (result.exitCode !== 0) {
         const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
@@ -251,6 +254,7 @@ export default class SimulatorControl extends EasCommand {
       if (uploadId && (!entry.keepUpload || !succeeded)) {
         await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
       }
+      await localFile?.cleanupAsync?.();
     }
 
     if (jsonFlag) {
@@ -271,17 +275,48 @@ export default class SimulatorControl extends EasCommand {
 }
 
 async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
-  params: Record<string, unknown>
-): Promise<{ param: string; path: string } | null> {
+  action: string,
+  { upload: param, uploadWhen = {}, uploadArchive }: HostActionCatalogEntry,
+  params: Record<string, unknown>,
+  onPackaging: () => void
+): Promise<{ param: string; path: string; cleanupAsync?: () => Promise<void> } | null> {
   const value = param ? params[param] : undefined;
   const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
   if (!param || typeof value !== 'string' || !applies) {
     return null;
   }
   const stat = await fs.stat(value).catch(() => null);
+  if (action === 'app.install' && stat?.isFile() && /\.(?:ipa|zip)$/i.test(value)) {
+    throw new Error(
+      'Simulator installs require a Simulator .app bundle or .tar.gz/.tgz archive. Device .ipa builds and .zip archives are not supported.'
+    );
+  }
+  if (
+    action === 'app.install' &&
+    stat?.isFile() &&
+    /\.(?:tar\.gz|tgz)$/i.test(value) &&
+    uploadArchive !== 'tar.gz'
+  ) {
+    throw new Error(
+      'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
+    );
+  }
   if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass the path of a file.`);
+    if (action !== 'app.install') {
+      throw new Error(`${value} is a folder. Pass the path of a file.`);
+    }
+    if (path.extname(path.resolve(value)) !== '.app') {
+      throw new Error(
+        `${value} is a folder. Pass a Simulator .app bundle or .tar.gz/.tgz archive.`
+      );
+    }
+    if (uploadArchive !== 'tar.gz') {
+      throw new Error(
+        'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
+      );
+    }
+    onPackaging();
+    return { param, ...(await createAppArchiveAsync(value)) };
   }
   if (!stat && !path.isAbsolute(value)) {
     throw new Error(
