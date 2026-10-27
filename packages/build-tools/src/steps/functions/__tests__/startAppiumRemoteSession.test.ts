@@ -407,6 +407,66 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     }
   );
 
+  it.each([
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.DARWIN, true],
+    [BuildRuntimePlatform.LINUX, false],
+  ])(
+    'preserves failed installer cleanup after Stop on %s with Simulator startup=%s',
+    async (runtimePlatform, bootSimulator) => {
+      const cleanupError = new Error('Appium home removal failed: EACCES');
+      const remove = fs.promises.rm.bind(fs.promises);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+      let enteredInstall!: () => void;
+      const installEntered = new Promise<void>(resolve => {
+        enteredInstall = resolve;
+      });
+      let closeInstaller!: (error: Error) => void;
+      jest.mocked(spawn).mockImplementationOnce(() => {
+        enteredInstall();
+        return Object.assign(
+          new Promise((_resolve, reject) => {
+            closeInstaller = reject;
+          }),
+          { child: { pid: 12345 } }
+        ) as never;
+      });
+      jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+      const rm = jest.spyOn(fs.promises, 'rm').mockRejectedValueOnce(cleanupError);
+      const running = runSessionAsync(
+        { info: jest.fn(), warn: jest.fn() },
+        undefined,
+        runtimePlatform,
+        bootSimulator
+          ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-ios-udid' } }
+          : {}
+      );
+      const observed = running.catch(() => {});
+      let home: string | undefined;
+      try {
+        await installEntered;
+        home = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
+        const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+        watch.stop();
+        closeInstaller(new Error('installer interrupted'));
+        await expect(running).rejects.toBe(cleanupError);
+        expect(rm).toHaveBeenCalledWith(home, { recursive: true, force: true });
+        expect(fs.existsSync(home)).toBe(true);
+        expect(spawnDetached).not.toHaveBeenCalled();
+        expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+        expect(watch.finishAsync).toHaveBeenCalled();
+      } finally {
+        closeInstaller?.(new Error('test cleanup'));
+        await observed;
+        if (home) {
+          await remove(home, { recursive: true, force: true });
+        }
+      }
+    }
+  );
+
   it('preserves an Android installer failure observed before a later Stop', async () => {
     const failed = new Error('Appium install failed first');
     let observedFailure!: () => void;

@@ -318,11 +318,12 @@ export function createStartAppiumRemoteSessionBuildFunction(
               : undefined,
         });
       } catch (error) {
-        if (startupWatch.isStopped()) {
+        const stopped = startupWatch.isStopped();
+        if (stopped && error === startupWatch.stopped) {
           return;
         }
         sessionFailed = true;
-        throw startup.signal.aborted ? startup.signal.reason : error;
+        throw !stopped && startup.signal.aborted ? startup.signal.reason : error;
       } finally {
         startup.abort(new Error('Appium session ended.'));
         await startupWatch.finishAsync();
