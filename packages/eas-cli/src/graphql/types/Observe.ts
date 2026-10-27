@@ -170,3 +170,56 @@ export const AppObserveAppVersionFragmentNode = gql`
     }
   }
 `;
+
+export const AppObserveSpanFragmentNode = gql`
+  fragment AppObserveSpanFragment on AppObserveSpan {
+    id
+    traceId
+    spanId
+    parentSpanId
+    name
+    kind
+    startTimestamp
+    endTimestamp
+    durationMs
+    statusCode
+    statusMessage
+    sessionId
+    http {
+      method
+      statusCode
+      urlHost
+      urlFull
+      protocolVersion
+      requestSize
+      responseSize
+      errorType
+    }
+    attributes {
+      key
+      value
+      type
+    }
+    events {
+      name
+      timestamp
+      attributes
+    }
+    droppedAttributesCount
+    droppedEventsCount
+    droppedLinksCount
+    ingestedAt
+    appVersion
+    appBuildNumber
+    appUpdateId
+    appEasBuildId
+    expoSdkVersion
+    reactNativeVersion
+    deviceOs
+    deviceOsVersion
+    deviceModel
+    environment
+    easClientId
+    countryCode
+  }
+`;
