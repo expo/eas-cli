@@ -20,7 +20,7 @@ import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import {
   extractIosVersionAsync,
-  reportResolvedVersionAsync,
+  updateResolvedVersionAsync,
 } from '../steps/functions/reportResolvedVersion';
 import {
   cacheStatsAsync,
@@ -252,16 +252,16 @@ async function buildInnerAsync(
     try {
       const { appVersion, appBuildVersion } = await extractIosVersionAsync(archivePath);
       if (appVersion || appBuildVersion) {
-        await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
+        await updateResolvedVersionAsync(ctx.graphqlClient, buildId, {
           appVersion,
           appBuildVersion,
         });
         ctx.logger.info(
-          `Reported resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
+          `Updated resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
         );
       }
     } catch (err) {
-      ctx.logger.warn({ err }, 'Failed to report resolved version (non-fatal)');
+      ctx.logger.warn({ err }, 'Failed to update resolved version (non-fatal)');
     }
   });
 

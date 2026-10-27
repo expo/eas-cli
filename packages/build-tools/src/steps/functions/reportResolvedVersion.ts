@@ -57,14 +57,14 @@ export function createReportResolvedVersionBuildFunction(
           `Resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
         );
 
-        await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
+        await updateResolvedVersionAsync(ctx.graphqlClient, buildId, {
           appVersion,
           appBuildVersion,
         });
 
-        stepCtx.logger.info('Reported resolved version to EAS.');
+        stepCtx.logger.info('Updated resolved version on EAS.');
       } catch (err) {
-        stepCtx.logger.warn('Failed to report resolved version (non-fatal):', err);
+        stepCtx.logger.warn('Failed to update resolved version (non-fatal):', err);
       }
     },
   });
@@ -170,7 +170,7 @@ export function parseManifestXml(xml: string): { appVersion?: string; appBuildVe
   };
 }
 
-export async function reportResolvedVersionAsync(
+export async function updateResolvedVersionAsync(
   graphqlClient: Client,
   buildId: string,
   {
@@ -184,7 +184,7 @@ export async function reportResolvedVersionAsync(
   const result = await graphqlClient
     .mutation(
       graphql(`
-        mutation ReportResolvedVersionMutation(
+        mutation UpdateResolvedVersionMutation(
           $buildId: ID!
           $appVersion: String
           $appBuildVersion: String
