@@ -1,7 +1,7 @@
 import { bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import { writeFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -36,6 +36,37 @@ async function writeServerAsync(udid: string, state: Record<string, unknown>): P
 function record(harPath: string, entries: number): void {
   writeFileSync(harPath, JSON.stringify({ log: { entries: Array(entries).fill({}) } }));
   writeFileSync(harPath.replace(/\.har$/, '.entries.ndjson'), '{}\n'.repeat(entries));
+}
+
+type Request = { id: string; startedAt: number };
+
+/** Writes a recording as serve-sim does: entries by completion time, the HAR in start order. */
+function recordRequests(harPath: string, requests: Request[]): void {
+  const entries = requests.map(({ id, startedAt }) => ({
+    startedDateTime: new Date(startedAt).toISOString(),
+    request: { url: `https://example.com/${id}` },
+    _captureId: id,
+    _captureStartedAt: startedAt,
+  }));
+  const sorted = [...entries].sort((a, b) => a._captureStartedAt - b._captureStartedAt);
+  writeFileSync(
+    harPath,
+    `${JSON.stringify({
+      log: {
+        version: '1.2',
+        creator: { name: '@expo/serve-sim', version: '0.10.2' },
+        entries: sorted,
+      },
+    })}\n`
+  );
+  writeFileSync(
+    harPath.replace(/\.har$/, '.entries.ndjson'),
+    entries.map(entry => `${JSON.stringify(entry)}\n`).join('')
+  );
+}
+
+async function readHarAsync(harPath: string): Promise<any> {
+  return JSON.parse(await readFile(harPath, 'utf8'));
 }
 
 function followerArgs(): string[][] {
@@ -263,6 +294,81 @@ describe('restarting followers', () => {
       { udid: 'SIM-A', filePath: outPath(0), size: 27 },
       { udid: 'SIM-A', filePath: outPath(1), size: 24 },
     ]);
+  });
+
+  describe('when a new follower replays the requests serve-sim holds', () => {
+    const r1 = { id: 'r1', startedAt: 1_000 };
+    const r2 = { id: 'r2', startedAt: 2_000 };
+
+    async function startAsync(): Promise<void> {
+      await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+      await ServeSimNetworkCaptureRecorder.startAsync({
+        logger,
+        env,
+        stateDir,
+        pollIntervalMs: 10,
+        restartIntervalMs: 30,
+      });
+      await waitForFollowersAsync(1);
+    }
+
+    it('drops a part that holds only replayed requests', async () => {
+      await startAsync();
+      recordRequests(outPath(0), [r2, r1]);
+      exits[0] = new Error('Process exited with code 1.');
+      await waitForFollowersAsync(2);
+      recordRequests(outPath(1), [r2, r1]);
+
+      const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+      expect(captures.map(capture => capture.filePath)).toEqual([outPath(0)]);
+    });
+
+    it('keeps only the new requests in a later part, in start order', async () => {
+      await startAsync();
+      recordRequests(outPath(0), [r1]);
+      exits[0] = new Error('Process exited with code 1.');
+      await waitForFollowersAsync(2);
+      // A request from a later capture session reuses the id r1 with another start time.
+      const r1Again = { id: 'r1', startedAt: 4_000 };
+      recordRequests(outPath(1), [r1Again, r1, r2]);
+
+      const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+      expect(captures.map(capture => capture.filePath)).toEqual([outPath(0), outPath(1)]);
+      const har = await readHarAsync(outPath(1));
+      expect(har.log.creator).toEqual({ name: '@expo/serve-sim', version: '0.10.2' });
+      expect(har.log.entries.map((entry: any) => entry._captureStartedAt)).toEqual([2_000, 4_000]);
+      expect(captures[1].size).toBe((await readFile(outPath(1))).length);
+    });
+
+    it('does not use a recording slot for followers that recorded no new request', async () => {
+      jest.mocked(spawnDetached).mockImplementation(({ args }) => {
+        recordRequests(args[args.indexOf('-o') + 1], [r1]);
+        return {
+          pid: 1234,
+          getOutput: () => '',
+          getExitError: () => new Error('Process exited with code 1.'),
+          stopAsync: stopFollower,
+        };
+      });
+      await writeServerAsync('SIM-A', { url: 'http://127.0.0.1:4100', token: 'token-a' });
+      await ServeSimNetworkCaptureRecorder.startAsync({
+        logger,
+        env,
+        stateDir,
+        pollIntervalMs: 1,
+        restartIntervalMs: 0,
+      });
+      for (let i = 0; i < 300 && jest.mocked(spawnDetached).mock.calls.length < 25; i++) {
+        await delay(10);
+      }
+      expect(jest.mocked(spawnDetached).mock.calls.length).toBeGreaterThanOrEqual(25);
+
+      const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+      expect(captures.map(capture => capture.filePath)).toEqual([outPath(0)]);
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        'Network capture reached its limit of 20 recordings; recorded captures will be retained.'
+      );
+    });
   });
 
   it('waits longer to replace a follower that recorded nothing than one that recorded requests', async () => {

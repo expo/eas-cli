@@ -1,8 +1,10 @@
 import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
-import { mkdtemp, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { mkdtemp, open, rename, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { Sentry } from '../../sentry';
@@ -38,6 +40,8 @@ type Follower = {
   filePath: string;
   handle: DetachedProcessHandle;
   startedAt: number;
+  /** Set once the follower has exited and holds requests no earlier follower recorded. */
+  kept?: boolean;
 };
 
 type ServeSimNetworkCaptureSession = {
@@ -55,6 +59,8 @@ type ServeSimNetworkCaptureSession = {
   stoppedRetrying: Set<string>;
   warnedRecordingLimit: boolean;
   fileCounts: Map<string, number>;
+  /** Per device, the requests of the exited followers that were kept. */
+  keptRequests: Map<string, Set<string>>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
 };
@@ -104,6 +110,7 @@ export namespace ServeSimNetworkCaptureRecorder {
       stoppedRetrying: new Set(),
       warnedRecordingLimit: false,
       fileCounts: new Map(),
+      keptRequests: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
     };
@@ -141,12 +148,23 @@ export namespace ServeSimNetworkCaptureRecorder {
       )
     );
     const captures: RecordedNetworkCapture[] = [];
+    const recorded = new Map<string, Set<string>>();
     for (const follower of session.followers) {
+      try {
+        if (!(await removeRepeatedRequestsAsync(follower, requestsFor(recorded, follower.udid)))) {
+          continue;
+        }
+      } catch (err) {
+        logger.warn(
+          { err },
+          `Could not remove repeated requests from a network capture for ${follower.udid}; it is kept as recorded.`
+        );
+      }
       const size = await stat(follower.filePath).then(
         stats => stats.size,
         () => 0
       );
-      if (size > 0 && (await hasEntriesAsync(follower))) {
+      if (size > 0) {
         captures.push({ udid: follower.udid, filePath: follower.filePath, size });
       }
     }
@@ -209,9 +227,22 @@ async function ensureFollowerAsync(
       }
     }
   }
-  // Exited followers that recorded nothing hold no capture, so they do not use a recording slot.
+  // A new follower replays the requests serve-sim already holds, so an exited follower that recorded
+  // no new request holds no capture of its own and does not use a recording slot.
   for (const follower of [...session.followers]) {
-    if (follower.handle.getExitError() !== undefined && !(await hasEntriesAsync(follower))) {
+    if (follower.kept || follower.handle.getExitError() === undefined) {
+      continue;
+    }
+    const keptRequests = requestsFor(session.keptRequests, follower.udid);
+    const requests = await readRequestKeysAsync(entriesPathFor(follower));
+    if (requests.some(request => request === null || !keptRequests.has(request))) {
+      follower.kept = true;
+      for (const request of requests) {
+        if (request !== null) {
+          keptRequests.add(request);
+        }
+      }
+    } else {
       session.followers.splice(session.followers.indexOf(follower), 1);
     }
   }
@@ -258,9 +289,167 @@ async function ensureFollowerAsync(
 }
 
 /** serve-sim writes an empty HAR when recording begins; requests go to `<stem>.entries.ndjson`. */
+function entriesPathFor(follower: Follower): string {
+  return follower.filePath.replace(/\.har$/, '.entries.ndjson');
+}
+
 async function hasEntriesAsync(follower: Follower): Promise<boolean> {
-  return await stat(follower.filePath.replace(/\.har$/, '.entries.ndjson')).then(
+  return await stat(entriesPathFor(follower)).then(
     stats => stats.size > 0,
     () => false
   );
+}
+
+function requestsFor(requests: Map<string, Set<string>>, udid: string): Set<string> {
+  let forDevice = requests.get(udid);
+  if (!forDevice) {
+    forDevice = new Set();
+    requests.set(udid, forDevice);
+  }
+  return forDevice;
+}
+
+/**
+ * A request's identity, as serve-sim's `capture har` matches its replays: request ids restart in
+ * every capture session, so the request's start time tells them apart. null when serve-sim did not
+ * record an id, so the request cannot be matched.
+ */
+function requestKey(line: string): string | null {
+  try {
+    const entry = JSON.parse(line) as {
+      _captureId?: unknown;
+      _captureStartedAt?: unknown;
+      startedDateTime?: unknown;
+    };
+    if (typeof entry._captureId !== 'string') {
+      return null;
+    }
+    return entry._captureStartedAt !== undefined
+      ? `${entry._captureId} ${entry._captureStartedAt}`
+      : `${entry._captureId} ${entry.startedDateTime}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Streams the entry log, so a large recording never has to fit in memory. */
+async function forEachEntryAsync(
+  entriesPath: string,
+  onEntry: (line: string, offset: number) => void
+): Promise<void> {
+  // A follower that never began recording leaves no entry log.
+  if (
+    !(await stat(entriesPath).then(
+      () => true,
+      () => false
+    ))
+  ) {
+    return;
+  }
+  const input = createReadStream(entriesPath, { encoding: 'utf8' });
+  const lines = createInterface({ input, crlfDelay: Infinity });
+  let offset = 0;
+  try {
+    for await (const line of lines) {
+      if (line) {
+        onEntry(line, offset);
+      }
+      offset += Buffer.byteLength(line) + 1;
+    }
+  } finally {
+    lines.close();
+    input.destroy();
+  }
+}
+
+async function readRequestKeysAsync(entriesPath: string): Promise<(string | null)[]> {
+  const keys: (string | null)[] = [];
+  await forEachEntryAsync(entriesPath, line => keys.push(requestKey(line)));
+  return keys;
+}
+
+/**
+ * Rewrites a stopped follower's HAR without the requests an earlier follower for the device
+ * recorded, and adds its requests to `recorded`. Returns false when it holds no new request.
+ */
+async function removeRepeatedRequestsAsync(
+  follower: Follower,
+  recorded: Set<string>
+): Promise<boolean> {
+  const entriesPath = entriesPathFor(follower);
+  const entries: { start: number; offset: number; length: number }[] = [];
+  const requests: string[] = [];
+  let repeated = 0;
+  await forEachEntryAsync(entriesPath, (line, offset) => {
+    const key = requestKey(line);
+    if (key !== null && recorded.has(key)) {
+      repeated += 1;
+      return;
+    }
+    if (key !== null) {
+      requests.push(key);
+    }
+    let start = Number.POSITIVE_INFINITY;
+    try {
+      const parsed = Date.parse(
+        (JSON.parse(line) as { startedDateTime?: string }).startedDateTime ?? ''
+      );
+      if (!Number.isNaN(parsed)) {
+        start = parsed;
+      }
+    } catch {}
+    entries.push({ start, offset, length: Buffer.byteLength(line) });
+  });
+  for (const request of requests) {
+    recorded.add(request);
+  }
+  if (entries.length === 0) {
+    return false;
+  }
+  if (repeated > 0) {
+    await writeHarAsync(follower.filePath, entriesPath, entries);
+  }
+  return true;
+}
+
+const HAR_HEADER_BYTES = 4_096;
+const HAR_ENTRIES_START = '"entries":[';
+
+/** Rebuilds the HAR from the given entry log lines, in start order as serve-sim writes it. */
+async function writeHarAsync(
+  harPath: string,
+  entriesPath: string,
+  entries: { start: number; offset: number; length: number }[]
+): Promise<void> {
+  // serve-sim writes `{"log":{...,"entries":[` first; its version and creator are kept.
+  const har = await open(harPath, 'r');
+  let header: string;
+  try {
+    const buffer = Buffer.alloc(HAR_HEADER_BYTES);
+    const { bytesRead } = await har.read(buffer, 0, buffer.length, 0);
+    header = buffer.subarray(0, bytesRead).toString('utf8');
+  } finally {
+    await har.close();
+  }
+  const at = header.indexOf(HAR_ENTRIES_START);
+  if (at === -1) {
+    throw new Error('The HAR does not start like a serve-sim HAR.');
+  }
+  const tempPath = `${harPath}.deduplicated.tmp`;
+  const out = await open(tempPath, 'wx', 0o600);
+  const source = await open(entriesPath, 'r');
+  try {
+    await out.write(Buffer.from(header.slice(0, at + HAR_ENTRIES_START.length)));
+    const sorted = [...entries].sort((a, b) => a.start - b.start);
+    for (const [index, { offset, length }] of sorted.entries()) {
+      const line = Buffer.alloc(length);
+      await source.read(line, 0, length, offset);
+      await out.write(index > 0 ? Buffer.concat([Buffer.from(','), line]) : line);
+    }
+    await out.write(Buffer.from(']}}\n'));
+  } finally {
+    await source.close();
+    await out.close();
+  }
+  await rename(tempPath, harPath);
 }
