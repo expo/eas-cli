@@ -109,7 +109,7 @@ export default class BuildDev extends EasCommand {
 
     const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
 
-    const { env } = await evaluateConfigWithEnvVarsAsync({
+    const evaluatedConfig = await evaluateConfigWithEnvVarsAsync({
       buildProfile: buildProfile.profile,
       buildProfileName: buildProfile.profileName,
       graphqlClient,
@@ -118,7 +118,7 @@ export default class BuildDev extends EasCommand {
     });
 
     const fingerprint = await createFingerprintAsync(projectDir, {
-      env,
+      env: evaluatedConfig.env,
       workflow,
       platforms: [platform],
     });
@@ -197,7 +197,7 @@ export default class BuildDev extends EasCommand {
       actor,
       getDynamicPrivateProjectConfigAsync,
       downloadSimBuildAutoConfirm: true,
-      envOverride: env,
+      evaluatedConfig,
     });
     if (!flags['skip-bundler']) {
       await this.startDevServerAsync({ projectDir, platform });

@@ -1,5 +1,24 @@
 # @expo/build-tools
 
+## 26.0.0
+
+### Major Changes
+
+- Remove legacy artifact type exports and route workflow uploads through workflow storage without file-type categories. Preserve workflow uploads and Maestro reports. ([#4719](https://github.com/expo/eas-cli/pull/4719) by [@sjchmiela](https://github.com/sjchmiela))
+
+### Minor Changes
+
+- Stop sandboxes after an optional maximum duration measured from readiness. ([#4702](https://github.com/expo/eas-cli/pull/4702) by [@sjchmiela](https://github.com/sjchmiela))
+- Unify signed URL uploading to a single implementation and use it everywhere. ([#4712](https://github.com/expo/eas-cli/pull/4712) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### Patch Changes
+
+- Default Android emulators to 4 GiB of RAM to reduce ADB disconnects during large transfers. Retain the 2 GiB default for API 34 and below outside interactive device sessions, and preserve explicit emulator configuration overrides. ([#4727](https://github.com/expo/eas-cli/pull/4727) by [@sjchmiela](https://github.com/sjchmiela))
+- Export `validateAndroidLaunchOptions` and `quoteAndroidShellCommand` from `@expo/eas-build-job`, so Android launch arguments can be checked for NUL characters and length before a simulator session starts, and check them before the emulator boots in agent-device sessions. ([#4696](https://github.com/expo/eas-cli/pull/4696) by [@brentvatne](https://github.com/brentvatne))
+- Retry transient failures when reporting that a device run session has started. ([#4680](https://github.com/expo/eas-cli/pull/4680) by [@gwdp](https://github.com/gwdp))
+- Retry the build lookup and the archive download of `eas/download_build` on transient failures, and name the failure cause in the build log. ([#4690](https://github.com/expo/eas-cli/pull/4690) by [@hSATAC](https://github.com/hSATAC))
+- Stop printing workflow hook parsing messages in build logs: native builds showed them under an "Unknown build phase" group, and custom builds warned about unknown hook keys and hooks on steps that never run. ([#4717](https://github.com/expo/eas-cli/pull/4717) by [@hSATAC](https://github.com/hSATAC))
+
 ## 25.3.0
 
 ### Minor Changes
