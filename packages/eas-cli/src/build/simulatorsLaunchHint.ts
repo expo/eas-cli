@@ -29,7 +29,7 @@ export async function maybeShowSimulatorsLaunchHintAsync(
     }
     Log.newLine();
     Log.log(
-      `✨ New: run your build in Expo Simulators, cloud iOS and Android simulators for you and your agents. ${link(SIMULATORS_QUICKSTART_URL)}`
+      `✨ New: run your build in Expo Simulators, cloud Android and iOS simulators for you and your agents. ${link(SIMULATORS_QUICKSTART_URL)}`
     );
     analytics.logEvent(BuildEvent.SIMULATORS_LAUNCH_HINT_SHOWN, {});
     await UserPreferenceMutation.setAsync(graphqlClient, SIMULATORS_LAUNCH_HINT_PREFERENCE_KEY, {
