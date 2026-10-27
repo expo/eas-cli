@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { DeviceRunSessionStatus } from '../../../graphql/generated';
+import { AppPlatform, DeviceRunSessionStatus } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import { downloadSimulatorArtifactAsync } from '../../../simulator/artifacts';
 import Log from '../../../log';
@@ -425,6 +425,25 @@ describe(SimulatorLogs, () => {
     );
     expect(mockFetchJsonAsync).not.toHaveBeenCalled();
   });
+
+  it.each([[], ['--follow'], ['--json']])(
+    'explains that a live Android session has no logs %s',
+    async (...args) => {
+      jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue({
+        id: 'session-id',
+        status: DeviceRunSessionStatus.InProgress,
+        platform: AppPlatform.Android,
+      } as Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>);
+
+      await expect(createCommand(args).runAsync()).rejects.toThrow(
+        'Live logs are only available for iOS simulator sessions.'
+      );
+
+      expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+      expect(mockFetchJsonAsync).not.toHaveBeenCalled();
+      expect(mockStreamAsync).not.toHaveBeenCalled();
+    }
+  );
 
   it.each(['0', '-1'])('rejects a nonpositive buffer limit %s', async limit => {
     await expect(createCommand(['--limit', limit]).runAsync()).rejects.toThrow();

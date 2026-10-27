@@ -5,6 +5,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { AppPlatform } from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
@@ -126,6 +127,11 @@ export default class SimulatorLogs extends EasCommand {
         json: jsonFlag,
       });
       return;
+    }
+    if (session.platform === AppPlatform.Android) {
+      throw new Error(
+        'Live logs are only available for iOS simulator sessions. This session runs an Android emulator, whose preview server does not stream logs. Start an iOS session with `eas simulator:start --platform ios` to read logs.'
+      );
     }
     const preview = await resolveSimulatorPreviewAsync(session);
     if (flags.artifact !== undefined || flags.output !== undefined) {
